@@ -21,7 +21,7 @@ I wouldn't state it's the fastest CPU implementation of FF NN, but nonetheless i
 
 ## The Pros and Cons
 ### Pros
-* pretty fast x64 vectorized multithreaded header only implementation
+* pretty fast x64 vectorized multithreaded header only C++14 implementation
 * modular low coupled architecture that is (I think) easy to understand, maintain and use. Replace / update any module you need, like:
   * math subsystem
   * random number generators
