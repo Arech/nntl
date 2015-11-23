@@ -58,3 +58,6 @@ Developed and tested on MSVC2015 on Windows 7. Other modern compilers will proba
 I'm actively working on and with this project therefore I won't give any guarantees on API being stable. I'm pretty sure it may be changed from commit to commit, so keep it in mind.
 
 The code itself however should be fairly stable - I'll try to push only stable and well tested changes, though again - no guarantees.
+
+## Warning and Disclaimer
+The code uses very tight loops of mathematical operations that creates a huge load on CPU. I've encountered some hardware faults and BSODs on my overclocked system (that I thought to be very stable for a long time), until I relaxed overclocking significantly. So, if it'll burn your PC to the ash - don't blame me, you've been warned ;)
