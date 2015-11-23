@@ -29,6 +29,7 @@ I wouldn't state it's the fastest CPU implementation of FF NN, but nonetheless i
   * activation functions
   * ...
 * Depends only on OpenBLAS (for matrix*matrix multiplications) and Yeppp (in fact, current configuration doesn't use Yeppp for NN computations, because naive implementations of necessary operations proved to be more effective)
+* It *should* support float -based computations but at this moment I haven't tested it and worked only with double.
 
 ### Cons
 * I wouldn't say that NNTL is a Plug-n-Play system. It's a (experimental) framework to build fast neural networks and experiment with it. If you just want to play with ANN, it's better to take something more suitable like [DeepLearnToolbox](https://github.com/rasmusbergpalm/DeepLearnToolbox) for Matlab or [Theano](http://deeplearning.net/tutorial/) for Python. [TensorFlow](http://tensorflow.org/) or [DMTK](http://www.dmtk.io/) is great if you have a lot of computing power.
