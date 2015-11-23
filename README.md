@@ -1,7 +1,7 @@
 # nntl
-Neural Network Template Library is a set of C++14 template classes that helps to implement fast vectorized feedforward neural networks. It is multithreaded, x64 friendly and uses OpenBLAS and Yeppp! as a mathematical back-ends (the latter however proved to be useless for my hardware - or it Microsoft who done good job with their optimizing compiler). NNTL is a header only library and require no other dependencies.
+Neural Network Template Library is a set of C++14 template classes that helps to implement fast vectorized feedforward neural networks. It is multithreaded, x64 friendly and uses OpenBLAS and Yeppp! as a mathematical back-ends (the latter however proved to be useless for my hardware - or may be it's thanks to Microsoft who'd done a nice job with their optimizing compiler). NNTL is a header only library and require no other dependencies.
 
-I wouldn't state it's the fastest CPU implementation of FFNN, but nonetheless it's fast and BSD-licensed.
+I wouldn't state it's the fastest CPU implementation of FF NN, but nonetheless it's fast and BSD-licensed.
 
 ## Currently Implemented NN Features
 * individually tunable feedforward layers
