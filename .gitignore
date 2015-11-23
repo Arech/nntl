@@ -111,3 +111,4 @@ Desktop.ini
 *.dll
 *.bmp
 *.bin
+!*/test_data/*.bin
