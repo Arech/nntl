@@ -4,7 +4,8 @@ Neural Network Template Library is a set of C++14 template classes that helps to
 I wouldn't state it's the fastest CPU implementation of FF NN, but nonetheless it's fast and BSD-licensed (except for [random number generators](https://github.com/Arech/AF_randomc_h), that is GPL licensed, - but you can easily substitute RNG for you own if you want).
 
 ## Currently Implemented NN Features
-* individually tunable feedforward layers
+* full-batch or mini-batch learning
+* individually tunable feedforward layers (i.e. almost all properties such as activation function, learning rate, dropout rate and so on are defined in per layer basis)
 * sigmoid activation units with quadratic and cross-entropy loss function for outer layer
 * sigmoid and rectified linear units (ReLU) for hidden layers
 * dropout
