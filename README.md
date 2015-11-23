@@ -36,6 +36,7 @@ I wouldn't state it's the fastest CPU implementation of FF NN, but nonetheless i
 * Module, that does multithreading, has two implementations. If you run Windows Vista/Server 2008 or newer Windows OS, you will be able to use \nntl\interface\threads\winqdu.h, that is built on fast native [SRWLOCK](https://msdn.microsoft.com/en-us/library/windows/desktop/aa904937%28v=vs.85%29.aspx)'s and [CONDITION_VARIABLE](https://msdn.microsoft.com/en-us/library/windows/desktop/ms682052%28v=vs.85%29.aspx)'s. If not, you'll have to use \nntl\interface\threads\std.h which is build on standard std::mutex and std::condition_variable, which is about 1.5 times slower (on my hardware). I think, most OSes have something similar to mentioned SRWLOCK's, so please, submit updates.
 * Random number generator is made on very fast RNGs developed by [Agner Fog](http://www.agner.org/random/randomc.zip). But they are GPL-licensed, therefore are distributed in separate package [AF_randomc_h](https://github.com/Arech/AF_randomc_h) that has to be downloaded and placed at /_extern/agner.org/AF_randomc_h folder. Or use your own RNG. I wouldn't recommend using a \nntl\interface\rng\std.h, because it is about 100-200 times slower (it matters a lot for dropout, for example).
 * Built and tested with only one compiler: MSVC2015 on Windows 7. That means, that most likely you'll have to fix some technical issues and incompatibles before you'll be able to compile it with another compiler. Please, submit patches.
+* Due to some historical reasons the code lacks exception handing and won't catch STL thrown exceptions (such as indicating low memory conditions). Moreover, most of code has noexcept attribute. Probably, it won't hurt you much, if you have enought RAM.
 
 ## Compilers Supported
 Developed and tested on MSVC2015 on Windows 7. Other modern compilers will probably require some hacks to compile. Please, submit your patches.
@@ -44,7 +45,8 @@ Developed and tested on MSVC2015 on Windows 7. Other modern compilers will proba
 1. Download NNTL and unpack it to some %NNTL_ROOT%
 2. Download RNGs from separate repository [AF_randomc_h](https://github.com/Arech/AF_randomc_h) and unpack it to %NNTL_ROOT%/_extern/agner.org/AF_randomc_h
 3. Download or build suitable [OpenBLAS](http://www.openblas.net/) x64 [binaries](http://sourceforge.net/projects/openblas/files) and [Yeppp!](http://www.yeppp.info/) binaries and SDKs. Place binaries in PATH or in corresponding debug/release solution folder. Correct paths to SDKs in Solution's "VC++ Directories" property page.
-4. if I didn't forget anything, now you can take a look at \nntl\tests\tests.cpp to see how to build your first NN with NNTL. I'll write more about it later. Don't hesitate to ask for help, if you are interested.
+4. If your target CPU support AVX/AVX2 instructions, update "Enable Enhanced Instruction Set" solution setting accordingly.
+5. if I didn't forget anything, now you can take a look at \nntl\tests\tests.cpp to see how to build your first NN with NNTL. I'll write more about it later. Don't hesitate to ask for help, if you are interested.
 
 ### How to Build tests Project
 1. You'll also need to download [Google Test](https://code.google.com/p/googletest/) (preferably version 1.7) and unpack it to %NNTL_ROOT%/_extern/gtest-1.7.0/. Also download [RapidJson](http://rapidjson.org/) and unpack it to %NNTL_ROOT%/_extern/rapidjson/
