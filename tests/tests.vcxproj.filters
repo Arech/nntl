@@ -1,0 +1,239 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <Filter Include="Source Files">
+      <UniqueIdentifier>{4FC737F1-C7A5-4376-A066-2A32D752A2FF}</UniqueIdentifier>
+      <Extensions>cpp;c;cc;cxx;def;odl;idl;hpj;bat;asm;asmx</Extensions>
+    </Filter>
+    <Filter Include="Header Files">
+      <UniqueIdentifier>{93995380-89BD-4b04-88EB-625FBE52EBFB}</UniqueIdentifier>
+      <Extensions>h;hh;hpp;hxx;hm;inl;inc;xsd</Extensions>
+    </Filter>
+    <Filter Include="Resource Files">
+      <UniqueIdentifier>{67DA6AB6-F800-4c08-8B7A-83BB121AAD01}</UniqueIdentifier>
+      <Extensions>rc;ico;cur;bmp;dlg;rc2;rct;bin;rgs;gif;jpg;jpeg;jpe;resx;tiff;tif;png;wav;mfcribbon-ms</Extensions>
+    </Filter>
+    <Filter Include="nntl">
+      <UniqueIdentifier>{51b53813-d7c7-461e-a9e9-00db9e02a1a5}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="nntl\interface">
+      <UniqueIdentifier>{bf664209-8c01-4281-a4d9-c681bfe2075a}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="nntl\_supp">
+      <UniqueIdentifier>{d7fc7313-f143-467b-9e20-f380170dafdd}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="nntl\_supp\matlab">
+      <UniqueIdentifier>{088e7627-4e3f-480c-80e5-0ae126b855a0}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="nntl\interface\math">
+      <UniqueIdentifier>{38e98348-a165-47d4-bc11-584ae1eb1c7b}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="nntl\interface\rng">
+      <UniqueIdentifier>{eba7153c-0c84-4496-a5a0-0969f189b834}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="nntl\utils">
+      <UniqueIdentifier>{906c6e83-e520-4de9-96a4-874450cfc2cd}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="nntl\interface\math\bindings">
+      <UniqueIdentifier>{391e252b-2501-4f79-bd7a-14716c066292}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="nntl\interface\threads">
+      <UniqueIdentifier>{bfd75091-bb20-4083-9694-24278924135a}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="_extern">
+      <UniqueIdentifier>{60231953-1ad5-4a3f-bf81-ea041f428994}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="_extern\agner.org">
+      <UniqueIdentifier>{9584a723-52a9-491b-95b3-2d0162001e06}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+  <ItemGroup>
+    <Text Include="ReadMe.txt" />
+    <Text Include="..\nntl\_supp\_about.txt">
+      <Filter>nntl\_supp</Filter>
+    </Text>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="stdafx.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="targetver.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\nntl\interface\math.h">
+      <Filter>nntl\interface</Filter>
+    </ClInclude>
+    <ClInclude Include="..\nntl\interface\threads.h">
+      <Filter>nntl\interface</Filter>
+    </ClInclude>
+    <ClInclude Include="..\nntl\nnet.h">
+      <Filter>nntl</Filter>
+    </ClInclude>
+    <ClInclude Include="..\nntl\nntl.h">
+      <Filter>nntl</Filter>
+    </ClInclude>
+    <ClInclude Include="..\nntl\common.h">
+      <Filter>nntl</Filter>
+    </ClInclude>
+    <ClInclude Include="..\nntl\activation.h">
+      <Filter>nntl</Filter>
+    </ClInclude>
+    <ClInclude Include="..\nntl\layers_pack.h">
+      <Filter>nntl</Filter>
+    </ClInclude>
+    <ClInclude Include="..\nntl\_layer_base.h">
+      <Filter>nntl</Filter>
+    </ClInclude>
+    <ClInclude Include="..\nntl\layer_input.h">
+      <Filter>nntl</Filter>
+    </ClInclude>
+    <ClInclude Include="..\nntl\layer_output.h">
+      <Filter>nntl</Filter>
+    </ClInclude>
+    <ClInclude Include="..\nntl\layer_fully_connected.h">
+      <Filter>nntl</Filter>
+    </ClInclude>
+    <ClInclude Include="..\nntl\train_data.h">
+      <Filter>nntl</Filter>
+    </ClInclude>
+    <ClInclude Include="..\nntl\errors.h">
+      <Filter>nntl</Filter>
+    </ClInclude>
+    <ClInclude Include="..\nntl\interface\math\simple_matrix.h">
+      <Filter>nntl\interface\math</Filter>
+    </ClInclude>
+    <ClInclude Include="..\nntl\_defs.h">
+      <Filter>nntl</Filter>
+    </ClInclude>
+    <ClInclude Include="..\nntl\interface\rng\std.h">
+      <Filter>nntl\interface\rng</Filter>
+    </ClInclude>
+    <ClInclude Include="..\nntl\_nnet_errs.h">
+      <Filter>nntl</Filter>
+    </ClInclude>
+    <ClInclude Include="..\nntl\utils\tuple_iterations.h">
+      <Filter>nntl\utils</Filter>
+    </ClInclude>
+    <ClInclude Include="..\nntl\utils.h">
+      <Filter>nntl</Filter>
+    </ClInclude>
+    <ClInclude Include="..\nntl\utils\own_or_use_ptr.h">
+      <Filter>nntl\utils</Filter>
+    </ClInclude>
+    <ClInclude Include="..\nntl\nnet_cond_epoch_eval.h">
+      <Filter>nntl</Filter>
+    </ClInclude>
+    <ClInclude Include="..\nntl\nnet_train_opts.h">
+      <Filter>nntl</Filter>
+    </ClInclude>
+    <ClInclude Include="..\nntl\interface\math\bindings\b_acml.h">
+      <Filter>nntl\interface\math\bindings</Filter>
+    </ClInclude>
+    <ClInclude Include="..\nntl\interface\math\bindings\b_open_blas.h">
+      <Filter>nntl\interface\math\bindings</Filter>
+    </ClInclude>
+    <ClInclude Include="..\nntl\interface\math\_i_math.h">
+      <Filter>nntl\interface\math</Filter>
+    </ClInclude>
+    <ClInclude Include="..\nntl\nnet_def_interfaces.h">
+      <Filter>nntl</Filter>
+    </ClInclude>
+    <ClInclude Include="..\nntl\interface\threads\winqdu.h">
+      <Filter>nntl\interface\threads</Filter>
+    </ClInclude>
+    <ClInclude Include="..\nntl\interface\threads\std.h">
+      <Filter>nntl\interface\threads</Filter>
+    </ClInclude>
+    <ClInclude Include="..\nntl\interface\threads\intel_tbb.h">
+      <Filter>nntl\interface\threads</Filter>
+    </ClInclude>
+    <ClInclude Include="..\nntl\interface\math\i_yeppp_openblas.h">
+      <Filter>nntl\interface\math</Filter>
+    </ClInclude>
+    <ClInclude Include="..\nntl\interface\math\bindings\b_yeppp.h">
+      <Filter>nntl\interface\math\bindings</Filter>
+    </ClInclude>
+    <ClInclude Include="..\nntl\_supp\jsonreader.h">
+      <Filter>nntl\_supp</Filter>
+    </ClInclude>
+    <ClInclude Include="..\nntl\utils\chrono.h">
+      <Filter>nntl\utils</Filter>
+    </ClInclude>
+    <ClInclude Include="..\nntl\interface\threads\parallel_range.h">
+      <Filter>nntl\interface\threads</Filter>
+    </ClInclude>
+    <ClInclude Include="..\nntl\_supp\binfile.h">
+      <Filter>nntl\_supp</Filter>
+    </ClInclude>
+    <ClInclude Include="..\nntl\utils\scope_exit.h">
+      <Filter>nntl\utils</Filter>
+    </ClInclude>
+    <ClInclude Include="..\nntl\training_observer.h">
+      <Filter>nntl</Filter>
+    </ClInclude>
+    <ClInclude Include="..\nntl\utils\clamp.h">
+      <Filter>nntl\utils</Filter>
+    </ClInclude>
+    <ClInclude Include="..\nntl\interface\rng\_i_rng.h">
+      <Filter>nntl\interface\rng</Filter>
+    </ClInclude>
+    <ClInclude Include="..\nntl\interface\rng\AFRandom.h">
+      <Filter>nntl\interface\rng</Filter>
+    </ClInclude>
+    <ClInclude Include="..\nntl\interface\rng\AFRandom_mt.h">
+      <Filter>nntl\interface\rng</Filter>
+    </ClInclude>
+    <ClInclude Include="..\nntl\grad_works.h">
+      <Filter>nntl</Filter>
+    </ClInclude>
+    <ClInclude Include="..\nntl\utils\prioritize_workers.h">
+      <Filter>nntl\utils</Filter>
+    </ClInclude>
+    <ClInclude Include="..\_extern\agner.org\AF_randomc_h\random.h">
+      <Filter>_extern\agner.org</Filter>
+    </ClInclude>
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="stdafx.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="tests.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="test_simple_matrix.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="test_util.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="test_threading.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="test_b_open_blas.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="test_b_yeppp.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="test_i_yeppp_openblas.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="test_jsonreader.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="test_binfile.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="test_rng.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="test_perf_decisions.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="..\nntl\_supp\matlab\td2json_file.m">
+      <Filter>nntl\_supp\matlab</Filter>
+    </None>
+  </ItemGroup>
+</Project>

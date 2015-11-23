@@ -1,0 +1,5 @@
+This folder is for supplemental files only. These files are not required for nntl, but useful for some purposes.
+
+Code can rely on some nntl-specific definitions, such as nntl::math::_basic_types, but will include them only if they
+aren't user-tunable (not the case of _basic_types). Therefore, be sure to include all the necessary stuff before including
+files in compilation unit.

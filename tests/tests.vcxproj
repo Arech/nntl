@@ -1,0 +1,254 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project DefaultTargets="Build" ToolsVersion="14.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup Label="ProjectConfigurations">
+    <ProjectConfiguration Include="Debug|Win32">
+      <Configuration>Debug</Configuration>
+      <Platform>Win32</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Release|Win32">
+      <Configuration>Release</Configuration>
+      <Platform>Win32</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Debug|x64">
+      <Configuration>Debug</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Release|x64">
+      <Configuration>Release</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+  </ItemGroup>
+  <PropertyGroup Label="Globals">
+    <ProjectGuid>{429A2117-4B71-416B-92D4-E2C2AAC778E6}</ProjectGuid>
+    <Keyword>Win32Proj</Keyword>
+    <RootNamespace>tests</RootNamespace>
+    <WindowsTargetPlatformVersion>8.1</WindowsTargetPlatformVersion>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" Label="Configuration">
+    <ConfigurationType>Application</ConfigurationType>
+    <UseDebugLibraries>true</UseDebugLibraries>
+    <PlatformToolset>v140</PlatformToolset>
+    <CharacterSet>Unicode</CharacterSet>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'" Label="Configuration">
+    <ConfigurationType>Application</ConfigurationType>
+    <UseDebugLibraries>false</UseDebugLibraries>
+    <PlatformToolset>v140</PlatformToolset>
+    <WholeProgramOptimization>true</WholeProgramOptimization>
+    <CharacterSet>Unicode</CharacterSet>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'" Label="Configuration">
+    <ConfigurationType>Application</ConfigurationType>
+    <UseDebugLibraries>true</UseDebugLibraries>
+    <PlatformToolset>v140</PlatformToolset>
+    <CharacterSet>Unicode</CharacterSet>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'" Label="Configuration">
+    <ConfigurationType>Application</ConfigurationType>
+    <UseDebugLibraries>false</UseDebugLibraries>
+    <PlatformToolset>v140</PlatformToolset>
+    <WholeProgramOptimization>true</WholeProgramOptimization>
+    <CharacterSet>Unicode</CharacterSet>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
+  <ImportGroup Label="ExtensionSettings">
+  </ImportGroup>
+  <ImportGroup Label="Shared">
+  </ImportGroup>
+  <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <PropertyGroup Label="UserMacros" />
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
+    <LinkIncremental>true</LinkIncremental>
+    <CodeAnalysisRuleSet>NativeRecommendedRules.ruleset</CodeAnalysisRuleSet>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+    <LinkIncremental>true</LinkIncremental>
+    <CodeAnalysisRuleSet>NativeRecommendedRules.ruleset</CodeAnalysisRuleSet>
+    <IncludePath>d:\c++\tbb44_20150728oss\include\;d:\c++\yeppp-1.0.0\library\headers\;d:\c++\acml-6.1.0.33-ifort64\ifort64_mp\include\;d:\c++\OpenBLAS-v0.2.14-Win64-int32\include\;$(SolutionDir)_extern\gtest-1.7.0\include\;D:\c++\boost;$(IncludePath)</IncludePath>
+    <LibraryPath>d:\c++\tbb44_20150728oss\lib\intel64\vc12_ui\;d:\c++\yeppp-1.0.0\binaries\windows\amd64\;d:\c++\acml-6.1.0.33-ifort64\ifort64_mp\lib\;d:\c++\OpenBLAS-v0.2.14-Win64-int32\lib\;D:\c++\boost\lib\x64\lib;$(SolutionDir)_extern\gtest-1.7.0\msvc\x64\$(Configuration)\;$(LibraryPath)</LibraryPath>
+    <RunCodeAnalysis>true</RunCodeAnalysis>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
+    <LinkIncremental>false</LinkIncremental>
+    <CodeAnalysisRuleSet>NativeRecommendedRules.ruleset</CodeAnalysisRuleSet>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
+    <LinkIncremental>false</LinkIncremental>
+    <CodeAnalysisRuleSet>NativeRecommendedRules.ruleset</CodeAnalysisRuleSet>
+    <IncludePath>d:\c++\yeppp-1.0.0\library\headers\;d:\c++\acml-6.1.0.33-ifort64\ifort64_mp\include\;d:\c++\OpenBLAS-v0.2.14-Win64-int32\include\;$(SolutionDir)_extern\gtest-1.7.0\include\;D:\c++\boost;$(IncludePath)</IncludePath>
+    <LibraryPath>d:\c++\yeppp-1.0.0\binaries\windows\amd64\;d:\c++\acml-6.1.0.33-ifort64\ifort64_mp\lib\;d:\c++\OpenBLAS-v0.2.14-Win64-int32\lib\;D:\c++\boost\lib\x64\lib;$(SolutionDir)_extern\gtest-1.7.0\msvc\x64\$(Configuration)\;$(LibraryPath)</LibraryPath>
+    <RunCodeAnalysis>true</RunCodeAnalysis>
+  </PropertyGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
+    <ClCompile>
+      <PrecompiledHeader>Use</PrecompiledHeader>
+      <WarningLevel>Level3</WarningLevel>
+      <Optimization>Disabled</Optimization>
+      <PreprocessorDefinitions>WIN32;_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+    </ClCompile>
+    <Link>
+      <SubSystem>Console</SubSystem>
+      <GenerateDebugInformation>true</GenerateDebugInformation>
+    </Link>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+    <ClCompile>
+      <PrecompiledHeader>Use</PrecompiledHeader>
+      <WarningLevel>Level3</WarningLevel>
+      <Optimization>Disabled</Optimization>
+      <PreprocessorDefinitions>_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <CompileAsManaged>false</CompileAsManaged>
+      <SDLCheck>true</SDLCheck>
+      <OmitFramePointers>true</OmitFramePointers>
+      <SmallerTypeCheck>true</SmallerTypeCheck>
+      <FloatingPointModel>Fast</FloatingPointModel>
+      <RuntimeTypeInfo>false</RuntimeTypeInfo>
+      <EnablePREfast>true</EnablePREfast>
+      <CallingConvention>VectorCall</CallingConvention>
+    </ClCompile>
+    <Link>
+      <SubSystem>Console</SubSystem>
+      <GenerateDebugInformation>true</GenerateDebugInformation>
+      <LargeAddressAware>true</LargeAddressAware>
+      <RandomizedBaseAddress>false</RandomizedBaseAddress>
+      <AdditionalDependencies>%(AdditionalDependencies)</AdditionalDependencies>
+    </Link>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
+    <ClCompile>
+      <WarningLevel>Level3</WarningLevel>
+      <PrecompiledHeader>Use</PrecompiledHeader>
+      <Optimization>MaxSpeed</Optimization>
+      <FunctionLevelLinking>true</FunctionLevelLinking>
+      <IntrinsicFunctions>true</IntrinsicFunctions>
+      <PreprocessorDefinitions>WIN32;NDEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+    </ClCompile>
+    <Link>
+      <SubSystem>Console</SubSystem>
+      <GenerateDebugInformation>true</GenerateDebugInformation>
+      <EnableCOMDATFolding>true</EnableCOMDATFolding>
+      <OptimizeReferences>true</OptimizeReferences>
+    </Link>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
+    <ClCompile>
+      <WarningLevel>Level3</WarningLevel>
+      <PrecompiledHeader>Use</PrecompiledHeader>
+      <Optimization>MaxSpeed</Optimization>
+      <FunctionLevelLinking>true</FunctionLevelLinking>
+      <IntrinsicFunctions>true</IntrinsicFunctions>
+      <PreprocessorDefinitions>NDEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <CompileAsManaged>false</CompileAsManaged>
+      <InlineFunctionExpansion>AnySuitable</InlineFunctionExpansion>
+      <FavorSizeOrSpeed>Speed</FavorSizeOrSpeed>
+      <OmitFramePointers>true</OmitFramePointers>
+      <EnableFiberSafeOptimizations>true</EnableFiberSafeOptimizations>
+      <StringPooling>true</StringPooling>
+      <FloatingPointModel>Fast</FloatingPointModel>
+      <BufferSecurityCheck>false</BufferSecurityCheck>
+      <EnableParallelCodeGeneration>true</EnableParallelCodeGeneration>
+      <RuntimeTypeInfo>false</RuntimeTypeInfo>
+      <CallingConvention>VectorCall</CallingConvention>
+      <EnablePREfast>true</EnablePREfast>
+    </ClCompile>
+    <Link>
+      <SubSystem>Console</SubSystem>
+      <GenerateDebugInformation>true</GenerateDebugInformation>
+      <EnableCOMDATFolding>true</EnableCOMDATFolding>
+      <OptimizeReferences>true</OptimizeReferences>
+      <LargeAddressAware>true</LargeAddressAware>
+      <LinkTimeCodeGeneration>UseLinkTimeCodeGeneration</LinkTimeCodeGeneration>
+      <RandomizedBaseAddress>false</RandomizedBaseAddress>
+      <AdditionalDependencies>%(AdditionalDependencies)</AdditionalDependencies>
+    </Link>
+  </ItemDefinitionGroup>
+  <ItemGroup>
+    <Text Include="..\nntl\_supp\_about.txt" />
+    <Text Include="ReadMe.txt" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="..\nntl\activation.h" />
+    <ClInclude Include="..\nntl\common.h" />
+    <ClInclude Include="..\nntl\errors.h" />
+    <ClInclude Include="..\nntl\grad_works.h" />
+    <ClInclude Include="..\nntl\interface\rng\AFRandom.h" />
+    <ClInclude Include="..\nntl\interface\rng\AFRandom_mt.h" />
+    <ClInclude Include="..\nntl\interface\rng\_i_rng.h" />
+    <ClInclude Include="..\nntl\interface\math.h" />
+    <ClInclude Include="..\nntl\interface\math\bindings\b_acml.h" />
+    <ClInclude Include="..\nntl\interface\math\bindings\b_open_blas.h" />
+    <ClInclude Include="..\nntl\interface\math\bindings\b_yeppp.h" />
+    <ClInclude Include="..\nntl\interface\math\i_yeppp_openblas.h" />
+    <ClInclude Include="..\nntl\interface\math\_i_math.h" />
+    <ClInclude Include="..\nntl\interface\math\simple_matrix.h" />
+    <ClInclude Include="..\nntl\interface\rng\std.h" />
+    <ClInclude Include="..\nntl\interface\threads.h" />
+    <ClInclude Include="..\nntl\interface\threads\intel_tbb.h" />
+    <ClInclude Include="..\nntl\interface\threads\parallel_range.h" />
+    <ClInclude Include="..\nntl\interface\threads\std.h" />
+    <ClInclude Include="..\nntl\interface\threads\winqdu.h" />
+    <ClInclude Include="..\nntl\layer_fully_connected.h" />
+    <ClInclude Include="..\nntl\layer_input.h" />
+    <ClInclude Include="..\nntl\layer_output.h" />
+    <ClInclude Include="..\nntl\training_observer.h" />
+    <ClInclude Include="..\nntl\nnet_def_interfaces.h" />
+    <ClInclude Include="..\nntl\nnet_train_opts.h" />
+    <ClInclude Include="..\nntl\train_data.h" />
+    <ClInclude Include="..\nntl\nnet_cond_epoch_eval.h" />
+    <ClInclude Include="..\nntl\utils\chrono.h" />
+    <ClInclude Include="..\nntl\utils\clamp.h" />
+    <ClInclude Include="..\nntl\utils\own_or_use_ptr.h" />
+    <ClInclude Include="..\nntl\utils\prioritize_workers.h" />
+    <ClInclude Include="..\nntl\utils\scope_exit.h" />
+    <ClInclude Include="..\nntl\utils\tuple_iterations.h" />
+    <ClInclude Include="..\nntl\_defs.h" />
+    <ClInclude Include="..\nntl\_layer_base.h" />
+    <ClInclude Include="..\nntl\layers_pack.h" />
+    <ClInclude Include="..\nntl\nnet.h" />
+    <ClInclude Include="..\nntl\nntl.h" />
+    <ClInclude Include="..\nntl\utils.h" />
+    <ClInclude Include="..\nntl\_nnet_errs.h" />
+    <ClInclude Include="..\nntl\_supp\binfile.h" />
+    <ClInclude Include="..\nntl\_supp\jsonreader.h" />
+    <ClInclude Include="..\_extern\agner.org\AF_randomc_h\random.h" />
+    <ClInclude Include="stdafx.h" />
+    <ClInclude Include="targetver.h" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="test_binfile.cpp" />
+    <ClCompile Include="test_i_yeppp_openblas.cpp" />
+    <ClCompile Include="test_perf_decisions.cpp" />
+    <ClCompile Include="test_rng.cpp" />
+    <ClCompile Include="test_threading.cpp" />
+    <ClCompile Include="test_jsonreader.cpp" />
+    <ClCompile Include="test_b_open_blas.cpp" />
+    <ClCompile Include="test_simple_matrix.cpp" />
+    <ClCompile Include="stdafx.cpp">
+      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Create</PrecompiledHeader>
+      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Create</PrecompiledHeader>
+      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">Create</PrecompiledHeader>
+      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Create</PrecompiledHeader>
+    </ClCompile>
+    <ClCompile Include="tests.cpp" />
+    <ClCompile Include="test_util.cpp" />
+    <ClCompile Include="test_b_yeppp.cpp" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="..\nntl\_supp\matlab\td2json_file.m" />
+  </ItemGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
+  <ImportGroup Label="ExtensionTargets">
+  </ImportGroup>
+</Project>
