@@ -40,6 +40,16 @@ I wouldn't state it's the fastest CPU implementation of FF NN, but nonetheless i
 ## Compilers Supported
 Developed and tested on MSVC2015 on Windows 7. Other modern compilers will probably require some hacks to compile. Please, submit your patches.
 
+### How to Use NNTL
+1. Download NNTL and unpack it to some %NNTL_ROOT%
+2. Download RNGs from separate repository [AF_randomc_h](https://github.com/Arech/AF_randomc_h) and unpack it to %NNTL_ROOT%/_extern/agner.org/AF_randomc_h
+3. Download or build suitable [OpenBLAS](http://www.openblas.net/) x64 [binaries](http://sourceforge.net/projects/openblas/files) and [Yeppp!](http://www.yeppp.info/) binaries and SDKs. Place binaries in PATH or in corresponding debug/release solution folder. Correct paths to SDKs in Solution's "VC++ Directories" property page.
+4. if I didn't forget anything, now you can take a look at \nntl\tests\tests.cpp to see how to build your first NN with NNTL. I'll write more about it later. Don't hesitate to ask for help, if you are interested.
+
+### How to Build tests Project
+1. You'll also need to download [Google Test](https://code.google.com/p/googletest/) (preferably version 1.7) and unpack it to %NNTL_ROOT%/_extern/gtest-1.7.0/. Also download [RapidJson](http://rapidjson.org/) and unpack it to %NNTL_ROOT%/_extern/rapidjson/
+2. 
+
 ## Code Status
 I'm actively working on and with this project therefore I won't give any guarantees on API being stable. I'm pretty sure it may be changed from commit to commit, so keep it in mind.
 
