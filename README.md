@@ -8,7 +8,7 @@ I wouldn't state it's the fastest CPU implementation of FF NN, but nonetheless i
 * individually tunable feedforward layers (i.e. almost all properties such as activation function, learning rate, dropout rate and so on are defined in per layer basis)
 * sigmoid activation units with quadratic and cross-entropy loss function for outer layer
 * sigmoid and rectified linear units (ReLU) for hidden layers
-* dropout
+* dropout (buggy at this moment, will fix it ASAP)
 * momentum / Nesterov momentum
 * Optimizers:
   * "classical" constant learning rate
@@ -21,7 +21,7 @@ I wouldn't state it's the fastest CPU implementation of FF NN, but nonetheless i
 
 ## The Pros and Cons
 ### Pros
-* pretty fast x64 vectorized multithreaded header only implementation
+* pretty fast x64 vectorized multithreaded header only C++14 implementation
 * modular low coupled architecture that is (I think) easy to understand, maintain and use. Replace / update any module you need, like:
   * math subsystem
   * random number generators
