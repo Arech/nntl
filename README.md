@@ -8,7 +8,7 @@ I wouldn't state it's the fastest CPU implementation of FF NN, but nonetheless i
 * individually tunable feedforward layers (i.e. almost all properties such as activation function, learning rate, dropout rate and so on are defined in per layer basis)
 * sigmoid activation units with quadratic and cross-entropy loss function for outer layer
 * sigmoid and rectified linear units (ReLU) for hidden layers
-* dropout
+* dropout (buggy at this moment, will fix it ASAP)
 * momentum / Nesterov momentum
 * Optimizers:
   * "classical" constant learning rate
