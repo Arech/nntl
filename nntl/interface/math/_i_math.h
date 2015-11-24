@@ -143,14 +143,14 @@ namespace math {
 		// sigm activation.
 		// Remember to ignore biases for activation function calculations!
 		nntl_interface void sigm(floatmtx_t& srcdest) noexcept;
-		nntl_interface void dsigm(floatmtx_t& srcdest) noexcept;
+		nntl_interface void dsigm(const floatmtx_t& fValue, floatmtx_t& df) noexcept;
 		//calculates derivative of quadratic loss function for sigm neurons wrt total neuron input Z (=Aprev_layer*W), dL/dZ
 		nntl_interface void dSigmQuadLoss_dZ(const floatmtx_t& activations, const floatmtx_t& data_y, floatmtx_t& dLdZ);
 
 		//////////////////////////////////////////////////////////////////////////
 		//ReLU
 		nntl_interface void relu(floatmtx_t& srcdest) noexcept;
-		nntl_interface void drelu(floatmtx_t& srcdest) noexcept;
+		nntl_interface void drelu(const floatmtx_t& fValue, floatmtx_t& df) noexcept;
 
 		//////////////////////////////////////////////////////////////////////////
 		//loss functions

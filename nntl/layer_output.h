@@ -221,27 +221,22 @@ namespace nntl {
 			const auto& prevActivations = lowerLayer.get_activations();
 
 			data_y.assert_storage_does_not_intersect(dLdAPrev);
-			NNTL_ASSERT( m_activations.size() == data_y.size());
+			NNTL_ASSERT(!m_dLdZ.emulatesBiases() && !m_dLdW.emulatesBiases());
+			NNTL_ASSERT(m_activations.size() == data_y.size());
+			NNTL_ASSERT(m_dLdZ.size() == m_activations.size());
+			NNTL_ASSERT(m_dLdW.size() == m_weights.size());
 			NNTL_ASSERT(lowerLayer.is_input_layer() || prevActivations.emulatesBiases());//input layer in batch mode may have biases included, but no emulatesBiases() set
 			NNTL_ASSERT(mtx_size_t(m_training_batch_size, get_incoming_neurons_cnt() + 1) == prevActivations.size());
 			NNTL_ASSERT(dLdAPrev.size() == prevActivations.size_no_bias());
-			NNTL_ASSERT(!m_dLdZ.emulatesBiases() && !m_dLdW.emulatesBiases());
-			NNTL_ASSERT(m_dLdZ.size() == m_activations.size());
-			NNTL_ASSERT(m_dLdW.size() == m_weights.size());
+			
 
 			//compute dL/dZ
 			activation_f_t::dLdZ(m_activations, data_y, m_dLdZ, *m_pMath);
 
-			if (m_bRestrictdLdZ) {
-// 				auto pdLdZ = m_dLdZ.dataAsVec();
-// 				//TODO: try multithreaded version
-// 				utils::boost::algorithm::clamp_range(pdLdZ, pdLdZ + m_dLdZ.numel(), pdLdZ, m_dLdZRestrictLowerBnd, m_dLdZRestrictUpperBnd);
-				m_pMath->evClamp(m_dLdZ, m_dLdZRestrictLowerBnd, m_dLdZRestrictUpperBnd);
-			}
+			if (m_bRestrictdLdZ) m_pMath->evClamp(m_dLdZ, m_dLdZRestrictLowerBnd, m_dLdZRestrictUpperBnd);
 
 			//compute dL/dW = 1/batchsize * (dL/dZ)` * Aprev
-			//iMath.mScaledMulAtB_C(float_t_(1.0) / float_t_(m_dLdZ.rows()), m_dLdZ, prevActivations, m_dLdW);
-			m_pMath->mScaledMulAtB_C( m_learningRate / float_t_(m_dLdZ.rows()), m_dLdZ, prevActivations, m_dLdW);
+			m_pMath->mScaledMulAtB_C(float_t_(1.0) / float_t_(m_dLdZ.rows()), m_dLdZ, prevActivations, m_dLdW);
 			//now we can apply gradient to the weights
 			m_gradientWorks.apply_grad(m_weights, m_dLdW, m_learningRate);
 

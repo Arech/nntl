@@ -111,6 +111,14 @@ namespace math {
 			_realloc();
 			if (m_bEmulateBiases) set_biases();
 		}
+		simple_matrix(const mtx_size_t& msize, const bool _bEmulBias = false) noexcept : m_pData(nullptr),
+			m_rows(msize.first), m_cols(msize.second), m_bEmulateBiases(_bEmulBias), m_bDontManageStorage(false)
+		{
+			NNTL_ASSERT(m_rows > 0 && m_cols > 0);
+			if (m_bEmulateBiases) m_cols++;
+			_realloc();
+			if (m_bEmulateBiases) set_biases();
+		}
 
 		simple_matrix(simple_matrix&& src)noexcept : m_pData(nullptr), m_rows(src.m_rows), m_cols(src.m_cols),
 			m_bEmulateBiases(src.m_bEmulateBiases), m_bDontManageStorage(src.m_bDontManageStorage)
