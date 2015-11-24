@@ -75,40 +75,36 @@ TEST(TestNntl, Training) {
 	ASSERT_TRUE(td.train_x().emulatesBiases());
 	ASSERT_TRUE(td.test_x().emulatesBiases());
 
-	const float_t_ dropoutFrac = 0.0, momentum = .95;
-	const ILR ilr(.9, 1.1, .00000001, 1000);
+	const float_t_ dropoutFrac = 0.5, momentum = .95;
+	//const ILR ilr(.9, 1.1, .00000001, 1000);
 
 	layer_input inp(td.train_x().cols_no_bias());
 
 #ifdef TESTS_SKIP_NNET_LONGRUNNING
 	size_t epochs = 5;
-	const float_t_ learningRate = .0001;
+	const float_t_ learningRate = .01;
 
-	layer_fully_connected<> fcl(20, learningRate, dropoutFrac);
-	layer_fully_connected<> fcl2(20, learningRate, dropoutFrac);
+	layer_fully_connected<> fcl(60, learningRate, dropoutFrac);
+	layer_fully_connected<> fcl2(60, learningRate, dropoutFrac);
 	//layer_fully_connected<> fcl3(15,learningRate,	 dropoutFrac);	
 
 #else
 	size_t epochs = 20;
-	const float_t_ learningRate = .00001;
+	const float_t_ learningRate = .01;
 
 	layer_fully_connected<activation::sigm> fcl(500, learningRate,dropoutFrac);
 	layer_fully_connected<activation::sigm> fcl2(300, learningRate, dropoutFrac);
 #endif // TESTS_SKIP_LONGRUNNING
 
-	auto optType = decltype(fcl)::grad_works_t::RMSProp_Hinton;
-	fcl.m_gradientWorks.set_nesterov_momentum(momentum, false).set_type(optType);
-	//set_nesterov_momentum(momentum, false).set_ILR(ilr).
+	auto optType = decltype(fcl)::grad_works_t::ClassicalConstant;
+	fcl.m_gradientWorks.set_momentum(momentum, false).set_type(optType);
 	//fcl.m_gradientWorks.set_type(decltype(fcl)::grad_works_t::ModProp).set_nesterov_momentum(.95);
-	//fcl.m_gradientWorks.set_momentum(.95);
-	// 
-	fcl2.m_gradientWorks.set_nesterov_momentum(momentum, false).set_type(optType);
+
+	fcl2.m_gradientWorks.set_momentum(momentum, false).set_type(optType);
 	//fcl2.m_gradientWorks.set_type(decltype(fcl2)::grad_works_t::ModProp).set_nesterov_momentum(.95);
-	//fcl2.m_gradientWorks.set_momentum(.95);
 	
 	layer_output<activation::sigm_quad_loss> outp(td.train_y().cols(), learningRate);
-	//set_nesterov_momentum(momentum, false).set_ILR(ilr).
-	outp.m_gradientWorks.set_nesterov_momentum(momentum, false).set_type(optType);
+	outp.m_gradientWorks.set_momentum(momentum, false).set_type(optType);
 
 	//uncomment to turn on derivative value restriction 
 	//outp.restrict_dL_dZ(float_t_(-10), float_t_(10));

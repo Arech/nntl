@@ -76,7 +76,7 @@ namespace nntl {
 		iRng_t* m_pRng;
 
 		//matrix of dropped out neuron activations, used when m_dropoutFraction>0
-		floatmtx_t m_dropoutMask;
+		floatmtx_t m_dropoutMask;//<batch_size rows> x <m_neurons_cnt cols> (must not have a bias column)
 		float_t_ m_dropoutFraction;
 
 		float_t_ m_learningRate;
@@ -254,24 +254,24 @@ namespace nntl {
 			const auto& prevActivations = lowerLayer.get_activations();
 
 			dLdA.assert_storage_does_not_intersect(dLdAPrev);
-			NNTL_ASSERT(m_activations.emulatesBiases());
+			NNTL_ASSERT(m_activations.emulatesBiases() && !m_dAdZ_dLdZ.emulatesBiases() && !m_dLdW.emulatesBiases());			
+
 			NNTL_ASSERT(m_activations.size_no_bias() == dLdA.size());
-			NNTL_ASSERT(lowerLayer.is_input_layer() || prevActivations.emulatesBiases());//input layer in batch mode may have biases included, but no emulatesBiases() set
-			NNTL_ASSERT(mtx_size_t(m_training_batch_size, get_incoming_neurons_cnt() + 1) == prevActivations.size());
-			NNTL_ASSERT(lowerLayer.is_input_layer() || dLdAPrev.size() == prevActivations.size_no_bias());//in vanilla simple BP we shouldn't calculate dLdAPrev for the first layer
-			NNTL_ASSERT(!m_dAdZ_dLdZ.emulatesBiases() && !m_dLdW.emulatesBiases());
 			NNTL_ASSERT(m_dAdZ_dLdZ.size() == m_activations.size_no_bias());
 			NNTL_ASSERT(m_dLdW.size() == m_weights.size());
 
-			if (bDropout()) {
-				m_pMath->evMul_ip_Anb(m_activations, m_dropoutMask);
-				m_activations.assert_biases_ok();
-			}
+			NNTL_ASSERT(lowerLayer.is_input_layer() || prevActivations.emulatesBiases());//input layer in batch mode may have biases included, but no emulatesBiases() set
+			NNTL_ASSERT(mtx_size_t(m_training_batch_size, get_incoming_neurons_cnt() + 1) == prevActivations.size());
+			NNTL_ASSERT(lowerLayer.is_input_layer() || dLdAPrev.size() == prevActivations.size_no_bias());//in vanilla simple BP we shouldn't calculate dLdAPrev for the first layer
 
 			//computing dA/dZ(no_bias)
 			activation_f_t::df(m_activations, m_dAdZ_dLdZ, *m_pMath);
 			//compute dL/dZ=dL/dA.*dA/dZ into dA/dZ
 			m_pMath->evMul_ip(m_dAdZ_dLdZ, dLdA);
+
+			if (bDropout()) {
+				m_pMath->evMul_ip(m_dAdZ_dLdZ, m_dropoutMask);
+			}
 
 			//compute dL/dW = 1/batchsize * (dL/dZ)` * Aprev
 			m_pMath->mScaledMulAtB_C( float_t_(1.0)/float_t_(m_dAdZ_dLdZ.rows()), m_dAdZ_dLdZ, prevActivations, m_dLdW);
