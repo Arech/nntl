@@ -1,23 +1,35 @@
 # nntl
 Neural Network Template Library is a set of C++14 template classes that helps to implement fast vectorized feedforward neural networks. It is multithreaded, x64 friendly and uses OpenBLAS and Yeppp! as a mathematical back-ends (the latter however proved to be useless for my hardware - or may be it's thanks to Microsoft who'd done a nice job with their optimizing compiler). NNTL is a header only library and require no other dependencies.
 
-I wouldn't state it's the fastest CPU implementation of FF NN, but nonetheless it's fast and BSD-licensed (except for [random number generators](https://github.com/Arech/AF_randomc_h), that is GPL licensed, - but you can easily substitute RNG for you own if you want).
+### Performance
+Here is the performance of training 768->500->300->10 network with sigmoid activation and quadratic loss function over MNIST dataset (60000 training samples and 10000 validation samples) for 20 epochs in a minibatches of size 100. NN implementation from [DeepLearnToolbox](https://github.com/rasmusbergpalm/DeepLearnToolbox) at Matlab R2014a x64 taken as a baseline (it is also uses vectorized computations and multithreading). Hardware in both cases the same: AMD Phenom II X6 1090T @3500Mhz CPU (with all power-saving features turned off) with 16Gb of RAM under Windows 7. The CPU is pretty old today, it has only SSE2+ instructions (no AVX/AVX2), so everything should work a way faster on newer CPUs).
+
+Model|Baseline|NNTL|ratio
+-----|--------|----|-----
+base|271s|**137s**|**x1.98**
+base + momentum|295s|**159s**|**x1.85**
+base + momentum + dropout|332s|**166s**|**x2.00**
+
+So, it's about a two times faster (and has a room for further improvements, btw). Not so much, but I'm not aware of anything better (please, contact me if you know). I also tried [tiny-cnn](https://github.com/nyanp/tiny-cnn), but failed to achive even Matlab-comparable performance (not counting that there is only x32 version available out-of-the-box).
+
+I wouldn't state nntl is the fastest CPU implementation of FF NN, but nonetheless it's pretty fast and BSD-licensed (except for [random number generators](https://github.com/Arech/AF_randomc_h), that is GPL licensed, - but you can easily substitute RNG for you own if you want).
 
 ## Currently Implemented NN Features
 * full-batch or mini-batch learning
 * individually tunable feedforward layers (i.e. almost all properties such as activation function, learning rate, dropout rate and so on are defined in per layer basis)
 * sigmoid activation units with quadratic and cross-entropy loss function for outer layer
 * sigmoid and rectified linear units (ReLU) for hidden layers
-* dropout
-* momentum / Nesterov momentum
 * Optimizers:
   * "classical" constant learning rate
   * RMSProp as Geoffrey Hinton introdiced it in "Neural Networks for Machine Learning" course, lecture 6
   * RMSProp modification by Alex Graves (as described in his paper “Generating Sequences With Recurrent Neural Networks” (2013), equations (38)–(45))
   * RProp (sign of a gradient)
   * my own slightly mad modification of RMSProp (probably, someone is also invented it, don't know), which I call ModProp, that uses abs() of gradient in EMA instead of square as in RMSProp. It's slightly faster, than RMSProp, because it eliminates the need of squaring and square rooting, and sometimes it helps to learn weights when no other techniques helps (the latter is probably related to some specific properties of data I used, but anyway, it might be helpful to try it).
+* momentum / Nesterov momentum
 * Individual Adaptive Learning Rates (ILR in code) based on agreement in signs of current and previous gradient or momentum velocity.
-* Constraints for a magnitude of derivative of loss function in outer layer (idea taken from aforementioned “Generating Sequences With Recurrent Neural Networks” (2013) by Alex Graves)
+* Regularizers:
+  * Dropout
+  * Constraints for a magnitude of derivative of loss function in outer layer (idea taken from aforementioned “Generating Sequences With Recurrent Neural Networks” (2013) by Alex Graves)
 
 ## The Pros and Cons
 ### Pros
