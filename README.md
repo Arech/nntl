@@ -21,7 +21,7 @@ I wouldn't state nntl is the fastest CPU implementation of FF NN, but nonetheles
 * sigmoid and rectified linear units (ReLU) for hidden layers
 * Optimizers:
   * "classical" constant learning rate
-  * RMSProp as Geoffrey Hinton introdiced it in "Neural Networks for Machine Learning" course, lecture 6
+  * RMSProp as Geoffrey Hinton introduced it in "Neural Networks for Machine Learning" course, lecture 6
   * RMSProp modification by Alex Graves (as described in his paper “Generating Sequences With Recurrent Neural Networks” (2013), equations (38)–(45))
   * RProp (sign of a gradient)
   * my own slightly mad modification of RMSProp (probably, someone is also invented it, don't know), which I call ModProp, that uses abs() of gradient in EMA instead of square as in RMSProp. It's slightly faster, than RMSProp, because it eliminates the need of squaring and square rooting, and sometimes it helps to learn weights when no other techniques helps (the latter is probably related to some specific properties of data I used, but anyway, it might be helpful to try it).
