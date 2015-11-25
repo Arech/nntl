@@ -30,6 +30,7 @@ I wouldn't state nntl is the fastest CPU implementation of FF NN, but nonetheles
 * Regularizers:
   * Dropout
   * Constraints for a magnitude of derivative of loss function in outer layer (idea taken from aforementioned “Generating Sequences With Recurrent Neural Networks” (2013) by Alex Graves)
+* Early stopping, learning rates decay, momentum modification and etc.. Any tuning of learning variables you would like during actual training process.
 
 ## The Pros and Cons
 ### Pros
@@ -60,7 +61,7 @@ Developed and tested on MSVC2015 on Windows 7. Other modern compilers will proba
 2. Download RNGs from repository [AF_randomc_h](https://github.com/Arech/AF_randomc_h) and unpack it to %NNTL_ROOT%/_extern/agner.org/AF_randomc_h (actually it's only a single header file)
 3. Download or build suitable [OpenBLAS](http://www.openblas.net/) x64 [binaries](http://sourceforge.net/projects/openblas/files) and [Yeppp!](http://www.yeppp.info/) binaries and SDKs. Place binaries in PATH or in corresponding debug/release solution folder. Correct paths to SDKs in Solution's "VC++ Directories" property page.
 4. If your target CPU supports AVX/AVX2 instructions, update "Enable Enhanced Instruction Set" solution setting accordingly.
-5. if I didn't forget anything, now you can take a look at \nntl\tests\tests.cpp to see how to build your first NN with NNTL. I'll write more about it later. Don't hesitate to ask for help, if you are interested.
+5. if I didn't forget anything, now you can take a look at \nntl\examples\simple.cpp to see how to build your first feedforward neural network with NNTL. I'll write more about it later. Don't hesitate to ask for help, if you are interested.
 
 ### How to Build tests Project
 1. You'll also need to download and build [Google Test](https://code.google.com/p/googletest/) (preferably version 1.7) to %NNTL_ROOT%/_extern/gtest-1.7.0/. Also download [RapidJson](http://rapidjson.org/) and unpack it to %NNTL_ROOT%/_extern/rapidjson/
