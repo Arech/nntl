@@ -101,6 +101,10 @@ namespace nntl {
 		nntl_interface const layer_index_t get_layer_idx() const noexcept;
 		nntl_interface const neurons_count_t get_incoming_neurons_cnt()const noexcept;
 		nntl_interface const bool is_input_layer()const noexcept;
+		nntl_interface const bool is_output_layer()const noexcept;
+
+		nntl_interface const float_t_ learning_rate()const noexcept;
+		nntl_interface auto learning_rate(float_t_ lr)noexcept;
 
 		//it turns out that this function looks quite contradictory... Leave it until find out what's better to do..
 		nntl_interface const floatmtx_t& get_activations()const noexcept;
@@ -188,6 +192,10 @@ namespace nntl {
 		//const floatmtx_t& get_activations()const noexcept { return m_activations; }
 
 		constexpr bool is_input_layer()const noexcept { return false; }
+		constexpr bool is_output_layer()const noexcept { return false; }
+
+		const float_t_ learning_rate()const noexcept { return float_t_(0.0); }
+		self_ref_t learning_rate(float_t_ lr)noexcept { return get_self(); }
 	
 		//////////////////////////////////////////////////////////////////////////
 		// other funcs

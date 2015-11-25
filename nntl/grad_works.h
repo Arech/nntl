@@ -133,6 +133,12 @@ namespace nntl {
 
 	public:
 		~grad_works()noexcept {}
+
+		//!! copy constructor not needed
+		grad_works(const grad_works& other)noexcept = delete;
+		//!!assignment is not needed
+		grad_works& operator=(const grad_works& rhs) noexcept = delete;
+
 		grad_works() noexcept : m_pMath(nullptr),m_momentum(0), m_bNesterovMomentum(true), m_emaDecay(0.9),
 			m_numericStabilizerEps(.00001), m_type(ClassicalConstant), m_bFirstRun(true), m_bApplyILRToMomentumVelocity(true){ }
 

@@ -50,6 +50,21 @@ namespace nntl {
 		typedef math_types::floatmtx_ty::vec_len_t batch_size_t;
 		typedef math_types::float_ty float_t_;
 
+		//////////////////////////////////////////////////////////////////////////
+		//members
+	protected:
+		cond_epoch_eval_t m_vbEpochEval;
+
+		//DivergenceCheck* vars describes how to check for nn algo divergence
+		float_t_ m_DivergenceCheckThreshold;
+
+		batch_size_t m_BatchSize;
+
+		int16_t m_DivergenceCheckLastEpoch;//probably don't need a bigger type here
+
+		training_observer_t m_trainingObserver;
+
+	public:
 		~nnet_train_opts()noexcept {}
 		nnet_train_opts(cond_epoch_eval_t&& cee)noexcept : m_vbEpochEval(std::move(cee)), m_BatchSize(0),
 			m_DivergenceCheckLastEpoch(5), m_DivergenceCheckThreshold(1e6f) {}
@@ -69,20 +84,6 @@ namespace nntl {
 		self_t& batchSize(batch_size_t val) noexcept { m_BatchSize = val; return *this; }
 
 		training_observer_t& observer() noexcept { return m_trainingObserver; }
-
-		//////////////////////////////////////////////////////////////////////////
-		//members
-	protected:
-		cond_epoch_eval_t m_vbEpochEval;
-
-		//DivergenceCheck* vars describes how to check for nn algo divergence
-		float_t_ m_DivergenceCheckThreshold;
-
-		batch_size_t m_BatchSize;
-
-		int16_t m_DivergenceCheckLastEpoch;//probably don't need a bigger type here
-
-		training_observer_t m_trainingObserver;
 	};
 
 }

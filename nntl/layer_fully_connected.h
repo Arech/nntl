@@ -322,8 +322,10 @@ namespace nntl {
 	{
 	public:
 		~layer_fully_connected() noexcept {};
-		layer_fully_connected(const neurons_count_t _neurons_cnt, float_t_ learningRate=.01,float_t_ dropoutFrac = 0.0) noexcept :
-			_layer_fully_connected<ActivFunc, Interfaces, GradWorks,
+		layer_fully_connected(const neurons_count_t _neurons_cnt,
+			const float_t_ learningRate=.01,
+			const float_t_ dropoutFrac = 0.0)
+			noexcept : _layer_fully_connected<ActivFunc, Interfaces, GradWorks,
 				layer_fully_connected<ActivFunc, Interfaces, GradWorks>>(_neurons_cnt, learningRate, dropoutFrac) {};
 	};
 

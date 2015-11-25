@@ -35,8 +35,16 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "stdafx.h"
 
 
-int main()
+int __cdecl main(int argc, char **argv)
 {
-    return 0;
+#ifdef _DEBUG
+	STDCOUTL("\n******\n*** This is DEBUG binary! All performance reports are invalid!\n******\n");
+#endif // _DEBUG
+
+	::testing::InitGoogleTest(&argc, argv);
+
+	int r = RUN_ALL_TESTS();
+	//std::cin.ignore();
+	return r;
 }
 

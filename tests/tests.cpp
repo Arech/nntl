@@ -35,21 +35,13 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "stdafx.h"
 
 #include "../nntl/interface/math.h"
-//#include "../nntl/interface/math/i_open_blas.h"
-
 #include "../nntl/nntl.h"
-
-//#include "../nntl/_supp/jsonreader.h"
 #include "../nntl/_supp/binfile.h"
 
-#include "../nntl/utils/chrono.h"
-
 using namespace nntl;
+typedef nntl_supp::binfile reader_t;
+using float_t_ = math_types::float_ty;
 
-//TODO: в процессе написани€ кода получилось так, что у полносв€зных внутренних слоЄв было полностью отключено обновление весов
-//однако сеть продолжала обучатьс€ за счЄт настройки весов одного только последнего сло€. ј что если посмотреть, как будет обучатьс€ сеть,
-// если сначала обучить еЄ внешний слой, потом дообучить внутренний, потом ещЄ ниже и т.д.?
-// ј если задавать им разные скорости обучени€?
 
 #if defined(TESTS_SKIP_NNET_LONGRUNNING)
 //ALWAYS run debug build with similar relations of data sizes:
@@ -62,10 +54,6 @@ using namespace nntl;
 
 
 TEST(TestNntl, Training) {
-	using namespace std::chrono;
-	typedef nntl_supp::binfile reader_t;
-	using float_t_ = math_types::float_ty;
-
 	train_data td;
 	reader_t reader;
 
@@ -75,7 +63,7 @@ TEST(TestNntl, Training) {
 	ASSERT_TRUE(td.train_x().emulatesBiases());
 	ASSERT_TRUE(td.test_x().emulatesBiases());
 
-	const float_t_ dropoutFrac = 0.5, momentum = .95;
+	const float_t_ dropoutFrac = 0, momentum = 0.0;
 	//const ILR ilr(.9, 1.1, .00000001, 1000);
 
 	layer_input inp(td.train_x().cols_no_bias());
@@ -123,7 +111,6 @@ TEST(TestNntl, Training) {
 	auto ec = nn.train(td, opts);
 
 	ASSERT_EQ(decltype(nn)::ErrorCode::Success, ec) << "Error code description: " << nn.get_last_error_string();
-
 }
 
 

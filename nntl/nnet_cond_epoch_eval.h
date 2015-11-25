@@ -33,27 +33,31 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include <vector>
 
-//this is to define some flags for each epoch (currently it is whether to launch nn evaluation after an epoch or not)
 namespace nntl {
 
+	//this is to define some flags for each epoch (currently it is whether to launch nn evaluation after an epoch or not)
 	class nnet_cond_epoch_eval {
 	public:
 		typedef nnet_cond_epoch_eval self_t;
 
+		//////////////////////////////////////////////////////////////////////////
+		//members
+	protected:
+		//TODO: vector may throw exceptions...
+		std::vector<bool> m_flgEvalPerf;
+
+	public:
 		~nnet_cond_epoch_eval()noexcept {}
 		nnet_cond_epoch_eval(size_t maxEpoch)noexcept:m_flgEvalPerf(maxEpoch, true) {
 			NNTL_ASSERT(maxEpoch > 0);
-			m_flgEvalPerf.shrink_to_fit();
 		}
 		nnet_cond_epoch_eval(size_t maxEpoch,size_t stride)noexcept : m_flgEvalPerf(maxEpoch, false) {
 			NNTL_ASSERT(maxEpoch > 0);
-			m_flgEvalPerf.shrink_to_fit();
 			for (size_t i = 0; i < maxEpoch; i+=stride)  m_flgEvalPerf[i] = true;
 			m_flgEvalPerf[maxEpoch - 1] = true;
 		}
 		nnet_cond_epoch_eval(size_t maxEpoch, size_t startsAt, size_t stride)noexcept : m_flgEvalPerf(maxEpoch, false) {
 			NNTL_ASSERT(maxEpoch > 0 && startsAt<=maxEpoch);
-			m_flgEvalPerf.shrink_to_fit();
 			for (size_t i = startsAt; i < maxEpoch; i += stride)  m_flgEvalPerf[i] = true;
 			m_flgEvalPerf[maxEpoch - 1] = true;
 		}
@@ -71,14 +75,6 @@ namespace nntl {
 		const bool operator()(size_t e)const noexcept { return m_flgEvalPerf[e]; }
 
 		self_t& verbose(size_t e)noexcept { m_flgEvalPerf[e] = true; return *this; }
-
-		//////////////////////////////////////////////////////////////////////////
-		//members
-	protected:
-
-		//TODO: vector may throw exceptions...
-		std::vector<bool> m_flgEvalPerf;
-
 	};
 
 }

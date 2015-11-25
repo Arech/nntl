@@ -247,6 +247,7 @@
   </ItemGroup>
   <ItemGroup>
     <None Include="..\nntl\_supp\matlab\td2json_file.m" />
+    <None Include="ClassDiagram.cd" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

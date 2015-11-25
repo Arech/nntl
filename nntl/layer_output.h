@@ -92,16 +92,17 @@ namespace nntl {
 	public:
 		~_layer_output() noexcept {};
 
-		_layer_output(const neurons_count_t _neurons_cnt, float_t_ learningRate = 0.01) noexcept :
-			_base_class(_neurons_cnt), m_activations(), m_weights(), m_dLdZ(), m_dLdW(), m_bWeightsInitialized(false)
-				, m_learningRate(learningRate), m_max_fprop_batch_size(0), m_training_batch_size(0)
-				, m_pMath(nullptr), m_pRng(nullptr), m_bRestrictdLdZ(false)
+		_layer_output(const neurons_count_t _neurons_cnt, float_t_ learningRate = 0.01) noexcept 
+			: _base_class(_neurons_cnt), m_activations(), m_weights(), m_dLdZ(), m_dLdW(), m_bWeightsInitialized(false)
+			, m_learningRate(learningRate), m_max_fprop_batch_size(0), m_training_batch_size(0)
+			, m_pMath(nullptr), m_pRng(nullptr), m_bRestrictdLdZ(false)
 		{
 			NNTL_ASSERT(learningRate > 0);
 			//dont need biases in last layer!  --- it is OFF by default
 			//m_activations.dont_emulate_biases();
 		};
 
+		constexpr bool is_output_layer()const noexcept { return true; }
 		const floatmtx_t& get_activations()const noexcept { return m_activations; }
 
 		template<typename _layer_init_data_t>
@@ -295,7 +296,7 @@ namespace nntl {
 	{
 	public:
 		~layer_output() noexcept {};
-		layer_output(const neurons_count_t _neurons_cnt, float_t_ learningRate=0.01) noexcept :
+		layer_output(const neurons_count_t _neurons_cnt, const float_t_ learningRate=0.01) noexcept :
 			_layer_output<ActivFunc, Interfaces, GradWorks, layer_output<ActivFunc, Interfaces, GradWorks>>(_neurons_cnt, learningRate) {};
 	};
 

@@ -46,6 +46,18 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 namespace nntl {
 
+	namespace _impl {
+
+		struct DummyOnEpochEndCB {
+			template<typename _nnet, typename _opts>
+			bool operator()(_nnet& nn, _opts& opts, const size_t epochIdx) { 
+				//return false to stop learning
+				return true; 
+			}
+		};
+
+	}
+
 	// RngInterface must be a type or a pointer to a type
 	template <typename LayersPack, typename MathInterface = nnet_def_interfaces::iMath_t, typename RngInterface= nnet_def_interfaces::iRng_t>
 	class nnet : public _has_last_error<_nnet_errs> {
@@ -68,6 +80,14 @@ namespace nntl {
 		typedef utils::own_or_use_ptr_t<RngInterface> irng_ptr_t;
 		static_assert(std::is_base_of<rng::_i_rng, irng_t>::value, "RngInterface type should be derived from _i_rng");
 
+		//////////////////////////////////////////////////////////////////////////
+		// members
+	protected:
+		layers_pack_t& m_Layers;
+		imath_ptr_t m_pMath;
+		irng_ptr_t m_pRng;
+
+		layer_index_t m_failedLayerIdx;
 
 	public:
 		~nnet()noexcept {}
@@ -97,6 +117,9 @@ namespace nntl {
 			_init_rng();
 		}
 
+		layers_pack_t& get_layer_pack()noexcept { return m_Layers; }
+		imath_t& get_math_interface()const noexcept { return m_pMath.get(); }
+		irng_t& get_rng_interface()const noexcept { return m_pRng.get(); }
 
 		std::string get_last_error_string()const noexcept {
 			std::string les(get_last_error_str());
@@ -111,8 +134,8 @@ namespace nntl {
 			return les;
 		}
 
-		template <typename _train_opts>
-		ErrorCode train(train_data& td, _train_opts& opts)noexcept {
+		template <typename _train_opts, typename _onEpochEndCB = _impl::DummyOnEpochEndCB>
+		ErrorCode train(train_data& td, _train_opts& opts, _onEpochEndCB&& onEpochEndCB = _impl::DummyOnEpochEndCB())noexcept {
 			if (td.empty()) return _set_last_error(ErrorCode::InvalidTD);
 
 			const auto& train_x = td.train_x();
@@ -270,6 +293,8 @@ namespace nntl {
 						}
 						m_Layers.set_mode(0);//restoring training mode after _calcLoss()
 					}
+
+					if (! onEpochEndCB(*this, opts, epochIdx)) break;
 				}
 			}
 			opts.observer().on_training_end(std::chrono::steady_clock::now()- trainingBeginsAt);
@@ -317,16 +342,6 @@ namespace nntl {
 				"Activation function class of output layer must implement activation::_i_activation_loss interface");
 			return layers_pack_t::output_layer_t::activation_f_t::loss(m_Layers.output_layer().get_activations(), data_y, m_pMath.get());
 		}
-
-
-		//////////////////////////////////////////////////////////////////////////
-		// members
-	protected:
-		layers_pack_t& m_Layers;
-		imath_ptr_t m_pMath;
-		irng_ptr_t m_pRng;
-		
-		layer_index_t m_failedLayerIdx;
 	};
 
 	template <typename LayersPack>

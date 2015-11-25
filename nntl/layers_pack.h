@@ -95,10 +95,9 @@ namespace nntl {
 	// and then move layers_pack into nnet. But now there's no real need in this (I think)
 	template <typename ...Layrs>
 	class layers_pack {
-	protected:
+	public:
 		typedef const std::tuple<Layrs&...> _layers;
 
-	public:
 		static constexpr size_t layers_count = sizeof...(Layrs);
 		static_assert(layers_count > 1, "Hey, what kind of NN with 1 layer you are gonna use?");
 		typedef typename std::remove_reference<typename std::tuple_element<0, _layers>::type>::type input_layer_t;
@@ -125,17 +124,29 @@ namespace nntl {
 		static_assert(std::is_base_of<m_layer_output, output_layer_t>::value, "Last layer must be output layer!");
 
 		//////////////////////////////////////////////////////////////////////////
+	protected:
+		_layers m_layers;
 
+		//////////////////////////////////////////////////////////////////////////
+	public:
+		~layers_pack()noexcept {}
 		layers_pack(Layrs&... layrs) noexcept : m_layers(layrs...) {
 			//iterate over layers and check whether they i_layer derived and set their indexes
 			utils::for_eachwp_up(m_layers, _preinit_layers{});			
 		}
-		~layers_pack()noexcept {}
 
 		//!! copy constructor not needed
 		layers_pack(const layers_pack& other)noexcept; // = delete; //-it should be `delete`d, but factory function won't work if it is
 		//!!assignment is not needed
 		layers_pack& operator=(const layers_pack& rhs) noexcept; // = delete; //-it should be `delete`d, but factory function won't work if it is
+
+		//better don't play with _layers directly
+		_layers& get_layers()noexcept { return m_layers; }
+		//and apply function _Func to each layer here
+		template<typename _Func>
+		void for_each_layer(_Func&& f)noexcept {
+			utils::for_each_up(m_layers, std::move(f));
+		}
 
 		input_layer_t& input_layer()const noexcept { return std::get<0>(m_layers); }
 		output_layer_t& output_layer()const noexcept { return std::get<layers_count-1>(m_layers); }
@@ -229,15 +240,6 @@ namespace nntl {
 				mtxIdx = nextMtxIdx;
 			});
 		}
-
-
-	protected:
-		_layers m_layers;
-
-		//error and total loss value over current fprop()'ed data
-		//floatmtx_t m_NN_Error;
-		//float_ty m_loss;
-
 	};
 
 	template <typename ...Layrs> inline

@@ -36,12 +36,31 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #pragma once
 
+//min() and max() triggers very weird compiler crash while doing ::std::numeric_limits<vec_len_t>::max()
+#define NOMINMAX
+
 #include "targetver.h"
 
 #include <stdio.h>
 
 //#include <tchar.h>
 
+#define STDCOUT(args) std::cout << args
+#define STDCOUTL(args) STDCOUT(args) << std::endl
 
+#pragma warning(disable: 28182)
+#include <gtest/gtest.h>
+#pragma warning(default: 28182)
 
-// TODO: reference additional headers your program requires here
+#ifdef _DEBUG
+#define _GTEST_LIB "gtestd.lib"
+#else
+#define _GTEST_LIB "gtest.lib"
+#endif // _DEBUG
+#pragma comment(lib,_GTEST_LIB)
+
+#ifdef _DEBUG
+#define TESTS_SKIP_NNET_LONGRUNNING
+#endif
+
+//#define TESTS_SKIP_NNET_LONGRUNNING
