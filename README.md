@@ -6,9 +6,9 @@ Here is the performance of training 3 layer 768->500->300->10 network with sigmo
 
 Model|Baseline|NNTL|ratio
 -----|--------|----|-----
-base|271s|**137s**|**x1.98**
-base + momentum|295s|**159s**|**x1.85**
-base + momentum + dropout|332s|**166s**|**x2.00**
+base|271s|**137s**|**x2.0**
+base + momentum|295s|**159s**|**x1.9**
+base + momentum + dropout|332s|**166s**|**x2.0**
 
 So, it's about a two times faster (and has a room for further improvements, btw). Not so much, but I'm not aware of anything better (please, contact me if you know). I also tried [tiny-cnn](https://github.com/nyanp/tiny-cnn), but failed to achive even Matlab-comparable performance (not counting that there is only x32 version available out-of-the-box).
 
