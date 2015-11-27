@@ -50,8 +50,8 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 using namespace nntl;
 
 #ifdef TESTS_SKIP_LONGRUNNING
+//#define TESTS_SKIP_THREADING_PERFS
 #define TESTS_SKIP_THREADING_DELAYS
-#define TESTS_SKIP_THREADING_PERFS
 #endif
 
 #ifndef TESTS_SKIP_THREADING_DELAYS
@@ -137,7 +137,7 @@ TEST(TestThreading, PerfComparision) {
 
 	constexpr uint64_t maxreps = 200000;
 	EXPECT_TRUE(steady_clock::is_steady);
-	double tWinQDU, tStd;
+	double tWinQDU, tStd, tWinQDUNE;
 
 	{
 		typedef threads::WinQDU<numel_cnt_t> thr;
@@ -146,16 +146,25 @@ TEST(TestThreading, PerfComparision) {
 		thr wint;
 		//v is used to make sure compiler doesn't optimize away all machinery. Also it almost doesn't change time ratio between
 		//WinQDU and Std in debug and release and almost doesn't change absolute times in release.
-		std::atomic_ptrdiff_t v = 0;
+		std::atomic_ptrdiff_t v = 0, v2 = 0;
+		nanoseconds diff(0), diffNE(0);
 
-		auto bt = steady_clock::now();
 		for (uint64_t i = 0; i < maxreps; ++i) {
+			auto bt = steady_clock::now();
 			wint.run([&](const par_range_t&) {
 				v++;
-			}, par_range_t(100000000) );
+			}, 100000000 );
+			diff += steady_clock::now() - bt;
+
+			bt = steady_clock::now();
+			wint.run([&](const par_range_t&)noexcept {
+				v++;
+			}, 100000000);
+			diffNE += steady_clock::now() - bt;
 		}
-		auto diff = steady_clock::now() - bt;
-		STDCOUTL("WinQDU:\t\t" << utils::duration_readable(diff, maxreps, &tWinQDU) << ",\t\t" << v << " incs)");
+		STDCOUTL("WinQDU:\t\t " << utils::duration_readable(diff, maxreps, &tWinQDU) << ",\t\t" << v << " incs)");
+		STDCOUTL("WinQDU(noexcept):" << utils::duration_readable(diff, maxreps, &tWinQDUNE) << ",\t\t" << v << " incs)");
+		STDCOUTL("noexcept/plain ratio: " << tWinQDUNE / tWinQDU);
 	}
 	{
 		typedef threads::Std<numel_cnt_t> thr;
@@ -167,10 +176,10 @@ TEST(TestThreading, PerfComparision) {
 		for (uint64_t i = 0; i < maxreps; ++i) {
 			stdt.run([&](const par_range_t&) {
 				v++;
-			}, par_range_t(100000000));
+			}, 100000000);
 		}
 		auto diff = steady_clock::now() - bt;
-		STDCOUTL("Std:\t\t" << utils::duration_readable(diff, maxreps, &tStd) << ",\t\t" << v << " incs)");
+		STDCOUTL("Std:\t\t " << utils::duration_readable(diff, maxreps, &tStd) << ",\t\t" << v << " incs)");
 	}
 	
 
@@ -196,8 +205,8 @@ void threading_delay_test(TT& t, double m=1) {
 	rng::Std r;
 	for (uint64_t i = 0; i < maxreps; ++i) {
 		t.run([=, &r](const TT::par_range_t&) {
-			std::this_thread::sleep_for(std::chrono::microseconds(r.gen_i_scalar(max_mks)));
-		}, TT::par_range_t(100000000));
+			std::this_thread::sleep_for(std::chrono::microseconds(r.gen_i(max_mks)));
+		}, 100000000);
 	}
 }
 

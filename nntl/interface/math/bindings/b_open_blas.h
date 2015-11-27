@@ -135,9 +135,52 @@ namespace math {
 				alpha, A, static_cast<blasint>(lda), B, static_cast<blasint>(ldb), beta, C, static_cast<blasint>(ldc));
 		}
 
-	protected:
-		//alas, it doesn't work at vs2015 :(
-		//static constexpr CBLAS_TRANSPOSE saTransposeTypes[2] { CblasNoTrans , CblasTrans };
+		//////////////////////////////////////////////////////////////////////////
+		//////////////////////////////////////////////////////////////////////////
+		// Extensions
+		
+
+		// The omatcopy routine performs scaling and out-of-place transposition/copying of matrices. A transposition 
+		// operation can be a normal matrix copy, a transposition, a conjugate transposition, or just a conjugation.
+		// The operation is defined as follows:
+		// B : = alpha*op(A)
+		// 
+		// Parameters
+		// rows - The number of rows in the source matrix.
+		// cols - The number of columns in the source matrix.
+		// alpha - This parameter scales the input matrix by alpha.
+		// pA - Array.
+		// lda - Distance between the first elements in adjacent columns(in the case of the column - major order)
+		//		or rows(in the case of the row - major order) in the source matrix; measured in the number of elements.
+		//		This parameter must be at least max(1, rows) if ordering = 'C' or 'c', and max(1, cols) otherwise.
+		// b - Array.
+		// ldb - Distance between the first elements in adjacent columns(in the case of the column - major order)
+		//		or rows(in the case of the row - major order) in the destination matrix; measured in the number of elements.
+		//		To determine the minimum value of ldb on output, consider the following guideline :
+		//		If ordering = 'C' or 'c', then
+		//			If trans = 'T' or 't' or 'C' or 'c', this parameter must be at least max(1, cols)
+		//			If trans = 'N' or 'n' or 'R' or 'r', this parameter must be at least max(1, rows)
+		//		If ordering = 'R' or 'r', then
+		//			If trans = 'T' or 't' or 'C' or 'c', this parameter must be at least max(1, rows)
+		//			If trans = 'N' or 'n' or 'R' or 'r', this parameter must be at least max(1, cols)
+		template<typename sz_t, typename fl_t = nntl::math_types::float_ty>
+		static typename std::enable_if_t< std::is_same< std::remove_pointer_t<fl_t>, double>::value >
+			omatcopy(const bool bTranspose, const sz_t rows, const sz_t cols, const fl_t alpha,
+				const fl_t* pA, const sz_t lda, fl_t* pB, const sz_t ldb)
+		{
+			cblas_domatcopy(CblasColMajor, bTranspose ? CblasTrans : CblasNoTrans,
+				static_cast<blasint>(rows), static_cast<blasint>(cols), alpha,
+				pA, static_cast<blasint>(lda), pB, static_cast<blasint>(ldb));
+		}
+		template<typename sz_t, typename fl_t = nntl::math_types::float_ty>
+		static typename std::enable_if_t< std::is_same< std::remove_pointer_t<fl_t>, float>::value >
+			omatcopy(const bool bTranspose, const sz_t rows, const sz_t cols, const fl_t alpha,
+				const fl_t* pA, const sz_t lda, fl_t* pB, const sz_t ldb)
+		{
+			cblas_somatcopy(CblasColMajor, bTranspose ? CblasTrans : CblasNoTrans,
+				static_cast<blasint>(rows), static_cast<blasint>(cols), alpha,
+				pA, static_cast<blasint>(lda), pB, static_cast<blasint>(ldb));
+		}
 	};
 
 }

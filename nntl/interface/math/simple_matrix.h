@@ -68,6 +68,13 @@ namespace math {
 		// no std::unique_ptr here because of exception unsafety.
 		value_ptr_t m_pData;
 		vec_len_t m_rows, m_cols;
+
+		// TODO: probably it's better to turn m_bEmulateBiases and m_bDontManageStorage variables into template parameters,
+		// because it looks
+		// like we don't need to change them during lifetime of an object. It'll help to make class a little faster and
+		// array of objects will require significantly less memory ( N x default alignment, which is 8 or even 16 bytes)
+		// That could lead to another speedup due to faster access to a class members within first 256 bytes of member space
+
 		bool m_bEmulateBiases;// off by default. Turn on before filling(resizing) matrix for X data storage. Will append
 							  // a last column prefilled with ones to emulate neuron biases.
 
