@@ -62,7 +62,7 @@ Developed and tested on MSVC2015 on Windows 7. Other modern compilers will proba
 3. Download or build suitable [OpenBLAS](http://www.openblas.net/) x64 [binaries](http://sourceforge.net/projects/openblas/files) and [Yeppp!](http://www.yeppp.info/) binaries and SDKs. Place binaries in PATH or in corresponding debug/release solution folder. Correct paths to SDKs in Solution's "VC++ Directories" property page.
   * you might also need to place __cdecl calling convention specifier to some OpenBLAS's functions declared in ./include/cblas.h that's used by nntl (it's at least cblas_dgemm() or cblas_sgemm() depending on base float type you're going to use). I made a [feature request](https://github.com/xianyi/OpenBLAS/issues/618) on that topic, but nobody knows, when it'll be implemented.
 4. If your target CPU supports AVX/AVX2 instructions, update "Enable Enhanced Instruction Set" solution setting accordingly.
-5. if I didn't forget anything, now you can take a look at \nntl\examples\simple.cpp to see how to build your first feedforward neural network with NNTL. I'll write more about it later. Don't hesitate to ask for help, if you are interested.
+5. if I didn't forget anything, now you can take a look at [.\nntl\examples\simple.cpp](https://github.com/Arech/nntl/blob/master/examples/simple.cpp) to see how to build your first feedforward neural network with NNTL. I'll write more about it later. Don't hesitate to ask for help, if you are interested.
 
 ### How to Build tests Project
 1. You'll also need to download and build [Google Test](https://code.google.com/p/googletest/) (preferably version 1.7) to %NNTL_ROOT%/_extern/gtest-1.7.0/. Also download [RapidJson](http://rapidjson.org/) and unpack it to %NNTL_ROOT%/_extern/rapidjson/
