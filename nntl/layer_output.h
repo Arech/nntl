@@ -137,7 +137,7 @@ namespace nntl {
 
 				//TODO: better initial weight scale is probably available. This one is taken from DeapLearnToolbox
 				m_pRng->gen_matrix(m_weights,
-					sqrt(static_cast<float_t_>(6) / static_cast<float_t_>(m_neurons_cnt + get_incoming_neurons_cnt()))*static_cast<float_t_>(4));
+					float_t_(4.0)*sqrt(float_t_(6.0) / static_cast<float_t_>(m_neurons_cnt + get_incoming_neurons_cnt())));
 
 				m_bWeightsInitialized = true;
 			}
@@ -244,9 +244,9 @@ namespace nntl {
 			if (!lowerLayer.is_input_layer()) {
 				NNTL_ASSERT(!m_weights.emulatesBiases());
 				//finally compute dL/dAprev to use in lower layer. Before that make m_weights looks like there is no bias weights
-				m_weights.deform_cols(get_incoming_neurons_cnt());
+				m_weights.hide_last_col();
 				m_pMath->mMulAB_C(m_dLdZ, m_weights, dLdAPrev);
-				m_weights.deform_cols(get_incoming_neurons_cnt() + 1);//restore weights back
+				m_weights.restore_last_col();//restore weights back
 			}
 		}
 

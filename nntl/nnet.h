@@ -310,8 +310,9 @@ namespace nntl {
 			}
 		}
 
+		//returns test loss
 		template<typename Observer>
-		void _report_training_fragment(const size_t epoch, const float_t_ trainLoss, const train_data& td,
+		const float_t_ _report_training_fragment(const size_t epoch, const float_t_ trainLoss, const train_data& td,
 			const std::chrono::nanoseconds& tElapsed, Observer& obs) noexcept
 		{
 			//relaxing thread priorities (we don't know in advance what callback functions actually do, so better relax it)
@@ -324,6 +325,7 @@ namespace nntl {
 			obs.inspect_results(td.test_y(), activations, true, m_pMath.get());
 
 			obs.on_training_fragment_end(epoch, trainLoss, testLoss, tElapsed);
+			return testLoss;
 		}
 
 		bool _batchSizeOk(const train_data& td, vec_len_t batchSize)const noexcept {
