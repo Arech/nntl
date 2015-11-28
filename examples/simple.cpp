@@ -76,11 +76,11 @@ TEST(Simple, PlainFFN) {
 	layer_input inp(td.train_x().cols_no_bias());
 
 	//b. hidden layers - that's where the magic happening
-	layer_fully_connected<activation::sigm> fcl(500, learningRate);
-	layer_fully_connected<activation::sigm> fcl2(300, learningRate);
+	layer_fully_connected<activation::sigm<>> fcl(500, learningRate);
+	layer_fully_connected<activation::sigm<>> fcl2(300, learningRate);
 
 	//c. output layer - using quadratic loss function.
-	layer_output<activation::sigm_quad_loss> outp(td.train_y().cols(), learningRate);
+	layer_output<activation::sigm_quad_loss<>> outp(td.train_y().cols(), learningRate);
 
 	//3. assemble layer references (!! - not layer objects, but references to them) into a single object - layer_pack. 
 	auto lp = make_layers_pack(inp, fcl, fcl2, outp);
@@ -126,11 +126,11 @@ TEST(Simple, NotSoPlainFFN) {
 	layer_input inp(td.train_x().cols_no_bias());
 
 	//b. hidden layers
-	layer_fully_connected<activation::sigm> fcl(500, learningRate, dropoutRate);
-	layer_fully_connected<activation::sigm> fcl2(300, learningRate, dropoutRate);
+	layer_fully_connected<activation::sigm<>> fcl(500, learningRate, dropoutRate);
+	layer_fully_connected<activation::sigm<>> fcl2(300, learningRate, dropoutRate);
 
 	//c. output layer
-	layer_output<activation::sigm_quad_loss> outp(td.train_y().cols(), learningRate);
+	layer_output<activation::sigm_quad_loss<>> outp(td.train_y().cols(), learningRate);
 
 	//d. setting layers properties
 	auto optimizerType = decltype(fcl)::grad_works_t::RMSProp_Hinton;
