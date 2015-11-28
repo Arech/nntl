@@ -52,9 +52,6 @@
     <Text Include="..\nntl\_supp\_about.txt">
       <Filter>nntl\_supp</Filter>
     </Text>
-    <Text Include="TODO.txt">
-      <Filter>Source Files</Filter>
-    </Text>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="stdafx.h">
@@ -239,6 +236,18 @@
   </ItemGroup>
   <ItemGroup>
     <None Include="..\nntl\_supp\matlab\td2json_file.m">
+      <Filter>nntl\_supp\matlab</Filter>
+    </None>
+    <None Include="..\nntl\_supp\matlab\export_2bin.m">
+      <Filter>nntl\_supp\matlab</Filter>
+    </None>
+    <None Include="..\nntl\_supp\matlab\mnist2bin.m">
+      <Filter>nntl\_supp\matlab</Filter>
+    </None>
+    <None Include="..\nntl\_supp\matlab\mnist2json.m">
+      <Filter>nntl\_supp\matlab</Filter>
+    </None>
+    <None Include="..\nntl\_supp\matlab\struct_transpose.m">
       <Filter>nntl\_supp\matlab</Filter>
     </None>
   </ItemGroup>

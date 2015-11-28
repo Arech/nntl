@@ -177,7 +177,6 @@
   <ItemGroup>
     <Text Include="..\nntl\_supp\_about.txt" />
     <Text Include="ReadMe.txt" />
-    <Text Include="TODO.txt" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\nntl\activation.h" />
@@ -248,6 +247,10 @@
     <ClCompile Include="test_b_yeppp.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <None Include="..\nntl\_supp\matlab\export_2bin.m" />
+    <None Include="..\nntl\_supp\matlab\mnist2bin.m" />
+    <None Include="..\nntl\_supp\matlab\mnist2json.m" />
+    <None Include="..\nntl\_supp\matlab\struct_transpose.m" />
     <None Include="..\nntl\_supp\matlab\td2json_file.m" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
