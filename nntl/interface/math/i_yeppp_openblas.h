@@ -299,141 +299,6 @@ namespace math {
 		}
 
 		//////////////////////////////////////////////////////////////////////////
-		// treat matrix as a set of row-vectors (matrices in col-major mode!). For each row-vector check, whether
-		// its length/norm is not longer, than predefined value. If it's longer, than rescale vector to this max length
-		// (for use in max-norm weights regularization)
-		void mCheck_normalize_rows(floatmtx_t& A, const float_t_ maxNormSquared)noexcept {
-			if (A.numel()<=124000) {
-				mCheck_normalize_rows_st(A, maxNormSquared);
-			}else mCheck_normalize_rows_mt(A, maxNormSquared);
-		}
-		//static constexpr float_t_ sCheck_normalize_rows_MULT = float_t_(32.0);
-		void mCheck_normalize_rows_st(floatmtx_t& A, const float_t_ maxNormSquared)noexcept {
-			NNTL_ASSERT(!A.empty() && maxNormSquared > float_t_(0.0));
-
-			const auto mRows = A.rows();
-			auto pTmp = _get_thread_temp_raw_storage(mRows);
-			memset(pTmp, 0, sizeof(*pTmp)*mRows);
-			
-			//calculate current norms of row-vectors into pTmp
-			const auto dataCnt = A.numel();
-			float_t_* pCol = A.dataAsVec();
-			const auto pColE = pCol + dataCnt;
-			while (pCol != pColE) {
-				const float_t_* pElm = pCol;
-				pCol += mRows;
-				const auto pElmE = pCol;
-				auto pN = pTmp;
-				while (pElm != pElmE) {
-					const auto v = *pElm++;
-					*pN++ += v*v;
-				}
-			}
-
-			//Saving normalization coefficient into pTmp for those rows, that needs normalization, or ones for those, 
-			// that doesn't need.
-			// Making newNorm slightly less, than maxNormSquared to make sure the result will be less than max norm.
-			//const float_t_ newNorm = maxNormSquared - math::float_ty_limits<float_t_>::eps_lower_n(maxNormSquared, sCheck_normalize_rows_MULT);
-			const float_t_ newNorm = maxNormSquared - sqrt(math::float_ty_limits<float_t_>::eps_lower(maxNormSquared));
-			auto pCurNorm = pTmp;
-			const auto pTmpE = pTmp + mRows;
-			while (pCurNorm != pTmpE) {
-				const auto rowNorm = *pCurNorm;
-				*pCurNorm++ = rowNorm > maxNormSquared ? sqrt(newNorm / rowNorm) : float_t_(1.0);
-			}
-
-			//renormalize (multiply each rowvector to corresponding coefficient from pTmp)
-			pCol = A.dataAsVec();
-			while (pCol != pColE) {
-				float_t_* pElm = pCol;
-				pCol += mRows;
-				const auto pElmE = pCol;
-				auto pN = pTmp;
-				while (pElm != pElmE) {
-					*pElm++ *= *pN++;
-				}
-			}
-		}
-		void mCheck_normalize_rows_mt(floatmtx_t& A, const float_t_ maxNormSquared)noexcept {
-			NNTL_ASSERT(!A.empty() && maxNormSquared > float_t_(0.0));
-
-			// 1. each thread will get it's own sequential set of columns (which means sequential underlying representation)
-			//		and will find for that set norm (sum of squares) of their rowvectors.
-			// 2. master thread will sum these partial norms into total norms of whole rowvectors of original matrix and
-			//		calculate corresponding normalization coefficients.
-			// 3. then again each thread will apply these calculated normalization coefficients to their own sequential set of
-			//		columns.
-
-			const auto mRows = A.rows(), mCols=A.cols();
-			auto ppTmps = _get_thread_temp_storage_ptrs_head(mRows*m_threads.workers_count());
-			thread_id_t threadsCnt;
-			// 1.
-			m_threads.run([&A, ppTmps](const par_range_t& r)noexcept{
-				const vec_len_t startingCol = static_cast<vec_len_t>(r.offset());
-				const vec_len_t colsToProcess = static_cast<vec_len_t>(r.cnt());
-
-				const auto mRows = A.rows();
-				float_t_* pTmp = ppTmps[r.tid()];
-				memset(pTmp, 0, sizeof(*pTmp)*mRows);
-
-				//calculate current norms of row-vectors into pTmp
-				const auto dataCnt = floatmtx_t::sNumel(mRows, colsToProcess);
-				float_t_* pCol = A.colDataAsVec(startingCol);
-				const auto pColE = pCol + dataCnt;
-				while (pCol != pColE) {
-					const float_t_* pElm = pCol;
-					pCol += mRows;
-					const auto pElmE = pCol;
-					auto pN = pTmp;
-					while (pElm != pElmE) {
-						const auto v = *pElm++;
-						*pN++ += v*v;
-					}
-				}
-			}, mCols, &threadsCnt);
-
-			//2. sum partial norms into total pTmp
-			auto pHead = ppTmps + 1;
-			const auto pTail = ppTmps + threadsCnt;//threadsCnt already includes main thread which we'll use in pTmp
-			float_t_* pTmp = ppTmps[0];
-			const auto pTmpE = pTmp + mRows;
-			while (pHead != pTail) {
-				auto pPart = *pHead++;
-				auto pT = pTmp;
-				while (pT != pTmpE) {
-					*pT++ += *pPart++;
-				}
-			}
-			// calc scaling coefficients
-			const float_t_ newNorm = maxNormSquared - sqrt(math::float_ty_limits<float_t_>::eps_lower(maxNormSquared));
-			auto pCurNorm = pTmp;
-			while (pCurNorm != pTmpE) {
-				const auto rowNorm = *pCurNorm;
-				*pCurNorm++ = rowNorm > maxNormSquared ? sqrt(newNorm / rowNorm) : float_t_(1.0);
-			}
-			
-			// 3. multiplying
-			m_threads.run([&A, pTmp](const par_range_t& r)noexcept {
-				const vec_len_t startingCol = static_cast<vec_len_t>(r.offset());
-				const vec_len_t colsToProcess = static_cast<vec_len_t>(r.cnt());
-
-				const auto mRows = A.rows();
-				const auto dataCnt = floatmtx_t::sNumel(mRows, colsToProcess);
-				float_t_* pCol = A.colDataAsVec(startingCol);
-				const auto pColE = pCol + dataCnt;
-				while (pCol != pColE) {
-					float_t_* pElm = pCol;
-					pCol += mRows;
-					const auto pElmE = pCol;
-					auto pN = pTmp;
-					while (pElm != pElmE) {
-						*pElm++ *= *pN++;
-					}
-				}
-			}, mCols);
-		}
-
-		//////////////////////////////////////////////////////////////////////////
 		//returns how many elements in two vectors has exactly the same value. Vectors must have the same length
 		template<typename Contnr>
 		size_t vCountSame(const Contnr& A, const Contnr& B)noexcept {
@@ -1697,12 +1562,6 @@ namespace math {
 			}, dW.numel());
 		}
 
-
-	public:
-		float_t_* _get_thread_temp_raw_storage(const numel_cnt_t maxDataSize)noexcept {
-			_assert_thread_storage_allocated(maxDataSize);
-			return &m_threadTempRawStorage[0];
-		}
 	protected:
 		void _assert_thread_storage_allocated(const numel_cnt_t maxDataSize)const noexcept {
 			NNTL_ASSERT(m_minTempStorageSize >= maxDataSize);
@@ -1719,6 +1578,12 @@ namespace math {
 			_assert_thread_storage_allocated(maxDataSize);
 			return &m_threadTempRawStoragePtrs[0];
 		}
+
+		float_t_* _get_thread_temp_raw_storage(const numel_cnt_t maxDataSize)noexcept {
+			_assert_thread_storage_allocated(maxDataSize);
+			return &m_threadTempRawStorage[0];
+		}
+
 	};
 
 

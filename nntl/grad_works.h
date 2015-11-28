@@ -52,7 +52,6 @@ namespace nntl {
 
 	struct _i_grad_works {
 		typedef math_types::floatmtx_ty floatmtx_t;
-		typedef math_types::floatmtxdef_ty floatmtxdef_t;
 		typedef floatmtx_t::value_type float_t_;
 		typedef floatmtx_t::vec_len_t vec_len_t;
 		typedef floatmtx_t::numel_cnt_t numel_cnt_t;
@@ -68,7 +67,7 @@ namespace nntl {
 		nntl_interface void pre_training_fprop(floatmtx_t& weights)noexcept;
 
 		//dLdW can have any values on output (use it for temporary calculations if needed)
-		nntl_interface void apply_grad(floatmtxdef_t& weights, floatmtx_t& dLdW, float_t_ learningRate)noexcept;
+		nntl_interface void apply_grad(floatmtx_t& weights, floatmtx_t& dLdW, float_t_ learningRate)noexcept;
 	};
 
 	struct ILR {
@@ -118,21 +117,15 @@ namespace nntl {
 		float_t_ m_momentum;
 		float_t_ m_emaDecay;
 		float_t_ m_numericStabilizerEps;
-		float_t_ m_maxWeightVecNorm;//coefficient of max-norm regularization ||W||2 <= c (see "Dropout: A Simple Way to Prevent Neural Networks from Overfitting".2014)
-		//hint: weights initialized from uniform distribution [-b,b]. It's second raw momentum is b^2/3, so the mean norm should
-		//be about <row_vector_length>*b^2/3
 
 		GradType m_type;
 		bool m_bFirstRun; //flag to find out first call to apply_grad() after init()
 		bool m_bNesterovMomentum;
-		bool m_bApplyILRToMomentumVelocity;//Geoffrey Hinton said for momentum method, that it's good to calculate
-		// individual learning rates based on agreement in signs of accumulated momentum velocity and current gradient value.
-		// However, this may lead to vanishing gradient gains and very small gradient value, when accumulated momentum
-		// velocity was pretty big. It would require significantly more time to decrease and reverse the velocity with
-		// a very small gradient. It may be good sometimes, but sometimes for some data it may be bad
-		// therefore it may be beneficial to calculate IRL based on agreement in signs of current and previous gradient
-		// (like in "no momentum" version)
-		bool m_bMaxWeightVecNormIgnoreBias;
+		bool m_bApplyILRToMomentumVelocity;//Geoffrey Hinton said for momentum method, that it's good to calculate individual learning rates
+		//based on agreement in signs of accumulated momentum velocity and current gradient value. However, this may lead to vanishing
+		// gradient gains and very small gradient value, when accumulated momentum velocity was pretty big. It would require significantly more time
+		// to decrease and reverse the velocity with a very small gradient. It may be good sometimes, but sometimes for some data it may be bad
+		// therefore it may be beneficial to calculate IRL based on agreement in signs of current and previous gradient (like in "no momentum" version)
 
 		ILR m_ILR;
 
@@ -146,10 +139,8 @@ namespace nntl {
 		//!!assignment is not needed
 		grad_works& operator=(const grad_works& rhs) noexcept = delete;
 
-		grad_works() noexcept : m_pMath(nullptr),m_momentum(0.0), m_bNesterovMomentum(true), m_emaDecay(0.9),
-			m_numericStabilizerEps(.00001), m_maxWeightVecNorm(0.0),
-			m_type(ClassicalConstant), m_bFirstRun(true), m_bApplyILRToMomentumVelocity(true), m_bMaxWeightVecNormIgnoreBias(false)
-		{}
+		grad_works() noexcept : m_pMath(nullptr),m_momentum(0), m_bNesterovMomentum(true), m_emaDecay(0.9),
+			m_numericStabilizerEps(.00001), m_type(ClassicalConstant), m_bFirstRun(true), m_bApplyILRToMomentumVelocity(true){ }
 
 		//template<typename grad_init_t>
 		bool init(const init_struct_t& ind)noexcept {
@@ -198,7 +189,7 @@ namespace nntl {
 			}
 		}
 		
-		void apply_grad(floatmtxdef_t& weights, floatmtx_t& dLdW, float_t_ learningRate) noexcept {
+		void apply_grad(floatmtx_t& weights, floatmtx_t& dLdW, float_t_ learningRate) noexcept {
 			NNTL_ASSERT(m_pMath);
 			NNTL_ASSERT(dLdW.size() == weights.size());
 
@@ -259,12 +250,6 @@ namespace nntl {
 			}
 
 			m_pMath->evSub_ip(weights, dLdW);
-
-			if (use_max_norm_regularization()) {
-				if (m_bMaxWeightVecNormIgnoreBias) weights.hide_last_col();
-				m_pMath->mCheck_normalize_rows(weights, m_maxWeightVecNorm);
-				if (m_bMaxWeightVecNormIgnoreBias) weights.restore_last_col();
-			}
 		}
 		
 		//////////////////////////////////////////////////////////////////////////
@@ -306,14 +291,6 @@ namespace nntl {
 			return *this;
 		}
 
-		self_t& set_weight_vector_max_norm2(const float_t_ mn, const bool bIgnoreBiasWeights=false)noexcept {
-			NNTL_ASSERT(mn >= float_t_(0.0));
-			m_maxWeightVecNorm = mn;
-			m_bMaxWeightVecNormIgnoreBias = bIgnoreBiasWeights;
-			return *this;
-		}
-
-		const bool use_max_norm_regularization()const noexcept { return m_maxWeightVecNorm > float_t_(0.0); }
 		const bool use_individual_learning_rates()const noexcept { return m_ILR.bUseMe(); }
 		const bool use_momentums()const noexcept { return m_momentum > float_t_(0.0); };
 

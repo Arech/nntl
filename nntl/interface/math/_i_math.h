@@ -82,11 +82,6 @@ namespace math {
 		//binarize real-valued matrix with values in [0,1] according to 0<=frac<=1
 		nntl_interface void mBinarize(floatmtx_t& A, const float_t_ frac)noexcept;
 
-		// treat matrix as a set of row-vectors (matrices in col-major mode!). For each row-vector check, whether
-		// its length/norm is not longer, than predefined value. If it's longer, than rescale vector to this max length
-		// (for use in max-norm weights regularization)
-		nntl_interface void mCheck_normalize_rows(floatmtx_t& A, const float_t_ maxNormSquared)noexcept;
-
 		//returns how many elements in two vectors has exactly the same value. Vectors must have the same length
 		template<typename Contnr>
 		nntl_interface size_t vCountSame(const Contnr& A, const Contnr& B)noexcept;

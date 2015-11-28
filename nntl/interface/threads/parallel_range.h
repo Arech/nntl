@@ -42,9 +42,7 @@ namespace threads {
 
 		//thread id must be in range [0,workers_count())
 		//worker threads should have par_range_t::tid>=1. tid==0 is reserved to main thread.
-		// If scheduler will launch less than workers_count() threads to process task, 
-		// then maximum tid must be equal to <scheduled workers count>+1 (+1 refers to a main thread, that's also
-		// used in scheduling)
+		// If scheduler will launch less than workers_count() threads to process task, then maximum tid must be equal to <scheduled workers count>+1
 		typedef unsigned int thread_id_t;
 
 		~parallel_range()noexcept {}

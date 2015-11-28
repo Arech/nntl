@@ -40,15 +40,17 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "../nntl/_supp/jsonreader.h"
 
 #include <array>
-#include <numeric>
-
 #include "../nntl/utils/chrono.h"
-#include "../nntl/utils/prioritize_workers.h"
 
-#include "etalons.h"
+#include "../nntl/utils/prioritize_workers.h"
 
 using namespace nntl;
 using namespace std::chrono;
+
+using floatmtx_t = math_types::floatmtx_ty;
+using float_t_ = math_types::float_ty;
+using vec_len_t = floatmtx_t::vec_len_t;
+using numel_cnt_t = floatmtx_t::numel_cnt_t;
 
 #ifdef _DEBUG
 constexpr unsigned TEST_PERF_REPEATS_COUNT = 10;
@@ -58,144 +60,19 @@ constexpr unsigned TEST_PERF_REPEATS_COUNT = 400;
 constexpr unsigned TEST_CORRECTN_REPEATS_COUNT = 50;
 #endif // _DEBUG
 
-void ASSERT_FLOATMTX_EQ(const floatmtx_t& c1, const floatmtx_t& c2, const char* descr="", const float_t_ eps=0) {
+void ASSERT_FLOATMTX_EQ(const floatmtx_t& c1, const floatmtx_t& c2, const char* descr="") {
 	ASSERT_EQ(c1.size(), c2.size()) << descr;
 	ASSERT_EQ(c1.emulatesBiases(), c2.emulatesBiases()) << descr;
 
 	const auto p1 = c1.dataAsVec(), p2 = c2.dataAsVec();
 	const auto im = c1.numel();
-	if (eps <= 0) {
-		for (numel_cnt_t i = 0; i < im; ++i) {
-			ASSERT_DOUBLE_EQ(p1[i], p2[i]) << "Mismatches element #" << i << " @ " << descr;
-		}
-	} else {
-		for (numel_cnt_t i = 0; i < im; ++i) {
-			ASSERT_NEAR(p1[i], p2[i], eps) << "Mismatches element #" << i << " @ " << descr;
-		}
+	for (numel_cnt_t i = 0; i < im; ++i) {
+		ASSERT_DOUBLE_EQ(p1[i], p2[i]) << "Mismatches element #" << i << " @ "<< descr;
 	}
 }
 
 //////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////
-float_t_ rowvecs_renorm_ET(floatmtx_t& m, float_t_* pTmp)noexcept {
-	//calculate current norms of row-vectors into pTmp
-	const auto mRows = m.rows(), mCols = m.cols();
-	for (vec_len_t r = 0; r < mRows; ++r) {
-		pTmp[r] = float_t_(0.0);
-		for (vec_len_t c = 0; c < mCols; ++c) {
-			auto v = m.get(r, c);
-			pTmp[r] += v*v;
-		}
-	}
-
-	//finding average norm
-	float_t_ meanNorm = std::accumulate(pTmp, pTmp + mRows, 0.0) / mRows;
-
-	//test and renormalize
-	//const float_t_ newNorm = meanNorm - sqrt(math::float_ty_limits<float_t_>::eps_lower_n(meanNorm, rowvecs_renorm_MULT));
-	const float_t_ newNorm = meanNorm - sqrt(math::float_ty_limits<float_t_>::eps_lower(meanNorm));
-	for (vec_len_t r = 0; r < mRows; ++r) {
-		if (pTmp[r] > meanNorm) {
-			const float_t_ normCoeff = sqrt(newNorm / pTmp[r]);
-			float_t_ nn = 0;
-			for (vec_len_t c = 0; c < mCols; ++c) {
-				const auto newV = m.get(r, c)*normCoeff;
-				m.set(r, c, newV);
-				nn += newV*newV;
-			}
-			EXPECT_TRUE(nn <= meanNorm);
-		}
-	}
-	return meanNorm;
-}
-template<typename iMath>
-void test_mCheck_normalize_rows(iMath& iM, vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
-	const auto dataSize = floatmtx_t::sNumel(rowsCnt, colsCnt);
-	STDCOUTL("********* testing mCheck_normalize_rows() over " << rowsCnt << "x" << colsCnt << " matrix (" << dataSize << " elements) **************");
-
-	steady_clock::time_point bt;
-	nanoseconds diffSt(0), diffMt(0), diffB(0);
-	constexpr unsigned maxReps = TEST_PERF_REPEATS_COUNT, testCorrRepCnt = TEST_CORRECTN_REPEATS_COUNT;
-
-	const float_t_ scale = 5;
-	float_t_ renormTo = 0;
-	floatmtx_t W(rowsCnt, colsCnt), srcW(rowsCnt, colsCnt);
-	ASSERT_TRUE(!W.isAllocationFailed() && !srcW.isAllocationFailed());
-
-	iM.preinit(W.numel());
-	ASSERT_TRUE(iM.init());
-	
-	nnet_def_interfaces::iRng_t rg;
-	rg.set_ithreads(iM.ithreads());
-
-	{
-		floatmtx_t etW(rowsCnt, colsCnt);
-		ASSERT_TRUE(!etW.isAllocationFailed());
-
-		for (unsigned r = 0; r < testCorrRepCnt; ++r) {
-			rg.gen_matrix(srcW, scale);
-
-			srcW.cloneTo(etW);
-			auto renormVal = rowvecs_renorm_ET(etW, iM._get_thread_temp_raw_storage(etW.numel()));
-			renormTo += renormVal;
-
-			srcW.cloneTo(W);
-			iM.mCheck_normalize_rows_st(W, renormVal);
-			ASSERT_FLOATMTX_EQ(etW, W, "mCheck_normalize_rows_st failed correctness test", 1e-10);
-
-			srcW.cloneTo(W);
-			iM.mCheck_normalize_rows_mt(W, renormVal);
-			ASSERT_FLOATMTX_EQ(etW, W, "mCheck_normalize_rows_mt failed correctness test", 1e-10);
-		}
-		renormTo /= testCorrRepCnt;
-	}
-
-	//testing performance
-	utils::prioritize_workers<utils::PriorityClass::PerfTesting, iMath::ithreads_t> pw(iM.ithreads());
-	for (unsigned r = 0; r < maxReps; ++r) {
-		rg.gen_matrix(srcW, scale);
-		
-		srcW.cloneTo(W);
-		bt = steady_clock::now();
-		iM.mCheck_normalize_rows_st(W, renormTo);
-		diffSt += steady_clock::now() - bt;
-
-		srcW.cloneTo(W);
-		bt = steady_clock::now();
-		iM.mCheck_normalize_rows_mt(W, renormTo);
-		diffMt += steady_clock::now() - bt;
-
-		srcW.cloneTo(W);
-		bt = steady_clock::now();
-		iM.mCheck_normalize_rows(W, renormTo);
-		diffB += steady_clock::now() - bt;
-	}
-	STDCOUTL("st_naivepart:\t" << utils::duration_readable(diffSt, maxReps));
-	STDCOUTL("mt_naivepart:\t" << utils::duration_readable(diffMt, maxReps));
-	STDCOUTL("best:\t\t" << utils::duration_readable(diffB, maxReps));
-}
-
-TEST(TestIYepppOpenBLAS, mCheckNormalizeRows) {
-	typedef nntl::nnet_def_interfaces::iThreads_t def_threads_t;
-	typedef math::i_Yeppp_OpenBlas<def_threads_t> i_Y_OB;
-	i_Y_OB iM;
-
-// 	for (unsigned i = 1400; i <= 1425; i += 5) {
-// 		test_mCheck_normalize_rows(iM, i, i / 16);
-// 		test_mCheck_normalize_rows(iM, i / 4, i / 4);
-// 		test_mCheck_normalize_rows(iM, i / 16, i);
-// 	}
-	test_mCheck_normalize_rows(iM, 100);
-#ifndef TESTS_SKIP_LONGRUNNING
-	test_mCheck_normalize_rows(iM, 1000);
-	test_mCheck_normalize_rows(iM, 10000);
-#endif
-}
-
-//////////////////////////////////////////////////////////////////////////
-//////////////////////////////////////////////////////////////////////////
-
-
 float_t_ loss_sigm_xentropy_ET(const floatmtx_t& activations, const floatmtx_t& data_y)noexcept {
 	NNTL_ASSERT(activations.size() == data_y.size() && !activations.empty() && !data_y.empty());
 	const auto dataCnt = activations.numel();
@@ -219,7 +96,7 @@ float_t_ loss_sigm_xentropy_ET(const floatmtx_t& activations, const floatmtx_t& 
 	return -ql / activations.rows();
 }
 template<typename iMath>
-void test_loss_sigm_xentropy(iMath& iM, vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
+void test_loss_sigm_xentropy(iMath& iM, typename iMath::floatmtx_t::vec_len_t rowsCnt, typename iMath::floatmtx_t::vec_len_t colsCnt = 10) {
 	const auto dataSize = floatmtx_t::sNumel(rowsCnt, colsCnt);
 	STDCOUTL("********* testing loss_sigm_xentropy() over " << rowsCnt << "x" << colsCnt << " matrix (" << dataSize << " elements) **************");
 

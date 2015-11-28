@@ -129,42 +129,10 @@ namespace math {
 	template <> struct float_ty_limits<double> {
 		//natural log of closest to zero but non zero (realmin) value
 		static constexpr double log_almost_zero = double(-708.3964185322642);
-
-		//returns minimum value greater than zero, that can be added to v and the result be represented by double
-		static double eps_greater(double v)noexcept {
-			return std::nextafter(v, std::numeric_limits<double>::infinity()) - v;
-		}
-		static double eps_greater_n(double v,double n)noexcept {
-			return n*eps_greater(v);
-		}
-
-		//returns minimum value greater than zero, that can be subtracted from v and the result be represented by double
-		static double eps_lower(double v)noexcept {
-			return v - std::nextafter(v, -std::numeric_limits<double>::infinity());
-		}
-		static double eps_lower_n(double v, double n)noexcept {
-			return n*eps_lower(v);
-		}
 	};
 	template <> struct float_ty_limits<float> {
 		//natural log of closest to zero but non zero (realmin) value
 		static constexpr float log_almost_zero = float(-87.336544750402);
-
-		//returns minimum value greater than zero, that can be added to v and the result be represented by float
-		static float eps_greater(float v)noexcept {
-			return std::nextafter(v, std::numeric_limits<float>::infinity()) - v;
-		}
-		static float eps_greater_n(float v, float n)noexcept {
-			return n*eps_greater(v);
-		}
-
-		//returns minimum value greater than zero, that can be subtracted from v and the result be represented by float
-		static float eps_lower(float v)noexcept {
-			return v - std::nextafter(v, -std::numeric_limits<float>::infinity());
-		}
-		static float eps_lower_n(float v, float n)noexcept {
-			return n*eps_lower(v);
-		}
 	};
 
 	//choose necessary types right after inclusion of this file (or similar with basic_types definition) with 

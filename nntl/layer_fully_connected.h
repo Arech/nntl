@@ -65,9 +65,8 @@ namespace nntl {
 		// matrix of layer neurons activations: <batch_size rows> x <m_neurons_cnt+1(bias) cols> for fully connected layer
 		floatmtxdef_t m_activations;
 
-		// layer weight matrix: <m_neurons_cnt rows> x <m_incoming_neurons_cnt +1(bias)>,
-		// i.e. weights for individual neuron are stored row-wise (that's necessary to make fast cut-off of bias-related weights
-		// during backpropagation  - and that's the reason, why is it deformable)
+		// layer weight matrix: <m_neurons_cnt rows> x <m_incoming_neurons_cnt +1(bias)>
+		//need it to be deformable to get rid of unnecessary bias column when doing dLdAprev
 		floatmtxdef_t m_weights;
 
 		floatmtx_t m_dAdZ_dLdZ;//doesn't guarantee to retain it's value between usage in different code flows; may share memory with some other data structure
@@ -138,7 +137,7 @@ namespace nntl {
 
 				//TODO: better initial weight scale is probably available. This one is taken from DeapLearnToolbox
 				m_pRng->gen_matrix(m_weights,
-					float_t_(4.0)*sqrt(float_t_(6.0) / static_cast<float_t_>(m_neurons_cnt + get_incoming_neurons_cnt())));
+					sqrt(static_cast<float_t_>(6) / static_cast<float_t_>(m_neurons_cnt + get_incoming_neurons_cnt()))*static_cast<float_t_>(4));
 
 				m_bWeightsInitialized = true;
 			}
@@ -282,9 +281,9 @@ namespace nntl {
 			if (!lowerLayer.is_input_layer()) {
 				NNTL_ASSERT(!m_weights.emulatesBiases());
 				//finally compute dL/dAprev to use in lower layer. Before that make m_weights looks like there is no bias weights
-				m_weights.hide_last_col();
+				m_weights.deform_cols(get_incoming_neurons_cnt());
 				m_pMath->mMulAB_C(m_dAdZ_dLdZ, m_weights, dLdAPrev);
-				m_weights.restore_last_col();//restore weights back
+				m_weights.deform_cols(get_incoming_neurons_cnt() + 1);//restore weights back
 			}
 		}
 

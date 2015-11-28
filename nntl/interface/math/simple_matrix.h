@@ -248,7 +248,6 @@ namespace math {
 		}
 
 		const bool empty()const noexcept { return nullptr == m_pData; }
-
 		value_ptr_t dataAsVec()noexcept {
 			NNTL_ASSERT(!empty() && m_cols>0 && m_rows>0);
 			return m_pData;
@@ -256,14 +255,6 @@ namespace math {
 		cvalue_ptr_t dataAsVec()const noexcept {
 			NNTL_ASSERT(!empty() && m_cols>0 && m_rows>0);
 			return m_pData;
-		}
-		value_ptr_t colDataAsVec(vec_len_t c)noexcept {
-			NNTL_ASSERT(!empty() && m_cols>0 && m_rows>0 && c <= m_cols);
-			return &m_pData[c*m_rows];
-		}
-		cvalue_ptr_t colDataAsVec(vec_len_t c)const noexcept {
-			NNTL_ASSERT(!empty() && m_cols > 0 && m_rows > 0 && c <= m_cols);
-			return &m_pData[c*m_rows];
 		}
 
 		// get/set are for non performance critical code!
@@ -496,30 +487,15 @@ namespace math {
 		// ALWAYS run your code in debug mode first.
 		// ALWAYS think about biases - when they should be or should not be set/restored
 		// You've been warned
-		vec_len_t deform_cols(vec_len_t c)noexcept {
+		void deform_cols(vec_len_t c)noexcept { 
 			NNTL_ASSERT(m_maxSize >= sNumel(m_rows, c));
 			NNTL_ASSERT(!empty());
-			auto ret = m_cols;
 			m_cols = c;
-			return ret;
 		}
-		void hide_last_col()noexcept {
-			NNTL_ASSERT(!empty() && m_cols>=2);
-			--m_cols;
-		}
-		void restore_last_col()noexcept {
-			NNTL_ASSERT(!empty() && m_cols >= 1);
-			NNTL_ASSERT(m_maxSize >= sNumel(m_rows, m_cols+1));
-			++m_cols;
-		}
-
-		// use deform_rows() with extreme care on col-major (default!!!) data!!!
-		vec_len_t deform_rows(vec_len_t r)noexcept {
+		void deform_rows(vec_len_t r)noexcept {
 			NNTL_ASSERT(m_maxSize >= sNumel(r, m_cols));
 			NNTL_ASSERT(!empty());
-			auto ret = m_rows;
 			m_rows = r;
-			return ret;
 		}
 		void deform(vec_len_t r, vec_len_t c)noexcept {
 			NNTL_ASSERT(m_maxSize >= sNumel(r, c));
