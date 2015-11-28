@@ -70,29 +70,32 @@ TEST(TestNntl, Training) {
 
 #ifdef TESTS_SKIP_NNET_LONGRUNNING
 	size_t epochs = 5;
-	const float_t_ learningRate = .01;
+	const float_t_ learningRate = .7;
 
 	layer_fully_connected<> fcl(60, learningRate, dropoutFrac);
-	layer_fully_connected<> fcl2(60, learningRate, dropoutFrac);
+	layer_fully_connected<> fcl2(50, learningRate, dropoutFrac);
 	//layer_fully_connected<> fcl3(15,learningRate,	 dropoutFrac);	
 
 #else
 	size_t epochs = 20;
-	const float_t_ learningRate = .01;
+	const float_t_ learningRate = 0.7;
 
-	layer_fully_connected<activation::sigm> fcl(500, learningRate,dropoutFrac);
-	layer_fully_connected<activation::sigm> fcl2(300, learningRate, dropoutFrac);
+	layer_fully_connected<activation::sigm<>> fcl(500, learningRate,dropoutFrac);
+	layer_fully_connected<activation::sigm<>> fcl2(300, learningRate, dropoutFrac);
 #endif // TESTS_SKIP_LONGRUNNING
 
+	const bool bSetMN = false;
+	const float_t_ mul = 1.0 / 10000.0;
 	auto optType = decltype(fcl)::grad_works_t::ClassicalConstant;
-	fcl.m_gradientWorks.set_momentum(momentum, false).set_type(optType);
-	//fcl.m_gradientWorks.set_type(decltype(fcl)::grad_works_t::ModProp).set_nesterov_momentum(.95);
 
-	fcl2.m_gradientWorks.set_momentum(momentum, false).set_type(optType);
-	//fcl2.m_gradientWorks.set_type(decltype(fcl2)::grad_works_t::ModProp).set_nesterov_momentum(.95);
+	fcl.m_gradientWorks.set_momentum(momentum, false).set_type(optType)
+		.set_weight_vector_max_norm2(bSetMN ? mul * 768 * 768 : 0, true);
+	fcl2.m_gradientWorks.set_momentum(momentum, false).set_type(optType)
+		.set_weight_vector_max_norm2(bSetMN ? mul * 500 * 500 : 0, true);
 	
-	layer_output<activation::sigm_quad_loss> outp(td.train_y().cols(), learningRate);
-	outp.m_gradientWorks.set_momentum(momentum, false).set_type(optType);
+	layer_output<activation::sigm_quad_loss<>> outp(td.train_y().cols(), learningRate);
+	outp.m_gradientWorks.set_momentum(momentum, false).set_type(optType)
+		.set_weight_vector_max_norm2(bSetMN ? mul * 300 * 300 : 0, true);
 
 	//uncomment to turn on derivative value restriction 
 	//outp.restrict_dL_dZ(float_t_(-10), float_t_(10));
