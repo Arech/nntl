@@ -135,10 +135,7 @@ namespace nntl {
 				// initializing
 				if (!m_weights.resize(m_neurons_cnt, get_incoming_neurons_cnt() + 1)) return ErrorCode::CantAllocateMemoryForWeights;
 
-				//TODO: better initial weight scale is probably available. This one is taken from DeapLearnToolbox
-				m_pRng->gen_matrix(m_weights,
-					float_t_(4.0)*sqrt(float_t_(6.0) / static_cast<float_t_>(m_neurons_cnt + get_incoming_neurons_cnt())));
-
+				activation_f_t::init_weights(m_weights, *m_pRng);
 				m_bWeightsInitialized = true;
 			}
 
@@ -288,7 +285,7 @@ namespace nntl {
 	// final input layer with all default functionality of _layer_output
 	// If you need to derive a new class, derive from _layer_output
 	// 
-	template <typename ActivFunc = activation::sigm_quad_loss,
+	template <typename ActivFunc = activation::sigm_quad_loss<>,
 		typename Interfaces = nnet_def_interfaces,
 		typename GradWorks = grad_works<typename Interfaces::iMath_t>
 	> class layer_output final 

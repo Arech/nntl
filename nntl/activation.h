@@ -53,6 +53,10 @@ namespace activation {
 		//f derivative, fValue is used in no_bias version!
 		template <typename iMath>
 		nntl_interface static void df(const floatmtx_t& fValue, floatmtx_t& df, iMath& m) noexcept;
+
+		//each activation function has it's own most effective weights initialization scheme
+		template <typename iRng>
+		nntl_interface static void init_weights(floatmtx_t& W, iRng& iR)noexcept;
 	};
 
 
@@ -90,7 +94,8 @@ namespace activation {
 	};*/
 
 	//////////////////////////////////////////////////////////////////////////
-	//sigmoids
+	//sigmoid
+	template<size_t scalingCoeff1e9 = 0>
 	class sigm : public _i_activation {
 		sigm() = delete;
 		~sigm() = delete;
@@ -105,9 +110,26 @@ namespace activation {
 			static_assert(std::is_base_of<math::_i_math, iMath>::value, "iMath should implement math::_i_math");
 			m.dsigm(fValue, df);//fValue is used in no_bias version!
 		}
+
+		template <typename iRng>
+		static void init_weights(floatmtx_t& W, iRng& iR)noexcept {
+			const auto weightsScale = (scalingCoeff1e9 > 0)
+				? float_t_(scalingCoeff1e9) / float_t_(1e9)
+				: float_t_(4.0) * sqrt(float_t_(6.0) / (W.rows() + W.cols()));//probably we should take a bias unit as incoming too, so no -1 here
+			iR.gen_matrix(W, weightsScale);
+		}
+		// According to Xavier et al. "Understanding the difficulty of training deep feedforward neural networks" 2010
+		// for symmetric activation function (probably with unit derivative at 0) it's a 
+		// sqrt(6/(prevLayerNeurons+thisLayerNeurons))  - best for Tanh. Probably could fit SoftSign and etc.
+		// According to http://deeplearning.net/tutorial/mlp.html for sigmoid it's a
+		// 4*sqrt(6/(prevLayerNeurons+thisLayerNeurons))
+		// 
+		// And by the way, according to mentioned work it looks like this formula works best for same-sized adjacent layers. If their
+		// sizes are different, it's kind of compromise. Which means, that there might be other more suitable initialization schemes.
 	};
 
-	class sigm_quad_loss : public sigm, public _i_activation_loss {
+	template<size_t scalingCoeff1e9 = 0>
+	class sigm_quad_loss : public sigm<scalingCoeff1e9>, public _i_activation_loss {
 		sigm_quad_loss() = delete;
 		~sigm_quad_loss() = delete;
 	public:
@@ -124,7 +146,8 @@ namespace activation {
 		}
 	};
 
-	class sigm_xentropy_loss : public sigm, public _i_activation_loss {
+	template<size_t scalingCoeff1e9 = 0>
+	class sigm_xentropy_loss : public sigm<scalingCoeff1e9>, public _i_activation_loss {
 		sigm_xentropy_loss() = delete;
 		~sigm_xentropy_loss() = delete;
 	public:
@@ -144,6 +167,7 @@ namespace activation {
 
 	//////////////////////////////////////////////////////////////////////////
 	//ReLU
+	template<size_t scalingCoeff1e9 = 0>
 	class relu : public _i_activation {
 		relu() = delete;
 		~relu() = delete;
@@ -158,6 +182,19 @@ namespace activation {
 		static void df(const floatmtx_t& fValue, floatmtx_t& df, iMath& m) noexcept {
 			static_assert(std::is_base_of<math::_i_math, iMath>::value, "iMath should implement math::_i_math");
 			m.drelu(fValue, df);//fValue is used in no_bias version!
+		}
+
+		template <typename iRng>
+		static void init_weights(floatmtx_t& W, iRng& iR)noexcept {
+			const auto weightsScale = (scalingCoeff1e9 > 0)
+				? float_t_(scalingCoeff1e9) / float_t_(1e9)
+				: sqrt(float_t_(2.0) / W.cols()); //probably we should take a bias unit as incoming too, so no -1 here
+			iR.gen_matrix(W, weightsScale);
+
+			//according to He, Zhang et al. "Delving Deep into Rectifiers: Surpassing Human-Level Performance on 
+			// ImageNet Classification" 2015 this formula (sqrt(2/prevLayerNeurons) should define _standard_ deviation
+			// of gaussian zero-mean noise. But we're using just uniform distribution, so it should be fixed later.
+			// TODO: FIX IT!!!
 		}
 	};
 

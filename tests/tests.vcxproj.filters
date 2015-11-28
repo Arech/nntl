@@ -52,6 +52,9 @@
     <Text Include="..\nntl\_supp\_about.txt">
       <Filter>nntl\_supp</Filter>
     </Text>
+    <Text Include="TODO.txt">
+      <Filter>Source Files</Filter>
+    </Text>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="stdafx.h">

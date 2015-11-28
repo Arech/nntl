@@ -177,6 +177,7 @@
   <ItemGroup>
     <Text Include="..\nntl\_supp\_about.txt" />
     <Text Include="ReadMe.txt" />
+    <Text Include="TODO.txt" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\nntl\activation.h" />

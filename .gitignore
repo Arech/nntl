@@ -5,7 +5,7 @@ _extern/*
 _obsolette/
 data/*
 **/.svn
-
+tests/TODO.txt
 
 #################
 ## Visual Studio
