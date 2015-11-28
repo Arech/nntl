@@ -12,7 +12,7 @@ base + momentum + dropout|332s|**166s**|**x2.0**
 
 So, it's about a two times faster (and has a room for further improvements, btw). Not so much, but I'm not aware of anything better (please, contact me if you know). I also tried [tiny-cnn](https://github.com/nyanp/tiny-cnn), but failed to achive even Matlab-comparable performance (not counting that there is only x32 version available out-of-the-box).
 
-I wouldn't state nntl is the fastest CPU implementation of FF NN, but nonetheless it's pretty fast and BSD-licensed (except for [random number generators](https://github.com/Arech/AF_randomc_h), that is GPL licensed, - but you can easily substitute RNG for you own if you want).
+I wouldn't state nntl is the fastest CPU implementation of FF NN, but nonetheless it's pretty fast and BSD-licensed (except for [random number generators](https://github.com/Arech/AF_randomc_h), that is GPL licensed, - but you can easily substitute RNG for you own if you want). It's intended to be as fast as possible, provided that the code is easy to understand and maintain.
 
 ## Currently Implemented NN Features
 * full-batch or mini-batch learning
@@ -29,6 +29,7 @@ I wouldn't state nntl is the fastest CPU implementation of FF NN, but nonetheles
 * Individual Adaptive Learning Rates (ILR in code) based on agreement in signs of current and previous gradient or momentum velocity.
 * Regularizers:
   * Dropout
+  * Constraint for a total length of neuron incoming weight vector - so called max-norm regularization. Once neuron weights grow too much, they are getting scaled so their norm will fit into some predefined value (Srivastava, Hinton, et.al "Dropout: A Simple Way to Prevent Neural Networks from Overfitting" 2014)
   * Constraints for a magnitude of derivative of loss function in outer layer (idea taken from aforementioned “Generating Sequences With Recurrent Neural Networks” (2013) by Alex Graves)
 * Early stopping, learning rates decay, momentum modification and etc.. Any tuning of learning variables you would like during actual training process.
 
