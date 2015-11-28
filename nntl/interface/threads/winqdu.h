@@ -137,10 +137,11 @@ namespace threads {
 		}
 
 		template<typename Func>
-		void run(Func&& F, const range_t cnt) noexcept {
+		void run(Func&& F, const range_t cnt, thread_id_t* pThreadsUsed = nullptr) noexcept {
 			//TODO: decide whether it is worth to use workers here
 			//DONE: well, it worth less than 9mks to parallelize execution therefore won't bother...
 			if (cnt <= 1) {
+				if (pThreadsUsed) *pThreadsUsed = 1;
 				F(par_range_t(cnt));
 			} else {
 				AcquireSRWLockExclusive(&m_srwlock);
@@ -149,6 +150,7 @@ namespace threads {
 
 				const auto prevOfs = partition_count_to_workers(cnt);
 				NNTL_ASSERT(prevOfs < cnt);
+				if (pThreadsUsed) *pThreadsUsed = static_cast<thread_id_t>(m_workingCnt)+1;
 
 				WakeAllConditionVariable(&m_waitingOrders);
 				ReleaseSRWLockExclusive(&m_srwlock);

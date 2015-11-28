@@ -192,6 +192,9 @@
     <ClInclude Include="..\_extern\agner.org\AF_randomc_h\random.h">
       <Filter>_extern\agner.org</Filter>
     </ClInclude>
+    <ClInclude Include="etalons.h">
+      <Filter>Source Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="stdafx.cpp">
