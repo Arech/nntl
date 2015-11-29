@@ -116,8 +116,8 @@ namespace nntl {
 
 
 	//////////////////////////////////////////////////////////////////////////
-	// final input layer with all default functionality of layer__input
-	// If you need to derive a new class, derive from layer__input
+	// final implementation of layer with all functionality of _layer_input
+	// If you need to derive a new class, derive it from _layer_input (to make static polymorphism work)
 	class layer_input final : public _layer_input<layer_input> {
 	public:
 		layer_input(const neurons_count_t _neurons_cnt) noexcept :

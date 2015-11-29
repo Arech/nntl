@@ -244,14 +244,16 @@ namespace nntl {
 
 		}
 
-		//template <typename i_math_t = nnet_def_interfaces::Math>
-		//void bprop(const floatmtx_t& dLdA, const floatmtx_t& prevActivations, floatmtx_t& dLdAPrev, i_math_t& iMath, const bool bPrevLayerIsInput)noexcept {
 		template <typename LowerLayer>
 		void bprop(floatmtx_t& dLdA, const LowerLayer& lowerLayer, floatmtx_t& dLdAPrev)noexcept{
 			static_assert(std::is_base_of<_i_layer, LowerLayer>::value, "Template parameter LowerLayer must implement _i_layer");
 			const auto& prevActivations = lowerLayer.get_activations();
 
 			dLdA.assert_storage_does_not_intersect(dLdAPrev);
+			dLdA.assert_storage_does_not_intersect(m_dLdW);
+			dLdA.assert_storage_does_not_intersect(m_dAdZ_dLdZ);
+			dLdAPrev.assert_storage_does_not_intersect(m_dLdW);
+			dLdAPrev.assert_storage_does_not_intersect(m_dAdZ_dLdZ);
 			NNTL_ASSERT(m_activations.emulatesBiases() && !m_dAdZ_dLdZ.emulatesBiases() && !m_dLdW.emulatesBiases());			
 
 			NNTL_ASSERT(m_activations.size_no_bias() == dLdA.size());
@@ -273,8 +275,6 @@ namespace nntl {
 
 			//compute dL/dW = 1/batchsize * (dL/dZ)` * Aprev
 			m_pMath->mScaledMulAtB_C( float_t_(1.0)/float_t_(m_dAdZ_dLdZ.rows()), m_dAdZ_dLdZ, prevActivations, m_dLdW);
-			//now we can apply gradient to the weights
-			m_gradientWorks.apply_grad(m_weights, m_dLdW, m_learningRate);
 
 			if (!lowerLayer.is_input_layer()) {
 				NNTL_ASSERT(!m_weights.emulatesBiases());
@@ -283,6 +283,9 @@ namespace nntl {
 				m_pMath->mMulAB_C(m_dAdZ_dLdZ, m_weights, dLdAPrev);
 				m_weights.restore_last_col();//restore weights back
 			}
+
+			//now we can apply gradient to the weights
+			m_gradientWorks.apply_grad(m_weights, m_dLdW, m_learningRate);
 		}
 
 		//////////////////////////////////////////////////////////////////////////
@@ -311,7 +314,9 @@ namespace nntl {
 		}
 	};
 
-	//template<typename MathInterface = nnet_def_interfaces::Math, typename RngInterface = nnet_def_interfaces::Rng>
+	//////////////////////////////////////////////////////////////////////////
+	// final implementation of layer with all functionality of _layer_fully_connected
+	// If you need to derive a new class, derive it from _layer_fully_connected (to make static polymorphism work)
 	template <typename ActivFunc = activation::sigm<>,
 		typename Interfaces=nnet_def_interfaces,
 		typename GradWorks = grad_works<typename Interfaces::iMath_t>
@@ -321,10 +326,9 @@ namespace nntl {
 	public:
 		~layer_fully_connected() noexcept {};
 		layer_fully_connected(const neurons_count_t _neurons_cnt,
-			const float_t_ learningRate=.01,
-			const float_t_ dropoutFrac = 0.0)
-			noexcept : _layer_fully_connected<ActivFunc, Interfaces, GradWorks,
-				layer_fully_connected<ActivFunc, Interfaces, GradWorks>>(_neurons_cnt, learningRate, dropoutFrac) {};
+			const float_t_ learningRate=.01, const float_t_ dropoutFrac = 0.0) noexcept 
+			: _layer_fully_connected<ActivFunc, Interfaces, GradWorks, layer_fully_connected<ActivFunc, Interfaces, GradWorks>>
+			(_neurons_cnt, learningRate, dropoutFrac) {};
 	};
 
 }

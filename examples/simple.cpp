@@ -154,10 +154,8 @@ TEST(Simple, NotSoPlainFFN) {
 	auto onEpochEndCB = [learningRateDecayCoeff](auto& nn, auto& opts, const size_t epochIdx)->bool {
 		// well, we can capture references to layer objects in lambda capture clause and use them directly here,
 		// but lets get an access to them through nn object, passed as function parameter.
-		nn.get_layer_pack().for_each_layer([learningRateDecayCoeff](auto& l) {
-			if (! l.is_input_layer()) {
-				l.learning_rate(l.learning_rate()*learningRateDecayCoeff);
-			}
+		nn.get_layer_pack().for_each_layer_exc_input([learningRateDecayCoeff](auto& l) {
+			l.learning_rate(l.learning_rate()*learningRateDecayCoeff);
 		});
 		//return false to stop learning
 		return true;

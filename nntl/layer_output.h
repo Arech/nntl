@@ -211,14 +211,14 @@ namespace nntl {
 			activation_f_t::f(m_activations, *m_pMath);
 		}
 
-		//template <typename i_math_t = nnet_def_interfaces::Math>
-		//void bprop(const floatmtx_t& data_y, const floatmtx_t& prevActivations, floatmtx_t& dLdAPrev, i_math_t& iMath, const bool bPrevLayerIsInput)noexcept{
 		template <typename LowerLayer>
 		void bprop(const floatmtx_t& data_y, const LowerLayer& lowerLayer, floatmtx_t& dLdAPrev)noexcept {
 			static_assert(std::is_base_of<_i_layer, LowerLayer>::value, "Template parameter LowerLayer must implement _i_layer");
 			const auto& prevActivations = lowerLayer.get_activations();
 
 			data_y.assert_storage_does_not_intersect(dLdAPrev);
+			dLdAPrev.assert_storage_does_not_intersect(m_dLdW);
+			dLdAPrev.assert_storage_does_not_intersect(m_dLdZ);
 			NNTL_ASSERT(!m_dLdZ.emulatesBiases() && !m_dLdW.emulatesBiases());
 			NNTL_ASSERT(m_activations.size() == data_y.size());
 			NNTL_ASSERT(m_dLdZ.size() == m_activations.size());
@@ -235,9 +235,7 @@ namespace nntl {
 
 			//compute dL/dW = 1/batchsize * (dL/dZ)` * Aprev
 			m_pMath->mScaledMulAtB_C(float_t_(1.0) / float_t_(m_dLdZ.rows()), m_dLdZ, prevActivations, m_dLdW);
-			//now we can apply gradient to the weights
-			m_gradientWorks.apply_grad(m_weights, m_dLdW, m_learningRate);
-
+			
 			if (!lowerLayer.is_input_layer()) {
 				NNTL_ASSERT(!m_weights.emulatesBiases());
 				//finally compute dL/dAprev to use in lower layer. Before that make m_weights looks like there is no bias weights
@@ -245,6 +243,9 @@ namespace nntl {
 				m_pMath->mMulAB_C(m_dLdZ, m_weights, dLdAPrev);
 				m_weights.restore_last_col();//restore weights back
 			}
+
+			//now we can apply gradient to the weights
+			m_gradientWorks.apply_grad(m_weights, m_dLdW, m_learningRate);
 		}
 
 		//////////////////////////////////////////////////////////////////////////
@@ -282,9 +283,8 @@ namespace nntl {
 
 
 	//////////////////////////////////////////////////////////////////////////
-	// final input layer with all default functionality of _layer_output
-	// If you need to derive a new class, derive from _layer_output
-	// 
+	// final implementation of layer with all functionality of _layer_output
+	// If you need to derive a new class, derive it from _layer_output (to make static polymorphism work)
 	template <typename ActivFunc = activation::sigm_quad_loss<>,
 		typename Interfaces = nnet_def_interfaces,
 		typename GradWorks = grad_works<typename Interfaces::iMath_t>

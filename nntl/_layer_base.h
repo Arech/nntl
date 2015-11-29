@@ -162,7 +162,20 @@ namespace nntl {
 		typedef FinalPolymorphChild& self_ref_t;
 		typedef const FinalPolymorphChild& self_cref_t;
 		typedef FinalPolymorphChild* self_ptr_t;
-		
+
+		//////////////////////////////////////////////////////////////////////////
+		//members section (in "biggest first" order)
+	public:
+		const neurons_count_t m_neurons_cnt;
+
+	private:
+		neurons_count_t m_incoming_neurons_cnt;
+		layer_index_t m_layerIdx;
+
+	protected:
+		bool m_bTraining;
+
+	public:		
 		//////////////////////////////////////////////////////////////////////////
 		//constructors-destructor
 		~_layer_base()noexcept {};
@@ -219,25 +232,6 @@ namespace nntl {
 			// from nnet during fprop() phase
 			//m_activations.resize(m_neurons_cnt);//there is no need to initialize allocated memory
 		}
-
-	//////////////////////////////////////////////////////////////////////////
-	//members section (in "biggest first" order)
-	protected:
-		// matrix of layer neurons activations: <batch_size rows> x <m_neurons_cnt+1(bias) cols> for fully connected layer
-		//floatmtx_t m_activations;
-
-	public:
-		const neurons_count_t m_neurons_cnt;
-
-	private:
-		neurons_count_t m_incoming_neurons_cnt;
-		layer_index_t m_layerIdx;		
-
-	protected:
-		bool m_bTraining;
-
-	public:
-
 	};
 
 }

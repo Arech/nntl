@@ -142,10 +142,17 @@ namespace nntl {
 
 		//better don't play with _layers directly
 		_layers& get_layers()noexcept { return m_layers; }
+		
 		//and apply function _Func to each layer here
 		template<typename _Func>
 		void for_each_layer(_Func&& f)noexcept {
 			utils::for_each_up(m_layers, std::move(f));
+		}
+
+		// for each excluding the first
+		template<typename _Func>
+		void for_each_layer_exc_input(_Func&& f)noexcept {
+			utils::for_each_exc_first_up(m_layers, std::move(f));
 		}
 
 		input_layer_t& input_layer()const noexcept { return std::get<0>(m_layers); }

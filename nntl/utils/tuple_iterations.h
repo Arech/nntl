@@ -54,6 +54,24 @@ namespace utils {
 		_for_each_up_impl<std::tuple_size<Tuple>::value - 1, Tuple, F>::for_each(t, f);
 	}
 
+	//ignore first element
+	template<int I, class Tuple, typename F> struct _for_each_exc_first_up_impl {
+		static void for_each(const Tuple& t, F& f) noexcept {
+			_for_each_exc_first_up_impl <I - 1, Tuple, F>::for_each(t, f);
+			f(std::get<I>(t));
+		}
+	};
+	template<class Tuple, typename F> struct _for_each_exc_first_up_impl <1, Tuple, F> {
+		static void for_each(const Tuple& t, F& f)noexcept {
+			f(std::get<1>(t));
+		}
+	};
+	template<class Tuple, typename F>
+	inline void for_each_exc_first_up(const Tuple& t, F& f)noexcept {
+		static_assert(std::tuple_size<Tuple>::value > 1, "Tuple must have at least two elements!");
+		_for_each_exc_first_up_impl <std::tuple_size<Tuple>::value - 1, Tuple, F>::for_each(t, f);
+	}
+
 	//downwards direction (from the tail to the head)
 	template<int I, class Tuple, typename F> struct _for_each_down_impl {
 		static void for_each(const Tuple& t, F& f) noexcept {
