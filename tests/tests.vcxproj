@@ -76,8 +76,8 @@
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <LinkIncremental>true</LinkIncremental>
     <CodeAnalysisRuleSet>NativeRecommendedRules.ruleset</CodeAnalysisRuleSet>
-    <IncludePath>d:\c++\yeppp-1.0.0\library\headers\;d:\c++\acml-6.1.0.33-ifort64\ifort64_mp\include\;d:\c++\OpenBLAS-v0.2.14-Win64-int32\include\;$(SolutionDir)_extern\gtest-1.7.0\include\;D:\c++\boost;$(IncludePath)</IncludePath>
-    <LibraryPath>d:\c++\yeppp-1.0.0\binaries\windows\amd64\;d:\c++\acml-6.1.0.33-ifort64\ifort64_mp\lib\;d:\c++\OpenBLAS-v0.2.14-Win64-int32\lib\;D:\c++\boost\lib\x64\lib;$(SolutionDir)_extern\gtest-1.7.0\msvc\x64\$(Configuration)\;$(LibraryPath)</LibraryPath>
+    <IncludePath>d:\c++\OpenBLAS-v0.2.14-Win64-int32\include\;$(SolutionDir)_extern\gtest-1.7.0\include\;D:\c++\boost;$(IncludePath)</IncludePath>
+    <LibraryPath>d:\c++\OpenBLAS-v0.2.14-Win64-int32\lib\;D:\c++\boost\lib\x64\lib;$(SolutionDir)_extern\gtest-1.7.0\msvc\x64\$(Configuration)\;$(LibraryPath)</LibraryPath>
     <RunCodeAnalysis>true</RunCodeAnalysis>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
@@ -87,8 +87,8 @@
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <LinkIncremental>false</LinkIncremental>
     <CodeAnalysisRuleSet>NativeRecommendedRules.ruleset</CodeAnalysisRuleSet>
-    <IncludePath>d:\c++\yeppp-1.0.0\library\headers\;d:\c++\acml-6.1.0.33-ifort64\ifort64_mp\include\;d:\c++\OpenBLAS-v0.2.14-Win64-int32\include\;$(SolutionDir)_extern\gtest-1.7.0\include\;D:\c++\boost;$(IncludePath)</IncludePath>
-    <LibraryPath>d:\c++\yeppp-1.0.0\binaries\windows\amd64\;d:\c++\acml-6.1.0.33-ifort64\ifort64_mp\lib\;d:\c++\OpenBLAS-v0.2.14-Win64-int32\lib\;D:\c++\boost\lib\x64\lib;$(SolutionDir)_extern\gtest-1.7.0\msvc\x64\$(Configuration)\;$(LibraryPath)</LibraryPath>
+    <IncludePath>d:\c++\OpenBLAS-v0.2.14-Win64-int32\include\;$(SolutionDir)_extern\gtest-1.7.0\include\;D:\c++\boost;$(IncludePath)</IncludePath>
+    <LibraryPath>d:\c++\OpenBLAS-v0.2.14-Win64-int32\lib\;D:\c++\boost\lib\x64\lib;$(SolutionDir)_extern\gtest-1.7.0\msvc\x64\$(Configuration)\;$(LibraryPath)</LibraryPath>
     <RunCodeAnalysis>true</RunCodeAnalysis>
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
@@ -244,7 +244,10 @@
     </ClCompile>
     <ClCompile Include="tests.cpp" />
     <ClCompile Include="test_util.cpp" />
-    <ClCompile Include="test_b_yeppp.cpp" />
+    <ClCompile Include="test_b_yeppp.cpp">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <None Include="..\nntl\_supp\matlab\export_2bin.m" />

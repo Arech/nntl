@@ -61,7 +61,7 @@ namespace nntl {
 		typedef threads::Std<math_types::floatmtx_ty::numel_cnt_t> iThreads_t;
 #endif // NNTL_THREADS_WINQDU_AVAILABLE
 
-		typedef math::i_Yeppp_OpenBlas<iThreads_t> iMath_t;
+		typedef math::iMath_basic<iThreads_t> iMath_t;
 
 		//typedef rng::Std iRng_t;
 		//typedef rng::AFRandom<Agner_Fog::CRandomSFMT0> iRng_t;

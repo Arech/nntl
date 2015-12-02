@@ -33,7 +33,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include "_i_math.h"
 #include "bindings/b_open_blas.h"
-#include "bindings/b_yeppp.h"
+//#include "bindings/b_yeppp.h"
 #include "../threads.h"
 
 #include "../../utils/clamp.h"
@@ -45,9 +45,9 @@ namespace math {
 
 	// ALL functions of _i_math interface must be tested for ST vs. MT performance and be adjusted accordingly
 
-	// this class uses routines from Yeppp! and OpenBLAS to implement _i_math
+	// this class uses some routines from OpenBLAS to implement _i_math
 	template <typename iThreads>// = threads::Std>
-	class i_Yeppp_OpenBlas : public _i_math {
+	class iMath_basic : public _i_math {
 		static_assert(std::is_base_of<threads::_i_threads<typename iThreads::range_t>, iThreads>::value, "iThreads must implement threads::_i_threads");
 		static_assert(std::is_same<floatmtx_t::numel_cnt_t, typename iThreads::range_t>::value, "iThreads::range_t should be the same as floatmtx_t::numel_cnt_t");
 
@@ -67,7 +67,7 @@ namespace math {
 		// members
 	protected:
 		ithreads_t m_threads;
-		b_Yeppp m_Yeppp;
+		//b_Yeppp m_Yeppp;
 
 		numel_cnt_t m_minTempStorageSize, m_minPerThreadTempStorageSize;
 		thread_temp_storage_t m_threadTempRawStorage;
@@ -83,8 +83,8 @@ namespace math {
 	
 	public:
 
-		~i_Yeppp_OpenBlas()noexcept {};
-		i_Yeppp_OpenBlas() noexcept : m_minTempStorageSize(0), m_minPerThreadTempStorageSize(0) {
+		~iMath_basic()noexcept {};
+		iMath_basic() noexcept : m_minTempStorageSize(0), m_minPerThreadTempStorageSize(0) {
 			//TODO: memory allocation exception handling here!
 			m_threadTempRawStoragePtrs.resize(m_threads.workers_count());
 		}
@@ -764,23 +764,6 @@ namespace math {
 				}
 			}, dataCnt);
 		}
-		void evMulC_ip_st_vec(floatmtx_t& A, const float_t_ b)noexcept {
-			NNTL_ASSERT(!A.empty() && A.numel()>0);
-			ievMulC_ip_st_vec(A.dataAsVec(), A.numel(), b);
-		}
-		void ievMulC_ip_st_vec(float_t_* ptrA, const numel_cnt_t dataCnt, const float_t_ b)noexcept {
-			m_Yeppp.evMulC_ip(ptrA, b, dataCnt);
-		}
-		void evMulC_ip_mt_vec(floatmtx_t& A, const float_t_ b)noexcept {
-			NNTL_ASSERT(!A.empty() && A.numel()>0);
-			ievMulC_ip_mt_vec(A.dataAsVec(), A.numel(), b);
-		}
-		void ievMulC_ip_mt_vec(float_t_* ptrA, const numel_cnt_t dataCnt, const float_t_ b)noexcept {
-			auto& yep = m_Yeppp;
-			m_threads.run([ptrA, b, &yep](const par_range_t& r) {
-				yep.evMulC_ip(ptrA + r.offset(), b, r.cnt());
-			}, dataCnt);
-		}
 
 		//inplace elementwise multiplication A(no_bias) = b.*A(no_bias)
 		void evMulC_ip_Anb(floatmtx_t& A, const float_t_ b)noexcept {
@@ -796,26 +779,15 @@ namespace math {
 			NNTL_ASSERT(!A.empty() && A.numel_no_bias() > 0);
 			ievMulC_ip_mt_naive(A.dataAsVec(), A.numel_no_bias(), b);
 		}
-		void evMulC_ip_Anb_st_vec(floatmtx_t& A, const float_t_ b)noexcept {
-			NNTL_ASSERT(!A.empty() && A.numel_no_bias() > 0);
-			ievMulC_ip_st_vec(A.dataAsVec(), A.numel_no_bias(), b);
-		}
-		void evMulC_ip_Anb_mt_vec(floatmtx_t& A, const float_t_ b)noexcept {
-			NNTL_ASSERT(!A.empty() && A.numel_no_bias() > 0);
-			ievMulC_ip_mt_vec(A.dataAsVec(), A.numel_no_bias(), b);
-		}
-
 
 
 		//////////////////////////////////////////////////////////////////////////
 		//inplace elementwise multiplication A = A.*B
 		void evMul_ip(floatmtx_t& A, const floatmtx_t& B)noexcept {
 			const auto dataCnt = A.numel();
-			if (dataCnt<=27000) {
+			if (dataCnt < 36700) {
 				evMul_ip_st_naive(A, B);
-			} else if (dataCnt < 36000) {
-				evMul_ip_st_vec(A, B);
-			}else evMul_ip_mt_vec(A, B);
+			}else evMul_ip_mt_naive(A, B);
 		}
 		void evMul_ip_st_naive(floatmtx_t& A, const floatmtx_t& B)noexcept {
 			A.assert_storage_does_not_intersect(B);
@@ -823,7 +795,15 @@ namespace math {
 			ievMul_ip_st_naive(A.dataAsVec(), B.dataAsVec(), A.numel());
 		}
 		void ievMul_ip_st_naive(float_t_* ptrA, const float_t_*ptrB, numel_cnt_t dataCnt) noexcept{
-			for (numel_cnt_t i = 0; i < dataCnt; ++i) ptrA[i] *= ptrB[i];
+			//for (numel_cnt_t i = 0; i < dataCnt; ++i) ptrA[i] *= ptrB[i];
+			const bool bOdd = dataCnt & 1;
+			if (bOdd) --dataCnt;
+			for (numel_cnt_t i = 0; i < dataCnt; i+=2) {
+				ptrA[i] *= ptrB[i];
+				const auto j = i + 1;
+				ptrA[j] *= ptrB[j];
+			}
+			if (bOdd) ptrA[dataCnt] *= ptrB[dataCnt];
 		}
 		void evMul_ip_mt_naive(floatmtx_t& A, const floatmtx_t& B)noexcept {
 			A.assert_storage_does_not_intersect(B);
@@ -833,39 +813,27 @@ namespace math {
 		void ievMul_ip_mt_naive(float_t_* ptrA, const float_t_*ptrB, numel_cnt_t dataCnt) noexcept {
 			m_threads.run([ptrA, ptrB](const par_range_t& r) {
 				const auto ofs = r.offset();
-				const auto im = ofs + r.cnt();
-				for (numel_cnt_t i = ofs; i < im; ++i) ptrA[i] *= ptrB[i];
+				auto cnt = r.cnt();
+				const bool bOdd = cnt & 1;
+				if (bOdd) --cnt;
+				const auto im = ofs + cnt;
+				//for (numel_cnt_t i = ofs; i < im; ++i) ptrA[i] *= ptrB[i];
+				for (numel_cnt_t i = ofs; i < im; i += 2) {
+					ptrA[i] *= ptrB[i];
+					const auto j = i + 1;
+					ptrA[j] *= ptrB[j];
+				}
+				if (bOdd) ptrA[im] *= ptrB[im];
 			}, dataCnt);
 		}
-		void evMul_ip_st_vec(floatmtx_t& A, const floatmtx_t& B)noexcept {
-			A.assert_storage_does_not_intersect(B);
-			NNTL_ASSERT(A.size() == B.size());
-			ievMul_ip_st_vec(A.dataAsVec(), B.dataAsVec(), A.numel());
-		}
-		void ievMul_ip_st_vec(float_t_* ptrA, const float_t_*ptrB, numel_cnt_t dataCnt) noexcept {
-			m_Yeppp.evMul_ip(ptrA, ptrB, dataCnt);
-		}
-		void evMul_ip_mt_vec(floatmtx_t& A, const floatmtx_t& B)noexcept {
-			A.assert_storage_does_not_intersect(B);
-			NNTL_ASSERT(A.size() == B.size());
-			ievMul_ip_mt_vec(A.dataAsVec(), B.dataAsVec(), A.numel());
-		}
-		void ievMul_ip_mt_vec(float_t_* ptrA, const float_t_*ptrB, numel_cnt_t dataCnt) noexcept {
-			auto& yep = m_Yeppp;
-			m_threads.run([ptrA, ptrB, &yep](const par_range_t& r) {
-				const auto ofs = r.offset();
-				yep.evMul_ip(ptrA + ofs, ptrB + ofs, r.cnt());
-			}, dataCnt);
-		}
+		
 
 		//inplace elementwise multiplication A(no_bias) = A(no_bias).*B, - A is taken in no_bias mode
 		void evMul_ip_Anb(floatmtx_t& A, const floatmtx_t& B)noexcept {
 			const auto dataCnt = B.numel();
-			if (dataCnt <= 27000) {
+			if (dataCnt <= 36700) {
 				evMul_ip_Anb_st_naive(A, B);
-			} else if (dataCnt < 36000) {
-				evMul_ip_Anb_st_vec(A, B);
-			} else evMul_ip_Anb_mt_vec(A, B);
+			} else evMul_ip_Anb_mt_naive(A, B);
 		}
 		void evMul_ip_Anb_st_naive(floatmtx_t& A, const floatmtx_t& B)noexcept {
 			A.assert_storage_does_not_intersect(B);
@@ -877,16 +845,7 @@ namespace math {
 			NNTL_ASSERT(A.size_no_bias() == B.size());
 			ievMul_ip_mt_naive(A.dataAsVec(), B.dataAsVec(), B.numel());
 		}
-		void evMul_ip_Anb_st_vec(floatmtx_t& A, const floatmtx_t& B)noexcept {
-			A.assert_storage_does_not_intersect(B);
-			NNTL_ASSERT(A.size_no_bias() == B.size());
-			ievMul_ip_st_vec(A.dataAsVec(), B.dataAsVec(), B.numel());
-		}
-		void evMul_ip_Anb_mt_vec(floatmtx_t& A, const floatmtx_t& B)noexcept {
-			A.assert_storage_does_not_intersect(B);
-			NNTL_ASSERT(A.size_no_bias() == B.size());
-			ievMul_ip_mt_vec(A.dataAsVec(), B.dataAsVec(), B.numel());
-		}
+		
 
 		//////////////////////////////////////////////////////////////////////////
 		//inplace elementwise addition A = A+B
@@ -939,19 +898,7 @@ namespace math {
 				for (numel_cnt_t i = ofs; i < im; ++i) pA[i] -= pB[i];
 			}, A.numel());
 		}
-		/*void evSub_ip_st_vec(floatmtx_t& A, const floatmtx_t& B)noexcept {
-			NNTL_ASSERT(A.size() == B.size());
-			m_Yeppp.evSub_ip(A.dataAsVec(), B.dataAsVec(), A.numel());
-		}
-		void evSub_ip_mt_vec(floatmtx_t& A, const floatmtx_t& B)noexcept {
-			const auto pA = A.dataAsVec();
-			const auto pB = B.dataAsVec();
-			auto& yep = m_Yeppp;
-			m_threads.run([pA, pB, &yep](const par_range_t& r) {
-				const auto ofs = r.offset();
-				yep.evSub_ip(pA+ofs, pB+ofs, r.cnt());
-			}, A.numel());
-		}*/
+
 		//////////////////////////////////////////////////////////////////////////
 		//elementwise subtraction C = A-B
 		void evSub(const floatmtx_t& A, const floatmtx_t& B, floatmtx_t& C)noexcept {
@@ -1144,41 +1091,6 @@ namespace math {
 				}
 			}, srcdest.numel_no_bias());
 		}
-		void sigm_st_vec(floatmtx_t& srcdest) noexcept {
-			NNTL_ASSERT(!srcdest.empty());
-			const auto dataCnt = srcdest.numel_no_bias();
-			auto tmp = _get_thread_temp_raw_storage(dataCnt);
-			auto ptr = srcdest.dataAsVec();
-
-			m_Yeppp.evNegate_ip(ptr, dataCnt);
-			m_Yeppp.evExp(ptr, tmp, dataCnt);
-			m_Yeppp.evAddC(tmp, float_t_(1.0), ptr, dataCnt);
-			//Yeppp! doesn't have vector division operation :(((
-			for (range_t i = 0; i < dataCnt; ++i) ptr[i] = float_t_(1.0) / ptr[i];
-		}
-		void sigm_mt_vec(floatmtx_t& srcdest) noexcept {
-			NNTL_ASSERT(!srcdest.empty());
-
-			auto ptr = srcdest.dataAsVec();
-			const auto dataCnt = srcdest.numel_no_bias();
-			auto& yep = m_Yeppp;
-			const auto& ttrsp = _get_thread_temp_storage_ptrs(dataCnt);
-
-			//TODO: single vectorized sigm function would work better
-			m_threads.run([ptr, &yep, &ttrsp](const par_range_t& r) {
-				const auto ofs = r.offset();
-				const auto cnt = r.cnt();
-				float_t_* tmp = ttrsp[r.tid()];
-				float_t_* dest = &ptr[ofs];
-
-				yep.evNegate_ip(dest, cnt);
-				yep.evExp(dest, tmp, cnt);
-				yep.evAddC(tmp, float_t_(1.0), dest, cnt);
-				//Yeppp! doesn't have vector division operation :(((
-				for (range_t i = 0; i < cnt; ++i) dest[i] = float_t_(1.0) / dest[i];
-
-			}, dataCnt);
-		}
 
 		//////////////////////////////////////////////////////////////////////////
 		// d(sigm)/d(arg) - sigmoid derivative df = f.*(1-f), where fValue is activation value (used in no_bias version)
@@ -1215,36 +1127,7 @@ namespace math {
 				}
 			}, fValue.numel_no_bias());
 		}
-		void dsigm_st_vec(const floatmtx_t& fValue, floatmtx_t& df) noexcept {
-			fValue.assert_storage_does_not_intersect(df);
-			NNTL_ASSERT(fValue.size_no_bias() == df.size());
-
-			const auto dataCnt = fValue.numel_no_bias();
-			const auto ptrF = fValue.dataAsVec();
-			const auto ptrDF = df.dataAsVec();
-
-			m_Yeppp.evCSub(float_t_(1.0), ptrF, ptrDF, dataCnt);
-			m_Yeppp.evMul_ip(ptrDF, ptrF, dataCnt);
-		}
-		void dsigm_mt_vec(const floatmtx_t& fValue, floatmtx_t& df) noexcept {
-			fValue.assert_storage_does_not_intersect(df);
-			NNTL_ASSERT(fValue.size_no_bias() == df.size());
-
-			const auto dataCnt = fValue.numel_no_bias();
-			const auto ptrF = fValue.dataAsVec();
-			const auto ptrDF = df.dataAsVec();
-			auto& yep = m_Yeppp;
-
-			m_threads.run([ptrF, ptrDF, &yep](const par_range_t& r) {
-				const auto ofs = r.offset();
-				const auto cnt = r.cnt();
-				const float_t_* src = &ptrF[ofs];
-				float_t_* dest = &ptrDF[ofs];
-
-				yep.evCSub(float_t_(1.0), src, dest, cnt);
-				yep.evMul_ip(dest, src, cnt);
-			}, dataCnt);
-		}
+		
 
 		//////////////////////////////////////////////////////////////////////////
 		//calculates derivative of quadratic loss function for sigm neurons wrt total neuron input Z (=Aprev_layer*W), dL/dZ
@@ -1296,50 +1179,6 @@ namespace math {
 				}
 			}, dataCnt);
 		}
-		void dSigmQuadLoss_dZ_st_vec(const floatmtx_t& activations, const floatmtx_t& data_y, floatmtx_t& dLdZ) {
-			NNTL_ASSERT(!activations.emulatesBiases());
-			NNTL_ASSERT(activations.size() == data_y.size() && activations.size() == dLdZ.size());
-			activations.assert_storage_does_not_intersect(data_y);
-			activations.assert_storage_does_not_intersect(dLdZ);
-			data_y.assert_storage_does_not_intersect(dLdZ);
-
-			const auto cnt = activations.numel();
-
-			const auto ptrAct = activations.dataAsVec();
-			auto ptrdLdZ = dLdZ.dataAsVec();
-			auto ptrTmp = _get_thread_temp_raw_storage(cnt);
-
-			m_Yeppp.evCSub(float_t_(1.0), ptrAct, ptrTmp, cnt);//(1-a)
-			m_Yeppp.evSub(ptrAct, data_y.dataAsVec(), ptrdLdZ, cnt);//(a-y)
-			m_Yeppp.evMul_ip(ptrdLdZ, ptrAct, cnt);//(a-y)*a
-			m_Yeppp.evMul_ip(ptrdLdZ, ptrTmp, cnt);//(a-y)*a*(1-a)
-		}
-		void dSigmQuadLoss_dZ_mt_vec(const floatmtx_t& activations, const floatmtx_t& data_y, floatmtx_t& dLdZ) {
-			NNTL_ASSERT(!activations.emulatesBiases());
-			NNTL_ASSERT(activations.size() == data_y.size() && activations.size() == dLdZ.size());
-			activations.assert_storage_does_not_intersect(data_y);
-			activations.assert_storage_does_not_intersect(dLdZ);
-			data_y.assert_storage_does_not_intersect(dLdZ);
-
-			const auto dataCnt = activations.numel();
-			const auto& ttrsp = _get_thread_temp_storage_ptrs(dataCnt);
-
-			const auto ptrAct = activations.dataAsVec(), ptrDataY = data_y.dataAsVec();
-			auto ptrdLdZ = dLdZ.dataAsVec();
-			auto& yep = m_Yeppp;
-
-			m_threads.run([ptrAct, ptrDataY, ptrdLdZ, &yep, &ttrsp](const par_range_t& r) {
-				const auto ofs = r.offset();
-				const auto cnt = r.cnt();
-				float_t_* tmp = ttrsp[r.tid()], *dest = &ptrdLdZ[ofs];
-				const float_t_*act = &ptrAct[ofs];
-
-				yep.evCSub(float_t_(1.0), act, tmp, cnt);//(1-a)
-				yep.evSub(act, &ptrDataY[ofs], dest, cnt);//(a-y)
-				yep.evMul_ip(dest, act, cnt);//(a-y)*a
-				yep.evMul_ip(dest, tmp, cnt);//(a-y)*a*(1-a)
-			}, dataCnt);
-		}
 
 		//////////////////////////////////////////////////////////////////////////
 		//ReLU
@@ -1371,20 +1210,6 @@ namespace math {
 				}
 			}, srcdest.numel());
 		}
-		void relu_st_vec(floatmtx_t& srcdest) noexcept {
-			NNTL_ASSERT(!srcdest.empty());
-			m_Yeppp.evMaxC_ip(srcdest.dataAsVec(), float_t_(0.0), srcdest.numel());
-		}
-		void relu_mt_vec(floatmtx_t& srcdest) noexcept {
-			NNTL_ASSERT(!srcdest.empty());
-
-			auto pV = srcdest.dataAsVec();
-			auto& yep = m_Yeppp;
-			m_threads.run([pV,&yep](const par_range_t& r) {
-				yep.evMaxC_ip(&pV[r.offset()], float_t_(0.0), r.cnt());
-			}, srcdest.numel());
-		}
-
 
 		//////////////////////////////////////////////////////////////////////////
 		// d(ReLU)/dZ
@@ -1459,43 +1284,6 @@ namespace math {
 				for (numel_cnt_t i = 1; i < cnt; ++i) ret += ptr[i];
 				return ret;
 			}, activations.numel());
-
-			return ql / (2 * activations.rows());
-		}
-		float_t_ loss_quadratic_st_vec(const floatmtx_t& activations, const floatmtx_t& data_y)noexcept {
-			NNTL_ASSERT(activations.size() == data_y.size() && !activations.empty() && !data_y.empty());
-			const auto dataCnt = activations.numel();
-			auto ptrTmp = _get_thread_temp_raw_storage(dataCnt);
-			m_Yeppp.evSub(activations.dataAsVec(), data_y.dataAsVec(), ptrTmp, dataCnt);
-			float_t_ ql = 0;
-			m_Yeppp.vSumSquares(ptrTmp, &ql , dataCnt);
-			return ql / (2 * activations.rows());
-		}
-		float_t_ loss_quadratic_mt_vec(const floatmtx_t& activations, const floatmtx_t& data_y)noexcept {
-			NNTL_ASSERT(activations.size() == data_y.size() && !activations.empty() && !data_y.empty());
-			const auto dataCnt = activations.numel();
-	
-			auto pAc = activations.dataAsVec();
-			auto pYc = data_y.dataAsVec();
-			auto& yep = m_Yeppp;
-			auto ppTmp = _get_thread_temp_storage_ptrs_head(dataCnt);
-
-			float_t_ ql = m_threads.reduce([pAc,pYc,&yep,ppTmp](const par_range_t& r)->float_t_ {
-				const auto ofs = r.offset();
-				const auto cnt = r.cnt();
-				const auto pA = &pAc[ofs];
-				const auto pY = &pYc[ofs];
-				auto pTmp = ppTmp[r.tid()];
-				
-				yep.evSub(pA, pY, pTmp, cnt);
-				float_t_ ql = 0;
-				yep.vSumSquares(pTmp, &ql, cnt);
-				return ql;
-			}, [](const float_t_* ptr, const range_t cnt)->float_t_ {
-				float_t_ ret = ptr[0];
-				for (numel_cnt_t i = 1; i < cnt; ++i) ret += ptr[i];
-				return ret;
-			}, dataCnt);
 
 			return ql / (2 * activations.rows());
 		}

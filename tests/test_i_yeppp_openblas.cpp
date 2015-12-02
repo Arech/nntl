@@ -149,10 +149,10 @@ void test_evAdd_ip(iMath& iM, typename iMath::floatmtx_t::vec_len_t rowsCnt, typ
 	STDCOUTL("best:\t\t" << utils::duration_readable(diff, maxReps, &tBest));
 }
 
-TEST(TestIYepppOpenBLAS, evAddIp) {
+TEST(TestIMathBasic, evAddIp) {
 	typedef nntl::nnet_def_interfaces::iThreads_t def_threads_t;
-	typedef math::i_Yeppp_OpenBlas<def_threads_t> i_Y_OB;
-	i_Y_OB iM;
+	typedef math::iMath_basic<def_threads_t> iMB;
+	iMB iM;
 
 	for (unsigned i = 160; i <= 240; i += 5) test_evAdd_ip(iM, i,100);
 	//test_evAdd_ip(iM, 100);
@@ -232,10 +232,10 @@ void test_evMulCipSubip(iMath& iM, vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 	STDCOUTL("best:\t" << utils::duration_readable(diffB, maxReps));
 }
 
-TEST(TestIYepppOpenBLAS, evMulCipSubip) {
+TEST(TestIMathBasic, evMulCipSubip) {
 	typedef nntl::nnet_def_interfaces::iThreads_t def_threads_t;
-	typedef math::i_Yeppp_OpenBlas<def_threads_t> i_Y_OB;
-	i_Y_OB iM;
+	typedef math::iMath_basic<def_threads_t> iMB;
+	iMB iM;
 
 	for (unsigned i = 100; i <= 200; i += 10) test_evMulCipSubip(iM, i, 100);
 	//test_evMulCipSubip(iM, 100);
@@ -346,10 +346,10 @@ void test_mCheck_normalize_rows(iMath& iM, vec_len_t rowsCnt, vec_len_t colsCnt 
 	STDCOUTL("best:\t\t" << utils::duration_readable(diffB, maxReps));
 }
 
-TEST(TestIYepppOpenBLAS, mCheckNormalizeRows) {
+TEST(TestIMathBasic, mCheckNormalizeRows) {
 	typedef nntl::nnet_def_interfaces::iThreads_t def_threads_t;
-	typedef math::i_Yeppp_OpenBlas<def_threads_t> i_Y_OB;
-	i_Y_OB iM;
+	typedef math::iMath_basic<def_threads_t> iMB;
+	iMB iM;
 
 // 	for (unsigned i = 1400; i <= 1425; i += 5) {
 // 		test_mCheck_normalize_rows(iM, i, i / 16);
@@ -439,10 +439,10 @@ void test_loss_sigm_xentropy(iMath& iM, vec_len_t rowsCnt, vec_len_t colsCnt = 1
 	STDCOUTL("best:\t\t" << utils::duration_readable(diffB, maxReps, &tBest));
 }
 
-TEST(TestIYepppOpenBLAS, lossSigmXentropy) {
+TEST(TestIMathBasic, lossSigmXentropy) {
 	typedef nntl::nnet_def_interfaces::iThreads_t def_threads_t;
-	typedef math::i_Yeppp_OpenBlas<def_threads_t> i_Y_OB;
-	i_Y_OB iM;
+	typedef math::iMath_basic<def_threads_t> iMB;
+	iMB iM;
 
 	//for (unsigned i = 100; i <= 130; i += 5 ) test_loss_sigm_xentropy(iM, i, 10);
 	test_loss_sigm_xentropy(iM, 100);
@@ -537,10 +537,10 @@ void test_mBinarize(iMath& iM, typename iMath::floatmtx_t::vec_len_t rowsCnt, ty
 	STDCOUTL("best:\t" << utils::duration_readable(diff, maxReps, &tBest));
 }
 
-TEST(TestIYepppOpenBLAS, mBinarize) {
+TEST(TestIMathBasic, mBinarize) {
 	typedef nntl::nnet_def_interfaces::iThreads_t def_threads_t;
-	typedef math::i_Yeppp_OpenBlas<def_threads_t> i_Y_OB;
-	i_Y_OB iM;
+	typedef math::iMath_basic<def_threads_t> iMB;
+	iMB iM;
 
 	//for (unsigned i = 130; i <= 144; i += 2) test_mBinarize(iM, i,1000);
 	test_mBinarize(iM, 100);
@@ -617,10 +617,10 @@ void test_evSub(iMath& iM, typename iMath::floatmtx_t::vec_len_t rowsCnt, typena
 	STDCOUTL("best:\t\t" << utils::duration_readable(diff, maxReps, &tBest));
 }
 
-TEST(TestIYepppOpenBLAS, evSub) {
+TEST(TestIMathBasic, evSub) {
 	typedef nntl::nnet_def_interfaces::iThreads_t def_threads_t;
-	typedef math::i_Yeppp_OpenBlas<def_threads_t> i_Y_OB;
-	i_Y_OB iM;
+	typedef math::iMath_basic<def_threads_t> iMB;
+	iMB iM;
 
 	//for (unsigned i = 100; i <= 170; i += 5) test_evSub(iM, i,100);
 	test_evSub(iM, 100);
@@ -725,10 +725,10 @@ void test_evSub_ip(iMath& iM, typename iMath::floatmtx_t::vec_len_t rowsCnt, typ
 	STDCOUTL("best:\t\t" << utils::duration_readable(diff, maxReps, &tBest));
 }
 
-TEST(TestIYepppOpenBLAS, evSubIp) {
+TEST(TestIMathBasic, evSubIp) {
 	typedef nntl::nnet_def_interfaces::iThreads_t def_threads_t;
-	typedef math::i_Yeppp_OpenBlas<def_threads_t> i_Y_OB;
-	i_Y_OB iM;
+	typedef math::iMath_basic<def_threads_t> iMB;
+	iMB iM;
 
 	//for (unsigned i = 160; i <= 240; i += 5) test_evSub_ip(iM, i,100);
 	test_evSub_ip(iM, 100);
@@ -817,10 +817,10 @@ void test_apply_momentum(iMath& iM, typename iMath::floatmtx_t::vec_len_t rowsCn
 	STDCOUTL("best:\t" << utils::duration_readable(diff, maxReps, &tBest));
 }
 
-TEST(TestIYepppOpenBLAS, applyMomentum) {
+TEST(TestIMathBasic, applyMomentum) {
 	typedef nntl::nnet_def_interfaces::iThreads_t def_threads_t;
-	typedef math::i_Yeppp_OpenBlas<def_threads_t> i_Y_OB;
-	i_Y_OB iM;
+	typedef math::iMath_basic<def_threads_t> iMB;
+	iMB iM;
 
 	//for (unsigned i = 190; i <= 250; i += 5) test_apply_momentum(iM, i,100);
 	test_apply_momentum(iM, 100);
@@ -987,10 +987,10 @@ void test_applyILR_perf(iMath& iM, vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 	iM.deinit();
 }
 
-TEST(TestIYepppOpenBLAS, ApplyILRPerf) {
+TEST(TestIMathBasic, ApplyILRPerf) {
 	typedef nntl::nnet_def_interfaces::iThreads_t def_threads_t;
-	typedef math::i_Yeppp_OpenBlas<def_threads_t> i_Y_OB;
-	i_Y_OB iM;
+	typedef math::iMath_basic<def_threads_t> iMB;
+	iMB iM;
 
 	//for (unsigned i = 300; i <= 370; i += 10) test_applyILR_perf(iM, i, 1000);
 	test_applyILR_perf(iM, 100);
@@ -1066,10 +1066,10 @@ void test_evAbs_perf(iMath& iM, typename iMath::floatmtx_t::vec_len_t rowsCnt, t
 	STDCOUTL("best:\t" << utils::duration_readable(diff, maxReps, &tBest));
 }
 
-TEST(TestIYepppOpenBLAS, evAbsPerf) {
+TEST(TestIMathBasic, evAbsPerf) {
 	typedef nntl::nnet_def_interfaces::iThreads_t def_threads_t;
-	typedef math::i_Yeppp_OpenBlas<def_threads_t> i_Y_OB;
-	i_Y_OB iM;
+	typedef math::iMath_basic<def_threads_t> iMB;
+	iMB iM;
 
 	//for (unsigned i = 200; i <= 230; i+=5) test_evAbs_perf(iM, i,100);
 	test_evAbs_perf(iM, 100);
@@ -1149,10 +1149,10 @@ void test_evSquare_perf(iMath& iM, vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 	STDCOUTL("best:\t" << utils::duration_readable(diff, maxReps, &tBest));
 }
 
-TEST(TestIYepppOpenBLAS, evSquarePerf) {
+TEST(TestIMathBasic, evSquarePerf) {
 	typedef nntl::nnet_def_interfaces::iThreads_t def_threads_t;
-	typedef math::i_Yeppp_OpenBlas<def_threads_t> i_Y_OB;
-	i_Y_OB iM;
+	typedef math::iMath_basic<def_threads_t> iMB;
+	iMB iM;
 
 	//for (unsigned i = 230; i <= 270; i+=5) test_evSquare_perf(iM, i,100);
 	test_evSquare_perf(iM, 100);
@@ -1266,10 +1266,10 @@ void test_modprop_perf(iMath& iM, vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 	STDCOUTL("best:\t" << utils::duration_readable(diff, maxReps, &tBest));
 }
 
-TEST(TestIYepppOpenBLAS, ModPropPerf) {
+TEST(TestIMathBasic, ModPropPerf) {
 	typedef nntl::nnet_def_interfaces::iThreads_t def_threads_t;
-	typedef math::i_Yeppp_OpenBlas<def_threads_t> i_Y_OB;
-	i_Y_OB iM;
+	typedef math::iMath_basic<def_threads_t> iMB;
+	iMB iM;
 
 	//for (unsigned i = 450; i <= 600; i+=10) test_modprop_perf(iM, i,10);
 	test_modprop_perf(iM, 100);
@@ -1366,10 +1366,10 @@ void test_rprop_perf(iMath& iM, typename iMath::floatmtx_t::vec_len_t rowsCnt, t
 	STDCOUTL("best:\t" << utils::duration_readable(diff, maxReps, &tBest));
 }
 
-TEST(TestIYepppOpenBLAS, RPropPerf) {
+TEST(TestIMathBasic, RPropPerf) {
 	typedef nntl::nnet_def_interfaces::iThreads_t def_threads_t;
-	typedef math::i_Yeppp_OpenBlas<def_threads_t> i_Y_OB;
-	i_Y_OB iM;
+	typedef math::iMath_basic<def_threads_t> iMB;
+	iMB iM;
 
 	//for (unsigned i = 400; i <= 800; i+=50) test_rprop_perf(iM, i,10);
 	test_rprop_perf(iM, 100);
@@ -1486,10 +1486,10 @@ void test_rmspropgraves_perf(iMath& iM, typename iMath::floatmtx_t::vec_len_t ro
 	STDCOUTL("best:\t" << utils::duration_readable(diff, maxReps, &tBest));
 }
 
-TEST(TestIYepppOpenBLAS, RMSPropGravesPerf) {
+TEST(TestIMathBasic, RMSPropGravesPerf) {
 	typedef nntl::nnet_def_interfaces::iThreads_t def_threads_t;
-	typedef math::i_Yeppp_OpenBlas<def_threads_t> i_Y_OB;
-	i_Y_OB iM;
+	typedef math::iMath_basic<def_threads_t> iMB;
+	iMB iM;
 
 	//for (unsigned i = 250; i <= 350; i+=10) test_rmspropgraves_perf(iM, i,10);
 	test_rmspropgraves_perf(iM, 100);
@@ -1593,10 +1593,10 @@ void test_rmsprophinton_perf(iMath& iM, typename iMath::floatmtx_t::vec_len_t ro
 	STDCOUTL("best:\t" << utils::duration_readable(diff, maxReps, &tBest));
 }
 
-TEST(TestIYepppOpenBLAS, RMSPropHintonPerf) {
+TEST(TestIMathBasic, RMSPropHintonPerf) {
 	typedef nntl::nnet_def_interfaces::iThreads_t def_threads_t;
-	typedef math::i_Yeppp_OpenBlas<def_threads_t> i_Y_OB;
-	i_Y_OB iM;
+	typedef math::iMath_basic<def_threads_t> iMB;
+	iMB iM;
 
 	//for (unsigned i = 200; i <= 300; i+=10) test_rmsprophinton_perf(iM, i,10);
 	test_rmsprophinton_perf(iM, 100);
@@ -1711,10 +1711,10 @@ void test_make_dropout_perf(iMath& iM, typename iMath::floatmtx_t::vec_len_t row
 	STDCOUTL("best:\t\t" << utils::duration_readable(diff, maxReps, &tBest));
 }
 
-TEST(TestIYepppOpenBLAS, MakeDropoutPerf) {
+TEST(TestIMathBasic, MakeDropoutPerf) {
 	typedef nntl::nnet_def_interfaces::iThreads_t def_threads_t;
-	typedef math::i_Yeppp_OpenBlas<def_threads_t> i_Y_OB;
-	i_Y_OB iM;
+	typedef math::iMath_basic<def_threads_t> iMB;
+	iMB iM;
 
 	//for (unsigned i = 9000; i <= 11000; i+=100) test_make_dropout_perf(iM, 1,i);
 	test_make_dropout_perf(iM, 1, 100);
@@ -1727,21 +1727,21 @@ TEST(TestIYepppOpenBLAS, MakeDropoutPerf) {
 
 //////////////////////////////////////////////////////////////////////////
 
-TEST(TestIYepppOpenBLAS, vCountSameNaive) {
+TEST(TestIMathBasic, vCountSameNaive) {
 	typedef nntl::nnet_def_interfaces::iThreads_t def_threads_t;
-	typedef math::i_Yeppp_OpenBlas<def_threads_t> i_Y_OB;
+	typedef math::iMath_basic<def_threads_t> iMB;
 
 	constexpr unsigned dataCnt = 9;
 	const std::array<unsigned, dataCnt> src1 = { 3,55,32, 35,63,5, 2,400,6 };
 	const std::array<unsigned, dataCnt> src2 = { 3,55,33, 35,63,5, 4,400,6 };
 
-	i_Y_OB iM;
+	iMB iM;
 	ASSERT_EQ(iM.vCountSame_st_naive(src1, src2), dataCnt-2);
 }
 
-TEST(TestIYepppOpenBLAS, vCountSameMtCorrectness) {
+TEST(TestIMathBasic, vCountSameMtCorrectness) {
 	typedef nntl::nnet_def_interfaces::iThreads_t def_threads_t;
-	typedef math::i_Yeppp_OpenBlas<def_threads_t> i_Y_OB;
+	typedef math::iMath_basic<def_threads_t> iMB;
 	typedef std::vector<floatmtx_t::vec_len_t> vec_t;
 
 #ifdef _DEBUG
@@ -1752,7 +1752,7 @@ TEST(TestIYepppOpenBLAS, vCountSameMtCorrectness) {
 
 	vec_t v1(rowsCnt), v2(rowsCnt);
 
-	i_Y_OB iM;
+	iMB iM;
 	nnet_def_interfaces::iRng_t rg;
 	rg.set_ithreads(iM.ithreads());
 
@@ -1811,11 +1811,11 @@ void test_vCountSame_perf(iMath& iM, typename iMath::floatmtx_t::vec_len_t rowsC
 	STDCOUTL("best:\t\t" << utils::duration_readable(diff, maxReps, &tBest) << "\t\tvv=" << vv);
 }
 
-TEST(TestIYepppOpenBLAS, vCountSamePerf) {
+TEST(TestIMathBasic, vCountSamePerf) {
 	typedef nntl::nnet_def_interfaces::iThreads_t def_threads_t;
-	typedef math::i_Yeppp_OpenBlas<def_threads_t> i_Y_OB;
+	typedef math::iMath_basic<def_threads_t> iMB;
 
-	i_Y_OB iM;
+	iMB iM;
 
 	//for (unsigned i = 1; i <= 128; i*=2) test_vCountSame_perf(iM, i*100000);
 
@@ -1880,11 +1880,11 @@ void test_evClamp_perf(iMath& iM, typename iMath::floatmtx_t::vec_len_t rowsCnt,
 	STDCOUTL("best:\t\t" << utils::duration_readable(diff, maxReps, &tBest));
 }
 
-TEST(TestIYepppOpenBLAS, evClampPerf) {
+TEST(TestIMathBasic, evClampPerf) {
 	typedef nntl::nnet_def_interfaces::iThreads_t def_threads_t;
-	typedef math::i_Yeppp_OpenBlas<def_threads_t> i_Y_OB;
+	typedef math::iMath_basic<def_threads_t> iMB;
 
-	i_Y_OB iM;
+	iMB iM;
 
 	//for (unsigned i = 100; i <= 140; i+=1) test_evClamp_perf(iM, i,100);
 
@@ -1898,9 +1898,9 @@ TEST(TestIYepppOpenBLAS, evClampPerf) {
 
 
 //////////////////////////////////////////////////////////////////////////
-TEST(TestIYepppOpenBLAS, mExtractRowsCorrectness) {
+TEST(TestIMathBasic, mExtractRowsCorrectness) {
 	typedef nntl::nnet_def_interfaces::iThreads_t def_threads_t;
-	typedef math::i_Yeppp_OpenBlas<def_threads_t> i_Y_OB;
+	typedef math::iMath_basic<def_threads_t> iMB;
 	
 	constexpr vec_len_t rowsCnt = 2000, colsCnt = 50, extrCnt = 1000;
 
@@ -1910,7 +1910,7 @@ TEST(TestIYepppOpenBLAS, mExtractRowsCorrectness) {
 	for (numel_cnt_t i = 0, im = src.numel(); i < im; ++i) pSrc[i] = static_cast<float_t_>(i);
 
 	std::vector<vec_len_t> vec(extrCnt);
-	i_Y_OB iM;
+	iMB iM;
 	nnet_def_interfaces::iRng_t rg;
 	rg.set_ithreads(iM.ithreads());
 
@@ -1978,11 +1978,11 @@ void test_mExtractRows_perf(iMath& iM, typename iMath::floatmtx_t::vec_len_t row
 	STDCOUTL("best:\t\t" << utils::duration_readable(diff, maxReps, &tBest));
 }
 
-TEST(TestIYepppOpenBLAS, mExtractRowsPerf) {
+TEST(TestIMathBasic, mExtractRowsPerf) {
 	typedef nntl::nnet_def_interfaces::iThreads_t def_threads_t;
-	typedef math::i_Yeppp_OpenBlas<def_threads_t> i_Y_OB;
+	typedef math::iMath_basic<def_threads_t> iMB;
 
-	i_Y_OB iM;
+	iMB iM;
 
 /*
 	for (unsigned r = 8; r <= 64; r *= 2) {
@@ -2007,9 +2007,9 @@ TEST(TestIYepppOpenBLAS, mExtractRowsPerf) {
 }
 
 //////////////////////////////////////////////////////////////////////////
-TEST(TestIYepppOpenBLAS, mFindIdxsOfMaxRowwiseNaive) {
+TEST(TestIMathBasic, mFindIdxsOfMaxRowwiseNaive) {
 	typedef nntl::nnet_def_interfaces::iThreads_t def_threads_t;
-	typedef math::i_Yeppp_OpenBlas<def_threads_t> i_Y_OB;
+	typedef math::iMath_basic<def_threads_t> iMB;
 
 	constexpr unsigned dataCnt = 9;
 	const float_t_ _src[dataCnt]{ 3,55,32,35,63,5,-2,400,6 };
@@ -2022,7 +2022,7 @@ TEST(TestIYepppOpenBLAS, mFindIdxsOfMaxRowwiseNaive) {
 
 	std::vector<floatmtx_t::vec_len_t> vec(3);
 
-	i_Y_OB iM;
+	iMB iM;
 	iM.mFindIdxsOfMaxRowwise_st_naive(m,vec);
 
 	ASSERT_EQ(vec[0], 1);
@@ -2030,9 +2030,9 @@ TEST(TestIYepppOpenBLAS, mFindIdxsOfMaxRowwiseNaive) {
 	ASSERT_EQ(vec[2], 0);
 }
 
-TEST(TestIYepppOpenBLAS, mFindIdxsOfMaxRowwiseMtCorrectness) {
+TEST(TestIMathBasic, mFindIdxsOfMaxRowwiseMtCorrectness) {
 	typedef nntl::nnet_def_interfaces::iThreads_t def_threads_t;
-	typedef math::i_Yeppp_OpenBlas<def_threads_t> i_Y_OB;
+	typedef math::iMath_basic<def_threads_t> iMB;
 
 #ifdef _DEBUG
 	constexpr unsigned rowsCnt = 100;
@@ -2043,7 +2043,7 @@ TEST(TestIYepppOpenBLAS, mFindIdxsOfMaxRowwiseMtCorrectness) {
 	floatmtx_t m(rowsCnt, 100);
 	ASSERT_TRUE(!m.isAllocationFailed());
 
-	i_Y_OB iM;
+	iMB iM;
 	nnet_def_interfaces::iRng_t rg;
 	rg.set_ithreads(iM.ithreads());
 	rg.gen_matrix(m, 1000);
@@ -2106,10 +2106,10 @@ void test_mFindIdxsOfMaxRowwise_perf(iMath& iM, typename iMath::floatmtx_t::vec_
 	STDCOUTL("best:\t\t" << utils::duration_readable(diff, maxReps, &tBest));
 }
 
-TEST(TestIYepppOpenBLAS, mFindIdxsOfMaxRowwisePerf) {
+TEST(TestIMathBasic, mFindIdxsOfMaxRowwisePerf) {
 	typedef nntl::nnet_def_interfaces::iThreads_t def_threads_t;
-	typedef math::i_Yeppp_OpenBlas<def_threads_t> i_Y_OB;
-	i_Y_OB iM;
+	typedef math::iMath_basic<def_threads_t> iMB;
+	iMB iM;
 
 	//for (unsigned i = 1; i <= 10; i+=1) test_mFindIdxsOfMaxRowwise_perf(iM, i*100,10);
 	test_mFindIdxsOfMaxRowwise_perf(iM, 100);
@@ -2121,11 +2121,11 @@ TEST(TestIYepppOpenBLAS, mFindIdxsOfMaxRowwisePerf) {
 
 }
 
-TEST(TestIYepppOpenBLAS, mMulABt_Cnb) {
+TEST(TestIMathBasic, mMulABt_Cnb) {
 	using namespace nntl_supp;
 
 	typedef nntl::nnet_def_interfaces::iThreads_t def_threads_t;
-	typedef math::i_Yeppp_OpenBlas<def_threads_t> i_Y_OB;
+	typedef math::iMath_basic<def_threads_t> iMB;
 	
 	using ErrCode = jsonreader::ErrorCode;
 	using mtx_t = train_data::mtx_t;
@@ -2151,7 +2151,7 @@ TEST(TestIYepppOpenBLAS, mMulABt_Cnb) {
 	C.resize(etC.size());
 	C.zeros();
 
-	i_Y_OB iM;
+	iMB iM;
 
 	iM.mMulABt_Cnb(A, B, C);
 	EXPECT_EQ(A, etA);
@@ -2159,11 +2159,11 @@ TEST(TestIYepppOpenBLAS, mMulABt_Cnb) {
 	EXPECT_EQ(C, etC);
 }
 
-TEST(TestIYepppOpenBLAS, mMulABt_Cnb_biased) {
+TEST(TestIMathBasic, mMulABt_Cnb_biased) {
 	using namespace nntl_supp;
 
 	typedef nntl::nnet_def_interfaces::iThreads_t def_threads_t;
-	typedef math::i_Yeppp_OpenBlas<def_threads_t> i_Y_OB;
+	typedef math::iMath_basic<def_threads_t> iMB;
 
 	using ErrCode = jsonreader::ErrorCode;
 	using mtx_t = train_data::mtx_t;
@@ -2190,7 +2190,7 @@ TEST(TestIYepppOpenBLAS, mMulABt_Cnb_biased) {
 	C.resize(etC.size());
 	C.zeros();
 
-	i_Y_OB iM;
+	iMB iM;
 
 	iM.mMulABt_Cnb(A, B, C);
 	EXPECT_EQ(A, etA);
@@ -2215,7 +2215,7 @@ void test_evMul_ip(iMath& iM, typename iMath::floatmtx_t::vec_len_t rowsCnt, typ
 	STDCOUTL("********* testing evMul_ip() over " << rowsCnt << "x" << colsCnt << " matrix (" << dataSize << " elements) **************");
 
 	EXPECT_TRUE(steady_clock::is_steady);
-	double tstVect, tmtNaive, tmtVect, tstNaive, tBest;
+	double tstNaive, tmtNaive, tBest; //tmtVect, tstVect,
 	steady_clock::time_point bt;
 	nanoseconds diff;
 	constexpr unsigned maxReps = TEST_PERF_REPEATS_COUNT;
@@ -2246,8 +2246,8 @@ void test_evMul_ip(iMath& iM, typename iMath::floatmtx_t::vec_len_t rowsCnt, typ
 		iM.evMul_ip_st_naive(m, B);
 		diff += steady_clock::now() - bt;
 	}
-	ASSERT_EQ(m, etDest);
-	ASSERT_EQ(B, etB);
+	ASSERT_EQ(m, etDest) << "evMul_ip_st_naive";
+	ASSERT_EQ(B, etB) << "evMul_ip_st_naive";
 	STDCOUTL("st_naive:\t" << utils::duration_readable(diff, maxReps, &tstNaive));
 
 	//////////////////////////////////////////////////////////////////////////
@@ -2261,13 +2261,13 @@ void test_evMul_ip(iMath& iM, typename iMath::floatmtx_t::vec_len_t rowsCnt, typ
 		iM.evMul_ip_mt_naive(m, B);
 		diff += steady_clock::now() - bt;
 	}
-	ASSERT_EQ(m, etDest);
-	ASSERT_EQ(B, etB);
+	ASSERT_EQ(m, etDest) << "evMul_ip_mt_naive";
+	ASSERT_EQ(B, etB) << "evMul_ip_mt_naive";
 	STDCOUTL("mt_naive:\t" << utils::duration_readable(diff, maxReps, &tmtNaive));
 
 	//////////////////////////////////////////////////////////////////////////
 	//single threaded vectorized
-	ASSERT_TRUE(etM.cloneTo(m));
+	/*ASSERT_TRUE(etM.cloneTo(m));
 	iM.evMul_ip_st_vec(m, B);
 	diff = nanoseconds(0);
 	for (unsigned r = 0; r < maxReps; ++r) {
@@ -2276,8 +2276,8 @@ void test_evMul_ip(iMath& iM, typename iMath::floatmtx_t::vec_len_t rowsCnt, typ
 		iM.evMul_ip_st_vec(m, B);
 		diff += steady_clock::now() - bt;
 	}
-	ASSERT_EQ(m, etDest);
-	ASSERT_EQ(B, etB);
+	ASSERT_EQ(m, etDest) << "evMul_ip_st_vec";
+	ASSERT_EQ(B, etB) << "evMul_ip_st_vec";
 	STDCOUTL("st_vec:\t\t" << utils::duration_readable(diff, maxReps, &tstVect));
 
 	//////////////////////////////////////////////////////////////////////////
@@ -2291,9 +2291,10 @@ void test_evMul_ip(iMath& iM, typename iMath::floatmtx_t::vec_len_t rowsCnt, typ
 		iM.evMul_ip_mt_vec(m, B);
 		diff += steady_clock::now() - bt;
 	}
-	ASSERT_EQ(m, etDest);
-	ASSERT_EQ(B, etB);
+	ASSERT_EQ(m, etDest) << "evMul_ip_mt_vec";
+	ASSERT_EQ(B, etB) << "evMul_ip_mt_vec";
 	STDCOUTL("mt_vec:\t\t" << utils::duration_readable(diff, maxReps, &tmtVect));
+*/
 
 	//////////////////////////////////////////////////////////////////////////
 	//best guess
@@ -2306,23 +2307,18 @@ void test_evMul_ip(iMath& iM, typename iMath::floatmtx_t::vec_len_t rowsCnt, typ
 		iM.evMul_ip(m, B);
 		diff += steady_clock::now() - bt;
 	}
-	ASSERT_EQ(m, etDest);
-	ASSERT_EQ(B, etB);
+	ASSERT_EQ(m, etDest) << "evMul_ip";
+	ASSERT_EQ(B, etB) << "evMul_ip";
 	STDCOUTL("best:\t\t" << utils::duration_readable(diff, maxReps, &tBest));
-	// If it's not the best, then tune iM.loss_quadratic() appropriately
-
-
-	//double rat = static_cast<double>(tmtNaive) / tmtVect;
-	//STDCOUTL("Vectorized version is " << (rat > 1 ? "faster " : "SLOWER ") << std::setprecision(2) << (rat > 1 ? rat : 1 / rat) << " times");
 }
 
-TEST(TestIYepppOpenBLAS, evMul_ip) {
+TEST(TestIMathBasic, evMul_ip) {
 	typedef nntl::nnet_def_interfaces::iThreads_t def_threads_t;
-	typedef math::i_Yeppp_OpenBlas<def_threads_t> i_Y_OB;
-	i_Y_OB iM;
+	typedef math::iMath_basic<def_threads_t> iMB;
+	iMB iM;
 
-	//for (unsigned i = 20; i <= 60; i+=1) test_evMul_ip(iM, i*1000,1);
-	test_evMul_ip(iM, 100);
+	for (unsigned i = 350; i <= 380; i+=5) test_evMul_ip(iM, i*100,1);
+	//test_evMul_ip(iM, 100);
 #ifndef TESTS_SKIP_LONGRUNNING
 	test_evMul_ip(iM, 1000);
 	test_evMul_ip(iM, 10000);
@@ -2339,7 +2335,7 @@ void test_evMulC_ip(iMath& iM, typename iMath::floatmtx_t::vec_len_t rowsCnt, ty
 	STDCOUTL("********* testing evMulC_ip() over " << rowsCnt << "x" << colsCnt << " matrix (" << dataSize << " elements) **************");
 
 	EXPECT_TRUE(steady_clock::is_steady);
-	double tstVect, tmtNaive, tmtVect, tstNaive, tBest;
+	double tmtNaive, tstNaive, tBest; //tstVect, tmtVect
 	steady_clock::time_point bt;
 	nanoseconds diff;
 	constexpr unsigned maxReps = TEST_PERF_REPEATS_COUNT;
@@ -2382,7 +2378,7 @@ void test_evMulC_ip(iMath& iM, typename iMath::floatmtx_t::vec_len_t rowsCnt, ty
 	ASSERT_EQ(m, etDest);
 	STDCOUTL("mt_naive:\t" << utils::duration_readable(diff, maxReps, &tmtNaive));
 
-	//////////////////////////////////////////////////////////////////////////
+	/*//////////////////////////////////////////////////////////////////////////
 	//single threaded vectorized
 	diff = nanoseconds(0);
 	for (unsigned r = 0; r < maxReps; ++r) {
@@ -2404,7 +2400,7 @@ void test_evMulC_ip(iMath& iM, typename iMath::floatmtx_t::vec_len_t rowsCnt, ty
 		diff += steady_clock::now() - bt;
 	}
 	ASSERT_EQ(m, etDest);
-	STDCOUTL("mt_vec:\t\t" << utils::duration_readable(diff, maxReps, &tmtVect));
+	STDCOUTL("mt_vec:\t\t" << utils::duration_readable(diff, maxReps, &tmtVect));*/
 
 	//////////////////////////////////////////////////////////////////////////
 	//best guess
@@ -2419,10 +2415,10 @@ void test_evMulC_ip(iMath& iM, typename iMath::floatmtx_t::vec_len_t rowsCnt, ty
 	STDCOUTL("best:\t\t" << utils::duration_readable(diff, maxReps, &tBest));
 }
 
-TEST(TestIYepppOpenBLAS, evMulC_ip) {
+TEST(TestIMathBasic, evMulC_ip) {
 	typedef nntl::nnet_def_interfaces::iThreads_t def_threads_t;
-	typedef math::i_Yeppp_OpenBlas<def_threads_t> i_Y_OB;
-	i_Y_OB iM;
+	typedef math::iMath_basic<def_threads_t> iMB;
+	iMB iM;
 
 	//for (unsigned i = 60; i <= 70; i+=1) test_evMulC_ip(iM, i*10,100);	
 	test_evMulC_ip(iM, 100);
@@ -2444,7 +2440,7 @@ void test_sigm(iMath& iM, typename iMath::floatmtx_t::vec_len_t rowsCnt, typenam
 	STDCOUTL("********* testing sigm() over ~" << dataSize << " elements) **************");
 
 	EXPECT_TRUE(steady_clock::is_steady);
-	double tstVect, tmtNaive, tmtVect, tstNaive, tBest;
+	double tmtNaive, tstNaive, tBest; //tstVect, tmtVect
 	steady_clock::time_point bt;
 	nanoseconds diff;
 	const unsigned maxReps = ceil(((float_t_)TEST_PERF_REPEATS_COUNT)/25.0);
@@ -2510,6 +2506,7 @@ void test_sigm(iMath& iM, typename iMath::floatmtx_t::vec_len_t rowsCnt, typenam
 		for (numel_cnt_t i = 0; i < iMax; ++i) ASSERT_DOUBLE_EQ(ptrDest[i], ptr[i]);
 	}
 	STDCOUTL("mt_naive:\t" << utils::duration_readable(diff, maxReps*threadsCount, &tmtNaive));
+/*
 
 	//////////////////////////////////////////////////////////////////////////
 	//single threaded vectorized
@@ -2546,6 +2543,7 @@ void test_sigm(iMath& iM, typename iMath::floatmtx_t::vec_len_t rowsCnt, typenam
 		for (numel_cnt_t i = 0; i < iMax; ++i) ASSERT_DOUBLE_EQ(ptrDest[i], ptr[i]);
 	}
 	STDCOUTL("mt_vec:\t\t" << utils::duration_readable(diff, maxReps*threadsCount, &tmtVect));
+*/
 
 	//////////////////////////////////////////////////////////////////////////
 	//best
@@ -2566,11 +2564,11 @@ void test_sigm(iMath& iM, typename iMath::floatmtx_t::vec_len_t rowsCnt, typenam
 	STDCOUTL("best:\t\t" << utils::duration_readable(diff, maxReps*threadsCount, &tBest));
 }
 
-TEST(TestIYepppOpenBLAS, Sigm) {
+TEST(TestIMathBasic, Sigm) {
 	typedef nntl::nnet_def_interfaces::iThreads_t def_threads_t;
-	typedef math::i_Yeppp_OpenBlas<def_threads_t> i_Y_OB;
+	typedef math::iMath_basic<def_threads_t> iMB;
 	
-	i_Y_OB iM;
+	iMB iM;
 
 	//for (unsigned i = 20; i <= 30; i += 1) test_sigm(iM, i * 100, 1);
 
@@ -2589,7 +2587,7 @@ void test_dsigm(iMath& iM, typename iMath::floatmtx_t::vec_len_t rowsCnt, typena
 	STDCOUTL("********* testing dsigm() over " << rowsCnt << "x" << colsCnt << " matrix (" << dataSize << " elements) **************");
 
 	EXPECT_TRUE(steady_clock::is_steady);
-	double tstVect, tmtNaive, tmtVect, tstNaive, tBest;
+	double tmtNaive, tstNaive, tBest; //tstVect, tmtVect
 	steady_clock::time_point bt;
 	nanoseconds diff;
 	constexpr unsigned maxReps = TEST_PERF_REPEATS_COUNT;
@@ -2633,6 +2631,7 @@ void test_dsigm(iMath& iM, typename iMath::floatmtx_t::vec_len_t rowsCnt, typena
 	ASSERT_EQ(m, etM);
 	ASSERT_EQ(dest, etDest);
 	STDCOUTL("mt_naive:\t" << utils::duration_readable(diff, maxReps, &tmtNaive));
+/*
 
 	//////////////////////////////////////////////////////////////////////////
 	//single threaded vectorized
@@ -2659,6 +2658,7 @@ void test_dsigm(iMath& iM, typename iMath::floatmtx_t::vec_len_t rowsCnt, typena
 	ASSERT_EQ(m, etM);
 	ASSERT_EQ(dest, etDest);
 	STDCOUTL("mt_vec:\t\t" << utils::duration_readable(diff, maxReps, &tmtVect));
+*/
 
 	//////////////////////////////////////////////////////////////////////////
 	//best guess
@@ -2679,11 +2679,11 @@ void test_dsigm(iMath& iM, typename iMath::floatmtx_t::vec_len_t rowsCnt, typena
 	//STDCOUTL("Vectorized version is " << (rat > 1 ? "faster " : "SLOWER ") << std::setprecision(2) << (rat > 1 ? rat : 1 / rat) << " times");
 }
 
-TEST(TestIYepppOpenBLAS, dsigm) {
+TEST(TestIMathBasic, dsigm) {
 	typedef nntl::nnet_def_interfaces::iThreads_t def_threads_t;
-	typedef math::i_Yeppp_OpenBlas<def_threads_t> i_Y_OB;
+	typedef math::iMath_basic<def_threads_t> iMB;
 
-	i_Y_OB iM;
+	iMB iM;
 
 	//for (unsigned i = 220; i <= 300; i+=5) test_dsigm(iM, i*100,1);
 
@@ -2705,7 +2705,7 @@ void test_relu(iMath& iM, typename iMath::floatmtx_t::vec_len_t rowsCnt, typenam
 	STDCOUTL("********* testing relu() over ~" << dataSize << " elements) **************");
 
 	EXPECT_TRUE(steady_clock::is_steady);
-	double tstVect, tmtNaive, tmtVect, tstNaive, tBest;
+	double tmtNaive, tstNaive, tBest;//tstVect, tmtVect
 	steady_clock::time_point bt;
 	nanoseconds diff;
 	const unsigned maxReps = TEST_PERF_REPEATS_COUNT;
@@ -2768,7 +2768,7 @@ void test_relu(iMath& iM, typename iMath::floatmtx_t::vec_len_t rowsCnt, typenam
 	}
 	STDCOUTL("mt_naive:\t" << utils::duration_readable(diff, maxReps*threadsCount, &tmtNaive));
 
-	//////////////////////////////////////////////////////////////////////////
+	/*//////////////////////////////////////////////////////////////////////////
 	//single threaded vectorized
 	diff = nanoseconds(0);
 	for (threads_t::thread_id_t t = 0; t < threadsCount; ++t) {
@@ -2802,7 +2802,7 @@ void test_relu(iMath& iM, typename iMath::floatmtx_t::vec_len_t rowsCnt, typenam
 		const auto ptr = m.dataAsVec();
 		for (numel_cnt_t i = 0; i < iMax; ++i) ASSERT_DOUBLE_EQ(ptrDest[i], ptr[i]);
 	}
-	STDCOUTL("mt_vec:\t\t" << utils::duration_readable(diff, maxReps*threadsCount, &tmtVect));
+	STDCOUTL("mt_vec:\t\t" << utils::duration_readable(diff, maxReps*threadsCount, &tmtVect));*/
 
 	//////////////////////////////////////////////////////////////////////////
 	//best
@@ -2823,11 +2823,11 @@ void test_relu(iMath& iM, typename iMath::floatmtx_t::vec_len_t rowsCnt, typenam
 	STDCOUTL("best:\t\t" << utils::duration_readable(diff, maxReps*threadsCount, &tBest));
 }
 
-TEST(TestIYepppOpenBLAS, Relu) {
+TEST(TestIMathBasic, Relu) {
 	typedef nntl::nnet_def_interfaces::iThreads_t def_threads_t;
-	typedef math::i_Yeppp_OpenBlas<def_threads_t> i_Y_OB;
+	typedef math::iMath_basic<def_threads_t> iMB;
 
-	i_Y_OB iM;
+	iMB iM;
 
 	//for (unsigned i = 37; i <= 47; i += 1) test_relu(iM, i * 100, 1);
 
@@ -2905,11 +2905,11 @@ void test_drelu(iMath& iM, typename iMath::floatmtx_t::vec_len_t rowsCnt, typena
 	STDCOUTL("best:\t\t" << utils::duration_readable(diff, maxReps, &tBest));
 }
 
-TEST(TestIYepppOpenBLAS, drelu) {
+TEST(TestIMathBasic, drelu) {
 	typedef nntl::nnet_def_interfaces::iThreads_t def_threads_t;
-	typedef math::i_Yeppp_OpenBlas<def_threads_t> i_Y_OB;
+	typedef math::iMath_basic<def_threads_t> iMB;
 
-	i_Y_OB iM;
+	iMB iM;
 
 	//for (unsigned i = 200; i <= 250; i+=5) test_drelu(iM, i*100,1);
 
@@ -2931,7 +2931,7 @@ void test_loss_quadratic(iMath& iM, typename iMath::floatmtx_t::vec_len_t rowsCn
 	ASSERT_TRUE(iM.init());
 
 	EXPECT_TRUE(steady_clock::is_steady);
-	double tstVect, tmtNaive, tmtVect, tstNaive, tBest;
+	double tmtNaive, tstNaive, tBest;//tstVect, tmtVect
 	steady_clock::time_point bt;
 	nanoseconds diff;
 	constexpr unsigned maxReps = TEST_PERF_REPEATS_COUNT;
@@ -2981,7 +2981,7 @@ void test_loss_quadratic(iMath& iM, typename iMath::floatmtx_t::vec_len_t rowsCn
 	ASSERT_NEAR(etQuadLoss, quadLoss, 1e-10);
 	STDCOUTL("mt_naive:\t" << utils::duration_readable(diff, maxReps, &tmtNaive));
 
-	//////////////////////////////////////////////////////////////////////////
+	/*//////////////////////////////////////////////////////////////////////////
 	//single threaded vectorized
 	diff = nanoseconds(0);
 	bt = steady_clock::now();
@@ -3001,7 +3001,7 @@ void test_loss_quadratic(iMath& iM, typename iMath::floatmtx_t::vec_len_t rowsCn
 	ASSERT_EQ(A, etA);
 	ASSERT_EQ(Y, etY);
 	ASSERT_NEAR(etQuadLoss, quadLoss, 1e-10);
-	STDCOUTL("mt_vec:\t\t" << utils::duration_readable(diff, maxReps, &tmtVect));
+	STDCOUTL("mt_vec:\t\t" << utils::duration_readable(diff, maxReps, &tmtVect));*/
 
 	//////////////////////////////////////////////////////////////////////////
 	//best guess
@@ -3020,10 +3020,10 @@ void test_loss_quadratic(iMath& iM, typename iMath::floatmtx_t::vec_len_t rowsCn
 	//STDCOUTL("Vectorized version is " << (rat > 1 ? "faster " : "SLOWER ") << std::setprecision(2) << (rat > 1 ? rat : 1 / rat) << " times");
 }
 
-TEST(TestIYepppOpenBLAS, LossQuadratic) {
+TEST(TestIMathBasic, LossQuadratic) {
 	typedef nntl::nnet_def_interfaces::iThreads_t def_threads_t;
-	typedef math::i_Yeppp_OpenBlas<def_threads_t> i_Y_OB;
-	i_Y_OB iM;
+	typedef math::iMath_basic<def_threads_t> iMB;
+	iMB iM;
 
 	//for (unsigned i = 200; i <= 280; i+=5) test_loss_quadratic(iM, i*100,1);
 	test_loss_quadratic(iM, 100);
@@ -3042,7 +3042,7 @@ void test_dSigmQuadLoss_dZ(iMath& iM, typename iMath::floatmtx_t::vec_len_t rows
 	STDCOUTL("********* testing dSigmQuadLoss_dZ() over " << rowsCnt << "x" << colsCnt << " matrix ("<< dataSize <<" elements) **************");
 
 	EXPECT_TRUE(steady_clock::is_steady);
-	double tstVect, tmtNaive, tmtVect, tstNaive, tBest;
+	double tmtNaive, tstNaive, tBest; //tstVect, tmtVect
 	steady_clock::time_point bt;
 	nanoseconds diff;
 	constexpr unsigned maxReps = TEST_PERF_REPEATS_COUNT;
@@ -3091,6 +3091,7 @@ void test_dSigmQuadLoss_dZ(iMath& iM, typename iMath::floatmtx_t::vec_len_t rows
 	ASSERT_EQ(dLdZ, etdLdZ);
 	STDCOUTL("mt_naive:\t" << utils::duration_readable(diff, maxReps, &tmtNaive));
 
+/*
 	//////////////////////////////////////////////////////////////////////////
 	//single threaded vectorized
 	dLdZ.zeros();
@@ -3113,7 +3114,7 @@ void test_dSigmQuadLoss_dZ(iMath& iM, typename iMath::floatmtx_t::vec_len_t rows
 	ASSERT_EQ(A, etA);
 	ASSERT_EQ(Y, etY);
 	ASSERT_EQ(dLdZ, etdLdZ);
-	STDCOUTL("mt_vec:\t\t" << utils::duration_readable(diff, maxReps, &tmtVect));
+	STDCOUTL("mt_vec:\t\t" << utils::duration_readable(diff, maxReps, &tmtVect));*/
 
 	//////////////////////////////////////////////////////////////////////////
 	//best guess
@@ -3133,11 +3134,11 @@ void test_dSigmQuadLoss_dZ(iMath& iM, typename iMath::floatmtx_t::vec_len_t rows
 	//STDCOUTL("Vectorized version is " << (rat > 1 ? "faster " : "SLOWER ") << std::setprecision(2) << (rat > 1 ? rat : 1 / rat) << " times");
 }
 
-TEST(TestIYepppOpenBLAS, dSigmQuadLoss_dZ) {
+TEST(TestIMathBasic, dSigmQuadLoss_dZ) {
 	typedef nntl::nnet_def_interfaces::iThreads_t def_threads_t;
-	typedef math::i_Yeppp_OpenBlas<def_threads_t> i_Y_OB;
+	typedef math::iMath_basic<def_threads_t> iMB;
 
-	i_Y_OB iM;
+	iMB iM;
 
  	test_dSigmQuadLoss_dZ(iM, 500);
 
