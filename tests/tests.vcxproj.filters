@@ -147,9 +147,6 @@
     <ClInclude Include="..\nntl\interface\threads\intel_tbb.h">
       <Filter>nntl\interface\threads</Filter>
     </ClInclude>
-    <ClInclude Include="..\nntl\interface\math\i_yeppp_openblas.h">
-      <Filter>nntl\interface\math</Filter>
-    </ClInclude>
     <ClInclude Include="..\nntl\interface\math\bindings\b_yeppp.h">
       <Filter>nntl\interface\math\bindings</Filter>
     </ClInclude>
@@ -195,6 +192,9 @@
     <ClInclude Include="etalons.h">
       <Filter>Source Files</Filter>
     </ClInclude>
+    <ClInclude Include="..\nntl\interface\math\imath_basic.h">
+      <Filter>nntl\interface\math</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="stdafx.cpp">
@@ -218,9 +218,6 @@
     <ClCompile Include="test_b_yeppp.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="test_i_yeppp_openblas.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
     <ClCompile Include="test_jsonreader.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
@@ -231,6 +228,9 @@
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="test_perf_decisions.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="test_imath_basic.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>

@@ -158,12 +158,12 @@ TEST(TestThreading, PerfComparision) {
 
 			bt = steady_clock::now();
 			wint.run([&](const par_range_t&)noexcept {
-				v++;
+				v2++;
 			}, 100000000);
 			diffNE += steady_clock::now() - bt;
 		}
 		STDCOUTL("WinQDU:\t\t " << utils::duration_readable(diff, maxreps, &tWinQDU) << ",\t\t" << v << " incs)");
-		STDCOUTL("WinQDU(noexcept):" << utils::duration_readable(diff, maxreps, &tWinQDUNE) << ",\t\t" << v << " incs)");
+		STDCOUTL("WinQDU(noexcept):" << utils::duration_readable(diff, maxreps, &tWinQDUNE) << ",\t\t" << v2 << " incs)");
 		STDCOUTL("noexcept/plain ratio: " << tWinQDUNE / tWinQDU);
 	}
 	{

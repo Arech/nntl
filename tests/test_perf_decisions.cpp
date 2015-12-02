@@ -39,7 +39,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "../nntl/interface/math.h"
 #include "../nntl/common.h"
 
-#include "../nntl/interface/math/i_yeppp_openblas.h"
+#include "../nntl/interface/math/imath_basic.h"
 #include "../nntl/nnet_def_interfaces.h"
 
 #include <array>

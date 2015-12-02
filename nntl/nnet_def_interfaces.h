@@ -42,7 +42,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "interface/threads/std.h"
 #endif
 
-#include "interface/math/i_yeppp_openblas.h"
+#include "interface/math/imath_basic.h"
 
 #include "interface/rng/std.h"
 //#include "interface/rng/AFRandom.h"

@@ -154,8 +154,8 @@ TEST(TestIMathBasic, evAddIp) {
 	typedef math::iMath_basic<def_threads_t> iMB;
 	iMB iM;
 
-	for (unsigned i = 160; i <= 240; i += 5) test_evAdd_ip(iM, i,100);
-	//test_evAdd_ip(iM, 100);
+	//for (unsigned i = 160; i <= 240; i += 5) test_evAdd_ip(iM, i,100);
+	test_evAdd_ip(iM, 100);
 #ifndef TESTS_SKIP_LONGRUNNING
 	test_evAdd_ip(iM, 1000);
 	test_evAdd_ip(iM, 10000);
@@ -237,8 +237,8 @@ TEST(TestIMathBasic, evMulCipSubip) {
 	typedef math::iMath_basic<def_threads_t> iMB;
 	iMB iM;
 
-	for (unsigned i = 100; i <= 200; i += 10) test_evMulCipSubip(iM, i, 100);
-	//test_evMulCipSubip(iM, 100);
+	//for (unsigned i = 100; i <= 200; i += 10) test_evMulCipSubip(iM, i, 100);
+	test_evMulCipSubip(iM, 100);
 #ifndef TESTS_SKIP_LONGRUNNING
 	test_evMulCipSubip(iM, 1000);
 	test_evMulCipSubip(iM, 10000);
@@ -2312,13 +2312,13 @@ void test_evMul_ip(iMath& iM, typename iMath::floatmtx_t::vec_len_t rowsCnt, typ
 	STDCOUTL("best:\t\t" << utils::duration_readable(diff, maxReps, &tBest));
 }
 
-TEST(TestIMathBasic, evMul_ip) {
+TEST(TestIMathBasic, evMulIp) {
 	typedef nntl::nnet_def_interfaces::iThreads_t def_threads_t;
 	typedef math::iMath_basic<def_threads_t> iMB;
 	iMB iM;
 
-	for (unsigned i = 350; i <= 380; i+=5) test_evMul_ip(iM, i*100,1);
-	//test_evMul_ip(iM, 100);
+	//for (unsigned i = 350; i <= 380; i+=5) test_evMul_ip(iM, i*100,1);
+	test_evMul_ip(iM, 100);
 #ifndef TESTS_SKIP_LONGRUNNING
 	test_evMul_ip(iM, 1000);
 	test_evMul_ip(iM, 10000);

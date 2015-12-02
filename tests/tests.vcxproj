@@ -190,7 +190,7 @@
     <ClInclude Include="..\nntl\interface\math\bindings\b_acml.h" />
     <ClInclude Include="..\nntl\interface\math\bindings\b_open_blas.h" />
     <ClInclude Include="..\nntl\interface\math\bindings\b_yeppp.h" />
-    <ClInclude Include="..\nntl\interface\math\i_yeppp_openblas.h" />
+    <ClInclude Include="..\nntl\interface\math\imath_basic.h" />
     <ClInclude Include="..\nntl\interface\math\_i_math.h" />
     <ClInclude Include="..\nntl\interface\math\simple_matrix.h" />
     <ClInclude Include="..\nntl\interface\rng\std.h" />
@@ -229,7 +229,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="test_binfile.cpp" />
-    <ClCompile Include="test_i_yeppp_openblas.cpp" />
+    <ClCompile Include="test_imath_basic.cpp" />
     <ClCompile Include="test_perf_decisions.cpp" />
     <ClCompile Include="test_rng.cpp" />
     <ClCompile Include="test_threading.cpp" />
