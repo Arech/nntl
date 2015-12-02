@@ -62,7 +62,78 @@ constexpr unsigned TEST_PERF_REPEATS_COUNT = 400;
 
 //////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////
+template<typename iMath>
+inline void evCMulSub_st(iMath& iM, floatmtx_t& vW, const float_t_ momentum, floatmtx_t& W)noexcept {
+	iM.evMulC_ip_st_naive(vW, momentum);
+	iM.evSub_ip_st_naive(W, vW);
+}
+inline void evcombCMulSub(floatmtx_t& vW, const float_t_ momentum, floatmtx_t& W)noexcept {
+	NNTL_ASSERT(vW.size() == W.size());
+	auto pV = vW.dataAsVec();
+	const auto pVE = pV + vW.numel();
+	auto pW = W.dataAsVec();
+	while (pV != pVE) {
+		const auto v = *pV * momentum;
+		*pV++ = v;
+		*pW++ -= v;
+	}
+}
+template<typename iMath>
+void check_evCMulSub(iMath& iM, vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
+	const auto dataSize = floatmtx_t::sNumel(rowsCnt, colsCnt);
+	STDCOUTL("******* checking evCMulSub() variations over " << rowsCnt << "x" << colsCnt << " matrix (" << dataSize << " elements) **************");
+	//this is to test which implementation of combined operation
+	//		vW = momentum.*vW
+	//		W = W-vW
+	// is better: operation-wise, or combined
 
+	const float momentum = 0.95;
+	constexpr unsigned maxReps = TEST_PERF_REPEATS_COUNT;
+	floatmtx_t vW(rowsCnt, colsCnt), W(colsCnt, rowsCnt), vW2(colsCnt, rowsCnt), W2(colsCnt, rowsCnt);
+	ASSERT_TRUE(!vW.isAllocationFailed() && !W.isAllocationFailed() && !vW2.isAllocationFailed() && !W2.isAllocationFailed());
+
+	nnet_def_interfaces::iRng_t rg;
+	rg.set_ithreads(iM.ithreads());
+	rg.gen_matrix(vW2, 2);
+	rg.gen_matrix(W2, 2);
+	vW2.cloneTo(vW);
+	W2.cloneTo(W);
+
+	utils::prioritize_workers<utils::PriorityClass::PerfTesting, iMath::ithreads_t> pw(iM.ithreads());
+
+	nanoseconds diffEv(0), diffComb(0);
+	for (unsigned r = 0; r < maxReps; ++r) {
+		auto bt = steady_clock::now();
+		evCMulSub_st(iM, vW, momentum, W);
+		diffEv += steady_clock::now() - bt;
+
+		bt = steady_clock::now();
+		evcombCMulSub(vW2, momentum, W2);
+		diffComb += steady_clock::now() - bt;
+
+		ASSERT_EQ(vW, vW2);
+		ASSERT_EQ(W, W2);
+	}
+
+	STDCOUTL("ev:\t" << utils::duration_readable(diffEv, maxReps));
+	STDCOUTL("comb:\t" << utils::duration_readable(diffComb, maxReps));
+}
+TEST(TestPerfDecisions, CMulSub) {
+	typedef nntl::nnet_def_interfaces::iThreads_t def_threads_t;
+	typedef math::i_Yeppp_OpenBlas<def_threads_t> i_Y_OB;
+	i_Y_OB iM;
+
+	//for (unsigned i = 50; i <= 10000; i*=2) check_evCMulSub(iM, i,100);
+	check_evCMulSub(iM, 100, 100);
+#ifndef TESTS_SKIP_LONGRUNNING
+	evCMulSub(iM, 1000);
+	evCMulSub(iM, 10000);
+	evCMulSub(iM, 100000);
+#endif
+}
+
+//////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////
 void mTranspose_ET(const floatmtx_t& src, floatmtx_t& dest) noexcept{
 	NNTL_ASSERT(src.rows() == dest.cols() && src.cols() == dest.rows());
 	const auto sRows = src.rows(), sCols = src.cols();

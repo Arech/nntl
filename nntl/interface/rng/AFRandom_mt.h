@@ -65,7 +65,7 @@ namespace nntl {
 		}
 
 		template<typename AgnerFogRNG, typename iThreads>
-		class AFRandom_mt final : public _i_rng_helper<AFRandom_mt<AgnerFogRNG, iThreads>> {
+		class AFRandom_mt final : public rng_helper<AFRandom_mt<AgnerFogRNG, iThreads>> {
 			static_assert(std::is_base_of<threads::_i_threads<typename iThreads::range_t>, iThreads>::value, "iThreads must implement threads::_i_threads");
 
 		public:
@@ -77,8 +77,16 @@ namespace nntl {
 
 		protected:
 			typedef _impl::AFRandom_mt_bounds<base_rng_t> bounds_t;
-
 			typedef std::vector<base_rng_t> rng_vector_t;
+
+		protected:
+			ithreads_t* m_pThreads;
+			rng_vector_t m_Rngs;
+
+			//Agner_Fog::CRandomMersenne m_rng;
+			//base_rng_t m_rng;
+		
+		protected:
 			void _construct_rngs(int s)noexcept {
 				NNTL_ASSERT(m_pThreads);
 				const auto wc = m_pThreads->workers_count();
@@ -96,7 +104,7 @@ namespace nntl {
 			bool set_ithreads(ithreads_t& t)noexcept {
 				if (m_pThreads) return false;
 				m_pThreads = &t;
-				_construct_rngs(static_cast<int>(_64to32(std::time(0))));
+				_construct_rngs(static_cast<int>(s64to32(std::time(0))));
 				return true;
 			}
 			bool set_ithreads(ithreads_t& t, seed_t s)noexcept {
@@ -107,7 +115,7 @@ namespace nntl {
 			}
 
 			AFRandom_mt(ithreads_t& t)noexcept : m_pThreads(&t) {
-				_construct_rngs(static_cast<int>(_64to32(std::time(0))));
+				_construct_rngs(static_cast<int>(s64to32(std::time(0))));
 			}
 			AFRandom_mt(ithreads_t& t, seed_t s)noexcept : m_pThreads(&t) {
 				_construct_rngs(static_cast<int>(s));
@@ -231,13 +239,6 @@ namespace nntl {
 					}
 				}, n);
 			}
-
-		protected:
-			ithreads_t* m_pThreads;
-			rng_vector_t m_Rngs;
-
-			//Agner_Fog::CRandomMersenne m_rng;
-			//base_rng_t m_rng;
 		};
 
 	}

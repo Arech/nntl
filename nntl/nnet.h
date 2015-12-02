@@ -117,10 +117,6 @@ namespace nntl {
 			_init_rng();
 		}
 
-		layers_pack_t& get_layer_pack()noexcept { return m_Layers; }
-		imath_t& get_math_interface()const noexcept { return m_pMath.get(); }
-		irng_t& get_rng_interface()const noexcept { return m_pRng.get(); }
-
 		std::string get_last_error_string()const noexcept {
 			std::string les(get_last_error_str());
 
@@ -301,6 +297,10 @@ namespace nntl {
 
 			return _set_last_error(ErrorCode::Success);
 		}
+
+		layers_pack_t& get_layer_pack()noexcept { return m_Layers; }
+		imath_t& get_iMath()const noexcept { return m_pMath.get(); }
+		irng_t& get_iRng()const noexcept { return m_pRng.get(); }
 
 	protected:
 

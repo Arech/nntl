@@ -102,16 +102,10 @@ namespace rng {
 		//generate matrix with values in range [0,a]
 		nntl_interface void gen_matrix_gtz(floatmtx_t& mtx, const float_t_ a)noexcept;
 		nntl_interface void gen_matrix_no_bias_gtz(floatmtx_t& mtx, const float_t_ a)noexcept;
-
-	protected:
-		static uint32_t _64to32(uint64_t v)noexcept {
-			return static_cast<uint32_t>(v & UINT32_MAX) ^ static_cast<uint32_t>((v >> 32)&UINT32_MAX);
-		}
-
 	};
 
 	template<typename FinalPolymorphChild>
-	struct _i_rng_helper : public _i_rng {
+	struct rng_helper : public _i_rng {
 	protected:
 		typedef FinalPolymorphChild self_t;
 		typedef FinalPolymorphChild& self_ref_t;
@@ -119,18 +113,22 @@ namespace rng {
 		typedef FinalPolymorphChild* self_ptr_t;
 
 		self_ref_t get_self() noexcept {
-			static_assert(std::is_base_of<_i_rng_helper<FinalPolymorphChild>, FinalPolymorphChild>::value
+			static_assert(std::is_base_of<rng_helper<FinalPolymorphChild>, FinalPolymorphChild>::value
 				, "FinalPolymorphChild must derive from _i_rng_helper<FinalPolymorphChild>");
 			return static_cast<self_ref_t>(*this);
 		}
 		self_cref_t get_self() const noexcept {
-			static_assert(std::is_base_of<_i_rng_helper<FinalPolymorphChild>, FinalPolymorphChild>::value
+			static_assert(std::is_base_of<rng_helper<FinalPolymorphChild>, FinalPolymorphChild>::value
 				, "FinalPolymorphChild must derive from _i_rng_helper<FinalPolymorphChild>");
 			return static_cast<self_cref_t>(*this);
 		}
 
 	public:
 		generated_scalar_t operator()(generated_scalar_t lessThan)noexcept { return get_self().gen_i(lessThan); }
+
+		void seed64(uint64_t s) noexcept {
+			get_self().seed(static_cast<seed_t>(s64to32(s)));
+		}
 
 		//generate FP value in range [0,a]
 		float_t_ gen_f(const float_t_ a)noexcept { return a*get_self().gen_f_norm(); }
@@ -166,6 +164,9 @@ namespace rng {
 			get_self().gen_vector_gtz(mtx.dataAsVec(), mtx.numel_no_bias(), a);
 		}
 
+		static uint32_t s64to32(uint64_t v)noexcept {
+			return static_cast<uint32_t>(v & UINT32_MAX) ^ static_cast<uint32_t>((v >> 32)&UINT32_MAX);
+		}
 	};
 
 }

@@ -77,6 +77,177 @@ void ASSERT_FLOATMTX_EQ(const floatmtx_t& c1, const floatmtx_t& c2, const char* 
 
 //////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////
+void evAdd_ip_ET(floatmtx_t& A, const floatmtx_t& B)noexcept {
+	NNTL_ASSERT(A.size() == B.size());
+
+	const auto dataCnt = A.numel();
+	const auto pA = A.dataAsVec();
+	const auto pB = B.dataAsVec();
+	for (numel_cnt_t i = 0; i < dataCnt; ++i) pA[i] += pB[i];
+}
+template<typename iMath>
+void test_evAdd_ip(iMath& iM, typename iMath::floatmtx_t::vec_len_t rowsCnt, typename iMath::floatmtx_t::vec_len_t colsCnt = 10) {
+	const auto dataSize = floatmtx_t::sNumel(rowsCnt, colsCnt);
+	STDCOUTL("******* testing evAdd_ip() over " << rowsCnt << "x" << colsCnt << " matrix (" << dataSize << " elements) **************");
+
+	double tstNaive, tmtNaive, tBest; //, tstVec, tmtVec;
+	steady_clock::time_point bt;
+	nanoseconds diff;
+	constexpr unsigned maxReps = TEST_PERF_REPEATS_COUNT, testCorrRepCnt = TEST_CORRECTN_REPEATS_COUNT;
+
+	floatmtx_t B(rowsCnt, colsCnt), A(rowsCnt, colsCnt);
+	ASSERT_TRUE(!B.isAllocationFailed() && !A.isAllocationFailed());
+
+	nnet_def_interfaces::iRng_t rg;
+	rg.set_ithreads(iM.ithreads());
+	rg.gen_matrix(B, 2);
+
+	{
+		floatmtx_t A2(rowsCnt, colsCnt), A3(rowsCnt, colsCnt);
+		ASSERT_TRUE(!A2.isAllocationFailed() && !A3.isAllocationFailed());
+
+		for (unsigned r = 0; r < testCorrRepCnt; ++r) {
+			rg.gen_matrix(A, 2);
+			A.cloneTo(A2);
+			A.cloneTo(A3);
+
+			evAdd_ip_ET(A2, B);
+
+			iM.evAdd_ip_st(A, B);
+			ASSERT_FLOATMTX_EQ(A2, A, "evAdd_ip_st failed correctness test");
+
+			A3.cloneTo(A);
+			iM.evAdd_ip_mt(A, B);
+			ASSERT_FLOATMTX_EQ(A2, A, "evAdd_ip_mt failed correctness test");
+
+			A3.cloneTo(A);
+			iM.evAdd_ip(A, B);
+			ASSERT_FLOATMTX_EQ(A2, A, "evAdd_ip failed correctness test");
+		}
+	}
+
+	//////////////////////////////////////////////////////////////////////////
+	//testing performance
+	utils::prioritize_workers<utils::PriorityClass::PerfTesting, iMath::ithreads_t> pw(iM.ithreads());
+
+	rg.gen_matrix(A, 2);
+	bt = steady_clock::now();
+	for (unsigned r = 0; r < maxReps; ++r) iM.evAdd_ip_st(A, B);
+	diff = steady_clock::now() - bt;
+	STDCOUTL("st_naive:\t" << utils::duration_readable(diff, maxReps, &tstNaive));
+
+	rg.gen_matrix(A, 2);
+	bt = steady_clock::now();
+	for (unsigned r = 0; r < maxReps; ++r) iM.evAdd_ip_mt(A, B);
+	diff = steady_clock::now() - bt;
+	STDCOUTL("mt_naive:\t" << utils::duration_readable(diff, maxReps, &tmtNaive));
+
+	rg.gen_matrix(A, 2);
+	bt = steady_clock::now();
+	for (unsigned r = 0; r < maxReps; ++r) iM.evAdd_ip(A, B);
+	diff = steady_clock::now() - bt;
+	STDCOUTL("best:\t\t" << utils::duration_readable(diff, maxReps, &tBest));
+}
+
+TEST(TestIYepppOpenBLAS, evAddIp) {
+	typedef nntl::nnet_def_interfaces::iThreads_t def_threads_t;
+	typedef math::i_Yeppp_OpenBlas<def_threads_t> i_Y_OB;
+	i_Y_OB iM;
+
+	for (unsigned i = 160; i <= 240; i += 5) test_evAdd_ip(iM, i,100);
+	//test_evAdd_ip(iM, 100);
+#ifndef TESTS_SKIP_LONGRUNNING
+	test_evAdd_ip(iM, 1000);
+	test_evAdd_ip(iM, 10000);
+	test_evAdd_ip(iM, 100000);
+#endif
+}
+
+
+//////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////
+template<typename iMath>
+void evCMulSub_ET(iMath& iM, floatmtx_t& vW, const float_t_ momentum, floatmtx_t& W)noexcept {
+	iM.evMulC_ip_st_naive(vW, momentum);
+	iM.evSub_ip_st_naive(W, vW);
+}
+template<typename iMath>
+void test_evMulCipSubip(iMath& iM, vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
+	const auto dataSize = floatmtx_t::sNumel(rowsCnt, colsCnt);
+	STDCOUTL("********* testing evMulC_ip_Sub_ip() over " << rowsCnt << "x" << colsCnt << " matrix (" << dataSize << " elements) **************");
+
+	nanoseconds diffSt(0), diffMt(0), diffB(0);
+	constexpr unsigned maxReps = TEST_PERF_REPEATS_COUNT, testCorrRepCnt = TEST_CORRECTN_REPEATS_COUNT;
+
+	const float_t_ momentum = .9;
+	floatmtx_t vW(rowsCnt, colsCnt), W(colsCnt, rowsCnt), vW2(colsCnt, rowsCnt), W2(colsCnt, rowsCnt), vW3(colsCnt, rowsCnt), W3(colsCnt, rowsCnt);
+	ASSERT_TRUE(!vW.isAllocationFailed() && !W.isAllocationFailed() && !vW2.isAllocationFailed()
+		&& !W2.isAllocationFailed() && !vW3.isAllocationFailed() && !W3.isAllocationFailed());
+
+	nnet_def_interfaces::iRng_t rg;
+	rg.set_ithreads(iM.ithreads());
+	rg.gen_matrix(vW2, 2);
+	rg.gen_matrix(W2, 2);
+	vW2.cloneTo(vW);
+	W2.cloneTo(W);
+	vW2.cloneTo(vW3);
+	W2.cloneTo(W3);
+
+	for (unsigned r = 0; r < testCorrRepCnt; ++r) {
+		evCMulSub_ET(iM, vW3, momentum, W3);
+			
+		iM.evMulC_ip_Sub_ip_st(vW, momentum, W);
+		ASSERT_FLOATMTX_EQ(vW3, vW, "evMulC_ip_Sub_ip_st failed correctness test on vW");
+		ASSERT_FLOATMTX_EQ(W3, W, "evMulC_ip_Sub_ip_st failed correctness test on W");
+
+		iM.evMulC_ip_Sub_ip_mt(vW2, momentum, W2);
+		ASSERT_FLOATMTX_EQ(vW3, vW2, "evMulC_ip_Sub_ip_mt failed correctness test on vW");
+		ASSERT_FLOATMTX_EQ(W3, W2, "evMulC_ip_Sub_ip_mt failed correctness test on W");
+	}
+
+	rg.gen_matrix(vW2, 2);
+	rg.gen_matrix(W2, 2);
+	vW2.cloneTo(vW);
+	W2.cloneTo(W);
+	vW2.cloneTo(vW3);
+	W2.cloneTo(W3);
+
+	//testing performance
+	utils::prioritize_workers<utils::PriorityClass::PerfTesting, iMath::ithreads_t> pw(iM.ithreads());
+	for (unsigned r = 0; r < maxReps; ++r) {
+		auto bt = steady_clock::now();
+		iM.evMulC_ip_Sub_ip_st(vW, momentum, W);
+		diffSt += steady_clock::now() - bt;
+
+		bt = steady_clock::now();
+		iM.evMulC_ip_Sub_ip_mt(vW2, momentum, W2);
+		diffMt += steady_clock::now() - bt;
+
+		bt = steady_clock::now();
+		iM.evMulC_ip_Sub_ip(vW3, momentum, W3);
+		diffB += steady_clock::now() - bt;
+	}
+	STDCOUTL("st:\t" << utils::duration_readable(diffSt, maxReps));
+	STDCOUTL("mt:\t" << utils::duration_readable(diffMt, maxReps));
+	STDCOUTL("best:\t" << utils::duration_readable(diffB, maxReps));
+}
+
+TEST(TestIYepppOpenBLAS, evMulCipSubip) {
+	typedef nntl::nnet_def_interfaces::iThreads_t def_threads_t;
+	typedef math::i_Yeppp_OpenBlas<def_threads_t> i_Y_OB;
+	i_Y_OB iM;
+
+	for (unsigned i = 100; i <= 200; i += 10) test_evMulCipSubip(iM, i, 100);
+	//test_evMulCipSubip(iM, 100);
+#ifndef TESTS_SKIP_LONGRUNNING
+	test_evMulCipSubip(iM, 1000);
+	test_evMulCipSubip(iM, 10000);
+#endif
+}
+
+
+//////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////
 float_t_ rowvecs_renorm_ET(floatmtx_t& m, float_t_* pTmp)noexcept {
 	//calculate current norms of row-vectors into pTmp
 	const auto mRows = m.rows(), mCols = m.cols();

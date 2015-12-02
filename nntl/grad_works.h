@@ -124,7 +124,23 @@ namespace nntl {
 
 		GradType m_type;
 		bool m_bFirstRun; //flag to find out first call to apply_grad() after init()
-		bool m_bNesterovMomentum;
+		
+		bool m_bNesterovMomentum; //Flag to turn on Nesterov Momentum, aka Nesterov Accelerated Gradient method.
+		// The definition is (Sutskever, Martens et al. "On the importance of initialization and momentum in deep learning",2013):
+		//		vW(t+1) = momentum*vW(t) - scaling*grad_Loss( W(t)+momentum*vW(t))
+		//		W(t+1)  = W(t) + vW(t+1)
+		// We'll change the sign of vW (for the compability with other code) and reorganize operations in the following way
+		// (1)  vW`(t+1)= momentum*vW(t)
+		// (2)  W`(t+1) = W(t) - momentum*vW(t)
+		//				= W(t) - vW`(t+1)
+		// (3)  vW(t+1) = momentum*vW(t) + scaling*grad_Loss( W(t)-momentum*vW(t))
+		//				= vW`(t+1) + scaling*grad_Loss( W`(t+1) )
+		// (4)  W(t+1)  = W(t) - vW(t+1) 
+		//				= W(t) - vW`(t+1) - scaling*grad_Loss( W`(t+1) )
+		//				= W`(t+1) - scaling * grad_Loss( W`(t+1) )
+		// Steps (1)-(2) done during pre_training_fprop(), steps (3)-(4) - during apply_grad()
+
+
 		bool m_bApplyILRToMomentumVelocity;//Geoffrey Hinton said for momentum method, that it's good to calculate
 		// individual learning rates based on agreement in signs of accumulated momentum velocity and current gradient value.
 		// However, this may lead to vanishing gradient gains and very small gradient value, when accumulated momentum
@@ -194,7 +210,10 @@ namespace nntl {
 
 		void pre_training_fprop(floatmtx_t& weights) noexcept {
 			if (use_momentums() && m_bNesterovMomentum) {
-				m_pMath->evSub_ip(weights, m_Vw);
+				// (1)  vW`(t+1)= momentum*vW(t)
+				// (2)  W`(t+1) = W(t) - momentum*vW(t)
+				//				= W(t) - vW`(t+1)
+				m_pMath->evMulC_ip_Sub_ip(m_Vw, m_momentum, weights);
 			}
 		}
 		
@@ -252,13 +271,26 @@ namespace nntl {
 				if(!bUseVelocity) dLdW.cloneTo(m_prevdLdW);
 			}
 
+			bool bApplydLdW2Weights = true;
 			if (bUseMomentums) {
 				NNTL_ASSERT(m_Vw.size() == dLdW.size());
-				m_pMath->apply_momentum(m_Vw, m_momentum, dLdW);
-				if (!m_bNesterovMomentum) m_Vw.cloneTo(dLdW);
+				if (m_bNesterovMomentum) {
+					// (3)  vW(t+1) = momentum*vW(t) + scaling*grad_Loss( W(t)-momentum*vW(t))
+					//				= vW`(t+1) + scaling*grad_Loss( W`(t+1) )
+					m_pMath->evAdd_ip(m_Vw, dLdW);
+					// (4)  W(t+1)  = W(t) - vW(t+1) 
+					//				= W(t) - vW`(t+1) - scaling*grad_Loss( W`(t+1) )
+					//				= W`(t+1) - scaling * grad_Loss( W`(t+1) )
+					//bApplydLdW2Weights=true;
+				} else {
+					//Vw = momentum.*Vw + dW
+					m_pMath->apply_momentum(m_Vw, m_momentum, dLdW);
+					m_pMath->evSub_ip(weights, m_Vw);
+					bApplydLdW2Weights = false;
+				}
 			}
 
-			m_pMath->evSub_ip(weights, dLdW);
+			if (bApplydLdW2Weights) m_pMath->evSub_ip(weights, dLdW);
 
 			if (use_max_norm_regularization()) {
 				if (m_bMaxWeightVecNormIgnoreBias) weights.hide_last_col();

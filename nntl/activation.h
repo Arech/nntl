@@ -126,6 +126,9 @@ namespace activation {
 		// 
 		// And by the way, according to mentioned work it looks like this formula works best for same-sized adjacent layers. If their
 		// sizes are different, it's kind of compromise. Which means, that there might be other more suitable initialization schemes.
+		// 
+		// TODO: There's another probably more effective initialization scheme presented in Sutskever, Martens et al.
+		// "On the importance of initialization and momentum in deep learning",2013 (sparse initialization).
 	};
 
 	template<size_t scalingCoeff1e9 = 0>

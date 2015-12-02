@@ -124,10 +124,17 @@ namespace math {
 		//inplace elementwise multiplication A(no_bias) = A(no_bias).*B, - A is taken in no_bias mode
 		nntl_interface void evMul_ip_Anb(floatmtx_t& A, const floatmtx_t& B)noexcept;
 
+		//inplace elementwise addition A = A+B
+		nntl_interface void evAdd_ip(floatmtx_t& A, const floatmtx_t& B)noexcept;
+
 		//inplace elementwise subtraction A = A-B
 		nntl_interface void evSub_ip(floatmtx_t& A, const floatmtx_t& B)noexcept;
 		//elementwise subtraction C = A-B
 		nntl_interface void evSub(const floatmtx_t& A, const floatmtx_t& B, floatmtx_t& C)noexcept;
+
+		//inplace elementwise scaling and subtracting: vW = momentum.*vW, W = W-vW;
+		//(it's pre-fprop step of Nesterov Momentum method)
+		nntl_interface void evMulC_ip_Sub_ip(floatmtx_t& vW, const float_t_ momentum, floatmtx_t& W)noexcept;
 
 		//elementwise squaring dest = src.^2;
 		nntl_interface void evSquare(floatmtx_t& dest, const floatmtx_t& src)noexcept;

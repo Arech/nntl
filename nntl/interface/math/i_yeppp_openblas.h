@@ -889,6 +889,31 @@ namespace math {
 		}
 
 		//////////////////////////////////////////////////////////////////////////
+		//inplace elementwise addition A = A+B
+		void evAdd_ip(floatmtx_t& A, const floatmtx_t& B)noexcept {
+			if (A.numel() < 22000) {
+				evAdd_ip_st(A, B);
+			} else evAdd_ip_mt(A, B);
+		}
+		void evAdd_ip_st(floatmtx_t& A, const floatmtx_t& B)noexcept {
+			NNTL_ASSERT(A.size() == B.size() && !A.empty() && !B.empty());
+			const auto pA = A.dataAsVec();
+			const auto dataCnt = A.numel();
+			const auto pB = B.dataAsVec();
+			for (numel_cnt_t i = 0; i < dataCnt; ++i) pA[i] += pB[i];
+		}
+		void evAdd_ip_mt(floatmtx_t& A, const floatmtx_t& B)noexcept {
+			NNTL_ASSERT(A.size() == B.size() && !A.empty() && !B.empty());
+			const auto pA = A.dataAsVec();
+			const auto pB = B.dataAsVec();
+			m_threads.run([pA, pB](const par_range_t& r) {
+				const auto ofs = r.offset();
+				const auto im = ofs + r.cnt();
+				for (numel_cnt_t i = ofs; i < im; ++i) pA[i] += pB[i];
+			}, A.numel());
+		}
+
+		//////////////////////////////////////////////////////////////////////////
 		//inplace elementwise subtraction A = A-B
 		void evSub_ip(floatmtx_t& A, const floatmtx_t& B)noexcept {
 			if (A.numel()<22000) {
@@ -952,6 +977,43 @@ namespace math {
 				const auto im = ofs + r.cnt();
 				for (numel_cnt_t i = ofs; i < im; ++i) pC[i] = pA[i] - pB[i];
 			}, A.numel());
+		}
+
+		//////////////////////////////////////////////////////////////////////////
+		//inplace elementwise scaling and subtracting: vW = momentum.*vW, W = W-vW;
+		//(it's pre-fprop step of Nesterov Momentum method)
+		void evMulC_ip_Sub_ip(floatmtx_t& vW, const float_t_ momentum, floatmtx_t& W)noexcept {
+			if (vW.numel()<15000) {
+				evMulC_ip_Sub_ip_st(vW, momentum, W);
+			}else evMulC_ip_Sub_ip_mt(vW, momentum, W);
+		}
+		void evMulC_ip_Sub_ip_st(floatmtx_t& vW, const float_t_ momentum, floatmtx_t& W)noexcept {
+			NNTL_ASSERT(vW.size() == W.size() && !vW.empty() && !W.empty()); //NNTL_ASSERT(momentum > float_t_(0.0) && momentum < float_t_(1.0));
+			auto pV = vW.dataAsVec();
+			const auto pVE = pV + vW.numel();
+			auto pW = W.dataAsVec();
+			while (pV != pVE) {
+				const auto v = *pV * momentum;
+				*pV++ = v;
+				*pW++ -= v;
+			}
+		}
+		void evMulC_ip_Sub_ip_mt(floatmtx_t& vW, const float_t_ momentum, floatmtx_t& W)noexcept {
+			NNTL_ASSERT(vW.size() == W.size() && !vW.empty() && !W.empty()); //NNTL_ASSERT(momentum > float_t_(0.0) && momentum < float_t_(1.0));
+
+			auto pVf = vW.dataAsVec();
+			auto pWf = W.dataAsVec();
+			m_threads.run([pVf, pWf, momentum](const par_range_t& r) {
+				const auto ofs = r.offset();
+				auto pV = pVf + ofs;
+				const auto pVE = pV + r.cnt();
+				auto pW = pWf + ofs;
+				while (pV != pVE) {
+					const auto v = *pV * momentum;
+					*pV++ = v;
+					*pW++ -= v;
+				}
+			},vW.numel());
 		}
 		
 		//////////////////////////////////////////////////////////////////////////

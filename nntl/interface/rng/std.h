@@ -44,14 +44,14 @@ namespace rng {
 	//////////////////////////////////////////////////////////////////////////
 	//defining RNG functor. Functions can be non static, because a rng can have a state
 	//Don't use in production unless you are on WinXP+ and use #define _CRT_RAND_S (and even then don't use it too)
-	class Std final : public _i_rng_helper<Std> {
+	class Std final : public rng_helper<Std> {
 	protected:
 		typedef unsigned int real_seed_t;
 		typedef uint32_t real_rand_max_t;
 	public:
 		
 		Std()noexcept {
-			seed(static_cast<seed_t>(_64to32(std::time(0))));
+			seed(static_cast<seed_t>(s64to32(std::time(0))));
 		}
 		Std(seed_t s)noexcept {
 			seed(s);

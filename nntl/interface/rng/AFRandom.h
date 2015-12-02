@@ -41,11 +41,11 @@ namespace nntl {
 namespace rng {
 
 	template<typename AgnerFogRNG>
-	class AFRandom final : public _i_rng_helper<AFRandom<AgnerFogRNG>> {
+	class AFRandom final : public rng_helper<AFRandom<AgnerFogRNG>> {
 	public:
 		typedef AgnerFogRNG base_rng_t;
 
-		AFRandom()noexcept : m_rng(static_cast<int>(_64to32(std::time(0)))) {}
+		AFRandom()noexcept : m_rng(static_cast<int>(s64to32(std::time(0)))) {}
 		AFRandom(seed_t s)noexcept : m_rng(static_cast<int>(s)) {}
 
 		void seed(seed_t s) noexcept { m_rng.RandomInit(static_cast<int>(s)); }
