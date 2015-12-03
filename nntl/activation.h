@@ -79,26 +79,14 @@ namespace activation {
 
 
 	//////////////////////////////////////////////////////////////////////////
-	/*class identity : public _i_activation {
-		identity() = delete;
-		~identity() = delete;
-	public:
-		template <typename iMath>
-		static void f(floatmtx_t& srcdest, iMath& m) noexcept {
-			static_assert(std::is_base_of<math::_i_math, iMath>::value, "iMath should implement math::_i_math");
-		};
-		template <typename iMath>
-		static void df(floatmtx_t& srcdest, iMath& m) noexcept {
-			static_assert(std::is_base_of<math::_i_math, iMath>::value, "iMath should implement math::_i_math");
-		}
-	};*/
-
-	//////////////////////////////////////////////////////////////////////////
 	//sigmoid
-	template<size_t scalingCoeff1e9 = 0>
+	template<typename WeightsInitScheme = weights_init::XavierFour>
 	class sigm : public _i_activation {
 		sigm() = delete;
 		~sigm() = delete;
+	public:
+		typedef WeightsInitScheme weights_scheme;
+
 	public:
 		template <typename iMath>
 		static void f(floatmtx_t& srcdest, iMath& m) noexcept{
@@ -111,13 +99,13 @@ namespace activation {
 			m.dsigm(fValue, df);//fValue is used in no_bias version!
 		}
 
-		template <typename iRng>
+		/*template <typename iRng>
 		static void init_weights(floatmtx_t& W, iRng& iR)noexcept {
 			const auto weightsScale = (scalingCoeff1e9 > 0)
 				? float_t_(scalingCoeff1e9) / float_t_(1e9)
 				: float_t_(4.0) * sqrt(float_t_(6.0) / (W.rows() + W.cols()));//probably we should take a bias unit as incoming too, so no -1 here
 			iR.gen_matrix(W, weightsScale);
-		}
+		}*/
 		// According to Xavier et al. "Understanding the difficulty of training deep feedforward neural networks" 2010
 		// for symmetric activation function (probably with unit derivative at 0) it's a 
 		// sqrt(6/(prevLayerNeurons+thisLayerNeurons))  - best for Tanh. Probably could fit SoftSign and etc.
@@ -131,8 +119,8 @@ namespace activation {
 		// "On the importance of initialization and momentum in deep learning",2013 (sparse initialization).
 	};
 
-	template<size_t scalingCoeff1e9 = 0>
-	class sigm_quad_loss : public sigm<scalingCoeff1e9>, public _i_activation_loss {
+	template<typename WeightsInitScheme = weights_init::XavierFour>
+	class sigm_quad_loss : public sigm<WeightsInitScheme>, public _i_activation_loss {
 		sigm_quad_loss() = delete;
 		~sigm_quad_loss() = delete;
 	public:
@@ -149,8 +137,8 @@ namespace activation {
 		}
 	};
 
-	template<size_t scalingCoeff1e9 = 0>
-	class sigm_xentropy_loss : public sigm<scalingCoeff1e9>, public _i_activation_loss {
+	template<typename WeightsInitScheme = weights_init::XavierFour>
+	class sigm_xentropy_loss : public sigm<WeightsInitScheme>, public _i_activation_loss {
 		sigm_xentropy_loss() = delete;
 		~sigm_xentropy_loss() = delete;
 	public:
@@ -170,10 +158,13 @@ namespace activation {
 
 	//////////////////////////////////////////////////////////////////////////
 	//ReLU
-	template<size_t scalingCoeff1e9 = 0>
+	template<typename WeightsInitScheme = weights_init::He_Zhang<>>
 	class relu : public _i_activation {
 		relu() = delete;
 		~relu() = delete;
+	public:
+		typedef WeightsInitScheme weights_scheme;
+
 	public:
 		template <typename iMath>
 		static void f(floatmtx_t& srcdest, iMath& m) noexcept {
@@ -185,19 +176,6 @@ namespace activation {
 		static void df(const floatmtx_t& fValue, floatmtx_t& df, iMath& m) noexcept {
 			static_assert(std::is_base_of<math::_i_math, iMath>::value, "iMath should implement math::_i_math");
 			m.drelu(fValue, df);//fValue is used in no_bias version!
-		}
-
-		template <typename iRng>
-		static void init_weights(floatmtx_t& W, iRng& iR)noexcept {
-			const auto weightsScale = (scalingCoeff1e9 > 0)
-				? float_t_(scalingCoeff1e9) / float_t_(1e9)
-				: sqrt(float_t_(2.0) / W.cols()); //probably we should take a bias unit as incoming too, so no -1 here
-			iR.gen_matrix(W, weightsScale);
-
-			//according to He, Zhang et al. "Delving Deep into Rectifiers: Surpassing Human-Level Performance on 
-			// ImageNet Classification" 2015 this formula (sqrt(2/prevLayerNeurons) should define _standard_ deviation
-			// of gaussian zero-mean noise. But we're using just uniform distribution, so it should be fixed later.
-			// TODO: FIX IT!!!
 		}
 	};
 

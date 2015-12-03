@@ -195,6 +195,12 @@
     <ClInclude Include="..\nntl\interface\math\imath_basic.h">
       <Filter>nntl\interface\math</Filter>
     </ClInclude>
+    <ClInclude Include="..\nntl\weights_init.h">
+      <Filter>nntl</Filter>
+    </ClInclude>
+    <ClInclude Include="..\nntl\interface\rng\distr_normal_naive.h">
+      <Filter>nntl\interface\rng</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="stdafx.cpp">

@@ -88,6 +88,13 @@ namespace rng {
 		//to be used by random_shuffle()
 		nntl_interface generated_scalar_t operator()(generated_scalar_t lessThan)noexcept;// { return gen_i(lessThan); }
 
+		//to be used by <random> distribution algorithms
+		nntl_interface float_t_ operator()()noexcept;//returns values that are uniformly distributed between min() and max().
+		nntl_interface float_t_ min()noexcept;//returns the minimum value that is returned by the generator's operator().
+		nntl_interface float_t_ max()noexcept;//returns the maximum value that is returned by the generator's operator().
+		// When result_type is a floating-point (real-valued) type, max() is the smallest value greater than all values
+		// that can be returned (non-inclusive).
+
 		//generate FP value in range [0,a]
 		nntl_interface float_t_ gen_f(const float_t_ a)noexcept; //{ return a*gen_f_norm(); }
 
@@ -130,6 +137,19 @@ namespace rng {
 			get_self().seed(static_cast<seed_t>(s64to32(s)));
 		}
 
+		//////////////////////////////////////////////////////////////////////////
+		//to be used by <random> distribution algorithms
+		//returns values that are uniformly distributed between min() and max().
+		float_t_ operator()()noexcept { return get_self().gen_f_norm(); }
+		//returns the minimum value that is returned by the generator's operator().
+		float_t_ min()noexcept { return float_t_(0.0); }
+		//returns the maximum value that is returned by the generator's operator().
+		// When result_type is a floating-point (real-valued) type, max() is the smallest value greater than all values
+		// that can be returned (non-inclusive).
+		float_t_ max()noexcept { return float_t_(1.0); }
+
+
+		//////////////////////////////////////////////////////////////////////////
 		//generate FP value in range [0,a]
 		float_t_ gen_f(const float_t_ a)noexcept { return a*get_self().gen_f_norm(); }
 

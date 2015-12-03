@@ -40,11 +40,6 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #define NNTL_CFG_DEFAULT_TYPE double
 #endif
 
-//set to 0 to use row major order
-//MUST be the same in all compilation units, DEFINE ON PROJECT-LEVEL
-//#ifndef NNTL_CFG_DEFAULT_COL_MAJOR_ORDER
-//#define NNTL_CFG_DEFAULT_COL_MAJOR_ORDER 1
-//#endif
 
 //about NNTL_CFG_DEFAULT_TYPE and NNTL_CFG_DEFAULT_COL_MAJOR_ORDER
 // It looked like a good idea that should allow different compilation units to have different versions of API based on
@@ -68,7 +63,8 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 // c. Boost uBLAS - known to be slow and almost abandoned
 // *d. Intel MKL - very promising as it's rumored as one of the best and fastest libs available. But it's non-free.
 //		May be later I'll be able to qualify for copy as open-source developer.
-// *e. Yeppp! - very promising, but doesn't support matrices, only vectors.
+// *e. Yeppp! - very promising, but doesn't support matrices, only vectors.---151202 - removed Yeppp! from the project as
+//		it doesn't provide any significant speedup over naive (though, properly crafted) versions.
 // **f. BLIS - very interesting, but lack of normal support of Win x64 make me cry...
 // **g. ulmBLAS - interesting project, but hard to believe it will last long...
 // ***h. OpenBLAS - Primary target.

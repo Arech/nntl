@@ -136,7 +136,8 @@ namespace nntl {
 				// initializing
 				if (!m_weights.resize(m_neurons_cnt, get_incoming_neurons_cnt() + 1)) return ErrorCode::CantAllocateMemoryForWeights;
 
-				activation_f_t::init_weights(m_weights, *m_pRng);
+				if (!activation_f_t::weights_scheme::init(m_weights, *m_pRng))return ErrorCode::CantInitializeWeights;
+
 				m_bWeightsInitialized = true;
 			}
 

@@ -185,6 +185,7 @@
     <ClInclude Include="..\nntl\grad_works.h" />
     <ClInclude Include="..\nntl\interface\rng\AFRandom.h" />
     <ClInclude Include="..\nntl\interface\rng\AFRandom_mt.h" />
+    <ClInclude Include="..\nntl\interface\rng\distr_normal_naive.h" />
     <ClInclude Include="..\nntl\interface\rng\_i_rng.h" />
     <ClInclude Include="..\nntl\interface\math.h" />
     <ClInclude Include="..\nntl\interface\math\bindings\b_acml.h" />
@@ -213,6 +214,7 @@
     <ClInclude Include="..\nntl\utils\prioritize_workers.h" />
     <ClInclude Include="..\nntl\utils\scope_exit.h" />
     <ClInclude Include="..\nntl\utils\tuple_iterations.h" />
+    <ClInclude Include="..\nntl\weights_init.h" />
     <ClInclude Include="..\nntl\_defs.h" />
     <ClInclude Include="..\nntl\_layer_base.h" />
     <ClInclude Include="..\nntl\layers_pack.h" />

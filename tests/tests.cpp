@@ -52,7 +52,6 @@ using float_t_ = math_types::float_ty;
 #define MNIST_FILE "../data/mnist60000.bin"
 #endif // _DEBUG
 
-
 TEST(TestNntl, Training) {
 	train_data td;
 	reader_t reader;
@@ -68,20 +67,24 @@ TEST(TestNntl, Training) {
 
 	layer_input inp(td.train_x().cols_no_bias());
 
+	typedef activation::relu<> activ_func;
+	//typedef weights_init::Martens_SI_sigm<> w_init_scheme;
+	//typedef activation::sigm<w_init_scheme> activ_func;
+
 #ifdef TESTS_SKIP_NNET_LONGRUNNING
 	size_t epochs = 5;
-	const float_t_ learningRate = .7;
+	const float_t_ learningRate = .1;
 
-	layer_fully_connected<> fcl(60, learningRate, dropoutFrac);
-	layer_fully_connected<> fcl2(50, learningRate, dropoutFrac);
-	//layer_fully_connected<> fcl3(15,learningRate,	 dropoutFrac);	
+	layer_fully_connected<activ_func> fcl(60, learningRate, dropoutFrac);
+	layer_fully_connected<activ_func> fcl2(50, learningRate, dropoutFrac);
+	//layer_fully_connected<activ_func> fcl3(15,learningRate,	 dropoutFrac);	
 
 #else
 	size_t epochs = 20;
-	const float_t_ learningRate = 0.7;
+	const float_t_ learningRate = 0.1;
 
-	layer_fully_connected<activation::sigm<>> fcl(500, learningRate,dropoutFrac);
-	layer_fully_connected<activation::sigm<>> fcl2(300, learningRate, dropoutFrac);
+	layer_fully_connected<activ_func> fcl(500, learningRate,dropoutFrac);
+	layer_fully_connected<activ_func> fcl2(300, learningRate, dropoutFrac);
 #endif // TESTS_SKIP_LONGRUNNING
 
 	const bool bSetMN = false;
@@ -93,7 +96,7 @@ TEST(TestNntl, Training) {
 	fcl2.m_gradientWorks.set_momentum(momentum, false).set_type(optType)
 		.set_weight_vector_max_norm2(bSetMN ? mul * 500 * 500 : 0, true);
 	
-	layer_output<activation::sigm_quad_loss<>> outp(td.train_y().cols(), learningRate);
+	layer_output<activation::sigm_xentropy_loss<>> outp(td.train_y().cols(), learningRate);
 	outp.m_gradientWorks.set_momentum(momentum, false).set_type(optType)
 		.set_weight_vector_max_norm2(bSetMN ? mul * 300 * 300 : 0, true);
 
@@ -106,7 +109,6 @@ TEST(TestNntl, Training) {
 	nnet_cond_epoch_eval cee(epochs);
 	nnet_train_opts<decltype(cee)> opts(std::move(cee));
 
-	//const int batchSize = 100 * 6 * 100;
 	opts.batchSize(100);
 	
 	auto nn = make_nnet(lp);
