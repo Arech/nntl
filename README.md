@@ -19,6 +19,10 @@ I wouldn't state nntl is the fastest CPU implementation of FF NN, but nonetheles
 * individually tunable feedforward layers (i.e. almost all properties such as activation function, learning rate, dropout rate and so on are defined in per layer basis)
 * sigmoid activation units with quadratic and cross-entropy loss function for outer layer
 * sigmoid and rectified linear units (ReLU) for hidden layers
+* Different neuron weights initialization schemes:
+  * According to Xavier et al. "Understanding the difficulty of training deep feedforward neural networks" 2010 (so called "Xavier initialization" - good for sigmoids)
+  * According to He, Zhang et al. "Delving Deep into Rectifiers: Surpassing Human-Level Performance on ImageNet Classification" 2015 (amazing for ReLU)
+  * According to Martens "Deep learning via Hessian-free optimization" 2010 and Sutskever, Martens "On the importance of initialization and momentum in deep learning" 2013 (so called "Sparse initialization" or SI - for sigmoids)
 * Optimizers:
   * "classical" constant learning rate
   * RMSProp as Geoffrey Hinton introduced it in "Neural Networks for Machine Learning" course, lecture 6
