@@ -64,12 +64,12 @@ namespace nntl {
 	public:
 		typedef LayersPack layers_pack_t;
 
-		typedef typename layers_pack_t::floatmtx_t floatmtx_t;
-		typedef typename floatmtx_t::value_type float_t_;
-		typedef typename floatmtx_t::vec_len_t vec_len_t;
-		typedef typename floatmtx_t::numel_cnt_t numel_cnt_t;
+		typedef typename layers_pack_t::realmtx_t realmtx_t;
+		typedef typename realmtx_t::value_type real_t;
+		typedef typename realmtx_t::vec_len_t vec_len_t;
+		typedef typename realmtx_t::numel_cnt_t numel_cnt_t;
 
-		typedef typename layers_pack_t::floatmtxdef_t floatmtxdef_t;
+		typedef typename layers_pack_t::realmtxdef_t realmtxdef_t;
 		typedef typename layers_pack_t::floatmtxdef_array_t floatmtxdef_array_t;
 
 		typedef typename std::remove_pointer_t<MathInterface> imath_t;
@@ -170,8 +170,8 @@ namespace nntl {
 			// We use slightly more generalized approach and name it appropriately. It's computed by _i_activation_loss::dloss
 			// and most time (for quadratic or crossentropy loss) it is (a-data_y) (we reverse common definition to get rid
 			// of negation in dL/dA = -error for error=data_y-a)
-			floatmtx_t _batch_x, _batch_y;
-			floatmtxdef_t train_dLdA;
+			realmtx_t _batch_x, _batch_y;
+			realmtxdef_t train_dLdA;
 			floatmtxdef_array_t a_dLdA;
 
 			// here is how we gonna spread temp buffers:
@@ -182,9 +182,9 @@ namespace nntl {
 			// 4. In minibatch version, there will be 2 additional matrices sized (batchSize, train_x.cols()) and (batchSize, train_y.cols())
 			//		to handle _batch_x and _batch_y data
 			const numel_cnt_t totalTempMemSize = LMR.maxMemLayerTrainingRequire + a_dLdA.size()*LMR.maxSingledLdANumel
-				+ (bTrainSetBigger ? train_y.numel() : td.test_y().numel()) //floatmtx_t::sNumel(samplesCount,train_y.cols())
-				+ (bMiniBatch ? (floatmtx_t::sNumel(batchSize, train_x.cols()) + floatmtx_t::sNumel(batchSize, train_y.cols())) : 0);
-			std::unique_ptr<float_t_[]> tempMemStorage(new(std::nothrow)float_t_[totalTempMemSize]);
+				+ (bTrainSetBigger ? train_y.numel() : td.test_y().numel()) //realmtx_t::sNumel(samplesCount,train_y.cols())
+				+ (bMiniBatch ? (realmtx_t::sNumel(batchSize, train_x.cols()) + realmtx_t::sNumel(batchSize, train_y.cols())) : 0);
+			std::unique_ptr<real_t[]> tempMemStorage(new(std::nothrow)real_t[totalTempMemSize]);
 			if (nullptr==tempMemStorage.get()) return _set_last_error(ErrorCode::CantAllocateMemoryForTempData);
 
 			{
@@ -215,8 +215,8 @@ namespace nntl {
 
 				NNTL_ASSERT(spreadTempMemSize == totalTempMemSize);
 			}
-			floatmtx_t& batch_x = bMiniBatch ? _batch_x : td.train_x_mutable();
-			floatmtx_t& batch_y = bMiniBatch ? _batch_y : td.train_y_mutable();
+			realmtx_t& batch_x = bMiniBatch ? _batch_x : td.train_x_mutable();
+			realmtx_t& batch_y = bMiniBatch ? _batch_y : td.train_y_mutable();
 
 			std::vector<vec_len_t> vRowIdxs(bMiniBatch ? samplesCount : 0);
 			if (bMiniBatch) {
@@ -312,7 +312,7 @@ namespace nntl {
 
 		//returns test loss
 		template<typename Observer>
-		const float_t_ _report_training_fragment(const size_t epoch, const float_t_ trainLoss, const train_data& td,
+		const real_t _report_training_fragment(const size_t epoch, const real_t trainLoss, const train_data& td,
 			const std::chrono::nanoseconds& tElapsed, Observer& obs) noexcept
 		{
 			//relaxing thread priorities (we don't know in advance what callback functions actually do, so better relax it)
@@ -334,7 +334,7 @@ namespace nntl {
 			return  d == floor(d);
 		}
 
-		float_t_ _calcLoss(const floatmtx_t& data_x, const floatmtx_t& data_y) noexcept {
+		real_t _calcLoss(const realmtx_t& data_x, const realmtx_t& data_y) noexcept {
 			NNTL_ASSERT(data_x.rows() == data_y.rows());
 			//preparing for evaluation
 			m_Layers.set_mode(data_x.rows());

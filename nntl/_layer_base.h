@@ -48,9 +48,9 @@ namespace nntl {
 			static_assert(std::is_base_of<math::_i_math, i_math_t>::value, "i_math_t type should be derived from _i_math");
 			static_assert(std::is_base_of<rng::_i_rng, i_rng_t>::value, "i_rng_t type should be derived from _i_rng");
 
-			typedef math_types::floatmtx_ty floatmtx_t;
-			typedef floatmtx_t::vec_len_t vec_len_t;
-			typedef floatmtx_t::numel_cnt_t numel_cnt_t;
+			typedef math_types::realmtx_ty realmtx_t;
+			typedef realmtx_t::vec_len_t vec_len_t;
+			typedef realmtx_t::numel_cnt_t numel_cnt_t;
 
 
 			IN i_math_t& iMath;
@@ -88,11 +88,11 @@ namespace nntl {
 
 	public:
 		typedef _nnet_errs::ErrorCode ErrorCode;
-		typedef math_types::floatmtx_ty floatmtx_t;
-		typedef floatmtx_t::vec_len_t vec_len_t;
-		typedef floatmtx_t::numel_cnt_t numel_cnt_t;
-		typedef floatmtx_t::value_type float_t_;
-		typedef floatmtx_t::mtx_size_t mtx_size_t;
+		typedef math_types::realmtx_ty realmtx_t;
+		typedef realmtx_t::vec_len_t vec_len_t;
+		typedef realmtx_t::numel_cnt_t numel_cnt_t;
+		typedef realmtx_t::value_type real_t;
+		typedef realmtx_t::mtx_size_t mtx_size_t;
 
 		//////////////////////////////////////////////////////////////////////////
 		// base interface
@@ -103,11 +103,11 @@ namespace nntl {
 		nntl_interface const bool is_input_layer()const noexcept;
 		nntl_interface const bool is_output_layer()const noexcept;
 
-		nntl_interface const float_t_ learning_rate()const noexcept;
-		nntl_interface auto learning_rate(float_t_ lr)noexcept;
+		nntl_interface const real_t learning_rate()const noexcept;
+		nntl_interface auto learning_rate(real_t lr)noexcept;
 
 		//it turns out that this function looks quite contradictory... Leave it until find out what's better to do..
-		nntl_interface const floatmtx_t& get_activations()const noexcept;
+		nntl_interface const realmtx_t& get_activations()const noexcept;
 
 		//batchSize==0 puts layer into training mode with batchSize predefined by init()::lid.training_batch_size
 		// any batchSize>0 puts layer into evaluation/testing mode with that batchSize. bs must be <= init()::lid.max_fprop_batch_size
@@ -130,9 +130,9 @@ namespace nntl {
 		// (it's a shared memory and it can be modified elsewhere between calls to fprop()/bprop())
 		//function is guaranteed to be called if (minMemFPropRequire+minMemBPropRequire) set to >0 during init()
 		// cnt is guaranteed to be at least as big as (minMemFPropRequire+minMemBPropRequire)
-		nntl_interface void initMem(float_t_* ptr, numel_cnt_t cnt)noexcept;
+		nntl_interface void initMem(real_t* ptr, numel_cnt_t cnt)noexcept;
 
-		//input layer should use slightly different specialization: void fprop(const floatmtx_t& data_x)noexcept
+		//input layer should use slightly different specialization: void fprop(const realmtx_t& data_x)noexcept
 		template <typename LowerLayer>
 		nntl_interface void fprop(const LowerLayer& lowerLayer)noexcept;
 
@@ -141,8 +141,8 @@ namespace nntl {
 		// Also during bprop() after computation of dLdAPrev layer must compute dL/dW and adjust its weights accordingly.
 		//flag bPrevLayerIsInput is set when previous layer is input layer and if not IBP, dont calc dLdAPrev
 		template <typename LowerLayer>
-		nntl_interface void bprop(floatmtx_t& dLdA, const LowerLayer& lowerLayer, floatmtx_t& dLdAPrev)noexcept;
-		//output layer should use bprop(const floatmtx_t& data_y, ...)
+		nntl_interface void bprop(realmtx_t& dLdA, const LowerLayer& lowerLayer, realmtx_t& dLdAPrev)noexcept;
+		//output layer should use bprop(const realmtx_t& data_y, ...)
 		//need non-const for dLdA to make dropout work
 	};
 
@@ -202,13 +202,13 @@ namespace nntl {
 
 		const layer_index_t get_layer_idx() const noexcept { return m_layerIdx; }
 		const neurons_count_t get_incoming_neurons_cnt()const noexcept { return m_incoming_neurons_cnt; }
-		//const floatmtx_t& get_activations()const noexcept { return m_activations; }
+		//const realmtx_t& get_activations()const noexcept { return m_activations; }
 
 		constexpr bool is_input_layer()const noexcept { return false; }
 		constexpr bool is_output_layer()const noexcept { return false; }
 
-		const float_t_ learning_rate()const noexcept { return float_t_(0.0); }
-		self_ref_t learning_rate(float_t_ lr)noexcept { return get_self(); }
+		const real_t learning_rate()const noexcept { return real_t(0.0); }
+		self_ref_t learning_rate(real_t lr)noexcept { return get_self(); }
 	
 		//////////////////////////////////////////////////////////////////////////
 		// other funcs

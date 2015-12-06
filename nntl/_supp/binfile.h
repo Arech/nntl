@@ -89,6 +89,7 @@ namespace nntl_supp {
 			WrongElementsCount,
 			FailedToReadFieldEntry,
 			UnsupportedIncorrectDataType,
+			FailedToAllocateMemoryForDataConvertion,
 			InvalidDataSize,
 			FailedToReadData,
 
@@ -109,6 +110,7 @@ namespace nntl_supp {
 			case WrongElementsCount: return NNTL_STRING("File contains unsupported elements count");
 			case FailedToReadFieldEntry: return NNTL_STRING("Failed to read field entry");
 			case UnsupportedIncorrectDataType:  return NNTL_STRING("Unsupported or incorrect data type");
+			case FailedToAllocateMemoryForDataConvertion: return NNTL_STRING("Failed to allocate memory necessary for data type convertion");
 			case InvalidDataSize: return NNTL_STRING("Invalid data size");
 			case FailedToReadData: return NNTL_STRING("Failed to read data");			
 			case UnknownFieldName: return NNTL_STRING("Unknown field name found");
@@ -125,9 +127,9 @@ namespace nntl_supp {
 
 	class binfile : public nntl::_has_last_error<_binfile_errs> {
 	protected:
-		typedef nntl::train_data::mtx_t mtx_t;
-		typedef mtx_t::value_type mtx_value_t;
-		typedef mtx_t::vec_len_t vec_len_t;
+		typedef nntl::train_data::realmtx_t realmtx_t;
+		typedef realmtx_t::value_type mtx_value_t;
+		typedef realmtx_t::vec_len_t vec_len_t;
 
 	public:
 		~binfile()noexcept {}
@@ -137,7 +139,7 @@ namespace nntl_supp {
 		// If readInto_t == nntl::train_data, then all X data will be created with emulateBiases() feature and bMakeMtxBiased param will be ignored
 		template <typename readInto_t>
 		const ErrorCode read(const nntl::strchar_t* fname, readInto_t& dest) {
-			static_assert(std::is_same<nntl::train_data, readInto_t>::value || std::is_same<mtx_t, readInto_t>::value,
+			static_assert(std::is_same<nntl::train_data, readInto_t>::value || std::is_same<realmtx_t, readInto_t>::value,
 				"Only nntl::train_data or nntl::train_data::mtx_t is supported as readInto_t template parameter");
 
 			FILE* fp=nullptr;
@@ -187,10 +189,10 @@ namespace nntl_supp {
 
 		template<>
 		const ErrorCode _read_into<nntl::train_data>(FILE* fp, nntl::train_data& dest)noexcept {
-			mtx_t mtxs[total_members];
+			realmtx_t mtxs[total_members];
 
 			for (unsigned nel = 0; nel < _root_members::total_members; ++nel) {
-				mtx_t m;
+				realmtx_t m;
 				_root_members fieldId;
 				const auto err = _read_field_entry(fp, m, fieldId, true);
 				if (ErrorCode::Success != err) return err;
@@ -207,7 +209,7 @@ namespace nntl_supp {
 			return ErrorCode::Success;
 		}
 		template<>
-		const ErrorCode _read_into<mtx_t>(FILE* fp, mtx_t& dest)noexcept {
+		const ErrorCode _read_into<realmtx_t>(FILE* fp, realmtx_t& dest)noexcept {
 			NNTL_ASSERT(!dest.bDontManageStorage());
 			NNTL_ASSERT(dest.empty());
 
@@ -215,7 +217,7 @@ namespace nntl_supp {
 			return _read_field_entry(fp, dest, f, false);
 		}
 
-		const ErrorCode _read_field_entry(FILE* fp, mtx_t& m, _root_members& fieldId, const bool bReadTD=true)noexcept{
+		const ErrorCode _read_field_entry(FILE* fp, realmtx_t& m, _root_members& fieldId, const bool bReadTD=true)noexcept{
 			if (!m.empty()) return _set_last_error(ErrorCode::FieldHasBeenRead);
 
 			bin_file::FIELD_ENTRY fe;
@@ -225,7 +227,9 @@ namespace nntl_supp {
 			if (1 != fread_s(&fe, sizeof(fe), sizeof(fe), 1, fp)) return _set_last_error(ErrorCode::FailedToReadFieldEntry);
 #pragma warning(default:28020)
 
-			if (!bin_file::correct_data_type<mtx_value_t>(fe.bDataType)) return _set_last_error(ErrorCode::UnsupportedIncorrectDataType);
+			const auto fieldDataType = fe.bDataType;
+			const auto bSameTypes = bin_file::correct_data_type<mtx_value_t>(fieldDataType);
+
 			if (fe.dwRows <= 0 || fe.dwCols <= 0) return _set_last_error(ErrorCode::InvalidDataSize);
 
 			fe.bDataType = 0;
@@ -239,16 +243,58 @@ namespace nntl_supp {
 
 			if (!m.resize(static_cast<vec_len_t>(fe.dwRows), static_cast<vec_len_t>(fe.dwCols))) return _set_last_error(ErrorCode::MemoryAllocationFailed);
 
+			void* pReadTo = m.dataAsVec();
+			size_t readSize = m.byte_size_no_bias();
+			if (!bSameTypes) {
+				switch (fieldDataType) {
+				case bin_file::dt_float:
+					readSize = sizeof(float)*m.numel_no_bias();
+					break;
+
+				case bin_file::dt_double:
+					readSize = sizeof(double)*m.numel_no_bias();
+					break;
+
+				default:
+					return _set_last_error(ErrorCode::UnsupportedIncorrectDataType);
+					break;
+				}
+				pReadTo = malloc(readSize);
+				if (!pReadTo) return _set_last_error(ErrorCode::FailedToAllocateMemoryForDataConvertion);
+			}
+
 #pragma warning(disable:28020)
 			//MSVC SAL goes "slightly" mad here
-			if (1 != fread_s(m.dataAsVec(), m.byte_size_no_bias(), m.byte_size_no_bias(), 1, fp))
+			if (1 != fread_s(pReadTo, readSize, readSize, 1, fp))
 				return _set_last_error(ErrorCode::FailedToReadData);
 #pragma warning(default:28020)
+
+			if (!bSameTypes) {
+				switch (fieldDataType) {
+				case bin_file::dt_float:
+					_convert_data<mtx_value_t, float>(m, static_cast<float*>(pReadTo));
+					break;
+
+				case bin_file::dt_double:
+					_convert_data<mtx_value_t, double>(m, static_cast<double*>(pReadTo));
+					break;
+				}
+
+				free(pReadTo);
+			}
+
 			return ErrorCode::Success;
 		}
 
+		template <typename dest_value_type, typename src_value_type>
+		void _convert_data(nntl::math::simple_matrix<dest_value_type>& dest, src_value_type* pSrc) noexcept {
+			const auto pSrcE = pSrc + dest.numel_no_bias();
+			auto pD = dest.dataAsVec();
+			while (pSrc != pSrcE) *pD++ = static_cast<dest_value_type>(*pSrc++);
+		}
+
 		template <typename readInto_t>
-		typename std::enable_if_t< std::is_same<mtx_t, readInto_t>::value, bool> elements_count_correct(decltype(bin_file::HEADER::wFieldsCount) cnt)const noexcept {
+		typename std::enable_if_t< std::is_same<realmtx_t, readInto_t>::value, bool> elements_count_correct(decltype(bin_file::HEADER::wFieldsCount) cnt)const noexcept {
 			return 1 == cnt;
 		}
 		template <typename readInto_t>

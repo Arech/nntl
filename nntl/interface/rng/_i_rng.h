@@ -41,8 +41,8 @@ namespace rng {
 
 		//typedef uint64_t seed_t;
 		typedef int seed_t;
-		typedef math_types::floatmtx_ty floatmtx_t;
-		typedef floatmtx_t::value_type float_t_;
+		typedef math_types::realmtx_ty realmtx_t;
+		typedef realmtx_t::value_type real_t;
 		// ptrdiff_t is either int on 32bits or int64 on 64bits. Type required by random_shuffle()
 		typedef ptrdiff_t generated_scalar_t;
 
@@ -64,15 +64,15 @@ namespace rng {
 		
 		//////////////////////////////////////////////////////////////////////////
 		//generate FP value in range [0,1]
-		nntl_interface float_t_ gen_f_norm()noexcept;
+		nntl_interface real_t gen_f_norm()noexcept;
 
 		//////////////////////////////////////////////////////////////////////////
 		// matrix/vector generation (sequence from begin to end of numbers drawn from uniform distribution in [-a,a])
-		nntl_interface void gen_vector(float_t_* ptr, const size_t n, const float_t_ a)noexcept;
+		nntl_interface void gen_vector(real_t* ptr, const size_t n, const real_t a)noexcept;
 
 		//////////////////////////////////////////////////////////////////////////
 		//generate vector with values in range [0,1]
-		nntl_interface void gen_vector_norm(float_t_* ptr, const size_t n)noexcept;
+		nntl_interface void gen_vector_norm(real_t* ptr, const size_t n)noexcept;
 
 		//////////////////////////////////////////////////////////////////////////
 		//generate vector with values in range [0,a]
@@ -89,26 +89,26 @@ namespace rng {
 		nntl_interface generated_scalar_t operator()(generated_scalar_t lessThan)noexcept;// { return gen_i(lessThan); }
 
 		//to be used by <random> distribution algorithms
-		nntl_interface float_t_ operator()()noexcept;//returns values that are uniformly distributed between min() and max().
-		nntl_interface float_t_ min()noexcept;//returns the minimum value that is returned by the generator's operator().
-		nntl_interface float_t_ max()noexcept;//returns the maximum value that is returned by the generator's operator().
+		nntl_interface real_t operator()()noexcept;//returns values that are uniformly distributed between min() and max().
+		nntl_interface real_t min()noexcept;//returns the minimum value that is returned by the generator's operator().
+		nntl_interface real_t max()noexcept;//returns the maximum value that is returned by the generator's operator().
 		// When result_type is a floating-point (real-valued) type, max() is the smallest value greater than all values
 		// that can be returned (non-inclusive).
 
 		//generate FP value in range [0,a]
-		nntl_interface float_t_ gen_f(const float_t_ a)noexcept; //{ return a*gen_f_norm(); }
+		nntl_interface real_t gen_f(const real_t a)noexcept; //{ return a*gen_f_norm(); }
 
 		// matrix/vector generation (sequence from begin to end of numbers drawn from uniform distribution in [-a,a])
-		nntl_interface void gen_matrix(floatmtx_t& mtx, const float_t_ a)noexcept;
-		nntl_interface void gen_matrix_no_bias(floatmtx_t& mtx, const float_t_ a)noexcept;
+		nntl_interface void gen_matrix(realmtx_t& mtx, const real_t a)noexcept;
+		nntl_interface void gen_matrix_no_bias(realmtx_t& mtx, const real_t a)noexcept;
 
 		//generate matrix with values in range [0,1]
-		nntl_interface void gen_matrix_norm(floatmtx_t& mtx)noexcept;
-		nntl_interface void gen_matrix_no_bias_norm(floatmtx_t& mtx)noexcept;
+		nntl_interface void gen_matrix_norm(realmtx_t& mtx)noexcept;
+		nntl_interface void gen_matrix_no_bias_norm(realmtx_t& mtx)noexcept;
 
 		//generate matrix with values in range [0,a]
-		nntl_interface void gen_matrix_gtz(floatmtx_t& mtx, const float_t_ a)noexcept;
-		nntl_interface void gen_matrix_no_bias_gtz(floatmtx_t& mtx, const float_t_ a)noexcept;
+		nntl_interface void gen_matrix_gtz(realmtx_t& mtx, const real_t a)noexcept;
+		nntl_interface void gen_matrix_no_bias_gtz(realmtx_t& mtx, const real_t a)noexcept;
 	};
 
 	template<typename FinalPolymorphChild>
@@ -140,46 +140,46 @@ namespace rng {
 		//////////////////////////////////////////////////////////////////////////
 		//to be used by <random> distribution algorithms
 		//returns values that are uniformly distributed between min() and max().
-		float_t_ operator()()noexcept { return get_self().gen_f_norm(); }
+		real_t operator()()noexcept { return get_self().gen_f_norm(); }
 		//returns the minimum value that is returned by the generator's operator().
-		float_t_ min()noexcept { return float_t_(0.0); }
+		real_t min()noexcept { return real_t(0.0); }
 		//returns the maximum value that is returned by the generator's operator().
 		// When result_type is a floating-point (real-valued) type, max() is the smallest value greater than all values
 		// that can be returned (non-inclusive).
-		float_t_ max()noexcept { return float_t_(1.0); }
+		real_t max()noexcept { return real_t(1.0); }
 
 
 		//////////////////////////////////////////////////////////////////////////
 		//generate FP value in range [0,a]
-		float_t_ gen_f(const float_t_ a)noexcept { return a*get_self().gen_f_norm(); }
+		real_t gen_f(const real_t a)noexcept { return a*get_self().gen_f_norm(); }
 
 		// matrix/vector generation (sequence from begin to end of numbers drawn from uniform distribution in [-a,a])
-		void gen_matrix(floatmtx_t& mtx, const float_t_ a)noexcept {
+		void gen_matrix(realmtx_t& mtx, const real_t a)noexcept {
 			NNTL_ASSERT(!mtx.emulatesBiases());
 			get_self().gen_vector(mtx.dataAsVec(), mtx.numel(), a);
 		}
-		void gen_matrix_no_bias(floatmtx_t& mtx, const float_t_ a)noexcept {
+		void gen_matrix_no_bias(realmtx_t& mtx, const real_t a)noexcept {
 			NNTL_ASSERT(mtx.emulatesBiases());
 			get_self().gen_vector(mtx.dataAsVec(), mtx.numel_no_bias(), a);
 		}
 
 		//generate matrix with values in range [0,1]
-		void gen_matrix_norm(floatmtx_t& mtx)noexcept {
+		void gen_matrix_norm(realmtx_t& mtx)noexcept {
 			NNTL_ASSERT(!mtx.emulatesBiases());
 			get_self().gen_vector_norm(mtx.dataAsVec(), mtx.numel());
 		}
-		void gen_matrix_no_bias_norm(floatmtx_t& mtx)noexcept {
+		void gen_matrix_no_bias_norm(realmtx_t& mtx)noexcept {
 			NNTL_ASSERT(mtx.emulatesBiases());
 			get_self().gen_vector_norm(mtx.dataAsVec(), mtx.numel_no_bias());
 		}
 
 		//////////////////////////////////////////////////////////////////////////
 		//generate matrix with values in range [0,a]
-		void gen_matrix_gtz(floatmtx_t& mtx, const float_t_ a)noexcept {
+		void gen_matrix_gtz(realmtx_t& mtx, const real_t a)noexcept {
 			NNTL_ASSERT(!mtx.emulatesBiases());
 			get_self().gen_vector_gtz(mtx.dataAsVec(), mtx.numel(), a);
 		}
-		void gen_matrix_no_bias_gtz(floatmtx_t& mtx, const float_t_ a)noexcept {
+		void gen_matrix_no_bias_gtz(realmtx_t& mtx, const real_t a)noexcept {
 			NNTL_ASSERT(mtx.emulatesBiases());
 			get_self().gen_vector_gtz(mtx.dataAsVec(), mtx.numel_no_bias(), a);
 		}

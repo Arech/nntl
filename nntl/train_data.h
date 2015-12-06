@@ -37,7 +37,7 @@ namespace nntl {
 	//dummy struct to handle training data
 	class train_data {
 	public:
-		typedef math_types::floatmtx_ty mtx_t;
+		typedef math_types::realmtx_ty realmtx_t;
 
 		train_data()noexcept {}
 		~train_data() noexcept {};
@@ -49,19 +49,19 @@ namespace nntl {
 
 		//////////////////////////////////////////////////////////////////////////
 
-		const mtx_t& train_x()const noexcept { return m_train_x; }
-		const mtx_t& train_y()const noexcept { return m_train_y; }
-		const mtx_t& test_x()const noexcept { return m_test_x; }
-		const mtx_t& test_y()const noexcept { return m_test_y; }
+		const realmtx_t& train_x()const noexcept { return m_train_x; }
+		const realmtx_t& train_y()const noexcept { return m_train_y; }
+		const realmtx_t& test_x()const noexcept { return m_test_x; }
+		const realmtx_t& test_y()const noexcept { return m_test_y; }
 
-		mtx_t& train_x_mutable() noexcept { return m_train_x; }
-		mtx_t& train_y_mutable() noexcept { return m_train_y; }
+		realmtx_t& train_x_mutable() noexcept { return m_train_x; }
+		realmtx_t& train_y_mutable() noexcept { return m_train_y; }
 
 		const bool empty()const noexcept {
 			return m_train_x.empty() || m_train_y.empty() || m_test_x.empty() || m_test_y.empty();
 		}
 
-		const bool absorb(mtx_t&& _train_x, mtx_t&& _train_y, mtx_t&& _test_x, mtx_t&& _test_y)noexcept{
+		const bool absorb(realmtx_t&& _train_x, realmtx_t&& _train_y, realmtx_t&& _test_x, realmtx_t&& _test_y)noexcept{
 			//, const bool noBiasEmulationNecessary=false)noexcept {
 			
 			if (!absorbsion_will_succeed(_train_x, _train_y,_test_x,_test_y))  return false;
@@ -73,7 +73,7 @@ namespace nntl {
 		}
 
 		static const bool absorbsion_will_succeed(
-			mtx_t& _train_x, mtx_t& _train_y, mtx_t& _test_x, mtx_t& _test_y)noexcept //, const bool noBiasEmulationNecessary) noexcept
+			realmtx_t& _train_x, realmtx_t& _train_y, realmtx_t& _test_x, realmtx_t& _test_y)noexcept //, const bool noBiasEmulationNecessary) noexcept
 		{
 			return !_train_x.empty() && !_train_y.empty() && _train_x.rows() == _train_y.rows()
 				&& !_test_x.empty() && !_test_y.empty() && _test_x.rows() == _test_y.rows()
@@ -85,7 +85,7 @@ namespace nntl {
 		//////////////////////////////////////////////////////////////////////////
 		//members
 	protected:
-		mtx_t m_train_x, m_train_y, m_test_x, m_test_y;
+		realmtx_t m_train_x, m_train_y, m_test_x, m_test_y;
 
 	};
 }

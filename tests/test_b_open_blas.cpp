@@ -47,7 +47,7 @@ TEST(TestBOpenBLAS, Gemm) {
 	using ErrCode = jsonreader::ErrorCode;
 	using mtx_t = train_data::mtx_t;
 	using mtx_size_t = train_data::mtx_t::mtx_size_t;
-	using float_t_ = train_data::mtx_t::value_type;
+	using real_t = train_data::mtx_t::value_type;
 
 	train_data td1,td2,td3;
 	jsonreader reader;
@@ -64,7 +64,7 @@ TEST(TestBOpenBLAS, Gemm) {
 	const mtx_t& A=td1.train_x(), &B=td2.train_x(), &hcC = td3.train_x();
 	mtx_t C(true, 3, 2);
 	C.zeros();
-	const float_t_ alpha = 1, beta = 0;
+	const real_t alpha = 1, beta = 0;
 
 	ASSERT_EQ(C.rows(), A.rows());
 	ASSERT_EQ(C.cols(), B.cols());

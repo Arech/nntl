@@ -53,7 +53,7 @@ namespace threads {
 
 	protected:
 		typedef std::function<void(const par_range_t& r)> func_run_t;
-		typedef std::function<float_t_(const par_range_t& r)> func_reduce_t;
+		typedef std::function<real_t(const par_range_t& r)> func_reduce_t;
 
 		enum class JobType { Run, Reduce };
 
@@ -76,7 +76,7 @@ public:
 
 		std::vector<par_range_t> m_ranges;
 		func_run_t m_fnRun;
-		std::vector<float_t_> m_reduceCache;
+		std::vector<real_t> m_reduceCache;
 		func_reduce_t m_fnReduce;
 		
 		const thread_id_t m_workersCnt;
@@ -160,7 +160,7 @@ public:
 		}
 
 		template<typename Func, typename FinalReduceFunc>
-		float_t_ reduce(Func&& FRed, FinalReduceFunc FRF, const range_t cnt) noexcept {
+		real_t reduce(Func&& FRed, FinalReduceFunc FRF, const range_t cnt) noexcept {
 			//TODO: decide whether it is worth to use workers here
 			//DONE: well, it worth less than 9mks to parallelize execution therefore won't bother...
 			if (cnt <= 1) {

@@ -53,7 +53,7 @@ namespace nntl {
 			_base_class(_neurons_cnt), m_pActivations(nullptr) {};
 		~_layer_input() noexcept {};
 
-		const floatmtx_t& get_activations()const noexcept {
+		const realmtx_t& get_activations()const noexcept {
 			NNTL_ASSERT(nullptr != m_pActivations);
 			return *m_pActivations;
 		}
@@ -74,13 +74,13 @@ namespace nntl {
 		}
 
 
-		void initMem(float_t_* ptr, numel_cnt_t cnt)noexcept {}
+		void initMem(real_t* ptr, numel_cnt_t cnt)noexcept {}
 		void set_mode(vec_len_t batchSize)noexcept {}
 
 		//template <typename i_math_t = nnet_def_interfaces::Math, typename i_rng_t = nnet_def_interfaces::Rng>
-		//void fprop(const floatmtx_t& data_x, i_math_t& iMath, i_rng_t& iRng, const bool bInTraining)noexcept{
+		//void fprop(const realmtx_t& data_x, i_math_t& iMath, i_rng_t& iRng, const bool bInTraining)noexcept{
 		//template <typename LowerLayer>
-		void fprop(const floatmtx_t& data_x)noexcept{
+		void fprop(const realmtx_t& data_x)noexcept{
 			//NNTL_ASSERT(data_x.emulatesBiases());
 			//cant check it here because in mini-batch version data_x will be a slice (including bias) from original train_x. Therefore
 			// just leave the check on nnet class
@@ -89,9 +89,9 @@ namespace nntl {
 		}
 
 		//template <typename i_math_t = nnet_def_interfaces::Math>
-		//void bprop(const floatmtx_t& dLdA, const floatmtx_t& prevActivations, floatmtx_t& dLdAPrev, i_math_t& iMath, const bool bPrevLayerIsInput)noexcept {
+		//void bprop(const realmtx_t& dLdA, const realmtx_t& prevActivations, realmtx_t& dLdAPrev, i_math_t& iMath, const bool bPrevLayerIsInput)noexcept {
 		template <typename LowerLayer>
-		void bprop(floatmtx_t& dLdA, const LowerLayer& lowerLayer, floatmtx_t& dLdAPrev)noexcept{
+		void bprop(realmtx_t& dLdA, const LowerLayer& lowerLayer, realmtx_t& dLdAPrev)noexcept{
 			//static_assert(false, "There is no bprop() for input_layer!");
 			// will be used in invariant backprop algo
 			std::cout << "***** bprop in input layer " << (int)get_layer_idx() << std::endl;
@@ -111,7 +111,7 @@ namespace nntl {
 		//////////////////////////////////////////////////////////////////////////
 		//members
 	protected:
-		const floatmtx_t* m_pActivations;
+		const realmtx_t* m_pActivations;
 	};
 
 

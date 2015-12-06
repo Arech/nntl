@@ -80,47 +80,47 @@ namespace rng {
 
 		//////////////////////////////////////////////////////////////////////////
 		//generate FP value in range [0,a]
-		//static float_t_ gen_f(const float_t_ a)noexcept { return a*gen_f_norm(); }
+		//static real_t gen_f(const real_t a)noexcept { return a*gen_f_norm(); }
 		//generate FP value in range [0,1]
-		static float_t_ gen_f_norm()noexcept {
-			return static_cast<float_t_>(_rand()) / static_cast<float_t_>(_rand_max());
+		static real_t gen_f_norm()noexcept {
+			return static_cast<real_t>(_rand()) / static_cast<real_t>(_rand_max());
 		}
 
 		//////////////////////////////////////////////////////////////////////////
 		// weights generation (sequence from begin to end of numbers drawn from uniform distribution in [-a,a])
-// 		static void gen_matrix(floatmtx_t& mtx, const float_t_ a)noexcept {
+// 		static void gen_matrix(realmtx_t& mtx, const real_t a)noexcept {
 // 			NNTL_ASSERT(!mtx.emulatesBiases());
 // 			gen_vector(mtx.dataAsVec(), mtx.numel(), a);
 // 		}
-// 		static void gen_matrix_no_bias(floatmtx_t& mtx, const float_t_ a)noexcept {
+// 		static void gen_matrix_no_bias(realmtx_t& mtx, const real_t a)noexcept {
 // 			NNTL_ASSERT();
 // 			NNTL_ASSERT(mtx.emulatesBiases());
 // 			gen_vector(mtx.dataAsVec(), mtx.numel_no_bias(), a);
 // 		}
-		static void gen_vector(float_t_* ptr, const size_t n, const float_t_ a)noexcept {
-			const float_t_ scale = 2 * a;
-			const float_t_ rm = static_cast<float_t_>(_rand_max());
+		static void gen_vector(real_t* ptr, const size_t n, const real_t a)noexcept {
+			const real_t scale = 2 * a;
+			const real_t rm = static_cast<real_t>(_rand_max());
 			const auto pE = ptr + n;
 			while (ptr!=pE){
-				*ptr++ = scale*(static_cast<float_t_>(_rand()) / rm - static_cast<float_t_>(0.5));
+				*ptr++ = scale*(static_cast<real_t>(_rand()) / rm - static_cast<real_t>(0.5));
 			}
 		}
 
 		//////////////////////////////////////////////////////////////////////////
 		//generate vector with values in range [0,1]
-		static void gen_vector_norm(float_t_* ptr, const size_t n)noexcept {
-			const float_t_ rm = static_cast<float_t_>(_rand_max());
+		static void gen_vector_norm(real_t* ptr, const size_t n)noexcept {
+			const real_t rm = static_cast<real_t>(_rand_max());
 			const auto pE = ptr + n;
 			while (ptr != pE) {
-				*ptr++ = static_cast<float_t_>(_rand()) / rm;
+				*ptr++ = static_cast<real_t>(_rand()) / rm;
 			}
 		}
 // 		//generate matrix with values in range [0,1]
-// 		static void gen_matrix_norm(floatmtx_t& mtx)noexcept {
+// 		static void gen_matrix_norm(realmtx_t& mtx)noexcept {
 // 			NNTL_ASSERT(!mtx.emulatesBiases());
 // 			gen_vector_norm(mtx.dataAsVec(), mtx.numel());
 // 		}
-// 		static void gen_matrix_no_bias_norm(floatmtx_t& mtx)noexcept {
+// 		static void gen_matrix_no_bias_norm(realmtx_t& mtx)noexcept {
 // 			NNTL_ASSERT();
 // 			NNTL_ASSERT(mtx.emulatesBiases());
 // 			gen_vector_norm(mtx.dataAsVec(), mtx.numel_no_bias());
@@ -128,11 +128,11 @@ namespace rng {
 // 
 // 		//////////////////////////////////////////////////////////////////////////
 // 		//generate matrix with values in range [0,a]
-// 		static void gen_matrix_gtz(floatmtx_t& mtx, const float_t_ a)noexcept {
+// 		static void gen_matrix_gtz(realmtx_t& mtx, const real_t a)noexcept {
 // 			NNTL_ASSERT(!mtx.emulatesBiases());
 // 			gen_vector_gtz(mtx.dataAsVec(), mtx.numel(), a);
 // 		}
-// 		static void gen_matrix_no_bias_gtz(floatmtx_t& mtx, const float_t_ a)noexcept {
+// 		static void gen_matrix_no_bias_gtz(realmtx_t& mtx, const real_t a)noexcept {
 // 			NNTL_ASSERT();
 // 			NNTL_ASSERT(mtx.emulatesBiases());
 // 			gen_vector_gtz( mtx.dataAsVec(), mtx.numel_no_bias(), a);
@@ -140,11 +140,11 @@ namespace rng {
 		//generate vector with values in range [0,a]
 		template<typename BaseType>
 		static void gen_vector_gtz(BaseType* ptr, const size_t n, const BaseType a)noexcept {
-			const float_t_ scale = static_cast<float_t_>(a);
-			const float_t_ rm = static_cast<float_t_>(_rand_max());
+			const real_t scale = static_cast<real_t>(a);
+			const real_t rm = static_cast<real_t>(_rand_max());
 			const auto pE = ptr + n;
 			while (ptr != pE) {
-				*ptr++ = static_cast<BaseType>(scale*(static_cast<float_t_>(_rand()) / rm));
+				*ptr++ = static_cast<BaseType>(scale*(static_cast<real_t>(_rand()) / rm));
 			}
 		}
 		

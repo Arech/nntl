@@ -105,19 +105,19 @@ namespace nntl {
 		typedef typename std::remove_reference<typename std::tuple_element<layers_count - 2, _layers>::type>::type preoutput_layer_t;
 
 		//matrix type to feed into forward propagation
-		typedef _i_layer::floatmtx_t floatmtx_t;
-		typedef floatmtx_t::value_type float_t_;
-		typedef floatmtx_t::mtx_size_t mtx_size_t;
+		typedef _i_layer::realmtx_t realmtx_t;
+		typedef realmtx_t::value_type real_t;
+		typedef realmtx_t::mtx_size_t mtx_size_t;
 		typedef _i_layer::vec_len_t vec_len_t;
 		typedef _i_layer::numel_cnt_t numel_cnt_t;
 
-		typedef math_types::floatmtxdef_ty floatmtxdef_t;
+		typedef math_types::realmtxdef_ty realmtxdef_t;
 
 		typedef _nnet_errs::ErrorCode ErrorCode;
 		typedef std::pair<ErrorCode, layer_index_t> layer_error_t;
 
 		//we need 2 matrices for bprop()
-		typedef std::array<floatmtxdef_t, 2> floatmtxdef_array_t;
+		typedef std::array<realmtxdef_t, 2> floatmtxdef_array_t;
 
 		//test whether the first layer is m_layer_input and the last is m_layer_output derived
 		static_assert(std::is_base_of<m_layer_input, input_layer_t>::value, "First layer must be input layer!");
@@ -201,7 +201,7 @@ namespace nntl {
 			iMath.deinit();
 		}
 
-		void initMem(float_t_* ptr, numel_cnt_t cnt)noexcept {
+		void initMem(real_t* ptr, numel_cnt_t cnt)noexcept {
 			utils::for_each_up(m_layers, [=](auto& lyr)noexcept {
 				lyr.initMem(ptr,cnt);
 			});
@@ -213,14 +213,14 @@ namespace nntl {
 			utils::for_each_up(m_layers, [=](auto& lyr)noexcept { lyr.set_mode(batchSize); });
 		}
 
-		void fprop(const floatmtx_t& data_x)const noexcept {
+		void fprop(const realmtx_t& data_x)const noexcept {
 			input_layer().fprop(data_x);
 			utils::for_eachwp_up(m_layers, [](auto& lcur, auto& lprev, const bool)noexcept {
 				lcur.fprop(lprev);
 			});
 		}
 
-		void bprop(const floatmtx_t& data_y, floatmtxdef_array_t& a_dLdA)const noexcept {
+		void bprop(const realmtx_t& data_y, floatmtxdef_array_t& a_dLdA)const noexcept {
 			NNTL_ASSERT(a_dLdA.size() == 2);
 			
 			if (2 == layers_count) {

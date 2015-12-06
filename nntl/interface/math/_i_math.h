@@ -53,16 +53,16 @@ namespace math {
 		~_i_math()noexcept {};
 
 	public:
-		//typedef math_types::float_ty float_t_;
-		typedef math_types::floatmtx_ty floatmtx_t;
-		typedef floatmtx_t::value_type float_t_;
-		typedef floatmtx_t::vec_len_t vec_len_t;
-		typedef floatmtx_t::numel_cnt_t numel_cnt_t;
+		//typedef math_types::real_ty real_t;
+		typedef math_types::realmtx_ty realmtx_t;
+		typedef realmtx_t::value_type real_t;
+		typedef realmtx_t::vec_len_t vec_len_t;
+		typedef realmtx_t::numel_cnt_t numel_cnt_t;
 
 		//last operation succeded
 		//nntl_interface bool succeded()const noexcept;
 		
-		//math preinitialization, should be called from each NN layer. n - maximum data length (in float_t_), that this layer will use in calls
+		//math preinitialization, should be called from each NN layer. n - maximum data length (in real_t), that this layer will use in calls
 		//to math interface. Used to calculate max necessary temporary storage length.
 		nntl_interface void preinit(const numel_cnt_t n)noexcept;
 		//real math initialization, used to allocate necessary temporary storage of size max(preinit::n)
@@ -73,116 +73,116 @@ namespace math {
 		// Contnr dest is a std::vector-like container of vec_len_t, sized to m.rows(). Will contain for each row column index
 		//of greatest element in a row.
 		template<typename Contnr>
-		nntl_interface void mFindIdxsOfMaxRowwise(const floatmtx_t& m, Contnr& dest)noexcept;
+		nntl_interface void mFindIdxsOfMaxRowwise(const realmtx_t& m, Contnr& dest)noexcept;
 
 		//extract ridxsCnt rows with indexes specified by sequential iterator ridxsItBegin into dest matrix.
 		template<typename SeqIt>
-		nntl_interface void mExtractRows(const floatmtx_t& src, SeqIt ridxsItBegin, const numel_cnt_t ridxsCnt, floatmtx_t& dest)noexcept;
+		nntl_interface void mExtractRows(const realmtx_t& src, SeqIt ridxsItBegin, const numel_cnt_t ridxsCnt, realmtx_t& dest)noexcept;
 
 		//binarize real-valued matrix with values in [0,1] according to 0<=frac<=1
-		nntl_interface void mBinarize(floatmtx_t& A, const float_t_ frac)noexcept;
+		nntl_interface void mBinarize(realmtx_t& A, const real_t frac)noexcept;
 
 		// treat matrix as a set of row-vectors (matrices in col-major mode!). For each row-vector check, whether
 		// its length/norm is not longer, than predefined value. If it's longer, than rescale vector to this max length
 		// (for use in max-norm weights regularization)
-		nntl_interface void mCheck_normalize_rows(floatmtx_t& A, const float_t_ maxNormSquared)noexcept;
+		nntl_interface void mCheck_normalize_rows(realmtx_t& A, const real_t maxNormSquared)noexcept;
 
 		//returns how many elements in two vectors has exactly the same value. Vectors must have the same length
 		template<typename Contnr>
 		nntl_interface size_t vCountSame(const Contnr& A, const Contnr& B)noexcept;
 
 		//clamps matrix values into range
-		nntl_interface void evClamp(floatmtx_t& m, float_t_ lo, float_t_ hi)noexcept;
+		nntl_interface void evClamp(realmtx_t& m, real_t lo, real_t hi)noexcept;
 
 		//on entry dropoutMask must be filled with random values in [0,1]
 		//binarizes dropoutMask according to dropoutFraction value and applies dropoutMask to activations
 		// act must be used in "no_bias" mode
-		nntl_interface void make_dropout(floatmtx_t& act, float_t_ dfrac, floatmtx_t& dropoutMask)noexcept;
+		nntl_interface void make_dropout(realmtx_t& act, real_t dfrac, realmtx_t& dropoutMask)noexcept;
 
 		//apply individual learning rate to dLdW
-		nntl_interface void apply_ILR(floatmtx_t& dLdW, const floatmtx_t& prevdLdW, floatmtx_t& ILRGain,
-			const float_t_ decr, const float_t_ incr, const float_t_ capLow, const float_t_ capHigh)noexcept;
+		nntl_interface void apply_ILR(realmtx_t& dLdW, const realmtx_t& prevdLdW, realmtx_t& ILRGain,
+			const real_t decr, const real_t incr, const real_t capLow, const real_t capHigh)noexcept;
 
 		//apply momentum vW = momentum.*vW + dW
-		nntl_interface void apply_momentum(floatmtx_t& vW, const float_t_ momentum, const floatmtx_t& dW)noexcept;
+		nntl_interface void apply_momentum(realmtx_t& vW, const real_t momentum, const realmtx_t& dW)noexcept;
 
 		//////////////////////////////////////////////////////////////////////////
 		// elementwise substraction C=A-B. C is expected to be different from A and B
-// 		nntl_interface void evSubtract(const floatmtx_t&A, const floatmtx_t& B, floatmtx_t& C) noexcept;
+// 		nntl_interface void evSubtract(const realmtx_t&A, const realmtx_t& B, realmtx_t& C) noexcept;
 // 		// B=1-A elementwise subtraction. B must be different from A.
-// 		nntl_interface void evOneMinusA(const floatmtx_t&A, floatmtx_t& B) noexcept;
+// 		nntl_interface void evOneMinusA(const realmtx_t&A, realmtx_t& B) noexcept;
 
  		//inplace elementwise multiplication A = b.*A
-		nntl_interface void evMulC_ip(floatmtx_t& A, const float_t_ b)noexcept;
+		nntl_interface void evMulC_ip(realmtx_t& A, const real_t b)noexcept;
 
 		//inplace elementwise multiplication A(no_bias) = b.*A(no_bias)
-		nntl_interface void evMulC_ip_Anb(floatmtx_t& A, const float_t_ b)noexcept;
+		nntl_interface void evMulC_ip_Anb(realmtx_t& A, const real_t b)noexcept;
 		
 		//inplace elementwise multiplication A = A.*B
-		nntl_interface void evMul_ip(floatmtx_t& A, const floatmtx_t& B)noexcept;
+		nntl_interface void evMul_ip(realmtx_t& A, const realmtx_t& B)noexcept;
 
 		//inplace elementwise multiplication A(no_bias) = A(no_bias).*B, - A is taken in no_bias mode
-		nntl_interface void evMul_ip_Anb(floatmtx_t& A, const floatmtx_t& B)noexcept;
+		nntl_interface void evMul_ip_Anb(realmtx_t& A, const realmtx_t& B)noexcept;
 
 		//inplace elementwise addition A = A+B
-		nntl_interface void evAdd_ip(floatmtx_t& A, const floatmtx_t& B)noexcept;
+		nntl_interface void evAdd_ip(realmtx_t& A, const realmtx_t& B)noexcept;
 
 		//inplace elementwise subtraction A = A-B
-		nntl_interface void evSub_ip(floatmtx_t& A, const floatmtx_t& B)noexcept;
+		nntl_interface void evSub_ip(realmtx_t& A, const realmtx_t& B)noexcept;
 		//elementwise subtraction C = A-B
-		nntl_interface void evSub(const floatmtx_t& A, const floatmtx_t& B, floatmtx_t& C)noexcept;
+		nntl_interface void evSub(const realmtx_t& A, const realmtx_t& B, realmtx_t& C)noexcept;
 
 		//inplace elementwise scaling and subtracting: vW = momentum.*vW, W = W-vW;
 		//(it's pre-fprop step of Nesterov Momentum method)
-		nntl_interface void evMulC_ip_Sub_ip(floatmtx_t& vW, const float_t_ momentum, floatmtx_t& W)noexcept;
+		nntl_interface void evMulC_ip_Sub_ip(realmtx_t& vW, const real_t momentum, realmtx_t& W)noexcept;
 
 		//elementwise squaring dest = src.^2;
-		nntl_interface void evSquare(floatmtx_t& dest, const floatmtx_t& src)noexcept;
+		nntl_interface void evSquare(realmtx_t& dest, const realmtx_t& src)noexcept;
 
 		//finding elementwise absolute values dest = .abs(src);
-		nntl_interface void evAbs(floatmtx_t& dest, const floatmtx_t& src)noexcept;
+		nntl_interface void evAbs(realmtx_t& dest, const realmtx_t& src)noexcept;
 
 		//////////////////////////////////////////////////////////////////////////
 		//C = A * B, - matrix multiplication
-		nntl_interface void mMulAB_C(const floatmtx_t& A, const floatmtx_t& B, floatmtx_t& C)noexcept;
+		nntl_interface void mMulAB_C(const realmtx_t& A, const realmtx_t& B, realmtx_t& C)noexcept;
 		//matrix multiplication C(no bias) = A * B` (B transposed). C could have emulated biases (they will be left untouched)
-		nntl_interface void mMulABt_Cnb(const floatmtx_t& A, const floatmtx_t& B, floatmtx_t& C)noexcept;
+		nntl_interface void mMulABt_Cnb(const realmtx_t& A, const realmtx_t& B, realmtx_t& C)noexcept;
 		//C = a*(A` * B) - matrix multiplication of transposed A times B with result normalization
-		nntl_interface void mScaledMulAtB_C(float_t_ alpha, const floatmtx_t& A, const floatmtx_t& B, floatmtx_t& C)noexcept;
+		nntl_interface void mScaledMulAtB_C(real_t alpha, const realmtx_t& A, const realmtx_t& B, realmtx_t& C)noexcept;
 
 
 		//////////////////////////////////////////////////////////////////////////
 		// sigm activation.
 		// Remember to ignore biases for activation function calculations!
-		nntl_interface void sigm(floatmtx_t& srcdest) noexcept;
-		nntl_interface void dsigm(const floatmtx_t& fValue, floatmtx_t& df) noexcept;
+		nntl_interface void sigm(realmtx_t& srcdest) noexcept;
+		nntl_interface void dsigm(const realmtx_t& fValue, realmtx_t& df) noexcept;
 		//calculates derivative of quadratic loss function for sigm neurons wrt total neuron input Z (=Aprev_layer*W), dL/dZ
-		nntl_interface void dSigmQuadLoss_dZ(const floatmtx_t& activations, const floatmtx_t& data_y, floatmtx_t& dLdZ);
+		nntl_interface void dSigmQuadLoss_dZ(const realmtx_t& activations, const realmtx_t& data_y, realmtx_t& dLdZ);
 
 		//////////////////////////////////////////////////////////////////////////
 		//ReLU
-		nntl_interface void relu(floatmtx_t& srcdest) noexcept;
-		nntl_interface void drelu(const floatmtx_t& fValue, floatmtx_t& df) noexcept;
+		nntl_interface void relu(realmtx_t& srcdest) noexcept;
+		nntl_interface void drelu(const realmtx_t& fValue, realmtx_t& df) noexcept;
 
 		//////////////////////////////////////////////////////////////////////////
 		//loss functions
 		// quadratic loss == SUM_OVER_ALL((activations-data_y)^2)/(2*activations.rows())
-		nntl_interface float_t_ loss_quadratic(const floatmtx_t& activations, const floatmtx_t& data_y)noexcept;
+		nntl_interface real_t loss_quadratic(const realmtx_t& activations, const realmtx_t& data_y)noexcept;
 		
 		// cross entropy function for sigmoid (applicable ONLY for binary data_y)
 		// L = -y*log(a)-(1-y)log(1-a), dL/dz=a-y
-		nntl_interface float_t_ loss_sigm_xentropy(const floatmtx_t& activations, const floatmtx_t& data_y)noexcept;
+		nntl_interface real_t loss_sigm_xentropy(const realmtx_t& activations, const realmtx_t& data_y)noexcept;
 
 
 		//////////////////////////////////////////////////////////////////////////
 		//gradient application procedures
-		nntl_interface void RMSProp_Hinton(floatmtx_t& dW, floatmtx_t& rmsF, const float_t_ learningRate,
-			const float_t_ emaDecay, const float_t_ numericStabilizer)noexcept;
-		nntl_interface void RMSProp_Graves(floatmtx_t& dW, floatmtx_t& rmsF, floatmtx_t& rmsG, const float_t_ learningRate,
-			const float_t_ emaDecay, const float_t_ numericStabilizer)noexcept;
-		nntl_interface void RProp(floatmtx_t& dW, const float_t_ learningRate)noexcept;
-		nntl_interface void ModProp(floatmtx_t& dW, floatmtx_t& rmsF, const float_t_ learningRate,
-			const float_t_ emaDecay, const float_t_ numericStabilizer)noexcept;
+		nntl_interface void RMSProp_Hinton(realmtx_t& dW, realmtx_t& rmsF, const real_t learningRate,
+			const real_t emaDecay, const real_t numericStabilizer)noexcept;
+		nntl_interface void RMSProp_Graves(realmtx_t& dW, realmtx_t& rmsF, realmtx_t& rmsG, const real_t learningRate,
+			const real_t emaDecay, const real_t numericStabilizer)noexcept;
+		nntl_interface void RProp(realmtx_t& dW, const real_t learningRate)noexcept;
+		nntl_interface void ModProp(realmtx_t& dW, realmtx_t& rmsF, const real_t learningRate,
+			const real_t emaDecay, const real_t numericStabilizer)noexcept;
 	};
 
 }

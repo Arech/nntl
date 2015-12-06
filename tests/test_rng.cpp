@@ -51,13 +51,13 @@ constexpr unsigned TEST_PERF_REPEATS_COUNT = 10;
 constexpr unsigned TEST_PERF_REPEATS_COUNT = 400;
 #endif // _DEBUG
 
-void test_rng_perf(math_types::floatmtx_ty::vec_len_t rowsCnt, math_types::floatmtx_ty::vec_len_t colsCnt = 10) {
-	typedef math_types::floatmtx_ty floatmtx_t;
-	typedef floatmtx_t::value_type float_t_;
-	typedef floatmtx_t::numel_cnt_t numel_cnt_t;
+void test_rng_perf(math_types::realmtx_ty::vec_len_t rowsCnt, math_types::realmtx_ty::vec_len_t colsCnt = 10) {
+	typedef math_types::realmtx_ty realmtx_t;
+	typedef realmtx_t::value_type real_t;
+	typedef realmtx_t::numel_cnt_t numel_cnt_t;
 	
 	using namespace std::chrono;
-	const auto dataSize = floatmtx_t::sNumel(rowsCnt, colsCnt);
+	const auto dataSize = realmtx_t::sNumel(rowsCnt, colsCnt);
 	STDCOUTL("******* testing rng performance over " << rowsCnt << "x" << colsCnt << " matrix (" << dataSize << " elements) **************");
 
 	//double tstStd;
@@ -66,7 +66,7 @@ void test_rng_perf(math_types::floatmtx_ty::vec_len_t rowsCnt, math_types::float
 	nanoseconds diff;
 	constexpr unsigned maxReps = TEST_PERF_REPEATS_COUNT;
 	
-	floatmtx_t m(rowsCnt, colsCnt);
+	realmtx_t m(rowsCnt, colsCnt);
 	ASSERT_TRUE(!m.isAllocationFailed());
 
 	/*
@@ -126,7 +126,7 @@ TEST(TestRNG, RngPerf) {
 
 //////////////////////////////////////////////////////////////////////////
 template<typename AFRng, typename iThreads>
-void test_rngmt(iThreads&iT, math_types::floatmtx_ty& m) {
+void test_rngmt(iThreads&iT, math_types::realmtx_ty& m) {
 	using namespace std::chrono;
 	steady_clock::time_point bt;
 	nanoseconds diff;
@@ -160,13 +160,13 @@ void test_rngmt(iThreads&iT, math_types::floatmtx_ty& m) {
 }
 
 template<typename iThreads>
-void test_rng_mt_perf(iThreads& iT, math_types::floatmtx_ty::vec_len_t rowsCnt, math_types::floatmtx_ty::vec_len_t colsCnt = 10) {
-	typedef math_types::floatmtx_ty floatmtx_t;
+void test_rng_mt_perf(iThreads& iT, math_types::realmtx_ty::vec_len_t rowsCnt, math_types::realmtx_ty::vec_len_t colsCnt = 10) {
+	typedef math_types::realmtx_ty realmtx_t;
 
-	const auto dataSize = floatmtx_t::sNumel(rowsCnt, colsCnt);
+	const auto dataSize = realmtx_t::sNumel(rowsCnt, colsCnt);
 	STDCOUTL("******* testing multithreaded rng performance over " << rowsCnt << "x" << colsCnt << " matrix (" << dataSize << " elements) **************");
 	
-	floatmtx_t m(rowsCnt, colsCnt);
+	realmtx_t m(rowsCnt, colsCnt);
 	ASSERT_TRUE(!m.isAllocationFailed());
 
 	utils::prioritize_workers<utils::PriorityClass::PerfTesting, iThreads> pw(iT);

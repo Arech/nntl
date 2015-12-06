@@ -49,7 +49,7 @@ namespace math {
 	template <typename iThreads>// = threads::Std>
 	class iMath_basic : public _i_math {
 		static_assert(std::is_base_of<threads::_i_threads<typename iThreads::range_t>, iThreads>::value, "iThreads must implement threads::_i_threads");
-		static_assert(std::is_same<floatmtx_t::numel_cnt_t, typename iThreads::range_t>::value, "iThreads::range_t should be the same as floatmtx_t::numel_cnt_t");
+		static_assert(std::is_same<realmtx_t::numel_cnt_t, typename iThreads::range_t>::value, "iThreads::range_t should be the same as realmtx_t::numel_cnt_t");
 
 	public:
 		typedef iThreads ithreads_t;
@@ -57,11 +57,11 @@ namespace math {
 		typedef typename ithreads_t::par_range_t par_range_t;
 		typedef typename ithreads_t::thread_id_t thread_id_t;
 
-		typedef math_types::floatmtxdef_ty floatmtxdef_t;
+		typedef math_types::realmtxdef_ty realmtxdef_t;
 
 	protected:
-		typedef std::vector<float_t_*> thread_temp_storage_ptrs_t;
-		typedef std::vector<float_t_> thread_temp_storage_t;
+		typedef std::vector<real_t*> thread_temp_storage_ptrs_t;
+		typedef std::vector<real_t> thread_temp_storage_t;
 
 		//////////////////////////////////////////////////////////////////////////
 		// members
@@ -73,7 +73,7 @@ namespace math {
 		thread_temp_storage_t m_threadTempRawStorage;
 		thread_temp_storage_ptrs_t m_threadTempRawStoragePtrs;
 
-		//floatmtxdef_t m_tmpMtx;
+		//realmtxdef_t m_tmpMtx;
 
 		//bool m_succeded;
 
@@ -91,10 +91,10 @@ namespace math {
 
 		ithreads_t& ithreads()noexcept { return m_threads; }
 
-		//math preinitialization, should be called from each NN layer. n - maximum data length (in float_t_), that this layer will use in calls
+		//math preinitialization, should be called from each NN layer. n - maximum data length (in real_t), that this layer will use in calls
 		//to math interface. Used to calculate max necessary temporary storage length.
 		void preinit(const numel_cnt_t n)noexcept {
-			static_assert(std::is_same<numel_cnt_t, range_t>::value, "WTF? floatmtx_t::numel_cnt_t and ithreads_t::range_t must be the same!");
+			static_assert(std::is_same<numel_cnt_t, range_t>::value, "WTF? realmtx_t::numel_cnt_t and ithreads_t::range_t must be the same!");
 			if (n > m_minTempStorageSize) m_minTempStorageSize = n;
 		}
 		//real math initialization, used to allocate necessary temporary storage of size max(preinit::n)
@@ -131,13 +131,13 @@ namespace math {
 		// Contnr dest is a std::vector-like container of vec_len_t, sized to m.rows(). Will contain for each row column index
 		//of greatest element in a row.
 		template<typename Contnr>
-		void mFindIdxsOfMaxRowwise(const floatmtx_t& m, Contnr& dest)noexcept {
+		void mFindIdxsOfMaxRowwise(const realmtx_t& m, Contnr& dest)noexcept {
 			if (dest.size() <= 500) {
 				mFindIdxsOfMaxRowwise_st_naive(m, dest);
 			} else mFindIdxsOfMaxRowwise_mt_naive(m, dest);
 		}
 		template<typename Contnr>
-		void mFindIdxsOfMaxRowwise_st_naive(const floatmtx_t& m, Contnr& dest)noexcept {
+		void mFindIdxsOfMaxRowwise_st_naive(const realmtx_t& m, Contnr& dest)noexcept {
 			const auto rows = m.rows();
 			const auto ne = m.numel();
 			NNTL_ASSERT(rows == dest.size());
@@ -146,7 +146,7 @@ namespace math {
 			for (vec_len_t ri = 0; ri < rows; ++ri) {
 				auto pV = &pD[ri];
 				const auto pVEnd = pV + ne;
-				auto m = std::numeric_limits<float_t_>::min();
+				auto m = std::numeric_limits<real_t>::min();
 				Contnr::value_type mIdx = 0;
 				vec_len_t c = 0;
 				while (pV != pVEnd) {
@@ -162,7 +162,7 @@ namespace math {
 			}
 		}
 		template<typename Contnr>
-		void mFindIdxsOfMaxRowwise_mt_naive(const floatmtx_t& m, Contnr& dest)noexcept {
+		void mFindIdxsOfMaxRowwise_mt_naive(const realmtx_t& m, Contnr& dest)noexcept {
 			const auto rows = m.rows();
 			const auto ne = m.numel();
 			NNTL_ASSERT(rows == dest.size());
@@ -174,7 +174,7 @@ namespace math {
 				for (vec_len_t ri = ofs; ri < riMax; ++ri) {
 					auto pV = &pD[ri];
 					const auto pVEnd = pV + ne;
-					auto m = std::numeric_limits<float_t_>::min();
+					auto m = std::numeric_limits<real_t>::min();
 					Contnr::value_type mIdx = 0;
 					vec_len_t c = 0;
 					while (pV != pVEnd) {
@@ -193,13 +193,13 @@ namespace math {
 		//////////////////////////////////////////////////////////////////////////
 		//extract rows with indexes specified by Contnr ridxs into dest.
 		template<typename SeqIt>
-		void mExtractRows(const floatmtx_t& src, SeqIt ridxsItBegin, const numel_cnt_t ridxsCnt, floatmtx_t& dest)noexcept {
+		void mExtractRows(const realmtx_t& src, SeqIt ridxsItBegin, const numel_cnt_t ridxsCnt, realmtx_t& dest)noexcept {
 			if (dest.numel() < 5000) {
 				mExtractRows_st_naive(src, ridxsItBegin, ridxsCnt, dest);
 			} else mExtractRows_mt_naive(src, ridxsItBegin, ridxsCnt, dest);
 		}
 		template<typename SeqIt>
-		void mExtractRows_st_naive(const floatmtx_t& src, SeqIt ridxsItBegin, const numel_cnt_t ridxsCnt, floatmtx_t& dest)noexcept {
+		void mExtractRows_st_naive(const realmtx_t& src, SeqIt ridxsItBegin, const numel_cnt_t ridxsCnt, realmtx_t& dest)noexcept {
 			NNTL_ASSERT(!dest.empty() && !src.empty());
 			src.assert_storage_does_not_intersect(dest);
 			static_assert(std::is_same<vec_len_t, SeqIt::value_type>::value, "Contnr type should contain vec_len_t data");
@@ -227,7 +227,7 @@ namespace math {
 			}
 		}
 		template<typename SeqIt>
-		void mExtractRows_mt_naive(const floatmtx_t& src, SeqIt ridxsItBegin, const numel_cnt_t ridxsCnt, floatmtx_t& dest)noexcept {
+		void mExtractRows_mt_naive(const realmtx_t& src, SeqIt ridxsItBegin, const numel_cnt_t ridxsCnt, realmtx_t& dest)noexcept {
 			NNTL_ASSERT(!dest.empty() && !src.empty());
 			src.assert_storage_does_not_intersect(dest);
 			static_assert(std::is_same<vec_len_t, SeqIt::value_type>::value, "Contnr type should contain vec_len_t data");
@@ -271,29 +271,29 @@ namespace math {
 		}
 		//////////////////////////////////////////////////////////////////////////
 		//binarize real-valued matrix with values in [0,1] according to 0<=frac<=1
-		void mBinarize(floatmtx_t& A, const float_t_ frac)noexcept {
+		void mBinarize(realmtx_t& A, const real_t frac)noexcept {
 			if (A.numel() < 133000) {
 				mBinarize_st(A, frac);
 			}else mBinarize_mt(A, frac);
 		}
-		void mBinarize_st(floatmtx_t& A, const float_t_ frac)noexcept {
+		void mBinarize_st(realmtx_t& A, const real_t frac)noexcept {
 			auto pA = A.dataAsVec();
 			const auto pAE = pA + A.numel();
 			while (pA != pAE) {
 				const auto v = *pA;
-				NNTL_ASSERT(v >= float_t_(0.0) && v <= float_t_(1.0));
-				*pA++ = v > frac ? float_t_(1.0) : float_t_(0.0);
+				NNTL_ASSERT(v >= real_t(0.0) && v <= real_t(1.0));
+				*pA++ = v > frac ? real_t(1.0) : real_t(0.0);
 			}
 		}
-		void mBinarize_mt(floatmtx_t& A, const float_t_ frac)noexcept {
+		void mBinarize_mt(realmtx_t& A, const real_t frac)noexcept {
 			auto pA = A.dataAsVec();
 			m_threads.run([pA,frac](const par_range_t& r) {
 				auto p = pA + r.offset();
 				const auto pAE = p + r.cnt();
 				while (p != pAE) {
 					const auto v = *p;
-					NNTL_ASSERT(v >= float_t_(0.0) && v <= float_t_(1.0));
-					*p++ = v > frac ? float_t_(1.0) : float_t_(0.0);
+					NNTL_ASSERT(v >= real_t(0.0) && v <= real_t(1.0));
+					*p++ = v > frac ? real_t(1.0) : real_t(0.0);
 				}
 			},A.numel());
 		}
@@ -302,14 +302,14 @@ namespace math {
 		// treat matrix as a set of row-vectors (matrices in col-major mode!). For each row-vector check, whether
 		// its length/norm is not longer, than predefined value. If it's longer, than rescale vector to this max length
 		// (for use in max-norm weights regularization)
-		void mCheck_normalize_rows(floatmtx_t& A, const float_t_ maxNormSquared)noexcept {
+		void mCheck_normalize_rows(realmtx_t& A, const real_t maxNormSquared)noexcept {
 			if (A.numel()<=124000) {
 				mCheck_normalize_rows_st(A, maxNormSquared);
 			}else mCheck_normalize_rows_mt(A, maxNormSquared);
 		}
-		//static constexpr float_t_ sCheck_normalize_rows_MULT = float_t_(32.0);
-		void mCheck_normalize_rows_st(floatmtx_t& A, const float_t_ maxNormSquared)noexcept {
-			NNTL_ASSERT(!A.empty() && maxNormSquared > float_t_(0.0));
+		//static constexpr real_t sCheck_normalize_rows_MULT = real_t(32.0);
+		void mCheck_normalize_rows_st(realmtx_t& A, const real_t maxNormSquared)noexcept {
+			NNTL_ASSERT(!A.empty() && maxNormSquared > real_t(0.0));
 
 			const auto mRows = A.rows();
 			auto pTmp = _get_thread_temp_raw_storage(mRows);
@@ -317,10 +317,10 @@ namespace math {
 			
 			//calculate current norms of row-vectors into pTmp
 			const auto dataCnt = A.numel();
-			float_t_* pCol = A.dataAsVec();
+			real_t* pCol = A.dataAsVec();
 			const auto pColE = pCol + dataCnt;
 			while (pCol != pColE) {
-				const float_t_* pElm = pCol;
+				const real_t* pElm = pCol;
 				pCol += mRows;
 				const auto pElmE = pCol;
 				auto pN = pTmp;
@@ -333,19 +333,19 @@ namespace math {
 			//Saving normalization coefficient into pTmp for those rows, that needs normalization, or ones for those, 
 			// that doesn't need.
 			// Making newNorm slightly less, than maxNormSquared to make sure the result will be less than max norm.
-			//const float_t_ newNorm = maxNormSquared - math::float_ty_limits<float_t_>::eps_lower_n(maxNormSquared, sCheck_normalize_rows_MULT);
-			const float_t_ newNorm = maxNormSquared - sqrt(math::float_ty_limits<float_t_>::eps_lower(maxNormSquared));
+			//const real_t newNorm = maxNormSquared - math::real_ty_limits<real_t>::eps_lower_n(maxNormSquared, sCheck_normalize_rows_MULT);
+			const real_t newNorm = maxNormSquared - sqrt(math::real_ty_limits<real_t>::eps_lower(maxNormSquared));
 			auto pCurNorm = pTmp;
 			const auto pTmpE = pTmp + mRows;
 			while (pCurNorm != pTmpE) {
 				const auto rowNorm = *pCurNorm;
-				*pCurNorm++ = rowNorm > maxNormSquared ? sqrt(newNorm / rowNorm) : float_t_(1.0);
+				*pCurNorm++ = rowNorm > maxNormSquared ? sqrt(newNorm / rowNorm) : real_t(1.0);
 			}
 
 			//renormalize (multiply each rowvector to corresponding coefficient from pTmp)
 			pCol = A.dataAsVec();
 			while (pCol != pColE) {
-				float_t_* pElm = pCol;
+				real_t* pElm = pCol;
 				pCol += mRows;
 				const auto pElmE = pCol;
 				auto pN = pTmp;
@@ -354,8 +354,8 @@ namespace math {
 				}
 			}
 		}
-		void mCheck_normalize_rows_mt(floatmtx_t& A, const float_t_ maxNormSquared)noexcept {
-			NNTL_ASSERT(!A.empty() && maxNormSquared > float_t_(0.0));
+		void mCheck_normalize_rows_mt(realmtx_t& A, const real_t maxNormSquared)noexcept {
+			NNTL_ASSERT(!A.empty() && maxNormSquared > real_t(0.0));
 
 			// 1. each thread will get it's own sequential set of columns (which means sequential underlying representation)
 			//		and will find for that set norm (sum of squares) of their rowvectors.
@@ -373,15 +373,15 @@ namespace math {
 				const vec_len_t colsToProcess = static_cast<vec_len_t>(r.cnt());
 
 				const auto mRows = A.rows();
-				float_t_* pTmp = ppTmps[r.tid()];
+				real_t* pTmp = ppTmps[r.tid()];
 				memset(pTmp, 0, sizeof(*pTmp)*mRows);
 
 				//calculate current norms of row-vectors into pTmp
-				const auto dataCnt = floatmtx_t::sNumel(mRows, colsToProcess);
-				float_t_* pCol = A.colDataAsVec(startingCol);
+				const auto dataCnt = realmtx_t::sNumel(mRows, colsToProcess);
+				real_t* pCol = A.colDataAsVec(startingCol);
 				const auto pColE = pCol + dataCnt;
 				while (pCol != pColE) {
-					const float_t_* pElm = pCol;
+					const real_t* pElm = pCol;
 					pCol += mRows;
 					const auto pElmE = pCol;
 					auto pN = pTmp;
@@ -395,7 +395,7 @@ namespace math {
 			//2. sum partial norms into total pTmp
 			auto pHead = ppTmps + 1;
 			const auto pTail = ppTmps + threadsCnt;//threadsCnt already includes main thread which we'll use in pTmp
-			float_t_* pTmp = ppTmps[0];
+			real_t* pTmp = ppTmps[0];
 			const auto pTmpE = pTmp + mRows;
 			while (pHead != pTail) {
 				auto pPart = *pHead++;
@@ -405,11 +405,11 @@ namespace math {
 				}
 			}
 			// calc scaling coefficients
-			const float_t_ newNorm = maxNormSquared - sqrt(math::float_ty_limits<float_t_>::eps_lower(maxNormSquared));
+			const real_t newNorm = maxNormSquared - sqrt(math::real_ty_limits<real_t>::eps_lower(maxNormSquared));
 			auto pCurNorm = pTmp;
 			while (pCurNorm != pTmpE) {
 				const auto rowNorm = *pCurNorm;
-				*pCurNorm++ = rowNorm > maxNormSquared ? sqrt(newNorm / rowNorm) : float_t_(1.0);
+				*pCurNorm++ = rowNorm > maxNormSquared ? sqrt(newNorm / rowNorm) : real_t(1.0);
 			}
 			
 			// 3. multiplying
@@ -418,11 +418,11 @@ namespace math {
 				const vec_len_t colsToProcess = static_cast<vec_len_t>(r.cnt());
 
 				const auto mRows = A.rows();
-				const auto dataCnt = floatmtx_t::sNumel(mRows, colsToProcess);
-				float_t_* pCol = A.colDataAsVec(startingCol);
+				const auto dataCnt = realmtx_t::sNumel(mRows, colsToProcess);
+				real_t* pCol = A.colDataAsVec(startingCol);
 				const auto pColE = pCol + dataCnt;
 				while (pCol != pColE) {
-					float_t_* pElm = pCol;
+					real_t* pElm = pCol;
 					pCol += mRows;
 					const auto pElmE = pCol;
 					auto pN = pTmp;
@@ -459,7 +459,7 @@ namespace math {
 
 			auto pAc = &A[0];
 			auto pBc = &B[0];
-			float_t_ ret = m_threads.reduce([pAc,pBc](const par_range_t& r)->float_t_ {
+			real_t ret = m_threads.reduce([pAc,pBc](const par_range_t& r)->real_t {
 				const auto ofs = r.offset();
 				size_t ret = 0;
 				const auto pA = &pAc[ofs];
@@ -468,9 +468,9 @@ namespace math {
 				for (range_t i = 0; i < cnt; ++i) {
 					if (pA[i] == pB[i]) ret++;
 				}
-				return static_cast<float_t_>(ret);
-			}, [](const float_t_* ptr, const range_t cnt)->float_t_ {
-				float_t_ ret = ptr[0];
+				return static_cast<real_t>(ret);
+			}, [](const real_t* ptr, const range_t cnt)->real_t {
+				real_t ret = ptr[0];
 				for (numel_cnt_t i = 1; i < cnt; ++i) ret += ptr[i];
 				return ret;
 			}, A.size());
@@ -480,19 +480,19 @@ namespace math {
 
 		//////////////////////////////////////////////////////////////////////////
 		//clamps vector values into range
-		void evClamp(floatmtx_t& m, float_t_ lo, float_t_ hi)noexcept {
+		void evClamp(realmtx_t& m, real_t lo, real_t hi)noexcept {
 			if (m.numel() < 11200) {
 				evClamp_st(m, lo, hi);
 			} else evClamp_mt(m, lo, hi);
 		}
-		void evClamp_st(floatmtx_t& m, float_t_ lo, float_t_ hi)noexcept {
+		void evClamp_st(realmtx_t& m, real_t lo, real_t hi)noexcept {
 			NNTL_ASSERT(m.numel() > 0 && !m.empty());
 			NNTL_ASSERT(lo < hi);
 
 			auto p = m.dataAsVec();
 			utils::boost::algorithm::clamp_range(p, p + m.numel(), p, lo, hi);
 		}
-		void evClamp_mt(floatmtx_t& m, float_t_ lo, float_t_ hi)noexcept {
+		void evClamp_mt(realmtx_t& m, real_t lo, real_t hi)noexcept {
 			NNTL_ASSERT(m.numel() > 0 && !m.empty());
 			NNTL_ASSERT(lo < hi);
 
@@ -507,12 +507,12 @@ namespace math {
 		//on entry dropoutMask must be filled with random values in [0,1]
 		//binarizes dropoutMask according to dropoutFraction value and applies dropoutMask to activations
 		// act must be used in "no_bias" mode
-		void make_dropout(floatmtx_t& act, float_t_ dfrac, floatmtx_t& dropoutMask)noexcept {
+		void make_dropout(realmtx_t& act, real_t dfrac, realmtx_t& dropoutMask)noexcept {
 			if (act.numel_no_bias() < 8800) {
 				make_dropout_st(act,dfrac, dropoutMask);
 			} else make_dropout_mt(act, dfrac, dropoutMask);
 		}
-		void make_dropout_st(floatmtx_t& act, float_t_ dfrac, floatmtx_t& dropoutMask)noexcept {
+		void make_dropout_st(realmtx_t& act, real_t dfrac, realmtx_t& dropoutMask)noexcept {
 			NNTL_ASSERT(act.emulatesBiases() && !dropoutMask.emulatesBiases());
 			NNTL_ASSERT(act.size_no_bias() == dropoutMask.size());
 			NNTL_ASSERT(dfrac > 0 && dfrac < 1);
@@ -522,15 +522,15 @@ namespace math {
 			const auto pDME = pDM + dataCnt;
 			while (pDM != pDME) {
 				const auto v = *pDM;
-				NNTL_ASSERT(v >= float_t_(0.0) && v <= float_t_(1.0));
-				*pDM++ = v > dfrac ? float_t_(1.0) : float_t_(0.0);
+				NNTL_ASSERT(v >= real_t(0.0) && v <= real_t(1.0));
+				*pDM++ = v > dfrac ? real_t(1.0) : real_t(0.0);
 			}
 
 			const auto pA = act.dataAsVec();
 			pDM = dropoutMask.dataAsVec();
 			for (numel_cnt_t i = 0; i < dataCnt; ++i) pA[i] *= pDM[i];
 		}
-		void make_dropout_mt(floatmtx_t& act, float_t_ dfrac, floatmtx_t& dropoutMask)noexcept {
+		void make_dropout_mt(realmtx_t& act, real_t dfrac, realmtx_t& dropoutMask)noexcept {
 			NNTL_ASSERT(act.emulatesBiases() && !dropoutMask.emulatesBiases());
 			NNTL_ASSERT(act.size_no_bias() == dropoutMask.size());
 			NNTL_ASSERT(dfrac > 0 && dfrac < 1);
@@ -544,8 +544,8 @@ namespace math {
 				const auto pDE = pD + cnt;
 				while (p != pDE) {
 					const auto v = *p;
-					NNTL_ASSERT(v >= float_t_(0.0) && v <= float_t_(1.0));
-					*p++ = v > dfrac ? float_t_(1.0) : float_t_(0.0);
+					NNTL_ASSERT(v >= real_t(0.0) && v <= real_t(1.0));
+					*p++ = v > dfrac ? real_t(1.0) : real_t(0.0);
 				}
 
 				const auto pAct = pA + r.offset();
@@ -555,8 +555,8 @@ namespace math {
 
 		//////////////////////////////////////////////////////////////////////////
 		//apply individual learning rate to dLdW
-		void apply_ILR(floatmtx_t& dLdW, const floatmtx_t& prevdLdW, floatmtx_t& ILRGain,
-			const float_t_ decr, const float_t_ incr, const float_t_ capLow, const float_t_ capHigh)noexcept
+		void apply_ILR(realmtx_t& dLdW, const realmtx_t& prevdLdW, realmtx_t& ILRGain,
+			const real_t decr, const real_t incr, const real_t capLow, const real_t capHigh)noexcept
 		{
 			const auto dataCnt = dLdW.numel();
 			if (dataCnt<=4600) {
@@ -565,8 +565,8 @@ namespace math {
  				apply_ILR_mt_naive(dLdW, prevdLdW, ILRGain, decr, incr, capLow, capHigh);
 			}else apply_ILR_mt_vec(dLdW, prevdLdW, ILRGain, decr, incr, capLow, capHigh);
 		}
-		void apply_ILR_st_naive(floatmtx_t& dLdW, const floatmtx_t& prevdLdW, floatmtx_t& ILRGain,
-			const float_t_ decr, const float_t_ incr, const float_t_ capLow, const float_t_ capHigh)noexcept
+		void apply_ILR_st_naive(realmtx_t& dLdW, const realmtx_t& prevdLdW, realmtx_t& ILRGain,
+			const real_t decr, const real_t incr, const real_t capLow, const real_t capHigh)noexcept
 		{
 			NNTL_ASSERT(dLdW.size() == prevdLdW.size() && dLdW.size() == ILRGain.size());
 			NNTL_ASSERT(decr > 0 && decr < 1 && incr>1 && capLow < capHigh && capLow>0);
@@ -595,8 +595,8 @@ namespace math {
 				*pW *= g;
 			}
 		}
-		void apply_ILR_mt_naive(floatmtx_t& dLdW, const floatmtx_t& prevdLdW, floatmtx_t& ILRGain,
-			const float_t_ decr, const float_t_ incr, const float_t_ capLow, const float_t_ capHigh)noexcept
+		void apply_ILR_mt_naive(realmtx_t& dLdW, const realmtx_t& prevdLdW, realmtx_t& ILRGain,
+			const real_t decr, const real_t incr, const real_t capLow, const real_t capHigh)noexcept
 		{
 			NNTL_ASSERT(dLdW.size() == prevdLdW.size() && dLdW.size() == ILRGain.size());
 			NNTL_ASSERT(decr > 0 && decr < 1 && incr>1 && capLow < capHigh && capLow>0);
@@ -626,8 +626,8 @@ namespace math {
 				}
 			}, dLdW.numel());
 		}
-		void apply_ILR_st_vec(floatmtx_t& dLdW, const floatmtx_t& prevdLdW, floatmtx_t& ILRGain,
-			const float_t_ decr, const float_t_ incr, const float_t_ capLow, const float_t_ capHigh)noexcept
+		void apply_ILR_st_vec(realmtx_t& dLdW, const realmtx_t& prevdLdW, realmtx_t& ILRGain,
+			const real_t decr, const real_t incr, const real_t capLow, const real_t capHigh)noexcept
 		{
 			NNTL_ASSERT(dLdW.size() == prevdLdW.size() && dLdW.size() == ILRGain.size());
 			NNTL_ASSERT(decr > 0 && decr < 1 && incr>1 && capLow < capHigh && capLow>0);
@@ -659,8 +659,8 @@ namespace math {
 
 			for (numel_cnt_t i = 0; i < dataCnt; ++i) pdW[i] *= pGain[i];
 		}
-		void apply_ILR_mt_vec(floatmtx_t& dLdW, const floatmtx_t& prevdLdW, floatmtx_t& ILRGain,
-			const float_t_ decr, const float_t_ incr, const float_t_ capLow, const float_t_ capHigh)noexcept
+		void apply_ILR_mt_vec(realmtx_t& dLdW, const realmtx_t& prevdLdW, realmtx_t& ILRGain,
+			const real_t decr, const real_t incr, const real_t capLow, const real_t capHigh)noexcept
 		{
 			NNTL_ASSERT(dLdW.size() == prevdLdW.size() && dLdW.size() == ILRGain.size());
 			NNTL_ASSERT(decr > 0 && decr < 1 && incr>1 && capLow < capHigh && capLow>0);
@@ -705,12 +705,12 @@ namespace math {
 
 		//////////////////////////////////////////////////////////////////////////
 		//apply momentum vW = momentum.*vW + dW
-		void apply_momentum(floatmtx_t& vW, const float_t_ momentum, const floatmtx_t& dW)noexcept {
+		void apply_momentum(realmtx_t& vW, const real_t momentum, const realmtx_t& dW)noexcept {
 			if (vW.numel()<21000) {
 				apply_momentum_st(vW, momentum, dW);
 			}else apply_momentum_mt(vW, momentum, dW);
 		}
-		void apply_momentum_st(floatmtx_t& vW, const float_t_ momentum, const floatmtx_t& dW)noexcept {
+		void apply_momentum_st(realmtx_t& vW, const real_t momentum, const realmtx_t& dW)noexcept {
 			NNTL_ASSERT(vW.size() == dW.size());
 			NNTL_ASSERT(!vW.empty() && !dW.empty());
 
@@ -721,7 +721,7 @@ namespace math {
 				pV[i] = momentum*pV[i] + pdW[i];
 			}
 		}
-		void apply_momentum_mt(floatmtx_t& vW, const float_t_ momentum, const floatmtx_t& dW)noexcept {
+		void apply_momentum_mt(realmtx_t& vW, const real_t momentum, const realmtx_t& dW)noexcept {
 			NNTL_ASSERT(vW.size() == dW.size());
 			NNTL_ASSERT(!vW.empty() && !dW.empty());
 
@@ -738,24 +738,24 @@ namespace math {
 
 		//////////////////////////////////////////////////////////////////////////
 		//inplace elementwise multiplication A = b.*A
-		void evMulC_ip(floatmtx_t& A, const float_t_ b)noexcept {
+		void evMulC_ip(realmtx_t& A, const real_t b)noexcept {
 			if (A.numel() < 63800) {
 				evMulC_ip_st_naive(A, b);
 			} else evMulC_ip_mt_naive(A, b);
 		}
-		void evMulC_ip_st_naive(floatmtx_t& A, const float_t_ b)noexcept {
+		void evMulC_ip_st_naive(realmtx_t& A, const real_t b)noexcept {
 			NNTL_ASSERT(!A.empty() && A.numel()>0);
 			ievMulC_ip_st_naive(A.dataAsVec(), A.numel(), b);
 		}
-		void ievMulC_ip_st_naive(float_t_* ptrA, const numel_cnt_t dataCnt, const float_t_ b)noexcept {
+		void ievMulC_ip_st_naive(real_t* ptrA, const numel_cnt_t dataCnt, const real_t b)noexcept {
 			const auto ptrAE = ptrA + dataCnt;
 			while (ptrA != ptrAE)  *ptrA++ *= b;
 		}
-		void evMulC_ip_mt_naive(floatmtx_t& A, const float_t_ b)noexcept {
+		void evMulC_ip_mt_naive(realmtx_t& A, const real_t b)noexcept {
 			NNTL_ASSERT(!A.empty() && A.numel()>0);
 			ievMulC_ip_mt_naive(A.dataAsVec(), A.numel(), b);
 		}
-		void ievMulC_ip_mt_naive(float_t_* ptrA, const numel_cnt_t dataCnt, const float_t_ b)noexcept {
+		void ievMulC_ip_mt_naive(real_t* ptrA, const numel_cnt_t dataCnt, const real_t b)noexcept {
 			m_threads.run([ptrA, b](const par_range_t& r) {
 				auto p = ptrA + r.offset();
 				const auto pe = p + r.cnt();
@@ -766,16 +766,16 @@ namespace math {
 		}
 
 		//inplace elementwise multiplication A(no_bias) = b.*A(no_bias)
-		void evMulC_ip_Anb(floatmtx_t& A, const float_t_ b)noexcept {
+		void evMulC_ip_Anb(realmtx_t& A, const real_t b)noexcept {
 			if (A.numel_no_bias() < 63800) {
 				evMulC_ip_Anb_st_naive(A, b);
 			} else evMulC_ip_Anb_mt_naive(A, b);
 		}
-		void evMulC_ip_Anb_st_naive(floatmtx_t& A, const float_t_ b)noexcept {
+		void evMulC_ip_Anb_st_naive(realmtx_t& A, const real_t b)noexcept {
 			NNTL_ASSERT(!A.empty() && A.numel_no_bias() > 0);
 			ievMulC_ip_st_naive(A.dataAsVec(), A.numel_no_bias(), b);
 		}
-		void evMulC_ip_Anb_mt_naive(floatmtx_t& A, const float_t_ b)noexcept {
+		void evMulC_ip_Anb_mt_naive(realmtx_t& A, const real_t b)noexcept {
 			NNTL_ASSERT(!A.empty() && A.numel_no_bias() > 0);
 			ievMulC_ip_mt_naive(A.dataAsVec(), A.numel_no_bias(), b);
 		}
@@ -783,18 +783,18 @@ namespace math {
 
 		//////////////////////////////////////////////////////////////////////////
 		//inplace elementwise multiplication A = A.*B
-		void evMul_ip(floatmtx_t& A, const floatmtx_t& B)noexcept {
+		void evMul_ip(realmtx_t& A, const realmtx_t& B)noexcept {
 			const auto dataCnt = A.numel();
 			if (dataCnt < 36700) {
 				evMul_ip_st_naive(A, B);
 			}else evMul_ip_mt_naive(A, B);
 		}
-		void evMul_ip_st_naive(floatmtx_t& A, const floatmtx_t& B)noexcept {
+		void evMul_ip_st_naive(realmtx_t& A, const realmtx_t& B)noexcept {
 			A.assert_storage_does_not_intersect(B);
 			NNTL_ASSERT(A.size() == B.size());
 			ievMul_ip_st_naive(A.dataAsVec(), B.dataAsVec(), A.numel());
 		}
-		void ievMul_ip_st_naive(float_t_* ptrA, const float_t_*ptrB, numel_cnt_t dataCnt) noexcept{
+		void ievMul_ip_st_naive(real_t* ptrA, const real_t*ptrB, numel_cnt_t dataCnt) noexcept{
 			//for (numel_cnt_t i = 0; i < dataCnt; ++i) ptrA[i] *= ptrB[i];
 			const bool bOdd = dataCnt & 1;
 			if (bOdd) --dataCnt;
@@ -805,12 +805,12 @@ namespace math {
 			}
 			if (bOdd) ptrA[dataCnt] *= ptrB[dataCnt];
 		}
-		void evMul_ip_mt_naive(floatmtx_t& A, const floatmtx_t& B)noexcept {
+		void evMul_ip_mt_naive(realmtx_t& A, const realmtx_t& B)noexcept {
 			A.assert_storage_does_not_intersect(B);
 			NNTL_ASSERT(A.size() == B.size());
 			ievMul_ip_mt_naive(A.dataAsVec(), B.dataAsVec(), A.numel());
 		}
-		void ievMul_ip_mt_naive(float_t_* ptrA, const float_t_*ptrB, numel_cnt_t dataCnt) noexcept {
+		void ievMul_ip_mt_naive(real_t* ptrA, const real_t*ptrB, numel_cnt_t dataCnt) noexcept {
 			m_threads.run([ptrA, ptrB](const par_range_t& r) {
 				const auto ofs = r.offset();
 				auto cnt = r.cnt();
@@ -829,18 +829,18 @@ namespace math {
 		
 
 		//inplace elementwise multiplication A(no_bias) = A(no_bias).*B, - A is taken in no_bias mode
-		void evMul_ip_Anb(floatmtx_t& A, const floatmtx_t& B)noexcept {
+		void evMul_ip_Anb(realmtx_t& A, const realmtx_t& B)noexcept {
 			const auto dataCnt = B.numel();
 			if (dataCnt <= 36700) {
 				evMul_ip_Anb_st_naive(A, B);
 			} else evMul_ip_Anb_mt_naive(A, B);
 		}
-		void evMul_ip_Anb_st_naive(floatmtx_t& A, const floatmtx_t& B)noexcept {
+		void evMul_ip_Anb_st_naive(realmtx_t& A, const realmtx_t& B)noexcept {
 			A.assert_storage_does_not_intersect(B);
 			NNTL_ASSERT(A.size_no_bias() == B.size());
 			ievMul_ip_st_naive(A.dataAsVec(), B.dataAsVec(), B.numel());
 		}
-		void evMul_ip_Anb_mt_naive(floatmtx_t& A, const floatmtx_t& B)noexcept {
+		void evMul_ip_Anb_mt_naive(realmtx_t& A, const realmtx_t& B)noexcept {
 			A.assert_storage_does_not_intersect(B);
 			NNTL_ASSERT(A.size_no_bias() == B.size());
 			ievMul_ip_mt_naive(A.dataAsVec(), B.dataAsVec(), B.numel());
@@ -849,19 +849,19 @@ namespace math {
 
 		//////////////////////////////////////////////////////////////////////////
 		//inplace elementwise addition A = A+B
-		void evAdd_ip(floatmtx_t& A, const floatmtx_t& B)noexcept {
+		void evAdd_ip(realmtx_t& A, const realmtx_t& B)noexcept {
 			if (A.numel() < 22000) {
 				evAdd_ip_st(A, B);
 			} else evAdd_ip_mt(A, B);
 		}
-		void evAdd_ip_st(floatmtx_t& A, const floatmtx_t& B)noexcept {
+		void evAdd_ip_st(realmtx_t& A, const realmtx_t& B)noexcept {
 			NNTL_ASSERT(A.size() == B.size() && !A.empty() && !B.empty());
 			const auto pA = A.dataAsVec();
 			const auto dataCnt = A.numel();
 			const auto pB = B.dataAsVec();
 			for (numel_cnt_t i = 0; i < dataCnt; ++i) pA[i] += pB[i];
 		}
-		void evAdd_ip_mt(floatmtx_t& A, const floatmtx_t& B)noexcept {
+		void evAdd_ip_mt(realmtx_t& A, const realmtx_t& B)noexcept {
 			NNTL_ASSERT(A.size() == B.size() && !A.empty() && !B.empty());
 			const auto pA = A.dataAsVec();
 			const auto pB = B.dataAsVec();
@@ -874,12 +874,12 @@ namespace math {
 
 		//////////////////////////////////////////////////////////////////////////
 		//inplace elementwise subtraction A = A-B
-		void evSub_ip(floatmtx_t& A, const floatmtx_t& B)noexcept {
+		void evSub_ip(realmtx_t& A, const realmtx_t& B)noexcept {
 			if (A.numel()<22000) {
 				evSub_ip_st_naive(A, B);
 			}else evSub_ip_mt_naive(A, B);
 		}
-		void evSub_ip_st_naive(floatmtx_t& A, const floatmtx_t& B)noexcept {
+		void evSub_ip_st_naive(realmtx_t& A, const realmtx_t& B)noexcept {
 			NNTL_ASSERT(A.size() == B.size());
 			
 			const auto dataCnt = A.numel();
@@ -887,7 +887,7 @@ namespace math {
 			const auto pB = B.dataAsVec();
 			for (numel_cnt_t i = 0; i < dataCnt; ++i) pA[i] -= pB[i];
 		}
-		void evSub_ip_mt_naive(floatmtx_t& A, const floatmtx_t& B)noexcept {
+		void evSub_ip_mt_naive(realmtx_t& A, const realmtx_t& B)noexcept {
 			NNTL_ASSERT(A.size() == B.size());
 
 			const auto pA = A.dataAsVec();
@@ -901,12 +901,12 @@ namespace math {
 
 		//////////////////////////////////////////////////////////////////////////
 		//elementwise subtraction C = A-B
-		void evSub(const floatmtx_t& A, const floatmtx_t& B, floatmtx_t& C)noexcept {
+		void evSub(const realmtx_t& A, const realmtx_t& B, realmtx_t& C)noexcept {
 			if (A.numel() < 12000) {
 				evSub_st_naive(A, B, C);
 			} else evSub_mt_naive(A, B, C);
 		}
-		void evSub_st_naive(const floatmtx_t& A, const floatmtx_t& B, floatmtx_t& C)noexcept {
+		void evSub_st_naive(const realmtx_t& A, const realmtx_t& B, realmtx_t& C)noexcept {
 			NNTL_ASSERT(A.size() == B.size() && A.size()==C.size());
 
 			const auto dataCnt = A.numel();
@@ -914,7 +914,7 @@ namespace math {
 			const auto pC = C.dataAsVec();
 			for (numel_cnt_t i = 0; i < dataCnt; ++i) pC[i] = pA[i] - pB[i];
 		}
-		void evSub_mt_naive(const floatmtx_t& A, const floatmtx_t& B, floatmtx_t& C)noexcept {
+		void evSub_mt_naive(const realmtx_t& A, const realmtx_t& B, realmtx_t& C)noexcept {
 			NNTL_ASSERT(A.size() == B.size() && A.size() == C.size());
 
 			const auto pA = A.dataAsVec(), pB = B.dataAsVec();
@@ -929,13 +929,13 @@ namespace math {
 		//////////////////////////////////////////////////////////////////////////
 		//inplace elementwise scaling and subtracting: vW = momentum.*vW, W = W-vW;
 		//(it's pre-fprop step of Nesterov Momentum method)
-		void evMulC_ip_Sub_ip(floatmtx_t& vW, const float_t_ momentum, floatmtx_t& W)noexcept {
+		void evMulC_ip_Sub_ip(realmtx_t& vW, const real_t momentum, realmtx_t& W)noexcept {
 			if (vW.numel()<15000) {
 				evMulC_ip_Sub_ip_st(vW, momentum, W);
 			}else evMulC_ip_Sub_ip_mt(vW, momentum, W);
 		}
-		void evMulC_ip_Sub_ip_st(floatmtx_t& vW, const float_t_ momentum, floatmtx_t& W)noexcept {
-			NNTL_ASSERT(vW.size() == W.size() && !vW.empty() && !W.empty()); //NNTL_ASSERT(momentum > float_t_(0.0) && momentum < float_t_(1.0));
+		void evMulC_ip_Sub_ip_st(realmtx_t& vW, const real_t momentum, realmtx_t& W)noexcept {
+			NNTL_ASSERT(vW.size() == W.size() && !vW.empty() && !W.empty()); //NNTL_ASSERT(momentum > real_t(0.0) && momentum < real_t(1.0));
 			auto pV = vW.dataAsVec();
 			const auto pVE = pV + vW.numel();
 			auto pW = W.dataAsVec();
@@ -945,8 +945,8 @@ namespace math {
 				*pW++ -= v;
 			}
 		}
-		void evMulC_ip_Sub_ip_mt(floatmtx_t& vW, const float_t_ momentum, floatmtx_t& W)noexcept {
-			NNTL_ASSERT(vW.size() == W.size() && !vW.empty() && !W.empty()); //NNTL_ASSERT(momentum > float_t_(0.0) && momentum < float_t_(1.0));
+		void evMulC_ip_Sub_ip_mt(realmtx_t& vW, const real_t momentum, realmtx_t& W)noexcept {
+			NNTL_ASSERT(vW.size() == W.size() && !vW.empty() && !W.empty()); //NNTL_ASSERT(momentum > real_t(0.0) && momentum < real_t(1.0));
 
 			auto pVf = vW.dataAsVec();
 			auto pWf = W.dataAsVec();
@@ -965,12 +965,12 @@ namespace math {
 		
 		//////////////////////////////////////////////////////////////////////////
 		//elementwise squaring dest = src.^2;
-		void evSquare(floatmtx_t& dest, const floatmtx_t& src)noexcept {
+		void evSquare(realmtx_t& dest, const realmtx_t& src)noexcept {
 			if (src.numel()<24700) {
 				evSquare_st(dest, src);
 			}else evSquare_mt(dest, src);
 		}
-		void evSquare_st(floatmtx_t& dest, const floatmtx_t& src)noexcept {
+		void evSquare_st(realmtx_t& dest, const realmtx_t& src)noexcept {
 			NNTL_ASSERT(dest.size() == src.size());
 
 			const auto pS = src.dataAsVec();
@@ -981,7 +981,7 @@ namespace math {
 				pD[i] = s*s;
 			}
 		}
-		void evSquare_mt(floatmtx_t& dest, const floatmtx_t& src)noexcept {
+		void evSquare_mt(realmtx_t& dest, const realmtx_t& src)noexcept {
 			NNTL_ASSERT(dest.size() == src.size());
 
 			const auto pS = src.dataAsVec();
@@ -997,12 +997,12 @@ namespace math {
 		}
 		//////////////////////////////////////////////////////////////////////////
 		//finding elementwise absolute values dest = .abs(src);
-		void evAbs(floatmtx_t& dest, const floatmtx_t& src)noexcept {
+		void evAbs(realmtx_t& dest, const realmtx_t& src)noexcept {
 			if (src.numel() < 20500) {
 				evAbs_st(dest, src);
 			} else evAbs_mt(dest, src);
 		}
-		void evAbs_st(floatmtx_t& dest, const floatmtx_t& src)noexcept {
+		void evAbs_st(realmtx_t& dest, const realmtx_t& src)noexcept {
 			NNTL_ASSERT(dest.size() == src.size());
 
 			const auto pS = src.dataAsVec();
@@ -1010,7 +1010,7 @@ namespace math {
 			const auto dataCnt = src.numel();
 			for (numel_cnt_t i = 0; i < dataCnt; ++i)  pD[i] = abs(pS[i]);
 		}
-		void evAbs_mt(floatmtx_t& dest, const floatmtx_t& src)noexcept {
+		void evAbs_mt(realmtx_t& dest, const realmtx_t& src)noexcept {
 			NNTL_ASSERT(dest.size() == src.size());
 
 			const auto pS = src.dataAsVec();
@@ -1025,31 +1025,31 @@ namespace math {
 
 		//////////////////////////////////////////////////////////////////////////
 		//C = A * B, - matrix multiplication
-		void mMulAB_C(const floatmtx_t& A, const floatmtx_t& B, floatmtx_t& C)noexcept {
+		void mMulAB_C(const realmtx_t& A, const realmtx_t& B, realmtx_t& C)noexcept {
 			A.assert_storage_does_not_intersect(B);
 			A.assert_storage_does_not_intersect(C);
 			B.assert_storage_does_not_intersect(C);
 			const auto acols = A.cols();
 			NNTL_ASSERT(acols == B.rows() && A.rows() == C.rows() && B.cols() == C.cols());
 
-			b_OpenBLAS::gemm(false, false, A.rows(), C.cols(), acols, float_t_(1.0), A.dataAsVec(), A.rows(), B.dataAsVec(), B.rows(),
-				float_t_(0.0), C.dataAsVec(), C.rows());
+			b_OpenBLAS::gemm(false, false, A.rows(), C.cols(), acols, real_t(1.0), A.dataAsVec(), A.rows(), B.dataAsVec(), B.rows(),
+				real_t(0.0), C.dataAsVec(), C.rows());
 		}
 		//////////////////////////////////////////////////////////////////////////
 		//matrix multiplication C(no bias) = A * B` (B transposed). C could have emulated biases (they will be left untouched)
-		void mMulABt_Cnb(const floatmtx_t& A, const floatmtx_t& B, floatmtx_t& C)noexcept {
+		void mMulABt_Cnb(const realmtx_t& A, const realmtx_t& B, realmtx_t& C)noexcept {
 			A.assert_storage_does_not_intersect(B);
 			A.assert_storage_does_not_intersect(C);
 			B.assert_storage_does_not_intersect(C);
 			const auto ccols = C.cols_no_bias();
 			NNTL_ASSERT(A.cols() == B.cols() && A.rows() == C.rows() && B.rows() == ccols);
 
-			b_OpenBLAS::gemm(false, true, A.rows(), ccols, A.cols(), float_t_(1.0), A.dataAsVec(), A.rows(), B.dataAsVec(), ccols,
-				float_t_(0.0), C.dataAsVec(), C.rows());
+			b_OpenBLAS::gemm(false, true, A.rows(), ccols, A.cols(), real_t(1.0), A.dataAsVec(), A.rows(), B.dataAsVec(), ccols,
+				real_t(0.0), C.dataAsVec(), C.rows());
 		}
 		//////////////////////////////////////////////////////////////////////////
 		//C = a*(A` * B) - matrix multiplication of transposed A times B with result normalization
-		void mScaledMulAtB_C(float_t_ alpha, const floatmtx_t& A, const floatmtx_t& B, floatmtx_t& C)noexcept {
+		void mScaledMulAtB_C(real_t alpha, const realmtx_t& A, const realmtx_t& B, realmtx_t& C)noexcept {
 			A.assert_storage_does_not_intersect(B);
 			A.assert_storage_does_not_intersect(C);
 			B.assert_storage_does_not_intersect(C);
@@ -1058,27 +1058,27 @@ namespace math {
 			NNTL_ASSERT(arows == B.rows() && acols == C.rows() && B.cols() == C.cols());
 
 			b_OpenBLAS::gemm(true, false, acols, B.cols(), arows, alpha, A.dataAsVec(), arows, B.dataAsVec(), arows,
-				float_t_(0.0), C.dataAsVec(), acols);
+				real_t(0.0), C.dataAsVec(), acols);
 		}
 
 		//////////////////////////////////////////////////////////////////////////
 		// sigmoid function
 		//////////////////////////////////////////////////////////////////////////
-		void sigm(floatmtx_t& srcdest) noexcept {
+		void sigm(realmtx_t& srcdest) noexcept {
 			if (srcdest.numel() <= 2800) {
 				sigm_st_naive(srcdest);
 			}else sigm_mt_naive(srcdest);
 		}
 		// Remember to ignore biases!
-		void sigm_st_naive(floatmtx_t& srcdest) noexcept {
+		void sigm_st_naive(realmtx_t& srcdest) noexcept {
 			NNTL_ASSERT(!srcdest.empty());
 			const auto dataCnt = srcdest.numel_no_bias();
 			auto ptr = srcdest.dataAsVec();
 			for (range_t i = 0; i < dataCnt; ++i) {
-				ptr[i] = float_t_(1.0) / (float_t_(1.0) + std::exp(-ptr[i]));
+				ptr[i] = real_t(1.0) / (real_t(1.0) + std::exp(-ptr[i]));
 			}
 		}
-		void sigm_mt_naive(floatmtx_t& srcdest) noexcept {
+		void sigm_mt_naive(realmtx_t& srcdest) noexcept {
 			NNTL_ASSERT(!srcdest.empty());
 
 			auto ptr = srcdest.dataAsVec();
@@ -1087,19 +1087,19 @@ namespace math {
 				const auto ofs = r.offset();
 				const auto im = ofs + r.cnt();
 				for (range_t i = ofs; i < im; ++i) {
-					ptr[i] = float_t_(1.0) / (float_t_(1.0) + std::exp(-ptr[i]));
+					ptr[i] = real_t(1.0) / (real_t(1.0) + std::exp(-ptr[i]));
 				}
 			}, srcdest.numel_no_bias());
 		}
 
 		//////////////////////////////////////////////////////////////////////////
 		// d(sigm)/d(arg) - sigmoid derivative df = f.*(1-f), where fValue is activation value (used in no_bias version)
-		void dsigm(const floatmtx_t& fValue, floatmtx_t& df) noexcept {
+		void dsigm(const realmtx_t& fValue, realmtx_t& df) noexcept {
 			if (fValue.numel_no_bias() <= 28000) {
 				dsigm_st_naive(fValue, df);
 			} else dsigm_mt_naive(fValue, df);
 		}
-		void dsigm_st_naive(const floatmtx_t& fValue, floatmtx_t& df) noexcept {
+		void dsigm_st_naive(const realmtx_t& fValue, realmtx_t& df) noexcept {
 			fValue.assert_storage_does_not_intersect(df);
 			NNTL_ASSERT(fValue.size_no_bias() == df.size());
 
@@ -1108,10 +1108,10 @@ namespace math {
 			auto ptrDF = df.dataAsVec();
 			for (numel_cnt_t i = 0; i < dataCnt;++i) {
 				const auto f = ptrF[i];
-				ptrDF[i] = f*(float_t_(1.0) - f);
+				ptrDF[i] = f*(real_t(1.0) - f);
 			}
 		}
-		void dsigm_mt_naive(const floatmtx_t& fValue, floatmtx_t& df) noexcept {
+		void dsigm_mt_naive(const realmtx_t& fValue, realmtx_t& df) noexcept {
 			fValue.assert_storage_does_not_intersect(df);
 			NNTL_ASSERT(fValue.size_no_bias() == df.size());
 
@@ -1123,7 +1123,7 @@ namespace math {
 				const auto im = ofs + r.cnt();
 				for (range_t i = ofs; i < im; ++i) {
 					const auto f = ptrF[i];
-					ptrDF[i] = f*(float_t_(1.0) - f);
+					ptrDF[i] = f*(real_t(1.0) - f);
 				}
 			}, fValue.numel_no_bias());
 		}
@@ -1134,7 +1134,7 @@ namespace math {
 		//////////////////////////////////////////////////////////////////////////
 		//dL/dZ = (err===a-y)*a*(1-a)
 		// because activations comes from the output layer, expecting no biases there
-		void dSigmQuadLoss_dZ(const floatmtx_t& activations, const floatmtx_t& data_y, floatmtx_t& dLdZ) {
+		void dSigmQuadLoss_dZ(const realmtx_t& activations, const realmtx_t& data_y, realmtx_t& dLdZ) {
 			if (activations.numel()<16500) {
 				dSigmQuadLoss_dZ_st_naive(activations, data_y, dLdZ);
 			}else dSigmQuadLoss_dZ_mt_naive(activations, data_y, dLdZ);
@@ -1143,7 +1143,7 @@ namespace math {
 		//that will lead to necessity of negation of error in back propagation algorithm. To get rid of that negation,
 		// we'll define error as nn.a{n}-y. This won't bother loss calculation, because it is either squares error
 		// (conventional quadratic loss function) or doesn't use that error definition at all (crossentropy error)
-		void dSigmQuadLoss_dZ_st_naive(const floatmtx_t& activations, const floatmtx_t& data_y, floatmtx_t& dLdZ) {
+		void dSigmQuadLoss_dZ_st_naive(const realmtx_t& activations, const realmtx_t& data_y, realmtx_t& dLdZ) {
 			NNTL_ASSERT(!activations.emulatesBiases());
 			NNTL_ASSERT(activations.size() == data_y.size() && activations.size() == dLdZ.size());
 			activations.assert_storage_does_not_intersect(data_y);
@@ -1156,10 +1156,10 @@ namespace math {
 
 			for (numel_cnt_t i = 0; i < dataCnt; ++i) {
 				const auto a = ptrAct[i];
-				ptrdLdZ[i] = (a - ptrDataY[i])*a*(float_t_(1.0) - a);
+				ptrdLdZ[i] = (a - ptrDataY[i])*a*(real_t(1.0) - a);
 			}
 		}
-		void dSigmQuadLoss_dZ_mt_naive(const floatmtx_t& activations, const floatmtx_t& data_y, floatmtx_t& dLdZ) {
+		void dSigmQuadLoss_dZ_mt_naive(const realmtx_t& activations, const realmtx_t& data_y, realmtx_t& dLdZ) {
 			NNTL_ASSERT(!activations.emulatesBiases());
 			NNTL_ASSERT(activations.size() == data_y.size() && activations.size() == dLdZ.size());
 			activations.assert_storage_does_not_intersect(data_y);
@@ -1175,29 +1175,29 @@ namespace math {
 				const numel_cnt_t im = ofs + r.cnt();
 				for (numel_cnt_t i = ofs; i < im; ++i) {
 					const auto a = ptrAct[i];
-					ptrdLdZ[i] = (a - ptrDataY[i])*a*(float_t_(1.0) - a);
+					ptrdLdZ[i] = (a - ptrDataY[i])*a*(real_t(1.0) - a);
 				}
 			}, dataCnt);
 		}
 
 		//////////////////////////////////////////////////////////////////////////
 		//ReLU
-		void relu(floatmtx_t& srcdest) noexcept {
+		void relu(realmtx_t& srcdest) noexcept {
 			if (srcdest.numel()<4100) {
 				relu_st_naive(srcdest);
 			} else relu_mt_naive(srcdest);
 		}
-		void relu_st_naive(floatmtx_t& srcdest) noexcept {
+		void relu_st_naive(realmtx_t& srcdest) noexcept {
 			NNTL_ASSERT(!srcdest.empty());
 
 			const auto dataCnt = srcdest.numel();
 			auto pV = srcdest.dataAsVec();
 			for (numel_cnt_t i = 0; i < dataCnt; ++i) {
 				auto p = pV + i;
-				if (*p < float_t_(0.0))  *p = float_t_(0.0);
+				if (*p < real_t(0.0))  *p = real_t(0.0);
 			}
 		}
-		void relu_mt_naive(floatmtx_t& srcdest) noexcept {
+		void relu_mt_naive(realmtx_t& srcdest) noexcept {
 			NNTL_ASSERT(!srcdest.empty());
 
 			auto pV = srcdest.dataAsVec();
@@ -1206,19 +1206,19 @@ namespace math {
 				const numel_cnt_t im = ofs + r.cnt();
 				for (numel_cnt_t i = ofs; i < im; ++i) {
 					auto p = pV + i;
-					if (*p < float_t_(0.0)) *p = float_t_(0.0);
+					if (*p < real_t(0.0)) *p = real_t(0.0);
 				}
 			}, srcdest.numel());
 		}
 
 		//////////////////////////////////////////////////////////////////////////
 		// d(ReLU)/dZ
-		void drelu(const floatmtx_t& fValue, floatmtx_t& df) noexcept {
+		void drelu(const realmtx_t& fValue, realmtx_t& df) noexcept {
 			if (df.numel()<21500) {
 				drelu_st_naive(fValue, df);
 			} else drelu_mt_naive(fValue, df);
 		}
-		void drelu_st_naive(const floatmtx_t& fValue, floatmtx_t& df) noexcept {
+		void drelu_st_naive(const realmtx_t& fValue, realmtx_t& df) noexcept {
 			fValue.assert_storage_does_not_intersect(df);
 			NNTL_ASSERT(fValue.size_no_bias() == df.size());
 
@@ -1226,10 +1226,10 @@ namespace math {
 			const auto ptrF = fValue.dataAsVec();
 			const auto ptrDF = df.dataAsVec();
 			for (numel_cnt_t i = 0; i < dataCnt; ++i) {
-				ptrDF[i] = ptrF[i]>0 ? float_t_(1.0) : float_t_(0.0);
+				ptrDF[i] = ptrF[i]>0 ? real_t(1.0) : real_t(0.0);
 			}
 		}
-		void drelu_mt_naive(const floatmtx_t& fValue, floatmtx_t& df) noexcept {
+		void drelu_mt_naive(const realmtx_t& fValue, realmtx_t& df) noexcept {
 			fValue.assert_storage_does_not_intersect(df);
 			NNTL_ASSERT(fValue.size_no_bias() == df.size());
 
@@ -1239,7 +1239,7 @@ namespace math {
 				const auto ofs = r.offset();
 				const auto im = ofs + r.cnt();
 				for (range_t i = ofs; i < im; ++i) {
-					ptrDF[i] = ptrF[i]>0 ? float_t_(1.0) : float_t_(0.0);
+					ptrDF[i] = ptrF[i]>0 ? real_t(1.0) : real_t(0.0);
 				}
 			}, fValue.numel_no_bias());
 		}
@@ -1248,39 +1248,39 @@ namespace math {
 		//////////////////////////////////////////////////////////////////////////
 		//loss functions
 		//////////////////////////////////////////////////////////////////////////
-		float_t_ loss_quadratic(const floatmtx_t& activations, const floatmtx_t& data_y)noexcept {
+		real_t loss_quadratic(const realmtx_t& activations, const realmtx_t& data_y)noexcept {
 			if (activations.numel() < 25000) {
 				return loss_quadratic_st_naive(activations, data_y);
 			} else return loss_quadratic_mt_naive(activations, data_y);
 		}
-		float_t_ loss_quadratic_st_naive(const floatmtx_t& activations, const floatmtx_t& data_y)noexcept {
+		real_t loss_quadratic_st_naive(const realmtx_t& activations, const realmtx_t& data_y)noexcept {
 			NNTL_ASSERT(activations.size() == data_y.size() && !activations.empty() && !data_y.empty());
 			const auto dataCnt = activations.numel();
 			const auto ptrA = activations.dataAsVec(), ptrY = data_y.dataAsVec();
-			float_t_ ql = 0;
+			real_t ql = 0;
 			for (numel_cnt_t i = 0; i < dataCnt; ++i) {
-				const float_t_ e = ptrA[i] - ptrY[i];
+				const real_t e = ptrA[i] - ptrY[i];
 				ql += e*e;
 			}
 			return ql / (2 * activations.rows());
 		}
-		float_t_ loss_quadratic_mt_naive(const floatmtx_t& activations, const floatmtx_t& data_y)noexcept {
+		real_t loss_quadratic_mt_naive(const realmtx_t& activations, const realmtx_t& data_y)noexcept {
 			NNTL_ASSERT(activations.size() == data_y.size() && !activations.empty() && !data_y.empty());
 
 			const auto pA = activations.dataAsVec();
 			const auto pY = data_y.dataAsVec();
 
-			float_t_ ql = m_threads.reduce([pA,pY](const par_range_t& r)->float_t_ {
+			real_t ql = m_threads.reduce([pA,pY](const par_range_t& r)->real_t {
 				const auto ofs = r.offset();
 				const numel_cnt_t im = ofs + r.cnt();
-				float_t_ ret = 0;
+				real_t ret = 0;
 				for (numel_cnt_t i = ofs; i < im; ++i) {
-					const float_t_ e = pA[i] - pY[i];
+					const real_t e = pA[i] - pY[i];
 					ret += e*e;
 				}
 				return ret;
-			}, [](const float_t_* ptr, const range_t cnt)->float_t_ {
-				float_t_ ret = ptr[0];
+			}, [](const real_t* ptr, const range_t cnt)->real_t {
+				real_t ret = ptr[0];
 				for (numel_cnt_t i = 1; i < cnt; ++i) ret += ptr[i];
 				return ret;
 			}, activations.numel());
@@ -1290,59 +1290,59 @@ namespace math {
 
 		// cross entropy function for sigmoid (applicable ONLY for binary data_y and sigmoid activation function)
 		// L = -y*log(a)-(1-y)log(1-a), dL/dz = dL/dA * dA/dZ = (a-y)
-		float_t_ loss_sigm_xentropy(const floatmtx_t& activations, const floatmtx_t& data_y)noexcept {
+		real_t loss_sigm_xentropy(const realmtx_t& activations, const realmtx_t& data_y)noexcept {
 			if (activations.numel() < 1100) {
 				return loss_sigm_xentropy_st_naivepart(activations, data_y);
 			} else return loss_sigm_xentropy_mt_naivepart(activations, data_y);
 		}
-		float_t_ loss_sigm_xentropy_st_naivepart(const floatmtx_t& activations, const floatmtx_t& data_y)noexcept {
+		real_t loss_sigm_xentropy_st_naivepart(const realmtx_t& activations, const realmtx_t& data_y)noexcept {
 			NNTL_ASSERT(activations.size() == data_y.size() && !activations.empty() && !data_y.empty());
 			const auto dataCnt = activations.numel();
 			const auto ptrA = activations.dataAsVec(), ptrY = data_y.dataAsVec();
-			constexpr auto log_zero = math::float_ty_limits<float_t_>::log_almost_zero;
-			float_t_ ql = 0;
+			constexpr auto log_zero = math::real_ty_limits<real_t>::log_almost_zero;
+			real_t ql = 0;
 			for (numel_cnt_t i = 0; i < dataCnt; ++i) {
 				const auto y = ptrY[i];
 				auto a = ptrA[i];
-				NNTL_ASSERT(y == float_t_(0.0) || y == float_t_(1.0));
-				NNTL_ASSERT(a >= float_t_(0.0) && a <= float_t_(1.0));
+				NNTL_ASSERT(y == real_t(0.0) || y == real_t(1.0));
+				NNTL_ASSERT(a >= real_t(0.0) && a <= real_t(1.0));
 
-				if (y > float_t_(0.0)) {
-					ql += (a == float_t_(0.0) ? log_zero : log(a));
+				if (y > real_t(0.0)) {
+					ql += (a == real_t(0.0) ? log_zero : log(a));
 				} else {
-					const auto oma = float_t_(1.0) - a;
-					ql += (oma == float_t_(0.0) ? log_zero : log(oma));
+					const auto oma = real_t(1.0) - a;
+					ql += (oma == real_t(0.0) ? log_zero : log(oma));
 				}
 				NNTL_ASSERT(!isnan(ql));
 			}
 			return -ql / activations.rows();
 		}
-		float_t_ loss_sigm_xentropy_mt_naivepart(const floatmtx_t& activations, const floatmtx_t& data_y)noexcept {
+		real_t loss_sigm_xentropy_mt_naivepart(const realmtx_t& activations, const realmtx_t& data_y)noexcept {
 			const auto ptrA = activations.dataAsVec();
 			const auto ptrY = data_y.dataAsVec();
 
-			float_t_ ql = m_threads.reduce([ptrA, ptrY](const par_range_t& r)->float_t_ {
+			real_t ql = m_threads.reduce([ptrA, ptrY](const par_range_t& r)->real_t {
 				const auto ofs = r.offset();
 				const numel_cnt_t im = ofs + r.cnt();
-				constexpr auto log_zero = math::float_ty_limits<float_t_>::log_almost_zero;
-				float_t_ ret = 0;
+				constexpr auto log_zero = math::real_ty_limits<real_t>::log_almost_zero;
+				real_t ret = 0;
 				for (numel_cnt_t i = ofs; i < im; ++i) {
 					const auto y = ptrY[i];
 					auto a = ptrA[i];
-					NNTL_ASSERT(y == float_t_(0.0) || y == float_t_(1.0));
-					NNTL_ASSERT(a >= float_t_(0.0) && a <= float_t_(1.0));
+					NNTL_ASSERT(y == real_t(0.0) || y == real_t(1.0));
+					NNTL_ASSERT(a >= real_t(0.0) && a <= real_t(1.0));
 
-					if (y > float_t_(0.0)) {
-						ret += (a == float_t_(0.0) ? log_zero : log(a));
+					if (y > real_t(0.0)) {
+						ret += (a == real_t(0.0) ? log_zero : log(a));
 					} else {
-						const auto oma = float_t_(1.0) - a;
-						ret += (oma == float_t_(0.0) ? log_zero : log(oma));
+						const auto oma = real_t(1.0) - a;
+						ret += (oma == real_t(0.0) ? log_zero : log(oma));
 					}
 					NNTL_ASSERT(!isnan(ret));
 				}
 				return ret;
-			}, [](const float_t_* ptr, const range_t cnt)->float_t_ {
-				float_t_ ret = ptr[0];
+			}, [](const real_t* ptr, const range_t cnt)->real_t {
+				real_t ret = ptr[0];
 				for (numel_cnt_t i = 1; i < cnt; ++i) ret += ptr[i];
 				return ret;
 			}, activations.numel());
@@ -1351,15 +1351,15 @@ namespace math {
 
 		//////////////////////////////////////////////////////////////////////////
 		//gradient application procedures
-		void RMSProp_Hinton(floatmtx_t& dW, floatmtx_t& rmsF, const float_t_ learningRate,
-			const float_t_ emaDecay, const float_t_ numericStabilizer)noexcept
+		void RMSProp_Hinton(realmtx_t& dW, realmtx_t& rmsF, const real_t learningRate,
+			const real_t emaDecay, const real_t numericStabilizer)noexcept
 		{
 			if (dW.numel()<3000) {
 				RMSProp_Hinton_st(dW, rmsF, learningRate, emaDecay, numericStabilizer);
 			}else RMSProp_Hinton_mt(dW, rmsF, learningRate, emaDecay, numericStabilizer);
 		}
-		void RMSProp_Hinton_st(floatmtx_t& dW, floatmtx_t& rmsF, const float_t_ learningRate,
-			const float_t_ emaDecay, const float_t_ numericStabilizer)noexcept
+		void RMSProp_Hinton_st(realmtx_t& dW, realmtx_t& rmsF, const real_t learningRate,
+			const real_t emaDecay, const real_t numericStabilizer)noexcept
 		{
 			NNTL_ASSERT(dW.size() == rmsF.size());
 			NNTL_ASSERT(emaDecay > 0 && emaDecay < 1);
@@ -1379,8 +1379,8 @@ namespace math {
 				*pW = learningRate*(w / (sqrt(rms) + numericStabilizer));
 			}
 		}
-		void RMSProp_Hinton_mt(floatmtx_t& dW, floatmtx_t& rmsF, const float_t_ learningRate,
-			const float_t_ emaDecay, const float_t_ numericStabilizer)noexcept
+		void RMSProp_Hinton_mt(realmtx_t& dW, realmtx_t& rmsF, const real_t learningRate,
+			const real_t emaDecay, const real_t numericStabilizer)noexcept
 		{
 			NNTL_ASSERT(dW.size() == rmsF.size());
 			NNTL_ASSERT(emaDecay > 0 && emaDecay < 1);
@@ -1404,15 +1404,15 @@ namespace math {
 			}, dW.numel());
 		}
 		//////////////////////////////////////////////////////////////////////////
-		void RMSProp_Graves(floatmtx_t& dW, floatmtx_t& rmsF, floatmtx_t& rmsG, const float_t_ learningRate,
-			const float_t_ emaDecay, const float_t_ numericStabilizer)noexcept 
+		void RMSProp_Graves(realmtx_t& dW, realmtx_t& rmsF, realmtx_t& rmsG, const real_t learningRate,
+			const real_t emaDecay, const real_t numericStabilizer)noexcept 
 		{
 			if (dW.numel() < 3000) {
 				RMSProp_Graves_st(dW, rmsF, rmsG, learningRate, emaDecay, numericStabilizer);
 			} else RMSProp_Graves_mt(dW, rmsF, rmsG, learningRate, emaDecay, numericStabilizer);
 		}
-		void RMSProp_Graves_st(floatmtx_t& dW, floatmtx_t& rmsF, floatmtx_t& rmsG, const float_t_ learningRate,
-			const float_t_ emaDecay, const float_t_ numericStabilizer)noexcept
+		void RMSProp_Graves_st(realmtx_t& dW, realmtx_t& rmsF, realmtx_t& rmsG, const real_t learningRate,
+			const real_t emaDecay, const real_t numericStabilizer)noexcept
 		{
 			NNTL_ASSERT(dW.size() == rmsF.size() && rmsF.size()==rmsG.size());
 			NNTL_ASSERT(emaDecay > 0 && emaDecay < 1);
@@ -1436,8 +1436,8 @@ namespace math {
 				*pW = learningRate*(w / (sqrt(rF - rG*rG + numericStabilizer)));
 			}
 		}
-		void RMSProp_Graves_mt(floatmtx_t& dW, floatmtx_t& rmsF, floatmtx_t& rmsG, const float_t_ learningRate,
-			const float_t_ emaDecay, const float_t_ numericStabilizer)noexcept
+		void RMSProp_Graves_mt(realmtx_t& dW, realmtx_t& rmsF, realmtx_t& rmsG, const real_t learningRate,
+			const real_t emaDecay, const real_t numericStabilizer)noexcept
 		{
 			NNTL_ASSERT(dW.size() == rmsF.size() && rmsF.size() == rmsG.size());
 			NNTL_ASSERT(emaDecay > 0 && emaDecay < 1);
@@ -1465,12 +1465,12 @@ namespace math {
 			}, dW.numel());
 		}
 		//////////////////////////////////////////////////////////////////////////
-		void RProp(floatmtx_t& dW, const float_t_ learningRate)noexcept {
+		void RProp(realmtx_t& dW, const real_t learningRate)noexcept {
 			if (dW.numel() < 5500) {
 				RProp_st(dW, learningRate);
 			} else RProp_mt(dW, learningRate);
 		}
-		void RProp_st(floatmtx_t& dW, const float_t_ learningRate)noexcept {
+		void RProp_st(realmtx_t& dW, const real_t learningRate)noexcept {
 			auto p = dW.dataAsVec();
 			const auto pE = p + dW.numel();
 			//TODO: verify vectorization
@@ -1478,7 +1478,7 @@ namespace math {
 				*p++ = learningRate*math::sign(*p);
 			}
 		}
-		void RProp_mt(floatmtx_t& dW, const float_t_ learningRate)noexcept {
+		void RProp_mt(realmtx_t& dW, const real_t learningRate)noexcept {
 			auto pW = dW.dataAsVec();
 			m_threads.run([pW, learningRate](const par_range_t& r) {
 				auto p = pW + r.offset();
@@ -1492,15 +1492,15 @@ namespace math {
 		//////////////////////////////////////////////////////////////////////////
 		// ModProp - like RMSProp, but devide dW by abs( ema(dW) ), instead of
 		//		sqrt(ema(dW ^ 2)).Seems no significant changes, but faster. And sometimes works when other doesn't
-		void ModProp(floatmtx_t& dW, floatmtx_t& rmsF, const float_t_ learningRate,
-			const float_t_ emaDecay, const float_t_ numericStabilizer)noexcept
+		void ModProp(realmtx_t& dW, realmtx_t& rmsF, const real_t learningRate,
+			const real_t emaDecay, const real_t numericStabilizer)noexcept
 		{
 			if (dW.numel() < 5000) {
 				ModProp_st(dW, rmsF, learningRate, emaDecay, numericStabilizer);
 			} else ModProp_mt(dW, rmsF, learningRate, emaDecay, numericStabilizer);
 		}
-		void ModProp_st(floatmtx_t& dW, floatmtx_t& rmsF, const float_t_ learningRate,
-			const float_t_ emaDecay, const float_t_ numericStabilizer)noexcept
+		void ModProp_st(realmtx_t& dW, realmtx_t& rmsF, const real_t learningRate,
+			const real_t emaDecay, const real_t numericStabilizer)noexcept
 		{
 			NNTL_ASSERT(dW.size() == rmsF.size());
 			NNTL_ASSERT(emaDecay > 0 && emaDecay < 1);
@@ -1521,8 +1521,8 @@ namespace math {
 				*pW = learningRate*(w / (ema + numericStabilizer));
 			}
 		}
-		void ModProp_mt(floatmtx_t& dW, floatmtx_t& rmsF, const float_t_ learningRate,
-			const float_t_ emaDecay, const float_t_ numericStabilizer)noexcept
+		void ModProp_mt(realmtx_t& dW, realmtx_t& rmsF, const real_t learningRate,
+			const real_t emaDecay, const real_t numericStabilizer)noexcept
 		{
 			NNTL_ASSERT(dW.size() == rmsF.size());
 			NNTL_ASSERT(emaDecay > 0 && emaDecay < 1);
@@ -1549,7 +1549,7 @@ namespace math {
 
 
 	public:
-		float_t_* _get_thread_temp_raw_storage(const numel_cnt_t maxDataSize)noexcept {
+		real_t* _get_thread_temp_raw_storage(const numel_cnt_t maxDataSize)noexcept {
 			_assert_thread_storage_allocated(maxDataSize);
 			return &m_threadTempRawStorage[0];
 		}
@@ -1565,7 +1565,7 @@ namespace math {
 			_assert_thread_storage_allocated(maxDataSize);
 			return m_threadTempRawStoragePtrs;
 		}
-		float_t_**const _get_thread_temp_storage_ptrs_head(const numel_cnt_t maxDataSize)noexcept {
+		real_t**const _get_thread_temp_storage_ptrs_head(const numel_cnt_t maxDataSize)noexcept {
 			_assert_thread_storage_allocated(maxDataSize);
 			return &m_threadTempRawStoragePtrs[0];
 		}

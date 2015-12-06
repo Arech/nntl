@@ -43,20 +43,20 @@ namespace activation {
 		_i_activation() = delete;
 		~_i_activation() = delete;
 	public:
-		typedef nntl::math_types::floatmtx_ty floatmtx_t;
-		typedef floatmtx_t::value_type float_t_;
+		typedef nntl::math_types::realmtx_ty realmtx_t;
+		typedef realmtx_t::value_type real_t;
 
 		//apply f to each srcdest matrix element. The biases (if any) must be left untouched!
 		template <typename iMath>
-		nntl_interface static void f(floatmtx_t& srcdest, iMath& m) noexcept;
+		nntl_interface static void f(realmtx_t& srcdest, iMath& m) noexcept;
 		
 		//f derivative, fValue is used in no_bias version!
 		template <typename iMath>
-		nntl_interface static void df(const floatmtx_t& fValue, floatmtx_t& df, iMath& m) noexcept;
+		nntl_interface static void df(const realmtx_t& fValue, realmtx_t& df, iMath& m) noexcept;
 
 		//each activation function has it's own most effective weights initialization scheme
 		template <typename iRng>
-		nntl_interface static void init_weights(floatmtx_t& W, iRng& iR)noexcept;
+		nntl_interface static void init_weights(realmtx_t& W, iRng& iR)noexcept;
 	};
 
 
@@ -67,12 +67,12 @@ namespace activation {
 	public:
 		//loss function
 		template <typename iMath>
-		nntl_interface static _i_activation::float_t_ loss(const _i_activation::floatmtx_t& activations, const _i_activation::floatmtx_t& data_y, iMath& m)noexcept;
+		nntl_interface static _i_activation::real_t loss(const _i_activation::realmtx_t& activations, const _i_activation::realmtx_t& data_y, iMath& m)noexcept;
 
 		//loss function derivative wrt total neuron input Z (=Aprev_layer*W), dL/dZ
 		template <typename iMath>
-		nntl_interface static void dLdZ(const _i_activation::floatmtx_t& activations, const _i_activation::floatmtx_t& data_y,
-			_i_activation::floatmtx_t& dLdZ, iMath& m)noexcept;
+		nntl_interface static void dLdZ(const _i_activation::realmtx_t& activations, const _i_activation::realmtx_t& data_y,
+			_i_activation::realmtx_t& dLdZ, iMath& m)noexcept;
 		//we glue into single function calculation of dL/dA and dA/dZ. The latter is in fact calculated by _i_activation::df(), but if
 		//we'll calculate dL/dZ in separate functions, then we can't make some optimizations
 	};
@@ -89,21 +89,21 @@ namespace activation {
 
 	public:
 		template <typename iMath>
-		static void f(floatmtx_t& srcdest, iMath& m) noexcept{
+		static void f(realmtx_t& srcdest, iMath& m) noexcept{
 			static_assert( std::is_base_of<math::_i_math, iMath>::value, "iMath should implement math::_i_math" );
 			m.sigm(srcdest);
 		};
 		template <typename iMath>
-		static void df(const floatmtx_t& fValue, floatmtx_t& df, iMath& m) noexcept {
+		static void df(const realmtx_t& fValue, realmtx_t& df, iMath& m) noexcept {
 			static_assert(std::is_base_of<math::_i_math, iMath>::value, "iMath should implement math::_i_math");
 			m.dsigm(fValue, df);//fValue is used in no_bias version!
 		}
 
 		/*template <typename iRng>
-		static void init_weights(floatmtx_t& W, iRng& iR)noexcept {
+		static void init_weights(realmtx_t& W, iRng& iR)noexcept {
 			const auto weightsScale = (scalingCoeff1e9 > 0)
-				? float_t_(scalingCoeff1e9) / float_t_(1e9)
-				: float_t_(4.0) * sqrt(float_t_(6.0) / (W.rows() + W.cols()));//probably we should take a bias unit as incoming too, so no -1 here
+				? real_t(scalingCoeff1e9) / real_t(1e9)
+				: real_t(4.0) * sqrt(real_t(6.0) / (W.rows() + W.cols()));//probably we should take a bias unit as incoming too, so no -1 here
 			iR.gen_matrix(W, weightsScale);
 		}*/
 		// According to Xavier et al. "Understanding the difficulty of training deep feedforward neural networks" 2010
@@ -125,13 +125,13 @@ namespace activation {
 		~sigm_quad_loss() = delete;
 	public:
 		template <typename iMath>
-		static void dLdZ(const floatmtx_t& activations, const floatmtx_t& data_y, floatmtx_t& dLdZ, iMath& m)noexcept {
+		static void dLdZ(const realmtx_t& activations, const realmtx_t& data_y, realmtx_t& dLdZ, iMath& m)noexcept {
 			static_assert(std::is_base_of<math::_i_math, iMath>::value, "iMath should implement math::_i_math");
 			m.dSigmQuadLoss_dZ(activations, data_y, dLdZ);
 		}
 
 		template <typename iMath>
-		static float_t_ loss(const floatmtx_t& activations, const floatmtx_t& data_y, iMath& m)noexcept {
+		static real_t loss(const realmtx_t& activations, const realmtx_t& data_y, iMath& m)noexcept {
 			static_assert(std::is_base_of<math::_i_math, iMath>::value, "iMath should implement math::_i_math");
 			return m.loss_quadratic(activations, data_y);
 		}
@@ -143,14 +143,14 @@ namespace activation {
 		~sigm_xentropy_loss() = delete;
 	public:
 		template <typename iMath>
-		static void dLdZ(const floatmtx_t& activations, const floatmtx_t& data_y, floatmtx_t& dLdZ, iMath& m)noexcept {
+		static void dLdZ(const realmtx_t& activations, const realmtx_t& data_y, realmtx_t& dLdZ, iMath& m)noexcept {
 			static_assert(std::is_base_of<math::_i_math, iMath>::value, "iMath should implement math::_i_math");
 			//dL/dz = dL/dA * dA/dZ = (a-y)
 			m.evSub(activations, data_y, dLdZ);
 		}
 
 		template <typename iMath>
-		static float_t_ loss(const floatmtx_t& activations, const floatmtx_t& data_y, iMath& m)noexcept {
+		static real_t loss(const realmtx_t& activations, const realmtx_t& data_y, iMath& m)noexcept {
 			static_assert(std::is_base_of<math::_i_math, iMath>::value, "iMath should implement math::_i_math");
 			return m.loss_sigm_xentropy(activations, data_y);
 		}
@@ -167,13 +167,13 @@ namespace activation {
 
 	public:
 		template <typename iMath>
-		static void f(floatmtx_t& srcdest, iMath& m) noexcept {
+		static void f(realmtx_t& srcdest, iMath& m) noexcept {
 			static_assert(std::is_base_of<math::_i_math, iMath>::value, "iMath should implement math::_i_math");
 			m.relu(srcdest);
 		};
 
 		template <typename iMath>
-		static void df(const floatmtx_t& fValue, floatmtx_t& df, iMath& m) noexcept {
+		static void df(const realmtx_t& fValue, realmtx_t& df, iMath& m) noexcept {
 			static_assert(std::is_base_of<math::_i_math, iMath>::value, "iMath should implement math::_i_math");
 			m.drelu(fValue, df);//fValue is used in no_bias version!
 		}

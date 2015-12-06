@@ -51,7 +51,7 @@ namespace nntl {
 			IntelTBB& operator=(const IntelTBB& rhs) noexcept = delete;
 
 		protected:
-			typedef std::function<void(float_t_*, numel_cnt_t)> func_t;
+			typedef std::function<void(real_t*, numel_cnt_t)> func_t;
 
 		public:
 			~IntelTBB()noexcept {
@@ -62,7 +62,7 @@ namespace nntl {
 			}
 
 			template<typename Func>
-			void run(Func&& F, float_t_* ptr, const numel_cnt_t cnt) noexcept {
+			void run(Func&& F, real_t* ptr, const numel_cnt_t cnt) noexcept {
 				tbb::parallel_for(tbb::blocked_range<numel_cnt_t>(0, cnt), [=, &F](const tbb::blocked_range<size_t>& r) {
 					F(&ptr[r.begin()], r.size());
 				});

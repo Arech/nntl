@@ -66,21 +66,21 @@ namespace rng {
 
 		//////////////////////////////////////////////////////////////////////////
 		//generate FP value in range [0,1]
-		float_t_ gen_f_norm()noexcept { return static_cast<float_t_>(m_rng.Random()); }
+		real_t gen_f_norm()noexcept { return static_cast<real_t>(m_rng.Random()); }
 
 		//////////////////////////////////////////////////////////////////////////
 		// matrix/vector generation (sequence from begin to end of numbers drawn from uniform distribution in [-a,a])
-		void gen_vector(float_t_* ptr, const size_t n, const float_t_ a)noexcept {
+		void gen_vector(real_t* ptr, const size_t n, const real_t a)noexcept {
 			const double scale = 2 * a;
 			const auto pE = ptr + n;
 			while (ptr != pE) {
-				*ptr++ = static_cast<float_t_>(scale*(m_rng.Random() - 0.5));
+				*ptr++ = static_cast<real_t>(scale*(m_rng.Random() - 0.5));
 			}
 		}
 
 		//////////////////////////////////////////////////////////////////////////
 		//generate vector with values in range [0,1]
-		void gen_vector_norm(float_t_* ptr, const size_t n)noexcept {
+		void gen_vector_norm(real_t* ptr, const size_t n)noexcept {
 			const auto pE = ptr + n;
 			while (ptr != pE) {
 				*ptr++ = gen_f_norm();

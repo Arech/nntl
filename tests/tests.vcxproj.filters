@@ -189,9 +189,6 @@
     <ClInclude Include="..\_extern\agner.org\AF_randomc_h\random.h">
       <Filter>_extern\agner.org</Filter>
     </ClInclude>
-    <ClInclude Include="etalons.h">
-      <Filter>Source Files</Filter>
-    </ClInclude>
     <ClInclude Include="..\nntl\interface\math\imath_basic.h">
       <Filter>nntl\interface\math</Filter>
     </ClInclude>
@@ -200,6 +197,9 @@
     </ClInclude>
     <ClInclude Include="..\nntl\interface\rng\distr_normal_naive.h">
       <Filter>nntl\interface\rng</Filter>
+    </ClInclude>
+    <ClInclude Include="etalons.h">
+      <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

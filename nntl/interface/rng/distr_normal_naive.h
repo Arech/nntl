@@ -44,24 +44,24 @@ namespace rng {
 	struct distr_normal_naive {
 	public:
 		typedef iRng iRng_t;
-		typedef typename iRng_t::float_t_ float_t_;
-		typedef typename iRng_t::floatmtx_t floatmtx_t;
+		typedef typename iRng_t::real_t real_t;
+		typedef typename iRng_t::realmtx_t realmtx_t;
 
 	protected:
 		iRng_t& m_iR;
-		std::normal_distribution<float_t_> m_distr;
+		std::normal_distribution<real_t> m_distr;
 
 	public:
 		~distr_normal_naive() {}
-		distr_normal_naive(iRng_t& iR, float_t_ mn = float_t_(0.0), float_t_ stdev = float_t_(1.0))noexcept
+		distr_normal_naive(iRng_t& iR, real_t mn = real_t(0.0), real_t stdev = real_t(1.0))noexcept
 			: m_iR(iR), m_distr(mn, stdev) {}
 
-		void gen_vector(float_t_* ptr, const size_t n)noexcept {
+		void gen_vector(real_t* ptr, const size_t n)noexcept {
 			const auto pE = ptr + n;
 			while (ptr != pE) *ptr++ = m_distr(m_iR);
 		}
 
-		void gen_matrix(floatmtx_t& m)noexcept {
+		void gen_matrix(realmtx_t& m)noexcept {
 			NNTL_ASSERT(!m.empty() && m.numel() > 0);
 			gen_vector(m.dataAsVec(), m.numel());
 		}

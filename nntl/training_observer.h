@@ -40,40 +40,40 @@ namespace nntl {
 
 	// i_training_observer and derived classes must be default constructible
 	struct i_training_observer {
-		typedef math_types::floatmtx_ty floatmtx_t;
-		typedef floatmtx_t::value_type float_t_;
-		typedef floatmtx_t::vec_len_t vec_len_t;
-		typedef floatmtx_t::numel_cnt_t numel_cnt_t;
+		typedef math_types::realmtx_ty realmtx_t;
+		typedef realmtx_t::value_type real_t;
+		typedef realmtx_t::vec_len_t vec_len_t;
+		typedef realmtx_t::numel_cnt_t numel_cnt_t;
 		
 		typedef std::chrono::nanoseconds nanoseconds;
 
 		//may preprocess train_y/test_y here
 		template<typename iMath>
-		nntl_interface bool init(size_t epochs, const floatmtx_t& train_y, const floatmtx_t& test_y, iMath& iM)noexcept;
+		nntl_interface bool init(size_t epochs, const realmtx_t& train_y, const realmtx_t& test_y, iMath& iM)noexcept;
 		nntl_interface void deinit()noexcept;
 
 		//always called before on_training_fragment_end() twice: on training and on testing/validation data
 		//data_y must be the same as init(train_y)|bOnTestData==false or init(test_y)|bOnTestData==true
 		template<typename iMath>
-		nntl_interface void inspect_results(const floatmtx_t& data_y, const floatmtx_t& activations, const bool bOnTestData, iMath& iM)noexcept;
+		nntl_interface void inspect_results(const realmtx_t& data_y, const realmtx_t& activations, const bool bOnTestData, iMath& iM)noexcept;
 
 		nntl_interface void on_training_start(vec_len_t trainElements, vec_len_t testElements, vec_len_t inDim, vec_len_t outDim, vec_len_t batchSize, numel_cnt_t nL)noexcept;
 		//epochEnded is zero based, so the first epoch is 0. Will be ==-1 on initial report (before training begins)
-		nntl_interface void on_training_fragment_end(size_t epochEnded, float_t_ trainLoss, float_t_ testLoss, const nanoseconds& elapsedSincePrevFragment)noexcept;
+		nntl_interface void on_training_fragment_end(size_t epochEnded, real_t trainLoss, real_t testLoss, const nanoseconds& elapsedSincePrevFragment)noexcept;
 		nntl_interface void on_training_end(const nanoseconds& trainTime)noexcept;
 	};
 
 	struct training_observer_silent : public i_training_observer {
 		template<typename iMath>
-		bool init(size_t epochs, const floatmtx_t& train_y, const floatmtx_t& test_y, iMath& iM)noexcept { return true; }
+		bool init(size_t epochs, const realmtx_t& train_y, const realmtx_t& test_y, iMath& iM)noexcept { return true; }
 		void deinit()noexcept {}
 
 		//always called before on_training_fragment_end() twice: on training and on testing/validation data
 		template<typename iMath>
-		void inspect_results(const floatmtx_t& data_y, const floatmtx_t& activations, const bool bOnTestData, iMath& iM)noexcept {}
+		void inspect_results(const realmtx_t& data_y, const realmtx_t& activations, const bool bOnTestData, iMath& iM)noexcept {}
 
 		void on_training_start(vec_len_t trainElements, vec_len_t testElements, vec_len_t inDim, vec_len_t outDim, vec_len_t batchSize, numel_cnt_t nL)noexcept {}
-		void on_training_fragment_end(size_t epochEnded, float_t_ trainLoss, float_t_ testLoss, const nanoseconds& elapsedSincePrevFragment)noexcept{}
+		void on_training_fragment_end(size_t epochEnded, real_t trainLoss, real_t testLoss, const nanoseconds& elapsedSincePrevFragment)noexcept{}
 		void on_training_end(const nanoseconds& trainTime)noexcept {}
 	};
 
@@ -92,7 +92,7 @@ namespace nntl {
 
 	public:
 		template<typename iMath>
-		bool init(size_t epochs, const floatmtx_t& train_y, const floatmtx_t& test_y, iMath& iM)noexcept {
+		bool init(size_t epochs, const realmtx_t& train_y, const realmtx_t& test_y, iMath& iM)noexcept {
 			m_epochs = epochs;
 			m_prevEpoch = 0;
 			
@@ -125,7 +125,7 @@ namespace nntl {
 		//always called before on_training_fragment_end() twice: on training and on testing/validation data
 		//data_y must be the same as init(train_y)|bOnTestData==false or init(test_y)|bOnTestData==true
 		template<typename iMath>
-		void inspect_results(const floatmtx_t& data_y, const floatmtx_t& activations, const bool bOnTestData, iMath& iM)noexcept {
+		void inspect_results(const realmtx_t& data_y, const realmtx_t& activations, const bool bOnTestData, iMath& iM)noexcept {
 			NNTL_ASSERT(data_y.size() == activations.size());
 			NNTL_ASSERT(data_y.rows() == m_ydataClassIdxs[bOnTestData].size());
 
@@ -135,22 +135,22 @@ namespace nntl {
 			m_classifRes[bOnTestData].correctlyClassified = iM.vCountSame(m_ydataClassIdxs[bOnTestData],m_nnClassIdxs[bOnTestData]);
 		}
 
-		void on_training_fragment_end(size_t epochEnded, float_t_ trainLoss, float_t_ testLoss, const nanoseconds& elapsedSincePrevFragment)noexcept {
+		void on_training_fragment_end(size_t epochEnded, real_t trainLoss, real_t testLoss, const nanoseconds& elapsedSincePrevFragment)noexcept {
 			static constexpr strchar_t* szReportFmt = "% 3zd/%3zd %3.1fs trL=%05.3f, trErr=%.2f%% (%zd), vL=%05.3f, vErr=%.2f%% (%zd)";
 			static constexpr unsigned uBufSize = 128;
 
 			++epochEnded;
 
 			strchar_t szRep[uBufSize];
-			const float_t_ secs = static_cast<float_t_>(elapsedSincePrevFragment.count())/1e9;
+			const real_t secs = real_t(elapsedSincePrevFragment.count()) / real_t(1e9);
 
 			const auto trainTE = m_classifRes[0].totalElements, trainW=trainTE- m_classifRes[0].correctlyClassified;
 			//trainCC = m_classifRes[0].correctlyClassified,
-			const float_t_ trErr = static_cast<float_t_>(100 * trainW) / trainTE;
+			const real_t trErr = static_cast<real_t>(100 * trainW) / trainTE;
 			
 			const auto testTE = m_classifRes[1].totalElements, testW = testTE - m_classifRes[1].correctlyClassified;
 			//testCC = m_classifRes[1].correctlyClassified, 
-			const float_t_ tErr = static_cast<float_t_>(100 * testW) / testTE;
+			const real_t tErr = static_cast<real_t>(100 * testW) / testTE;
 			
 			sprintf_s(szRep, uBufSize, szReportFmt, epochEnded, m_epochs, secs, trainLoss, 
 				trErr, trainW, testLoss,tErr, testW);

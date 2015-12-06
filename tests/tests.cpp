@@ -40,7 +40,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 using namespace nntl;
 typedef nntl_supp::binfile reader_t;
-using float_t_ = math_types::float_ty;
+using real_t = math_types::real_ty;
 
 
 #if defined(TESTS_SKIP_NNET_LONGRUNNING)
@@ -55,25 +55,25 @@ using float_t_ = math_types::float_ty;
 TEST(TestNntl, Training) {
 	train_data td;
 	reader_t reader;
-
+	
 	STDCOUTL("Reading datafile '" << MNIST_FILE << "'...");
 	reader_t::ErrorCode rec = reader.read(NNTL_STRING(MNIST_FILE), td);
 	ASSERT_EQ(reader_t::ErrorCode::Success, rec) << "Error code description: " << reader.get_last_error_str();
 	ASSERT_TRUE(td.train_x().emulatesBiases());
 	ASSERT_TRUE(td.test_x().emulatesBiases());
 
-	const float_t_ dropoutFrac = 0, momentum = 0.0;
+	const real_t dropoutFrac = 0, momentum = 0.0;
 	//const ILR ilr(.9, 1.1, .00000001, 1000);
 
 	layer_input inp(td.train_x().cols_no_bias());
 
-	typedef activation::relu<> activ_func;
-	//typedef weights_init::Martens_SI_sigm<> w_init_scheme;
-	//typedef activation::sigm<w_init_scheme> activ_func;
+	//typedef activation::relu<> activ_func;
+	typedef weights_init::Martens_SI_sigm<> w_init_scheme;
+	typedef activation::sigm<w_init_scheme> activ_func;
 
 #ifdef TESTS_SKIP_NNET_LONGRUNNING
 	size_t epochs = 5;
-	const float_t_ learningRate = .1;
+	const real_t learningRate = .1;
 
 	layer_fully_connected<activ_func> fcl(60, learningRate, dropoutFrac);
 	layer_fully_connected<activ_func> fcl2(50, learningRate, dropoutFrac);
@@ -81,14 +81,14 @@ TEST(TestNntl, Training) {
 
 #else
 	size_t epochs = 20;
-	const float_t_ learningRate = 0.1;
+	const real_t learningRate = 0.05;
 
 	layer_fully_connected<activ_func> fcl(500, learningRate,dropoutFrac);
 	layer_fully_connected<activ_func> fcl2(300, learningRate, dropoutFrac);
 #endif // TESTS_SKIP_LONGRUNNING
 
 	const bool bSetMN = false;
-	const float_t_ mul = 1.0 / 10000.0;
+	const real_t mul = 1.0 / 10000.0;
 	auto optType = decltype(fcl)::grad_works_t::ClassicalConstant;
 
 	fcl.m_gradientWorks.set_momentum(momentum, false).set_type(optType)
@@ -96,12 +96,13 @@ TEST(TestNntl, Training) {
 	fcl2.m_gradientWorks.set_momentum(momentum, false).set_type(optType)
 		.set_weight_vector_max_norm2(bSetMN ? mul * 500 * 500 : 0, true);
 	
-	layer_output<activation::sigm_xentropy_loss<>> outp(td.train_y().cols(), learningRate);
+	//layer_output<activation::sigm_xentropy_loss<w_init_scheme>> outp(td.train_y().cols(), learningRate);
+	layer_output<activation::sigm_quad_loss<w_init_scheme>> outp(td.train_y().cols(), learningRate);
 	outp.m_gradientWorks.set_momentum(momentum, false).set_type(optType)
 		.set_weight_vector_max_norm2(bSetMN ? mul * 300 * 300 : 0, true);
 
 	//uncomment to turn on derivative value restriction 
-	//outp.restrict_dL_dZ(float_t_(-10), float_t_(10));
+	//outp.restrict_dL_dZ(real_t(-10), real_t(10));
 
 	auto lp = make_layers_pack(inp, fcl, fcl2, outp);
 	//auto lp = make_layers_pack(inp, fcl, fcl2, fcl3, fcl4, outp);

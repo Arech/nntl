@@ -47,8 +47,8 @@ namespace nntl {
 		typedef TrainingObserver training_observer_t;
 		typedef cond_epoch_eval cond_epoch_eval_t;
 		typedef nnet_train_opts<cond_epoch_eval_t, training_observer_t> self_t;
-		typedef math_types::floatmtx_ty::vec_len_t batch_size_t;
-		typedef math_types::float_ty float_t_;
+		typedef math_types::realmtx_ty::vec_len_t batch_size_t;
+		typedef math_types::real_ty real_t;
 
 		//////////////////////////////////////////////////////////////////////////
 		//members
@@ -56,7 +56,7 @@ namespace nntl {
 		cond_epoch_eval_t m_vbEpochEval;
 
 		//DivergenceCheck* vars describes how to check for nn algo divergence
-		float_t_ m_DivergenceCheckThreshold;
+		real_t m_DivergenceCheckThreshold;
 
 		batch_size_t m_BatchSize;
 
@@ -74,8 +74,8 @@ namespace nntl {
 		size_t maxEpoch()const noexcept { return m_vbEpochEval.maxEpoch(); }
 		const cond_epoch_eval_t& getCondEpochEval()const noexcept { return m_vbEpochEval; }
 
-		float_t_ divergenceCheckThreshold() const noexcept { return m_DivergenceCheckThreshold; }
-		self_t& divergenceCheckThreshold(float_t_ val) noexcept { m_DivergenceCheckThreshold = val; return *this; }
+		real_t divergenceCheckThreshold() const noexcept { return m_DivergenceCheckThreshold; }
+		self_t& divergenceCheckThreshold(real_t val) noexcept { m_DivergenceCheckThreshold = val; return *this; }
 
 		size_t divergenceCheckLastEpoch() const noexcept { return m_DivergenceCheckLastEpoch; }
 		self_t& divergenceCheckLastEpoch(int16_t val) noexcept { m_DivergenceCheckLastEpoch = val; return *this; }

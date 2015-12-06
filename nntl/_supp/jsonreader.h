@@ -116,9 +116,9 @@ namespace nntl_supp {
 
 	class jsonreader: public nntl::_has_last_error<_jsonreader_errs>{
 	protected:
-		typedef nntl::train_data::mtx_t mtx_t;
-		typedef mtx_t::value_type mtx_value_t;
-		typedef mtx_t::vec_len_t vec_len_t;
+		typedef nntl::train_data::realmtx_t realmtx_t;
+		typedef realmtx_t::value_type mtx_value_t;
+		typedef realmtx_t::vec_len_t vec_len_t;
 
 	public:
 		jsonreader () noexcept	: nntl::_has_last_error<_jsonreader_errs>()
@@ -130,7 +130,7 @@ namespace nntl_supp {
 		// If readInto_t == nntl::train_data, then all X data will be created with emulateBiases() feature and bMakeMtxBiased param will be ignored
 		template <typename readInto_t>
 		const ErrorCode read(const nntl::strchar_t* fname, readInto_t& dest, const bool bMakeMtxBiased=false) {
-			static_assert(std::is_same<nntl::train_data, readInto_t>::value || std::is_same<mtx_t, readInto_t>::value,
+			static_assert(std::is_same<nntl::train_data, readInto_t>::value || std::is_same<realmtx_t, readInto_t>::value,
 				"Only nntl::train_data or nntl::train_data::mtx_t is supported as readInto_t template parameter");
 			//bMakeMtxBiased is ignored for nntl::train_data and should be set as false by default
 			NNTL_ASSERT( (!std::is_same<nntl::train_data, readInto_t>::value || !bMakeMtxBiased));
@@ -182,7 +182,7 @@ namespace nntl_supp {
 		}
 
 		template <typename MembersEnumId>
-		const ErrorCode _parse_mtx(const rapidjson::Document& o, const MembersEnumId memberId, mtx_t& dest)noexcept {
+		const ErrorCode _parse_mtx(const rapidjson::Document& o, const MembersEnumId memberId, realmtx_t& dest)noexcept {
 			auto mn = _get_root_member_str(memberId);
 
 			auto mIt = o.FindMember(mn);
@@ -199,7 +199,7 @@ namespace nntl_supp {
 		}
 
 		template <typename MembersEnumId>
-		const ErrorCode _parse_as_mtx(const rapidjson::Document::ValueType& vec, const MembersEnumId memberId, mtx_t& dest)noexcept {
+		const ErrorCode _parse_as_mtx(const rapidjson::Document::ValueType& vec, const MembersEnumId memberId, realmtx_t& dest)noexcept {
 			if (vec.Begin()->Size() > ::std::numeric_limits<vec_len_t>::max()) { return _members2ErrorCode(ErrorCode::InvalidTrainX, memberId); }
 			
 			const vec_len_t inrd = static_cast<vec_len_t>(vec.Begin()->Size());
@@ -231,7 +231,7 @@ namespace nntl_supp {
 		}
 
 		template <typename MembersEnumId>
-		const ErrorCode _parse_as_vector(const rapidjson::Document::ValueType& vec, const MembersEnumId memberId, mtx_t& dest)noexcept {
+		const ErrorCode _parse_as_vector(const rapidjson::Document::ValueType& vec, const MembersEnumId memberId, realmtx_t& dest)noexcept {
 			if (vec.Size() > ::std::numeric_limits<vec_len_t>::max()) { return _members2ErrorCode(ErrorCode::InvalidTrainX, memberId); }
 
 			if (!dest.resize(vec.Size(), 1)) { return _set_last_error(ErrorCode::MemoryAllocationFailed); }
@@ -273,7 +273,7 @@ namespace nntl_supp {
 		const ErrorCode _parse_json_doc<nntl::train_data>(const rapidjson::Document& d, nntl::train_data& dest, const bool )noexcept {
 			if (!d.IsObject()) { return _set_last_error(ErrorCode::RootIsNotAnObject); }
 
-			mtx_t tr_x,tr_y,t_x,t_y;
+			realmtx_t tr_x,tr_y,t_x,t_y;
 			//if (bMakeXDataBiased) {
 				tr_x.will_emulate_biases();
 				t_x.will_emulate_biases();
@@ -292,7 +292,7 @@ namespace nntl_supp {
 		}
 
 		template<>
-		const ErrorCode _parse_json_doc<mtx_t>(const rapidjson::Document& d, mtx_t& dest, const bool bMakeMtxBiased)noexcept {
+		const ErrorCode _parse_json_doc<realmtx_t>(const rapidjson::Document& d, realmtx_t& dest, const bool bMakeMtxBiased)noexcept {
 			if (!d.IsObject()) { return _set_last_error(ErrorCode::RootIsNotAnObject); }
 
 			if (bMakeMtxBiased) dest.will_emulate_biases();

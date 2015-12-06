@@ -51,14 +51,14 @@ namespace weights_init {
 	template<size_t scalingCoeff1e6 = 1000000>
 	struct Xavier {
 		template <typename iRng_t>
-		static bool init(typename iRng_t::floatmtx_t& W, iRng_t& iR)noexcept {
-			typedef typename iRng_t::float_t_ float_t_;
+		static bool init(typename iRng_t::realmtx_t& W, iRng_t& iR)noexcept {
+			typedef typename iRng_t::real_t real_t;
 			NNTL_ASSERT(!W.empty() && W.numel() > 0);
 
-			const float_t_ scalingCoeff = float_t_(scalingCoeff1e6) / float_t_(1000000);
+			const real_t scalingCoeff = real_t(scalingCoeff1e6) / real_t(1000000);
 
 			//probably we should count a bias unit as incoming too, so no -1 here
-			const float_t_ weightsScale = scalingCoeff*sqrt(float_t_(6.0) / (W.rows() + W.cols()));
+			const real_t weightsScale = scalingCoeff*sqrt(real_t(6.0) / (W.rows() + W.cols()));
 			iR.gen_matrix(W, weightsScale);
 			return true;
 		}
@@ -75,21 +75,21 @@ namespace weights_init {
 	template<size_t scalingCoeff1e6 = 1000000>
 	struct He_Zhang {
 		template <typename iRng_t>
-		static bool init(typename iRng_t::floatmtx_t& W, iRng_t& iR)noexcept {
-			typedef typename iRng_t::float_t_ float_t_;
-			typedef typename iRng_t::floatmtx_t floatmtx_t;
+		static bool init(typename iRng_t::realmtx_t& W, iRng_t& iR)noexcept {
+			typedef typename iRng_t::real_t real_t;
+			typedef typename iRng_t::realmtx_t realmtx_t;
 
 			NNTL_ASSERT(!W.empty() && W.numel() > 0);
 
-			const float_t_ scalingCoeff = float_t_(scalingCoeff1e6) / float_t_(1000000);
+			const real_t scalingCoeff = real_t(scalingCoeff1e6) / real_t(1000000);
 			const auto prevLayerNeuronsCnt = W.cols() - 1;
-			const float_t_ stdDev = scalingCoeff*sqrt(float_t_(2.0) / prevLayerNeuronsCnt);
+			const real_t stdDev = scalingCoeff*sqrt(real_t(2.0) / prevLayerNeuronsCnt);
 
-			rng::distr_normal_naive<iRng_t> d(iR, float_t_(0.0), stdDev);
-			d.gen_vector(W.dataAsVec(), floatmtx_t::sNumel(W.rows(), prevLayerNeuronsCnt));
+			rng::distr_normal_naive<iRng_t> d(iR, real_t(0.0), stdDev);
+			d.gen_vector(W.dataAsVec(), realmtx_t::sNumel(W.rows(), prevLayerNeuronsCnt));
 
 			auto pBiases = W.colDataAsVec(prevLayerNeuronsCnt);
-			std::fill(pBiases, pBiases + W.rows(), float_t_(0.0));
+			std::fill(pBiases, pBiases + W.rows(), real_t(0.0));
 			return true;
 		}
 	};
@@ -97,7 +97,7 @@ namespace weights_init {
 
 	//////////////////////////////////////////////////////////////////////////
 	// According to Martens "Deep learning via Hessian-free optimization" 2010 and
-	// Sutskever, Martens "On the importance of initialization and momentum in deep learning" 2013,
+	// Sutskever, Martens et al. "On the importance of initialization and momentum in deep learning" 2013,
 	// there is another very effective scheme of weights initialization they call "Sparse initialization (ST)"
 	// Sigm: "In this scheme, each random unit is connected to 15 randomly chosen units in  the previous layer,
 	// whose weights are drawn from a unit Gaussian, and the biases are set to zero."
@@ -106,10 +106,10 @@ namespace weights_init {
 	template<int Biases1e6 = 0, size_t StdDev1e6=1000000, unsigned int NonZeroUnitsCount = 15>
 	struct Martens_SI {
 		template <typename iRng_t>
-		static bool init(typename iRng_t::floatmtx_t& W, iRng_t& iR)noexcept {
-			typedef typename iRng_t::float_t_ float_t_;
-			typedef typename iRng_t::floatmtx_t floatmtx_t;
-			typedef floatmtx_t::vec_len_t vec_len_t;
+		static bool init(typename iRng_t::realmtx_t& W, iRng_t& iR)noexcept {
+			typedef typename iRng_t::real_t real_t;
+			typedef typename iRng_t::realmtx_t realmtx_t;
+			typedef realmtx_t::vec_len_t vec_len_t;
 
 			NNTL_ASSERT(!W.empty() && W.numel() > 0);
 			const auto prevLayerNeuronsCnt = W.cols() - 1;
@@ -118,8 +118,8 @@ namespace weights_init {
 
 			W.zeros();
 
-			const float_t_ biases = float_t_(Biases1e6) / float_t_(1000000);
-			const float_t_ stdDev = float_t_(StdDev1e6) / float_t_(1000000);
+			const real_t biases = real_t(Biases1e6) / real_t(1000000);
+			const real_t stdDev = real_t(StdDev1e6) / real_t(1000000);
 
 			//making random indexes of weights to set
 			std::unique_ptr<vec_len_t[]> columnIdxs(new(std::nothrow) vec_len_t[prevLayerNeuronsCnt]);
@@ -129,9 +129,9 @@ namespace weights_init {
 			for (vec_len_t i = 0; i < prevLayerNeuronsCnt; ++i) pIdxs[i] = i;
 
 			//generating weights
-			floatmtx_t src(NonZeroUnitsCount, thisLayerNeuronsCnt);
+			realmtx_t src(NonZeroUnitsCount, thisLayerNeuronsCnt);
 			if (src.isAllocationFailed())return false;
-			rng::distr_normal_naive<iRng_t> d(iR, float_t_(0.0), stdDev);
+			rng::distr_normal_naive<iRng_t> d(iR, real_t(0.0), stdDev);
 			d.gen_matrix(src);
 
 			auto pS = src.dataAsVec();
@@ -143,7 +143,7 @@ namespace weights_init {
 				}
 			}
 
-			if (biases != float_t_(0.0)) {
+			if (biases != real_t(0.0)) {
 				auto pBiases = W.colDataAsVec(prevLayerNeuronsCnt);
 				std::fill(pBiases, pBiases + thisLayerNeuronsCnt, biases);
 			}

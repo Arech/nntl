@@ -63,13 +63,13 @@ template<typename TT>
 void threads_basics_test(TT& t) {
 	typedef TT::range_t range_t;
 	typedef TT::par_range_t par_range_t;
-	typedef math_types::floatmtx_ty::vec_len_t vec_len_t;
-	typedef math_types::floatmtx_ty::value_type float_t_;
+	typedef math_types::realmtx_ty::vec_len_t vec_len_t;
+	typedef math_types::realmtx_ty::value_type real_t;
 
 	const auto workersCnt = t.workers_count();
 
 	const vec_len_t maxCnt = 2 * workersCnt;
-	math_types::floatmtx_ty m(1, maxCnt + 1);
+	math_types::realmtx_ty m(1, maxCnt + 1);
 	ASSERT_TRUE(!m.isAllocationFailed());
 	auto ptr = m.dataAsVec();
 
@@ -95,34 +95,34 @@ void threads_basics_test(TT& t) {
 		for (range_t i = 0; i < mnumel; ++i) ptr[i] = 1;
 
 		//compute sum of squares
-		auto lRed = [maxCntPerWorker,ptr](const par_range_t& r)->float_t_
+		auto lRed = [maxCntPerWorker,ptr](const par_range_t& r)->real_t
 		{
 			const auto cnt = r.cnt();
 			EXPECT_TRUE(cnt <= maxCntPerWorker) << "cnt=="<<cnt<<" maxCntPerWorker=="<< maxCntPerWorker;
-			float_t_ ret = 0;
+			real_t ret = 0;
 			for (range_t i = 0; i < cnt; ++i) ret += ptr[i] * ptr[i];
 			return ret;
 		};
-		auto lRedF = [workersCnt](const float_t_* p, const range_t cnt)->float_t_
+		auto lRedF = [workersCnt](const real_t* p, const range_t cnt)->real_t
 		{
 			EXPECT_TRUE(cnt <= workersCnt) << "cnt=="<<cnt<<" workersCnt=="<< workersCnt;
-			float_t_ ret = 0;
+			real_t ret = 0;
 			for (range_t i = 0; i < cnt; ++i) ret += p[i];
 			return ret;
 		};
-		float_t_ redRes = t.reduce(lRed, lRedF, mnumel);
-		ASSERT_DOUBLE_EQ(redRes, static_cast<float_t_>(mnumel));
+		real_t redRes = t.reduce(lRed, lRedF, mnumel);
+		ASSERT_DOUBLE_EQ(redRes, static_cast<real_t>(mnumel));
 	}
 }
 
 TEST(TestThreading, WinQDUBasics) {
-	threads::WinQDU<math_types::floatmtx_ty::numel_cnt_t> t;
+	threads::WinQDU<math_types::realmtx_ty::numel_cnt_t> t;
 	threads_basics_test(t);
 	threads_basics_test(t);
 }
 
 TEST(TestThreading, StdBasics) {
-	threads::Std<math_types::floatmtx_ty::numel_cnt_t> t;
+	threads::Std<math_types::realmtx_ty::numel_cnt_t> t;
 	threads_basics_test(t);
 	threads_basics_test(t);
 }
@@ -132,7 +132,7 @@ TEST(TestThreading, StdBasics) {
 TEST(TestThreading, PerfComparision) {
 	using namespace std::chrono;
 
-	typedef math_types::floatmtx_ty::numel_cnt_t numel_cnt_t;
+	typedef math_types::realmtx_ty::numel_cnt_t numel_cnt_t;
 	STDCOUTL("The test may require a few seconds to complete. Define TESTS_SKIP_THREADING_PERFS to skip.");
 
 	constexpr uint64_t maxreps = 200000;
@@ -211,13 +211,13 @@ void threading_delay_test(TT& t, double m=1) {
 }
 
 TEST(TestThreading, WinQDUDelays) {
-	threads::WinQDU<math_types::floatmtx_ty::numel_cnt_t> t;
+	threads::WinQDU<math_types::realmtx_ty::numel_cnt_t> t;
 	threading_delay_test(t);
 	ASSERT_TRUE(true) << "This tests if the execution reaches here or binary hangs";
 }
 
 TEST(TestThreading, StdDelays) {
-	threads::Std<math_types::floatmtx_ty::numel_cnt_t> t;
+	threads::Std<math_types::realmtx_ty::numel_cnt_t> t;
 	threading_delay_test(t,3);
 	ASSERT_TRUE(true) << "This tests if the execution reaches here or binary hangs";
 }

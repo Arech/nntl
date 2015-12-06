@@ -44,9 +44,9 @@ namespace threads {
 		typedef parallel_range<range_t> par_range_t;
 		typedef typename par_range_t::thread_id_t thread_id_t;
 
-		typedef math_types::float_ty float_t_;
+		typedef math_types::real_ty real_t;
 
-		//typedef float_t_(*fnFinalReduce_t)(const float_t_* ptr, const range_t cnt);
+		//typedef real_t(*fnFinalReduce_t)(const real_t* ptr, const range_t cnt);
 
 		// if pThreadsUsed is specified, it'll contain total number of threads (including the main thread),
 		// that is used to serve the request. It'll be less or equal to workers_count()
@@ -54,7 +54,7 @@ namespace threads {
 		nntl_interface void run(Func&& F, const range_t cnt, thread_id_t* pThreadsUsed = nullptr) noexcept;
 
 		template<typename Func, typename FinalReduceFunc>
-		nntl_interface float_t_ reduce(Func&& FRed, FinalReduceFunc FRF, const range_t cnt) noexcept;
+		nntl_interface real_t reduce(Func&& FRed, FinalReduceFunc FRF, const range_t cnt) noexcept;
 
 		nntl_interface thread_id_t workers_count()noexcept;
 

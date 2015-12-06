@@ -41,8 +41,8 @@ namespace nntl {
 		typedef _layer_base<FinalPolymorphChild> _base_class;
 
 	public:
-		typedef math_types::floatmtxdef_ty floatmtxdef_t;
-		static_assert(std::is_base_of<floatmtx_t, floatmtxdef_t>::value, "math_types::floatmtxdef_ty must be derived from math_types::floatmtx_ty!");
+		typedef math_types::realmtxdef_ty realmtxdef_t;
+		static_assert(std::is_base_of<realmtx_t, realmtxdef_t>::value, "math_types::realmtxdef_ty must be derived from math_types::realmtx_ty!");
 
 		typedef typename Interfaces::iMath_t iMath_t;
 		static_assert(std::is_base_of<math::_i_math, iMath_t>::value, "Interfaces::iMath type should be derived from _i_math");
@@ -61,21 +61,21 @@ namespace nntl {
 		//members
 	protected:
 		// matrix of layer neurons activations: <batch_size rows> x <m_neurons_cnt+1(bias) cols> for fully connected layer
-		floatmtxdef_t m_activations;
+		realmtxdef_t m_activations;
 		// layer weight matrix: <m_neurons_cnt rows> x <m_incoming_neurons_cnt +1(bias)>
 		//need it to be deformable to get rid of unnecessary bias column when doing dLdAprev
-		floatmtxdef_t m_weights;
+		realmtxdef_t m_weights;
 
-		floatmtx_t m_dLdZ;//doesn't guarantee to retain it's value between usage in different code flows; may share memory with some other data structure
-		floatmtx_t m_dLdW;//doesn't guarantee to retain it's value between usage in different code flows; may share memory with some other data structure
+		realmtx_t m_dLdZ;//doesn't guarantee to retain it's value between usage in different code flows; may share memory with some other data structure
+		realmtx_t m_dLdW;//doesn't guarantee to retain it's value between usage in different code flows; may share memory with some other data structure
 
 		iMath_t* m_pMath;
 		iRng_t* m_pRng;
 
-		float_t_ m_learningRate;
+		real_t m_learningRate;
 
 		bool m_bRestrictdLdZ;//restriction flag should be permanent for init/deinit calls and changed only by explicit calls to respective functions
-		float_t_ m_dLdZRestrictLowerBnd, m_dLdZRestrictUpperBnd;
+		real_t m_dLdZRestrictLowerBnd, m_dLdZRestrictUpperBnd;
 
 	public:
 		grad_works_t m_gradientWorks;
@@ -92,7 +92,7 @@ namespace nntl {
 	public:
 		~_layer_output() noexcept {};
 
-		_layer_output(const neurons_count_t _neurons_cnt, float_t_ learningRate = 0.01) noexcept 
+		_layer_output(const neurons_count_t _neurons_cnt, real_t learningRate = 0.01) noexcept 
 			: _base_class(_neurons_cnt), m_activations(), m_weights(), m_dLdZ(), m_dLdW(), m_bWeightsInitialized(false)
 			, m_learningRate(learningRate), m_max_fprop_batch_size(0), m_training_batch_size(0)
 			, m_pMath(nullptr), m_pRng(nullptr), m_bRestrictdLdZ(false)
@@ -103,7 +103,7 @@ namespace nntl {
 		};
 
 		constexpr bool is_output_layer()const noexcept { return true; }
-		const floatmtx_t& get_activations()const noexcept { return m_activations; }
+		const realmtx_t& get_activations()const noexcept { return m_activations; }
 
 		template<typename _layer_init_data_t>
 		ErrorCode init(_layer_init_data_t& lid)noexcept {
@@ -150,12 +150,12 @@ namespace nntl {
 			// m_activations - (m_max_fprop_batch_size, m_neurons_cnt) and unbiased matrices derived from m_activations - such as m_dLdZ
 			// prevActivations - size (m_training_batch_size, get_incoming_neurons_cnt() + 1)
 			m_pMath->preinit( std::max(std::max(m_weights.numel(), m_activations.numel()),
-				floatmtx_t::sNumel(m_training_batch_size, get_incoming_neurons_cnt() + 1)));
+				realmtx_t::sNumel(m_training_batch_size, get_incoming_neurons_cnt() + 1)));
 
 			if (m_training_batch_size > 0) {
 				//we need 2 temporarily matrices for training: one for dA/dZ -> dL/dZ [batchSize x m_neurons_cnt]
 				// and one for dL/dW [m_neurons_cnt x get_incoming_neurons_cnt()+1]
-				lid.max_dLdA_numel = floatmtx_t::sNumel(m_training_batch_size, m_activations.cols_no_bias());
+				lid.max_dLdA_numel = realmtx_t::sNumel(m_training_batch_size, m_activations.cols_no_bias());
 				lid.maxMemBPropRequire = lid.max_dLdA_numel + m_weights.numel();
 			}
 
@@ -174,7 +174,7 @@ namespace nntl {
 			m_pRng = nullptr;
 		}
 
-		void initMem(float_t_* ptr, numel_cnt_t cnt)noexcept {
+		void initMem(real_t* ptr, numel_cnt_t cnt)noexcept {
 			if (m_training_batch_size > 0) {
 				m_dLdZ.useExternalStorage(ptr, m_training_batch_size, m_activations.cols_no_bias());
 				m_dLdW.useExternalStorage(&ptr[m_dLdZ.numel()], m_weights);
@@ -196,7 +196,7 @@ namespace nntl {
 		}
 
 		//template <typename i_math_t = nnet_def_interfaces::Math, typename i_rng_t = nnet_def_interfaces::Rng>
-		//void fprop(const floatmtx_t& prevActivations, i_math_t& iMath, i_rng_t& iRng, const bool bInTraining)noexcept {
+		//void fprop(const realmtx_t& prevActivations, i_math_t& iMath, i_rng_t& iRng, const bool bInTraining)noexcept {
 		template <typename LowerLayer>
 		void fprop(const LowerLayer& lowerLayer)noexcept {
 			static_assert(std::is_base_of<_i_layer, LowerLayer>::value, "Template parameter LowerLayer must implement _i_layer");
@@ -213,7 +213,7 @@ namespace nntl {
 		}
 
 		template <typename LowerLayer>
-		void bprop(const floatmtx_t& data_y, const LowerLayer& lowerLayer, floatmtx_t& dLdAPrev)noexcept {
+		void bprop(const realmtx_t& data_y, const LowerLayer& lowerLayer, realmtx_t& dLdAPrev)noexcept {
 			static_assert(std::is_base_of<_i_layer, LowerLayer>::value, "Template parameter LowerLayer must implement _i_layer");
 			const auto& prevActivations = lowerLayer.get_activations();
 
@@ -235,7 +235,7 @@ namespace nntl {
 			if (m_bRestrictdLdZ) m_pMath->evClamp(m_dLdZ, m_dLdZRestrictLowerBnd, m_dLdZRestrictUpperBnd);
 
 			//compute dL/dW = 1/batchsize * (dL/dZ)` * Aprev
-			m_pMath->mScaledMulAtB_C(float_t_(1.0) / float_t_(m_dLdZ.rows()), m_dLdZ, prevActivations, m_dLdW);
+			m_pMath->mScaledMulAtB_C(real_t(1.0) / real_t(m_dLdZ.rows()), m_dLdZ, prevActivations, m_dLdW);
 			
 			if (!lowerLayer.is_input_layer()) {
 				NNTL_ASSERT(!m_weights.emulatesBiases());
@@ -253,7 +253,7 @@ namespace nntl {
 
 		//use this function to put a restriction on dL/dZ value - this may help in training large networks
 		//(see Alex Graves's “Generating Sequences With Recurrent Neural Networks”(2013) )
-		self_ref_t restrict_dL_dZ(float_t_ lowerBnd, float_t_ upperBnd)noexcept {
+		self_ref_t restrict_dL_dZ(real_t lowerBnd, real_t upperBnd)noexcept {
 			NNTL_ASSERT(lowerBnd < upperBnd);
 			m_bRestrictdLdZ = true;
 			m_dLdZRestrictLowerBnd = lowerBnd;
@@ -264,8 +264,8 @@ namespace nntl {
 			m_bRestrictdLdZ = false; 
 			return get_self();
 		}
-		const float_t_ learning_rate()const noexcept { return m_learningRate; }
-		self_ref_t learning_rate(float_t_ lr)noexcept {
+		const real_t learning_rate()const noexcept { return m_learningRate; }
+		self_ref_t learning_rate(real_t lr)noexcept {
 			NNTL_ASSERT(lr > 0);
 			m_learningRate = lr;
 			return get_self();
@@ -294,7 +294,7 @@ namespace nntl {
 	{
 	public:
 		~layer_output() noexcept {};
-		layer_output(const neurons_count_t _neurons_cnt, const float_t_ learningRate=0.01) noexcept :
+		layer_output(const neurons_count_t _neurons_cnt, const real_t learningRate=0.01) noexcept :
 			_layer_output<ActivFunc, Interfaces, GradWorks, layer_output<ActivFunc, Interfaces, GradWorks>>(_neurons_cnt, learningRate) {};
 	};
 

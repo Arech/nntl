@@ -149,25 +149,25 @@ namespace nntl {
 
 			//////////////////////////////////////////////////////////////////////////
 			//generate FP value in range [0,1]
-			float_t_ gen_f_norm()noexcept { return static_cast<float_t_>(m_Rngs[0].Random()); }
+			real_t gen_f_norm()noexcept { return static_cast<real_t>(m_Rngs[0].Random()); }
 
 			//////////////////////////////////////////////////////////////////////////
 			// matrix/vector generation (sequence from begin to end of numbers drawn from uniform distribution in [-a,a])
-			void gen_vector(float_t_* ptr, const size_t n, const float_t_ a)noexcept {
+			void gen_vector(real_t* ptr, const size_t n, const real_t a)noexcept {
 				NNTL_ASSERT(m_pThreads);
 				if (n < bounds_t::bnd_gen_vector) {
 					gen_vector_st(ptr, n, a);
 				}else gen_vector_mt(ptr, n, a);
 			}
-			void gen_vector_st(float_t_* ptr, const size_t n, const float_t_ a)noexcept {
+			void gen_vector_st(real_t* ptr, const size_t n, const real_t a)noexcept {
 				NNTL_ASSERT(m_pThreads);
 				const double scale = 2 * a;
 				const auto pE = ptr + n;
 				while (ptr != pE) {
-					*ptr++ = static_cast<float_t_>(scale*(m_Rngs[0].Random() - 0.5));
+					*ptr++ = static_cast<real_t>(scale*(m_Rngs[0].Random() - 0.5));
 				}
 			}
-			void gen_vector_mt(float_t_* ptr, const size_t n, const float_t_ a)noexcept {
+			void gen_vector_mt(real_t* ptr, const size_t n, const real_t a)noexcept {
 				NNTL_ASSERT(m_pThreads);
 				const double scale = 2 * a;
 				auto& rngs = m_Rngs;
@@ -176,27 +176,27 @@ namespace nntl {
 					auto p = ptr + r.offset();
 					const auto pE = p + r.cnt();
 					while (p != pE) {
-						*p++ = static_cast<float_t_>(scale*(rg.Random() - 0.5));
+						*p++ = static_cast<real_t>(scale*(rg.Random() - 0.5));
 					}
 				}, n);
 			}			
 			
 			//////////////////////////////////////////////////////////////////////////
 			//generate vector with values in range [0,1]
-			void gen_vector_norm(float_t_* ptr, const size_t n)noexcept {
+			void gen_vector_norm(real_t* ptr, const size_t n)noexcept {
 				NNTL_ASSERT(m_pThreads);
 				if (n < bounds_t::bnd_gen_vector_norm) {
 					gen_vector_norm_st(ptr, n);
 				} else gen_vector_norm_mt(ptr, n);
 			}
-			void gen_vector_norm_st(float_t_* ptr, const size_t n)noexcept {
+			void gen_vector_norm_st(real_t* ptr, const size_t n)noexcept {
 				NNTL_ASSERT(m_pThreads);
 				const auto pE = ptr + n;
 				while (ptr != pE) {
 					*ptr++ = gen_f_norm();
 				}
 			}
-			void gen_vector_norm_mt(float_t_* ptr, const size_t n)noexcept {
+			void gen_vector_norm_mt(real_t* ptr, const size_t n)noexcept {
 				NNTL_ASSERT(m_pThreads);
 				auto& rngs = m_Rngs;
 				m_pThreads->run([ptr, &rngs](const par_range_t&r) {
@@ -204,7 +204,7 @@ namespace nntl {
 					auto p = ptr + r.offset();
 					const auto pE = p + r.cnt();
 					while (p != pE) {
-						*p++ = static_cast<float_t_>(rg.Random());
+						*p++ = static_cast<real_t>(rg.Random());
 					}
 				}, n);
 			}

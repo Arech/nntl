@@ -48,7 +48,7 @@ namespace math {
 
 	struct b_ACML {
 
-		template<typename sz_t, typename fl_t = nntl::math_types::float_ty>
+		template<typename sz_t, typename fl_t = nntl::math_types::real_ty>
 		static typename std::enable_if_t< std::is_same< std::remove_pointer_t<fl_t>, double>::value > gemm(
 			const enum CBLAS_TRANSPOSE TransA, const enum CBLAS_TRANSPOSE TransB,
 			const sz_t M, const sz_t N, const sz_t K,
@@ -63,7 +63,7 @@ namespace math {
 				alpha, consz_tcast<fl_t*>(A), static_cast<int>(lda), consz_tcast<fl_t*>(B), static_cast<int>(ldb), beta, consz_tcast<fl_t*>(C), static_cast<int>(ldc));
 		}
 
-		template<typename sz_t, typename fl_t = nntl::math_types::float_ty>
+		template<typename sz_t, typename fl_t = nntl::math_types::real_ty>
 		static typename std::enable_if_t< std::is_same< std::remove_pointer_t<fl_t>, float>::value > gemm(
 			const enum CBLAS_TRANSPOSE TransA, const enum CBLAS_TRANSPOSE TransB,
 			const sz_t M, const sz_t N, const sz_t K,

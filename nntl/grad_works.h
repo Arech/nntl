@@ -40,8 +40,8 @@ namespace nntl {
 			typedef i_math_t_ i_math_t;
 			static_assert(std::is_base_of<math::_i_math, i_math_t>::value, "i_math_t type should be derived from _i_math");
 
-			typedef math_types::floatmtx_ty floatmtx_t;
-			typedef floatmtx_t::mtx_size_t mtx_size_t;
+			typedef math_types::realmtx_ty realmtx_t;
+			typedef realmtx_t::mtx_size_t mtx_size_t;
 			
 			i_math_t* pMath;
 			mtx_size_t weightsSize;
@@ -51,12 +51,12 @@ namespace nntl {
 	}
 
 	struct _i_grad_works {
-		typedef math_types::floatmtx_ty floatmtx_t;
-		typedef math_types::floatmtxdef_ty floatmtxdef_t;
-		typedef floatmtx_t::value_type float_t_;
-		typedef floatmtx_t::vec_len_t vec_len_t;
-		typedef floatmtx_t::numel_cnt_t numel_cnt_t;
-		typedef floatmtx_t::mtx_size_t mtx_size_t;
+		typedef math_types::realmtx_ty realmtx_t;
+		typedef math_types::realmtxdef_ty realmtxdef_t;
+		typedef realmtx_t::value_type real_t;
+		typedef realmtx_t::vec_len_t vec_len_t;
+		typedef realmtx_t::numel_cnt_t numel_cnt_t;
+		typedef realmtx_t::mtx_size_t mtx_size_t;
 
 		template<typename grad_init_t>
 		nntl_interface bool init(const grad_init_t& ind)noexcept;
@@ -65,30 +65,30 @@ namespace nntl {
 		//should the learning rate be applied to dLdW before call to apply_grad()
 		nntl_interface const bool pre_apply_learning_rate()const noexcept;
 
-		nntl_interface void pre_training_fprop(floatmtx_t& weights)noexcept;
+		nntl_interface void pre_training_fprop(realmtx_t& weights)noexcept;
 
 		//dLdW can have any values on output (use it for temporary calculations if needed)
-		nntl_interface void apply_grad(floatmtxdef_t& weights, floatmtx_t& dLdW, float_t_ learningRate)noexcept;
+		nntl_interface void apply_grad(realmtxdef_t& weights, realmtx_t& dLdW, real_t learningRate)noexcept;
 	};
 
 	struct ILR {
-		typedef math_types::float_ty float_t_;
+		typedef math_types::real_ty real_t;
 
-		float_t_ mulDecr, mulIncr, capLow, capHigh;
+		real_t mulDecr, mulIncr, capLow, capHigh;
 
-		ILR()noexcept:mulDecr(float_t_(0.0)), mulIncr(float_t_(0.0)), capLow(float_t_(0.0)), capHigh(float_t_(0.0)) {}
-		ILR(float_t_ decr, float_t_ incr, float_t_ cLow, float_t_ cHigh)noexcept:mulDecr(decr), mulIncr(incr), capLow(cLow), capHigh(cHigh) {
+		ILR()noexcept:mulDecr(real_t(0.0)), mulIncr(real_t(0.0)), capLow(real_t(0.0)), capHigh(real_t(0.0)) {}
+		ILR(real_t decr, real_t incr, real_t cLow, real_t cHigh)noexcept:mulDecr(decr), mulIncr(incr), capLow(cLow), capHigh(cHigh) {
 			NNTL_ASSERT((decr > 0 && decr < 1 && incr > 1 && cHigh > cLow && cLow > 0) || (decr == 0 && incr == 0 && cHigh == 0 && cLow == 0));
 		}
-		void set(float_t_ decr, float_t_ incr, float_t_ cLow, float_t_ cHigh)noexcept {
+		void set(real_t decr, real_t incr, real_t cLow, real_t cHigh)noexcept {
 			NNTL_ASSERT((decr > 0 && decr < 1 && incr > 1 && cHigh > cLow && cLow > 0) || (decr == 0 && incr == 0 && cHigh == 0 && cLow == 0));
 			mulDecr = decr;
 			mulIncr = incr;
 			capLow = cLow;
 			capHigh = cHigh;
 		}
-		void clear()noexcept { set(float_t_(0.0), float_t_(0.0), float_t_(0.0), float_t_(0.0)); }
-		const bool bUseMe()const noexcept { return mulDecr > float_t_(0.0); }
+		void clear()noexcept { set(real_t(0.0), real_t(0.0), real_t(0.0), real_t(0.0)); }
+		const bool bUseMe()const noexcept { return mulDecr > real_t(0.0); }
 	};
 
 
@@ -115,10 +115,10 @@ namespace nntl {
 
 	protected:
 		iMath_t* m_pMath;
-		float_t_ m_momentum;
-		float_t_ m_emaDecay;
-		float_t_ m_numericStabilizerEps;
-		float_t_ m_maxWeightVecNorm;//coefficient of max-norm regularization ||W||2 <= c (see "Dropout: A Simple Way to Prevent Neural Networks from Overfitting".2014)
+		real_t m_momentum;
+		real_t m_emaDecay;
+		real_t m_numericStabilizerEps;
+		real_t m_maxWeightVecNorm;//coefficient of max-norm regularization ||W||2 <= c (see "Dropout: A Simple Way to Prevent Neural Networks from Overfitting".2014)
 		//hint: weights initialized from uniform distribution [-b,b]. It's second raw momentum is b^2/3, so the mean norm should
 		//be about <row_vector_length>*b^2/3
 
@@ -152,7 +152,7 @@ namespace nntl {
 
 		ILR m_ILR;
 
-		floatmtx_t m_rmsF, m_rmsG, m_Vw, m_ILRGain, m_prevdLdW;
+		realmtx_t m_rmsF, m_rmsG, m_Vw, m_ILRGain, m_prevdLdW;
 
 	public:
 		~grad_works()noexcept {}
@@ -208,7 +208,7 @@ namespace nntl {
 			m_ILR.clear();
 		}
 
-		void pre_training_fprop(floatmtx_t& weights) noexcept {
+		void pre_training_fprop(realmtx_t& weights) noexcept {
 			if (use_momentums() && m_bNesterovMomentum) {
 				// (1)  vW`(t+1)= momentum*vW(t)
 				// (2)  W`(t+1) = W(t) - momentum*vW(t)
@@ -217,7 +217,7 @@ namespace nntl {
 			}
 		}
 		
-		void apply_grad(floatmtxdef_t& weights, floatmtx_t& dLdW, float_t_ learningRate) noexcept {
+		void apply_grad(realmtxdef_t& weights, realmtx_t& dLdW, real_t learningRate) noexcept {
 			NNTL_ASSERT(m_pMath);
 			NNTL_ASSERT(dLdW.size() == weights.size());
 
@@ -301,7 +301,7 @@ namespace nntl {
 		
 		//////////////////////////////////////////////////////////////////////////
 
-		self_t& set_ILR(float_t_ decr, float_t_ incr, float_t_ capLow, float_t_ capHigh) noexcept {
+		self_t& set_ILR(real_t decr, real_t incr, real_t capLow, real_t capHigh) noexcept {
 			m_ILR.set(decr, incr, capLow, capHigh);
 			return *this;
 		}
@@ -309,27 +309,27 @@ namespace nntl {
 			m_ILR = ilr;
 			return *this;
 		}
-		self_t& set_momentum(float_t_ m, bool bApplyILRToMomentumVelocity = true)noexcept {
+		self_t& set_momentum(real_t m, bool bApplyILRToMomentumVelocity = true)noexcept {
 			NNTL_ASSERT(m >= 0 && m < 1);
 			m_momentum = m;
 			m_bNesterovMomentum = false;
 			m_bApplyILRToMomentumVelocity = bApplyILRToMomentumVelocity;
 			return *this;
 		}
-		self_t& set_nesterov_momentum(float_t_ m, bool bApplyILRToMomentumVelocity = true)noexcept {
+		self_t& set_nesterov_momentum(real_t m, bool bApplyILRToMomentumVelocity = true)noexcept {
 			NNTL_ASSERT(m >= 0 && m < 1);
 			m_momentum = m;
 			m_bNesterovMomentum = true;
 			m_bApplyILRToMomentumVelocity = bApplyILRToMomentumVelocity;
 			return *this;
 		}
-		self_t& set_ema_decay(float_t_ c)noexcept {
+		self_t& set_ema_decay(real_t c)noexcept {
 			NNTL_ASSERT(c > 0 && c < 1);
 			m_emaDecay = c;
 			return *this;
 		}
-		self_t& set_numeric_stabilizer(float_t_ n)noexcept {
-			NNTL_ASSERT(n >= 0 && n < float_t_(.1));
+		self_t& set_numeric_stabilizer(real_t n)noexcept {
+			NNTL_ASSERT(n >= 0 && n < real_t(.1));
 			m_numericStabilizerEps = n;
 			return *this;
 		}
@@ -338,16 +338,16 @@ namespace nntl {
 			return *this;
 		}
 
-		self_t& set_weight_vector_max_norm2(const float_t_ mn, const bool bIgnoreBiasWeights=false)noexcept {
-			NNTL_ASSERT(mn >= float_t_(0.0));
+		self_t& set_weight_vector_max_norm2(const real_t mn, const bool bIgnoreBiasWeights=false)noexcept {
+			NNTL_ASSERT(mn >= real_t(0.0));
 			m_maxWeightVecNorm = mn;
 			m_bMaxWeightVecNormIgnoreBias = bIgnoreBiasWeights;
 			return *this;
 		}
 
-		const bool use_max_norm_regularization()const noexcept { return m_maxWeightVecNorm > float_t_(0.0); }
+		const bool use_max_norm_regularization()const noexcept { return m_maxWeightVecNorm > real_t(0.0); }
 		const bool use_individual_learning_rates()const noexcept { return m_ILR.bUseMe(); }
-		const bool use_momentums()const noexcept { return m_momentum > float_t_(0.0); };
+		const bool use_momentums()const noexcept { return m_momentum > real_t(0.0); };
 
 	protected:
 		

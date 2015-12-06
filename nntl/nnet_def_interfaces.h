@@ -55,10 +55,10 @@ namespace nntl {
 	struct nnet_def_interfaces {
 
 #ifdef NNTL_THREADS_WINQDU_AVAILABLE
-		typedef threads::WinQDU<math_types::floatmtx_ty::numel_cnt_t> iThreads_t;
-		//typedef threads::Std<math_types::floatmtx_ty::numel_cnt_t> iThreads_t;
+		typedef threads::WinQDU<math_types::realmtx_ty::numel_cnt_t> iThreads_t;
+		//typedef threads::Std<math_types::realmtx_ty::numel_cnt_t> iThreads_t;
 #else
-		typedef threads::Std<math_types::floatmtx_ty::numel_cnt_t> iThreads_t;
+		typedef threads::Std<math_types::realmtx_ty::numel_cnt_t> iThreads_t;
 #endif // NNTL_THREADS_WINQDU_AVAILABLE
 
 		typedef math::iMath_basic<iThreads_t> iMath_t;

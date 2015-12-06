@@ -100,20 +100,20 @@ TEST(TestUtil, OwnOrUsePtr) {
 }
 
 TEST(TestUtil, Clamp) {
-	using float_t_ = math_types::float_ty;
-	math_types::floatmtx_ty m(50, 50), d;
+	using real_t = math_types::real_ty;
+	math_types::realmtx_ty m(50, 50), d;
 
 	rng::Std r;
 
 	r.gen_matrix(m, 20);
 	m.cloneTo(d);
 
-	float_t_ lo = -10, hi = 10;
+	real_t lo = -10, hi = 10;
 
 	bool bGotBig = false;
 	auto p = m.dataAsVec();
 	auto pd = d.dataAsVec();
-	for (math_types::floatmtx_ty::numel_cnt_t i = 0, im = m.numel(); i < im; ++i) {
+	for (math_types::realmtx_ty::numel_cnt_t i = 0, im = m.numel(); i < im; ++i) {
 		auto v = p[i];
 		if (v > hi || v < lo) {
 			bGotBig = true;
@@ -130,7 +130,7 @@ TEST(TestUtil, Clamp) {
 	utils::boost::algorithm::clamp_range(p, p + m.numel(), p, lo, hi);
 
 	bGotBig = false;
-	for (math_types::floatmtx_ty::numel_cnt_t i = 0, im = m.numel(); i < im; ++i) {
+	for (math_types::realmtx_ty::numel_cnt_t i = 0, im = m.numel(); i < im; ++i) {
 		if (p[i] > hi || p[i] < lo) {
 			bGotBig = true;
 			break;

@@ -73,13 +73,13 @@ namespace math {
 		//////////////////////////////////////////////////////////////////////////
 		// LEVEL 1
 		// AXPY y=a*x+y
-		template<typename sz_t, typename fl_t = nntl::math_types::float_ty>
+		template<typename sz_t, typename fl_t = nntl::math_types::real_ty>
 		static typename std::enable_if_t< std::is_same< std::remove_pointer_t<fl_t>, double>::value > axpy(
 			const sz_t n, const fl_t alpha, const fl_t *x, const sz_t incx, fl_t *y, const sz_t incy)
 		{	
 			cblas_daxpy(static_cast<blasint>(n), alpha, x, static_cast<blasint>(incx), y, static_cast<blasint>(incy));
 		}
-		template<typename sz_t, typename fl_t = nntl::math_types::float_ty>
+		template<typename sz_t, typename fl_t = nntl::math_types::real_ty>
 		static typename std::enable_if_t< std::is_same< std::remove_pointer_t<fl_t>, float>::value > axpy(
 			const sz_t n, const fl_t alpha, const fl_t *x, const sz_t incx, fl_t *y, const sz_t incy)
 		{
@@ -112,7 +112,7 @@ namespace math {
 		// C - Array, size ldc by n. Before entry, the leading m-by-n part of the array c must contain the matrix C, except when beta is
 		//		equal to zero, in which case c need not be set on entry.
 		// ldc - Specifies the leading dimension of c as declared in the calling (sub)program. ldc must be at least max(1, m).
-		template<typename sz_t, typename fl_t = nntl::math_types::float_ty>
+		template<typename sz_t, typename fl_t = nntl::math_types::real_ty>
 		static typename std::enable_if_t< std::is_same< std::remove_pointer_t<fl_t>, double>::value >
 			gemm( //const enum CBLAS_TRANSPOSE TransA, const enum CBLAS_TRANSPOSE TransB,
 			const bool bTransposeA, const bool bTransposeB,
@@ -123,7 +123,7 @@ namespace math {
 				static_cast<blasint>(M), static_cast<blasint>(N), static_cast<blasint>(K),
 				alpha, A, static_cast<blasint>(lda), B, static_cast<blasint>(ldb), beta, C, static_cast<blasint>(ldc));
 		}
-		template<typename sz_t, typename fl_t = nntl::math_types::float_ty>
+		template<typename sz_t, typename fl_t = nntl::math_types::real_ty>
 		static typename std::enable_if_t< std::is_same< std::remove_pointer_t<fl_t>, float>::value >
 			gemm( //const enum CBLAS_TRANSPOSE TransA, const enum CBLAS_TRANSPOSE TransB,
 			const bool bTransposeA, const bool bTransposeB,
@@ -163,7 +163,7 @@ namespace math {
 		//		If ordering = 'R' or 'r', then
 		//			If trans = 'T' or 't' or 'C' or 'c', this parameter must be at least max(1, rows)
 		//			If trans = 'N' or 'n' or 'R' or 'r', this parameter must be at least max(1, cols)
-		template<typename sz_t, typename fl_t = nntl::math_types::float_ty>
+		template<typename sz_t, typename fl_t = nntl::math_types::real_ty>
 		static typename std::enable_if_t< std::is_same< std::remove_pointer_t<fl_t>, double>::value >
 			omatcopy(const bool bTranspose, const sz_t rows, const sz_t cols, const fl_t alpha,
 				const fl_t* pA, const sz_t lda, fl_t* pB, const sz_t ldb)
@@ -172,7 +172,7 @@ namespace math {
 				static_cast<blasint>(rows), static_cast<blasint>(cols), alpha,
 				pA, static_cast<blasint>(lda), pB, static_cast<blasint>(ldb));
 		}
-		template<typename sz_t, typename fl_t = nntl::math_types::float_ty>
+		template<typename sz_t, typename fl_t = nntl::math_types::real_ty>
 		static typename std::enable_if_t< std::is_same< std::remove_pointer_t<fl_t>, float>::value >
 			omatcopy(const bool bTranspose, const sz_t rows, const sz_t cols, const fl_t alpha,
 				const fl_t* pA, const sz_t lda, fl_t* pB, const sz_t ldb)

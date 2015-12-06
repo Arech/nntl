@@ -42,32 +42,32 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 using namespace nntl;
 
 TEST(TestBinFile, ReadMatrix) {
-	typedef math_types::floatmtx_ty floatmtx_t;
-	typedef floatmtx_t::vec_len_t vec_len_t;
+	typedef math_types::realmtx_ty realmtx_t;
+	typedef realmtx_t::vec_len_t vec_len_t;
 	typedef nntl_supp::binfile binfile;
 	typedef binfile::ErrorCode ErrorCode;
 
 	const strchar_t* mtx_fname = "./test_data/mtx.bin";
 	const double mtx_content[4]{1,4,3,2};
 	
-	floatmtx_t m;
+	realmtx_t m;
 	binfile r;
 
 	auto ec = r.read(NNTL_STRING(mtx_fname), m);
 	ASSERT_EQ(ErrorCode::Success, ec) << r.get_last_error_str();
-	ASSERT_EQ(floatmtx_t::mtx_size_t(2, 2), m.size());
+	ASSERT_EQ(realmtx_t::mtx_size_t(2, 2), m.size());
 	
 	const auto p = m.dataAsVec();
 	const auto im = m.numel();
-	for (floatmtx_t::numel_cnt_t i = 0; i < im; ++i) ASSERT_EQ(mtx_content[i], p[i]);
+	for (realmtx_t::numel_cnt_t i = 0; i < im; ++i) ASSERT_EQ(mtx_content[i], p[i]);
 
 }
 
 TEST(TestBinFile, ReadTrainData) {
-	typedef train_data::mtx_t floatmtx_t;
-	typedef floatmtx_t::vec_len_t vec_len_t;
-	using mtx_size_t = floatmtx_t::mtx_size_t;
-	using float_t_ = floatmtx_t::value_type;
+	typedef train_data::realmtx_t realmtx_t;
+	typedef realmtx_t::vec_len_t vec_len_t;
+	using mtx_size_t = realmtx_t::mtx_size_t;
+	using real_t = realmtx_t::value_type;
 
 	typedef nntl_supp::binfile binfile;
 	typedef binfile::ErrorCode ErrorCode;
@@ -82,10 +82,10 @@ TEST(TestBinFile, ReadTrainData) {
 	ASSERT_EQ(ErrorCode::Success, ec) << r.get_last_error_str();
 
 	//biased (default) version:
-	const std::array<std::array<float_t_, 3>, 5> train_x_data{ 77,80,19,49,45,65,71,75,28,68,66,16 ,1,1,1 };
-	const std::array<std::array<float_t_, 3>, 1> train_y_data{ 12,50,96 };
-	const std::array<std::array<float_t_, 2>, 5> test_x_data{ 34,59,22,75,26,51,70,89 ,1,1 };
-	const std::array<std::array<float_t_, 2>, 1> test_y_data{ 96,55 };
+	const std::array<std::array<real_t, 3>, 5> train_x_data{ 77,80,19,49,45,65,71,75,28,68,66,16 ,1,1,1 };
+	const std::array<std::array<real_t, 3>, 1> train_y_data{ 12,50,96 };
+	const std::array<std::array<real_t, 2>, 5> test_x_data{ 34,59,22,75,26,51,70,89 ,1,1 };
+	const std::array<std::array<real_t, 2>, 1> test_y_data{ 96,55 };
 
 	mtx_size_t train_x_size(static_cast<vec_len_t>(train_x_data[0].size()), static_cast<vec_len_t>(train_x_data.size())),
 		train_y_size(static_cast<vec_len_t>(train_y_data[0].size()), static_cast<vec_len_t>(train_y_data.size())),

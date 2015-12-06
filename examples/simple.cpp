@@ -38,7 +38,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 using namespace nntl;
 typedef nntl_supp::binfile reader_t;
-using float_t_ = math_types::float_ty;
+using real_t = math_types::real_ty;
 
 #if defined(TESTS_SKIP_NNET_LONGRUNNING)
 //ALWAYS run debug build with similar relations of data sizes:
@@ -65,7 +65,7 @@ TEST(Simple, PlainFFN) {
 
 	//2. define NN layers and their properties
 	size_t epochs = 20;
-	const float_t_ learningRate = .1;
+	const real_t learningRate = .1;
 
 	// a. input layer (take a look at .cols_no_bias() call - it's required here instead .cols() because upon data
 	// reading from file, the code appends to all _x data
@@ -119,7 +119,7 @@ TEST(Simple, NotSoPlainFFN) {
 
 	//2. define NN layers and their properties
 	size_t epochs = 30;
-	const float_t_ learningRate = .001, dropoutRate=.5, momentum=.93, learningRateDecayCoeff=.95;
+	const real_t learningRate = .001, dropoutRate=.5, momentum=.93, learningRateDecayCoeff=.95;
 	const ILR ilr(.94, 1.05, .001, 10);
 
 	// a. input layer
