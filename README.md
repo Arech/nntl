@@ -12,6 +12,8 @@ base + momentum + dropout|332s|**166s**|**x2.0**
 
 So, it's about a two times faster (and has a room for further improvements, btw). Not so much, but I'm not aware of anything better (please, contact me if you know). I also tried [tiny-cnn](https://github.com/nyanp/tiny-cnn), but failed to achive even Matlab-comparable performance (not counting that there is only x32 version available out-of-the-box).
 
+Also, one may switch to float data type instead of double to run the code yet about two times faster.
+
 I wouldn't state nntl is the fastest CPU implementation of FF NN, but nonetheless it's pretty fast and BSD-licensed (except for [random number generators](https://github.com/Arech/AF_randomc_h), that is GPL licensed, - but you can easily substitute RNG for you own if you want). It's intended to be as fast as possible, provided that the code is easy to understand and maintain.
 
 ## Currently Implemented NN Features
@@ -40,6 +42,7 @@ I wouldn't state nntl is the fastest CPU implementation of FF NN, but nonetheles
 ## The Pros and Cons
 ### Pros
 * pretty fast x64 vectorized multithreaded header only C++14 implementation
+* single (float) and double precision floating point data types supported.
 * modular low coupled architecture that is (I think) easy to understand, maintain and use. Replace / update any module you need, like:
   * math subsystem
   * random number generators
@@ -48,7 +51,6 @@ I wouldn't state nntl is the fastest CPU implementation of FF NN, but nonetheles
   * activation functions
   * ...
 * OpenBLAS (for matrix*matrix multiplications) is the only external code dependency. It could be easily replaced if needed.
-* It *should* support float -based computations but at this moment I haven't tested it and worked only with double.
 
 ### Cons
 * I wouldn't say that NNTL is a Plug-n-Play system. It's a (experimental) framework to build fast neural networks and experiment with it. If you just want to play with ANN, it's better to take something more suitable like [DeepLearnToolbox](https://github.com/rasmusbergpalm/DeepLearnToolbox) for Matlab or [Theano](http://deeplearning.net/tutorial/) for Python. [TensorFlow](http://tensorflow.org/) or [DMTK](http://www.dmtk.io/) is great if you have a lot of computing power.
