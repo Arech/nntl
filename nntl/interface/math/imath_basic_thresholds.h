@@ -33,7 +33,8 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #pragma once
 
 //This file define a single/multi-threading code thresholds for iMath_basic class
-//Substitute for your own
+//Substitute for your own if you want to utilize mt/st branching code of imath_basic
+// Or just use imath_basic_mt for reasonably large data sizes
 
 #ifndef NNTL_OVERRIDE_MATH_BASIC_THRESHOLDS
 

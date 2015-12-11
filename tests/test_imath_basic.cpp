@@ -31,6 +31,8 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 #include "stdafx.h"
 
+//TODO: cleanup all this mess. Drop all performance testing code (it's useless) and leave only correctness tests.
+
 #include "../nntl/interface/math.h"
 #include "../nntl/common.h"
 
@@ -42,23 +44,24 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <array>
 #include <numeric>
 
-#include "../nntl/utils/chrono.h"
 #include "../nntl/utils/prioritize_workers.h"
-
+#include "../nntl/utils/tictoc.h"
 #include "etalons.h"
 
 using namespace nntl;
+using namespace nntl::utils;
+
 using namespace std::chrono;
 
-#ifdef _DEBUG
+#ifdef NNTL_DEBUG
 constexpr unsigned TEST_PERF_REPEATS_COUNT = 10;
 constexpr unsigned TEST_CORRECTN_REPEATS_COUNT = 100;
 #else
-constexpr unsigned TEST_PERF_REPEATS_COUNT = 400;
+constexpr unsigned TEST_PERF_REPEATS_COUNT = 500;
 constexpr unsigned TEST_CORRECTN_REPEATS_COUNT = 50;
-#endif // _DEBUG
+#endif // NNTL_DEBUG
 
-void ASSERT_FLOATMTX_EQ(const realmtx_t& c1, const realmtx_t& c2, const char* descr, const real_t eps) noexcept{
+void ASSERT_REALMTX_EQ(const realmtx_t& c1, const realmtx_t& c2, const char* descr, const real_t eps) noexcept{
 	ASSERT_EQ(c1.size(), c2.size()) << descr;
 	ASSERT_EQ(c1.emulatesBiases(), c2.emulatesBiases()) << descr;
 
@@ -96,9 +99,6 @@ void test_evAdd_ip(iMath& iM, typename iMath::realmtx_t::vec_len_t rowsCnt, type
 	const auto dataSize = realmtx_t::sNumel(rowsCnt, colsCnt);
 	STDCOUTL("******* testing evAdd_ip() over " << rowsCnt << "x" << colsCnt << " matrix (" << dataSize << " elements) **************");
 
-	double tstNaive, tmtNaive, tBest; //, tstVec, tmtVec;
-	steady_clock::time_point bt;
-	nanoseconds diff;
 	constexpr unsigned maxReps = TEST_PERF_REPEATS_COUNT, testCorrRepCnt = TEST_CORRECTN_REPEATS_COUNT;
 
 	realmtx_t B(rowsCnt, colsCnt), A(rowsCnt, colsCnt);
@@ -120,55 +120,56 @@ void test_evAdd_ip(iMath& iM, typename iMath::realmtx_t::vec_len_t rowsCnt, type
 			evAdd_ip_ET(A2, B);
 
 			iM.evAdd_ip_st(A, B);
-			ASSERT_FLOATMTX_EQ(A2, A, "evAdd_ip_st failed correctness test");
+			ASSERT_REALMTX_EQ(A2, A, "evAdd_ip_st failed correctness test");
 
 			A3.cloneTo(A);
 			iM.evAdd_ip_mt(A, B);
-			ASSERT_FLOATMTX_EQ(A2, A, "evAdd_ip_mt failed correctness test");
+			ASSERT_REALMTX_EQ(A2, A, "evAdd_ip_mt failed correctness test");
 
 			A3.cloneTo(A);
 			iM.evAdd_ip(A, B);
-			ASSERT_FLOATMTX_EQ(A2, A, "evAdd_ip failed correctness test");
+			ASSERT_REALMTX_EQ(A2, A, "evAdd_ip failed correctness test");
 		}
 	}
 
+	if (std::is_same<real_t,float>::value) {
+		//static_assert(false, "bla");
+		//iMath::bla();
+		STDCOUTL("blaaa");
+	}
+
+	tictoc tst, tmt, tb;
 	//////////////////////////////////////////////////////////////////////////
 	//testing performance
 	utils::prioritize_workers<utils::PriorityClass::PerfTesting, iMath::ithreads_t> pw(iM.ithreads());
 
-	rg.gen_matrix(A, 2);
-	bt = steady_clock::now();
-	for (unsigned r = 0; r < maxReps; ++r) iM.evAdd_ip_st(A, B);
-	diff = steady_clock::now() - bt;
-	STDCOUTL("st_naive:\t" << utils::duration_readable(diff, maxReps, &tstNaive));
+	//FFFFfffffffff... don't ever think about removing rg. calls that randomizes data...
+	for (unsigned r = 0; r < maxReps; ++r) {
+		rg.gen_matrix(A, 2); rg.gen_matrix(B, 2);
+		tst.tic();
+		iM.evAdd_ip_st(A, B);
+		tst.toc();
 
-	rg.gen_matrix(A, 2);
-	bt = steady_clock::now();
-	for (unsigned r = 0; r < maxReps; ++r) iM.evAdd_ip_mt(A, B);
-	diff = steady_clock::now() - bt;
-	STDCOUTL("mt_naive:\t" << utils::duration_readable(diff, maxReps, &tmtNaive));
+		rg.gen_matrix(A, 2); rg.gen_matrix(B, 2);
+		tmt.tic();
+		iM.evAdd_ip_mt(A, B);
+		tmt.toc();
 
-	rg.gen_matrix(A, 2);
-	bt = steady_clock::now();
-	for (unsigned r = 0; r < maxReps; ++r) iM.evAdd_ip(A, B);
-	diff = steady_clock::now() - bt;
-	STDCOUTL("best:\t\t" << utils::duration_readable(diff, maxReps, &tBest));
+		rg.gen_matrix(A, 2); rg.gen_matrix(B, 2);
+		tb.tic();
+		iM.evAdd_ip(A, B);
+		tb.toc();
+	}
+	tst.say("st");
+	tmt.say("mt");
+	tb.say("best");
 }
-
 TEST(TestIMathBasic, evAddIp) {
 	typedef nntl::nnet_def_interfaces::iThreads_t def_threads_t;
 	typedef math::iMath_basic<def_threads_t> iMB;
 	iMB iM;
-
-	//for (unsigned i = 160; i <= 240; i += 5) test_evAdd_ip(iM, i,100);
-	test_evAdd_ip(iM, 100);
-#ifndef TESTS_SKIP_LONGRUNNING
-	test_evAdd_ip(iM, 1000);
-	test_evAdd_ip(iM, 10000);
-	test_evAdd_ip(iM, 100000);
-#endif
+	NNTL_RUN_TEST2(iMB::Thresholds_t::evAdd_ip, 100) test_evAdd_ip(iM, i, 100);
 }
-
 
 //////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////
@@ -182,7 +183,6 @@ void test_evMulCipSubip(iMath& iM, vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 	const auto dataSize = realmtx_t::sNumel(rowsCnt, colsCnt);
 	STDCOUTL("********* testing evMulC_ip_Sub_ip() over " << rowsCnt << "x" << colsCnt << " matrix (" << dataSize << " elements) **************");
 
-	nanoseconds diffSt(0), diffMt(0), diffB(0);
 	constexpr unsigned maxReps = TEST_PERF_REPEATS_COUNT, testCorrRepCnt = TEST_CORRECTN_REPEATS_COUNT;
 
 	const real_t momentum = .9;
@@ -203,54 +203,54 @@ void test_evMulCipSubip(iMath& iM, vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 		evCMulSub_ET(iM, vW3, momentum, W3);
 			
 		iM.evMulC_ip_Sub_ip_st(vW, momentum, W);
-		ASSERT_FLOATMTX_EQ(vW3, vW, "evMulC_ip_Sub_ip_st failed correctness test on vW");
-		ASSERT_FLOATMTX_EQ(W3, W, "evMulC_ip_Sub_ip_st failed correctness test on W");
+		ASSERT_REALMTX_EQ(vW3, vW, "evMulC_ip_Sub_ip_st failed correctness test on vW");
+		ASSERT_REALMTX_EQ(W3, W, "evMulC_ip_Sub_ip_st failed correctness test on W");
 
 		iM.evMulC_ip_Sub_ip_mt(vW2, momentum, W2);
-		ASSERT_FLOATMTX_EQ(vW3, vW2, "evMulC_ip_Sub_ip_mt failed correctness test on vW");
-		ASSERT_FLOATMTX_EQ(W3, W2, "evMulC_ip_Sub_ip_mt failed correctness test on W");
+		ASSERT_REALMTX_EQ(vW3, vW2, "evMulC_ip_Sub_ip_mt failed correctness test on vW");
+		ASSERT_REALMTX_EQ(W3, W2, "evMulC_ip_Sub_ip_mt failed correctness test on W");
 	}
 
-	rg.gen_matrix(vW2, 2);
-	rg.gen_matrix(W2, 2);
-	vW2.cloneTo(vW);
-	W2.cloneTo(W);
-	vW2.cloneTo(vW3);
-	W2.cloneTo(W3);
+// 	rg.gen_matrix(vW2, 2);
+// 	rg.gen_matrix(W2, 2);
+// 	vW2.cloneTo(vW);
+// 	W2.cloneTo(W);
+// 	vW2.cloneTo(vW3);
+// 	W2.cloneTo(W3);
 
+	tictoc tst, tmt, tb;
 	//testing performance
 	utils::prioritize_workers<utils::PriorityClass::PerfTesting, iMath::ithreads_t> pw(iM.ithreads());
 	for (unsigned r = 0; r < maxReps; ++r) {
-		auto bt = steady_clock::now();
+		rg.gen_matrix(vW, 2);
+		rg.gen_matrix(W, 2);
+		tst.tic();
 		iM.evMulC_ip_Sub_ip_st(vW, momentum, W);
-		diffSt += steady_clock::now() - bt;
+		tst.toc();
 
-		bt = steady_clock::now();
+		rg.gen_matrix(vW2, 2);
+		rg.gen_matrix(W2, 2);
+		tmt.tic();
 		iM.evMulC_ip_Sub_ip_mt(vW2, momentum, W2);
-		diffMt += steady_clock::now() - bt;
+		tmt.toc();
 
-		bt = steady_clock::now();
+		rg.gen_matrix(vW3, 2);
+		rg.gen_matrix(W3, 2);
+		tb.tic();
 		iM.evMulC_ip_Sub_ip(vW3, momentum, W3);
-		diffB += steady_clock::now() - bt;
+		tb.toc();
 	}
-	STDCOUTL("st:\t" << utils::duration_readable(diffSt, maxReps));
-	STDCOUTL("mt:\t" << utils::duration_readable(diffMt, maxReps));
-	STDCOUTL("best:\t" << utils::duration_readable(diffB, maxReps));
+	tst.say("st");
+	tmt.say("mt");
+	tb.say("best");
 }
 
 TEST(TestIMathBasic, evMulCipSubip) {
 	typedef nntl::nnet_def_interfaces::iThreads_t def_threads_t;
 	typedef math::iMath_basic<def_threads_t> iMB;
 	iMB iM;
-
-	//for (unsigned i = 100; i <= 200; i += 10) test_evMulCipSubip(iM, i, 100);
-	test_evMulCipSubip(iM, 100);
-#ifndef TESTS_SKIP_LONGRUNNING
-	test_evMulCipSubip(iM, 1000);
-	test_evMulCipSubip(iM, 10000);
-#endif
+	NNTL_RUN_TEST2(iMB::Thresholds_t::evMulC_ip_Sub_ip, 100) test_evMulCipSubip(iM, i, 100);
 }
-
 
 //////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////
@@ -287,7 +287,7 @@ real_t rowvecs_renorm_ET(realmtx_t& m, real_t* pTmp)noexcept {
 }
 template<typename base_t> struct mCheck_normalize_rows_EPS {};
 template<> struct mCheck_normalize_rows_EPS<double> { static constexpr double eps = 1e-10; };
-template<> struct mCheck_normalize_rows_EPS<float> { static constexpr double eps = 1e-5; };
+template<> struct mCheck_normalize_rows_EPS<float> { static constexpr double eps = 4e-5; };
 
 template<typename iMath>
 void test_mCheck_normalize_rows(iMath& iM, vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
@@ -322,11 +322,11 @@ void test_mCheck_normalize_rows(iMath& iM, vec_len_t rowsCnt, vec_len_t colsCnt 
 
 			srcW.cloneTo(W);
 			iM.mCheck_normalize_rows_st(W, renormVal);
-			ASSERT_FLOATMTX_EQ(etW, W, "mCheck_normalize_rows_st failed correctness test", mCheck_normalize_rows_EPS<real_t>::eps);
+			ASSERT_REALMTX_EQ(etW, W, "mCheck_normalize_rows_st failed correctness test", mCheck_normalize_rows_EPS<real_t>::eps);
 
 			srcW.cloneTo(W);
 			iM.mCheck_normalize_rows_mt(W, renormVal);
-			ASSERT_FLOATMTX_EQ(etW, W, "mCheck_normalize_rows_mt failed correctness test", mCheck_normalize_rows_EPS<real_t>::eps);
+			ASSERT_REALMTX_EQ(etW, W, "mCheck_normalize_rows_mt failed correctness test", mCheck_normalize_rows_EPS<real_t>::eps);
 		}
 		renormTo /= testCorrRepCnt;
 	}
@@ -355,22 +355,16 @@ void test_mCheck_normalize_rows(iMath& iM, vec_len_t rowsCnt, vec_len_t colsCnt 
 	STDCOUTL("mt_naivepart:\t" << utils::duration_readable(diffMt, maxReps));
 	STDCOUTL("best:\t\t" << utils::duration_readable(diffB, maxReps));
 }
-
 TEST(TestIMathBasic, mCheckNormalizeRows) {
 	typedef nntl::nnet_def_interfaces::iThreads_t def_threads_t;
 	typedef math::iMath_basic<def_threads_t> iMB;
 	iMB iM;
-
+	NNTL_RUN_TEST2(iMB::Thresholds_t::mCheck_normalize_rows, 100) test_mCheck_normalize_rows(iM, i, 100);
 // 	for (unsigned i = 1400; i <= 1425; i += 5) {
 // 		test_mCheck_normalize_rows(iM, i, i / 16);
 // 		test_mCheck_normalize_rows(iM, i / 4, i / 4);
 // 		test_mCheck_normalize_rows(iM, i / 16, i);
 // 	}
-	test_mCheck_normalize_rows(iM, 100);
-#ifndef TESTS_SKIP_LONGRUNNING
-	test_mCheck_normalize_rows(iM, 1000);
-	test_mCheck_normalize_rows(iM, 10000);
-#endif
 }
 
 //////////////////////////////////////////////////////////////////////////
@@ -456,14 +450,7 @@ TEST(TestIMathBasic, lossSigmXentropy) {
 	typedef nntl::nnet_def_interfaces::iThreads_t def_threads_t;
 	typedef math::iMath_basic<def_threads_t> iMB;
 	iMB iM;
-
-	//for (unsigned i = 100; i <= 130; i += 5 ) test_loss_sigm_xentropy(iM, i, 10);
-	test_loss_sigm_xentropy(iM, 100);
-#ifndef TESTS_SKIP_LONGRUNNING
-	test_loss_sigm_xentropy(iM, 1000);
-	test_loss_sigm_xentropy(iM, 10000);
-	//test_loss_sigm_xentropy(iM, 100000);
-#endif
+	NNTL_RUN_TEST2(iMB::Thresholds_t::loss_sigm_xentropy, 1) test_loss_sigm_xentropy(iM, i, 1);
 }
 
 //////////////////////////////////////////////////////////////////////////
@@ -506,15 +493,15 @@ void test_mBinarize(iMath& iM, typename iMath::realmtx_t::vec_len_t rowsCnt, typ
 
 			AS.cloneTo(A);
 			iM.mBinarize_st(A, frac);
-			ASSERT_FLOATMTX_EQ(A2, A, "mBinarize_st failed correctness test");
+			ASSERT_REALMTX_EQ(A2, A, "mBinarize_st failed correctness test");
 
 			AS.cloneTo(A);
 			iM.mBinarize_mt(A, frac);
-			ASSERT_FLOATMTX_EQ(A2, A, "mBinarize_mt failed correctness test");
+			ASSERT_REALMTX_EQ(A2, A, "mBinarize_mt failed correctness test");
 
 			AS.cloneTo(A);
 			iM.mBinarize(A, frac);
-			ASSERT_FLOATMTX_EQ(A2, A, "mBinarize failed correctness test");
+			ASSERT_REALMTX_EQ(A2, A, "mBinarize failed correctness test");
 		}
 	}
 
@@ -554,14 +541,7 @@ TEST(TestIMathBasic, mBinarize) {
 	typedef nntl::nnet_def_interfaces::iThreads_t def_threads_t;
 	typedef math::iMath_basic<def_threads_t> iMB;
 	iMB iM;
-
-	//for (unsigned i = 130; i <= 144; i += 2) test_mBinarize(iM, i,1000);
-	test_mBinarize(iM, 100);
-#ifndef TESTS_SKIP_LONGRUNNING
-	test_mBinarize(iM, 1000);
-	test_mBinarize(iM, 10000);
-	test_mBinarize(iM, 100000);
-#endif
+	NNTL_RUN_TEST2(iMB::Thresholds_t::mBinarize, 100) test_mBinarize(iM, i,100);
 }
 
 //////////////////////////////////////////////////////////////////////////
@@ -600,13 +580,13 @@ void test_evSub(iMath& iM, typename iMath::realmtx_t::vec_len_t rowsCnt, typenam
 			evSub_ET(A, B, C2);
 
 			iM.evSub_st_naive(A, B, C);
-			ASSERT_FLOATMTX_EQ(C2, C, "evSub_st_naive failed correctness test");
+			ASSERT_REALMTX_EQ(C2, C, "evSub_st_naive failed correctness test");
 
 			iM.evSub_mt_naive(A, B, C);
-			ASSERT_FLOATMTX_EQ(C2, C, "evSub_mt_naive failed correctness test");
+			ASSERT_REALMTX_EQ(C2, C, "evSub_mt_naive failed correctness test");
 
 			iM.evSub(A, B, C);
-			ASSERT_FLOATMTX_EQ(C2, C, "evSub failed correctness test");
+			ASSERT_REALMTX_EQ(C2, C, "evSub failed correctness test");
 		}
 	}
 
@@ -634,14 +614,7 @@ TEST(TestIMathBasic, evSub) {
 	typedef nntl::nnet_def_interfaces::iThreads_t def_threads_t;
 	typedef math::iMath_basic<def_threads_t> iMB;
 	iMB iM;
-
-	//for (unsigned i = 100; i <= 170; i += 5) test_evSub(iM, i,100);
-	test_evSub(iM, 100);
-#ifndef TESTS_SKIP_LONGRUNNING
-	test_evSub(iM, 1000);
-	test_evSub(iM, 10000);
-	test_evSub(iM, 100000);
-#endif
+	NNTL_RUN_TEST2(iMB::Thresholds_t::evSub, 10) test_evSub(iM, i, 10);
 }
 
 
@@ -684,22 +657,22 @@ void test_evSub_ip(iMath& iM, typename iMath::realmtx_t::vec_len_t rowsCnt, type
 			evSub_ip_ET(A2, B);
 
 			iM.evSub_ip_st_naive(A, B);
-			ASSERT_FLOATMTX_EQ(A2, A, "evSub_ip_st_naive failed correctness test");
+			ASSERT_REALMTX_EQ(A2, A, "evSub_ip_st_naive failed correctness test");
 
 			A3.cloneTo(A);
 			iM.evSub_ip_mt_naive(A, B);
-			ASSERT_FLOATMTX_EQ(A2, A, "evSub_ip_mt_naive failed correctness test");
+			ASSERT_REALMTX_EQ(A2, A, "evSub_ip_mt_naive failed correctness test");
 
 			/*iM.evSub_ip_st_vec(A, B);
-			ASSERT_FLOATMTX_EQ(A2, A, "evSub_ip_st_vec failed correctness test");
+			ASSERT_REALMTX_EQ(A2, A, "evSub_ip_st_vec failed correctness test");
 
 			A3.cloneTo(A);
 			iM.evSub_ip_mt_vec(A, B);
-			ASSERT_FLOATMTX_EQ(A2, A, "evSub_ip_mt_vec failed correctness test");*/
+			ASSERT_REALMTX_EQ(A2, A, "evSub_ip_mt_vec failed correctness test");*/
 
 			A3.cloneTo(A);
 			iM.evSub_ip(A, B);
-			ASSERT_FLOATMTX_EQ(A2, A, "evSub_ip failed correctness test");
+			ASSERT_REALMTX_EQ(A2, A, "evSub_ip failed correctness test");
 		}
 	}
 
@@ -742,17 +715,8 @@ TEST(TestIMathBasic, evSubIp) {
 	typedef nntl::nnet_def_interfaces::iThreads_t def_threads_t;
 	typedef math::iMath_basic<def_threads_t> iMB;
 	iMB iM;
-
-	//for (unsigned i = 160; i <= 240; i += 5) test_evSub_ip(iM, i,100);
-	test_evSub_ip(iM, 100);
-#ifndef TESTS_SKIP_LONGRUNNING
-	test_evSub_ip(iM, 1000);
-	test_evSub_ip(iM, 10000);
-	test_evSub_ip(iM, 100000);
-#endif
+	NNTL_RUN_TEST2(iMB::Thresholds_t::evSub_ip, 100) test_evSub_ip(iM, i,100);
 }
-
-
 
 //////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////
@@ -797,15 +761,15 @@ void test_apply_momentum(iMath& iM, typename iMath::realmtx_t::vec_len_t rowsCnt
 			apply_momentum_ET(vW2, momentum, dW);
 
 			iM.apply_momentum_st(vW, momentum, dW);
-			ASSERT_FLOATMTX_EQ(vW2, vW, "apply_momentum_st failed correctness test");
+			ASSERT_REALMTX_EQ(vW2, vW, "apply_momentum_st failed correctness test");
 
 			vW3.cloneTo(vW);
 			iM.apply_momentum_mt(vW,momentum, dW);
-			ASSERT_FLOATMTX_EQ(vW2, vW, "apply_momentum_mt failed correctness test");
+			ASSERT_REALMTX_EQ(vW2, vW, "apply_momentum_mt failed correctness test");
 
 			vW3.cloneTo(vW);
 			iM.apply_momentum(vW, momentum, dW);
-			ASSERT_FLOATMTX_EQ(vW2, vW, "apply_momentum failed correctness test");
+			ASSERT_REALMTX_EQ(vW2, vW, "apply_momentum failed correctness test");
 		}
 	}
 	rg.gen_matrix(vW, 2);
@@ -834,14 +798,7 @@ TEST(TestIMathBasic, applyMomentum) {
 	typedef nntl::nnet_def_interfaces::iThreads_t def_threads_t;
 	typedef math::iMath_basic<def_threads_t> iMB;
 	iMB iM;
-
-	//for (unsigned i = 190; i <= 250; i += 5) test_apply_momentum(iM, i,100);
-	test_apply_momentum(iM, 100);
-#ifndef TESTS_SKIP_LONGRUNNING
-	test_apply_momentum(iM, 1000);
-	test_apply_momentum(iM, 10000);
-	test_apply_momentum(iM, 100000);
-#endif
+	NNTL_RUN_TEST2(iMB::Thresholds_t::apply_momentum, 100) test_apply_momentum(iM, i,100);
 }
 
 //////////////////////////////////////////////////////////////////////////
@@ -914,32 +871,32 @@ void test_applyILR_perf(iMath& iM, vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 			apply_ILR_ET(dW, prevdW, gain, decr, incr, capL, capH);
 
 			iM.apply_ILR_st_naive(dW2, prevdW, gain2, decr, incr, capL, capH);
-			ASSERT_FLOATMTX_EQ(dW2, dW, "apply_ILR_st_naive: wrong dLdW matrix content!");
-			ASSERT_FLOATMTX_EQ(gain2, gain, "apply_ILR_st_naive: wrong ILRGain matrix content!");
+			ASSERT_REALMTX_EQ(dW2, dW, "apply_ILR_st_naive: wrong dLdW matrix content!");
+			ASSERT_REALMTX_EQ(gain2, gain, "apply_ILR_st_naive: wrong ILRGain matrix content!");
 
 			dW3.cloneTo(dW2);
 			gain3.cloneTo(gain2);
 			iM.apply_ILR_st_vec(dW2, prevdW, gain2, decr, incr, capL, capH);
-			ASSERT_FLOATMTX_EQ(dW2, dW, "apply_ILR_st_vec: wrong dLdW matrix content!");
-			ASSERT_FLOATMTX_EQ(gain2, gain, "apply_ILR_st_vec: wrong ILRGain matrix content!");
+			ASSERT_REALMTX_EQ(dW2, dW, "apply_ILR_st_vec: wrong dLdW matrix content!");
+			ASSERT_REALMTX_EQ(gain2, gain, "apply_ILR_st_vec: wrong ILRGain matrix content!");
 
 			dW3.cloneTo(dW2);
 			gain3.cloneTo(gain2);
 			iM.apply_ILR_mt_naive(dW2, prevdW, gain2, decr, incr, capL, capH);
-			ASSERT_FLOATMTX_EQ(dW2, dW, "apply_ILR_mt_naive: wrong dLdW matrix content!");
-			ASSERT_FLOATMTX_EQ(gain2, gain, "apply_ILR_mt_naive: wrong ILRGain matrix content!");
+			ASSERT_REALMTX_EQ(dW2, dW, "apply_ILR_mt_naive: wrong dLdW matrix content!");
+			ASSERT_REALMTX_EQ(gain2, gain, "apply_ILR_mt_naive: wrong ILRGain matrix content!");
 
 			dW3.cloneTo(dW2);
 			gain3.cloneTo(gain2);
 			iM.apply_ILR_mt_vec(dW2, prevdW, gain2, decr, incr, capL, capH);
-			ASSERT_FLOATMTX_EQ(dW2, dW, "apply_ILR_mt_vec: wrong dLdW matrix content!");
-			ASSERT_FLOATMTX_EQ(gain2, gain, "apply_ILR_mt_vec: wrong ILRGain matrix content!");
+			ASSERT_REALMTX_EQ(dW2, dW, "apply_ILR_mt_vec: wrong dLdW matrix content!");
+			ASSERT_REALMTX_EQ(gain2, gain, "apply_ILR_mt_vec: wrong ILRGain matrix content!");
 
 			dW3.cloneTo(dW2);
 			gain3.cloneTo(gain2);
 			iM.apply_ILR(dW2, prevdW, gain2, decr, incr, capL, capH);
-			ASSERT_FLOATMTX_EQ(dW2, dW, "apply_ILR: wrong dLdW matrix content!");
-			ASSERT_FLOATMTX_EQ(gain2, gain, "apply_ILR: wrong ILRGain matrix content!");
+			ASSERT_REALMTX_EQ(dW2, dW, "apply_ILR: wrong dLdW matrix content!");
+			ASSERT_REALMTX_EQ(gain2, gain, "apply_ILR: wrong ILRGain matrix content!");
 		}
 	}
 
@@ -947,25 +904,27 @@ void test_applyILR_perf(iMath& iM, vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 	//testing performance
 	utils::prioritize_workers<utils::PriorityClass::PerfTesting, iMath::ithreads_t> pw(iM.ithreads());
 	
-	diff = nanoseconds(0);
-	for (unsigned r = 0; r < maxReps; ++r) {
-		rg.gen_matrix(dW, 10);
-		rg.gen_matrix_gtz(gain, 10);
-		bt = steady_clock::now();
-		iM.apply_ILR_st_naive(dW,prevdW,gain,decr,incr,capL,capH);
-		diff += steady_clock::now() - bt;
-	}
-	STDCOUTL("st_naive:\t" << utils::duration_readable(diff, maxReps, &tstNaive));
+	if (dataSize < 180000*4/sizeof(real_t) ) {
+		diff = nanoseconds(0);
+		for (unsigned r = 0; r < maxReps; ++r) {
+			rg.gen_matrix(dW, 10);
+			rg.gen_matrix_gtz(gain, 10);
+			bt = steady_clock::now();
+			iM.apply_ILR_st_naive(dW, prevdW, gain, decr, incr, capL, capH);
+			diff += steady_clock::now() - bt;
+		}
+		STDCOUTL("st_naive:\t" << utils::duration_readable(diff, maxReps, &tstNaive));
 
-	diff = nanoseconds(0);
-	for (unsigned r = 0; r < maxReps; ++r) {
-		rg.gen_matrix(dW, 10);
-		rg.gen_matrix_gtz(gain, 10);
-		bt = steady_clock::now();
-		iM.apply_ILR_st_vec(dW, prevdW, gain, decr, incr, capL, capH);
-		diff += steady_clock::now() - bt;
+		diff = nanoseconds(0);
+		for (unsigned r = 0; r < maxReps; ++r) {
+			rg.gen_matrix(dW, 10);
+			rg.gen_matrix_gtz(gain, 10);
+			bt = steady_clock::now();
+			iM.apply_ILR_st_vec(dW, prevdW, gain, decr, incr, capL, capH);
+			diff += steady_clock::now() - bt;
+		}
+		STDCOUTL("st_vec:\t\t" << utils::duration_readable(diff, maxReps, &tstVec));
 	}
-	STDCOUTL("st_vec:\t\t" << utils::duration_readable(diff, maxReps, &tstVec));
 
 	diff = nanoseconds(0);
 	for (unsigned r = 0; r < maxReps; ++r) {
@@ -1004,14 +963,12 @@ TEST(TestIMathBasic, ApplyILRPerf) {
 	typedef nntl::nnet_def_interfaces::iThreads_t def_threads_t;
 	typedef math::iMath_basic<def_threads_t> iMB;
 	iMB iM;
-
-	//for (unsigned i = 300; i <= 370; i += 10) test_applyILR_perf(iM, i, 1000);
-	test_applyILR_perf(iM, 100);
-#ifndef TESTS_SKIP_LONGRUNNING
-	test_applyILR_perf(iM, 1000);
-	test_applyILR_perf(iM, 10000);
-	test_applyILR_perf(iM, 100000);
-#endif
+	NNTL_RUN_TEST2(iMB::Thresholds_t::apply_ILR_st, 10) test_applyILR_perf(iM, i, 10);
+	//NNTL_RUN_TEST4(iMB::Thresholds_t::apply_ILR_st, 60, 2, 10) test_applyILR_perf(iM, i, 10);
+	NNTL_RUN_TEST2(iMB::Thresholds_t::apply_ILR_mt_lo, 100) test_applyILR_perf(iM, i, 100);
+	//NNTL_RUN_TEST4(iMB::Thresholds_t::apply_ILR_mt_lo, 4, 1, 100) test_applyILR_perf(iM, i, 100);
+	NNTL_RUN_TEST2(iMB::Thresholds_t::apply_ILR_mt_hi, 100) test_applyILR_perf(iM, i, 100);
+	//NNTL_RUN_TEST4(iMB::Thresholds_t::apply_ILR_mt_hi, 4, 1, 100) test_applyILR_perf(iM, i, 100);
 }
 
 //////////////////////////////////////////////////////////////////////////
@@ -1048,13 +1005,13 @@ void test_evAbs_perf(iMath& iM, typename iMath::realmtx_t::vec_len_t rowsCnt, ty
 			evAbs_ET(dest2, src);
 
 			iM.evAbs_st(dest, src);
-			ASSERT_FLOATMTX_EQ(dest2, dest, "evAbs_st failed correctness test");
+			ASSERT_REALMTX_EQ(dest2, dest, "evAbs_st failed correctness test");
 
 			iM.evAbs_mt(dest, src);
-			ASSERT_FLOATMTX_EQ(dest2, dest, "evAbs_mt failed correctness test");
+			ASSERT_REALMTX_EQ(dest2, dest, "evAbs_mt failed correctness test");
 
 			iM.evAbs(dest, src);
-			ASSERT_FLOATMTX_EQ(dest2, dest, "evAbs failed correctness test");
+			ASSERT_REALMTX_EQ(dest2, dest, "evAbs failed correctness test");
 		}
 	}
 	rg.gen_matrix(src, 10);
@@ -1083,14 +1040,7 @@ TEST(TestIMathBasic, evAbsPerf) {
 	typedef nntl::nnet_def_interfaces::iThreads_t def_threads_t;
 	typedef math::iMath_basic<def_threads_t> iMB;
 	iMB iM;
-
-	//for (unsigned i = 200; i <= 230; i+=5) test_evAbs_perf(iM, i,100);
-	test_evAbs_perf(iM, 100);
-#ifndef TESTS_SKIP_LONGRUNNING
-	test_evAbs_perf(iM, 1000);
-	test_evAbs_perf(iM, 10000);
-	test_evAbs_perf(iM, 100000);
-#endif
+	NNTL_RUN_TEST2(iMB::Thresholds_t::evAbs, 100) test_evAbs_perf(iM, i,100);
 }
 
 //////////////////////////////////////////////////////////////////////////
@@ -1131,13 +1081,13 @@ void test_evSquare_perf(iMath& iM, vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 			evSquare_ET(dest2, src);
 
 			iM.evSquare_st(dest, src);
-			ASSERT_FLOATMTX_EQ(dest2, dest, "evSquare_st failed correctness test");
+			ASSERT_REALMTX_EQ(dest2, dest, "evSquare_st failed correctness test");
 
 			iM.evSquare_mt(dest, src);
-			ASSERT_FLOATMTX_EQ(dest2, dest, "evSquare_mt failed correctness test");
+			ASSERT_REALMTX_EQ(dest2, dest, "evSquare_mt failed correctness test");
 
 			iM.evSquare(dest, src);
-			ASSERT_FLOATMTX_EQ(dest2, dest, "evSquare failed correctness test");
+			ASSERT_REALMTX_EQ(dest2, dest, "evSquare failed correctness test");
 		}
 	}
 	rg.gen_matrix(src, 10);
@@ -1166,14 +1116,7 @@ TEST(TestIMathBasic, evSquarePerf) {
 	typedef nntl::nnet_def_interfaces::iThreads_t def_threads_t;
 	typedef math::iMath_basic<def_threads_t> iMB;
 	iMB iM;
-
-	//for (unsigned i = 230; i <= 270; i+=5) test_evSquare_perf(iM, i,100);
-	test_evSquare_perf(iM, 100);
-#ifndef TESTS_SKIP_LONGRUNNING
-	test_evSquare_perf(iM, 1000);
-	test_evSquare_perf(iM, 10000);
-	test_evSquare_perf(iM, 100000);
-#endif
+	NNTL_RUN_TEST2(iMB::Thresholds_t::evSquare, 100) test_evSquare_perf(iM, i,100);
 }
 
 //////////////////////////////////////////////////////////////////////////
@@ -1230,20 +1173,20 @@ void test_modprop_perf(iMath& iM, vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 			ModProp_ET(dW2, rms2, lr, emaCoeff, numStab);
 
 			iM.ModProp_st(dW, rms, lr, emaCoeff, numStab);
-			ASSERT_FLOATMTX_EQ(dW2, dW, "ModProp_st: wrong dW");
-			ASSERT_FLOATMTX_EQ(rms2, rms, "ModProp_st: wrong rms");
+			ASSERT_REALMTX_EQ(dW2, dW, "ModProp_st: wrong dW");
+			ASSERT_REALMTX_EQ(rms2, rms, "ModProp_st: wrong rms");
 
 			dW3.cloneTo(dW);
 			rms3.cloneTo(rms);
 			iM.ModProp_mt(dW, rms, lr, emaCoeff, numStab);
-			ASSERT_FLOATMTX_EQ(dW2, dW, "ModProp_mt: wrong dW");
-			ASSERT_FLOATMTX_EQ(rms2, rms, "ModProp_mt: wrong rms");
+			ASSERT_REALMTX_EQ(dW2, dW, "ModProp_mt: wrong dW");
+			ASSERT_REALMTX_EQ(rms2, rms, "ModProp_mt: wrong rms");
 
 			dW3.cloneTo(dW);
 			rms3.cloneTo(rms);
 			iM.ModProp(dW, rms, lr, emaCoeff, numStab);
-			ASSERT_FLOATMTX_EQ(dW2, dW, "ModProp: wrong dW");
-			ASSERT_FLOATMTX_EQ(rms2, rms, "ModProp: wrong rms");
+			ASSERT_REALMTX_EQ(dW2, dW, "ModProp: wrong dW");
+			ASSERT_REALMTX_EQ(rms2, rms, "ModProp: wrong rms");
 		}
 	}
 
@@ -1283,14 +1226,7 @@ TEST(TestIMathBasic, ModPropPerf) {
 	typedef nntl::nnet_def_interfaces::iThreads_t def_threads_t;
 	typedef math::iMath_basic<def_threads_t> iMB;
 	iMB iM;
-
-	//for (unsigned i = 450; i <= 600; i+=10) test_modprop_perf(iM, i,10);
-	test_modprop_perf(iM, 100);
-#ifndef TESTS_SKIP_LONGRUNNING
-	test_modprop_perf(iM, 1000);
-	test_modprop_perf(iM, 10000);
-	test_modprop_perf(iM, 100000);
-#endif
+	NNTL_RUN_TEST2(iMB::Thresholds_t::ModProp, 1) test_modprop_perf(iM, i,1);
 }
 //////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////
@@ -1336,15 +1272,15 @@ void test_rprop_perf(iMath& iM, typename iMath::realmtx_t::vec_len_t rowsCnt, ty
 			RProp_ET(dW2, lr);
 
 			iM.RProp_st(dW, lr);
-			ASSERT_FLOATMTX_EQ(dW2, dW, "RProp_st: wrong dW");
+			ASSERT_REALMTX_EQ(dW2, dW, "RProp_st: wrong dW");
 
 			dW3.cloneTo(dW);
 			iM.RProp_mt(dW, lr);
-			ASSERT_FLOATMTX_EQ(dW2, dW, "RProp_mt: wrong dW");
+			ASSERT_REALMTX_EQ(dW2, dW, "RProp_mt: wrong dW");
 
 			dW3.cloneTo(dW);
 			iM.RProp(dW, lr);
-			ASSERT_FLOATMTX_EQ(dW2, dW, "RProp: wrong dW");
+			ASSERT_REALMTX_EQ(dW2, dW, "RProp: wrong dW");
 		}
 	}
 	//////////////////////////////////////////////////////////////////////////
@@ -1383,14 +1319,7 @@ TEST(TestIMathBasic, RPropPerf) {
 	typedef nntl::nnet_def_interfaces::iThreads_t def_threads_t;
 	typedef math::iMath_basic<def_threads_t> iMB;
 	iMB iM;
-
-	//for (unsigned i = 400; i <= 800; i+=50) test_rprop_perf(iM, i,10);
-	test_rprop_perf(iM, 100);
-#ifndef TESTS_SKIP_LONGRUNNING
-	test_rprop_perf(iM, 1000);
-	test_rprop_perf(iM, 10000);
-	test_rprop_perf(iM, 100000);
-#endif
+	NNTL_RUN_TEST2(iMB::Thresholds_t::RProp, 1) test_rprop_perf(iM, i,1);
 }
 
 //////////////////////////////////////////////////////////////////////////
@@ -1446,25 +1375,25 @@ void test_rmspropgraves_perf(iMath& iM, typename iMath::realmtx_t::vec_len_t row
 			RMSProp_Graves_ET(dW2, rms2, rmsG2, lr, emaCoeff, numStab);
 
 			iM.RMSProp_Graves_st(dW, rms, rmsG, lr, emaCoeff, numStab);
-			ASSERT_FLOATMTX_EQ(dW2, dW, "RMSProp_Graves_st: wrong dW");
-			ASSERT_FLOATMTX_EQ(rms2, rms, "RMSProp_Graves_st: wrong rms");
-			ASSERT_FLOATMTX_EQ(rmsG2, rmsG, "RMSProp_Graves_st: wrong rmsG");
+			ASSERT_REALMTX_EQ(dW2, dW, "RMSProp_Graves_st: wrong dW");
+			ASSERT_REALMTX_EQ(rms2, rms, "RMSProp_Graves_st: wrong rms");
+			ASSERT_REALMTX_EQ(rmsG2, rmsG, "RMSProp_Graves_st: wrong rmsG");
 
 			dW3.cloneTo(dW);
 			rms3.cloneTo(rms);
 			rmsG3.cloneTo(rmsG);
 			iM.RMSProp_Graves_mt(dW, rms, rmsG, lr, emaCoeff, numStab);
-			ASSERT_FLOATMTX_EQ(dW2, dW, "RMSProp_Graves_mt: wrong dW");
-			ASSERT_FLOATMTX_EQ(rms2, rms, "RMSProp_Graves_mt: wrong rms");
-			ASSERT_FLOATMTX_EQ(rmsG2, rmsG, "RMSProp_Graves_mt: wrong rmsG");
+			ASSERT_REALMTX_EQ(dW2, dW, "RMSProp_Graves_mt: wrong dW");
+			ASSERT_REALMTX_EQ(rms2, rms, "RMSProp_Graves_mt: wrong rms");
+			ASSERT_REALMTX_EQ(rmsG2, rmsG, "RMSProp_Graves_mt: wrong rmsG");
 
 			dW3.cloneTo(dW);
 			rms3.cloneTo(rms);
 			rmsG3.cloneTo(rmsG);
 			iM.RMSProp_Graves(dW, rms, rmsG, lr, emaCoeff, numStab);
-			ASSERT_FLOATMTX_EQ(dW2, dW, "RMSProp_Graves: wrong dW");
-			ASSERT_FLOATMTX_EQ(rms2, rms, "RMSProp_Graves: wrong rms");
-			ASSERT_FLOATMTX_EQ(rmsG2, rmsG, "RMSProp_Graves: wrong rmsG");
+			ASSERT_REALMTX_EQ(dW2, dW, "RMSProp_Graves: wrong dW");
+			ASSERT_REALMTX_EQ(rms2, rms, "RMSProp_Graves: wrong rms");
+			ASSERT_REALMTX_EQ(rmsG2, rmsG, "RMSProp_Graves: wrong rmsG");
 		}
 	}
 	//////////////////////////////////////////////////////////////////////////
@@ -1503,14 +1432,7 @@ TEST(TestIMathBasic, RMSPropGravesPerf) {
 	typedef nntl::nnet_def_interfaces::iThreads_t def_threads_t;
 	typedef math::iMath_basic<def_threads_t> iMB;
 	iMB iM;
-
-	//for (unsigned i = 250; i <= 350; i+=10) test_rmspropgraves_perf(iM, i,10);
-	test_rmspropgraves_perf(iM, 100);
-#ifndef TESTS_SKIP_LONGRUNNING
-	test_rmspropgraves_perf(iM, 1000);
-	test_rmspropgraves_perf(iM, 10000);
-	test_rmspropgraves_perf(iM, 100000);
-#endif
+	NNTL_RUN_TEST2(iMB::Thresholds_t::RMSProp_Graves, 10) test_rmspropgraves_perf(iM, i,10);
 }
 
 //////////////////////////////////////////////////////////////////////////
@@ -1558,20 +1480,20 @@ void test_rmsprophinton_perf(iMath& iM, typename iMath::realmtx_t::vec_len_t row
 			RMSProp_Hinton_ET(dW2, rms2, lr, emaCoeff, numStab);
 
 			iM.RMSProp_Hinton_st(dW, rms, lr, emaCoeff, numStab);
-			ASSERT_FLOATMTX_EQ(dW2, dW, "RMSProp_Hinton_st: wrong dW");
-			ASSERT_FLOATMTX_EQ(rms2, rms, "RMSProp_Hinton_st: wrong rms");
+			ASSERT_REALMTX_EQ(dW2, dW, "RMSProp_Hinton_st: wrong dW");
+			ASSERT_REALMTX_EQ(rms2, rms, "RMSProp_Hinton_st: wrong rms");
 
 			dW3.cloneTo(dW);
 			rms3.cloneTo(rms);
 			iM.RMSProp_Hinton_mt(dW, rms, lr, emaCoeff, numStab);
-			ASSERT_FLOATMTX_EQ(dW2, dW, "RMSProp_Hinton_mt: wrong dW");
-			ASSERT_FLOATMTX_EQ(rms2, rms, "RMSProp_Hinton_mt: wrong rms");
+			ASSERT_REALMTX_EQ(dW2, dW, "RMSProp_Hinton_mt: wrong dW");
+			ASSERT_REALMTX_EQ(rms2, rms, "RMSProp_Hinton_mt: wrong rms");
 
 			dW3.cloneTo(dW);
 			rms3.cloneTo(rms);
 			iM.RMSProp_Hinton(dW, rms, lr, emaCoeff, numStab);
-			ASSERT_FLOATMTX_EQ(dW2, dW, "RMSProp_Hinton: wrong dW");
-			ASSERT_FLOATMTX_EQ(rms2, rms, "RMSProp_Hinton: wrong rms");
+			ASSERT_REALMTX_EQ(dW2, dW, "RMSProp_Hinton: wrong dW");
+			ASSERT_REALMTX_EQ(rms2, rms, "RMSProp_Hinton: wrong rms");
 		}
 	}
 	//////////////////////////////////////////////////////////////////////////
@@ -1610,14 +1532,7 @@ TEST(TestIMathBasic, RMSPropHintonPerf) {
 	typedef nntl::nnet_def_interfaces::iThreads_t def_threads_t;
 	typedef math::iMath_basic<def_threads_t> iMB;
 	iMB iM;
-
-	//for (unsigned i = 200; i <= 300; i+=10) test_rmsprophinton_perf(iM, i,10);
-	test_rmsprophinton_perf(iM, 100);
-#ifndef TESTS_SKIP_LONGRUNNING
-	test_rmsprophinton_perf(iM, 1000);
-	test_rmsprophinton_perf(iM, 10000);
-	test_rmsprophinton_perf(iM, 100000);
-#endif
+	NNTL_RUN_TEST2(iMB::Thresholds_t::RMSProp_Hinton, 10) test_rmsprophinton_perf(iM, i,10);
 }
 
 //////////////////////////////////////////////////////////////////////////
@@ -1667,20 +1582,20 @@ void test_make_dropout_perf(iMath& iM, typename iMath::realmtx_t::vec_len_t rows
 			act2.assert_biases_ok();
 
 			iM.make_dropout_st(act, dfrac, dm);
-			ASSERT_FLOATMTX_EQ(act2, act, "make_dropout_st: wrong act");
-			ASSERT_FLOATMTX_EQ(dm2, dm, "make_dropout_st: wrong dm");
+			ASSERT_REALMTX_EQ(act2, act, "make_dropout_st: wrong act");
+			ASSERT_REALMTX_EQ(dm2, dm, "make_dropout_st: wrong dm");
 
 			act3.cloneTo(act);
 			dm3.cloneTo(dm);
 			iM.make_dropout_mt(act, dfrac, dm);
-			ASSERT_FLOATMTX_EQ(act2, act, "make_dropout_mt: wrong act");
-			ASSERT_FLOATMTX_EQ(dm2, dm, "make_dropout_mt: wrong dm");
+			ASSERT_REALMTX_EQ(act2, act, "make_dropout_mt: wrong act");
+			ASSERT_REALMTX_EQ(dm2, dm, "make_dropout_mt: wrong dm");
 
 			act3.cloneTo(act);
 			dm3.cloneTo(dm);
 			iM.make_dropout(act, dfrac, dm);
-			ASSERT_FLOATMTX_EQ(act2, act, "make_dropout: wrong act");
-			ASSERT_FLOATMTX_EQ(dm2, dm, "make_dropout: wrong dm");
+			ASSERT_REALMTX_EQ(act2, act, "make_dropout: wrong act");
+			ASSERT_REALMTX_EQ(dm2, dm, "make_dropout: wrong dm");
 		}
 	}
 	//////////////////////////////////////////////////////////////////////////
@@ -1728,14 +1643,7 @@ TEST(TestIMathBasic, MakeDropoutPerf) {
 	typedef nntl::nnet_def_interfaces::iThreads_t def_threads_t;
 	typedef math::iMath_basic<def_threads_t> iMB;
 	iMB iM;
-
-	//for (unsigned i = 9000; i <= 11000; i+=100) test_make_dropout_perf(iM, 1,i);
-	test_make_dropout_perf(iM, 1, 100);
-#ifndef TESTS_SKIP_LONGRUNNING
-	test_make_dropout_perf(iM, 1,1000);
-	test_make_dropout_perf(iM, 1,10000);
-	test_make_dropout_perf(iM, 1,100000);
-#endif
+	NNTL_RUN_TEST2(iMB::Thresholds_t::make_dropout, 1) test_make_dropout_perf(iM, 1,i);
 }
 
 //////////////////////////////////////////////////////////////////////////
@@ -1757,7 +1665,7 @@ TEST(TestIMathBasic, vCountSameMtCorrectness) {
 	typedef math::iMath_basic<def_threads_t> iMB;
 	typedef std::vector<realmtx_t::vec_len_t> vec_t;
 
-#ifdef _DEBUG
+#ifdef NNTL_DEBUG
 	constexpr unsigned rowsCnt = 100;
 #else
 	constexpr unsigned rowsCnt = 100000;
@@ -1827,18 +1735,8 @@ void test_vCountSame_perf(iMath& iM, typename iMath::realmtx_t::vec_len_t rowsCn
 TEST(TestIMathBasic, vCountSamePerf) {
 	typedef nntl::nnet_def_interfaces::iThreads_t def_threads_t;
 	typedef math::iMath_basic<def_threads_t> iMB;
-
 	iMB iM;
-
-	//for (unsigned i = 1; i <= 128; i*=2) test_vCountSame_perf(iM, i*100000);
-
-	test_vCountSame_perf(iM, 100);
-#ifndef TESTS_SKIP_LONGRUNNING
-	test_vCountSame_perf(iM, 1000);
-	test_vCountSame_perf(iM, 10000);
-	test_vCountSame_perf(iM, 100000);
-#endif
-
+	NNTL_RUN_TEST4(100000, 75, 25, 1) test_vCountSame_perf(iM, i);
 }
 
 
@@ -1896,19 +1794,9 @@ void test_evClamp_perf(iMath& iM, typename iMath::realmtx_t::vec_len_t rowsCnt, 
 TEST(TestIMathBasic, evClampPerf) {
 	typedef nntl::nnet_def_interfaces::iThreads_t def_threads_t;
 	typedef math::iMath_basic<def_threads_t> iMB;
-
 	iMB iM;
-
-	//for (unsigned i = 100; i <= 140; i+=1) test_evClamp_perf(iM, i,100);
-
-	test_evClamp_perf(iM, 100);
-#ifndef TESTS_SKIP_LONGRUNNING
-	test_evClamp_perf(iM, 1000);
-	test_evClamp_perf(iM, 10000);
-	test_evClamp_perf(iM, 100000);
-#endif
+	NNTL_RUN_TEST2(iMB::Thresholds_t::evClamp, 10) test_evClamp_perf(iM, i,10);
 }
-
 
 //////////////////////////////////////////////////////////////////////////
 TEST(TestIMathBasic, mExtractRowsCorrectness) {
@@ -1994,9 +1882,7 @@ void test_mExtractRows_perf(iMath& iM, typename iMath::realmtx_t::vec_len_t rows
 TEST(TestIMathBasic, mExtractRowsPerf) {
 	typedef nntl::nnet_def_interfaces::iThreads_t def_threads_t;
 	typedef math::iMath_basic<def_threads_t> iMB;
-
 	iMB iM;
-
 /*
 	for (unsigned r = 8; r <= 64; r *= 2) {
 		for (unsigned c = 10; c <= 800; c += 790) {
@@ -2005,18 +1891,16 @@ TEST(TestIMathBasic, mExtractRowsPerf) {
 			}
 		}
 	}*/
-
-	constexpr unsigned batchSize = 100;
-
-	test_mExtractRows_perf(iM, 200, batchSize, 10);
-
+	//constexpr unsigned batchSize = 100;
+	NNTL_RUN_TEST2(iMB::Thresholds_t::mExtractRows, 100) test_mExtractRows_perf(iM, 60000, i, 100);
+	NNTL_RUN_TEST2(iMB::Thresholds_t::mExtractRows, 10) test_mExtractRows_perf(iM, 60000, i, 10);
+/*
 #ifndef TESTS_SKIP_LONGRUNNING
 	test_mExtractRows_perf(iM, 60000, batchSize, 800);
 	test_mExtractRows_perf(iM, 60000, batchSize, 10);
 	test_mExtractRows_perf(iM, 40000, batchSize, 800);
 	test_mExtractRows_perf(iM, 40000, batchSize, 10);
-#endif
-
+#endif*/
 }
 
 //////////////////////////////////////////////////////////////////////////
@@ -2047,7 +1931,7 @@ TEST(TestIMathBasic, mFindIdxsOfMaxRowwiseMtCorrectness) {
 	typedef nntl::nnet_def_interfaces::iThreads_t def_threads_t;
 	typedef math::iMath_basic<def_threads_t> iMB;
 
-#ifdef _DEBUG
+#ifdef NNTL_DEBUG
 	constexpr unsigned rowsCnt = 100;
 #else
 	constexpr unsigned rowsCnt = 10000;
@@ -2123,15 +2007,8 @@ TEST(TestIMathBasic, mFindIdxsOfMaxRowwisePerf) {
 	typedef nntl::nnet_def_interfaces::iThreads_t def_threads_t;
 	typedef math::iMath_basic<def_threads_t> iMB;
 	iMB iM;
-
-	//for (unsigned i = 1; i <= 10; i+=1) test_mFindIdxsOfMaxRowwise_perf(iM, i*100,10);
-	test_mFindIdxsOfMaxRowwise_perf(iM, 100);
-#ifndef TESTS_SKIP_LONGRUNNING
-	test_mFindIdxsOfMaxRowwise_perf(iM, 1000);
-	test_mFindIdxsOfMaxRowwise_perf(iM, 10000);
-	test_mFindIdxsOfMaxRowwise_perf(iM, 100000);
-#endif
-
+	//setting mul to 1, because we depend on rows count, not numel
+	NNTL_RUN_TEST2(iMB::Thresholds_t::mFindIdxsOfMaxRowwise, 1) test_mFindIdxsOfMaxRowwise_perf(iM, i, 10);
 }
 
 TEST(TestIMathBasic, mMulABt_Cnb) {
@@ -2329,17 +2206,8 @@ TEST(TestIMathBasic, evMulIp) {
 	typedef nntl::nnet_def_interfaces::iThreads_t def_threads_t;
 	typedef math::iMath_basic<def_threads_t> iMB;
 	iMB iM;
-
-	//for (unsigned i = 350; i <= 380; i+=5) test_evMul_ip(iM, i*100,1);
-	test_evMul_ip(iM, 100);
-#ifndef TESTS_SKIP_LONGRUNNING
-	test_evMul_ip(iM, 1000);
-	test_evMul_ip(iM, 10000);
-	test_evMul_ip(iM, 100000);
-#endif
+	NNTL_RUN_TEST2(iMB::Thresholds_t::evMul_ip, 100) test_evMul_ip(iM, i, 100);
 }
-
-
 
 //////////////////////////////////////////////////////////////////////////
 template<typename iMath>
@@ -2432,14 +2300,7 @@ TEST(TestIMathBasic, evMulC_ip) {
 	typedef nntl::nnet_def_interfaces::iThreads_t def_threads_t;
 	typedef math::iMath_basic<def_threads_t> iMB;
 	iMB iM;
-
-	//for (unsigned i = 60; i <= 70; i+=1) test_evMulC_ip(iM, i*10,100);	
-	test_evMulC_ip(iM, 100);
-#ifndef TESTS_SKIP_LONGRUNNING
-	test_evMulC_ip(iM, 1000);
-	test_evMulC_ip(iM, 10000);
-	test_evMulC_ip(iM, 100000);
-#endif
+	NNTL_RUN_TEST2(iMB::Thresholds_t::evMulC_ip, 100) test_evMulC_ip(iM, i, 100);
 }
 
 
@@ -2596,17 +2457,8 @@ void test_sigm(iMath& iM, typename iMath::realmtx_t::vec_len_t rowsCnt, typename
 TEST(TestIMathBasic, Sigm) {
 	typedef nntl::nnet_def_interfaces::iThreads_t def_threads_t;
 	typedef math::iMath_basic<def_threads_t> iMB;
-	
 	iMB iM;
-
-	//for (unsigned i = 20; i <= 30; i += 1) test_sigm(iM, i * 100, 1);
-
-	test_sigm(iM, 100);
-#ifndef TESTS_SKIP_LONGRUNNING
-	test_sigm(iM, 1000);
-	test_sigm(iM, 10000);
-	test_sigm(iM, 100000);
-#endif
+	NNTL_RUN_TEST2(iMB::Thresholds_t::sigm, 100) test_sigm(iM, i, 100);
 }
 
 //////////////////////////////////////////////////////////////////////////
@@ -2701,27 +2553,13 @@ void test_dsigm(iMath& iM, typename iMath::realmtx_t::vec_len_t rowsCnt, typenam
 	ASSERT_EQ(m, etM);
 	ASSERT_EQ(dest, etDest);
 	STDCOUTL("best:\t\t" << utils::duration_readable(diff, maxReps, &tBest));
-	// If it's not the best, then tune iM.loss_quadratic() appropriately
-
-
-	//double rat = static_cast<double>(tmtNaive) / tmtVect;
-	//STDCOUTL("Vectorized version is " << (rat > 1 ? "faster " : "SLOWER ") << std::setprecision(2) << (rat > 1 ? rat : 1 / rat) << " times");
 }
 
 TEST(TestIMathBasic, dsigm) {
 	typedef nntl::nnet_def_interfaces::iThreads_t def_threads_t;
 	typedef math::iMath_basic<def_threads_t> iMB;
-
 	iMB iM;
-
-	//for (unsigned i = 220; i <= 300; i+=5) test_dsigm(iM, i*100,1);
-
-	test_dsigm(iM, 100);
-#ifndef TESTS_SKIP_LONGRUNNING
-	test_dsigm(iM, 1000);
-	test_dsigm(iM, 10000);
-	test_dsigm(iM, 100000);
-#endif
+	NNTL_RUN_TEST2(iMB::Thresholds_t::dsigm, 100) test_dsigm(iM, i, 100);
 }
 
 //////////////////////////////////////////////////////////////////////////
@@ -2855,17 +2693,8 @@ void test_relu(iMath& iM, typename iMath::realmtx_t::vec_len_t rowsCnt, typename
 TEST(TestIMathBasic, Relu) {
 	typedef nntl::nnet_def_interfaces::iThreads_t def_threads_t;
 	typedef math::iMath_basic<def_threads_t> iMB;
-
 	iMB iM;
-
-	//for (unsigned i = 37; i <= 47; i += 1) test_relu(iM, i * 100, 1);
-
-	test_relu(iM, 100);
-#ifndef TESTS_SKIP_LONGRUNNING
-	test_relu(iM, 1000);
-	test_relu(iM, 10000);
-	test_relu(iM, 100000);
-#endif
+	NNTL_RUN_TEST2(iMB::Thresholds_t::relu, 10) test_relu(iM, i, 10);
 }
 
 //////////////////////////////////////////////////////////////////////////
@@ -2937,23 +2766,14 @@ void test_drelu(iMath& iM, typename iMath::realmtx_t::vec_len_t rowsCnt, typenam
 TEST(TestIMathBasic, drelu) {
 	typedef nntl::nnet_def_interfaces::iThreads_t def_threads_t;
 	typedef math::iMath_basic<def_threads_t> iMB;
-
 	iMB iM;
-
-	//for (unsigned i = 200; i <= 250; i+=5) test_drelu(iM, i*100,1);
-
-	test_drelu(iM, 100);
-#ifndef TESTS_SKIP_LONGRUNNING
-	test_drelu(iM, 1000);
-	test_drelu(iM, 10000);
-	test_drelu(iM, 100000);
-#endif
+	NNTL_RUN_TEST2(iMB::Thresholds_t::drelu, 10) test_drelu(iM, i, 10);
 }
 
 //////////////////////////////////////////////////////////////////////////
 template<typename base_t> struct loss_quadratic_EPS {};
 template<> struct loss_quadratic_EPS<double> { static constexpr double eps = 1e-10; };
-template<> struct loss_quadratic_EPS<float> { static constexpr double eps = 3e-5; };
+template<> struct loss_quadratic_EPS<float> { static constexpr double eps = 8e-4; };
 template<typename iMath>
 void test_loss_quadratic(iMath& iM, typename iMath::realmtx_t::vec_len_t rowsCnt, typename iMath::realmtx_t::vec_len_t colsCnt=10) {
 	const auto dataSize = realmtx_t::sNumel(rowsCnt, colsCnt);
@@ -3045,25 +2865,13 @@ void test_loss_quadratic(iMath& iM, typename iMath::realmtx_t::vec_len_t rowsCnt
 	ASSERT_EQ(Y, etY);
 	ASSERT_NEAR(etQuadLoss, quadLoss, loss_quadratic_EPS<real_t>::eps);
 	STDCOUTL("best:\t\t" << utils::duration_readable(diff, maxReps, &tBest));
-	// If it's not the best, then tune iM.loss_quadratic() appropriately
-
-
-	//double rat = static_cast<double>(tmtNaive) / tmtVect;
-	//STDCOUTL("Vectorized version is " << (rat > 1 ? "faster " : "SLOWER ") << std::setprecision(2) << (rat > 1 ? rat : 1 / rat) << " times");
 }
 
 TEST(TestIMathBasic, LossQuadratic) {
 	typedef nntl::nnet_def_interfaces::iThreads_t def_threads_t;
 	typedef math::iMath_basic<def_threads_t> iMB;
 	iMB iM;
-
-	//for (unsigned i = 200; i <= 280; i+=5) test_loss_quadratic(iM, i*100,1);
-	test_loss_quadratic(iM, 100);
-#ifndef TESTS_SKIP_LONGRUNNING
-	test_loss_quadratic(iM, 1000);
-	test_loss_quadratic(iM, 10000);
-	test_loss_quadratic(iM, 100000);
-#endif
+	NNTL_RUN_TEST2(iMB::Thresholds_t::loss_quadratic, 100) test_loss_quadratic(iM, i, 100);
 }
 
 //////////////////////////////////////////////////////////////////////////
@@ -3159,26 +2967,13 @@ void test_dSigmQuadLoss_dZ(iMath& iM, typename iMath::realmtx_t::vec_len_t rowsC
 	ASSERT_EQ(Y, etY);
 	ASSERT_EQ(dLdZ, etdLdZ);
 	STDCOUTL("best:\t\t" << utils::duration_readable(diff, maxReps, &tBest));
-	// If it's not the best, then tune iM.loss_quadratic() appropriately
-
-
-	//double rat = static_cast<double>(tmtNaive) / tmtVect;
-	//STDCOUTL("Vectorized version is " << (rat > 1 ? "faster " : "SLOWER ") << std::setprecision(2) << (rat > 1 ? rat : 1 / rat) << " times");
 }
 
 TEST(TestIMathBasic, dSigmQuadLoss_dZ) {
 	typedef nntl::nnet_def_interfaces::iThreads_t def_threads_t;
 	typedef math::iMath_basic<def_threads_t> iMB;
-
 	iMB iM;
-
- 	test_dSigmQuadLoss_dZ(iM, 500);
-
-#ifndef TESTS_SKIP_LONGRUNNING
- 	test_dSigmQuadLoss_dZ(iM, 2000);
-	test_dSigmQuadLoss_dZ(iM, 20000);
- 	test_dSigmQuadLoss_dZ(iM, 70000);
-#endif
+	NNTL_RUN_TEST2(iMB::Thresholds_t::evMulC_ip_Sub_ip, 10) test_dSigmQuadLoss_dZ(iM, i, 10);
 }
 
 

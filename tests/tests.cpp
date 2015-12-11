@@ -62,7 +62,7 @@ TEST(TestNntl, Training) {
 	ASSERT_TRUE(td.train_x().emulatesBiases());
 	ASSERT_TRUE(td.test_x().emulatesBiases());
 
-	const real_t dropoutFrac = 0, momentum = 0.0;
+	const real_t dropoutFrac = 0, momentum = 0.9;
 	//const ILR ilr(.9, 1.1, .00000001, 1000);
 
 	layer_input inp(td.train_x().cols_no_bias());
@@ -73,7 +73,7 @@ TEST(TestNntl, Training) {
 
 #ifdef TESTS_SKIP_NNET_LONGRUNNING
 	size_t epochs = 5;
-	const real_t learningRate = .1;
+	const real_t learningRate = .002;
 
 	layer_fully_connected<activ_func> fcl(60, learningRate, dropoutFrac);
 	layer_fully_connected<activ_func> fcl2(50, learningRate, dropoutFrac);
@@ -81,7 +81,7 @@ TEST(TestNntl, Training) {
 
 #else
 	size_t epochs = 20;
-	const real_t learningRate = 0.05;
+	const real_t learningRate = 0.0005;
 
 	layer_fully_connected<activ_func> fcl(500, learningRate,dropoutFrac);
 	layer_fully_connected<activ_func> fcl2(300, learningRate, dropoutFrac);
@@ -89,16 +89,17 @@ TEST(TestNntl, Training) {
 
 	const bool bSetMN = false;
 	const real_t mul = 1.0 / 10000.0;
-	auto optType = decltype(fcl)::grad_works_t::ClassicalConstant;
+	//auto optType = decltype(fcl)::grad_works_t::ClassicalConstant;
+	auto optType = decltype(fcl)::grad_works_t::RMSProp_Hinton;
 
-	fcl.m_gradientWorks.set_momentum(momentum, false).set_type(optType)
+	fcl.m_gradientWorks.set_nesterov_momentum(momentum, false).set_type(optType)
 		.set_weight_vector_max_norm2(bSetMN ? mul * 768 * 768 : 0, true);
-	fcl2.m_gradientWorks.set_momentum(momentum, false).set_type(optType)
+	fcl2.m_gradientWorks.set_nesterov_momentum(momentum, false).set_type(optType)
 		.set_weight_vector_max_norm2(bSetMN ? mul * 500 * 500 : 0, true);
 	
 	//layer_output<activation::sigm_xentropy_loss<w_init_scheme>> outp(td.train_y().cols(), learningRate);
 	layer_output<activation::sigm_quad_loss<w_init_scheme>> outp(td.train_y().cols(), learningRate);
-	outp.m_gradientWorks.set_momentum(momentum, false).set_type(optType)
+	outp.m_gradientWorks.set_nesterov_momentum(momentum, false).set_type(optType)
 		.set_weight_vector_max_norm2(bSetMN ? mul * 300 * 300 : 0, true);
 
 	//uncomment to turn on derivative value restriction 
@@ -122,9 +123,9 @@ TEST(TestNntl, Training) {
 
 
 int __cdecl main(int argc, char **argv) {
-#ifdef _DEBUG
+#ifdef NNTL_DEBUG
 	STDCOUTL("\n******\n*** This is DEBUG binary! All performance reports are invalid!\n******\n");
-#endif // _DEBUG
+#endif // NNTL_DEBUG
 
 	::testing::InitGoogleTest(&argc, argv);
 

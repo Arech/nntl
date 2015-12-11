@@ -60,13 +60,6 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //////////////////////////////////////////////////////////////////////////
 // special externals, necessary only for tests, but not nntl
 
-//#define RAPIDJSON_SSE2
-//#define RAPIDJSON_HAS_STDSTRING 1
-//#include "../_extern/rapidjson/include/rapidjson/document.h"
-//#include "../_extern/rapidjson/include/rapidjson/filereadstream.h"
-//#include "../_extern/rapidjson/include/rapidjson/filewritestream.h"
-
-
 #pragma warning(disable: 28182)
 #include <gtest/gtest.h>
 #pragma warning(default: 28182)
@@ -79,16 +72,6 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #pragma comment(lib,_GTEST_LIB)
 
 //////////////////////////////////////////////////////////////////////////
-// Common NNTL headers
-// 
-/*
- *Should be defined in each compilation unit to avoid full recompilation on unnecessary changes
- *
-#include "../nntl/interface/math.h"
-#include "../nntl/interface/math/i_open_blas.h"
-
-#include "../nntl/nntl.h"
-#include "../nntl/_supp/jsonreader.h"*/
 
 #ifdef _DEBUG
 #define TESTS_SKIP_LONGRUNNING
@@ -97,3 +80,16 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #define TESTS_SKIP_LONGRUNNING
 //#define TESTS_SKIP_NNET_LONGRUNNING
+
+//////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////
+
+#include "../nntl/_test/test.h"
+
+#ifdef TESTS_SKIP_LONGRUNNING
+#define NNTL_RUN_TEST4(aroundNumel,maxPercDiff,percDiffStep,numelMult) _NNTL_RUN_TEST( (aroundNumel/10),0,1,numelMult,__COUNTER__)
+#define NNTL_RUN_TEST2(aroundNumel,numelMult) _NNTL_RUN_TEST((aroundNumel/10),0,1,numelMult,__COUNTER__)
+#else
+#define NNTL_RUN_TEST4(aroundNumel,maxPercDiff,percDiffStep,numelMult) _NNTL_RUN_TEST(aroundNumel,maxPercDiff,percDiffStep,numelMult,__COUNTER__)
+#define NNTL_RUN_TEST2(aroundNumel,numelMult) _NNTL_RUN_TEST(aroundNumel,3,1,numelMult,__COUNTER__)
+#endif

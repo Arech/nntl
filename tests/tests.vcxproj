@@ -183,8 +183,10 @@
     <ClInclude Include="..\nntl\common.h" />
     <ClInclude Include="..\nntl\errors.h" />
     <ClInclude Include="..\nntl\grad_works.h" />
+    <ClInclude Include="..\nntl\interface\math\imath_basic_mt.h" />
     <ClInclude Include="..\nntl\interface\math\imath_basic_thresholds.h" />
     <ClInclude Include="..\nntl\interface\mt_dispatcher\mt_dispatcher.h" />
+    <ClInclude Include="..\nntl\interface\mt_dispatcher\profiler.h" />
     <ClInclude Include="..\nntl\interface\rng\AFRandom.h" />
     <ClInclude Include="..\nntl\interface\rng\AFRandom_mt.h" />
     <ClInclude Include="..\nntl\interface\rng\AFRandom_mt_thresholds.h" />

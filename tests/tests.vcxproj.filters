@@ -222,6 +222,12 @@
     <ClInclude Include="..\nntl\utils\tictoc.h">
       <Filter>nntl\utils</Filter>
     </ClInclude>
+    <ClInclude Include="..\nntl\interface\mt_dispatcher\profiler.h">
+      <Filter>nntl\interface\mt_dispatcher</Filter>
+    </ClInclude>
+    <ClInclude Include="..\nntl\interface\math\imath_basic_mt.h">
+      <Filter>nntl\interface\math</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="stdafx.cpp">

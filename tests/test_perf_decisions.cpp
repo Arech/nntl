@@ -54,11 +54,11 @@ using namespace nntl;
 using namespace std::chrono;
 
 //////////////////////////////////////////////////////////////////////////
-#ifdef _DEBUG
+#ifdef NNTL_DEBUG
 constexpr unsigned TEST_PERF_REPEATS_COUNT = 10;
 #else
-constexpr unsigned TEST_PERF_REPEATS_COUNT = 400;
-#endif // _DEBUG
+constexpr unsigned TEST_PERF_REPEATS_COUNT = 100;
+#endif // NNTL_DEBUG
 
 //////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////
@@ -126,9 +126,9 @@ TEST(TestPerfDecisions, CMulSub) {
 	//for (unsigned i = 50; i <= 10000; i*=2) check_evCMulSub(iM, i,100);
 	check_evCMulSub(iM, 100, 100);
 #ifndef TESTS_SKIP_LONGRUNNING
-	evCMulSub(iM, 1000);
-	evCMulSub(iM, 10000);
-	evCMulSub(iM, 100000);
+	check_evCMulSub(iM, 1000);
+	check_evCMulSub(iM, 10000);
+	//check_evCMulSub(iM, 100000);
 #endif
 }
 
@@ -271,7 +271,7 @@ TEST(TestPerfDecisions, mTranspose) {
 #ifndef TESTS_SKIP_LONGRUNNING
 	check_mTranspose(iM, 1000);
 	check_mTranspose(iM, 10000);
-	check_mTranspose(iM, 100000);
+	//check_mTranspose(iM, 100000);
 #endif
 }
 
@@ -513,28 +513,28 @@ void check_rowvecs_renorm(iMath& iM, vec_len_t rowsCnt, vec_len_t colsCnt = 10) 
 		rowvecs_renorm_naive(W, meanNorm, &tmp[0]);
 		diffNaive += steady_clock::now() - bt;
 		//ASSERT_EQ(etW, W) << "rowvecs_renorm_naive";
-		ASSERT_FLOATMTX_EQ(etW, W, "rowvecs_renorm_naive");
+		ASSERT_REALMTX_EQ(etW, W, "rowvecs_renorm_naive");
 
 		srcW.cloneTo(W);
 		bt = steady_clock::now();
 		rowvecs_renorm_clmnw(W, meanNorm, &tmp[0]);
 		diffClmnw += steady_clock::now() - bt;
 		//ASSERT_EQ(etW, W) << "rowvecs_renorm_clmnw";
-		ASSERT_FLOATMTX_EQ(etW, W, "rowvecs_renorm_clmnw");
+		ASSERT_REALMTX_EQ(etW, W, "rowvecs_renorm_clmnw");
 
 		srcW.cloneTo(W);
 		bt = steady_clock::now();
 		rowvecs_renorm_clmnw2(W, meanNorm, &tmp[0]);
 		diffClmnw2 += steady_clock::now() - bt;
 		//ASSERT_EQ(etW, W) << "rowvecs_renorm_clmnw2";
-		ASSERT_FLOATMTX_EQ(etW, W, "rowvecs_renorm_clmnw2");
+		ASSERT_REALMTX_EQ(etW, W, "rowvecs_renorm_clmnw2");
 
 		srcW.cloneTo(W);
 		bt = steady_clock::now();
 		rowvecs_renorm_clmnw_part(W, meanNorm, &tmp[0], &ofs[0]);
 		diffClmnwPart += steady_clock::now() - bt;
 		//ASSERT_EQ(etW, W) << "rowvecs_renorm_clmnw_part";
-		ASSERT_FLOATMTX_EQ(etW, W, "rowvecs_renorm_clmnw_part");
+		ASSERT_REALMTX_EQ(etW, W, "rowvecs_renorm_clmnw_part");
 	}
 
 	STDCOUTL("naive:\t" << utils::duration_readable(diffNaive, maxReps));
@@ -556,7 +556,7 @@ TEST(TestPerfDecisions, rowvecsRenorm) {
 	//check_rowvecs_renorm(iM, 10000, 1000);
 #ifndef TESTS_SKIP_LONGRUNNING
 	check_rowvecs_renorm(iM, 1000,100);
-	check_rowvecs_renorm(iM, 10000,100);
+	//check_rowvecs_renorm(iM, 10000,100);
 #endif
 }
 
@@ -666,7 +666,7 @@ TEST(TestPerfDecisions, rowwiseNormsq) {
 #ifndef TESTS_SKIP_LONGRUNNING
 	check_rowwiseNormsq(iM, 1000);
 	check_rowwiseNormsq(iM, 10000);
-	check_rowwiseNormsq(iM, 100000);
+	//check_rowwiseNormsq(iM, 100000);
 #endif
 }
 
@@ -806,7 +806,7 @@ TEST(TestPerfDecisions, sigmLossXentropy) {
 #ifndef TESTS_SKIP_LONGRUNNING
 	check_sigm_loss_xentropy(iM, 1000);
 	check_sigm_loss_xentropy(iM, 10000);
-	check_sigm_loss_xentropy(iM, 100000);
+	//check_sigm_loss_xentropy(iM, 100000);
 #endif
 }
 
@@ -893,7 +893,7 @@ TEST(TestPerfDecisions, applyMomentum) {
 #ifndef TESTS_SKIP_LONGRUNNING
 	check_apply_momentum_perf(iM, 1000);
 	check_apply_momentum_perf(iM, 10000);
-	check_apply_momentum_perf(iM, 100000);
+	//check_apply_momentum_perf(iM, 100000);
 #endif
 }
 
@@ -1006,7 +1006,7 @@ TEST(TestPerfDecisions, Sign) {
 #ifndef TESTS_SKIP_LONGRUNNING
 	test_sign_perf(iM, 1000);
 	test_sign_perf(iM, 10000);
-	test_sign_perf(iM, 100000);
+	//test_sign_perf(iM, 100000);
 #endif
 }
 
@@ -1223,7 +1223,7 @@ TEST(TestPerfDecisions, Dropout) {
 #ifndef TESTS_SKIP_LONGRUNNING
 	test_dropout_perf(iM, 1000);
 	test_dropout_perf(iM, 10000);
-	test_dropout_perf(iM, 100000);
+	//test_dropout_perf(iM, 100000);
 #endif
 }
 //////////////////////////////////////////////////////////////////////////

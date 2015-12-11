@@ -31,38 +31,13 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 #pragma once
 
-//include header after nntl
-#include "threads/parallel_range.h"
+#define __NNTL_RUN_TEST(aroundNumel,maxPercDiff,percDiffStep,numelMult,cc) \
+unsigned baseNumel##cc = unsigned((aroundNumel)/(numelMult)), \
+diffStep##cc = unsigned(double(aroundNumel)*double(percDiffStep)/(100*numelMult)), \
+stepsCnt##cc = unsigned(double(maxPercDiff)/(percDiffStep)); \
+if (diffStep##cc == 0) diffStep##cc = 1; \
+unsigned im##cc=baseNumel##cc + diffStep##cc * stepsCnt##cc; \
+for(unsigned i=baseNumel##cc - diffStep##cc * stepsCnt##cc; i<=im##cc; i+=diffStep##cc)
 
-namespace nntl {
-namespace threads {
+#define _NNTL_RUN_TEST(aroundNumel,maxPercDiff,percDiffStep,numelMult,cc) __NNTL_RUN_TEST(aroundNumel,maxPercDiff,percDiffStep,numelMult,cc)
 
-	template <typename range_type>
-	class _i_threads {
-	public:
-		typedef range_type range_t;
-		typedef parallel_range<range_t> par_range_t;
-		typedef typename par_range_t::thread_id_t thread_id_t;
-
-		typedef math_types::real_ty real_t;
-
-		//typedef real_t(*fnFinalReduce_t)(const real_t* ptr, const range_t cnt);
-
-		// if pThreadsUsed is specified, it'll contain total number of threads (including the main thread),
-		// that is used to serve the request. It'll be less or equal to workers_count()
-		template<typename Func>
-		nntl_interface void run(Func&& F, const range_t cnt, thread_id_t* pThreadsUsed = nullptr) noexcept;
-
-		template<typename Func, typename FinalReduceFunc>
-		nntl_interface real_t reduce(Func&& FRed, FinalReduceFunc FRF, const range_t cnt) noexcept;
-
-		nntl_interface thread_id_t workers_count()noexcept;
-
-		//returns a head of container with thread objects (count threadsCnt)
-		nntl_interface auto get_worker_threads(thread_id_t& threadsCnt)noexcept;
-
-		nntl_interface static constexpr char* name="_i_threads";
-	};
-
-}
-}

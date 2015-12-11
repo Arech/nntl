@@ -31,20 +31,15 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 #pragma once
 
-/*
-#include "interface/threads/winqduc2.h"
-#ifndef NNTL_THREADS_WINQDU_AVAILABLE
-#include "interface/threads/stdc2.h"
-#endif
-*/
 #include "interface/threads/winqdu.h"
 #ifndef NNTL_THREADS_WINQDU_AVAILABLE
 #include "interface/threads/std.h"
 #endif
 
-#include "interface/math/imath_basic.h"
+//#include "interface/math/imath_basic.h"
+#include "interface/math/imath_basic_mt.h"
 
-#include "interface/rng/std.h"
+//#include "interface/rng/std.h"
 //#include "interface/rng/AFRandom.h"
 #include "interface/rng/AFRandom_mt.h"
 
@@ -54,6 +49,9 @@ namespace nntl {
 	//default nnet template parameters definition
 	struct nnet_def_interfaces {
 
+		//BTW: Std might in fact be faster than WinQDU in real use! Previous estimations was incorrect due to
+		//several reasons (wrong Std implementation and wrong testing)
+		// TODO: further testing required
 #ifdef NNTL_THREADS_WINQDU_AVAILABLE
 		typedef threads::WinQDU<math_types::realmtx_ty::numel_cnt_t> iThreads_t;
 		//typedef threads::Std<math_types::realmtx_ty::numel_cnt_t> iThreads_t;
@@ -61,9 +59,9 @@ namespace nntl {
 		typedef threads::Std<math_types::realmtx_ty::numel_cnt_t> iThreads_t;
 #endif // NNTL_THREADS_WINQDU_AVAILABLE
 
-		typedef math::iMath_basic<iThreads_t> iMath_t;
+		//typedef math::iMath_basic<iThreads_t> iMath_t;
+		typedef math::iMath_basic_mt<iThreads_t> iMath_t;
 
-		//typedef rng::Std iRng_t;
 		//typedef rng::AFRandom<Agner_Fog::CRandomSFMT0> iRng_t;
 		typedef rng::AFRandom_mt<Agner_Fog::CRandomSFMT0, iThreads_t> iRng_t;
 	};

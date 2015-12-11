@@ -44,12 +44,13 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "../nntl/utils/prioritize_workers.h"
 
 using namespace nntl;
+using namespace nntl::utils;
 
-#ifdef _DEBUG
+#ifdef NNTL_DEBUG
 constexpr unsigned TEST_PERF_REPEATS_COUNT = 10;
 #else
 constexpr unsigned TEST_PERF_REPEATS_COUNT = 400;
-#endif // _DEBUG
+#endif // NNTL_DEBUG
 
 void test_rng_perf(math_types::realmtx_ty::vec_len_t rowsCnt, math_types::realmtx_ty::vec_len_t colsCnt = 10) {
 	typedef math_types::realmtx_ty realmtx_t;
@@ -112,15 +113,14 @@ void test_rng_perf(math_types::realmtx_ty::vec_len_t rowsCnt, math_types::realmt
 	STDCOUTL("AFSFMT1:\t" << utils::duration_readable(diff, maxReps, &tstAFSFMT1));
 }
 
-TEST(TestRNG, RngPerf) {
-	
+TEST(TestRNG, RngPerf) {	
 	//for (unsigned i = 100; i <= 140; i+=1) test_rng_perf(i,100);
 
 	test_rng_perf(1000);
 #ifndef TESTS_SKIP_LONGRUNNING
 	test_rng_perf(10000);
-	test_rng_perf(100000);
-	test_rng_perf(1000000);
+	//test_rng_perf(100000);
+	//test_rng_perf(1000000);
 #endif
 }
 
@@ -159,43 +159,42 @@ void test_rngmt(iThreads&iT, math_types::realmtx_ty& m) {
 	STDCOUTL("best\t" << utils::duration_readable(diff, maxReps));
 }
 
+/*
 template<typename iThreads>
 void test_rng_mt_perf(iThreads& iT, math_types::realmtx_ty::vec_len_t rowsCnt, math_types::realmtx_ty::vec_len_t colsCnt = 10) {
 	typedef math_types::realmtx_ty realmtx_t;
-
 	const auto dataSize = realmtx_t::sNumel(rowsCnt, colsCnt);
 	STDCOUTL("******* testing multithreaded rng performance over " << rowsCnt << "x" << colsCnt << " matrix (" << dataSize << " elements) **************");
-	
 	realmtx_t m(rowsCnt, colsCnt);
 	ASSERT_TRUE(!m.isAllocationFailed());
-
 	utils::prioritize_workers<utils::PriorityClass::PerfTesting, iThreads> pw(iT);
-	
 	STDCOUTL("AFMersenne:");
 	test_rngmt<Agner_Fog::CRandomMersenne, iThreads>(iT, m);
-
 	STDCOUTL("AFSFMT0:");
 	test_rngmt<Agner_Fog::CRandomSFMT0, iThreads>(iT, m);
-
 	STDCOUTL("AFSFMT1:");
 	test_rngmt<Agner_Fog::CRandomSFMT1, iThreads>(iT, m);
+}*/
+template<typename iRng, typename iThreads>
+void test_rng_mt_perf(iThreads& iT, char* pName, math_types::realmtx_ty::vec_len_t rowsCnt, math_types::realmtx_ty::vec_len_t colsCnt = 10) {
+	typedef math_types::realmtx_ty realmtx_t;
+	const auto dataSize = realmtx_t::sNumel(rowsCnt, colsCnt);
+	STDCOUTL("******* testing multithreaded "<< pName<<	" performance over " << rowsCnt << "x" << colsCnt << " matrix (" << dataSize << " elements) **************");
+	realmtx_t m(rowsCnt, colsCnt);
+	ASSERT_TRUE(!m.isAllocationFailed());
+	utils::prioritize_workers<utils::PriorityClass::PerfTesting, iThreads> pw(iT);
+	test_rngmt<iRng, iThreads>(iT, m);
 }
 
 TEST(TestRNG, RngMtPerf) {
+	typedef math_types::real_ty real_t;
 	typedef nntl::nnet_def_interfaces::iThreads_t def_threads_t;
 	def_threads_t Thr;
 
-	//AFMersenne
-	//for (unsigned i = 1550; i <= 1750; i+=50) test_rng_mt_perf(Thr,i,1);
-	//AFSFMT0
-	//for (unsigned i = 2650; i <= 3150; i += 50) test_rng_mt_perf(Thr, i, 1);
-	//AFSFMT1
-	//for (unsigned i = 1300; i <= 2500; i += 100) test_rng_mt_perf(Thr, i, 1);
-
-	test_rng_mt_perf(Thr, 100);
-#ifndef TESTS_SKIP_LONGRUNNING
-	test_rng_mt_perf(Thr, 10000);
-	test_rng_mt_perf(Thr, 100000);
-	test_rng_mt_perf(Thr, 1000000);
-#endif
+	NNTL_RUN_TEST2( (rng::_impl::AFRandom_mt_thresholds<Agner_Fog::CRandomMersenne, real_t>::bnd_gen_vector_norm), 10)
+		test_rng_mt_perf<Agner_Fog::CRandomMersenne>(Thr, "AFMersenne", i, 10);
+	NNTL_RUN_TEST2( (rng::_impl::AFRandom_mt_thresholds<Agner_Fog::CRandomSFMT0, real_t>::bnd_gen_vector_norm), 10)
+		test_rng_mt_perf<Agner_Fog::CRandomSFMT0>(Thr, "AFSFMT0", i, 10);
+	NNTL_RUN_TEST2( (rng::_impl::AFRandom_mt_thresholds<Agner_Fog::CRandomSFMT1, real_t>::bnd_gen_vector_norm), 10)
+		test_rng_mt_perf<Agner_Fog::CRandomSFMT1>(Thr, "AFSFMT1", i, 10);
 }

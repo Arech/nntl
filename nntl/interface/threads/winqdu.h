@@ -68,6 +68,8 @@ namespace threads {
 		typedef std::vector<std::thread> threads_cont_t;
 		typedef threads_cont_t::iterator ThreadObjIterator_t;
 
+		static constexpr char* name = "WinQDU";
+
 		//////////////////////////////////////////////////////////////////////////
 		//Members
 	protected:
