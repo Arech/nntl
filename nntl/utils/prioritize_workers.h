@@ -81,11 +81,11 @@ namespace utils {
 			};
 			template<> struct PrCThP<PriorityClass::Working> {
 				static constexpr DWORD priorityClass = HIGH_PRIORITY_CLASS;
-				static constexpr int threadPriority = THREAD_PRIORITY_ABOVE_NORMAL;
+				static constexpr int threadPriority = THREAD_PRIORITY_TIME_CRITICAL; // THREAD_PRIORITY_ABOVE_NORMAL;
 			};
 			template<> struct PrCThP<PriorityClass::PerfTesting> {
 				static constexpr DWORD priorityClass = REALTIME_PRIORITY_CLASS;
-				static constexpr int threadPriority = THREAD_PRIORITY_HIGHEST;//THREAD_PRIORITY_NORMAL;// THREAD_PRIORITY_LOWEST;
+				static constexpr int threadPriority = THREAD_PRIORITY_TIME_CRITICAL; //THREAD_PRIORITY_HIGHEST;//THREAD_PRIORITY_NORMAL;// THREAD_PRIORITY_LOWEST;
 			};
 
 		public:

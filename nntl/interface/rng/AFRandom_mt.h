@@ -38,31 +38,10 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "_i_rng.h"
 #include "../threads.h"
 
+#include "AFRandom_mt_thresholds.h"
+
 namespace nntl {
 	namespace rng {
-
-		namespace _impl {
-			template<typename AgnerFogRNG>
-			struct AFRandom_mt_bounds {};
-
-			template<> struct AFRandom_mt_bounds<Agner_Fog::CRandomMersenne> {
-				static constexpr size_t bnd_gen_vector = 1670;
-				static constexpr size_t bnd_gen_vector_gtz = 1660;
-				static constexpr size_t bnd_gen_vector_norm = 1650;
-			};
-
-			template<> struct AFRandom_mt_bounds<Agner_Fog::CRandomSFMT0> {
-				static constexpr size_t bnd_gen_vector = 3070;
-				static constexpr size_t bnd_gen_vector_gtz = 3060;
-				static constexpr size_t bnd_gen_vector_norm = 3050;
-			};
-
-			template<> struct AFRandom_mt_bounds<Agner_Fog::CRandomSFMT1> {
-				static constexpr size_t bnd_gen_vector = 1750;
-				static constexpr size_t bnd_gen_vector_gtz = 1760;
-				static constexpr size_t bnd_gen_vector_norm = 1770;
-			};
-		}
 
 		template<typename AgnerFogRNG, typename iThreads>
 		class AFRandom_mt final : public rng_helper<AFRandom_mt<AgnerFogRNG, iThreads>> {
@@ -75,8 +54,9 @@ namespace nntl {
 			typedef typename ithreads_t::par_range_t par_range_t;
 			typedef typename ithreads_t::thread_id_t thread_id_t;
 
+			typedef _impl::AFRandom_mt_thresholds<base_rng_t,real_t> Thresholds_t;
+
 		protected:
-			typedef _impl::AFRandom_mt_bounds<base_rng_t> bounds_t;
 			typedef std::vector<base_rng_t> rng_vector_t;
 
 		protected:
@@ -155,7 +135,7 @@ namespace nntl {
 			// matrix/vector generation (sequence from begin to end of numbers drawn from uniform distribution in [-a,a])
 			void gen_vector(real_t* ptr, const size_t n, const real_t a)noexcept {
 				NNTL_ASSERT(m_pThreads);
-				if (n < bounds_t::bnd_gen_vector) {
+				if (n < Thresholds_t::bnd_gen_vector) {
 					gen_vector_st(ptr, n, a);
 				}else gen_vector_mt(ptr, n, a);
 			}
@@ -185,7 +165,7 @@ namespace nntl {
 			//generate vector with values in range [0,1]
 			void gen_vector_norm(real_t* ptr, const size_t n)noexcept {
 				NNTL_ASSERT(m_pThreads);
-				if (n < bounds_t::bnd_gen_vector_norm) {
+				if (n < Thresholds_t::bnd_gen_vector_norm) {
 					gen_vector_norm_st(ptr, n);
 				} else gen_vector_norm_mt(ptr, n);
 			}
@@ -214,7 +194,7 @@ namespace nntl {
 			template<typename BaseType>
 			void gen_vector_gtz(BaseType* ptr, const size_t n, const BaseType a)noexcept {
 				NNTL_ASSERT(m_pThreads);
-				if (n < bounds_t::bnd_gen_vector_gtz) {
+				if (n < Thresholds_t::bnd_gen_vector_gtz) {
 					gen_vector_gtz_st(ptr, n, a);
 				} else gen_vector_gtz_mt(ptr, n, a);
 			}

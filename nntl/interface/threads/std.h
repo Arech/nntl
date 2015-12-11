@@ -186,10 +186,7 @@ public:
 
 				if (m_workingCnt > 0) {
 					lk.lock();
-					//m_orderDone.wait(lk, [&] () throw() {return m_workingCnt <= 0; });
-					while (m_workingCnt > 0) {
-						m_orderDone.wait(lk);
-					}
+					while (m_workingCnt > 0)  m_orderDone.wait(lk);
 					lk.unlock();
 				}
 				return FRF(rc, workersOnReduce);
@@ -227,13 +224,37 @@ public:
 			m_orderDone.notify_one();
 
 			while (true) {
-				locker_t lk(m_lock);
-				//m_waitingOrders.wait(lk, [&] () throw() {return m_bStop || m_ptrCnt[id] != 0; });				
-				while(!m_bStop && 0 == m_ranges[id].cnt()) {
-					m_waitingOrders.wait(lk);
+				locker_t lk(m_lock);		
+				while(!m_bStop && 0 == m_ranges[id].cnt()) m_waitingOrders.wait(lk);
+
+				lk.unlock();
+				if (m_bStop) break;
+
+				auto& thrdRange = m_ranges[id];
+				switch (m_jobType) {
+				case JobType::Run:
+					m_fnRun(thrdRange);
+					break;
+				case JobType::Reduce:
+					m_reduceCache[id + 1] = m_fnReduce(thrdRange);
+					break;
+				default:
+					NNTL_ASSERT(!"WTF???");
+					abort();
 				}
 
-				if (m_bStop) {
+				//must set lock here to prevent deadlock during lk.lock();while (m_workingCnt > 0)  m_orderDone.wait(lk);...
+
+				lk.lock();
+				thrdRange.cnt(0);
+				m_workingCnt--;
+				m_orderDone.notify_one();
+				lk.unlock();
+
+				/*
+				 *wrong (only one thread at a time will process data), but working
+				 *
+				 *if (m_bStop) {
 					lk.unlock();
 					break;
 				}
@@ -254,7 +275,7 @@ public:
 
 				m_workingCnt--;
 				m_orderDone.notify_one();
-				lk.unlock();
+				lk.unlock();*/
 			}
 		}
 	};

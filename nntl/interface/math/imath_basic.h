@@ -39,6 +39,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "../../utils/clamp.h"
 
 #include <limits>
+#include "imath_basic_thresholds.h"
 
 namespace nntl {
 namespace math {
@@ -58,6 +59,8 @@ namespace math {
 		typedef typename ithreads_t::thread_id_t thread_id_t;
 
 		typedef math_types::realmtxdef_ty realmtxdef_t;
+
+		typedef _impl::IMATH_BASIC_THRESHOLDS<real_t> Thresholds_t;
 
 	protected:
 		typedef std::vector<real_t*> thread_temp_storage_ptrs_t;
@@ -132,7 +135,7 @@ namespace math {
 		//of greatest element in a row.
 		template<typename Contnr>
 		void mFindIdxsOfMaxRowwise(const realmtx_t& m, Contnr& dest)noexcept {
-			if (dest.size() <= 500) {
+			if (dest.size() < Thresholds_t::mFindIdxsOfMaxRowwise) {
 				mFindIdxsOfMaxRowwise_st_naive(m, dest);
 			} else mFindIdxsOfMaxRowwise_mt_naive(m, dest);
 		}
@@ -190,11 +193,12 @@ namespace math {
 				}
 			}, rows);
 		}
+
 		//////////////////////////////////////////////////////////////////////////
 		//extract rows with indexes specified by Contnr ridxs into dest.
 		template<typename SeqIt>
 		void mExtractRows(const realmtx_t& src, SeqIt ridxsItBegin, const numel_cnt_t ridxsCnt, realmtx_t& dest)noexcept {
-			if (dest.numel() < 5000) {
+			if (dest.numel() < Thresholds_t::mExtractRows) {
 				mExtractRows_st_naive(src, ridxsItBegin, ridxsCnt, dest);
 			} else mExtractRows_mt_naive(src, ridxsItBegin, ridxsCnt, dest);
 		}
@@ -272,7 +276,7 @@ namespace math {
 		//////////////////////////////////////////////////////////////////////////
 		//binarize real-valued matrix with values in [0,1] according to 0<=frac<=1
 		void mBinarize(realmtx_t& A, const real_t frac)noexcept {
-			if (A.numel() < 133000) {
+			if (A.numel() < Thresholds_t::mBinarize) {
 				mBinarize_st(A, frac);
 			}else mBinarize_mt(A, frac);
 		}
@@ -303,7 +307,7 @@ namespace math {
 		// its length/norm is not longer, than predefined value. If it's longer, than rescale vector to this max length
 		// (for use in max-norm weights regularization)
 		void mCheck_normalize_rows(realmtx_t& A, const real_t maxNormSquared)noexcept {
-			if (A.numel()<=124000) {
+			if (A.numel() < Thresholds_t::mCheck_normalize_rows) {
 				mCheck_normalize_rows_st(A, maxNormSquared);
 			}else mCheck_normalize_rows_mt(A, maxNormSquared);
 		}
@@ -481,7 +485,7 @@ namespace math {
 		//////////////////////////////////////////////////////////////////////////
 		//clamps vector values into range
 		void evClamp(realmtx_t& m, real_t lo, real_t hi)noexcept {
-			if (m.numel() < 11200) {
+			if (m.numel() < Thresholds_t::evClamp) {
 				evClamp_st(m, lo, hi);
 			} else evClamp_mt(m, lo, hi);
 		}
@@ -508,7 +512,7 @@ namespace math {
 		//binarizes dropoutMask according to dropoutFraction value and applies dropoutMask to activations
 		// act must be used in "no_bias" mode
 		void make_dropout(realmtx_t& act, real_t dfrac, realmtx_t& dropoutMask)noexcept {
-			if (act.numel_no_bias() < 8800) {
+			if (act.numel_no_bias() < Thresholds_t::make_dropout) {
 				make_dropout_st(act,dfrac, dropoutMask);
 			} else make_dropout_mt(act, dfrac, dropoutMask);
 		}
@@ -559,9 +563,11 @@ namespace math {
 			const real_t decr, const real_t incr, const real_t capLow, const real_t capHigh)noexcept
 		{
 			const auto dataCnt = dLdW.numel();
-			if (dataCnt<=4600) {
-				apply_ILR_st_naive(dLdW,prevdLdW,ILRGain,decr,incr,capLow,capHigh);
- 			} else if (dataCnt<131000 || dataCnt>=325000) {
+			if (dataCnt < Thresholds_t::apply_ILR_st) {
+				if (std::is_same<float, real_t>::value) {
+					apply_ILR_st_vec(dLdW, prevdLdW, ILRGain, decr, incr, capLow, capHigh);
+				}else apply_ILR_st_naive(dLdW,prevdLdW,ILRGain,decr,incr,capLow,capHigh);
+			} else if (dataCnt < Thresholds_t::apply_ILR_mt_lo || dataCnt > Thresholds_t::apply_ILR_mt_hi) {
  				apply_ILR_mt_naive(dLdW, prevdLdW, ILRGain, decr, incr, capLow, capHigh);
 			}else apply_ILR_mt_vec(dLdW, prevdLdW, ILRGain, decr, incr, capLow, capHigh);
 		}
@@ -706,7 +712,7 @@ namespace math {
 		//////////////////////////////////////////////////////////////////////////
 		//apply momentum vW = momentum.*vW + dW
 		void apply_momentum(realmtx_t& vW, const real_t momentum, const realmtx_t& dW)noexcept {
-			if (vW.numel()<21000) {
+			if (vW.numel() < Thresholds_t::apply_momentum) {
 				apply_momentum_st(vW, momentum, dW);
 			}else apply_momentum_mt(vW, momentum, dW);
 		}
@@ -739,7 +745,7 @@ namespace math {
 		//////////////////////////////////////////////////////////////////////////
 		//inplace elementwise multiplication A = b.*A
 		void evMulC_ip(realmtx_t& A, const real_t b)noexcept {
-			if (A.numel() < 63800) {
+			if (A.numel() < Thresholds_t::evMulC_ip) {
 				evMulC_ip_st_naive(A, b);
 			} else evMulC_ip_mt_naive(A, b);
 		}
@@ -767,7 +773,7 @@ namespace math {
 
 		//inplace elementwise multiplication A(no_bias) = b.*A(no_bias)
 		void evMulC_ip_Anb(realmtx_t& A, const real_t b)noexcept {
-			if (A.numel_no_bias() < 63800) {
+			if (A.numel_no_bias() < Thresholds_t::evMulC_ip_Anb) {
 				evMulC_ip_Anb_st_naive(A, b);
 			} else evMulC_ip_Anb_mt_naive(A, b);
 		}
@@ -784,8 +790,7 @@ namespace math {
 		//////////////////////////////////////////////////////////////////////////
 		//inplace elementwise multiplication A = A.*B
 		void evMul_ip(realmtx_t& A, const realmtx_t& B)noexcept {
-			const auto dataCnt = A.numel();
-			if (dataCnt < 36700) {
+			if (A.numel() < Thresholds_t::evMul_ip) {
 				evMul_ip_st_naive(A, B);
 			}else evMul_ip_mt_naive(A, B);
 		}
@@ -831,7 +836,7 @@ namespace math {
 		//inplace elementwise multiplication A(no_bias) = A(no_bias).*B, - A is taken in no_bias mode
 		void evMul_ip_Anb(realmtx_t& A, const realmtx_t& B)noexcept {
 			const auto dataCnt = B.numel();
-			if (dataCnt <= 36700) {
+			if (dataCnt < Thresholds_t::evMul_ip_Anb) {
 				evMul_ip_Anb_st_naive(A, B);
 			} else evMul_ip_Anb_mt_naive(A, B);
 		}
@@ -850,7 +855,7 @@ namespace math {
 		//////////////////////////////////////////////////////////////////////////
 		//inplace elementwise addition A = A+B
 		void evAdd_ip(realmtx_t& A, const realmtx_t& B)noexcept {
-			if (A.numel() < 22000) {
+			if (A.numel() < Thresholds_t::evAdd_ip) {
 				evAdd_ip_st(A, B);
 			} else evAdd_ip_mt(A, B);
 		}
@@ -875,7 +880,7 @@ namespace math {
 		//////////////////////////////////////////////////////////////////////////
 		//inplace elementwise subtraction A = A-B
 		void evSub_ip(realmtx_t& A, const realmtx_t& B)noexcept {
-			if (A.numel()<22000) {
+			if (A.numel() < Thresholds_t::evSub_ip) {
 				evSub_ip_st_naive(A, B);
 			}else evSub_ip_mt_naive(A, B);
 		}
@@ -902,7 +907,7 @@ namespace math {
 		//////////////////////////////////////////////////////////////////////////
 		//elementwise subtraction C = A-B
 		void evSub(const realmtx_t& A, const realmtx_t& B, realmtx_t& C)noexcept {
-			if (A.numel() < 12000) {
+			if (A.numel() < Thresholds_t::evSub) {
 				evSub_st_naive(A, B, C);
 			} else evSub_mt_naive(A, B, C);
 		}
@@ -930,7 +935,7 @@ namespace math {
 		//inplace elementwise scaling and subtracting: vW = momentum.*vW, W = W-vW;
 		//(it's pre-fprop step of Nesterov Momentum method)
 		void evMulC_ip_Sub_ip(realmtx_t& vW, const real_t momentum, realmtx_t& W)noexcept {
-			if (vW.numel()<15000) {
+			if (vW.numel() < Thresholds_t::evMulC_ip_Sub_ip) {
 				evMulC_ip_Sub_ip_st(vW, momentum, W);
 			}else evMulC_ip_Sub_ip_mt(vW, momentum, W);
 		}
@@ -966,7 +971,7 @@ namespace math {
 		//////////////////////////////////////////////////////////////////////////
 		//elementwise squaring dest = src.^2;
 		void evSquare(realmtx_t& dest, const realmtx_t& src)noexcept {
-			if (src.numel()<24700) {
+			if (src.numel() < Thresholds_t::evSquare) {
 				evSquare_st(dest, src);
 			}else evSquare_mt(dest, src);
 		}
@@ -998,7 +1003,7 @@ namespace math {
 		//////////////////////////////////////////////////////////////////////////
 		//finding elementwise absolute values dest = .abs(src);
 		void evAbs(realmtx_t& dest, const realmtx_t& src)noexcept {
-			if (src.numel() < 20500) {
+			if (src.numel() < Thresholds_t::evAbs) {
 				evAbs_st(dest, src);
 			} else evAbs_mt(dest, src);
 		}
@@ -1065,7 +1070,7 @@ namespace math {
 		// sigmoid function
 		//////////////////////////////////////////////////////////////////////////
 		void sigm(realmtx_t& srcdest) noexcept {
-			if (srcdest.numel() <= 2800) {
+			if (srcdest.numel() < Thresholds_t::sigm) {
 				sigm_st_naive(srcdest);
 			}else sigm_mt_naive(srcdest);
 		}
@@ -1095,7 +1100,7 @@ namespace math {
 		//////////////////////////////////////////////////////////////////////////
 		// d(sigm)/d(arg) - sigmoid derivative df = f.*(1-f), where fValue is activation value (used in no_bias version)
 		void dsigm(const realmtx_t& fValue, realmtx_t& df) noexcept {
-			if (fValue.numel_no_bias() <= 28000) {
+			if (fValue.numel_no_bias() < Thresholds_t::dsigm) {
 				dsigm_st_naive(fValue, df);
 			} else dsigm_mt_naive(fValue, df);
 		}
@@ -1135,7 +1140,7 @@ namespace math {
 		//dL/dZ = (err===a-y)*a*(1-a)
 		// because activations comes from the output layer, expecting no biases there
 		void dSigmQuadLoss_dZ(const realmtx_t& activations, const realmtx_t& data_y, realmtx_t& dLdZ) {
-			if (activations.numel()<16500) {
+			if (activations.numel() < Thresholds_t::dSigmQuadLoss_dZ) {
 				dSigmQuadLoss_dZ_st_naive(activations, data_y, dLdZ);
 			}else dSigmQuadLoss_dZ_mt_naive(activations, data_y, dLdZ);
 		}
@@ -1183,7 +1188,7 @@ namespace math {
 		//////////////////////////////////////////////////////////////////////////
 		//ReLU
 		void relu(realmtx_t& srcdest) noexcept {
-			if (srcdest.numel()<4100) {
+			if (srcdest.numel() < Thresholds_t::relu) {
 				relu_st_naive(srcdest);
 			} else relu_mt_naive(srcdest);
 		}
@@ -1214,7 +1219,7 @@ namespace math {
 		//////////////////////////////////////////////////////////////////////////
 		// d(ReLU)/dZ
 		void drelu(const realmtx_t& fValue, realmtx_t& df) noexcept {
-			if (df.numel()<21500) {
+			if (df.numel() < Thresholds_t::drelu) {
 				drelu_st_naive(fValue, df);
 			} else drelu_mt_naive(fValue, df);
 		}
@@ -1249,7 +1254,7 @@ namespace math {
 		//loss functions
 		//////////////////////////////////////////////////////////////////////////
 		real_t loss_quadratic(const realmtx_t& activations, const realmtx_t& data_y)noexcept {
-			if (activations.numel() < 25000) {
+			if (activations.numel() < Thresholds_t::loss_quadratic) {
 				return loss_quadratic_st_naive(activations, data_y);
 			} else return loss_quadratic_mt_naive(activations, data_y);
 		}
@@ -1291,7 +1296,7 @@ namespace math {
 		// cross entropy function for sigmoid (applicable ONLY for binary data_y and sigmoid activation function)
 		// L = -y*log(a)-(1-y)log(1-a), dL/dz = dL/dA * dA/dZ = (a-y)
 		real_t loss_sigm_xentropy(const realmtx_t& activations, const realmtx_t& data_y)noexcept {
-			if (activations.numel() < 1100) {
+			if (activations.numel() < Thresholds_t::loss_sigm_xentropy) {
 				return loss_sigm_xentropy_st_naivepart(activations, data_y);
 			} else return loss_sigm_xentropy_mt_naivepart(activations, data_y);
 		}
@@ -1354,7 +1359,7 @@ namespace math {
 		void RMSProp_Hinton(realmtx_t& dW, realmtx_t& rmsF, const real_t learningRate,
 			const real_t emaDecay, const real_t numericStabilizer)noexcept
 		{
-			if (dW.numel()<3000) {
+			if (dW.numel() < Thresholds_t::RMSProp_Hinton) {
 				RMSProp_Hinton_st(dW, rmsF, learningRate, emaDecay, numericStabilizer);
 			}else RMSProp_Hinton_mt(dW, rmsF, learningRate, emaDecay, numericStabilizer);
 		}
@@ -1407,7 +1412,7 @@ namespace math {
 		void RMSProp_Graves(realmtx_t& dW, realmtx_t& rmsF, realmtx_t& rmsG, const real_t learningRate,
 			const real_t emaDecay, const real_t numericStabilizer)noexcept 
 		{
-			if (dW.numel() < 3000) {
+			if (dW.numel() < Thresholds_t::RMSProp_Graves) {
 				RMSProp_Graves_st(dW, rmsF, rmsG, learningRate, emaDecay, numericStabilizer);
 			} else RMSProp_Graves_mt(dW, rmsF, rmsG, learningRate, emaDecay, numericStabilizer);
 		}
@@ -1466,7 +1471,7 @@ namespace math {
 		}
 		//////////////////////////////////////////////////////////////////////////
 		void RProp(realmtx_t& dW, const real_t learningRate)noexcept {
-			if (dW.numel() < 5500) {
+			if (dW.numel() < Thresholds_t::RProp) {
 				RProp_st(dW, learningRate);
 			} else RProp_mt(dW, learningRate);
 		}
@@ -1495,7 +1500,7 @@ namespace math {
 		void ModProp(realmtx_t& dW, realmtx_t& rmsF, const real_t learningRate,
 			const real_t emaDecay, const real_t numericStabilizer)noexcept
 		{
-			if (dW.numel() < 5000) {
+			if (dW.numel() < Thresholds_t::ModProp) {
 				ModProp_st(dW, rmsF, learningRate, emaDecay, numericStabilizer);
 			} else ModProp_mt(dW, rmsF, learningRate, emaDecay, numericStabilizer);
 		}

@@ -36,16 +36,10 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "../nntl/interface/rng/std.h"
 #include "../nntl/interface/threads/winqdu.h"
 #include "../nntl/interface/threads/std.h"
-// #include "../nntl/interface/threads/winqduc.h"
-// #include "../nntl/interface/threads/stdc.h"
-// #include "../nntl/interface/threads/winqduc2.h"
-// #include "../nntl/interface/threads/stdc2.h"
-//#include "../nntl/interface/threads/intel_tbb.h"
 #include "../nntl/nnet_def_interfaces.h"
 #include "../nntl/utils/chrono.h"
 
 //#define BOOST_USE_WINDOWS_H
-//#include <boost/thread/barrier.hpp>
 
 using namespace nntl;
 
@@ -72,7 +66,7 @@ void threads_basics_test(TT& t) {
 	math_types::realmtx_ty m(1, maxCnt + 1);
 	ASSERT_TRUE(!m.isAllocationFailed());
 	auto ptr = m.dataAsVec();
-
+	
 	for (range_t mnumel = 1; mnumel <= maxCnt; ++mnumel) {
 		const auto maxCntPerWorker = static_cast<range_t>(ceil(static_cast<double>(mnumel) / workersCnt));
 
@@ -127,6 +121,7 @@ TEST(TestThreading, StdBasics) {
 	threads_basics_test(t);
 }
 
+
 #ifndef TESTS_SKIP_THREADING_PERFS
 
 TEST(TestThreading, PerfComparision) {
@@ -134,6 +129,7 @@ TEST(TestThreading, PerfComparision) {
 
 	typedef math_types::realmtx_ty::numel_cnt_t numel_cnt_t;
 	STDCOUTL("The test may require a few seconds to complete. Define TESTS_SKIP_THREADING_PERFS to skip.");
+	STDCOUTL("Probably, you shouldn't rely on this test results...");
 
 	constexpr uint64_t maxreps = 200000;
 	EXPECT_TRUE(steady_clock::is_steady);
@@ -192,14 +188,13 @@ TEST(TestThreading, PerfComparision) {
 #ifndef TESTS_SKIP_THREADING_DELAYS
 
 template <typename TT>
-void threading_delay_test(TT& t, double m=1) {
+void threading_delay_test(TT& t) {
 	//no need to make it significantly smaller because of resolution of Windows sleep timer
 	const rng::Std::generated_scalar_t max_mks = 5000;
 	//but this count should be large enough
 	const uint64_t maxreps = 10000;
 
-	STDCOUTL("The test would require a bit less than " << static_cast<uint64_t>(m*max_mks*maxreps / 1000000) << "s"
-		<<(m>1?" (have no idea why is it longer)":"")
+	STDCOUTL("The test would require a bit less than " << static_cast<uint64_t>(max_mks*maxreps / 1000000) << "s"
 		<<".\nIf it lasts significantly longer, then the app hangs and test failed. Define TESTS_SKIP_THREADING_DELAYS to skip.");
 	
 	rng::Std r;
@@ -218,7 +213,7 @@ TEST(TestThreading, WinQDUDelays) {
 
 TEST(TestThreading, StdDelays) {
 	threads::Std<math_types::realmtx_ty::numel_cnt_t> t;
-	threading_delay_test(t,3);
+	threading_delay_test(t);
 	ASSERT_TRUE(true) << "This tests if the execution reaches here or binary hangs";
 }
 

@@ -51,6 +51,8 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //can be used to wrap strings
 #define NNTL_STRING(s) s
 
+#define NNTL_STRINGIZE(s) #s
+
 //////////////////////////////////////////////////////////////////////////
 // debugging-specific tools
 // set to __func__ to conform ANSI C

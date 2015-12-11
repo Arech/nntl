@@ -46,6 +46,12 @@
     <Filter Include="_extern\agner.org">
       <UniqueIdentifier>{9584a723-52a9-491b-95b3-2d0162001e06}</UniqueIdentifier>
     </Filter>
+    <Filter Include="nntl\_test">
+      <UniqueIdentifier>{030cc069-f894-4669-82b4-0f33f895a84a}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="nntl\interface\mt_dispatcher">
+      <UniqueIdentifier>{8f673c00-7595-4ff5-b60b-b7138005f6d7}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <Text Include="ReadMe.txt" />
@@ -200,6 +206,21 @@
     </ClInclude>
     <ClInclude Include="etalons.h">
       <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\nntl\interface\math\imath_basic_thresholds.h">
+      <Filter>nntl\interface\math</Filter>
+    </ClInclude>
+    <ClInclude Include="..\nntl\interface\rng\AFRandom_mt_thresholds.h">
+      <Filter>nntl\interface\rng</Filter>
+    </ClInclude>
+    <ClInclude Include="..\nntl\_test\test.h">
+      <Filter>nntl\_test</Filter>
+    </ClInclude>
+    <ClInclude Include="..\nntl\interface\mt_dispatcher\mt_dispatcher.h">
+      <Filter>nntl\interface\mt_dispatcher</Filter>
+    </ClInclude>
+    <ClInclude Include="..\nntl\utils\tictoc.h">
+      <Filter>nntl\utils</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

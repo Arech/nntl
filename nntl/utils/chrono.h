@@ -32,8 +32,8 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #pragma once
 
 #include <chrono>
-#include "../_defs.h"
-#include "../common.h"
+//#include "../_defs.h"
+//#include "../common.h"
 
 namespace nntl {
 namespace utils {
@@ -50,19 +50,24 @@ namespace utils {
 		};
 
 		template<typename per_t> struct period_name {
-			static constexpr const strchar_t* name = NNTL_STRING("???");
+			//static constexpr const strchar_t* name = NNTL_STRING("???");
+			static constexpr const char* name = "???";
 		};
 		template<> struct period_name<std::chrono::seconds> {
-			static constexpr const strchar_t* name = NNTL_STRING("s");
+			//static constexpr const strchar_t* name = NNTL_STRING("s");
+			static constexpr const char* name = "s";
 		};
 		template<> struct period_name<std::chrono::milliseconds> {
-			static constexpr const strchar_t* name = NNTL_STRING("ms");
+			//static constexpr const strchar_t* name = NNTL_STRING("ms");
+			static constexpr const char* name = "ms";
 		};
 		template<> struct period_name<std::chrono::microseconds> {
-			static constexpr const strchar_t* name = NNTL_STRING("mcs");
+			//static constexpr const strchar_t* name = NNTL_STRING("mcs");
+			static constexpr const char* name = "mcs";
 		};
 		template<> struct period_name<std::chrono::nanoseconds> {
-			static constexpr const strchar_t* name = NNTL_STRING("ns");
+			//static constexpr const strchar_t* name = NNTL_STRING("ns");
+			static constexpr const char* name = "ns";
 		};
 	}
 	
@@ -71,7 +76,7 @@ namespace utils {
 	static inline std::string duration_readable(durType d, uint64_t repeats=1, double* ptrSingleTime=nullptr)noexcept {
 		double t = static_cast<double>(d.count())/repeats;
 		if (ptrSingleTime) *ptrSingleTime = t;
-		const strchar_t* name;
+		const char* name;
 		if (t<1000) {
 			name = chrono::period_name<durType>::name;
 		}else if (t < 1000000) {
@@ -85,7 +90,7 @@ namespace utils {
 			name = chrono::period_name< chrono::period_3oom_bigger<chrono::period_3oom_bigger< chrono::period_3oom_bigger<durType>::type >::type >::type >::name;
 		}
 		constexpr unsigned MAX_STR_SIZE = 256;
-		strchar_t str[MAX_STR_SIZE];
+		char str[MAX_STR_SIZE];
 #pragma warning(disable : 6031)
 		std::snprintf(str, MAX_STR_SIZE, "%8.3f %s", t, name);
 #pragma warning(default : 6031)

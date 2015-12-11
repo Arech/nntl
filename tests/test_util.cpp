@@ -42,13 +42,13 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "../nntl/utils/prioritize_workers.h"
 
 using namespace nntl;
-#ifdef _DEBUG
+#ifdef NNTL_DEBUG
 constexpr unsigned TEST_PERF_REPEATS_COUNT = 10;
 constexpr unsigned TEST_CORRECTN_REPEATS_COUNT = 100;
 #else
 constexpr unsigned TEST_PERF_REPEATS_COUNT = 400;
 constexpr unsigned TEST_CORRECTN_REPEATS_COUNT = 50;
-#endif // _DEBUG
+#endif // NNTL_DEBUG
 
 
 TEST(TestUtil, PrioritizeWorkersPerf) {

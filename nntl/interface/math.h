@@ -98,6 +98,7 @@ namespace math {
 		//basic data type for nn inputs, weights and so on.
 		//change to any suitable type
 		typedef NNTL_CFG_DEFAULT_TYPE real_ty;
+		static constexpr char* real_ty_name = NNTL_STRINGIZE(NNTL_CFG_DEFAULT_TYPE);
 
 		//matrix of real_ty, colMajor order, because many math libs uses it by default
 		//TODO: specialization for the case of 1D data (such as binary classification results) may provide some performance gain
