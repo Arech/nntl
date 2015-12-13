@@ -18,7 +18,7 @@ I wouldn't state nntl is the fastest CPU implementation of FF NN, but nonetheles
 
 ## Currently Implemented NN Features
 * full-batch or mini-batch learning
-* individually tunable feedforward layers (i.e. almost all properties such as activation function, learning rate, dropout rate and so on are defined in per layer basis)
+* individually tunable feedforward layers (i.e. almost all properties such as activation function, learning rate, dropout and other regularizers coefficients, and so on are defined on per layer basis). Construct any deep learning architecture you want.
 * sigmoid activation units with quadratic and cross-entropy loss function for outer layer
 * sigmoid and rectified linear units (ReLU) for hidden layers
 * Different neuron weights initialization schemes:
@@ -32,11 +32,12 @@ I wouldn't state nntl is the fastest CPU implementation of FF NN, but nonetheles
   * RProp (sign of a gradient)
   * my own slightly mad modification of RMSProp (probably, someone is also invented it, don't know), which I call ModProp, that uses abs() of gradient in EMA instead of square as in RMSProp. It's slightly faster, than RMSProp, because it eliminates the need of squaring and square rooting, and sometimes it helps to learn weights when no other techniques helps (the latter is probably related to some specific properties of data I used, but anyway, it might be helpful to try it).
 * Classical momentum / Nesterov momentum (a.k.a. Nesterov Accelerated Gradient or NAG for short)
-* Individual Adaptive Learning Rates (ILR in code) based on agreement in signs of current and previous gradient or momentum velocity.
 * Regularizers:
   * Dropout
+  * L1 and L2 (weight decay) regularizers
   * Constraint for a total length of neuron incoming weight vector - so called max-norm regularization. Once neuron weights grow too much, they are getting scaled so their norm will fit into some predefined value (Srivastava, Hinton, et.al "Dropout: A Simple Way to Prevent Neural Networks from Overfitting" 2014)
   * Constraints for a magnitude of derivative of loss function in outer layer (idea taken from aforementioned “Generating Sequences With Recurrent Neural Networks” (2013) by Alex Graves)
+* Individual Adaptive Learning Rates (ILR in code) based on agreement in signs of current and previous gradient or momentum velocity.
 * Early stopping, learning rates decay, momentum modification and etc.. Any tuning of learning variables you would like during actual training process.
 
 ## The Pros and Cons
@@ -49,6 +50,7 @@ I wouldn't state nntl is the fastest CPU implementation of FF NN, but nonetheles
   * multithreading
   * layers
   * activation functions
+  * weights initialization schemes
   * ...
 * OpenBLAS (for matrix*matrix multiplications) is the only external code dependency. It could be easily replaced if needed.
 
