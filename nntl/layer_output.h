@@ -57,6 +57,8 @@ namespace nntl {
 		typedef GradWorks grad_works_t;
 		static_assert(std::is_base_of<_i_grad_works, grad_works_t>::value, "GradWorks template parameter should be derived from _i_grad_works");
 
+		typedef _impl::_layer_init_data<iMath_t, iRng_t> _layer_init_data_t;
+
 		//////////////////////////////////////////////////////////////////////////
 		//members
 	protected:
@@ -67,13 +69,13 @@ namespace nntl {
 		realmtxdef_t m_weights;
 
 		realmtx_t m_dLdZ;//doesn't guarantee to retain it's value between usage in different code flows; may share memory with some other data structure
-		realmtx_t m_dLdW;//doesn't guarantee to retain it's value between usage in different code flows; may share memory with some other data structure
+
+		realmtxdef_t m_dLdW;//doesn't guarantee to retain it's value between usage in different code flows;
+		//may share memory with some other data structure. Must be deformable for grad_works_t
 
 		iMath_t* m_pMath;
 		iRng_t* m_pRng;
-
-		real_t m_learningRate;
-
+		
 		bool m_bRestrictdLdZ;//restriction flag should be permanent for init/deinit calls and changed only by explicit calls to respective functions
 		real_t m_dLdZRestrictLowerBnd, m_dLdZRestrictUpperBnd;
 
@@ -94,7 +96,7 @@ namespace nntl {
 
 		_layer_output(const neurons_count_t _neurons_cnt, real_t learningRate = 0.01) noexcept 
 			: _base_class(_neurons_cnt), m_activations(), m_weights(), m_dLdZ(), m_dLdW(), m_bWeightsInitialized(false)
-			, m_learningRate(learningRate), m_max_fprop_batch_size(0), m_training_batch_size(0)
+			, m_gradientWorks(learningRate), m_max_fprop_batch_size(0), m_training_batch_size(0)
 			, m_pMath(nullptr), m_pRng(nullptr), m_bRestrictdLdZ(false)
 		{
 			NNTL_ASSERT(learningRate > 0);
@@ -105,10 +107,10 @@ namespace nntl {
 		constexpr bool is_output_layer()const noexcept { return true; }
 		const realmtx_t& get_activations()const noexcept { return m_activations; }
 
-		template<typename _layer_init_data_t>
+		//template<typename _layer_init_data_t>
 		ErrorCode init(_layer_init_data_t& lid)noexcept {
-			static_assert(std::is_same<iMath_t, _layer_init_data_t::i_math_t>::value, "_layer_init_data_t::i_math_t type must be the same as given by class template parameter Interfaces::iMath");
-			static_assert(std::is_same<iRng_t, _layer_init_data_t::i_rng_t>::value, "_layer_init_data_t::i_rng_t must be the same as given by class template parameter Interfaces::iRng");
+// 			static_assert(std::is_same<iMath_t, _layer_init_data_t::i_math_t>::value, "_layer_init_data_t::i_math_t type must be the same as given by class template parameter Interfaces::iMath");
+// 			static_assert(std::is_same<iRng_t, _layer_init_data_t::i_rng_t>::value, "_layer_init_data_t::i_rng_t must be the same as given by class template parameter Interfaces::iRng");
 
 			bool bSuccessfullyInitialized = false;
 			utils::scope_exit([&bSuccessfullyInitialized, this]() {
@@ -160,6 +162,8 @@ namespace nntl {
 			}
 
 			if (!m_gradientWorks.init(grad_works_t::init_struct_t(m_pMath, m_weights.size())))return ErrorCode::CantInitializeGradWorks;
+
+			lid.bHasLossAddendum = hasLossAddendum();
 
 			bSuccessfullyInitialized = true;
 			return ErrorCode::Success;
@@ -246,8 +250,16 @@ namespace nntl {
 			}
 
 			//now we can apply gradient to the weights
-			m_gradientWorks.apply_grad(m_weights, m_dLdW, m_learningRate);
+			m_gradientWorks.apply_grad(m_weights, m_dLdW);
 		}
+
+		//////////////////////////////////////////////////////////////////////////
+
+		//returns a loss function summand, that's caused by this layer (for example, L2 regularizer adds term
+		// l2Coefficient*Sum(weights.^2) )
+		real_t lossAddendum()const noexcept { return m_gradientWorks.lossAddendum(m_weights); }
+		//should return true, if the layer has a value to add to Loss function value (there's some regularizer attached)
+		bool hasLossAddendum()const noexcept { return m_gradientWorks.hasLossAddendum(); }
 
 		//////////////////////////////////////////////////////////////////////////
 
@@ -262,12 +274,6 @@ namespace nntl {
 		}
 		self_ref_t drop_dL_dZ_restriction()noexcept { 
 			m_bRestrictdLdZ = false; 
-			return get_self();
-		}
-		const real_t learning_rate()const noexcept { return m_learningRate; }
-		self_ref_t learning_rate(real_t lr)noexcept {
-			NNTL_ASSERT(lr > 0);
-			m_learningRate = lr;
 			return get_self();
 		}
 

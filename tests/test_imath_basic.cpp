@@ -86,6 +86,322 @@ void ASSERT_REALMTX_EQ(const realmtx_t& c1, const realmtx_t& c2, const char* des
 
 //////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////
+
+
+real_t vSumAbs_ET(const realmtx_t& A)noexcept {
+	const auto dataCnt = A.numel();
+	const auto p = A.dataAsVec();
+	real_t ret(0);
+	for (numel_cnt_t i = 0; i < dataCnt; ++i) ret += abs(p[i]);
+	return ret;
+}
+template<typename base_t> struct vSumAbs_EPS {};
+template<> struct vSumAbs_EPS<double> { static constexpr double eps = 1e-10; };
+template<> struct vSumAbs_EPS<float> { static constexpr double eps = 2e-5; };
+template<typename iMath>
+void test_vSumAbs(iMath& iM, typename iMath::realmtx_t::vec_len_t rowsCnt, typename iMath::realmtx_t::vec_len_t colsCnt = 10) {
+	const auto dataSize = realmtx_t::sNumel(rowsCnt, colsCnt);
+	STDCOUTL("******* testing vSumAbs() over " << rowsCnt << "x" << colsCnt << " matrix (" << dataSize << " elements) **************");
+
+	constexpr unsigned maxReps = TEST_PERF_REPEATS_COUNT, testCorrRepCnt = TEST_CORRECTN_REPEATS_COUNT;
+
+	realmtx_t A(rowsCnt, colsCnt);
+	ASSERT_TRUE(!A.isAllocationFailed());
+
+	nnet_def_interfaces::iRng_t rg;
+	rg.set_ithreads(iM.ithreads());
+	for (unsigned r = 0; r < testCorrRepCnt; ++r) {
+		rg.gen_matrix(A, 2);
+
+		const auto vss = vSumAbs_ET(A);
+
+		auto v = iM.vSumAbs_st(A);
+		ASSERT_NEAR(vss, v, vSumAbs_EPS<real_t>::eps) << "vSumAbs_st failed correctness test";
+
+		v = iM.vSumAbs_mt(A);
+		ASSERT_NEAR(vss, v, vSumAbs_EPS<real_t>::eps) << "vSumAbs_mt failed correctness test";
+
+		v = iM.vSumAbs(A);
+		ASSERT_NEAR(vss, v, vSumAbs_EPS<real_t>::eps) << "vSumAbs failed correctness test";
+	}
+
+	tictoc tst, tmt, tb;
+	//////////////////////////////////////////////////////////////////////////
+	//testing performance
+	utils::prioritize_workers<utils::PriorityClass::PerfTesting, iMath::ithreads_t> pw(iM.ithreads());
+
+	//FFFFfffffffff... don't ever think about removing rg. calls that randomizes data...
+	real_t vv = 0;
+	for (unsigned r = 0; r < maxReps; ++r) {
+		rg.gen_matrix(A, 2);
+		tst.tic();
+		vv += iM.vSumAbs_st(A);
+		tst.toc();
+
+		rg.gen_matrix(A, 2);
+		tmt.tic();
+		vv += iM.vSumAbs_mt(A);
+		tmt.toc();
+
+		rg.gen_matrix(A, 2);
+		tb.tic();
+		vv += iM.vSumAbs(A);
+		tb.toc();
+	}
+	tst.say("st");
+	tmt.say("mt");
+	tb.say("best");
+	STDCOUTL(vv);
+}
+TEST(TestIMathBasic, vSumAbs) {
+	typedef nntl::nnet_def_interfaces::iThreads_t def_threads_t;
+	typedef math::iMath_basic<def_threads_t> iMB;
+	iMB iM;
+	NNTL_RUN_TEST2(iMB::Thresholds_t::vSumAbs, 100) test_vSumAbs(iM, i, 100);
+}
+
+//////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////
+
+real_t vSumSquares_ET(const realmtx_t& A)noexcept {
+	const auto dataCnt = A.numel();
+	const auto p = A.dataAsVec();
+	real_t ret(0);
+	for (numel_cnt_t i = 0; i < dataCnt; ++i) ret += p[i] * p[i];
+	return ret;
+}
+template<typename base_t> struct vSumSquares_EPS {};
+template<> struct vSumSquares_EPS<double> { static constexpr double eps = 1e-10; };
+template<> struct vSumSquares_EPS<float> { static constexpr double eps = 2e-5; };
+template<typename iMath>
+void test_vSumSquares(iMath& iM, typename iMath::realmtx_t::vec_len_t rowsCnt, typename iMath::realmtx_t::vec_len_t colsCnt = 10) {
+	const auto dataSize = realmtx_t::sNumel(rowsCnt, colsCnt);
+	STDCOUTL("******* testing vSumSquares() over " << rowsCnt << "x" << colsCnt << " matrix (" << dataSize << " elements) **************");
+
+	constexpr unsigned maxReps = TEST_PERF_REPEATS_COUNT, testCorrRepCnt = TEST_CORRECTN_REPEATS_COUNT;
+
+	realmtx_t A(rowsCnt, colsCnt);
+	ASSERT_TRUE(!A.isAllocationFailed());
+
+	nnet_def_interfaces::iRng_t rg;
+	rg.set_ithreads(iM.ithreads());
+	for (unsigned r = 0; r < testCorrRepCnt; ++r) {
+		rg.gen_matrix(A, 2);
+
+		const auto vss = vSumSquares_ET(A);
+		
+		ASSERT_NEAR(vss, iM.vSumSquares_st(A), vSumSquares_EPS<real_t>::eps) << "vSumSquares_st failed correctness test";
+		ASSERT_NEAR(vss, iM.vSumSquares_mt(A), vSumSquares_EPS<real_t>::eps) << "vSumSquares_mt failed correctness test";
+		ASSERT_NEAR(vss, iM.vSumSquares(A), vSumSquares_EPS<real_t>::eps) << "vSumSquares failed correctness test";
+	}
+
+	tictoc tst, tmt, tb;
+	//////////////////////////////////////////////////////////////////////////
+	//testing performance
+	utils::prioritize_workers<utils::PriorityClass::PerfTesting, iMath::ithreads_t> pw(iM.ithreads());
+
+	//FFFFfffffffff... don't ever think about removing rg. calls that randomizes data...
+	real_t vv = 0;
+	for (unsigned r = 0; r < maxReps; ++r) {
+		rg.gen_matrix(A, 2);
+		tst.tic();
+		vv+=iM.vSumSquares_st(A);
+		tst.toc();
+
+		rg.gen_matrix(A, 2);
+		tmt.tic();
+		vv += iM.vSumSquares_mt(A);
+		tmt.toc();
+
+		rg.gen_matrix(A, 2);
+		tb.tic();
+		vv += iM.vSumSquares(A);
+		tb.toc();
+	}
+	tst.say("st");
+	tmt.say("mt");
+	tb.say("best");
+	STDCOUTL(vv);
+}
+TEST(TestIMathBasic, vSumSquares) {
+	typedef nntl::nnet_def_interfaces::iThreads_t def_threads_t;
+	typedef math::iMath_basic<def_threads_t> iMB;
+	iMB iM;
+	NNTL_RUN_TEST2(iMB::Thresholds_t::vSumSquares, 100) test_vSumSquares(iM, i, 100);
+}
+
+//////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////
+
+
+void evAddScaledSign_ip_ET(realmtx_t& A, const real_t c, const realmtx_t& B)noexcept {
+	NNTL_ASSERT(A.size() == B.size());
+
+	const auto dataCnt = A.numel();
+	const auto pA = A.dataAsVec();
+	const auto pB = B.dataAsVec();
+	for (numel_cnt_t i = 0; i < dataCnt; ++i) pA[i] += c*math::sign(pB[i]);
+}
+template<typename iMath>
+void test_evAddScaledSign_ip(iMath& iM, typename iMath::realmtx_t::vec_len_t rowsCnt, typename iMath::realmtx_t::vec_len_t colsCnt = 10) {
+	const auto dataSize = realmtx_t::sNumel(rowsCnt, colsCnt);
+	STDCOUTL("******* testing evAddScaledSign_ip() over " << rowsCnt << "x" << colsCnt << " matrix (" << dataSize << " elements) **************");
+
+	constexpr unsigned maxReps = TEST_PERF_REPEATS_COUNT, testCorrRepCnt = TEST_CORRECTN_REPEATS_COUNT;
+
+	realmtx_t B(rowsCnt, colsCnt), A(rowsCnt, colsCnt);
+	ASSERT_TRUE(!B.isAllocationFailed() && !A.isAllocationFailed());
+
+	real_t scaleCoeff = .5;
+
+	nnet_def_interfaces::iRng_t rg;
+	rg.set_ithreads(iM.ithreads());
+	rg.gen_matrix(B, 2);
+
+	{
+		realmtx_t A2(rowsCnt, colsCnt), A3(rowsCnt, colsCnt);
+		ASSERT_TRUE(!A2.isAllocationFailed() && !A3.isAllocationFailed());
+
+		for (unsigned r = 0; r < testCorrRepCnt; ++r) {
+			rg.gen_matrix(A, 2);
+			A.cloneTo(A2);
+			A.cloneTo(A3);
+
+			evAddScaledSign_ip_ET(A2, scaleCoeff, B);
+
+			iM.evAddScaledSign_ip_st(A, scaleCoeff, B);
+			ASSERT_REALMTX_EQ(A2, A, "evAddScaledSign_ip_st failed correctness test");
+
+			A3.cloneTo(A);
+			iM.evAddScaledSign_ip_mt(A, scaleCoeff, B);
+			ASSERT_REALMTX_EQ(A2, A, "evAddScaledSign_ip_mt failed correctness test");
+
+			A3.cloneTo(A);
+			iM.evAddScaledSign_ip(A, scaleCoeff, B);
+			ASSERT_REALMTX_EQ(A2, A, "evAddScaledSign_ip failed correctness test");
+		}
+	}
+
+	tictoc tst, tmt, tb;
+	//////////////////////////////////////////////////////////////////////////
+	//testing performance
+	utils::prioritize_workers<utils::PriorityClass::PerfTesting, iMath::ithreads_t> pw(iM.ithreads());
+
+	//FFFFfffffffff... don't ever think about removing rg. calls that randomizes data...
+	for (unsigned r = 0; r < maxReps; ++r) {
+		rg.gen_matrix(A, 2); rg.gen_matrix(B, 2);
+		tst.tic();
+		iM.evAddScaledSign_ip_st(A, scaleCoeff, B);
+		tst.toc();
+
+		rg.gen_matrix(A, 2); rg.gen_matrix(B, 2);
+		tmt.tic();
+		iM.evAddScaledSign_ip_mt(A, scaleCoeff, B);
+		tmt.toc();
+
+		rg.gen_matrix(A, 2); rg.gen_matrix(B, 2);
+		tb.tic();
+		iM.evAddScaledSign_ip(A, scaleCoeff, B);
+		tb.toc();
+	}
+	tst.say("st");
+	tmt.say("mt");
+	tb.say("best");
+}
+TEST(TestIMathBasic, evAddScaledSign_ip) {
+	typedef nntl::nnet_def_interfaces::iThreads_t def_threads_t;
+	typedef math::iMath_basic<def_threads_t> iMB;
+	iMB iM;
+	NNTL_RUN_TEST2(iMB::Thresholds_t::evAddScaledSign_ip, 100) test_evAddScaledSign_ip(iM, i, 100);
+}
+
+
+//////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////
+
+void evAddScaled_ip_ET(realmtx_t& A, const real_t c, const realmtx_t& B)noexcept {
+	NNTL_ASSERT(A.size() == B.size());
+
+	const auto dataCnt = A.numel();
+	const auto pA = A.dataAsVec();
+	const auto pB = B.dataAsVec();
+	for (numel_cnt_t i = 0; i < dataCnt; ++i) pA[i] += c*pB[i];
+}
+template<typename iMath>
+void test_evAddScaled_ip(iMath& iM, typename iMath::realmtx_t::vec_len_t rowsCnt, typename iMath::realmtx_t::vec_len_t colsCnt = 10) {
+	const auto dataSize = realmtx_t::sNumel(rowsCnt, colsCnt);
+	STDCOUTL("******* testing evAddScaled_ip() over " << rowsCnt << "x" << colsCnt << " matrix (" << dataSize << " elements) **************");
+
+	constexpr unsigned maxReps = TEST_PERF_REPEATS_COUNT, testCorrRepCnt = TEST_CORRECTN_REPEATS_COUNT;
+
+	realmtx_t B(rowsCnt, colsCnt), A(rowsCnt, colsCnt);
+	ASSERT_TRUE(!B.isAllocationFailed() && !A.isAllocationFailed());
+
+	real_t scaleCoeff = .5;
+
+	nnet_def_interfaces::iRng_t rg;
+	rg.set_ithreads(iM.ithreads());
+	rg.gen_matrix(B, 2);
+
+	{
+		realmtx_t A2(rowsCnt, colsCnt), A3(rowsCnt, colsCnt);
+		ASSERT_TRUE(!A2.isAllocationFailed() && !A3.isAllocationFailed());
+
+		for (unsigned r = 0; r < testCorrRepCnt; ++r) {
+			rg.gen_matrix(A, 2);
+			A.cloneTo(A2);
+			A.cloneTo(A3);
+
+			evAddScaled_ip_ET(A2, scaleCoeff, B);
+
+			iM.evAddScaled_ip_st(A, scaleCoeff, B);
+			ASSERT_REALMTX_EQ(A2, A, "evAddScaled_ip_st failed correctness test");
+
+			A3.cloneTo(A);
+			iM.evAddScaled_ip_mt(A, scaleCoeff, B);
+			ASSERT_REALMTX_EQ(A2, A, "evAddScaled_ip_mt failed correctness test");
+
+			A3.cloneTo(A);
+			iM.evAddScaled_ip(A, scaleCoeff, B);
+			ASSERT_REALMTX_EQ(A2, A, "evAddScaled_ip failed correctness test");
+		}
+	}
+	
+	tictoc tst, tmt, tb;
+	//////////////////////////////////////////////////////////////////////////
+	//testing performance
+	utils::prioritize_workers<utils::PriorityClass::PerfTesting, iMath::ithreads_t> pw(iM.ithreads());
+
+	//FFFFfffffffff... don't ever think about removing rg. calls that randomizes data...
+	for (unsigned r = 0; r < maxReps; ++r) {
+		rg.gen_matrix(A, 2); rg.gen_matrix(B, 2);
+		tst.tic();
+		iM.evAddScaled_ip_st(A, scaleCoeff, B);
+		tst.toc();
+
+		rg.gen_matrix(A, 2); rg.gen_matrix(B, 2);
+		tmt.tic();
+		iM.evAddScaled_ip_mt(A, scaleCoeff, B);
+		tmt.toc();
+
+		rg.gen_matrix(A, 2); rg.gen_matrix(B, 2);
+		tb.tic();
+		iM.evAddScaled_ip(A, scaleCoeff, B);
+		tb.toc();
+	}
+	tst.say("st");
+	tmt.say("mt");
+	tb.say("best");
+}
+TEST(TestIMathBasic, evAddScaled_ip) {
+	typedef nntl::nnet_def_interfaces::iThreads_t def_threads_t;
+	typedef math::iMath_basic<def_threads_t> iMB;
+	iMB iM;
+	NNTL_RUN_TEST2(iMB::Thresholds_t::evAddScaled_ip, 100) test_evAddScaled_ip(iM, i, 100);
+}
+
+//////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////
 void evAdd_ip_ET(realmtx_t& A, const realmtx_t& B)noexcept {
 	NNTL_ASSERT(A.size() == B.size());
 
@@ -131,13 +447,7 @@ void test_evAdd_ip(iMath& iM, typename iMath::realmtx_t::vec_len_t rowsCnt, type
 			ASSERT_REALMTX_EQ(A2, A, "evAdd_ip failed correctness test");
 		}
 	}
-
-	if (std::is_same<real_t,float>::value) {
-		//static_assert(false, "bla");
-		//iMath::bla();
-		STDCOUTL("blaaa");
-	}
-
+	
 	tictoc tst, tmt, tb;
 	//////////////////////////////////////////////////////////////////////////
 	//testing performance

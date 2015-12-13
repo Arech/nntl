@@ -64,10 +64,14 @@ namespace nntl {
 
 		training_observer_t m_trainingObserver;
 
+		bool m_bCalcFullLossValue;//if set to false, then only the main part of loss function will be calculated 
+		// (i.e. additional summands such as L2 weight penalty value will be stripped.
+		// This is done by skipping _layer_base::lossAddendum() calls for all layers)
+
 	public:
 		~nnet_train_opts()noexcept {}
 		nnet_train_opts(cond_epoch_eval_t&& cee)noexcept : m_vbEpochEval(std::move(cee)), m_BatchSize(0),
-			m_DivergenceCheckLastEpoch(5), m_DivergenceCheckThreshold(1e6f) {}
+			m_DivergenceCheckLastEpoch(5), m_DivergenceCheckThreshold(1e6f), m_bCalcFullLossValue(true){}
 
 		self_t& setEpochEval(cond_epoch_eval_t&& cee)noexcept { m_vbEpochEval = std::forward(cee); return *this; }
 
@@ -84,6 +88,9 @@ namespace nntl {
 		self_t& batchSize(batch_size_t val) noexcept { m_BatchSize = val; return *this; }
 
 		training_observer_t& observer() noexcept { return m_trainingObserver; }
+
+		bool calcFullLossValue()const noexcept { return m_bCalcFullLossValue; }
+		self_t& calcFullLossValue(bool cflv)noexcept { m_bCalcFullLossValue = cflv; return *this; }
 	};
 
 }

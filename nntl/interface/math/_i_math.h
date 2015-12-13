@@ -127,6 +127,13 @@ namespace math {
 		//inplace elementwise addition A = A+B
 		nntl_interface void evAdd_ip(realmtx_t& A, const realmtx_t& B)noexcept;
 
+		//inplace elementwise adding of scaled vector: A = A + c*B;
+		nntl_interface void evAddScaled_ip(realmtx_t& A, const real_t c, const realmtx_t& B)noexcept;
+
+		//inplace elementwise addition of scaled signum: A = A + c*sign(B);
+		//(L1 regularization, dLdW update step)
+		nntl_interface void evAddScaledSign_ip(realmtx_t& A, const real_t c, const realmtx_t& B)noexcept;
+
 		//inplace elementwise subtraction A = A-B
 		nntl_interface void evSub_ip(realmtx_t& A, const realmtx_t& B)noexcept;
 		//elementwise subtraction C = A-B
@@ -136,12 +143,20 @@ namespace math {
 		//(it's pre-fprop step of Nesterov Momentum method)
 		nntl_interface void evMulC_ip_Sub_ip(realmtx_t& vW, const real_t momentum, realmtx_t& W)noexcept;
 
+		//////////////////////////////////////////////////////////////////////////
+
 		//elementwise squaring dest = src.^2;
 		nntl_interface void evSquare(realmtx_t& dest, const realmtx_t& src)noexcept;
 
-		//finding elementwise absolute values dest = .abs(src);
+		//finds sum of squares of elements (squared L2 norm): return sum( A.^2 )
+		nntl_interface real_t vSumSquares(const realmtx_t& A)noexcept;
+
+		//finding elementwise absolute values dest = abs(src);
 		nntl_interface void evAbs(realmtx_t& dest, const realmtx_t& src)noexcept;
 
+		//finds sum of abs values (L1 norm): return sum( abs(A) );
+		nntl_interface real_t vSumAbs(const realmtx_t& A)noexcept;
+		
 		//////////////////////////////////////////////////////////////////////////
 		//C = A * B, - matrix multiplication
 		nntl_interface void mMulAB_C(const realmtx_t& A, const realmtx_t& B, realmtx_t& C)noexcept;

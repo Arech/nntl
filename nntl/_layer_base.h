@@ -55,15 +55,19 @@ namespace nntl {
 
 			IN i_math_t& iMath;
 			IN i_rng_t& iRng;
+			
 			//fprop and bprop may use different batch sizes during single training session (for example, fprop()/bprop() uses small batch size
 			// during learning process, but whole data_x.rows() during fprop() for loss function computation. Therefore to reduce memory
 			// consumption during learning, we will demark fprop() memory requirements and bprop() mem reqs.
 			OUT numel_cnt_t maxMemFPropRequire;//this value should be set by layer.init()
 			OUT numel_cnt_t maxMemBPropRequire;//this value should be set by layer.init()
 			OUT numel_cnt_t max_dLdA_numel;//this value should be set by layer.init()
-			OUT numel_cnt_t nParamsToLearn;//total number of parameters, that layer has to learn during training
+			OUT numel_cnt_t nParamsToLearn;//total number of parameters, that layer has to learn during training, to be set by layer.init()
+
 			IN const vec_len_t max_fprop_batch_size;//usually this is data_x.rows()
 			IN const vec_len_t training_batch_size;//usually this is batchSize
+
+			OUT bool bHasLossAddendum;//to be set by layer.init()
 
 			_layer_init_data(i_math_t& im, i_rng_t& ir, vec_len_t fbs, vec_len_t bbs) noexcept
 				: iMath(im), iRng(ir), max_fprop_batch_size(fbs), training_batch_size(bbs)
@@ -102,10 +106,7 @@ namespace nntl {
 		nntl_interface const neurons_count_t get_incoming_neurons_cnt()const noexcept;
 		nntl_interface const bool is_input_layer()const noexcept;
 		nntl_interface const bool is_output_layer()const noexcept;
-
-		nntl_interface const real_t learning_rate()const noexcept;
-		nntl_interface auto learning_rate(real_t lr)noexcept;
-
+		
 		//it turns out that this function looks quite contradictory... Leave it until find out what's better to do..
 		nntl_interface const realmtx_t& get_activations()const noexcept;
 
@@ -144,6 +145,12 @@ namespace nntl {
 		nntl_interface void bprop(realmtx_t& dLdA, const LowerLayer& lowerLayer, realmtx_t& dLdAPrev)noexcept;
 		//output layer should use bprop(const realmtx_t& data_y, ...)
 		//need non-const for dLdA to make dropout work
+		
+		//returns a loss function summand, that's caused by this layer (for example, L2 regularizer adds term
+		// l2Coefficient*Sum(weights.^2) )
+		nntl_interface real_t lossAddendum()const noexcept;
+		//should return true, if the layer has a value to add to Loss function value (there's some regularizer attached)
+		nntl_interface bool hasLossAddendum()const noexcept;
 	};
 
 	//special marks for type checking of input and output layers
@@ -207,9 +214,10 @@ namespace nntl {
 		constexpr bool is_input_layer()const noexcept { return false; }
 		constexpr bool is_output_layer()const noexcept { return false; }
 
-		const real_t learning_rate()const noexcept { return real_t(0.0); }
-		self_ref_t learning_rate(real_t lr)noexcept { return get_self(); }
-	
+		//returns a loss function summand, that's caused by this layer (for example, L2 regularizer adds term
+		// l2Coefficient*Sum(weights.^2) )
+		real_t lossAddendum()const noexcept { return real_t(0.0); }
+			
 		//////////////////////////////////////////////////////////////////////////
 		// other funcs
 	protected:

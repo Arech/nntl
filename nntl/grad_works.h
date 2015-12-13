@@ -31,6 +31,8 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 #pragma once
 
+#include <bitset>
+
 namespace nntl {
 
 	namespace _impl {
@@ -62,13 +64,20 @@ namespace nntl {
 		nntl_interface bool init(const grad_init_t& ind)noexcept;
 		nntl_interface void deinit()noexcept;
 
-		//should the learning rate be applied to dLdW before call to apply_grad()
-		nntl_interface const bool pre_apply_learning_rate()const noexcept;
+		nntl_interface auto set_learning_rate(const real_t learningRate)noexcept;
+		nntl_interface const real_t learning_rate()const noexcept;
 
 		nntl_interface void pre_training_fprop(realmtx_t& weights)noexcept;
 
 		//dLdW can have any values on output (use it for temporary calculations if needed)
-		nntl_interface void apply_grad(realmtxdef_t& weights, realmtx_t& dLdW, real_t learningRate)noexcept;
+		nntl_interface void apply_grad(realmtxdef_t& weights, realmtxdef_t& dLdW)noexcept;
+
+		//returns a loss function summand, that's caused by this layer (for example, L2 regularizer adds term
+		// l2Coefficient*Sum(weights.^2) )
+		nntl_interface real_t lossAddendum(const realmtxdef_t& weights)const noexcept;
+
+		//should return true, if the layer has a value to add to Loss function value (there's some regularizer attached)
+		nntl_interface bool hasLossAddendum()const noexcept;
 	};
 
 	struct ILR {
@@ -114,7 +123,50 @@ namespace nntl {
 		};
 
 	protected:
+		enum AlgFlags {
+			f_FirstRun = 0,//flag to find out first call to apply_grad() after init()
+
+			f_UseMomentum,
+			f_UseNesterovMomentum,//Flag to turn on Nesterov Momentum, aka Nesterov Accelerated Gradient method.
+			// The definition is (Sutskever, Martens et al. "On the importance of initialization and momentum in deep learning",2013):
+			//		vW(t+1) = momentum*vW(t) - scaling*grad_Loss( W(t)+momentum*vW(t))
+			//		W(t+1)  = W(t) + vW(t+1)
+			// We'll change the sign of vW (for the compability with other code) and reorganize operations in the following way
+			// (1)  vW`(t+1)= momentum*vW(t)
+			// (2)  W`(t+1) = W(t) - momentum*vW(t)
+			//				= W(t) - vW`(t+1)
+			// (3)  vW(t+1) = momentum*vW(t) + scaling*grad_Loss( W(t)-momentum*vW(t))
+			//				= vW`(t+1) + scaling*grad_Loss( W`(t+1) )
+			// (4)  W(t+1)  = W(t) - vW(t+1) 
+			//				= W(t) - vW`(t+1) - scaling*grad_Loss( W`(t+1) )
+			//				= W`(t+1) - scaling * grad_Loss( W`(t+1) )
+			// Steps (1)-(2) done during pre_training_fprop(), steps (3)-(4) - during apply_grad()
+
+			f_UseILR,
+			f_ApplyILRToMomentumVelocity,//Geoffrey Hinton said for momentum method, that it's good to calculate
+			// individual learning rates based on agreement in signs of accumulated momentum velocity and current gradient value.
+			// However, this may lead to vanishing gradient gains and very small gradient value, when accumulated momentum
+			// velocity was pretty big. It would require significantly more time to decrease and reverse the velocity with
+			// a very small gradient. It may be good sometimes, but sometimes for some data it may be bad
+			// therefore it may be beneficial to calculate IRL based on agreement in signs of current and previous gradient
+			// (like in "no momentum" version)
+
+			f_UseMaxNorm,
+			f_MaxNormRegIgnoreBias,//make max-norm regularizer to ignore bias weights
+
+			f_UseL1,
+			f_L1RegIgnoreBias,
+
+			f_UseL2,
+			f_L2RegIgnoreBias,
+
+			f_LAST_Total
+		};
+
 		iMath_t* m_pMath;
+
+		real_t m_learningRate;
+
 		real_t m_momentum;
 		real_t m_emaDecay;
 		real_t m_numericStabilizerEps;
@@ -122,37 +174,21 @@ namespace nntl {
 		//hint: weights initialized from uniform distribution [-b,b]. It's second raw momentum is b^2/3, so the mean norm should
 		//be about <row_vector_length>*b^2/3
 
+		real_t m_L2;//L2 (weight decay) regularizer coefficient
+		real_t m_L1;//L1 regularizer coefficient
+
 		GradType m_type;
-		bool m_bFirstRun; //flag to find out first call to apply_grad() after init()
 		
-		bool m_bNesterovMomentum; //Flag to turn on Nesterov Momentum, aka Nesterov Accelerated Gradient method.
-		// The definition is (Sutskever, Martens et al. "On the importance of initialization and momentum in deep learning",2013):
-		//		vW(t+1) = momentum*vW(t) - scaling*grad_Loss( W(t)+momentum*vW(t))
-		//		W(t+1)  = W(t) + vW(t+1)
-		// We'll change the sign of vW (for the compability with other code) and reorganize operations in the following way
-		// (1)  vW`(t+1)= momentum*vW(t)
-		// (2)  W`(t+1) = W(t) - momentum*vW(t)
-		//				= W(t) - vW`(t+1)
-		// (3)  vW(t+1) = momentum*vW(t) + scaling*grad_Loss( W(t)-momentum*vW(t))
-		//				= vW`(t+1) + scaling*grad_Loss( W`(t+1) )
-		// (4)  W(t+1)  = W(t) - vW(t+1) 
-		//				= W(t) - vW`(t+1) - scaling*grad_Loss( W`(t+1) )
-		//				= W`(t+1) - scaling * grad_Loss( W`(t+1) )
-		// Steps (1)-(2) done during pre_training_fprop(), steps (3)-(4) - during apply_grad()
-
-
-		bool m_bApplyILRToMomentumVelocity;//Geoffrey Hinton said for momentum method, that it's good to calculate
-		// individual learning rates based on agreement in signs of accumulated momentum velocity and current gradient value.
-		// However, this may lead to vanishing gradient gains and very small gradient value, when accumulated momentum
-		// velocity was pretty big. It would require significantly more time to decrease and reverse the velocity with
-		// a very small gradient. It may be good sometimes, but sometimes for some data it may be bad
-		// therefore it may be beneficial to calculate IRL based on agreement in signs of current and previous gradient
-		// (like in "no momentum" version)
-		bool m_bMaxWeightVecNormIgnoreBias;
+		std::bitset<f_LAST_Total> m_flags;
 
 		ILR m_ILR;
 
 		realmtx_t m_rmsF, m_rmsG, m_Vw, m_ILRGain, m_prevdLdW;
+
+	protected:
+		void _flags_default()noexcept {
+			m_flags.set(f_FirstRun).set(f_UseNesterovMomentum).set(f_ApplyILRToMomentumVelocity);
+		}
 
 	public:
 		~grad_works()noexcept {}
@@ -162,15 +198,16 @@ namespace nntl {
 		//!!assignment is not needed
 		grad_works& operator=(const grad_works& rhs) noexcept = delete;
 
-		grad_works() noexcept : m_pMath(nullptr),m_momentum(0.0), m_bNesterovMomentum(true), m_emaDecay(0.9),
-			m_numericStabilizerEps(.00001), m_maxWeightVecNorm(0.0),
-			m_type(ClassicalConstant), m_bFirstRun(true), m_bApplyILRToMomentumVelocity(true), m_bMaxWeightVecNormIgnoreBias(false)
-		{}
+		grad_works(const real_t lr) noexcept : m_pMath(nullptr), m_learningRate(lr), m_momentum(0.0), m_emaDecay(0.9),
+			m_numericStabilizerEps(.00001), m_maxWeightVecNorm(0.0), m_L1(0.0), m_L2(0.0),
+			m_type(ClassicalConstant)
+		{
+			NNTL_ASSERT(m_learningRate > real_t(0.0));
+			_flags_default();
+		}
 
 		//template<typename grad_init_t>
 		bool init(const init_struct_t& ind)noexcept {
-			//static_assert(std::is_base_of<_impl::grad_works_init, grad_init_t>::value, "Expecting here something like _impl::grad_works_init");
-
 			//TODO: there must be some flag that prevents resetting of state data between distinct calls to nnet.train()
 			//(which causes init/deinit cycle)
 
@@ -189,72 +226,89 @@ namespace nntl {
 
 			if (use_individual_learning_rates()) {
 				if (!m_ILRGain.resize(ind.weightsSize))return false;
-				if ( (!use_momentums() || !m_bApplyILRToMomentumVelocity) && !m_prevdLdW.resize(ind.weightsSize))return false;
+				if ((!use_momentums() | !m_flags[f_ApplyILRToMomentumVelocity]) && !m_prevdLdW.resize(ind.weightsSize))return false;
 				m_ILRGain.ones();
 			}
 
 			m_pMath = ind.pMath;
-			m_bFirstRun = true;
+			m_flags.set(f_FirstRun);
 			return true;
 		}
 
 		void deinit() noexcept {
 			m_pMath = nullptr;
+			
+			//TODO: current cleanup code is not compatible with multiple nnet::train() calls
+
 			m_Vw.clear();
 			m_rmsF.clear();
 			m_rmsG.clear();
 			m_ILRGain.clear();
 			m_prevdLdW.clear();
 			m_ILR.clear();
+			_flags_default();
 		}
 
 		void pre_training_fprop(realmtx_t& weights) noexcept {
-			if (use_momentums() && m_bNesterovMomentum) {
+			if (use_nesterov_momentum()) {
 				// (1)  vW`(t+1)= momentum*vW(t)
 				// (2)  W`(t+1) = W(t) - momentum*vW(t)
 				//				= W(t) - vW`(t+1)
 				m_pMath->evMulC_ip_Sub_ip(m_Vw, m_momentum, weights);
 			}
 		}
-		
-		void apply_grad(realmtxdef_t& weights, realmtx_t& dLdW, real_t learningRate) noexcept {
+
+		void apply_grad(realmtxdef_t& weights, realmtxdef_t& dLdW) noexcept {
 			NNTL_ASSERT(m_pMath);
 			NNTL_ASSERT(dLdW.size() == weights.size());
 
-			const auto bFirstRun = m_bFirstRun;
-			m_bFirstRun = false;
+			const bool bFirstRun = m_flags[f_FirstRun];
+			m_flags.reset(f_FirstRun);
 
-			//TODO: apply weight penalty L2 to dLdW
+			//applying L1-L2 penalties
+			if (use_L1_regularization()) {
+				const bool bIgnoreBiases = m_flags[f_L1RegIgnoreBias];
+				if (bIgnoreBiases) { dLdW.hide_last_col(); weights.hide_last_col(); }
+				m_pMath->evAddScaledSign_ip(dLdW, m_L1, weights);
+				if (bIgnoreBiases) { dLdW.restore_last_col(); weights.restore_last_col(); }
+			}
 
+			if (use_L2_regularization()) {
+				const bool bIgnoreBiases = m_flags[f_L2RegIgnoreBias];
+				if (bIgnoreBiases) { dLdW.hide_last_col(); weights.hide_last_col(); }
+				m_pMath->evAddScaled_ip(dLdW, m_L2, weights);
+				if (bIgnoreBiases) { dLdW.restore_last_col(); weights.restore_last_col(); }
+			}
+			
 			switch (m_type) {
 			case ClassicalConstant:
-				m_pMath->evMulC_ip(dLdW, learningRate);
+				m_pMath->evMulC_ip(dLdW, m_learningRate);
 				break;
 
 			case RMSProp_Hinton:
 				if (bFirstRun) {
 					m_pMath->evSquare(m_rmsF, dLdW);
-					m_pMath->evMulC_ip(dLdW, learningRate);
-				} else m_pMath->RMSProp_Hinton(dLdW, m_rmsF, learningRate, m_emaDecay, m_numericStabilizerEps);
+					m_pMath->evMulC_ip(dLdW, m_learningRate);
+				} else m_pMath->RMSProp_Hinton(dLdW, m_rmsF, m_learningRate, m_emaDecay, m_numericStabilizerEps);
 				break;
 
 			case RMSProp_Graves:
 				if (bFirstRun) {
 					m_pMath->evSquare(m_rmsF, dLdW);
 					dLdW.cloneTo(m_rmsG);
-					m_pMath->evMulC_ip(dLdW, learningRate);
-				} else m_pMath->RMSProp_Graves(dLdW, m_rmsF, m_rmsG, learningRate, m_emaDecay, m_numericStabilizerEps);
+					m_pMath->evMulC_ip(dLdW, m_learningRate);
+				} else m_pMath->RMSProp_Graves(dLdW, m_rmsF, m_rmsG, m_learningRate, m_emaDecay, m_numericStabilizerEps);
 				break;
 
 			case RProp:
-				m_pMath->RProp(dLdW,learningRate);
+				m_pMath->RProp(dLdW, m_learningRate);
 				break;
 
 			case ModProp:
 				if (bFirstRun) {
 					m_pMath->evAbs(m_rmsF, dLdW);
-					m_pMath->evMulC_ip(dLdW, learningRate);
-				} else m_pMath->ModProp(dLdW, m_rmsF, learningRate, m_emaDecay, m_numericStabilizerEps);
+					m_pMath->evMulC_ip(dLdW, m_learningRate);
+				} else m_pMath->ModProp(dLdW, m_rmsF, m_learningRate, m_emaDecay, m_numericStabilizerEps);
 				break;
 
 			default:
@@ -264,17 +318,17 @@ namespace nntl {
 
 			const auto bUseMomentums = use_momentums();
 			if (use_individual_learning_rates()) {
-				const auto bUseVelocity = bUseMomentums && m_bApplyILRToMomentumVelocity;
+				const auto bUseVelocity = bUseMomentums & m_flags[f_ApplyILRToMomentumVelocity];
 				if (!bFirstRun) {
 					m_pMath->apply_ILR(dLdW, bUseVelocity ? m_Vw : m_prevdLdW, m_ILRGain, m_ILR.mulDecr, m_ILR.mulIncr, m_ILR.capLow, m_ILR.capHigh);
 				}
-				if(!bUseVelocity) dLdW.cloneTo(m_prevdLdW);
+				if (!bUseVelocity) dLdW.cloneTo(m_prevdLdW);
 			}
 
 			bool bApplydLdW2Weights = true;
 			if (bUseMomentums) {
 				NNTL_ASSERT(m_Vw.size() == dLdW.size());
-				if (m_bNesterovMomentum) {
+				if (m_flags[f_UseNesterovMomentum]) {
 					// (3)  vW(t+1) = momentum*vW(t) + scaling*grad_Loss( W(t)-momentum*vW(t))
 					//				= vW`(t+1) + scaling*grad_Loss( W`(t+1) )
 					m_pMath->evAdd_ip(m_Vw, dLdW);
@@ -293,34 +347,76 @@ namespace nntl {
 			if (bApplydLdW2Weights) m_pMath->evSub_ip(weights, dLdW);
 
 			if (use_max_norm_regularization()) {
-				if (m_bMaxWeightVecNormIgnoreBias) weights.hide_last_col();
+				const bool bIgnoreBiases = m_flags[f_MaxNormRegIgnoreBias];
+				if (bIgnoreBiases) weights.hide_last_col();
 				m_pMath->mCheck_normalize_rows(weights, m_maxWeightVecNorm);
-				if (m_bMaxWeightVecNormIgnoreBias) weights.restore_last_col();
+				if (bIgnoreBiases) weights.restore_last_col();
 			}
 		}
-		
+
 		//////////////////////////////////////////////////////////////////////////
+
+		//returns a loss function summand, that's caused by this layer (for example, L2 regularizer adds term
+		// l2Coefficient*Sum(weights.^2) )
+		real_t lossAddendum(const realmtxdef_t& weights)const noexcept {
+			real_t ret(0.0);
+
+			//the only modification of weights we may use is stripping/restoring last (bias) column,
+			//which is in fact not a modification from outside POV
+			realmtxdef_t& _W = *(const_cast<realmtxdef_t*>(&weights));
+
+			if (use_L1_regularization()) {
+				const bool bIgnoreBiases = m_flags[f_L1RegIgnoreBias];
+				if (bIgnoreBiases) _W.hide_last_col();
+				ret += m_L1 * m_pMath->vSumAbs(_W);
+				if (bIgnoreBiases) _W.restore_last_col();
+			}
+
+			if (use_L2_regularization()) {
+				const bool bIgnoreBiases = m_flags[f_L2RegIgnoreBias];
+				if (bIgnoreBiases) _W.hide_last_col();
+				ret += m_L2*real_t(.5) * m_pMath->vSumSquares(_W);
+				if (bIgnoreBiases) _W.restore_last_col();
+			}
+
+			return ret;
+		}
+		//should return true, if the layer has a value to add to Loss function value (there's some regularizer attached)
+		bool hasLossAddendum()const noexcept { return use_L1_regularization() | use_L2_regularization(); }
+
+		//////////////////////////////////////////////////////////////////////////
+
+		self_t& set_learning_rate(const real_t learningRate)noexcept {
+			NNTL_ASSERT(learningRate > real_t(0.0));
+			m_learningRate = learningRate;
+			return *this;
+		}
+		const real_t learning_rate()const noexcept { return m_learningRate; }
 
 		self_t& set_ILR(real_t decr, real_t incr, real_t capLow, real_t capHigh) noexcept {
 			m_ILR.set(decr, incr, capLow, capHigh);
+			m_flags[f_UseILR] = m_ILR.bUseMe();
 			return *this;
 		}
 		self_t& set_ILR(const ILR& ilr) noexcept {
 			m_ILR = ilr;
+			m_flags[f_UseILR] = m_ILR.bUseMe();
 			return *this;
 		}
 		self_t& set_momentum(real_t m, bool bApplyILRToMomentumVelocity = true)noexcept {
 			NNTL_ASSERT(m >= 0 && m < 1);
 			m_momentum = m;
-			m_bNesterovMomentum = false;
-			m_bApplyILRToMomentumVelocity = bApplyILRToMomentumVelocity;
+			m_flags[f_UseMomentum] = m_momentum > real_t(0.0);
+			m_flags.reset(f_UseNesterovMomentum);
+			m_flags[f_ApplyILRToMomentumVelocity] = bApplyILRToMomentumVelocity;
 			return *this;
 		}
 		self_t& set_nesterov_momentum(real_t m, bool bApplyILRToMomentumVelocity = true)noexcept {
 			NNTL_ASSERT(m >= 0 && m < 1);
 			m_momentum = m;
-			m_bNesterovMomentum = true;
-			m_bApplyILRToMomentumVelocity = bApplyILRToMomentumVelocity;
+			m_flags[f_UseMomentum] = m_momentum > real_t(0.0);
+			m_flags.set(f_UseNesterovMomentum);
+			m_flags[f_ApplyILRToMomentumVelocity] = bApplyILRToMomentumVelocity;
 			return *this;
 		}
 		self_t& set_ema_decay(real_t c)noexcept {
@@ -338,16 +434,40 @@ namespace nntl {
 			return *this;
 		}
 
-		self_t& set_weight_vector_max_norm2(const real_t mn, const bool bIgnoreBiasWeights=false)noexcept {
+		self_t& set_max_norm(const real_t mn, const bool bIgnoreBiasWeights = true)noexcept {
 			NNTL_ASSERT(mn >= real_t(0.0));
 			m_maxWeightVecNorm = mn;
-			m_bMaxWeightVecNormIgnoreBias = bIgnoreBiasWeights;
+			m_flags[f_UseMaxNorm] = m_maxWeightVecNorm > real_t(0.0);
+			m_flags[f_MaxNormRegIgnoreBias] = bIgnoreBiasWeights;
+			return *this;
+		}
+		//L1 is good for sparse signals
+		self_t& set_L1(real_t l1, const bool bIgnoreBiasWeights = true)noexcept {
+			NNTL_ASSERT(l1 >= real_t(0.0));
+			m_L1 = l1;
+			m_flags[f_UseL1] = m_L1 > real_t(0.0);
+			m_flags[f_L1RegIgnoreBias] = bIgnoreBiasWeights;
+			return *this;
+		}
+		//L2 is just good)
+		self_t& set_L2(real_t l2, const bool bIgnoreBiasWeights = true)noexcept {
+			NNTL_ASSERT(l2 >= real_t(0.0));
+			m_L2 = l2;
+			m_flags[f_UseL2] = m_L2 > real_t(0.0);
+			m_flags[f_L2RegIgnoreBias] = bIgnoreBiasWeights;
 			return *this;
 		}
 
-		const bool use_max_norm_regularization()const noexcept { return m_maxWeightVecNorm > real_t(0.0); }
-		const bool use_individual_learning_rates()const noexcept { return m_ILR.bUseMe(); }
-		const bool use_momentums()const noexcept { return m_momentum > real_t(0.0); };
+		const bool use_momentums()const noexcept { return m_flags[f_UseMomentum]; } // m_momentum > real_t(0.0);
+		const bool nesterov_momentum()const noexcept { return m_flags[f_UseNesterovMomentum]; }
+		const bool use_nesterov_momentum()const noexcept { return m_flags[f_UseMomentum] & m_flags[f_UseNesterovMomentum]; }
+		const bool use_classical_momentum()const noexcept { return m_flags[f_UseMomentum] & (!m_flags[f_UseNesterovMomentum]); }
+
+		const bool use_individual_learning_rates()const noexcept { return m_flags[f_UseILR]; }  // m_ILR.bUseMe(); }
+
+		const bool use_max_norm_regularization()const noexcept { return m_flags[f_UseMaxNorm]; } // m_maxWeightVecNorm > real_t(0.0); }
+		const bool use_L1_regularization()const noexcept { return m_flags[f_UseL1]; }
+		const bool use_L2_regularization()const noexcept { return m_flags[f_UseL2]; }
 
 	protected:
 		

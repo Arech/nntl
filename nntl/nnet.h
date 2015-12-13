@@ -89,6 +89,8 @@ namespace nntl {
 
 		layer_index_t m_failedLayerIdx;
 
+		bool m_bCalcFullLossValue;//set based on nnet_train_opts::calcFullLossValue() and the value, returned by layers init()
+
 	public:
 		~nnet()noexcept {}
 		nnet(layers_pack_t& lp)noexcept : m_Layers(lp), m_failedLayerIdx(0){
@@ -151,6 +153,7 @@ namespace nntl {
 			const auto batchSize = bMiniBatch ? opts.batchSize() : samplesCount;
 			if (!_batchSizeOk(td, batchSize)) return _set_last_error(ErrorCode::BatchSizeMustBeMultipleOfTrainDataLength);
 
+			m_bCalcFullLossValue = opts.calcFullLossValue();
 			//////////////////////////////////////////////////////////////////////////
 			// perform layers initialization, gather temp memory requirements, then allocate and spread temp buffers
 			_impl::layers_mem_requirements LMR;
@@ -165,6 +168,8 @@ namespace nntl {
 				m_Layers.deinit(m_pMath.get());
 			});
 			NNTL_ASSERT(LMR.maxSingledLdANumel > 0);//there must be at least room to store dL/dA
+
+			if (m_bCalcFullLossValue) m_bCalcFullLossValue = LMR.bHasLossAddendum;
 
 			//dLdA is loss function derivative wrt activations. For the top level it's usually called an 'error' and defined like (data_y-a).
 			// We use slightly more generalized approach and name it appropriately. It's computed by _i_activation_loss::dloss
@@ -236,6 +241,7 @@ namespace nntl {
 			
 			//making initial report
 			opts.observer().on_training_start(samplesCount, td.test_x().rows(), train_x.cols_no_bias(), train_y.cols(), batchSize, LMR.totalParamsToLearn);
+			if (m_bCalcFullLossValue) m_Layers.prepToCalcLossAddendum();
 			_report_training_fragment(-1, _calcLoss(train_x, train_y), td, std::chrono::nanoseconds(0), opts.observer());
 
 			m_Layers.set_mode(0);//prepare for training (sets to batchSize, that's already stored in Layers)
@@ -277,6 +283,7 @@ namespace nntl {
 					const bool bInspectEpoch = cee(epochIdx);
 					const bool bCheckForDivergence = epochIdx < divergenceCheckLastEpoch;
 					if (bCheckForDivergence || bInspectEpoch) {
+						if (m_bCalcFullLossValue) m_Layers.prepToCalcLossAddendum();
 						const auto trainLoss = _calcLoss(train_x, train_y);
 						if (bCheckForDivergence && trainLoss >= opts.divergenceCheckThreshold()) {
 							return _set_last_error(ErrorCode::NNDiverged);
@@ -342,7 +349,10 @@ namespace nntl {
 
 			static_assert(std::is_base_of<activation::_i_activation_loss, layers_pack_t::output_layer_t::activation_f_t>::value,
 				"Activation function class of output layer must implement activation::_i_activation_loss interface");
-			return layers_pack_t::output_layer_t::activation_f_t::loss(m_Layers.output_layer().get_activations(), data_y, m_pMath.get());
+
+			auto lossValue = layers_pack_t::output_layer_t::activation_f_t::loss(m_Layers.output_layer().get_activations(), data_y, m_pMath.get());
+			if (m_bCalcFullLossValue) lossValue += m_Layers.calcLossAddendum();
+			return lossValue;
 		}
 	};
 

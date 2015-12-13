@@ -42,15 +42,92 @@ using namespace nntl;
 typedef nntl_supp::binfile reader_t;
 using real_t = math_types::real_ty;
 
+#define MNIST_FILE_DEBUG "../data/mnist200_100.bin"
+#define MNIST_FILE_RELEASE  "../data/mnist60000.bin"
 
 #if defined(TESTS_SKIP_NNET_LONGRUNNING)
 //ALWAYS run debug build with similar relations of data sizes:
 // if release will run in minibatches - make sure, there will be at least 2 minibatches)
 // if release will use different data sizes for train/test - make sure, debug will also run on different datasizes
-#define MNIST_FILE "../data/mnist200_100.bin"
+#define MNIST_FILE MNIST_FILE_DEBUG
 #else
-#define MNIST_FILE "../data/mnist60000.bin"
+#define MNIST_FILE MNIST_FILE_RELEASE
 #endif // _DEBUG
+
+template<bool bL2=true>
+void testL2L1(train_data& td, const real_t coeff, uint64_t rngSeed) noexcept{
+	if (bL2) {
+		STDCOUTL("Using l2coeff = " << coeff);
+	}else STDCOUTL("Using l1coeff = " << coeff);
+	
+
+	//typedef activation::relu<> activ_func;
+	typedef weights_init::XavierFour w_init_scheme;
+	typedef activation::sigm<w_init_scheme> activ_func;
+
+	layer_input inp(td.train_x().cols_no_bias());
+
+	size_t epochs = 3;
+	const real_t learningRate = .002;
+
+	layer_fully_connected<activ_func> fcl(100, learningRate);
+	layer_fully_connected<activ_func> fcl2(100, learningRate);
+	layer_output<activation::sigm_xentropy_loss<w_init_scheme>> outp(td.train_y().cols(), learningRate);
+
+	if (bL2) {
+		fcl.m_gradientWorks.set_L2(coeff);
+		fcl2.m_gradientWorks.set_L2(coeff);
+		outp.m_gradientWorks.set_L2(coeff);
+	} else {
+		fcl.m_gradientWorks.set_L1(coeff);
+		fcl2.m_gradientWorks.set_L1(coeff);
+		outp.m_gradientWorks.set_L1(coeff);
+	}
+
+	auto lp = make_layers_pack(inp, fcl, fcl2, outp);
+
+	nnet_cond_epoch_eval cee(epochs);
+	nnet_train_opts<decltype(cee)> opts(std::move(cee));
+	opts.calcFullLossValue(true).batchSize(100);
+
+	auto nn = make_nnet(lp);
+	nn.get_iRng().seed64(rngSeed);
+
+	auto ec = nn.train(td, opts);
+
+	ASSERT_EQ(decltype(nn)::ErrorCode::Success, ec) << "Error code description: " << nn.get_last_error_string();
+}
+
+TEST(TestNntl, L2L1) {
+	train_data td;
+	reader_t reader;
+
+	const auto srcFile = MNIST_FILE_DEBUG;
+
+	STDCOUTL("Reading datafile '" << srcFile << "'...");
+	reader_t::ErrorCode rec = reader.read(srcFile, td);
+	ASSERT_EQ(reader_t::ErrorCode::Success, rec) << "Error code description: " << reader.get_last_error_str();
+	ASSERT_TRUE(td.train_x().emulatesBiases());
+	ASSERT_TRUE(td.test_x().emulatesBiases());
+
+	const unsigned im = 2;
+
+	STDCOUTL("*************** Testing L2 regularizer ******************* ");
+	for (unsigned i = 0; i < im; ++i) {
+		auto sv = std::time(0);
+		testL2L1<true>(td, 0, sv);
+		testL2L1<true>(td, .1, sv);
+	}
+
+	STDCOUTL("*************** Testing L1 regularizer ******************* ");
+	for (unsigned i = 0; i < im; ++i) {
+		auto sv = std::time(0);
+		testL2L1<false>(td, 0, sv);
+		testL2L1<false>(td, .1, sv);
+	}
+}
+
+
 
 TEST(TestNntl, Training) {
 	train_data td;
@@ -93,14 +170,14 @@ TEST(TestNntl, Training) {
 	auto optType = decltype(fcl)::grad_works_t::RMSProp_Hinton;
 
 	fcl.m_gradientWorks.set_nesterov_momentum(momentum, false).set_type(optType)
-		.set_weight_vector_max_norm2(bSetMN ? mul * 768 * 768 : 0, true);
+		.set_max_norm(bSetMN ? mul * 768 * 768 : 0, true);
 	fcl2.m_gradientWorks.set_nesterov_momentum(momentum, false).set_type(optType)
-		.set_weight_vector_max_norm2(bSetMN ? mul * 500 * 500 : 0, true);
+		.set_max_norm(bSetMN ? mul * 500 * 500 : 0, true);
 	
 	//layer_output<activation::sigm_xentropy_loss<w_init_scheme>> outp(td.train_y().cols(), learningRate);
 	layer_output<activation::sigm_quad_loss<w_init_scheme>> outp(td.train_y().cols(), learningRate);
 	outp.m_gradientWorks.set_nesterov_momentum(momentum, false).set_type(optType)
-		.set_weight_vector_max_norm2(bSetMN ? mul * 300 * 300 : 0, true);
+		.set_max_norm(bSetMN ? mul * 300 * 300 : 0, true);
 
 	//uncomment to turn on derivative value restriction 
 	//outp.restrict_dL_dZ(real_t(-10), real_t(10));

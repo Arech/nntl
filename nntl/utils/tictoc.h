@@ -71,9 +71,11 @@ namespace utils {
 		}
 
 		std::string to_string() const {
-			return nntl::utils::duration_readable(m_dFirstRun) + " "
+			return m_repeats > 0
+				? nntl::utils::duration_readable(m_dFirstRun) + " "
 				+ nntl::utils::duration_readable(m_dBestRun) + " "
-				+ nntl::utils::duration_readable(m_dAllRun, m_repeats);
+				+ nntl::utils::duration_readable(m_dAllRun, m_repeats)
+				: "never run!";
 		}
 
 		void say(const char* desr = "?", const char* spc = ":\t")const {

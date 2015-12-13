@@ -65,19 +65,24 @@ namespace nntl {
 			typedef _i_layer::numel_cnt_t numel_cnt_t;
 
 			numel_cnt_t maxMemLayerTrainingRequire, maxMemLayersFPropRequire, maxSingledLdANumel, totalParamsToLearn;
+			bool bHasLossAddendum;
 
 			void zeros()noexcept {
 				maxMemLayerTrainingRequire = 0;
 				maxMemLayersFPropRequire = 0;
 				maxSingledLdANumel = 0;//single! biggest matrix numel() used in bprop()
 				totalParamsToLearn = 0;
+				bHasLossAddendum = false;
 			}
 
-			void updateLayerReq(numel_cnt_t mmlF, numel_cnt_t mmlB, numel_cnt_t maxdLdA, numel_cnt_t nLP)noexcept {
+			void updateLayerReq(numel_cnt_t mmlF, numel_cnt_t mmlB
+				, numel_cnt_t maxdLdA, numel_cnt_t nLP, bool _HasLossAddendum)noexcept 
+			{
 				maxMemLayerTrainingRequire = std::max(maxMemLayerTrainingRequire, std::max(mmlF, mmlB));
 				maxMemLayersFPropRequire = std::max(maxMemLayersFPropRequire, mmlF);
 				maxSingledLdANumel = std::max(maxSingledLdANumel, maxdLdA);
 				totalParamsToLearn += nLP;
+				bHasLossAddendum |= _HasLossAddendum;
 			}
 		};
 	}
@@ -126,11 +131,16 @@ namespace nntl {
 		//////////////////////////////////////////////////////////////////////////
 	protected:
 		_layers m_layers;
+		real_t m_lossAddendum;//cached value of a part of loss function addendum, that's based on regularizers properties,
+		//such as L2 or L1 regularization. It doesn't depend on data_y or nnet activation and calculated during 
+		// layer.lossAddendum() calls.
+		//TODO: is it possible for lossAddendum() to depend on data_y or nnet activation??? Do we have a right to
+		// cache this value in general case?
 
 		//////////////////////////////////////////////////////////////////////////
 	public:
 		~layers_pack()noexcept {}
-		layers_pack(Layrs&... layrs) noexcept : m_layers(layrs...) {
+		layers_pack(Layrs&... layrs) noexcept : m_layers(layrs...), m_lossAddendum(0.0){
 			//iterate over layers and check whether they i_layer derived and set their indexes
 			utils::for_eachwp_up(m_layers, _preinit_layers{});			
 		}
@@ -176,9 +186,12 @@ namespace nntl {
 					lid.maxMemBPropRequire = 0;
 					lid.max_dLdA_numel = 0;
 					lid.nParamsToLearn = 0;
+					lid.bHasLossAddendum = false;
+
 					ec = lyr.init(lid);
 					if (ErrorCode::Success == ec) {
-						LMR.updateLayerReq(lid.maxMemFPropRequire, lid.maxMemBPropRequire, lid.max_dLdA_numel, lid.nParamsToLearn);
+						LMR.updateLayerReq(lid.maxMemFPropRequire, lid.maxMemBPropRequire
+							, lid.max_dLdA_numel, lid.nParamsToLearn, lid.bHasLossAddendum);
 					} else {
 						failedLayerIdx = lyr.get_layer_idx();
 					}
@@ -205,6 +218,23 @@ namespace nntl {
 			utils::for_each_up(m_layers, [=](auto& lyr)noexcept {
 				lyr.initMem(ptr,cnt);
 			});
+		}
+
+		void prepToCalcLossAddendum()noexcept {
+			m_lossAddendum = real_t(0.);
+		}
+		real_t calcLossAddendum()noexcept {
+			if (m_lossAddendum==real_t(0.0)) {
+				real_t ret(0.0);
+				utils::for_each_up(m_layers, [&](auto& lyr)noexcept {
+					const auto v = lyr.lossAddendum();
+					NNTL_ASSERT(v >= real_t(0.0));
+					ret += v;
+				});
+				m_lossAddendum = ret;
+			}
+			
+			return m_lossAddendum;
 		}
 
 		//bs==0 puts all layers into training mode with batchSize predefined by init()::lid.training_batch_size

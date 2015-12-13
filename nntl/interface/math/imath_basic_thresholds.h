@@ -64,11 +64,17 @@ namespace _impl {
 		static constexpr size_t evMul_ip = 36700;
 		static constexpr size_t evMul_ip_Anb = 36700;
 		static constexpr size_t evAdd_ip = 21000;
+		static constexpr size_t evAddScaled_ip = 17000;//not tested
+		static constexpr size_t evAddScaledSign_ip = 15000;//not tested
+
 		static constexpr size_t evSub_ip = 22000;
 		static constexpr size_t evSub = 12600;
 		static constexpr size_t evMulC_ip_Sub_ip = 15000;
+
 		static constexpr size_t evSquare = 24400;
+		static constexpr size_t vSumSquares = 20000;//not tested
 		static constexpr size_t evAbs = 20300;
+		static constexpr size_t vSumAbs = 18000;//not tested
 
 		static constexpr size_t sigm = 2600;
 		static constexpr size_t dsigm = 27500;
@@ -103,11 +109,17 @@ namespace _impl {
 		static constexpr size_t evMul_ip = 60000;
 		static constexpr size_t evMul_ip_Anb = 73400;
 		static constexpr size_t evAdd_ip = 41200;
+		static constexpr size_t evAddScaled_ip = 31000;//not tested
+		static constexpr size_t evAddScaledSign_ip = 28000;//not tested
+
 		static constexpr size_t evSub_ip = 46000;
 		static constexpr size_t evSub = 28000;
 		static constexpr size_t evMulC_ip_Sub_ip = 30000;
+
 		static constexpr size_t evSquare = 49000;
+		static constexpr size_t vSumSquares = 40000; //not tested
 		static constexpr size_t evAbs = 43000;
+		static constexpr size_t vSumAbs = 36000;//not tested
 
 		static constexpr size_t sigm = 35000;
 		static constexpr size_t dsigm = 52000;

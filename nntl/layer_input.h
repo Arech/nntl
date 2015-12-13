@@ -46,7 +46,7 @@ namespace nntl {
 	class _layer_input : public m_layer_input, public _layer_base<FinalPolymorphChild> {
 	private:
 		typedef _layer_base<FinalPolymorphChild> _base_class;
-
+		
 	public:
 
 		_layer_input(const neurons_count_t _neurons_cnt)noexcept :
@@ -96,6 +96,9 @@ namespace nntl {
 			// will be used in invariant backprop algo
 			std::cout << "***** bprop in input layer " << (int)get_layer_idx() << std::endl;
 		}
+
+		//should return true, if the layer has a value to add to Loss function value (there's some regularizer attached)
+		constexpr bool hasLossAddendum()const noexcept { return false; }
 
 	protected:
 		friend class _preinit_layers;

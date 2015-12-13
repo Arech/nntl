@@ -142,6 +142,19 @@ namespace math {
 		void evAdd_ip(realmtx_t& A, const realmtx_t& B)noexcept {
 			evAdd_ip_mt(A, B);
 		}
+
+		//////////////////////////////////////////////////////////////////////////
+		//inplace elementwise adding of scaled vector: A = A + c*B;
+		void evAddScaled_ip(realmtx_t& A, const real_t c, const realmtx_t& B)noexcept {
+			evAddScaled_ip_mt(A, c, B);
+		}
+
+		//////////////////////////////////////////////////////////////////////////
+		//inplace elementwise addition of scaled signum: A = A + c*sign(B);
+		//(L1 regularization, dLdW update step)
+		void evAddScaledSign_ip(realmtx_t& A, const real_t c, const realmtx_t& B)noexcept {
+			evAddScaledSign_ip_mt(A, c, B);
+		}
 		
 		//////////////////////////////////////////////////////////////////////////
 		//inplace elementwise subtraction A = A-B
@@ -167,11 +180,23 @@ namespace math {
 		void evSquare(realmtx_t& dest, const realmtx_t& src)noexcept {
 			evSquare_mt(dest, src);
 		}
+
+		//////////////////////////////////////////////////////////////////////////
+		//finds sum of squares of elements (squared L2 norm): return sum( A.^2 )
+		real_t vSumSquares(const realmtx_t& A)noexcept {
+			return vSumSquares_mt(A);
+		}
 		
 		//////////////////////////////////////////////////////////////////////////
 		//finding elementwise absolute values dest = .abs(src);
 		void evAbs(realmtx_t& dest, const realmtx_t& src)noexcept {
 			evAbs_mt(dest, src);
+		}
+
+		//////////////////////////////////////////////////////////////////////////
+		//finds sum of abs values (L1 norm): return sum( abs(A) );
+		real_t vSumAbs(const realmtx_t& A)noexcept {
+			return vSumAbs_mt(A);
 		}
 		
 
