@@ -114,7 +114,7 @@ namespace nntl {
 // 			static_assert(std::is_same<iRng_t, _layer_init_data_t::i_rng_t>::value, "_layer_init_data_t::i_rng_t must be the same as given by class template parameter Interfaces::iRng");
 
 			bool bSuccessfullyInitialized = false;
-			utils::scope_exit([&bSuccessfullyInitialized, this]() {
+			utils::scope_exit onExit([&bSuccessfullyInitialized, this]() {
 				if (!bSuccessfullyInitialized) {
 					deinit();
 				}
