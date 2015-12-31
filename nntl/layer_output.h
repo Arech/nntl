@@ -113,7 +113,7 @@ namespace nntl {
 // 			static_assert(std::is_same<iRng_t, _layer_init_data_t::i_rng_t>::value, "_layer_init_data_t::i_rng_t must be the same as given by class template parameter Interfaces::iRng");
 
 			bool bSuccessfullyInitialized = false;
-			utils::scope_exit([&bSuccessfullyInitialized, this]() {
+			utils::scope_exit onExit([&bSuccessfullyInitialized, this]() {
 				if (!bSuccessfullyInitialized) {
 					deinit();
 				}
@@ -264,7 +264,7 @@ namespace nntl {
 		//////////////////////////////////////////////////////////////////////////
 
 		//use this function to put a restriction on dL/dZ value - this may help in training large networks
-		//(see Alex Graves's “Generating Sequences With Recurrent Neural Networks”(2013) )
+		//(see Alex Graves's Â“Generating Sequences With Recurrent Neural NetworksÂ”(2013) )
 		self_ref_t restrict_dL_dZ(real_t lowerBnd, real_t upperBnd)noexcept {
 			NNTL_ASSERT(lowerBnd < upperBnd);
 			m_bRestrictdLdZ = true;
