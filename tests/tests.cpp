@@ -65,7 +65,7 @@ void testL2L1(train_data& td, const real_t coeff, uint64_t rngSeed) noexcept{
 	typedef weights_init::XavierFour w_init_scheme;
 	typedef activation::sigm<w_init_scheme> activ_func;
 
-	layer_input inp(td.train_x().cols_no_bias());
+	layer_input<> inp(td.train_x().cols_no_bias());
 
 	size_t epochs = 3;
 	const real_t learningRate = .002;
@@ -139,12 +139,10 @@ TEST(TestNntl, Training) {
 	ASSERT_TRUE(td.train_x().emulatesBiases());
 	ASSERT_TRUE(td.test_x().emulatesBiases());
 
-	const real_t dropoutFrac = 0, momentum = 0.9;
-	//const ILR ilr(.9, 1.1, .00000001, 1000);
+	const real_t dropoutFrac = 0, momentum = 0;
 
-	layer_input inp(td.train_x().cols_no_bias());
+	layer_input<> inp(td.train_x().cols_no_bias());
 
-	//typedef activation::relu<> activ_func;
 	typedef weights_init::Martens_SI_sigm<> w_init_scheme;
 	typedef activation::sigm<w_init_scheme> activ_func;
 
@@ -164,26 +162,16 @@ TEST(TestNntl, Training) {
 	layer_fully_connected<activ_func> fcl2(300, learningRate, dropoutFrac);
 #endif // TESTS_SKIP_LONGRUNNING
 
-	const bool bSetMN = false;
-	const real_t mul = 1.0 / 10000.0;
-	//auto optType = decltype(fcl)::grad_works_t::ClassicalConstant;
-	auto optType = decltype(fcl)::grad_works_t::RMSProp_Hinton;
-
-	fcl.m_gradientWorks.set_nesterov_momentum(momentum, false).set_type(optType)
-		.set_max_norm(bSetMN ? mul * 768 * 768 : 0, true);
-	fcl2.m_gradientWorks.set_nesterov_momentum(momentum, false).set_type(optType)
-		.set_max_norm(bSetMN ? mul * 500 * 500 : 0, true);
+	auto optType = decltype(fcl)::grad_works_t::ClassicalConstant;
 	
-	//layer_output<activation::sigm_xentropy_loss<w_init_scheme>> outp(td.train_y().cols(), learningRate);
-	layer_output<activation::sigm_quad_loss<w_init_scheme>> outp(td.train_y().cols(), learningRate);
-	outp.m_gradientWorks.set_nesterov_momentum(momentum, false).set_type(optType)
-		.set_max_norm(bSetMN ? mul * 300 * 300 : 0, true);
+	fcl.m_gradientWorks.set_nesterov_momentum(momentum, false).set_type(optType);
+	fcl2.m_gradientWorks.set_nesterov_momentum(momentum, false).set_type(optType);
+	
+	layer_output<activation::softmax_xentropy_loss<w_init_scheme>> outp(td.train_y().cols(), learningRate);
+	outp.m_gradientWorks.set_nesterov_momentum(momentum, false).set_type(optType);
 
-	//uncomment to turn on derivative value restriction 
-	//outp.restrict_dL_dZ(real_t(-10), real_t(10));
 
 	auto lp = make_layers_pack(inp, fcl, fcl2, outp);
-	//auto lp = make_layers_pack(inp, fcl, fcl2, fcl3, fcl4, outp);
 
 	nnet_cond_epoch_eval cee(epochs);
 	nnet_train_opts<decltype(cee)> opts(std::move(cee));

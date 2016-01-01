@@ -44,14 +44,16 @@ namespace nntl {
 		struct _layer_init_data {
 			typedef i_math_t_ i_math_t;
 			typedef i_rng_t_ i_rng_t;
+			
+			typedef typename i_math_t::real_t real_t;
 
-			static_assert(std::is_base_of<math::_i_math, i_math_t>::value, "i_math_t type should be derived from _i_math");
+			typedef math::simple_matrix<real_t> realmtx_t;
+			typedef typename realmtx_t::vec_len_t vec_len_t;
+			typedef typename realmtx_t::numel_cnt_t numel_cnt_t;
+
+			static_assert(std::is_base_of<math::_i_math<real_t>, i_math_t>::value, "i_math_t type should be derived from _i_math");
 			static_assert(std::is_base_of<rng::_i_rng, i_rng_t>::value, "i_rng_t type should be derived from _i_rng");
-
-			typedef math_types::realmtx_ty realmtx_t;
-			typedef realmtx_t::vec_len_t vec_len_t;
-			typedef realmtx_t::numel_cnt_t numel_cnt_t;
-
+			
 
 			IN i_math_t& iMath;
 			IN i_rng_t& iRng;
@@ -80,6 +82,7 @@ namespace nntl {
 
 	//////////////////////////////////////////////////////////////////////////
 	// layer interface definition
+	template<typename RealT>
 	class _i_layer {
 	protected:
 		_i_layer()noexcept {};
@@ -92,11 +95,11 @@ namespace nntl {
 
 	public:
 		typedef _nnet_errs::ErrorCode ErrorCode;
-		typedef math_types::realmtx_ty realmtx_t;
-		typedef realmtx_t::vec_len_t vec_len_t;
-		typedef realmtx_t::numel_cnt_t numel_cnt_t;
-		typedef realmtx_t::value_type real_t;
-		typedef realmtx_t::mtx_size_t mtx_size_t;
+		typedef RealT real_t;
+		typedef math::simple_matrix<real_t> realmtx_t;
+		typedef typename realmtx_t::vec_len_t vec_len_t;
+		typedef typename realmtx_t::numel_cnt_t numel_cnt_t;
+		typedef typename realmtx_t::mtx_size_t mtx_size_t;
 
 		//////////////////////////////////////////////////////////////////////////
 		// base interface
@@ -160,8 +163,8 @@ namespace nntl {
 
 	//////////////////////////////////////////////////////////////////////////
 	// base class for all layers. Implements compile time polymorphism to get rid of virtual functions
-	template<typename FinalPolymorphChild>
-	class _layer_base : public _i_layer{
+	template<typename RealT, typename FinalPolymorphChild>
+	class _layer_base : public _i_layer<RealT>{
 	public:
 		//////////////////////////////////////////////////////////////////////////
 		//typedefs

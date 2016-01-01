@@ -48,13 +48,15 @@ namespace threads {
 
 		//typedef real_t(*fnFinalReduce_t)(const real_t* ptr, const range_t cnt);
 
+		// useNThreads (if greater than 1 and less or equal to workers_count() specifies the number of threads to serve request.
 		// if pThreadsUsed is specified, it'll contain total number of threads (including the main thread),
 		// that is used to serve the request. It'll be less or equal to workers_count()
 		template<typename Func>
-		nntl_interface void run(Func&& F, const range_t cnt, thread_id_t* pThreadsUsed = nullptr) noexcept;
+		nntl_interface void run(Func&& F, const range_t cnt, const thread_id_t useNThreads = 0, thread_id_t* pThreadsUsed = nullptr) noexcept;
 
+		// useNThreads (if greater than 1 and less or equal to workers_count() specifies the number of threads to serve request.
 		template<typename Func, typename FinalReduceFunc>
-		nntl_interface real_t reduce(Func&& FRed, FinalReduceFunc FRF, const range_t cnt) noexcept;
+		nntl_interface real_t reduce(Func&& FRed, FinalReduceFunc&& FRF, const range_t cnt, const thread_id_t useNThreads = 0) noexcept;
 
 		nntl_interface thread_id_t workers_count()noexcept;
 

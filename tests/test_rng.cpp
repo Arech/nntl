@@ -125,8 +125,8 @@ TEST(TestRNG, RngPerf) {
 }
 
 //////////////////////////////////////////////////////////////////////////
-template<typename AFRng, typename iThreads>
-void test_rngmt(iThreads&iT, math_types::realmtx_ty& m) {
+template<typename AFRng, typename iThreadsT>
+void test_rngmt(iThreadsT&iT, math_types::realmtx_ty& m) {
 	using namespace std::chrono;
 	steady_clock::time_point bt;
 	nanoseconds diff;
@@ -135,7 +135,7 @@ void test_rngmt(iThreads&iT, math_types::realmtx_ty& m) {
 	auto ptr = m.dataAsVec();
 	auto dataCnt = m.numel();
 
-	rng::AFRandom_mt<AFRng, iThreads> rg(iT);
+	rng::AFRandom_mt<AFRng, iThreadsT> rg(iT);
 
 	bt = steady_clock::now();
 	for (unsigned r = 0; r < maxReps; ++r) {
@@ -175,15 +175,15 @@ void test_rng_mt_perf(iThreads& iT, math_types::realmtx_ty::vec_len_t rowsCnt, m
 	STDCOUTL("AFSFMT1:");
 	test_rngmt<Agner_Fog::CRandomSFMT1, iThreads>(iT, m);
 }*/
-template<typename iRng, typename iThreads>
-void test_rng_mt_perf(iThreads& iT, char* pName, math_types::realmtx_ty::vec_len_t rowsCnt, math_types::realmtx_ty::vec_len_t colsCnt = 10) {
+template<typename iRng, typename iThreadsT>
+void test_rng_mt_perf(iThreadsT& iT, char* pName, math_types::realmtx_ty::vec_len_t rowsCnt, math_types::realmtx_ty::vec_len_t colsCnt = 10) {
 	typedef math_types::realmtx_ty realmtx_t;
 	const auto dataSize = realmtx_t::sNumel(rowsCnt, colsCnt);
 	STDCOUTL("******* testing multithreaded "<< pName<<	" performance over " << rowsCnt << "x" << colsCnt << " matrix (" << dataSize << " elements) **************");
 	realmtx_t m(rowsCnt, colsCnt);
 	ASSERT_TRUE(!m.isAllocationFailed());
-	utils::prioritize_workers<utils::PriorityClass::PerfTesting, iThreads> pw(iT);
-	test_rngmt<iRng, iThreads>(iT, m);
+	utils::prioritize_workers<utils::PriorityClass::PerfTesting, iThreadsT> pw(iT);
+	test_rngmt<iRng, iThreadsT>(iT, m);
 }
 
 TEST(TestRNG, RngMtPerf) {

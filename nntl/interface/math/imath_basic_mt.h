@@ -40,11 +40,13 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 namespace nntl {
 namespace math {
 
-	template <typename iThreads>// = threads::Std>
-	class iMath_basic_mt : public iMath_basic<iThreads> {
+	template <typename RealT, typename iThreadsT, typename ThresholdsT = _impl::IMATH_BASIC_THR<RealT>>
+	class iMath_basic_mt final : public _iMath_basic<RealT, iThreadsT, ThresholdsT, iMath_basic_mt<RealT, iThreadsT, ThresholdsT>> {
 	public:
+		typedef _iMath_basic<RealT, iThreadsT, ThresholdsT, iMath_basic_mt<RealT, iThreadsT, ThresholdsT>> base_class_t;
+
 		~iMath_basic_mt()noexcept {};
-		iMath_basic_mt() noexcept : iMath_basic<iThreads>(){}
+		iMath_basic_mt() noexcept : base_class_t(){}
 
 		//////////////////////////////////////////////////////////////////////////
 		// i_math interface implementation
@@ -52,10 +54,21 @@ namespace math {
 		//////////////////////////////////////////////////////////////////////////
 		// Contnr dest is a std::vector-like container of vec_len_t, sized to m.rows(). Will contain for each row column index
 		//of greatest element in a row.
-		template<typename Contnr>
-		void mFindIdxsOfMaxRowwise(const realmtx_t& m, Contnr& dest)noexcept {
-			mFindIdxsOfMaxRowwise_mt_naive(m, dest);
+// 		template<typename Contnr>
+// 		void mFindIdxsOfMaxRowwise(const realmtx_t& m, Contnr& dest)noexcept {
+// 			mFindIdxsOfMaxRowwise_mt_naive(m, dest);
+// 		}
+
+		void mrwIdxsOfMax(const realmtx_t& m, vec_len_t* pDest)noexcept {
+			//shouldn't just run _mt version
+			base_class_t::mrwIdxsOfMax(m, pDest);
 		}
+
+		//not a part of _i_math
+// 		void mrwMax(const realmtx_t& m, real_t* pMax)noexcept {
+// 			//shouldn't just run _mt version
+// 			base_class_t::mrwMax(m, pMax);
+// 		}
 		
 		//////////////////////////////////////////////////////////////////////////
 		//extract rows with indexes specified by Contnr ridxs into dest.
@@ -66,8 +79,9 @@ namespace math {
 		
 		//////////////////////////////////////////////////////////////////////////
 		//binarize real-valued matrix with values in [0,1] according to 0<=frac<=1
-		void mBinarize(realmtx_t& A, const real_t frac)noexcept {
-			mBinarize_mt(A, frac);
+		void ewBinarize(realmtx_t& A, const real_t frac)noexcept {
+			//shouldn't just run _mt version
+			base_class_t::ewBinarize(A, frac);
 		}
 
 		//////////////////////////////////////////////////////////////////////////
@@ -199,6 +213,13 @@ namespace math {
 			return vSumAbs_mt(A);
 		}
 		
+		//////////////////////////////////////////////////////////////////////////
+		// divide each matrix A row by corresponding vector d element, A(i,:) = A(i,:) / d(i)
+		//not a part of _i_math
+// 		void mrwDivideByVec(realmtx_t& A, const real_t* pDiv)noexcept {
+// 			//TODO: justify selection
+// 			base_class_t::mrwDivideByVec(A, pDiv);
+// 		}
 
 		//////////////////////////////////////////////////////////////////////////
 		// sigmoid function
@@ -234,6 +255,13 @@ namespace math {
 		}
 
 		//////////////////////////////////////////////////////////////////////////
+		//SoftMax
+		// MUST ignore biases!
+		void softmax(realmtxdef_t& srcdest) noexcept {
+			softmax_mt(srcdest);
+		}
+
+		//////////////////////////////////////////////////////////////////////////
 		//loss functions
 		//////////////////////////////////////////////////////////////////////////
 		real_t loss_quadratic(const realmtx_t& activations, const realmtx_t& data_y)noexcept {
@@ -244,6 +272,10 @@ namespace math {
 		// L = -y*log(a)-(1-y)log(1-a), dL/dz = dL/dA * dA/dZ = (a-y)
 		real_t loss_sigm_xentropy(const realmtx_t& activations, const realmtx_t& data_y)noexcept {
 			return loss_sigm_xentropy_mt_naivepart(activations, data_y);
+		}
+
+		real_t loss_softmax_xentropy(const realmtx_t& activations, const realmtx_t& data_y)noexcept {
+			return loss_softmax_xentropy_mt(activations, data_y);
 		}
 
 		//////////////////////////////////////////////////////////////////////////

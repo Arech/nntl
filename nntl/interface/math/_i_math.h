@@ -41,7 +41,8 @@ namespace math {
 	//The point of _i_math is to gather all necessary mathematical computations in one single place in order to have an opportunity to
 	// optimize them without thinking of NN specific. _i_math just defines necessary functions to compute NN and it is its successors
 	// job to implement them as good and fast as possible.
-	// 
+	
+	template<typename RealT>
 	class _i_math {
 		//!! copy constructor not needed
 		_i_math(const _i_math& other)noexcept = delete;
@@ -53,11 +54,14 @@ namespace math {
 		~_i_math()noexcept {};
 
 	public:
-		//typedef math_types::real_ty real_t;
-		typedef math_types::realmtx_ty realmtx_t;
-		typedef realmtx_t::value_type real_t;
-		typedef realmtx_t::vec_len_t vec_len_t;
-		typedef realmtx_t::numel_cnt_t numel_cnt_t;
+		typedef RealT real_t;
+		//typedef math_types::realmtx_ty realmtx_t;
+		//typedef math_types::realmtxdef_ty realmtxdef_t;
+		//typedef realmtx_t::value_type real_t;
+		typedef simple_matrix<real_t> realmtx_t;
+		typedef simple_matrix_deformable<real_t> realmtxdef_t;
+		typedef typename realmtx_t::vec_len_t vec_len_t;
+		typedef typename realmtx_t::numel_cnt_t numel_cnt_t;
 
 		//last operation succeded
 		//nntl_interface bool succeded()const noexcept;
@@ -70,17 +74,20 @@ namespace math {
 		//frees temporary resources, allocated by init()
 		nntl_interface void deinit()noexcept;
 
-		// Contnr dest is a std::vector-like container of vec_len_t, sized to m.rows(). Will contain for each row column index
-		//of greatest element in a row.
-		template<typename Contnr>
-		nntl_interface void mFindIdxsOfMaxRowwise(const realmtx_t& m, Contnr& dest)noexcept;
+		//////////////////////////////////////////////////////////////////////////
+
+		//fills array pDest of size m.rows() with column indexes of greatest element in each row of m
+		nntl_interface void mrwIdxsOfMax(const realmtx_t& m, vec_len_t* pDest)noexcept;
+
+		//fills array pMax of size m.rows() with maximum element in each row of m
+		//nntl_interface void mrwMax(const realmtx_t& m, real_t* pMax)noexcept;
 
 		//extract ridxsCnt rows with indexes specified by sequential iterator ridxsItBegin into dest matrix.
 		template<typename SeqIt>
 		nntl_interface void mExtractRows(const realmtx_t& src, SeqIt ridxsItBegin, const numel_cnt_t ridxsCnt, realmtx_t& dest)noexcept;
 
 		//binarize real-valued matrix with values in [0,1] according to 0<=frac<=1
-		nntl_interface void mBinarize(realmtx_t& A, const real_t frac)noexcept;
+		nntl_interface void ewBinarize(realmtx_t& A, const real_t frac)noexcept;
 
 		// treat matrix as a set of row-vectors (matrices in col-major mode!). For each row-vector check, whether
 		// its length/norm is not longer, than predefined value. If it's longer, than rescale vector to this max length
@@ -107,11 +114,6 @@ namespace math {
 		nntl_interface void apply_momentum(realmtx_t& vW, const real_t momentum, const realmtx_t& dW)noexcept;
 
 		//////////////////////////////////////////////////////////////////////////
-		// elementwise substraction C=A-B. C is expected to be different from A and B
-// 		nntl_interface void evSubtract(const realmtx_t&A, const realmtx_t& B, realmtx_t& C) noexcept;
-// 		// B=1-A elementwise subtraction. B must be different from A.
-// 		nntl_interface void evOneMinusA(const realmtx_t&A, realmtx_t& B) noexcept;
-
  		//inplace elementwise multiplication A = b.*A
 		nntl_interface void evMulC_ip(realmtx_t& A, const real_t b)noexcept;
 
@@ -165,6 +167,9 @@ namespace math {
 		//C = a*(A` * B) - matrix multiplication of transposed A times B with result normalization
 		nntl_interface void mScaledMulAtB_C(real_t alpha, const realmtx_t& A, const realmtx_t& B, realmtx_t& C)noexcept;
 
+		//////////////////////////////////////////////////////////////////////////
+		// divide each matrix A row by corresponding vector d element, A(i,:) = A(i,:) / d(i)
+		//nntl_interface void mrwDivideByVec(realmtx_t& A, const real_t* pDiv)noexcept;
 
 		//////////////////////////////////////////////////////////////////////////
 		// sigm activation.
@@ -176,8 +181,18 @@ namespace math {
 
 		//////////////////////////////////////////////////////////////////////////
 		//ReLU
+		// MUST ignore biases!
 		nntl_interface void relu(realmtx_t& srcdest) noexcept;
 		nntl_interface void drelu(const realmtx_t& fValue, realmtx_t& df) noexcept;
+
+		//////////////////////////////////////////////////////////////////////////
+		//SoftMax
+		// helper function that return the amount of temporary memory (in real_t) needed to process by softmax()
+		// a matrix of size act.size()
+		nntl_interface numel_cnt_t softmax_needTempMem(const realmtx_t& act)noexcept;
+		// MUST ignore biases!
+		nntl_interface void softmax(realmtxdef_t& srcdest) noexcept;
+
 
 		//////////////////////////////////////////////////////////////////////////
 		//loss functions
@@ -185,9 +200,12 @@ namespace math {
 		nntl_interface real_t loss_quadratic(const realmtx_t& activations, const realmtx_t& data_y)noexcept;
 		
 		// cross entropy function for sigmoid (applicable ONLY for binary data_y)
-		// L = -y*log(a)-(1-y)log(1-a), dL/dz=a-y
+		// L = sum( -y*log(a)-(1-y)log(1-a) )/activations.rows(), dL/dz=a-y
 		nntl_interface real_t loss_sigm_xentropy(const realmtx_t& activations, const realmtx_t& data_y)noexcept;
 
+		// cross entropy function for softmax (applicable for data_y in range [0,1])
+		// L = sum( -y*log(a) )/activations.rows(), dL/dz=a-y
+		nntl_interface real_t loss_softmax_xentropy(const realmtx_t& activations, const realmtx_t& data_y)noexcept;
 
 		//////////////////////////////////////////////////////////////////////////
 		//gradient application procedures

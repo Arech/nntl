@@ -48,17 +48,303 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "../nntl/utils/chrono.h"
 #include "../nntl/utils/prioritize_workers.h"
 
-#include "etalons.h"
+#include "../nntl/utils/tictoc.h"
+
+#include "imath_etalons.h"
 
 using namespace nntl;
 using namespace std::chrono;
+using namespace nntl::utils;
 
 //////////////////////////////////////////////////////////////////////////
 #ifdef NNTL_DEBUG
 constexpr unsigned TEST_PERF_REPEATS_COUNT = 10;
+constexpr unsigned TEST_CORRECTN_REPEATS_COUNT = 100;
 #else
-constexpr unsigned TEST_PERF_REPEATS_COUNT = 100;
+constexpr unsigned TEST_PERF_REPEATS_COUNT = 500;
+constexpr unsigned TEST_CORRECTN_REPEATS_COUNT = 50;
 #endif // NNTL_DEBUG
+
+//////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////
+
+
+
+//////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////
+
+void softmax_parts_st_cw(const realmtx_t& act, const real_t* pMax, real_t* pDenominator, real_t* pNumerator)noexcept {
+	NNTL_ASSERT(pMax && pDenominator && act.numel() > 0);
+	const auto rm = act.rows(), cm = act.cols();
+	auto pA = act.dataAsVec();
+	const auto pME = pMax + rm;
+	std::fill(pDenominator, pDenominator + rm, real_t(0.0));
+	for (vec_len_t c = 0; c < cm; ++c) {
+		auto pDen = pDenominator;
+		auto pM = pMax;
+		while (pM != pME) {
+			const auto num = std::exp(*pA++ - *pM++);
+			*pDen++ += num;
+			*pNumerator++ = num;
+		}
+	}
+}
+//significantly slower, than cw
+void softmax_parts_st_rw(const realmtx_t& act, const real_t* pMax, real_t* pDenominator, real_t* pNumerator)noexcept {
+	NNTL_ASSERT(pMax && pDenominator && act.numel() > 0);
+	const auto rm = act.rows(), cm = act.cols();
+	const auto pA = act.dataAsVec();
+	for (vec_len_t r = 0; r < rm; ++r) {
+		auto ofs = r;
+		const auto m = pMax[r];
+		auto den = real_t(0.0);
+		for (vec_len_t c = 0; c < cm; ++c) {
+			const auto num = std::exp(pA[ofs] - m);
+			den += num;
+			pNumerator[ofs] = num;
+			ofs += rm;
+		}
+		pDenominator[r] = den;
+	}
+}
+template<typename base_t> struct softmax_parts_EPS {};
+template<> struct softmax_parts_EPS<double> { static constexpr double eps = 1e-10; };
+template<> struct softmax_parts_EPS<float> { static constexpr double eps = 1e-5; };
+template<typename iMath>
+void check_softmax_parts(iMath& iM, vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
+	const auto dataSize = realmtx_t::sNumel(rowsCnt, colsCnt);
+	STDCOUTL("**** checking softmax_parts() variations over " << rowsCnt << "x" << colsCnt << " matrix (" << dataSize << " elements) ****");
+
+	constexpr unsigned maxReps = TEST_PERF_REPEATS_COUNT, testCorrRepCnt = TEST_CORRECTN_REPEATS_COUNT;
+	constexpr numel_cnt_t maxDataSizeForSt = 50000;
+
+	realmtx_t A(rowsCnt, colsCnt);
+	ASSERT_TRUE(!A.isAllocationFailed());
+	std::vector<real_t> vec_max(rowsCnt), vec_den(rowsCnt), vec_num(dataSize);
+
+	iM.preinit(dataSize);
+	ASSERT_TRUE(iM.init());
+	nnet_def_interfaces::iRng_t rg;
+	rg.set_ithreads(iM.ithreads());
+
+	{
+		std::vector<real_t> vec_den2(rowsCnt), vec_num2(dataSize);
+
+		for (unsigned rr = 0; rr < testCorrRepCnt; ++rr) {
+			rg.gen_matrix(A, 2);
+			mrwMax_ET(A, &vec_max[0]);
+
+			softmax_parts_ET(A, &vec_max[0], &vec_den[0], &vec_num[0]);
+
+			std::fill(vec_den2.begin(), vec_den2.end(), real_t(0));
+			std::fill(vec_num2.begin(), vec_num2.end(), real_t(0));
+			softmax_parts_st_cw(A, &vec_max[0], &vec_den2[0], &vec_num2[0]);
+			ASSERT_VECTOR_NEAR(vec_den, vec_den2, "st_cw() failed denominator vector comparision", softmax_parts_EPS<real_t>::eps);
+			ASSERT_VECTOR_NEAR(vec_num, vec_num2, "st_cw() failed numerator matrix comparision", softmax_parts_EPS<real_t>::eps);
+
+			std::fill(vec_den2.begin(), vec_den2.end(), real_t(0));
+			std::fill(vec_num2.begin(), vec_num2.end(), real_t(0));
+			softmax_parts_st_rw(A, &vec_max[0], &vec_den2[0], &vec_num2[0]);
+			ASSERT_VECTOR_NEAR(vec_den, vec_den2, "st_rw() failed denominator vector comparision", softmax_parts_EPS<real_t>::eps);
+			ASSERT_VECTOR_NEAR(vec_num, vec_num2, "st_rw() failed numerator matrix comparision", softmax_parts_EPS<real_t>::eps);
+		}
+	}
+
+	tictoc tStCw, tStRw;
+	//////////////////////////////////////////////////////////////////////////
+	//testing performance
+	utils::prioritize_workers<utils::PriorityClass::PerfTesting, iMath::ithreads_t> pw(iM.ithreads());
+
+	//FFFFfffffffff... don't ever think about removing rg. calls that randomizes data...
+	for (unsigned r = 0; r < maxReps; ++r) {
+		rg.gen_matrix(A, 2);
+		mrwMax_ET(A, &vec_max[0]);
+		std::fill(vec_den.begin(), vec_den.end(), real_t(0));
+		std::fill(vec_num.begin(), vec_num.end(), real_t(0));
+		tStCw.tic();
+		softmax_parts_st_cw(A, &vec_max[0], &vec_den[0], &vec_num[0]);
+		tStCw.toc();
+
+		rg.gen_matrix(A, 2);
+		mrwMax_ET(A, &vec_max[0]);
+		std::fill(vec_den.begin(), vec_den.end(), real_t(0));
+		std::fill(vec_num.begin(), vec_num.end(), real_t(0));
+		tStRw.tic();
+		softmax_parts_st_rw(A, &vec_max[0], &vec_den[0], &vec_num[0]);
+		tStRw.toc();
+	}
+	tStCw.say("st_cw");
+	tStRw.say("st_rw");
+}
+TEST(TestPerfDecisions, softmaxParts) {
+	typedef nntl::nnet_def_interfaces::iThreads_t def_threads_t;
+	typedef math::iMath_basic<real_t, def_threads_t> iMB;
+	iMB iM;
+	check_softmax_parts(iM, 100, 100);
+
+#ifndef TESTS_SKIP_LONGRUNNING
+	constexpr vec_len_t maxCol = 10;
+	for (unsigned c = 2; c <= maxCol; ++c)check_softmax_parts(iM, 200, c);
+	check_softmax_parts(iM, 200, 100);
+	check_softmax_parts(iM, 10000, 2);
+#endif	
+}
+
+//////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////
+
+void mrwIdxsOfMax_st_rw(const realmtx_t& m, vec_len_t* pDest)noexcept {
+	const auto rim = m.rows();
+	const auto ne = m.numel();
+	//NNTL_ASSERT(rows == dest.size());
+
+	auto pD = m.dataAsVec();
+	for (vec_len_t ri = 0; ri < rim; ++ri) {
+		auto pV = &pD[ri];
+		const auto pVEnd = pV + ne;
+		auto m = std::numeric_limits<real_t>::lowest();
+		vec_len_t mIdx = 0;
+		vec_len_t c = 0;
+		while (pV != pVEnd) {
+			const auto v = *pV;
+			pV += rim;
+			if (v > m) {
+				m = v;
+				mIdx = c;
+			}
+			c++;
+		}
+		pDest[ri] = mIdx;
+	}
+}
+//all parameters are mandatory.
+//almost always the best (and calc max&idx simultaneously)
+void mrwMax_st_memfriendly(const realmtx_t& m, real_t* pMax, vec_len_t* pDest)noexcept {
+	const auto rm = m.rows(), cm = m.cols();
+	auto p = m.dataAsVec();
+	const auto pE = p + m.numel();
+	//treat the first column like the max. Then compare other columns with this column and update max'es
+	memset(pDest, 0, sizeof(vec_len_t)*rm);
+	memcpy(pMax, p, sizeof(real_t)*rm);
+	
+	p += rm;
+	vec_len_t c = 1;
+	while (p != pE) {
+		for (vec_len_t r = 0; r < rm; ++r) {
+			const auto v = p[r];
+			const auto pM = pMax + r;
+			if (v > *pM) {
+				*pM = v;
+				pDest[r] = c;
+			}
+		}
+		++c;
+		p += rm;
+	}
+}
+
+/*
+ // works noticeably slower, no need to use this variant.
+void mrwMax_st_memfriendly_opt(const realmtx_t& m, real_t* pMax, vec_len_t* pDest=nullptr)noexcept {
+	const auto rm = m.rows(), cm = m.cols();
+	auto p = m.dataAsVec();
+	const auto pE = p + m.numel();
+	//treat the first column like the max. Then compare other columns with this column and update max'es
+	if (pDest) memset(pDest, 0, sizeof(vec_len_t)*rm);
+
+	memcpy(pMax, p, sizeof(real_t)*rm);
+
+	p += rm;
+	vec_len_t c = 1;
+	while (p != pE) {
+		for (vec_len_t r = 0; r < rm; ++r) {
+			const auto v = p[r];
+			const auto pM = pMax + r;
+			if (v > *pM) {
+				*pM = v;
+				if(pDest) pDest[r] = c;
+			}
+		}
+		++c;
+		p += rm;
+	}
+}*/
+
+template<typename iMath>
+void check_maxRowwise(iMath& iM, vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
+	const auto dataSize = realmtx_t::sNumel(rowsCnt, colsCnt);
+	STDCOUTL("******* checking max_rowwise() variations over " << rowsCnt << "x" << colsCnt << " matrix (" << dataSize << " elements) **************");
+
+	constexpr unsigned maxReps = TEST_PERF_REPEATS_COUNT, testCorrRepCnt = TEST_CORRECTN_REPEATS_COUNT;
+
+	realmtx_t A(rowsCnt, colsCnt);
+	ASSERT_TRUE(!A.isAllocationFailed());
+	std::vector<vec_len_t> idxs_st_naive(rowsCnt), idxs_st_memf(rowsCnt);
+	std::vector<real_t> max_st_memf(rowsCnt);
+
+	nnet_def_interfaces::iRng_t rg;
+	rg.set_ithreads(iM.ithreads());
+
+	//vec_len_t* pDummy = nullptr;
+	{
+		std::vector<vec_len_t> idxs_et(rowsCnt);
+		std::vector<real_t> max_et(rowsCnt);
+
+		for (unsigned rr = 0; rr < testCorrRepCnt; ++rr) {
+			//pDummy++;
+
+			rg.gen_matrix(A, 10);
+			mrwMax_ET(A, &max_et[0], &idxs_et[0]);
+
+			mrwIdxsOfMax_st_rw(A, &idxs_st_naive[0]);
+			mrwMax_st_memfriendly(A, &max_st_memf[0], &idxs_st_memf[0]);
+
+ 			ASSERT_EQ(idxs_et, idxs_st_naive) << "mrwIdxsOfMax_st_rw failed!";
+ 			ASSERT_EQ(idxs_et, idxs_st_memf) << "mrwMax_st_memfriendly failed idx comparison";
+ 			ASSERT_EQ(max_et, max_st_memf) << "mrwMax_st_memfriendly failed value comparison";
+		}
+// 		pDummy -= testCorrRepCnt;
+// 		STDCOUTL( "pDummy == " << size_t(pDummy) );
+	}
+
+	tictoc tStNaive, tStMemf, tStMemfOpt;
+	//////////////////////////////////////////////////////////////////////////
+	//testing performance
+	utils::prioritize_workers<utils::PriorityClass::PerfTesting, iMath::ithreads_t> pw(iM.ithreads());
+
+	//FFFFfffffffff... don't ever think about removing rg. calls that randomizes data...
+	for (unsigned r = 0; r < maxReps; ++r) {
+		rg.gen_matrix(A, 10);
+		tStNaive.tic();
+		mrwIdxsOfMax_st_rw(A, &idxs_st_naive[0]);
+		tStNaive.toc();
+
+		rg.gen_matrix(A, 10);
+		tStMemf.tic();
+		mrwMax_st_memfriendly(A, &max_st_memf[0], &idxs_st_memf[0]);
+		tStMemf.toc();
+
+// 		rg.gen_matrix(A, 10);
+// 		tStMemfOpt.tic();
+// 		mrwMax_st_memfriendly_opt(A, &max_st_memf[0], pDummy);
+// 		tStMemfOpt.toc();
+// 		//works noticeably slower, no need to use this variant.
+	}
+	tStNaive.say("st_naive");
+	tStMemf.say("st_memf");
+	//tStMemfOpt.say("st_memfopt");
+}
+TEST(TestPerfDecisions, MaxRowwise) {
+	typedef nntl::nnet_def_interfaces::iThreads_t def_threads_t;
+	typedef math::iMath_basic<real_t, def_threads_t> iMB;
+	iMB iM;
+	NNTL_RUN_TEST2(100*100, 100) check_maxRowwise(iM, i, 100);
+#ifndef TESTS_SKIP_LONGRUNNING
+	NNTL_RUN_TEST2(10000 * 100, 100) check_maxRowwise(iM, i, 100);
+	NNTL_RUN_TEST2(50000 * 10, 10) check_maxRowwise(iM, i, 10);
+	NNTL_RUN_TEST2(50000 * 2, 2) check_maxRowwise(iM, i, 2);
+#endif
+}
 
 //////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////
@@ -120,7 +406,7 @@ void check_evCMulSub(iMath& iM, vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 }
 TEST(TestPerfDecisions, CMulSub) {
 	typedef nntl::nnet_def_interfaces::iThreads_t def_threads_t;
-	typedef math::iMath_basic<def_threads_t> iMB;
+	typedef math::iMath_basic<real_t, def_threads_t> iMB;
 	iMB iM;
 
 	//for (unsigned i = 50; i <= 10000; i*=2) check_evCMulSub(iM, i,100);
@@ -134,15 +420,17 @@ TEST(TestPerfDecisions, CMulSub) {
 
 //////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////
-void mTranspose_ET(const realmtx_t& src, realmtx_t& dest) noexcept{
+
+void mTranspose_ET(const realmtx_t& src, realmtx_t& dest) noexcept {
 	NNTL_ASSERT(src.rows() == dest.cols() && src.cols() == dest.rows());
 	const auto sRows = src.rows(), sCols = src.cols();
 	for (vec_len_t r = 0; r < sRows; ++r) {
 		for (vec_len_t c = 0; c < sCols; ++c) {
-			dest.set(c,r, src.get(r,c));
+			dest.set(c, r, src.get(r, c));
 		}
 	}
 }
+
 void mTranspose_seq_read(const realmtx_t& src, realmtx_t& dest) noexcept {
 	NNTL_ASSERT(src.rows() == dest.cols() && src.cols() == dest.rows());
 	const auto sRows = src.rows(), sCols = src.cols();
@@ -262,7 +550,7 @@ And by the way - it's a way slower (x4-x5), than whole rowwise_renorm operation 
 }
 TEST(TestPerfDecisions, mTranspose) {
 	typedef nntl::nnet_def_interfaces::iThreads_t def_threads_t;
-	typedef math::iMath_basic<def_threads_t> iMB;
+	typedef math::iMath_basic<real_t, def_threads_t> iMB;
 	iMB iM;
 
 	//for (unsigned i = 100; i <= 10000; i*=10) check_mTranspose(iM, i,i/10);
@@ -545,7 +833,7 @@ void check_rowvecs_renorm(iMath& iM, vec_len_t rowsCnt, vec_len_t colsCnt = 10) 
 }
 TEST(TestPerfDecisions, rowvecsRenorm) {
 	typedef nntl::nnet_def_interfaces::iThreads_t def_threads_t;
-	typedef math::iMath_basic<def_threads_t> iMB;
+	typedef math::iMath_basic<real_t, def_threads_t> iMB;
 	iMB iM;
 
 //   	for (unsigned i = 10; i <= 1000; i*=10) check_rowvecs_renorm(iM, i,i);
@@ -657,7 +945,7 @@ void check_rowwiseNormsq(iMath& iM, vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 }
 TEST(TestPerfDecisions, rowwiseNormsq) {
 	typedef nntl::nnet_def_interfaces::iThreads_t def_threads_t;
-	typedef math::iMath_basic<def_threads_t> iMB;
+	typedef math::iMath_basic<real_t, def_threads_t> iMB;
 	iMB iM;
 
 	//for (unsigned i = 10; i <= 10000; i*=10) check_rowwiseNormsq(iM, i,i);
@@ -755,7 +1043,7 @@ void run_sigm_loss_xentropy(iRng& rg, iMath &iM, realmtx_t& act, realmtx_t& data
 	for (unsigned r = 0; r < maxReps; ++r) {
 		rg.gen_matrix_norm(act);
 		rg.gen_matrix_norm(data_y);
-		iM.mBinarize(data_y, binFrac);
+		iM.ewBinarize(data_y, binFrac);
 
 		bt = steady_clock::now();
 		lossNaive = sigm_loss_xentropy_naive(act, data_y);
@@ -798,7 +1086,7 @@ void check_sigm_loss_xentropy(iMath& iM, vec_len_t rowsCnt, vec_len_t colsCnt = 
 }
 TEST(TestPerfDecisions, sigmLossXentropy) {
 	typedef nntl::nnet_def_interfaces::iThreads_t def_threads_t;
-	typedef math::iMath_basic<def_threads_t> iMB;
+	typedef math::iMath_basic<real_t, def_threads_t> iMB;
 	iMB iM;
 
 	//for (unsigned i = 50; i <= 20000; i*=1.5) check_sigm_loss_xentropy(iM, i,100);
@@ -885,7 +1173,7 @@ void check_apply_momentum_perf(iMath& iM, vec_len_t rowsCnt, vec_len_t colsCnt =
 }
 TEST(TestPerfDecisions, applyMomentum) {
 	typedef nntl::nnet_def_interfaces::iThreads_t def_threads_t;
-	typedef math::iMath_basic<def_threads_t> iMB;
+	typedef math::iMath_basic<real_t, def_threads_t> iMB;
 	iMB iM;
 
 	//for (unsigned i = 50; i <= 20000; i*=2) check_apply_momentum_perf(iM, i,100);
@@ -902,7 +1190,7 @@ template <typename T> T sgncopysign(T magn, T val) {
 	return val == 0 ? T(0) : std::copysign(magn, val);
 }
 template<typename iMath>
-void test_sign_perf(iMath& iM, typename iMath::realmtx_t::vec_len_t rowsCnt, typename iMath::realmtx_t::vec_len_t colsCnt = 10) {
+void test_sign_perf(iMath& iM, vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 	const auto dataSize = realmtx_t::sNumel(rowsCnt, colsCnt);
 	STDCOUTL("******* checking sign() variations over " << rowsCnt << "x" << colsCnt << " matrix (" << dataSize << " elements) **************");
 
@@ -996,7 +1284,7 @@ void test_sign_perf(iMath& iM, typename iMath::realmtx_t::vec_len_t rowsCnt, typ
 
 TEST(TestPerfDecisions, Sign) {
 	typedef nntl::nnet_def_interfaces::iThreads_t def_threads_t;
-	typedef math::iMath_basic<def_threads_t> iMB;
+	typedef math::iMath_basic<real_t, def_threads_t> iMB;
 
 	iMB iM;
 
@@ -1015,8 +1303,8 @@ TEST(TestPerfDecisions, Sign) {
 /*
 
 template<typename iMath>
-void calc_rmsproph_vec(iMath& iM, typename iMath::realmtx_t& dW, typename iMath::realmtx_t& rmsF, typename iMath::realmtx_t::value_type lr,
-	typename iMath::realmtx_t::value_type emaDecay, typename iMath::realmtx_t::value_type numericStab, typename iMath::realmtx_t& t1)
+void calc_rmsproph_vec(iMath& iM, typename iMath::realmtx_t& dW, typename iMath::realmtx_t& rmsF, value_type lr,
+	value_type emaDecay, value_type numericStab, typename iMath::realmtx_t& t1)
 {
 	typedef typename iMath::realmtx_t realmtx_t;
 	typedef typename realmtx_t::value_type real_t;
@@ -1047,8 +1335,8 @@ void calc_rmsproph_vec(iMath& iM, typename iMath::realmtx_t& dW, typename iMath:
 }
 
 template<typename iMath>
-void calc_rmsproph_ew(iMath& iM, typename iMath::realmtx_t& dW, typename iMath::realmtx_t& rmsF, const typename iMath::realmtx_t::value_type learningRate,
-	const typename iMath::realmtx_t::value_type emaDecay, const typename iMath::realmtx_t::value_type numericStabilizer)
+void calc_rmsproph_ew(iMath& iM, typename iMath::realmtx_t& dW, typename iMath::realmtx_t& rmsF, const value_type learningRate,
+	const value_type emaDecay, const value_type numericStabilizer)
 {
 	typedef typename iMath::realmtx_t realmtx_t;
 	typedef typename realmtx_t::value_type real_t;
@@ -1068,7 +1356,7 @@ void calc_rmsproph_ew(iMath& iM, typename iMath::realmtx_t& dW, typename iMath::
 }
 
 template<typename iMath>
-void test_rmsproph_perf(iMath& iM, typename iMath::realmtx_t::vec_len_t rowsCnt, typename iMath::realmtx_t::vec_len_t colsCnt = 10) {
+void test_rmsproph_perf(iMath& iM, vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 	typedef typename iMath::realmtx_t realmtx_t;
 	typedef typename realmtx_t::value_type real_t;
 	typedef typename realmtx_t::numel_cnt_t numel_cnt_t;
@@ -1113,7 +1401,7 @@ void test_rmsproph_perf(iMath& iM, typename iMath::realmtx_t::vec_len_t rowsCnt,
 
 TEST(TestPerfDecisions, RmsPropH) {
 	typedef nntl::nnet_def_interfaces::iThreads_t def_threads_t;
-	typedef math::iMath_basic<def_threads_t> iMB;
+	typedef math::iMath_basic<real_t, def_threads_t> iMB;
 
 	iMB iM;
 
@@ -1169,7 +1457,7 @@ void dropout_ew(math_types::realmtx_ty& activs, math_types::real_ty dropoutFract
 }
 
 template<typename iMath>
-void test_dropout_perf(iMath& iM, typename iMath::realmtx_t::vec_len_t rowsCnt, typename iMath::realmtx_t::vec_len_t colsCnt = 10) {
+void test_dropout_perf(iMath& iM, vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 	typedef typename iMath::realmtx_t realmtx_t;
 	typedef typename realmtx_t::value_type real_t;
 	typedef typename realmtx_t::numel_cnt_t numel_cnt_t;
@@ -1213,7 +1501,7 @@ void test_dropout_perf(iMath& iM, typename iMath::realmtx_t::vec_len_t rowsCnt, 
 
 TEST(TestPerfDecisions, Dropout) {
 	typedef nntl::nnet_def_interfaces::iThreads_t def_threads_t;
-	typedef math::iMath_basic<def_threads_t> iMB;
+	typedef math::iMath_basic<real_t, def_threads_t> iMB;
 
 	iMB iM;
 

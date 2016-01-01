@@ -135,7 +135,7 @@ namespace weights_init {
 			d.gen_matrix(src);
 
 			auto pS = src.dataAsVec();
-			//setting rowwise (I don't think we can significantly simply this code and leave the same quality of randomness)
+			//setting rowwise (I don't think we can significantly speed up this code and leave the same quality of randomness)
 			for (vec_len_t r = 0; r < thisLayerNeuronsCnt; ++r) {
 				std::random_shuffle(pIdxs, pIdxsE, iR);
 				for (vec_len_t cIdx = 0; cIdx < NonZeroUnitsCount; ++cIdx) {

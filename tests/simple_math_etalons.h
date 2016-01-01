@@ -8,15 +8,15 @@ Redistribution and use in source and binary forms, with or without
 modification, are permitted provided that the following conditions are met:
 
 * Redistributions of source code must retain the above copyright notice, this
-  list of conditions and the following disclaimer.
+list of conditions and the following disclaimer.
 
 * Redistributions in binary form must reproduce the above copyright notice,
-  this list of conditions and the following disclaimer in the documentation
-  and/or other materials provided with the distribution.
+this list of conditions and the following disclaimer in the documentation
+and/or other materials provided with the distribution.
 
 * Neither the name of NNTL nor the names of its
-  contributors may be used to endorse or promote products derived from
-  this software without specific prior written permission.
+contributors may be used to endorse or promote products derived from
+this software without specific prior written permission.
 
 THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
 AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
@@ -29,22 +29,17 @@ CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
 OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
+
 #pragma once
 
-#include <functional>
+#include "asserts.h"
 
-namespace nntl {
-namespace utils {
+void ewBinarize_ET(realmtx_t& A, const real_t frac)noexcept;
 
-	struct scope_exit {
-		//scope_exit(std::function<void(void)> f) : f_(f) {}
+void mrwDivideByVec_ET(realmtx_t& A, const real_t* pDiv)noexcept;
+void mrwMulByVec_ET(realmtx_t& A, const real_t* pMul)noexcept;
 
-		template<typename FuncF>
-		scope_exit(FuncF&& f) : f_(std::move(f)) {}
-		~scope_exit(void) { f_(); }
-	private:
-		std::function<void(void)> f_;
-	};
+void mrwMax_ET(const realmtx_t& m, real_t* pMax = nullptr, vec_len_t* pColIdxs = nullptr) noexcept;
 
-}
-}
+void mrwSum_ip_ET(realmtx_t& src)noexcept;
+void mrwSum_ET(const realmtx_t& src, real_t* pVec)noexcept;

@@ -42,10 +42,14 @@ namespace nntl {
 // 	class _layer_input : public m_layer_input, public _layer_base<FinalPolymorphChild, MathInterface, RngInterface> {
 // 	private:
 // 		typedef _layer_base<FinalPolymorphChild, MathInterface, RngInterface> _base_class;
-	template<typename FinalPolymorphChild>
-	class _layer_input : public m_layer_input, public _layer_base<FinalPolymorphChild> {
+	template<typename Interfaces, typename FinalPolymorphChild>
+	class _layer_input : public m_layer_input, public _layer_base<typename Interfaces::iMath_t::real_t, FinalPolymorphChild> {
 	private:
-		typedef _layer_base<FinalPolymorphChild> _base_class;
+		typedef _layer_base<typename Interfaces::iMath_t::real_t, FinalPolymorphChild> _base_class;
+
+	public:
+		typedef typename Interfaces::iMath_t iMath_t;
+		static_assert(std::is_base_of<math::_i_math<real_t>, iMath_t>::value, "Interfaces::iMath type should be derived from _i_math");
 		
 	public:
 
@@ -64,7 +68,7 @@ namespace nntl {
 		//ErrorCode init(vec_len_t batchSize, numel_cnt_t& minMemFPropRequire, numel_cnt_t& minMemBPropRequire, i_math_t& iMath, i_rng_t& iRng)noexcept {
 		template<typename _layer_init_data_t>
 		ErrorCode init(_layer_init_data_t& lid)noexcept{
-			static_assert(std::is_base_of<math::_i_math, _layer_init_data_t::i_math_t>::value, "i_math_t type should be derived from _i_math");
+			static_assert(std::is_base_of<math::_i_math<real_t>, _layer_init_data_t::i_math_t>::value, "i_math_t type should be derived from _i_math");
 			static_assert(std::is_base_of<rng::_i_rng, _layer_init_data_t::i_rng_t>::value, "i_rng_t type should be derived from _i_rng");
 			m_pActivations = nullptr;
 			return ErrorCode::Success;
@@ -121,11 +125,12 @@ namespace nntl {
 	//////////////////////////////////////////////////////////////////////////
 	// final implementation of layer with all functionality of _layer_input
 	// If you need to derive a new class, derive it from _layer_input (to make static polymorphism work)
-	class layer_input final : public _layer_input<layer_input> {
+	template < typename Interfaces = nnet_def_interfaces>
+	class layer_input final : public _layer_input<Interfaces, layer_input<Interfaces>> {
 	public:
-		layer_input(const neurons_count_t _neurons_cnt) noexcept :
-			_layer_input<layer_input>(_neurons_cnt) {};
 		~layer_input() noexcept {};
+		layer_input(const neurons_count_t _neurons_cnt) noexcept :
+			_layer_input<Interfaces, layer_input<Interfaces>>(_neurons_cnt) {};
 	};
 
 }

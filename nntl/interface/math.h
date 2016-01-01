@@ -34,6 +34,8 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //It's not included anywhere in nntl core files, but is required for compilation.
 //#include it before any nntl core file 
 
+//TODO: move it into ../
+
 //redefine if needed, but don't use anywhere else
 //MUST be the same in all compilation units, DEFINE ON PROJECT-LEVEL
 #ifndef NNTL_CFG_DEFAULT_TYPE
@@ -102,8 +104,10 @@ namespace math {
 
 		//matrix of real_ty, colMajor order, because many math libs uses it by default
 		//TODO: specialization for the case of 1D data (such as binary classification results) may provide some performance gain
+		//DEPRECATED typedef. Use simple_matrix class directly
 		typedef simple_matrix<real_ty> realmtx_ty;
 
+		//DEPRECATED typedef. Use simple_matrix_deformable class directly
 		typedef simple_matrix_deformable<real_ty> realmtxdef_ty;
 		static_assert(std::is_base_of<realmtx_ty, realmtxdef_ty>::value, "realmtxdef_ty must be derived from realmtx_ty!");
 		

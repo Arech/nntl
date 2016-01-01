@@ -46,11 +46,11 @@ namespace utils {
 
 	namespace _impl {
 
-		template<PriorityClass _mode,typename iThreads>
+		template<PriorityClass _mode,typename iThreadsT>
 		class prioritize_workers_dummy {
 		public:
 			~prioritize_workers_dummy()noexcept {}
-			prioritize_workers_dummy(iThreads& iT)noexcept {
+			prioritize_workers_dummy(iThreadsT& iT)noexcept {
 				STDCOUTL("*** prioritize_workers not implemented for this OS, using dummy class");
 			}
 		};
@@ -61,11 +61,11 @@ namespace utils {
 
 	namespace _impl {
 
-		template<PriorityClass _mode, typename iThreads>
+		template<PriorityClass _mode, typename iThreadsT>
 		class prioritize_workers_win {
-			static_assert(std::is_base_of<threads::_i_threads<typename iThreads::range_t>, iThreads>::value, "iThreads must implement threads::_i_threads");
+			static_assert(std::is_base_of<threads::_i_threads<typename iThreadsT::range_t>, iThreadsT>::value, "iThreads must implement threads::_i_threads");
 		public:
-			typedef iThreads iThreads_t;
+			typedef iThreadsT iThreads_t;
 
 		protected:
 			const DWORD m_origPriorityClass;

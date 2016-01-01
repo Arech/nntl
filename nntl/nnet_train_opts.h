@@ -47,8 +47,11 @@ namespace nntl {
 		typedef TrainingObserver training_observer_t;
 		typedef cond_epoch_eval cond_epoch_eval_t;
 		typedef nnet_train_opts<cond_epoch_eval_t, training_observer_t> self_t;
-		typedef math_types::realmtx_ty::vec_len_t batch_size_t;
-		typedef math_types::real_ty real_t;
+		
+		//typedef math_types::real_ty real_t;
+		typedef typename training_observer_t::real_t real_t;
+		typedef typename training_observer_t::realmtx_t realmtx_t;
+		typedef typename realmtx_t::vec_len_t batch_size_t;
 
 		//////////////////////////////////////////////////////////////////////////
 		//members

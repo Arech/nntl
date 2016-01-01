@@ -40,8 +40,10 @@ namespace nntl {
 
 	// i_training_observer and derived classes must be default constructible
 	struct i_training_observer {
-		typedef math_types::realmtx_ty realmtx_t;
-		typedef realmtx_t::value_type real_t;
+		//typedef math_types::realmtx_ty realmtx_t;
+		typedef math_types::real_ty real_t;
+		typedef math::simple_matrix<real_t> realmtx_t;
+		//typedef realmtx_t::value_type real_t;
 		typedef realmtx_t::vec_len_t vec_len_t;
 		typedef realmtx_t::numel_cnt_t numel_cnt_t;
 		
@@ -90,6 +92,13 @@ namespace nntl {
 		//for each element of Y data (training/testing) contains index of true element class (column number of biggest element in a row)
 		typedef std::array<std::vector<vec_len_t>, 2> y_data_class_idx_t;
 
+	protected:
+		classif_results_t m_classifRes;
+		y_data_class_idx_t m_ydataClassIdxs;//preprocessed ground truth
+		y_data_class_idx_t m_nnClassIdxs;//storage for NN predictions
+
+		size_t m_epochs, m_prevEpoch;
+
 	public:
 		template<typename iMath>
 		bool init(size_t epochs, const realmtx_t& train_y, const realmtx_t& test_y, iMath& iM)noexcept {
@@ -99,11 +108,11 @@ namespace nntl {
 			//TODO:exception handling!
 			m_ydataClassIdxs[0].resize(train_y.rows());
 			m_nnClassIdxs[0].resize(train_y.rows());
-			iM.mFindIdxsOfMaxRowwise(train_y, m_ydataClassIdxs[0]);
+			iM.mrwIdxsOfMax(train_y, &m_ydataClassIdxs[0][0]);
 
 			m_ydataClassIdxs[1].resize(test_y.rows());
 			m_nnClassIdxs[1].resize(test_y.rows());
-			iM.mFindIdxsOfMaxRowwise(test_y, m_ydataClassIdxs[1]);
+			iM.mrwIdxsOfMax(test_y, &m_ydataClassIdxs[1][0]);
 			return true;
 		}
 		void deinit()noexcept {
@@ -129,7 +138,7 @@ namespace nntl {
 			NNTL_ASSERT(data_y.size() == activations.size());
 			NNTL_ASSERT(data_y.rows() == m_ydataClassIdxs[bOnTestData].size());
 
-			iM.mFindIdxsOfMaxRowwise(activations, m_nnClassIdxs[bOnTestData]);
+			iM.mrwIdxsOfMax(activations, &m_nnClassIdxs[bOnTestData][0]);
 
 			m_classifRes[bOnTestData].totalElements = data_y.rows();
 			m_classifRes[bOnTestData].correctlyClassified = iM.vCountSame(m_ydataClassIdxs[bOnTestData],m_nnClassIdxs[bOnTestData]);
@@ -163,12 +172,5 @@ namespace nntl {
 		void on_training_end(const nanoseconds& trainTime)noexcept {
 			std::cout << "Training time: " << utils::duration_readable(trainTime) << std::endl;
 		}
-
-	protected:
-		classif_results_t m_classifRes;
-		y_data_class_idx_t m_ydataClassIdxs;//preprocessed ground truth
-		y_data_class_idx_t m_nnClassIdxs;//storage for NN predictions
-
-		size_t m_epochs, m_prevEpoch;
 	};
 }

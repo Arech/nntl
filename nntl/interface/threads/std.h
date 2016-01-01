@@ -129,7 +129,7 @@ public:
 		}
 
 		template<typename Func>
-		void run(Func&& F, const range_t cnt, thread_id_t* pThreadsUsed = nullptr) noexcept {
+		void run(Func&& F, const range_t cnt, const thread_id_t useNThreads = 0, thread_id_t* pThreadsUsed = nullptr) noexcept {
 			//TODO: decide whether it is worth to use workers here
 			//DONE: well, it worth about 14mks to parallelize execution therefore won't bother...
 			if (cnt <= 1) {
@@ -141,7 +141,7 @@ public:
 				m_fnRun = F;
 				m_jobType = JobType::Run;
 				
-				const auto prevOfs = partition_count_to_workers(cnt);
+				const auto prevOfs = partition_count_to_workers(cnt, useNThreads);
 				NNTL_ASSERT(prevOfs < cnt);
 				if (pThreadsUsed) *pThreadsUsed = static_cast<thread_id_t>(m_workingCnt) + 1;
 
@@ -162,7 +162,7 @@ public:
 		}
 
 		template<typename Func, typename FinalReduceFunc>
-		real_t reduce(Func&& FRed, FinalReduceFunc FRF, const range_t cnt) noexcept {
+		real_t reduce(Func&& FRed, FinalReduceFunc&& FRF, const range_t cnt, const thread_id_t useNThreads = 0) noexcept {
 			//TODO: decide whether it is worth to use workers here
 			//DONE: well, it worth less than 9mks to parallelize execution therefore won't bother...
 			if (cnt <= 1) {
@@ -174,7 +174,7 @@ public:
 				m_jobType = JobType::Reduce;
 
 				//TODO: need cache friendly partitioning here
-				const auto prevOfs = partition_count_to_workers(cnt);
+				const auto prevOfs = partition_count_to_workers(cnt, useNThreads);
 				NNTL_ASSERT(prevOfs < cnt);
 				auto* rc = &m_reduceCache[0];
 
@@ -198,17 +198,18 @@ public:
 	protected:
 
 //returns an offset after last partitioned item
-		range_t partition_count_to_workers(const range_t cnt)noexcept {
+		range_t partition_count_to_workers(const range_t cnt, const thread_id_t _useNThreads)noexcept {
 			//TODO: need cache friendly partitioning here
-			const range_t lastWrkr = cnt - 1;
-			m_workingCnt = (cnt > m_workersCnt ? m_workersCnt : lastWrkr);
-			const range_t totalWorkers = m_workersCnt + 1;
+			const thread_id_t useNThreads = _useNThreads > 1 && _useNThreads <= m_workersCnt + 1 ? _useNThreads - 1 : m_workersCnt;
+			const thread_id_t _workingCnt = cnt > useNThreads ? useNThreads : static_cast<thread_id_t>(cnt - 1);
+			m_workingCnt = _workingCnt;
+			const range_t totalWorkers = _workingCnt + 1;
 			range_t eachCnt = cnt / totalWorkers;
 			const range_t residual = cnt % totalWorkers;
 			range_t prevOfs = 0;
 
-			for (range_t i = 0; i < m_workersCnt; ++i) {
-				if (i >= lastWrkr) {
+			for (thread_id_t i = 0; i < m_workersCnt; ++i) {
+				if (i >= _workingCnt) {
 					m_ranges[i].cnt(0);
 				} else {
 					const range_t n = eachCnt + (i < residual ? 1 : 0);

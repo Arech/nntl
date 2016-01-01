@@ -36,19 +36,20 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //Substitute for your own if you want to utilize mt/st branching code of imath_basic
 // Or just use imath_basic_mt for reasonably large data sizes
 
-#ifndef NNTL_OVERRIDE_MATH_BASIC_THRESHOLDS
+#include "simple_math_thr.h"
 
 namespace nntl {
 namespace math {
 
 namespace _impl {
 
-	template <typename real_t> struct IMATH_BASIC_THRESHOLDS {};
+	template <typename real_t> struct IMATH_BASIC_THR : public SIMPLE_MATH_THR<real_t> {};
 
-	template <> struct IMATH_BASIC_THRESHOLDS<double> {
-		static constexpr size_t mFindIdxsOfMaxRowwise = 400;
+	//It is better, than nothing. But in future this pron should be substituted by a run-time function profiling over real-task data
+
+	template <> struct IMATH_BASIC_THR<double> : public SIMPLE_MATH_THR<double> {
+
 		static constexpr size_t mExtractRows = 2000;
-		static constexpr size_t mBinarize = 132000;
 		static constexpr size_t mCheck_normalize_rows = 124000;
 		static constexpr size_t evClamp = 9000;
 		static constexpr size_t make_dropout = 6700;
@@ -74,15 +75,22 @@ namespace _impl {
 		static constexpr size_t evSquare = 24400;
 		static constexpr size_t vSumSquares = 20000;//not tested
 		static constexpr size_t evAbs = 20300;
-		static constexpr size_t vSumAbs = 18000;//not tested
+		static constexpr size_t vSumAbs = 18000;//not tested		
 
 		static constexpr size_t sigm = 2600;
 		static constexpr size_t dsigm = 27500;
 		static constexpr size_t dSigmQuadLoss_dZ = 14900;
 		static constexpr size_t relu = 6400;
 		static constexpr size_t drelu = 20500;
+
+		static constexpr size_t softmax_parts = 1900;
+		static constexpr size_t softmax_parts_mt_cw_ColsPerThread = 3;
+		static constexpr size_t softmax_parts_mt_rows = 1000;
+		static constexpr size_t softmax = 3000;//not tested
+
 		static constexpr size_t loss_quadratic = 24400;
 		static constexpr size_t loss_sigm_xentropy = 765;
+		static constexpr size_t loss_softmax_xentropy = 1100;
 
 		static constexpr size_t RMSProp_Hinton = 2940;
 		static constexpr size_t RMSProp_Graves = 2970;
@@ -90,10 +98,8 @@ namespace _impl {
 		static constexpr size_t ModProp = 4170;
 	};
 
-	template <> struct IMATH_BASIC_THRESHOLDS<float> {
-		static constexpr size_t mFindIdxsOfMaxRowwise = 550;
+	template <> struct IMATH_BASIC_THR<float> : public SIMPLE_MATH_THR<float> {
 		static constexpr size_t mExtractRows = 3100;
-		static constexpr size_t mBinarize = 500000;
 		static constexpr size_t mCheck_normalize_rows = 250000;
 		static constexpr size_t evClamp = 14000;
 		static constexpr size_t make_dropout = 19000;
@@ -126,8 +132,15 @@ namespace _impl {
 		static constexpr size_t dSigmQuadLoss_dZ = 32000;
 		static constexpr size_t relu = 9000;
 		static constexpr size_t drelu = 42500;
+
+		static constexpr size_t softmax_parts = 3200;
+		static constexpr size_t softmax_parts_mt_cw_ColsPerThread = 3;
+		static constexpr size_t softmax_parts_mt_rows = 6000;
+		static constexpr size_t softmax = 5000;//not tested
+
 		static constexpr size_t loss_quadratic = 49600;
 		static constexpr size_t loss_sigm_xentropy = 750;
+		static constexpr size_t loss_softmax_xentropy = 1000;
 
 		static constexpr size_t RMSProp_Hinton = 6100;
 		static constexpr size_t RMSProp_Graves = 6300;
@@ -139,5 +152,3 @@ namespace _impl {
 
 }
 }
-
-#endif

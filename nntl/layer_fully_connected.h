@@ -38,16 +38,16 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 namespace nntl {
 
 	template<typename ActivFunc, typename Interfaces, typename GradWorks, typename FinalPolymorphChild>
-	class _layer_fully_connected : public _layer_base<FinalPolymorphChild> {
+	class _layer_fully_connected : public _layer_base<typename Interfaces::iMath_t::real_t, FinalPolymorphChild> {
 	private:
-		typedef _layer_base<FinalPolymorphChild> _base_class;
+		typedef _layer_base<typename Interfaces::iMath_t::real_t, FinalPolymorphChild> _base_class;
 
 	public:
-		typedef math_types::realmtxdef_ty realmtxdef_t;
-		static_assert(std::is_base_of<realmtx_t, realmtxdef_t>::value, "math_types::realmtxdef_ty must be derived from math_types::realmtx_ty!");
-
 		typedef typename Interfaces::iMath_t iMath_t;
-		static_assert(std::is_base_of<math::_i_math, iMath_t>::value, "Interfaces::iMath type should be derived from _i_math");
+		static_assert(std::is_base_of<math::_i_math<real_t>, iMath_t>::value, "Interfaces::iMath type should be derived from _i_math");
+
+		typedef typename Interfaces::iMath_t::realmtxdef_t realmtxdef_t;
+		static_assert(std::is_base_of<realmtx_t, realmtxdef_t>::value, "math_types::realmtxdef_ty must be derived from math_types::realmtx_ty!");
 
 		typedef typename Interfaces::iRng_t iRng_t;
 		static_assert(std::is_base_of<rng::_i_rng, iRng_t>::value, "Interfaces::iRng type should be derived from _i_rng");
@@ -108,11 +108,7 @@ namespace nntl {
 		
 		const realmtx_t& get_activations()const noexcept { return m_activations; }
 
-		//template<typename _layer_init_data_t>
 		ErrorCode init(_layer_init_data_t& lid)noexcept {
-// 			static_assert(std::is_same<iMath_t, _layer_init_data_t::i_math_t>::value, "_layer_init_data_t::i_math_t type must be the same as given by class template parameter Interfaces::iMath");
-// 			static_assert(std::is_same<iRng_t, _layer_init_data_t::i_rng_t>::value, "_layer_init_data_t::i_rng_t must be the same as given by class template parameter Interfaces::iRng");
-
 			bool bSuccessfullyInitialized = false;
 			utils::scope_exit onExit([&bSuccessfullyInitialized, this]() {
 				if (!bSuccessfullyInitialized) {
@@ -152,8 +148,11 @@ namespace nntl {
 			// m_weights, m_dLdW - (m_neurons_cnt, get_incoming_neurons_cnt() + 1)
 			// m_activations - (m_max_fprop_batch_size, m_neurons_cnt) and unbiased matrices derived from m_activations - such as m_dAdZ
 			// prevActivations - size (m_training_batch_size, get_incoming_neurons_cnt() + 1)
-			m_pMath->preinit(std::max(std::max(m_weights.numel(), m_activations.numel()),
-				realmtx_t::sNumel(m_training_batch_size, get_incoming_neurons_cnt() + 1)));
+			m_pMath->preinit(std::max({
+				m_weights.numel()
+				,activation_f_t::needTempMem(m_activations,*m_pMath)
+				,realmtx_t::sNumel(m_training_batch_size, get_incoming_neurons_cnt() + 1) 
+			}));
 
 			if (m_training_batch_size > 0) {
 				//it'll be training session, therefore must allocate necessary supplementaly matrices and form temporary memory reqs.

@@ -204,12 +204,6 @@
     <ClInclude Include="..\nntl\interface\rng\distr_normal_naive.h">
       <Filter>nntl\interface\rng</Filter>
     </ClInclude>
-    <ClInclude Include="etalons.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="..\nntl\interface\math\imath_basic_thresholds.h">
-      <Filter>nntl\interface\math</Filter>
-    </ClInclude>
     <ClInclude Include="..\nntl\interface\rng\AFRandom_mt_thresholds.h">
       <Filter>nntl\interface\rng</Filter>
     </ClInclude>
@@ -226,6 +220,24 @@
       <Filter>nntl\interface\mt_dispatcher</Filter>
     </ClInclude>
     <ClInclude Include="..\nntl\interface\math\imath_basic_mt.h">
+      <Filter>nntl\interface\math</Filter>
+    </ClInclude>
+    <ClInclude Include="imath_etalons.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\nntl\interface\math\simple_math.h">
+      <Filter>nntl\interface\math</Filter>
+    </ClInclude>
+    <ClInclude Include="simple_math_etalons.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="asserts.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\nntl\interface\math\imath_basic_thr.h">
+      <Filter>nntl\interface\math</Filter>
+    </ClInclude>
+    <ClInclude Include="..\nntl\interface\math\simple_math_thr.h">
       <Filter>nntl\interface\math</Filter>
     </ClInclude>
   </ItemGroup>
@@ -264,6 +276,21 @@
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="test_imath_basic.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="imath_etalons.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="test_simple_math.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="simple_math_etalons.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="test_simple_math_thr.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="test_imath_basic_thr.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>

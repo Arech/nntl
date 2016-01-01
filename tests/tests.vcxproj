@@ -184,7 +184,9 @@
     <ClInclude Include="..\nntl\errors.h" />
     <ClInclude Include="..\nntl\grad_works.h" />
     <ClInclude Include="..\nntl\interface\math\imath_basic_mt.h" />
-    <ClInclude Include="..\nntl\interface\math\imath_basic_thresholds.h" />
+    <ClInclude Include="..\nntl\interface\math\imath_basic_thr.h" />
+    <ClInclude Include="..\nntl\interface\math\simple_math.h" />
+    <ClInclude Include="..\nntl\interface\math\simple_math_thr.h" />
     <ClInclude Include="..\nntl\interface\mt_dispatcher\mt_dispatcher.h" />
     <ClInclude Include="..\nntl\interface\mt_dispatcher\profiler.h" />
     <ClInclude Include="..\nntl\interface\rng\AFRandom.h" />
@@ -232,15 +234,22 @@
     <ClInclude Include="..\nntl\_test\test.h" />
     <ClInclude Include="..\nntl\utils\tictoc.h" />
     <ClInclude Include="..\_extern\agner.org\AF_randomc_h\random.h" />
-    <ClInclude Include="etalons.h" />
+    <ClInclude Include="asserts.h" />
+    <ClInclude Include="imath_etalons.h" />
+    <ClInclude Include="simple_math_etalons.h" />
     <ClInclude Include="stdafx.h" />
     <ClInclude Include="targetver.h" />
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="imath_etalons.cpp" />
+    <ClCompile Include="simple_math_etalons.cpp" />
     <ClCompile Include="test_binfile.cpp" />
     <ClCompile Include="test_imath_basic.cpp" />
+    <ClCompile Include="test_imath_basic_thr.cpp" />
     <ClCompile Include="test_perf_decisions.cpp" />
     <ClCompile Include="test_rng.cpp" />
+    <ClCompile Include="test_simple_math.cpp" />
+    <ClCompile Include="test_simple_math_thr.cpp" />
     <ClCompile Include="test_threading.cpp" />
     <ClCompile Include="test_jsonreader.cpp" />
     <ClCompile Include="test_b_open_blas.cpp" />

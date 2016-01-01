@@ -78,7 +78,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #define TESTS_SKIP_NNET_LONGRUNNING
 #endif
 
-#define TESTS_SKIP_LONGRUNNING
+//#define TESTS_SKIP_LONGRUNNING
 //#define TESTS_SKIP_NNET_LONGRUNNING
 
 //////////////////////////////////////////////////////////////////////////
@@ -91,5 +91,5 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #define NNTL_RUN_TEST2(aroundNumel,numelMult) _NNTL_RUN_TEST((aroundNumel/10),0,1,numelMult,__COUNTER__)
 #else
 #define NNTL_RUN_TEST4(aroundNumel,maxPercDiff,percDiffStep,numelMult) _NNTL_RUN_TEST(aroundNumel,maxPercDiff,percDiffStep,numelMult,__COUNTER__)
-#define NNTL_RUN_TEST2(aroundNumel,numelMult) _NNTL_RUN_TEST(aroundNumel,3,1,numelMult,__COUNTER__)
+#define NNTL_RUN_TEST2(aroundNumel,numelMult) _NNTL_RUN_TEST(aroundNumel,4,2,numelMult,__COUNTER__)
 #endif

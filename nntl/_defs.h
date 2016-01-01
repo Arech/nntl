@@ -44,6 +44,9 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #define nntl_interface nntl_deprecated("used for interface definition only. Never call it directly!")
 #pragma warning(error:996)
 
+//__forceinline is MS-specific. Should branch on a compiler here
+#define nntl_force_inline __forceinline
+
 //alignment specifier. C++11 has standard alignas construct, but here is the method to quickly change it to
 // something else (like  __declspec(align(#)) ) if needed
 #define nntl_align(n) alignas(n)
@@ -68,5 +71,8 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #else
 
 #define NNTL_ASSERT(a) ((void)(0))
+
+//#define NNTL_DEBUG
+//#define NNTL_ASSERT(a) _ASSERT_AND_INVOKE_WATSON(a)
 
 #endif // defined(_DEBUG) || defined(DEBUG)

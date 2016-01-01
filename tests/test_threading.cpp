@@ -43,14 +43,14 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 using namespace nntl;
 
-#ifdef TESTS_SKIP_LONGRUNNING
-//#define TESTS_SKIP_THREADING_PERFS
+//#ifdef TESTS_SKIP_LONGRUNNING
+#define TESTS_SKIP_THREADING_PERFS
 #define TESTS_SKIP_THREADING_DELAYS
-#endif
+//#endif
 
-#ifndef TESTS_SKIP_THREADING_DELAYS
-#define TESTS_SKIP_THREADING_DELAYS
-#endif
+// #ifndef TESTS_SKIP_THREADING_DELAYS
+// #define TESTS_SKIP_THREADING_DELAYS
+// #endif
 
 //////////////////////////////////////////////////////////////////////////
 template<typename TT>

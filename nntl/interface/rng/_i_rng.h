@@ -153,6 +153,8 @@ namespace rng {
 		//generate FP value in range [0,a]
 		real_t gen_f(const real_t a)noexcept { return a*get_self().gen_f_norm(); }
 
+		//TODO: I forgot, do we really need this _no_bias versions or should just make them default?
+
 		// matrix/vector generation (sequence from begin to end of numbers drawn from uniform distribution in [-a,a])
 		void gen_matrix(realmtx_t& mtx, const real_t a)noexcept {
 			NNTL_ASSERT(!mtx.emulatesBiases());

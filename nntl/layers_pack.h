@@ -51,8 +51,10 @@ namespace nntl {
 
 		template <typename LCur, typename LPrev>
 		void operator()(LCur& lcur, LPrev& lprev, const bool bFirst)noexcept {
-			static_assert(std::is_base_of<_i_layer, std::remove_reference<LCur>::type>::value, "Each layer must derive from i_layer");
-			static_assert(std::is_base_of<_i_layer, std::remove_reference<LPrev>::type>::value, "Each layer must derive from i_layer");
+			static_assert(std::is_base_of<_i_layer<typename std::remove_reference<LCur>::type::real_t >
+				, std::remove_reference<LCur>::type>::value, "Each layer must derive from i_layer");
+			static_assert(std::is_base_of<_i_layer<typename std::remove_reference<LCur>::type::real_t >
+				, std::remove_reference<LPrev>::type>::value, "Each layer must derive from i_layer");
 
 			if (bFirst) lprev._preinit_layer(_idx++, 0);
 			lcur._preinit_layer(_idx++, lprev.m_neurons_cnt);
@@ -61,8 +63,10 @@ namespace nntl {
 	};
 
 	namespace _impl {
+
+		template<typename RealT>
 		struct layers_mem_requirements {
-			typedef _i_layer::numel_cnt_t numel_cnt_t;
+			typedef typename _i_layer<RealT>::numel_cnt_t numel_cnt_t;
 
 			numel_cnt_t maxMemLayerTrainingRequire, maxMemLayersFPropRequire, maxSingledLdANumel, totalParamsToLearn;
 			bool bHasLossAddendum;
@@ -110,13 +114,19 @@ namespace nntl {
 		typedef typename std::remove_reference<typename std::tuple_element<layers_count - 2, _layers>::type>::type preoutput_layer_t;
 
 		//matrix type to feed into forward propagation
-		typedef _i_layer::realmtx_t realmtx_t;
-		typedef realmtx_t::value_type real_t;
-		typedef realmtx_t::mtx_size_t mtx_size_t;
-		typedef _i_layer::vec_len_t vec_len_t;
-		typedef _i_layer::numel_cnt_t numel_cnt_t;
+// 		typedef _i_layer::realmtx_t realmtx_t;
+// 		typedef typename realmtx_t::mtx_size_t mtx_size_t;
+// 		typedef _i_layer::vec_len_t vec_len_t;
+// 		typedef _i_layer::numel_cnt_t numel_cnt_t;
+		typedef typename output_layer_t::real_t real_t;
+		typedef _i_layer<real_t> _i_layer_t;
+		typedef typename _i_layer_t::realmtx_t realmtx_t;
+		typedef typename realmtx_t::mtx_size_t mtx_size_t;
+		typedef typename _i_layer_t::vec_len_t vec_len_t;
+		typedef typename _i_layer_t::numel_cnt_t numel_cnt_t;
 
-		typedef math_types::realmtxdef_ty realmtxdef_t;
+		//typedef math_types::realmtxdef_ty realmtxdef_t;
+		typedef typename output_layer_t::realmtxdef_t realmtxdef_t;
 
 		typedef _nnet_errs::ErrorCode ErrorCode;
 		typedef std::pair<ErrorCode, layer_index_t> layer_error_t;
@@ -171,8 +181,10 @@ namespace nntl {
 
 		//perform layers initialization before training begins.
 		template <typename i_math_t, typename i_rng_t>
-		layer_error_t init(const vec_len_t max_data_x_rows, const vec_len_t bpropBatchSize, _impl::layers_mem_requirements& LMR, i_math_t& iMath, i_rng_t& iRng)const noexcept {
-			static_assert(std::is_base_of<math::_i_math, i_math_t>::value, "i_math_t type should be derived from _i_math");
+		layer_error_t init(const vec_len_t max_data_x_rows, const vec_len_t bpropBatchSize,
+			_impl::layers_mem_requirements<real_t>& LMR, i_math_t& iMath, i_rng_t& iRng)const noexcept
+		{
+			static_assert(std::is_base_of<math::_i_math<real_t>, i_math_t>::value, "i_math_t type should be derived from _i_math");
 			static_assert(std::is_base_of<rng::_i_rng, i_rng_t>::value, "i_rng_t type should be derived from _i_rng");
 
 			LMR.zeros();
@@ -206,7 +218,7 @@ namespace nntl {
 		}
 		template <typename i_math_t>
 		void deinit(i_math_t& iMath)const noexcept {
-			static_assert(std::is_base_of<math::_i_math, i_math_t>::value, "i_math_t type should be derived from _i_math");
+			static_assert(std::is_base_of<math::_i_math<real_t>, i_math_t>::value, "i_math_t type should be derived from _i_math");
 
 			utils::for_each_up(m_layers, [](auto& lyr)noexcept {
 				lyr.deinit();

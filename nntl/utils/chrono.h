@@ -92,7 +92,7 @@ namespace utils {
 		constexpr unsigned MAX_STR_SIZE = 256;
 		char str[MAX_STR_SIZE];
 #pragma warning(disable : 6031)
-		std::snprintf(str, MAX_STR_SIZE, "%8.3f %s", t, name);
+		std::snprintf(str, MAX_STR_SIZE, "%8.3f %-3s", t, name);
 #pragma warning(default : 6031)
 		return std::string(str);
 	};

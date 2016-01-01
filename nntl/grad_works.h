@@ -40,10 +40,12 @@ namespace nntl {
 		template<typename i_math_t_>
 		struct grad_works_init {
 			typedef i_math_t_ i_math_t;
-			static_assert(std::is_base_of<math::_i_math, i_math_t>::value, "i_math_t type should be derived from _i_math");
+			//typedef math_types::real_ty real_t;
+			typedef typename i_math_t::real_t real_t;
+			typedef math::simple_matrix<real_t> realmtx_t;
+			typedef typename realmtx_t::mtx_size_t mtx_size_t;
 
-			typedef math_types::realmtx_ty realmtx_t;
-			typedef realmtx_t::mtx_size_t mtx_size_t;
+			static_assert(std::is_base_of<math::_i_math<real_t>, i_math_t>::value, "i_math_t type should be derived from _i_math");
 			
 			i_math_t* pMath;
 			mtx_size_t weightsSize;
@@ -53,12 +55,13 @@ namespace nntl {
 	}
 
 	struct _i_grad_works {
-		typedef math_types::realmtx_ty realmtx_t;
-		typedef math_types::realmtxdef_ty realmtxdef_t;
-		typedef realmtx_t::value_type real_t;
-		typedef realmtx_t::vec_len_t vec_len_t;
-		typedef realmtx_t::numel_cnt_t numel_cnt_t;
-		typedef realmtx_t::mtx_size_t mtx_size_t;
+		typedef math_types::real_ty real_t;
+		typedef math::simple_matrix<real_t> realmtx_t;
+		typedef math::simple_matrix_deformable<real_t> realmtxdef_t;
+		typedef typename realmtx_t::value_type real_t;
+		typedef typename realmtx_t::vec_len_t vec_len_t;
+		typedef typename realmtx_t::numel_cnt_t numel_cnt_t;
+		typedef typename realmtx_t::mtx_size_t mtx_size_t;
 
 		template<typename grad_init_t>
 		nntl_interface bool init(const grad_init_t& ind)noexcept;
@@ -322,7 +325,10 @@ namespace nntl {
 				if (!bFirstRun) {
 					m_pMath->apply_ILR(dLdW, bUseVelocity ? m_Vw : m_prevdLdW, m_ILRGain, m_ILR.mulDecr, m_ILR.mulIncr, m_ILR.capLow, m_ILR.capHigh);
 				}
-				if (!bUseVelocity) dLdW.cloneTo(m_prevdLdW);
+				if (!bUseVelocity) {
+					NNTL_ASSERT(dLdW.size() == m_prevdLdW.size());
+					dLdW.cloneTo(m_prevdLdW);
+				}
 			}
 
 			bool bApplydLdW2Weights = true;

@@ -34,7 +34,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <utility>
 //#include <memory>
 #include "../../_defs.h"
-
+#include "../threads/parallel_range.h"
 
 //TODO: Consider replacing generic memcpy/memcmp/memset and others similar generic functions with
 //their versions from Agner Fox's asmlib. TEST if it really helps!!!!
@@ -110,10 +110,10 @@ namespace math {
 
 		simple_matrix() noexcept : m_pData(nullptr), m_rows(0), m_cols(0), m_bEmulateBiases(false), m_bDontManageStorage(false){};
 		
-		simple_matrix(const vec_len_t rows, const vec_len_t cols, const bool _bEmulBias=false) noexcept : m_pData(nullptr),
-			m_rows(rows), m_cols(cols), m_bEmulateBiases(_bEmulBias), m_bDontManageStorage(false)
+		simple_matrix(const vec_len_t _rows, const vec_len_t _cols, const bool _bEmulBias=false) noexcept : m_pData(nullptr),
+			m_rows(_rows), m_cols(_cols), m_bEmulateBiases(_bEmulBias), m_bDontManageStorage(false)
 		{
-			NNTL_ASSERT(rows > 0 && cols > 0);
+			NNTL_ASSERT(_rows > 0 && _cols > 0);
 			if (m_bEmulateBiases) m_cols++;
 			_realloc();
 			if (m_bEmulateBiases) set_biases();
@@ -258,24 +258,24 @@ namespace math {
 			return m_pData;
 		}
 		value_ptr_t colDataAsVec(vec_len_t c)noexcept {
-			NNTL_ASSERT(!empty() && m_cols>0 && m_rows>0 && c <= m_cols);
-			return &m_pData[c*m_rows];
+			NNTL_ASSERT(!empty() && m_cols>0 && m_rows>0 && c <= m_cols);//non strict inequality c <= m_cols to allow reference 'after the last' column
+			return m_pData + sNumel(m_rows, c);
 		}
 		cvalue_ptr_t colDataAsVec(vec_len_t c)const noexcept {
-			NNTL_ASSERT(!empty() && m_cols > 0 && m_rows > 0 && c <= m_cols);
-			return &m_pData[c*m_rows];
+			NNTL_ASSERT(!empty() && m_cols > 0 && m_rows > 0 && c <= m_cols);//non strict inequality c <= m_cols to allow reference 'after the last' column
+			return m_pData + sNumel(m_rows, c);
 		}
 
 		// get/set are for non performance critical code!
 		void set(const vec_len_t r, const vec_len_t c, const value_type v)noexcept {
 			NNTL_ASSERT(!empty());
 			NNTL_ASSERT(r < m_rows && c < m_cols);
-			m_pData[ r + c*m_rows ] = v;
+			m_pData[ r + sNumel(m_rows, c)] = v;
 		}
 		const value_type get(const vec_len_t r, const vec_len_t c)const noexcept {
 			NNTL_ASSERT(!empty());
 			NNTL_ASSERT(r < m_rows && c < m_cols);
-			return m_pData[r + c*m_rows];
+			return m_pData[r + sNumel(m_rows, c)];
 		}
 
 		void clear()noexcept {
@@ -318,12 +318,12 @@ namespace math {
 
 		//ATTN: _i_math implementation should have a faster variants of this function.
 		//extract number=cnt rows by their indexes, specified by sequential iterator begin, into allocated dest matrix
-		template<typename SeqIt>
+		/*template<typename SeqIt>
 		void extractRows(SeqIt begin, const numel_cnt_t cnt, simple_matrix<value_type>& dest)const noexcept {
 			NNTL_ASSERT(!dest.empty());
 			static_assert(std::is_same<vec_len_t, SeqIt::value_type>::value, "Iterator should point to vec_len_t data");
 
-			const numel_cnt_t destRows = dest.rows(), destCols = dest.cols(), thisRows = m_rows, thisCols = m_cols;
+			const vec_len_t destRows = dest.rows(), destCols = dest.cols(), thisRows = m_rows, thisCols = m_cols;
 			NNTL_ASSERT(destCols == thisCols && destRows >= cnt && cnt <= thisRows);
 
 			//TODO: accessing row data, defined by SeqIt begin in sequential order could provide some performance gains. However
@@ -332,21 +332,21 @@ namespace math {
 			const auto pThis = m_pData, pDest = dest.m_pData;
 			for (numel_cnt_t c = 0; c < destCols; ++c) {
 				SeqIt pRI = begin;
-				auto destCur = &pDest[c*destRows];
+				auto destCur = pDest + sNumel(destRows,c);
 				const auto destEnd = destCur + cnt;
-				const auto thisBeg = &pThis[c*thisRows];
+				const auto thisBeg = pThis + sNumel(thisRows,c);
 				//for (numel_cnt_t ri = 0; ri < cnt; ++ri) {
 					//pDest[ri + ofsDest] = pThis[*pRI + ofsThis];
 				while(destCur!=destEnd){
-					//*destCur++ = pThis[*pRI++ + ofsThis];
+					// *destCur++ = pThis[*pRI++ + ofsThis];
 					*destCur++ = *(thisBeg + *pRI++);
 				}
 			}
 
-		}
+		}*/
 
 		//extract number=cnt rows by their indexes, specified by sequential iterator begin, into allocated dest matrix
-		template<typename SeqIt>
+		/*template<typename SeqIt>
 		void extractRows_slow(SeqIt begin, const numel_cnt_t cnt, simple_matrix<value_type>& dest)const noexcept {
 			NNTL_ASSERT(!dest.empty());
 			static_assert(std::is_same<vec_len_t, SeqIt::value_type>::value, "Iterator should point to vec_len_t data");
@@ -369,19 +369,19 @@ namespace math {
 					++pRI;
 				}
 			}
-		}
+		}*/
 
 
 		const bool useExternalStorage(value_ptr_t ptr, const simple_matrix& sizeLikeThis)noexcept {
 			return useExternalStorage(ptr, sizeLikeThis.rows(), sizeLikeThis.cols(), sizeLikeThis.emulatesBiases());
 		}
-		const bool useExternalStorage(value_ptr_t ptr, vec_len_t rows, vec_len_t cols, bool bEmulateBiases = false)noexcept {
-			NNTL_ASSERT(ptr != nullptr && rows > 0 && cols>0);
+		const bool useExternalStorage(value_ptr_t ptr, vec_len_t _rows, vec_len_t _cols, bool bEmulateBiases = false)noexcept {
+			NNTL_ASSERT(ptr != nullptr && _rows > 0 && _cols>0);
 			_free();
 			m_bDontManageStorage = true;
 			m_pData = ptr;
-			m_rows = rows;
-			m_cols = cols;
+			m_rows = _rows;
+			m_cols = _cols;
 			m_bEmulateBiases = bEmulateBiases;
 
 			//usually, external storage is used with shared memory to store temporary computations, therefore data won't survive between
@@ -390,12 +390,12 @@ namespace math {
 			return true;
 		}
 
-		const bool useInternalStorage(vec_len_t rows=0, vec_len_t cols=0, bool bEmulateBiases = false)noexcept {
+		const bool useInternalStorage(vec_len_t _rows=0, vec_len_t _cols=0, bool bEmulateBiases = false)noexcept {
 			_free();
 			m_bDontManageStorage = false;
 			m_bEmulateBiases = bEmulateBiases;
-			if (rows > 0 && cols > 0) {
-				return resize(rows, cols);
+			if (_rows > 0 && _cols > 0) {
+				return resize(_rows, _cols);
 			} else return true;
 		}
 
@@ -407,6 +407,64 @@ namespace math {
 		}		
 	};
 
+	//////////////////////////////////////////////////////////////////////////
+	// helper class to define matrix elements range
+	template<typename T_>
+	class simple_elements_range {
+	public:
+		typedef T_ value_type;
+		typedef simple_matrix<value_type> simplemtx_t;
+		typedef typename simplemtx_t::numel_cnt_t numel_cnt_t;
+
+		typedef threads::parallel_range<numel_cnt_t> par_range_t;
+
+	public:
+		const numel_cnt_t elmEnd;
+		const numel_cnt_t elmBegin;
+
+	public:
+		~simple_elements_range()noexcept {}
+		simple_elements_range(const simplemtx_t& A)noexcept : elmEnd(A.numel()), elmBegin(0) {}
+
+		simple_elements_range(const par_range_t& pr)noexcept : elmEnd(pr.offset()+pr.cnt()), elmBegin(pr.offset()) {}
+
+		simple_elements_range(const numel_cnt_t eb, const numel_cnt_t ee)noexcept : elmEnd(ee), elmBegin(eb) {
+			NNTL_ASSERT(elmEnd >= elmBegin);
+		}
+
+		const numel_cnt_t totalElements()const noexcept { return elmEnd - elmBegin; }
+	};
+
+	//////////////////////////////////////////////////////////////////////////
+	// helper class to define matrix rows-cols range
+	template<typename T_>
+	class simple_rowcol_range {
+	public:
+		typedef T_ value_type;
+		typedef simple_matrix<value_type> simplemtx_t;
+		typedef typename simplemtx_t::vec_len_t vec_len_t;
+
+	public:
+		const vec_len_t rowEnd;
+		const vec_len_t rowBegin;
+		const vec_len_t colEnd;
+		const vec_len_t colBegin;
+
+	public:
+		~simple_rowcol_range()noexcept {}
+		simple_rowcol_range(const vec_len_t rb, const vec_len_t re, const simplemtx_t& A)noexcept : rowEnd(re), rowBegin(rb), colEnd(A.cols()), colBegin(0) {
+			NNTL_ASSERT(rowEnd >= rowBegin);
+		}
+		simple_rowcol_range(const simplemtx_t& A, const vec_len_t cb, const vec_len_t ce)noexcept : rowEnd(A.rows()), rowBegin(0), colEnd(ce), colBegin(cb) {
+			NNTL_ASSERT(colEnd >= colBegin);
+		}
+		simple_rowcol_range(const simplemtx_t& A)noexcept : rowEnd(A.rows()), rowBegin(0), colEnd(A.cols()), colBegin(0) {}
+
+		const vec_len_t totalRows()const noexcept { return rowEnd - rowBegin; }
+		const vec_len_t totalCols()const noexcept { return colEnd - colBegin; }
+	};
+
+	//////////////////////////////////////////////////////////////////////////
 	//this class will allow to reuse the same storage for matrix of smaller size
 	template <typename T_>
 	class simple_matrix_deformable : public simple_matrix<T_> {
@@ -421,7 +479,7 @@ namespace math {
 	public:
 		~simple_matrix_deformable()noexcept {}
 		simple_matrix_deformable()noexcept : _base_class() {}
-		simple_matrix_deformable(const vec_len_t rows, const vec_len_t cols, const bool _bEmulBias = false)noexcept : _base_class(rows, cols, _bEmulBias) {
+		simple_matrix_deformable(const vec_len_t _rows, const vec_len_t _cols, const bool _bEmulBias = false)noexcept : _base_class(_rows, _cols, _bEmulBias) {
 #ifdef NNTL_DEBUG
 			m_maxSize = numel();
 #endif // NNTL_DEBUG
@@ -443,9 +501,9 @@ namespace math {
 			return r;
 		}
 
-		const bool resize(const vec_len_t rows, vec_len_t cols)noexcept {
+		const bool resize(const vec_len_t _rows, vec_len_t _cols)noexcept {
 			_free();
-			const auto r = _base_class::resize(rows, cols);
+			const auto r = _base_class::resize(_rows, _cols);
 #ifdef NNTL_DEBUG
 			if (r) m_maxSize = numel();
 #endif // NNTL_DEBUG
@@ -474,8 +532,8 @@ namespace math {
 			return true;
 		}
 
-		const bool useExternalStorage(value_ptr_t ptr, vec_len_t rows, vec_len_t cols, bool bEmulateBiases = false)noexcept {
-			const auto r = _base_class::useExternalStorage(ptr, rows, cols, bEmulateBiases);
+		const bool useExternalStorage(value_ptr_t ptr, vec_len_t _rows, vec_len_t _cols, bool bEmulateBiases = false)noexcept {
+			const auto r = _base_class::useExternalStorage(ptr, _rows, _cols, bEmulateBiases);
 #ifdef NNTL_DEBUG
 			if (r) m_maxSize = numel();
 #endif // NNTL_DEBUG
@@ -511,6 +569,19 @@ namespace math {
 			NNTL_ASSERT(!empty() && m_cols >= 1);
 			NNTL_ASSERT(m_maxSize >= sNumel(m_rows, m_cols+1));
 			++m_cols;
+		}
+
+		bool hide_biases()noexcept {
+			bool hasBiases = emulatesBiases();
+			if (hasBiases) {
+				hide_last_col();
+				m_bEmulateBiases = false;
+			}
+			return hasBiases;
+		}
+		void restore_biases()noexcept {
+			restore_last_col();
+			m_bEmulateBiases = true;
 		}
 
 		// use deform_rows() with extreme care on col-major (default!!!) data!!!

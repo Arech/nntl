@@ -37,7 +37,9 @@ namespace nntl {
 	//dummy struct to handle training data
 	class train_data {
 	public:
-		typedef math_types::realmtx_ty realmtx_t;
+		//typedef math_types::realmtx_ty realmtx_t;
+		typedef math_types::real_ty real_t;
+		typedef math::simple_matrix<real_t> realmtx_t;
 
 		train_data()noexcept {}
 		~train_data() noexcept {};

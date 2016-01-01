@@ -62,23 +62,24 @@ namespace nntl {
 	template <typename LayersPack, typename MathInterface = nnet_def_interfaces::iMath_t, typename RngInterface= nnet_def_interfaces::iRng_t>
 	class nnet : public _has_last_error<_nnet_errs> {
 	public:
+		typedef typename std::remove_pointer_t<MathInterface> imath_t;
+		typedef typename imath_t::real_t real_t;
+		typedef utils::own_or_use_ptr_t<MathInterface> imath_ptr_t;
+		static_assert(std::is_base_of<math::_i_math<real_t>, imath_t>::value, "MathInterface type should be derived from _i_math");
+
+		typedef typename std::remove_pointer_t<RngInterface> irng_t;
+		typedef utils::own_or_use_ptr_t<RngInterface> irng_ptr_t;
+		static_assert(std::is_base_of<rng::_i_rng, irng_t>::value, "RngInterface type should be derived from _i_rng");
+
 		typedef LayersPack layers_pack_t;
 
 		typedef typename layers_pack_t::realmtx_t realmtx_t;
-		typedef typename realmtx_t::value_type real_t;
+		//typedef typename realmtx_t::value_type real_t;
 		typedef typename realmtx_t::vec_len_t vec_len_t;
 		typedef typename realmtx_t::numel_cnt_t numel_cnt_t;
 
 		typedef typename layers_pack_t::realmtxdef_t realmtxdef_t;
 		typedef typename layers_pack_t::floatmtxdef_array_t floatmtxdef_array_t;
-
-		typedef typename std::remove_pointer_t<MathInterface> imath_t;
-		typedef utils::own_or_use_ptr_t<MathInterface> imath_ptr_t;
-		static_assert(std::is_base_of<math::_i_math, imath_t>::value, "MathInterface type should be derived from _i_math");
-
-		typedef typename std::remove_pointer_t<RngInterface> irng_t;
-		typedef utils::own_or_use_ptr_t<RngInterface> irng_ptr_t;
-		static_assert(std::is_base_of<rng::_i_rng, irng_t>::value, "RngInterface type should be derived from _i_rng");
 
 		//////////////////////////////////////////////////////////////////////////
 		// members
@@ -156,7 +157,7 @@ namespace nntl {
 			m_bCalcFullLossValue = opts.calcFullLossValue();
 			//////////////////////////////////////////////////////////////////////////
 			// perform layers initialization, gather temp memory requirements, then allocate and spread temp buffers
-			_impl::layers_mem_requirements LMR;
+			_impl::layers_mem_requirements<real_t> LMR;
 			{
 				const auto le = m_Layers.init(bTrainSetBigger ? samplesCount : td.test_x().rows(), batchSize, LMR, m_pMath.get(), m_pRng.get());
 				if (ErrorCode::Success != le.first) {

@@ -72,14 +72,21 @@ namespace utils {
 
 		std::string to_string() const {
 			return m_repeats > 0
-				? nntl::utils::duration_readable(m_dFirstRun) + " "
-				+ nntl::utils::duration_readable(m_dBestRun) + " "
+				? nntl::utils::duration_readable(m_dFirstRun) + "  "
+				+ nntl::utils::duration_readable(m_dBestRun) + "  "
 				+ nntl::utils::duration_readable(m_dAllRun, m_repeats)
 				: "never run!";
 		}
 
-		void say(const char* desr = "?", const char* spc = ":\t")const {
+		/*void say(const char* desr = "?", const char* spc = ":\t")const {
 			std::cout << desr << spc << to_string() << std::endl;
+		}*/
+		void say(const char* desr = "?", unsigned minWidth=10)const {
+			constexpr unsigned _MAXW = 64, _MAXFMT = 16;
+			char _buf[_MAXW], _fmt[_MAXFMT];
+			sprintf_s(_fmt, "%%-%ds:", minWidth);
+			sprintf_s(_buf, _fmt, desr);
+			std::cout << _buf << to_string() << std::endl;
 		}
 	};
 

@@ -43,13 +43,13 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 namespace nntl {
 	namespace rng {
 
-		template<typename AgnerFogRNG, typename iThreads>
-		class AFRandom_mt final : public rng_helper<AFRandom_mt<AgnerFogRNG, iThreads>> {
-			static_assert(std::is_base_of<threads::_i_threads<typename iThreads::range_t>, iThreads>::value, "iThreads must implement threads::_i_threads");
+		template<typename AgnerFogRNG, typename iThreadsT>
+		class AFRandom_mt final : public rng_helper<AFRandom_mt<AgnerFogRNG, iThreadsT>> {
+			static_assert(std::is_base_of<threads::_i_threads<typename iThreadsT::range_t>, iThreadsT>::value, "iThreads must implement threads::_i_threads");
 
 		public:
 			typedef AgnerFogRNG base_rng_t;
-			typedef iThreads ithreads_t;
+			typedef iThreadsT ithreads_t;
 			typedef typename ithreads_t::range_t range_t;
 			typedef typename ithreads_t::par_range_t par_range_t;
 			typedef typename ithreads_t::thread_id_t thread_id_t;
