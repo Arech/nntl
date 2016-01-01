@@ -201,8 +201,6 @@ namespace nntl {
 			}
 		}
 
-		//template <typename i_math_t = nnet_def_interfaces::Math, typename i_rng_t = nnet_def_interfaces::Rng>
-		//void fprop(const realmtx_t& prevActivations, i_math_t& iMath, i_rng_t& iRng, const bool bInTraining)noexcept {
 		template <typename LowerLayer>
 		void fprop(const LowerLayer& lowerLayer)noexcept {
 			static_assert(std::is_base_of<_i_layer, LowerLayer>::value, "Template parameter LowerLayer must implement _i_layer");
@@ -266,7 +264,7 @@ namespace nntl {
 		//////////////////////////////////////////////////////////////////////////
 
 		//use this function to put a restriction on dL/dZ value - this may help in training large networks
-		//(see Alex Graves's Generating Sequences With Recurrent Neural Networks(2013) )
+		//(see Alex Graves's "Generating Sequences With Recurrent Neural Networks(2013)" )
 		self_ref_t restrict_dL_dZ(real_t lowerBnd, real_t upperBnd)noexcept {
 			NNTL_ASSERT(lowerBnd < upperBnd);
 			m_bRestrictdLdZ = true;
@@ -305,5 +303,5 @@ namespace nntl {
 		layer_output(const neurons_count_t _neurons_cnt, const real_t learningRate=0.01) noexcept :
 			_layer_output<ActivFunc, Interfaces, GradWorks, layer_output<ActivFunc, Interfaces, GradWorks>>(_neurons_cnt, learningRate) {};
 	};
-
 }
+

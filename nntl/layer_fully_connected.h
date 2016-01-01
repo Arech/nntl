@@ -213,8 +213,6 @@ namespace nntl {
 			m_activations.assert_biases_ok();
 		}
 
-		//template <typename i_math_t = nnet_def_interfaces::Math, typename i_rng_t = nnet_def_interfaces::Rng>
-		//void fprop(const realmtx_t& prevActivations, i_math_t& iMath, i_rng_t& iRng, const bool bInTraining)noexcept {
 		template <typename LowerLayer>
 		void fprop(const LowerLayer& lowerLayer)noexcept{
 			static_assert(std::is_base_of<_i_layer, LowerLayer>::value, "Template parameter LowerLayer must implement _i_layer");
@@ -335,5 +333,5 @@ namespace nntl {
 			: _layer_fully_connected<ActivFunc, Interfaces, GradWorks, layer_fully_connected<ActivFunc, Interfaces, GradWorks>>
 			(_neurons_cnt, learningRate, dropoutFrac) {};
 	};
-
 }
+
