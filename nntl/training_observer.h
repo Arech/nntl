@@ -79,7 +79,55 @@ namespace nntl {
 		void on_training_end(const nanoseconds& trainTime)noexcept {}
 	};
 
+	//////////////////////////////////////////////////////////////////////////
+	//simple observer, that outputs only loss function value to std::cout
+	class training_observer_simple_stdcout : public i_training_observer {
+	protected:
+		size_t m_epochs, m_prevEpoch;
 
+	public:
+		template<typename iMath>
+		bool init(size_t epochs, const realmtx_t& train_y, const realmtx_t& test_y, iMath& iM)noexcept {
+			m_epochs = epochs;
+			m_prevEpoch = 0;
+			return true;
+		}
+		void deinit()noexcept { }
+
+		void on_training_start(vec_len_t trainElements, vec_len_t testElements, vec_len_t inDim, vec_len_t outDim, vec_len_t batchSize, numel_cnt_t nLP)noexcept {
+			static constexpr strchar_t* szReportFmt = "Going to model f:%d->%d with %zd params on %d training samples (%d validation). BatchSize=%d";
+			static constexpr unsigned uBufSize = 192;
+
+			strchar_t szRep[uBufSize];
+			sprintf_s(szRep, uBufSize, szReportFmt, inDim, outDim, nLP, trainElements, testElements, batchSize);
+			std::cout << szRep << std::endl;
+		}
+
+		//always called before on_training_fragment_end() twice: on training and on testing/validation data
+		//data_y must be the same as init(train_y)|bOnTestData==false or init(test_y)|bOnTestData==true
+		template<typename iMath>
+		void inspect_results(const realmtx_t& data_y, const realmtx_t& activations, const bool bOnTestData, iMath& iM)noexcept { }
+
+		void on_training_fragment_end(size_t epochEnded, real_t trainLoss, real_t testLoss, const nanoseconds& elapsedSincePrevFragment)noexcept {
+			static constexpr strchar_t* szReportFmt = "% 3zd/%3zd %3.1fs trL=%8.5f, vL=%8.5f";
+			static constexpr unsigned uBufSize = 128;
+
+			++epochEnded;
+
+			strchar_t szRep[uBufSize];
+			const real_t secs = real_t(elapsedSincePrevFragment.count()) / real_t(1e9);
+
+			sprintf_s(szRep, uBufSize, szReportFmt, epochEnded, m_epochs, secs, trainLoss, testLoss);
+			std::cout << szRep << std::endl;
+			m_prevEpoch = epochEnded;
+		}
+
+		void on_training_end(const nanoseconds& trainTime)noexcept {
+			std::cout << "Training time: " << utils::duration_readable(trainTime) << std::endl;
+		}
+	};
+
+	//////////////////////////////////////////////////////////////////////////
 	//training_observer, that output results to std::cout
 	template<typename Evaluator = eval_classification_one_hot>
 	class training_observer_stdcout : public i_training_observer {

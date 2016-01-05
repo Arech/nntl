@@ -36,6 +36,15 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////
 
+real_t ewSumProd_ET(const realmtx_t& A, const realmtx_t& B)noexcept {
+	NNTL_ASSERT(!A.empty() && !B.empty() && B.size() == A.size());
+	const auto pA = A.data(), pB = B.data();
+	const auto dataCnt = A.numel();
+	real_t ret(0.0);
+	for (numel_cnt_t i = 0; i < dataCnt; ++i) ret += pA[i] * pB[i];
+	return ret;
+}
+
 void mrwDivideByVec_ET(realmtx_t& A, const real_t* pDiv)noexcept {
 	NNTL_ASSERT(!A.empty() && pDiv);
 	const auto rm = A.rows(), cm = A.cols();

@@ -131,6 +131,7 @@ namespace math {
 		using base_class_t::deinit;
 		using base_class_t::ithreads;
 
+		using base_class_t::ewSumProd;
 		//using base_class_t::ewBinarize;
 		using base_class_t::mrwIdxsOfMax;
 		using base_class_t::mrwMax;
@@ -1285,6 +1286,7 @@ namespace math {
 			auto ptrDF = df.data();
 			for (numel_cnt_t i = 0; i < dataCnt;++i) {
 				const auto f = ptrF[i];
+				NNTL_ASSERT(f >= 0 && f <= 1);
 				ptrDF[i] = f*(real_t(1.0) - f);
 			}
 		}
@@ -1299,6 +1301,7 @@ namespace math {
 				const auto im = ofs + r.cnt();
 				for (range_t i = ofs; i < im; ++i) {
 					const auto f = ptrF[i];
+					NNTL_ASSERT(f >= 0 && f <= 1);
 					ptrDF[i] = f*(real_t(1.0) - f);
 				}
 			}, fValue.numel_no_bias());
@@ -1522,8 +1525,8 @@ namespace math {
 		// L = sum( -y*log(a) )/activations.rows(), dL/dz=a-y
 		real_t loss_softmax_xentropy(const realmtx_t& activations, const realmtx_t& data_y)noexcept {
 			if (activations.numel() < Thresholds_t::loss_softmax_xentropy) {
-				return loss_softmax_xentropy_st(activations, data_y);
-			}else return loss_softmax_xentropy_mt(activations, data_y);
+				return get_self().loss_softmax_xentropy_st(activations, data_y);
+			}else return get_self().loss_softmax_xentropy_mt(activations, data_y);
 		}
 		static real_t _loss_softmax_xentropy_sum_st(const real_t*const pA, const real_t*const pY, const elms_range& er)noexcept {
 			real_t ret(0.0);
@@ -1538,11 +1541,11 @@ namespace math {
 			}
 			return ret;
 		}
-		real_t loss_softmax_xentropy_st(const realmtx_t& activations, const realmtx_t& data_y, const elms_range*const pER = nullptr)noexcept {
+		static real_t loss_softmax_xentropy_st(const realmtx_t& activations, const realmtx_t& data_y, const elms_range*const pER = nullptr)noexcept {
 			NNTL_ASSERT(!activations.empty() && !data_y.empty() && data_y.size() == activations.size());
 			return _loss_softmax_xentropy_sum_st(activations.data(), data_y.data(), pER ? *pER : elms_range(activations)) / activations.rows();
 		}
-		real_t loss_softmax_xentropy_mt(const realmtx_t& activations, const realmtx_t& data_y, const elms_range*const pER = nullptr)noexcept {
+		real_t loss_softmax_xentropy_mt(const realmtx_t& activations, const realmtx_t& data_y)noexcept {
 			NNTL_ASSERT(!activations.empty() && !data_y.empty() && data_y.size() == activations.size());
 			const auto pA = activations.data(), pY = data_y.data();
 			return m_threads.reduce([pA, pY](const par_range_t& pr)->real_t {

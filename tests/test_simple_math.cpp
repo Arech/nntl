@@ -61,6 +61,43 @@ constexpr unsigned TEST_CORRECTN_REPEATS_COUNT = 60, _baseRowsCnt = 300;
 //////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////
 
+template<typename base_t> struct ewSumProd_EPS {};
+template<> struct ewSumProd_EPS<double> { static constexpr double eps = 1e-10; };
+template<> struct ewSumProd_EPS<float> { static constexpr double eps = 3e-5; };
+void test_ewSumProd_corr(vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
+	MTXSIZE_SCOPED_TRACE(rowsCnt, colsCnt, "ewSumProd");
+	constexpr unsigned testCorrRepCnt = TEST_CORRECTN_REPEATS_COUNT;
+	realmtx_t A(rowsCnt, colsCnt), B(rowsCnt, colsCnt);
+	ASSERT_TRUE(!A.isAllocationFailed() && !B.isAllocationFailed());
+	real_t s_et, s;
+
+	nnet_def_interfaces::iRng_t rg;
+	rg.set_ithreads(iM.ithreads());
+	for (unsigned rr = 0; rr < testCorrRepCnt; ++rr) {
+		rg.gen_matrix(A, 10);
+		rg.gen_matrix(B, 10);
+
+		s_et = ewSumProd_ET(A,B);
+
+		s = iM.ewSumProd_st(A,B);
+		ASSERT_NEAR(s_et, s, ewSumProd_EPS<real_t>::eps) << "st() failed";
+
+		s = iM.ewSumProd_mt(A, B);
+		ASSERT_NEAR(s_et, s, ewSumProd_EPS<real_t>::eps) << "mt() failed";
+
+		s = iM.ewSumProd(A, B);
+		ASSERT_NEAR(s_et, s, ewSumProd_EPS<real_t>::eps) << "() failed";
+	}
+}
+TEST(TestSimpleMath, ewSumProd) {
+	constexpr unsigned rowsCnt = _baseRowsCnt;
+	const vec_len_t maxCols = g_MinDataSizeDelta, maxRows = rowsCnt + g_MinDataSizeDelta;
+	for (vec_len_t r = rowsCnt; r < maxRows; ++r) {
+		for (vec_len_t c = 1; c < maxCols; ++c) ASSERT_NO_FATAL_FAILURE(test_ewSumProd_corr(r, c));
+	}
+}
+
+
 //////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////
 

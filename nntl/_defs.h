@@ -62,7 +62,6 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #define NNTL_FUNCTION __FUNCSIG__
 //its helpfull to debug code flow with statements like std::cout << "** in " << NNTL_FUNCTION << std::endl;
 
-
 #if defined(_DEBUG) || defined(DEBUG)
 
 #define NNTL_DEBUG

@@ -102,7 +102,6 @@ namespace nntl {
 				, m_pMath(nullptr), m_pRng(nullptr), m_dropoutMask(), m_dropoutFraction(dropoutFrac)
 		{
 			NNTL_ASSERT(0 <= m_dropoutFraction && m_dropoutFraction < 1);
-			NNTL_ASSERT(learningRate > 0);
 			m_activations.will_emulate_biases();
 		};
 		

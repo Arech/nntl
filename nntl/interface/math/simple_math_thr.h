@@ -47,6 +47,8 @@ namespace math {
 		//It is better, than nothing. But in future this pron should be substituted by a run-time function profiling over real-task data
 
 		template <> struct SIMPLE_MATH_THR<double> {
+			static constexpr size_t ewSumProd = 8800;
+
 			static constexpr size_t mrwDivideByVec_rw = 10000;
 			static constexpr size_t mrwDivideByVec_mt_rows = 5000;
 			static constexpr size_t mrwDivideByVec = 5000;
@@ -72,6 +74,8 @@ namespace math {
 		};
 
 		template <> struct SIMPLE_MATH_THR<float> {
+			static constexpr size_t ewSumProd = 880*19;
+
 			static constexpr size_t mrwDivideByVec_rw = 20000;
 			static constexpr size_t mrwDivideByVec = 30000;
 			static constexpr size_t mrwDivideByVec_mt_rows = 10000;

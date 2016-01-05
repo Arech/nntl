@@ -59,7 +59,45 @@ constexpr unsigned TEST_PERF_REPEATS_COUNT = 1000;
 //////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////
 
+void test_ewSumProd(vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
+	const auto dataSize = realmtx_t::sNumel(rowsCnt, colsCnt);
+	STDCOUTL("**** testing ewSumProd() variations over " << rowsCnt << "x" << colsCnt << " matrix (" << dataSize << " elements) ****");
 
+	constexpr unsigned maxReps = TEST_PERF_REPEATS_COUNT;
+
+	realmtx_t A(rowsCnt, colsCnt), B(rowsCnt, colsCnt);
+	ASSERT_TRUE(!A.isAllocationFailed());
+	real_t s = 0;
+
+	nnet_def_interfaces::iRng_t rg;
+	rg.set_ithreads(iM.ithreads());
+
+	tictoc tSt, tMt, tB;
+	utils::prioritize_workers<utils::PriorityClass::PerfTesting, simple_math_t::ithreads_t> pw(iM.ithreads());
+	for (unsigned r = 0; r < maxReps; ++r) {
+		rg.gen_matrix(A, 2);		rg.gen_matrix(B, 2);
+		tSt.tic();
+		s += iM.ewSumProd_st(A, B);
+		tSt.toc();
+
+		rg.gen_matrix(A, 2);		rg.gen_matrix(B, 2);
+		tMt.tic();
+		s += iM.ewSumProd_mt(A, B);
+		tMt.toc();
+
+		rg.gen_matrix(A, 2);		rg.gen_matrix(B, 2);
+		tB.tic();
+		s += iM.ewSumProd(A, B);
+		tB.toc();
+	}
+	tSt.say("st");
+	tMt.say("mt");
+	tB.say("best");
+	STDCOUTL(s);
+}
+TEST(TestSimpleMathThr, ewSumProd) {
+	NNTL_RUN_TEST2(simple_math_t::Thresholds_t::ewSumProd, 10) test_ewSumProd(i, 10);
+}
 
 //////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////
@@ -124,10 +162,6 @@ void test_mrwDivideByVec(vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 	tB.say("best");
 }
 TEST(TestSimpleMathThr, mrwDivideByVec) {
-	typedef nntl::nnet_def_interfaces::iThreads_t def_threads_t;
-	typedef math::iMath_basic<real_t, def_threads_t> iMB;
-	iMB iM;
-
 	test_mrwDivideByVec(100, 5);
 	test_mrwDivideByVec(100, 10);
 	test_mrwDivideByVec(200, 5);

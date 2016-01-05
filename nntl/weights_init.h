@@ -118,7 +118,7 @@ namespace weights_init {
 			//If you get the next assert, then you are violating the sense of sparse initialization (I did this a hundred of times by inattention)))
 			//Either make a bigger previous layer (add some neurons to make it total count (significantly) more than NonZeroUnitsCount)
 			// or lower NonZeroUnitsCount parameter
-			NNTL_ASSERT(prevLayerNeuronsCnt >= NonZeroUnitsCount);
+			NNTL_ASSERT(prevLayerNeuronsCnt >= NonZeroUnitsCount || !"Too small previous layer!");
 
 			W.zeros();
 

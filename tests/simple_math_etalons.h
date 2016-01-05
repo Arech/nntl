@@ -34,6 +34,8 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include "asserts.h"
 
+real_t ewSumProd_ET(const realmtx_t& A, const realmtx_t& B)noexcept;
+
 void mrwDivideByVec_ET(realmtx_t& A, const real_t* pDiv)noexcept;
 void mrwMulByVec_ET(realmtx_t& A, const real_t* pMul)noexcept;
 

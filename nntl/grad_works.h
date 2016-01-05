@@ -205,7 +205,6 @@ namespace nntl {
 			m_numericStabilizerEps(.00001), m_maxWeightVecNorm(0.0), m_L1(0.0), m_L2(0.0),
 			m_type(ClassicalConstant)
 		{
-			NNTL_ASSERT(m_learningRate > real_t(0.0));
 			_flags_default();
 		}
 
@@ -316,6 +315,7 @@ namespace nntl {
 
 			default:
 				NNTL_ASSERT(!"WTF??");
+				STDCOUTL("*** " << NNTL_FUNCTION << ": Wrong type of optimizer specified!");
 				abort();
 			}
 
@@ -393,7 +393,6 @@ namespace nntl {
 		//////////////////////////////////////////////////////////////////////////
 
 		self_t& set_learning_rate(const real_t learningRate)noexcept {
-			NNTL_ASSERT(learningRate > real_t(0.0));
 			m_learningRate = learningRate;
 			return *this;
 		}

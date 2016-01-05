@@ -139,6 +139,9 @@ namespace utils {
 			f(std::get<1>(t), std::get<0>(t), true);
 		}
 	};
+	template<class Tuple, typename F> struct _for_eachwn_downbp_impl<0, Tuple, F> {
+		static void for_each(const Tuple& t, F& f)noexcept {}
+	};
 	template<class Tuple, typename F>
 	inline void for_eachwn_downbp(const Tuple& t, F& f)noexcept {
 		constexpr auto lei = std::tuple_size<Tuple>::value - 1;

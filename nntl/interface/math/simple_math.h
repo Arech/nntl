@@ -488,9 +488,35 @@ namespace math {
 
 	public:
 		
+		//////////////////////////////////////////////////////////////////////////
+		//////////////////////////////////////////////////////////////////////////
+		// Element-wise Operations
+		//////////////////////////////////////////////////////////////////////////
+		// Cumulative Operations
+
+		//finds a sum of elementwise products return sum( A.*B );
+		real_t ewSumProd(const realmtx_t& A, const realmtx_t& B)noexcept {
+			if (A.numel() < Thresholds_t::ewSumProd) {
+				return get_self().ewSumProd_st(A, B);
+			} else return get_self().ewSumProd_mt(A, B);
+		}
+		static real_t ewSumProd_st(const realmtx_t& A, const realmtx_t& B, const elms_range*const pER = nullptr)noexcept {
+			NNTL_ASSERT(!A.empty() && !B.empty() && B.size() == A.size());
+			const auto pA = A.data(), pB = B.data();
+			const elms_range& er = pER ? *pER : elms_range(A);
+			real_t ret(0.0);
+			for (numel_cnt_t i = er.elmBegin; i < er.elmEnd; ++i)  ret += pA[i]*pB[i];
+			return ret;
+		}
+		real_t ewSumProd_mt(const realmtx_t& A, const realmtx_t& B)noexcept {
+			NNTL_ASSERT(!A.empty() && !B.empty() && B.size() == A.size());
+			return m_threads.reduce([&A, &B, this](const par_range_t& pr)->real_t {
+				return get_self().ewSumProd_st(A, B, &elms_range(pr));
+			}, _reduce_final_sum, A.numel());
+		}
 
 
-
+		//////////////////////////////////////////////////////////////////////////
 		//////////////////////////////////////////////////////////////////////////
 		// Matrix RowWise operations
 		//////////////////////////////////////////////////////////////////////////

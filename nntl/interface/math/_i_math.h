@@ -154,15 +154,18 @@ namespace math {
 		//elementwise squaring dest = src.^2;
 		nntl_interface void evSquare(realmtx_t& dest, const realmtx_t& src)noexcept;
 
-		//finds sum of squares of elements (squared L2 norm): return sum( A.^2 )
+		//finds a sum of squares of elements (squared L2 norm): return sum( A.^2 )
 		nntl_interface real_t vSumSquares(const realmtx_t& A)noexcept;
 
 		//finding elementwise absolute values dest = abs(src);
 		nntl_interface void evAbs(realmtx_t& dest, const realmtx_t& src)noexcept;
 
-		//finds sum of abs values (L1 norm): return sum( abs(A) );
+		//finds a sum of abs values (L1 norm): return sum( abs(A) );
 		nntl_interface real_t vSumAbs(const realmtx_t& A)noexcept;
 		
+		//finds a sum of elementwise products return sum( A.*B );
+		nntl_interface real_t ewSumProd(const realmtx_t& A, const realmtx_t& B)noexcept;
+
 		//////////////////////////////////////////////////////////////////////////
 		//C = A * B, - matrix multiplication
 		nntl_interface void mMulAB_C(const realmtx_t& A, const realmtx_t& B, realmtx_t& C)noexcept;
