@@ -243,7 +243,7 @@ namespace nntl_supp {
 
 			if (!m.resize(static_cast<vec_len_t>(fe.dwRows), static_cast<vec_len_t>(fe.dwCols))) return _set_last_error(ErrorCode::MemoryAllocationFailed);
 
-			void* pReadTo = m.dataAsVec();
+			void* pReadTo = m.data();
 			size_t readSize = m.byte_size_no_bias();
 			if (!bSameTypes) {
 				switch (fieldDataType) {
@@ -289,7 +289,7 @@ namespace nntl_supp {
 		template <typename dest_value_type, typename src_value_type>
 		void _convert_data(nntl::math::simple_matrix<dest_value_type>& dest, src_value_type* pSrc) noexcept {
 			const auto pSrcE = pSrc + dest.numel_no_bias();
-			auto pD = dest.dataAsVec();
+			auto pD = dest.data();
 			while (pSrc != pSrcE) *pD++ = static_cast<dest_value_type>(*pSrc++);
 		}
 

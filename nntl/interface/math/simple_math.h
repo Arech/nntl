@@ -166,7 +166,7 @@ namespace math {
 				src = A.colDataAsVec(pRCR->colBegin) + pRCR->rowBegin;
 				rm = pRCR->totalRows();
 			} else {
-				src = A.dataAsVec();
+				src = A.data();
 				rm = A.rows();
 			}
 			memcpy(dest, src, sizeof(T_)*rm);
@@ -303,10 +303,10 @@ namespace math {
 		// Matrix/Vector elementwise operations
 		//////////////////////////////////////////////////////////////////////////
 		// Apply operation F.op to every element of matrix/vector A
-		// #todo: make a wrapper to mate vector api (size(), begin() and so on) and matrix api (numel(), dataAsVec() ...)
+		// #todo: make a wrapper to mate vector api (size(), begin() and so on) and matrix api (numel(), data() ...)
 		template<typename ContainerT, typename ewOperationT>
 		nntl_force_inline static void _ewOperation_st(ContainerT& A, const elms_range& er, ewOperationT&& F)noexcept {
-			const auto pA = A.dataAsVec();
+			const auto pA = A.data();
 			for (numel_cnt_t i = er.elmBegin; i < er.elmEnd; ++i) {
 				const auto p = pA + i;
 				//F.op(pA[i]);
@@ -315,8 +315,8 @@ namespace math {
 		}
 		template<typename ContainerT, typename ewOperationT>
 		nntl_force_inline static void _ewOperation_st2(ContainerT& A, const elms_range& er, ewOperationT&& F)noexcept {
-			auto pA = A.dataAsVec() + er.elmBegin;
-			const auto pAE = A.dataAsVec() + er.elmEnd;
+			auto pA = A.data() + er.elmBegin;
+			const auto pAE = A.data() + er.elmEnd;
 			while(pA!=pAE){
 				F.op(*pA);//dont do F.op(*pA++) or you'll get serious performance penalty
 				pA++;
@@ -367,7 +367,7 @@ namespace math {
 		nntl_force_inline static void _mrwVecOperation_st_rw(MtxT& A, VecValueT*const pVec, const rowcol_range& RCR, mrwOperationT&& F)noexcept {
 			static_assert(std::is_same< simple_matrix<std::remove_const_t<VecValueT>>, std::remove_const_t<MtxT> >::value, "Types mismatch");
 			NNTL_ASSERT(!A.empty() && A.numel() > 0 && pVec);
-			const auto pA = A.colDataAsVec(RCR.colBegin); //A.dataAsVec();
+			const auto pA = A.colDataAsVec(RCR.colBegin); //A.data();
 			const size_t rm = A.rows();
 			F.beforeMainLoop(RCR.colBegin, A.rows());
 			for (vec_len_t r = RCR.rowBegin; r < RCR.rowEnd; ++r) {
@@ -487,56 +487,7 @@ namespace math {
 		}
 
 	public:
-		//////////////////////////////////////////////////////////////////////////
-		// ElementWise operations
-		//////////////////////////////////////////////////////////////////////////
-		//binarize real-valued matrix with values in [0,1] according to 0<=frac<=1
-		void ewBinarize(realmtx_t& A, const real_t frac)noexcept {
-			if (A.numel() < Thresholds_t::ewBinarize) {
-				get_self().ewBinarize_st(A, frac);
-			} else get_self().ewBinarize_mt(A, frac);
-		}
-		static void ewBinarize_st(realmtx_t& A, const real_t frac)noexcept {
-			auto pA = A.dataAsVec();
-			const auto pAE = pA + A.numel();
-			while (pA != pAE) {
-				const auto v = *pA;
-				NNTL_ASSERT(v >= real_t(0.0) && v <= real_t(1.0));
-				*pA++ = v > frac ? real_t(1.0) : real_t(0.0);
-			}
-		}
-		//#TODO find out which algo is better
-		struct _ew_BINARIZE {
-			const real_t frac;
-			_ew_BINARIZE(const real_t f)noexcept:frac(f) {}
-
-			template<typename BaseT>
-			void op(BaseT& elm)noexcept {
- 				static_assert(!std::is_const<BaseT>::value, "BaseT mustn't have a const specifier");
- 				NNTL_ASSERT(elm >= BaseT(0.0) && elm <= BaseT(1.0));
- 				elm = elm > frac ? BaseT(1.0) : BaseT(0.0);
-			}
-		};
-		static void ex_ewBinarize_st(realmtx_t& A, const real_t frac)noexcept {
-			_ewOperation_st(A, elms_range(A), _ew_BINARIZE(frac));
-		}
-		static void ex2_ewBinarize_st(realmtx_t& A, const real_t frac)noexcept {
-			_ewOperation_st2(A, elms_range(A), _ew_BINARIZE(frac));
-		}
-
-		void ewBinarize_mt(realmtx_t& A, const real_t frac)noexcept {
-			auto pA = A.dataAsVec();
-			m_threads.run([pA, frac](const par_range_t& r) {
-				auto p = pA + r.offset();
-				const auto pAE = p + r.cnt();
-				while (p != pAE) {
-					const auto v = *p;
-					NNTL_ASSERT(v >= real_t(0.0) && v <= real_t(1.0));
-					*p++ = v > frac ? real_t(1.0) : real_t(0.0);
-				}
-			}, A.numel());
-		}
-
+		
 
 
 
@@ -647,7 +598,7 @@ namespace math {
 			if (A.cols() > 1) {
 				const bool bSaveMax = !!pMax;
 				if(!bSaveMax) pMax = get_self()._get_thread_temp_raw_storage(rm);
-				//memcpy(pMax, A.dataAsVec(), sizeof(*pMax)*rm);
+				//memcpy(pMax, A.data(), sizeof(*pMax)*rm);
 				_memcpy_rowcol_range(pMax, A, pRCR);
 				if (bSaveMax) {
 					_mrwVecOperation_st_cw(A, pMax, 1, pRCR ? *pRCR : rowcol_range(A), _mrwFindIdxsOf_MAX<true>(pDest));
@@ -661,7 +612,7 @@ namespace math {
 			NNTL_ASSERT(!pRCR || (rm == pRCR->totalRows() || A.cols() == pRCR->totalCols()));
 			const auto ne = pRCR ? realmtx_t::sNumel(rm,pRCR->totalCols()) : A.numel();
 			const vec_len_t colBegin = pRCR ? pRCR->colBegin : 0;
-			auto pD = A.colDataAsVec(colBegin);//A.dataAsVec();
+			auto pD = A.colDataAsVec(colBegin);//A.data();
 			const auto rowEnd = pRCR ? pRCR->rowEnd : rm;
 			const vec_len_t colBeginCmp = colBegin + 1;
 			if (bSaveMax) {
@@ -719,7 +670,7 @@ namespace math {
 				get_self().mrwIdxsOfMax_st(A, pIdxsVec, &RCR, pMax);
 			}, [pDest, this](realmtx_t& fin, vec_len_t*const pIdxsStor) {
 				//now we should gather temporary max'es into the final max'es&indexes
-				const auto pMaxStor = fin.dataAsVec();
+				const auto pMaxStor = fin.data();
 				const auto _elmsCnt = fin.numel();
 				const auto rm = fin.rows();
 				const auto pE = pMaxStor + _elmsCnt;
@@ -761,7 +712,7 @@ namespace math {
 			vec_len_t*const pIdxsStor = reinterpret_cast<vec_len_t*>(pTmp + _elmsCnt);
 
 			//now we may run max calculation in parallel for each column-set into pMaxStor and pIdxsStor
-			auto pMD = A.dataAsVec();
+			auto pMD = A.data();
 			m_threads.run([rm, pMaxStor, pIdxsStor, pMD](const par_range_t& pr) {
 				const auto _tid = pr.tid();
 				const auto _tmpElmOffset = realmtx_t::sNumel(rm, _tid);
@@ -843,7 +794,7 @@ namespace math {
 			NNTL_ASSERT(!A.empty() && A.numel() > 0 && pMax);
 			const auto rm = A.rows();
 			const auto ne = A.numel();
-			auto pD = A.dataAsVec();
+			auto pD = A.data();
 			const auto rowEnd = pRCR ? pRCR->rowEnd : rm;
 			for (vec_len_t ri = pRCR ? pRCR->rowBegin : 0; ri < rowEnd; ++ri) {
 				auto pV = pD + ri;
@@ -901,14 +852,14 @@ namespace math {
 		}
 		static void mrwSum_ip_st_cw(realmtx_t& A, const rowcol_range*const pRCR = nullptr)noexcept {
 			NNTL_ASSERT(!A.empty() && A.numel() > 0);
-			_mrwVecOperation_st_cw(A, A.dataAsVec(), 1, pRCR ? *pRCR : rowcol_range(A), _mrw_SUM());
+			_mrwVecOperation_st_cw(A, A.data(), 1, pRCR ? *pRCR : rowcol_range(A), _mrw_SUM());
 		}
 		//This version provide some gains over "standartized" version with small data sizes, so I'll leave it here
 		static void mrwSum_ip_st_rw_small(realmtx_t& A, const rowcol_range*const pRCR = nullptr)noexcept {
 			NNTL_ASSERT(!A.empty() && A.numel() > 0);
 			const auto rm = A.rows();
 			const auto neml = A.numel() - rm;
-			auto pSum = A.dataAsVec() + (pRCR ? pRCR->rowBegin : 0);
+			auto pSum = A.data() + (pRCR ? pRCR->rowBegin : 0);
 			auto pRow = pSum + rm;
 			const auto pRowE = pRow + (pRCR ? pRCR->totalRows() : rm);
 			while (pRow != pRowE) {
@@ -924,10 +875,10 @@ namespace math {
 		}
 		static void mrwSum_ip_st_rw(realmtx_t& A, const rowcol_range*const pRCR = nullptr)noexcept {
 			NNTL_ASSERT(!A.empty() && A.numel() > 0);
-			_mrwVecOperation_st_rw(A, A.dataAsVec(), pRCR ? *pRCR : rowcol_range(A), _mrw_SUM());
+			_mrwVecOperation_st_rw(A, A.data(), pRCR ? *pRCR : rowcol_range(A), _mrw_SUM());
 		}
 		void mrwSum_ip_mt_cw(realmtx_t& A)noexcept {
-			mrwSum_mt_cw(A, A.dataAsVec());
+			mrwSum_mt_cw(A, A.data());
 		}
 		void mrwSum_ip_mt_rw(realmtx_t& A)noexcept {
 			NNTL_ASSERT(!A.empty() && A.numel() > 0);
@@ -949,7 +900,7 @@ namespace math {
 			NNTL_ASSERT(!A.empty() && A.numel() > 0 && pVec);
 			if (A.cols() == 1) {
 				_memcpy_rowcol_range(pVec, A, pRCR);
-				//memcpy(pVec, A.dataAsVec(), A.byte_size());
+				//memcpy(pVec, A.data(), A.byte_size());
 			} else {
 				if (A.numel() < Thresholds_t::mrwSum_st) {
 					get_self().mrwSum_st_rw(A, pVec, pRCR);
@@ -960,7 +911,7 @@ namespace math {
 			NNTL_ASSERT(!A.empty() && A.numel() > 0 && pVec);
 			const auto cm = A.cols();
 			if (cm == 1) {
-				memcpy(pVec, A.dataAsVec(), A.byte_size());
+				memcpy(pVec, A.data(), A.byte_size());
 			} else {
 				if (cm <= std::max(Thresholds_t::mrwSum_mt_cw_colsPerThread, m_threads.workers_count())) {
 					get_self().mrwSum_mt_rw(A, pVec);

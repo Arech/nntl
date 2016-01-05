@@ -249,14 +249,22 @@ namespace math {
 
 		const bool empty()const noexcept { return nullptr == m_pData; }
 
-		value_ptr_t dataAsVec()noexcept {
-			NNTL_ASSERT(!empty() && m_cols>0 && m_rows>0);
+		//to conform std::vector API
+		value_ptr_t data()noexcept {
+			NNTL_ASSERT(!empty() && m_cols > 0 && m_rows > 0);
 			return m_pData;
 		}
-		cvalue_ptr_t dataAsVec()const noexcept {
-			NNTL_ASSERT(!empty() && m_cols>0 && m_rows>0);
+		cvalue_ptr_t data()const noexcept {
+			NNTL_ASSERT(!empty() && m_cols > 0 && m_rows > 0);
 			return m_pData;
-		}
+		}		
+
+		//not a real iterators
+		value_ptr_t begin()noexcept { return data(); }
+		cvalue_ptr_t begin()const noexcept { return data(); }
+		value_ptr_t end()noexcept { return data()+numel(); }
+		cvalue_ptr_t end()const noexcept { return data()+numel(); }
+
 		value_ptr_t colDataAsVec(vec_len_t c)noexcept {
 			NNTL_ASSERT(!empty() && m_cols>0 && m_rows>0 && c <= m_cols);//non strict inequality c <= m_cols to allow reference 'after the last' column
 			return m_pData + sNumel(m_rows, c);
@@ -408,64 +416,8 @@ namespace math {
 	};
 
 	//////////////////////////////////////////////////////////////////////////
-	// helper class to define matrix elements range
-	template<typename T_>
-	class simple_elements_range {
-	public:
-		typedef T_ value_type;
-		typedef simple_matrix<value_type> simplemtx_t;
-		typedef typename simplemtx_t::numel_cnt_t numel_cnt_t;
-
-		typedef threads::parallel_range<numel_cnt_t> par_range_t;
-
-	public:
-		const numel_cnt_t elmEnd;
-		const numel_cnt_t elmBegin;
-
-	public:
-		~simple_elements_range()noexcept {}
-		simple_elements_range(const simplemtx_t& A)noexcept : elmEnd(A.numel()), elmBegin(0) {}
-
-		simple_elements_range(const par_range_t& pr)noexcept : elmEnd(pr.offset()+pr.cnt()), elmBegin(pr.offset()) {}
-
-		simple_elements_range(const numel_cnt_t eb, const numel_cnt_t ee)noexcept : elmEnd(ee), elmBegin(eb) {
-			NNTL_ASSERT(elmEnd >= elmBegin);
-		}
-
-		const numel_cnt_t totalElements()const noexcept { return elmEnd - elmBegin; }
-	};
-
-	//////////////////////////////////////////////////////////////////////////
-	// helper class to define matrix rows-cols range
-	template<typename T_>
-	class simple_rowcol_range {
-	public:
-		typedef T_ value_type;
-		typedef simple_matrix<value_type> simplemtx_t;
-		typedef typename simplemtx_t::vec_len_t vec_len_t;
-
-	public:
-		const vec_len_t rowEnd;
-		const vec_len_t rowBegin;
-		const vec_len_t colEnd;
-		const vec_len_t colBegin;
-
-	public:
-		~simple_rowcol_range()noexcept {}
-		simple_rowcol_range(const vec_len_t rb, const vec_len_t re, const simplemtx_t& A)noexcept : rowEnd(re), rowBegin(rb), colEnd(A.cols()), colBegin(0) {
-			NNTL_ASSERT(rowEnd >= rowBegin);
-		}
-		simple_rowcol_range(const simplemtx_t& A, const vec_len_t cb, const vec_len_t ce)noexcept : rowEnd(A.rows()), rowBegin(0), colEnd(ce), colBegin(cb) {
-			NNTL_ASSERT(colEnd >= colBegin);
-		}
-		simple_rowcol_range(const simplemtx_t& A)noexcept : rowEnd(A.rows()), rowBegin(0), colEnd(A.cols()), colBegin(0) {}
-
-		const vec_len_t totalRows()const noexcept { return rowEnd - rowBegin; }
-		const vec_len_t totalCols()const noexcept { return colEnd - colBegin; }
-	};
-
-	//////////////////////////////////////////////////////////////////////////
 	//this class will allow to reuse the same storage for matrix of smaller size
+	//////////////////////////////////////////////////////////////////////////
 	template <typename T_>
 	class simple_matrix_deformable : public simple_matrix<T_> {
 	private:
@@ -601,6 +553,65 @@ namespace math {
 
 		void deform_like(const simple_matrix& m)noexcept { deform(m.rows(), m.cols()); }
 		void deform_like_no_bias(const simple_matrix& m)noexcept { deform(m.rows(), m.cols_no_bias()); }
+	};
+
+	//////////////////////////////////////////////////////////////////////////
+	// helper class to define matrix elements range
+	//////////////////////////////////////////////////////////////////////////
+	template<typename T_>
+	class simple_elements_range {
+	public:
+		typedef T_ value_type;
+		typedef simple_matrix<value_type> simplemtx_t;
+		typedef typename simplemtx_t::numel_cnt_t numel_cnt_t;
+
+		typedef threads::parallel_range<numel_cnt_t> par_range_t;
+
+	public:
+		const numel_cnt_t elmEnd;
+		const numel_cnt_t elmBegin;
+
+	public:
+		~simple_elements_range()noexcept {}
+		simple_elements_range(const simplemtx_t& A)noexcept : elmEnd(A.numel()), elmBegin(0) {}
+
+		simple_elements_range(const par_range_t& pr)noexcept : elmEnd(pr.offset() + pr.cnt()), elmBegin(pr.offset()) {}
+
+		simple_elements_range(const numel_cnt_t eb, const numel_cnt_t ee)noexcept : elmEnd(ee), elmBegin(eb) {
+			NNTL_ASSERT(elmEnd >= elmBegin);
+		}
+
+		const numel_cnt_t totalElements()const noexcept { return elmEnd - elmBegin; }
+	};
+
+	//////////////////////////////////////////////////////////////////////////
+	// helper class to define matrix rows-cols range
+	//////////////////////////////////////////////////////////////////////////
+	template<typename T_>
+	class simple_rowcol_range {
+	public:
+		typedef T_ value_type;
+		typedef simple_matrix<value_type> simplemtx_t;
+		typedef typename simplemtx_t::vec_len_t vec_len_t;
+
+	public:
+		const vec_len_t rowEnd;
+		const vec_len_t rowBegin;
+		const vec_len_t colEnd;
+		const vec_len_t colBegin;
+
+	public:
+		~simple_rowcol_range()noexcept {}
+		simple_rowcol_range(const vec_len_t rb, const vec_len_t re, const simplemtx_t& A)noexcept : rowEnd(re), rowBegin(rb), colEnd(A.cols()), colBegin(0) {
+			NNTL_ASSERT(rowEnd >= rowBegin);
+		}
+		simple_rowcol_range(const simplemtx_t& A, const vec_len_t cb, const vec_len_t ce)noexcept : rowEnd(A.rows()), rowBegin(0), colEnd(ce), colBegin(cb) {
+			NNTL_ASSERT(colEnd >= colBegin);
+		}
+		simple_rowcol_range(const simplemtx_t& A)noexcept : rowEnd(A.rows()), rowBegin(0), colEnd(A.cols()), colBegin(0) {}
+
+		const vec_len_t totalRows()const noexcept { return rowEnd - rowBegin; }
+		const vec_len_t totalCols()const noexcept { return colEnd - colBegin; }
 	};
 	
 }

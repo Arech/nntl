@@ -57,60 +57,6 @@ constexpr unsigned TEST_CORRECTN_REPEATS_COUNT = 60, _baseRowsCnt = 300;
 //////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////
 
-void test_ewBinarize_corr(vec_len_t rowsCnt, vec_len_t colsCnt = 10, const real_t frac = .5) {
-	MTXSIZE_SCOPED_TRACE1(rowsCnt, colsCnt, "ewBinarize, frac=", frac);
-	constexpr unsigned testCorrRepCnt = TEST_CORRECTN_REPEATS_COUNT;
-
-	realmtx_t A(rowsCnt, colsCnt), A_orig(rowsCnt, colsCnt), A_ET(rowsCnt, colsCnt);
-	ASSERT_TRUE(!A_orig.isAllocationFailed() && !A.isAllocationFailed() && !A_ET.isAllocationFailed());
-	nnet_def_interfaces::iRng_t rg;
-	rg.set_ithreads(iM.ithreads());
-
-	for (unsigned r = 0; r < testCorrRepCnt; ++r) {
-		rg.gen_matrix_norm(A_orig);
-
-		A_orig.cloneTo(A_ET);
-		ewBinarize_ET(A_ET, frac);
-
-		A_orig.cloneTo(A);
-		iM.ewBinarize_st(A, frac);
-		ASSERT_REALMTX_EQ(A_ET, A, "st() failed correctness test");
-
-		A_orig.cloneTo(A);
-		iM.ex_ewBinarize_st(A, frac);
-		ASSERT_REALMTX_EQ(A_ET, A, "ex_st() failed correctness test");
-
-		A_orig.cloneTo(A);
-		iM.ex2_ewBinarize_st(A, frac);
-		ASSERT_REALMTX_EQ(A_ET, A, "ex2_st() failed correctness test");
-
-
-
-		A_orig.cloneTo(A);
-		iM.ewBinarize_mt(A, frac);
-		ASSERT_REALMTX_EQ(A_ET, A, "mt() failed correctness test");
-
-		A_orig.cloneTo(A);
-		iM.ewBinarize(A, frac);
-		ASSERT_REALMTX_EQ(A_ET, A, "() failed correctness test");
-	}
-
-}
-
-TEST(TestSimpleMath, ewBinarize) {
-	const numel_cnt_t elmsMax = g_MinDataSizeDelta;
-	for (numel_cnt_t e = 1; e < elmsMax; ++e) {
-		ASSERT_NO_FATAL_FAILURE(test_ewBinarize_corr(static_cast<vec_len_t>(e), 1, .5));
-		ASSERT_NO_FATAL_FAILURE(test_ewBinarize_corr(static_cast<vec_len_t>(e), 1, .1));
-		ASSERT_NO_FATAL_FAILURE(test_ewBinarize_corr(static_cast<vec_len_t>(e), 1, .9));
-	}
-
-	constexpr unsigned rowsCnt = _baseRowsCnt;
-	const vec_len_t maxCols = g_MinDataSizeDelta, maxRows = rowsCnt + g_MinDataSizeDelta;
-	for (vec_len_t r = rowsCnt; r < maxRows; ++r) {
-		for (vec_len_t c = 1; c < maxCols; ++c) ASSERT_NO_FATAL_FAILURE(test_ewBinarize_corr(r, c, .5));
-	}
-}
 
 //////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////
@@ -136,31 +82,31 @@ void test_mrwDivideByVec_corr(vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 
 		A3.cloneTo(A2);
 		iM.mrwDivideByVec_st_cw(A2, &vDiv[0]);
-		ASSERT_REALMTX_EQ(A, A2, "st_cw() failed");
+		ASSERT_MTX_EQ(A, A2, "st_cw() failed");
 
 		A3.cloneTo(A2);
 		iM.mrwDivideByVec_st_rw(A2, &vDiv[0]);
-		ASSERT_REALMTX_EQ(A, A2, "st_rw() failed");
+		ASSERT_MTX_EQ(A, A2, "st_rw() failed");
 
 		A3.cloneTo(A2);
 		iM.mrwDivideByVec_st(A2, &vDiv[0]);
-		ASSERT_REALMTX_EQ(A, A2, "st() failed");
+		ASSERT_MTX_EQ(A, A2, "st() failed");
 
 		A3.cloneTo(A2);
 		iM.mrwDivideByVec_mt_cw(A2, &vDiv[0]);
-		ASSERT_REALMTX_EQ(A, A2, "mt_cw() failed");
+		ASSERT_MTX_EQ(A, A2, "mt_cw() failed");
 				
 		A3.cloneTo(A2);
 		iM.mrwDivideByVec_mt_rw(A2, &vDiv[0]);
-		ASSERT_REALMTX_EQ(A, A2, "mt_rw() failed");
+		ASSERT_MTX_EQ(A, A2, "mt_rw() failed");
 
 		A3.cloneTo(A2);
 		iM.mrwDivideByVec_mt(A2, &vDiv[0]);
-		ASSERT_REALMTX_EQ(A, A2, "mt() failed");
+		ASSERT_MTX_EQ(A, A2, "mt() failed");
 
 		A3.cloneTo(A2);
 		iM.mrwDivideByVec(A2, &vDiv[0]);
-		ASSERT_REALMTX_EQ(A, A2, "() failed");
+		ASSERT_MTX_EQ(A, A2, "() failed");
 	}
 }
 TEST(TestSimpleMath, mrwDivideByVec) {
@@ -192,31 +138,31 @@ void test_mrwMulByVec_corr(vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 
 		A3.cloneTo(A2);
 		iM.mrwMulByVec_st_cw(A2, &vMul[0]);
-		ASSERT_REALMTX_EQ(A, A2, "st_cw() failed");
+		ASSERT_MTX_EQ(A, A2, "st_cw() failed");
 						
 		A3.cloneTo(A2);
 		iM.mrwMulByVec_st_rw(A2, &vMul[0]);
-		ASSERT_REALMTX_EQ(A, A2, "st_rw() failed");
+		ASSERT_MTX_EQ(A, A2, "st_rw() failed");
 				
 		A3.cloneTo(A2);
 		iM.mrwMulByVec_st(A2, &vMul[0]);
-		ASSERT_REALMTX_EQ(A, A2, "st() failed");
+		ASSERT_MTX_EQ(A, A2, "st() failed");
 
 		A3.cloneTo(A2);
 		iM.mrwMulByVec_mt_cw(A2, &vMul[0]);
-		ASSERT_REALMTX_EQ(A, A2, "mt_cw() failed");
+		ASSERT_MTX_EQ(A, A2, "mt_cw() failed");
 
 		A3.cloneTo(A2);
 		iM.mrwMulByVec_mt_rw(A2, &vMul[0]);
-		ASSERT_REALMTX_EQ(A, A2, "mt_rw() failed");
+		ASSERT_MTX_EQ(A, A2, "mt_rw() failed");
 
 		A3.cloneTo(A2);
 		iM.mrwMulByVec_mt(A2, &vMul[0]);
-		ASSERT_REALMTX_EQ(A, A2, "mt() failed");
+		ASSERT_MTX_EQ(A, A2, "mt() failed");
 
 		A3.cloneTo(A2);
 		iM.mrwMulByVec(A2, &vMul[0]);
-		ASSERT_REALMTX_EQ(A, A2, "() failed");
+		ASSERT_MTX_EQ(A, A2, "() failed");
 	}
 }
 TEST(TestSimpleMath, mrwMulByVec) {

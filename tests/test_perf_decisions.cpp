@@ -76,7 +76,7 @@ constexpr unsigned TEST_CORRECTN_REPEATS_COUNT = 50;
 void softmax_parts_st_cw(const realmtx_t& act, const real_t* pMax, real_t* pDenominator, real_t* pNumerator)noexcept {
 	NNTL_ASSERT(pMax && pDenominator && act.numel() > 0);
 	const auto rm = act.rows(), cm = act.cols();
-	auto pA = act.dataAsVec();
+	auto pA = act.data();
 	const auto pME = pMax + rm;
 	std::fill(pDenominator, pDenominator + rm, real_t(0.0));
 	for (vec_len_t c = 0; c < cm; ++c) {
@@ -93,7 +93,7 @@ void softmax_parts_st_cw(const realmtx_t& act, const real_t* pMax, real_t* pDeno
 void softmax_parts_st_rw(const realmtx_t& act, const real_t* pMax, real_t* pDenominator, real_t* pNumerator)noexcept {
 	NNTL_ASSERT(pMax && pDenominator && act.numel() > 0);
 	const auto rm = act.rows(), cm = act.cols();
-	const auto pA = act.dataAsVec();
+	const auto pA = act.data();
 	for (vec_len_t r = 0; r < rm; ++r) {
 		auto ofs = r;
 		const auto m = pMax[r];
@@ -198,7 +198,7 @@ void mrwIdxsOfMax_st_rw(const realmtx_t& m, vec_len_t* pDest)noexcept {
 	const auto ne = m.numel();
 	//NNTL_ASSERT(rows == dest.size());
 
-	auto pD = m.dataAsVec();
+	auto pD = m.data();
 	for (vec_len_t ri = 0; ri < rim; ++ri) {
 		auto pV = &pD[ri];
 		const auto pVEnd = pV + ne;
@@ -221,7 +221,7 @@ void mrwIdxsOfMax_st_rw(const realmtx_t& m, vec_len_t* pDest)noexcept {
 //almost always the best (and calc max&idx simultaneously)
 void mrwMax_st_memfriendly(const realmtx_t& m, real_t* pMax, vec_len_t* pDest)noexcept {
 	const auto rm = m.rows(), cm = m.cols();
-	auto p = m.dataAsVec();
+	auto p = m.data();
 	const auto pE = p + m.numel();
 	//treat the first column like the max. Then compare other columns with this column and update max'es
 	memset(pDest, 0, sizeof(vec_len_t)*rm);
@@ -247,7 +247,7 @@ void mrwMax_st_memfriendly(const realmtx_t& m, real_t* pMax, vec_len_t* pDest)no
  // works noticeably slower, no need to use this variant.
 void mrwMax_st_memfriendly_opt(const realmtx_t& m, real_t* pMax, vec_len_t* pDest=nullptr)noexcept {
 	const auto rm = m.rows(), cm = m.cols();
-	auto p = m.dataAsVec();
+	auto p = m.data();
 	const auto pE = p + m.numel();
 	//treat the first column like the max. Then compare other columns with this column and update max'es
 	if (pDest) memset(pDest, 0, sizeof(vec_len_t)*rm);
@@ -355,9 +355,9 @@ inline void evCMulSub_st(iMath& iM, realmtx_t& vW, const real_t momentum, realmt
 }
 inline void evcombCMulSub(realmtx_t& vW, const real_t momentum, realmtx_t& W)noexcept {
 	NNTL_ASSERT(vW.size() == W.size());
-	auto pV = vW.dataAsVec();
+	auto pV = vW.data();
 	const auto pVE = pV + vW.numel();
-	auto pW = W.dataAsVec();
+	auto pW = W.data();
 	while (pV != pVE) {
 		const auto v = *pV * momentum;
 		*pV++ = v;
@@ -435,9 +435,9 @@ void mTranspose_seq_read(const realmtx_t& src, realmtx_t& dest) noexcept {
 	NNTL_ASSERT(src.rows() == dest.cols() && src.cols() == dest.rows());
 	const auto sRows = src.rows(), sCols = src.cols();
 	const auto dataCnt = src.numel();
-	auto pSrc = src.dataAsVec();
+	auto pSrc = src.data();
 	const auto pSrcE = pSrc + dataCnt;
-	auto pDest = dest.dataAsVec();
+	auto pDest = dest.data();
 	
 	while (pSrc != pSrcE) {
 		auto pD = pDest++;
@@ -454,8 +454,8 @@ void mTranspose_seq_write(const realmtx_t& src, realmtx_t& dest) noexcept {
 	NNTL_ASSERT(src.rows() == dest.cols() && src.cols() == dest.rows());
 	const auto sRows = src.rows(), sCols = src.cols();
 	const auto dataCnt = src.numel();
-	auto pSrc = src.dataAsVec();
-	auto pDest = dest.dataAsVec();
+	auto pSrc = src.data();
+	auto pDest = dest.data();
 	const auto pDestE = pDest + dataCnt;
 
 	while (pDest != pDestE) {
@@ -471,7 +471,7 @@ void mTranspose_seq_write(const realmtx_t& src, realmtx_t& dest) noexcept {
 }
 void mTranspose_OpenBLAS(const realmtx_t& src, realmtx_t& dest) noexcept {
 	const auto sRows = src.rows(), sCols = src.cols();
-	math::b_OpenBLAS::omatcopy(true, sRows, sCols, real_t(1.0), src.dataAsVec(), sRows, dest.dataAsVec(), sCols);
+	math::b_OpenBLAS::omatcopy(true, sRows, sCols, real_t(1.0), src.data(), sRows, dest.data(), sCols);
 }
 
 template<typename iMath>
@@ -605,7 +605,7 @@ void rowvecs_renorm_naive(realmtx_t& m, real_t maxLenSquared, real_t* pTmp)noexc
 	const auto mRows = m.rows();
 	memset(pTmp, 0, sizeof(real_t)*mRows);
 	const auto dataCnt = m.numel();
-	const real_t* pCol = m.dataAsVec();
+	const real_t* pCol = m.data();
 	const auto pColE = pCol + dataCnt;
 	while (pCol != pColE) {
 		const real_t* pElm = pCol;
@@ -621,7 +621,7 @@ void rowvecs_renorm_naive(realmtx_t& m, real_t maxLenSquared, real_t* pTmp)noexc
 	//test and renormalize
 	//const real_t newNorm = maxLenSquared - sqrt(math::real_ty_limits<real_t>::eps_lower_n(maxLenSquared, rowvecs_renorm_MULT));
 	const real_t newNorm = maxLenSquared - sqrt(math::real_ty_limits<real_t>::eps_lower(maxLenSquared));
-	auto pRow = m.dataAsVec();
+	auto pRow = m.data();
 	const auto pRowE = pRow + mRows;
 	while (pRow!=pRowE) {
 		const auto rowNorm = *pTmp++;
@@ -643,7 +643,7 @@ void rowvecs_renorm_clmnw(realmtx_t& A, real_t maxNormSquared, real_t* pTmp)noex
 	const auto mRows = A.rows();
 	memset(pTmp, 0, sizeof(real_t)*mRows);
 	const auto dataCnt = A.numel();
-	real_t* pCol = A.dataAsVec();
+	real_t* pCol = A.data();
 	const auto pColE = pCol + dataCnt;
 	while (pCol != pColE) {
 		const real_t* pElm = pCol;
@@ -667,7 +667,7 @@ void rowvecs_renorm_clmnw(realmtx_t& A, real_t maxNormSquared, real_t* pTmp)noex
 	}
 
 	//renormalize
-	pCol = A.dataAsVec();
+	pCol = A.data();
 	while (pCol != pColE) {
 		real_t* pElm = pCol;
 		pCol += mRows;
@@ -684,7 +684,7 @@ void rowvecs_renorm_clmnw2(realmtx_t& m, real_t maxLenSquared, real_t* pTmp)noex
 	const auto mRows = m.rows();
 	memset(pTmp, 0, sizeof(real_t)*mRows);
 	const auto dataCnt = m.numel();
-	real_t* pCol = m.dataAsVec();
+	real_t* pCol = m.data();
 	const auto pColE = pCol + dataCnt;
 	while (pCol != pColE) {
 		const real_t* pElm = pCol;
@@ -708,7 +708,7 @@ void rowvecs_renorm_clmnw2(realmtx_t& m, real_t maxLenSquared, real_t* pTmp)noex
 	}
 
 	//renormalize
-	auto pElm = m.dataAsVec();
+	auto pElm = m.data();
 	const auto pElmE = pElm + dataCnt;
 	auto pN = pTmp;
 	auto pRowE = pElm + mRows;
@@ -726,7 +726,7 @@ void rowvecs_renorm_clmnw_part(realmtx_t& m, real_t maxLenSquared, real_t* pTmp,
 	const auto mRows = m.rows();
 	memset(pTmp, 0, sizeof(real_t)*mRows);
 	const auto dataCnt = m.numel();
-	real_t* pCol = m.dataAsVec();
+	real_t* pCol = m.data();
 	const auto pColE = pCol + dataCnt;
 	while (pCol != pColE) {
 		const real_t* pElm = pCol;
@@ -758,7 +758,7 @@ void rowvecs_renorm_clmnw_part(realmtx_t& m, real_t maxLenSquared, real_t* pTmp,
 
 	//renormalize
 	if (pOE!=pOffs) {
-		pCol = m.dataAsVec();
+		pCol = m.data();
 		while (pCol != pColE) {
 			real_t* pElm = pCol;
 			pCol += mRows;
@@ -801,28 +801,28 @@ void check_rowvecs_renorm(iMath& iM, vec_len_t rowsCnt, vec_len_t colsCnt = 10) 
 		rowvecs_renorm_naive(W, meanNorm, &tmp[0]);
 		diffNaive += steady_clock::now() - bt;
 		//ASSERT_EQ(etW, W) << "rowvecs_renorm_naive";
-		ASSERT_REALMTX_EQ(etW, W, "rowvecs_renorm_naive");
+		ASSERT_MTX_EQ(etW, W, "rowvecs_renorm_naive");
 
 		srcW.cloneTo(W);
 		bt = steady_clock::now();
 		rowvecs_renorm_clmnw(W, meanNorm, &tmp[0]);
 		diffClmnw += steady_clock::now() - bt;
 		//ASSERT_EQ(etW, W) << "rowvecs_renorm_clmnw";
-		ASSERT_REALMTX_EQ(etW, W, "rowvecs_renorm_clmnw");
+		ASSERT_MTX_EQ(etW, W, "rowvecs_renorm_clmnw");
 
 		srcW.cloneTo(W);
 		bt = steady_clock::now();
 		rowvecs_renorm_clmnw2(W, meanNorm, &tmp[0]);
 		diffClmnw2 += steady_clock::now() - bt;
 		//ASSERT_EQ(etW, W) << "rowvecs_renorm_clmnw2";
-		ASSERT_REALMTX_EQ(etW, W, "rowvecs_renorm_clmnw2");
+		ASSERT_MTX_EQ(etW, W, "rowvecs_renorm_clmnw2");
 
 		srcW.cloneTo(W);
 		bt = steady_clock::now();
 		rowvecs_renorm_clmnw_part(W, meanNorm, &tmp[0], &ofs[0]);
 		diffClmnwPart += steady_clock::now() - bt;
 		//ASSERT_EQ(etW, W) << "rowvecs_renorm_clmnw_part";
-		ASSERT_REALMTX_EQ(etW, W, "rowvecs_renorm_clmnw_part");
+		ASSERT_MTX_EQ(etW, W, "rowvecs_renorm_clmnw_part");
 	}
 
 	STDCOUTL("naive:\t" << utils::duration_readable(diffNaive, maxReps));
@@ -865,7 +865,7 @@ void rowwise_normsq_ET(const realmtx_t& m, real_t* pNorm)noexcept {
 void rowwise_normsq_naive(const realmtx_t& m, real_t* pNorm)noexcept {
 	const auto dataCnt = m.numel();
 	const auto mRows = m.rows();
-	const real_t* pRow = m.dataAsVec();
+	const real_t* pRow = m.data();
 	const auto pRowEnd = pRow + mRows;
 	while (pRow != pRowEnd) {
 		const real_t* pElm = pRow;
@@ -885,7 +885,7 @@ void rowwise_normsq_clmnw(const realmtx_t& m, real_t* pNorm)noexcept {
 	memset(pNorm, 0, sizeof(real_t)*mRows);
 
 	const auto dataCnt = m.numel();
-	const real_t* pCol = m.dataAsVec();
+	const real_t* pCol = m.data();
 	const auto pColE = pCol + dataCnt;
 	while (pCol!=pColE) {
 		const real_t* pElm = pCol;
@@ -971,7 +971,7 @@ TEST(TestPerfDecisions, rowwiseNormsq) {
 real_t sigm_loss_xentropy_naive(const realmtx_t& activations, const realmtx_t& data_y)noexcept {
 	NNTL_ASSERT(activations.size() == data_y.size() && !activations.empty() && !data_y.empty());
 	const auto dataCnt = activations.numel();
-	const auto ptrA = activations.dataAsVec(), ptrY = data_y.dataAsVec();
+	const auto ptrA = activations.data(), ptrY = data_y.data();
 	constexpr auto log_zero = math::real_ty_limits<real_t>::log_almost_zero;
 	real_t ql = 0;
 	for (numel_cnt_t i = 0; i < dataCnt; ++i) {
@@ -988,7 +988,7 @@ real_t sigm_loss_xentropy_naive(const realmtx_t& activations, const realmtx_t& d
 real_t sigm_loss_xentropy_naive_part(const realmtx_t& activations, const realmtx_t& data_y)noexcept {
 	NNTL_ASSERT(activations.size() == data_y.size() && !activations.empty() && !data_y.empty());
 	const auto dataCnt = activations.numel();
-	const auto ptrA = activations.dataAsVec(), ptrY = data_y.dataAsVec();
+	const auto ptrA = activations.data(), ptrY = data_y.data();
 	constexpr auto log_zero = math::real_ty_limits<real_t>::log_almost_zero;
 	real_t ql = 0;
 	for (numel_cnt_t i = 0; i < dataCnt; ++i) {
@@ -1012,8 +1012,8 @@ real_t sigm_loss_xentropy_vec(const realmtx_t& activations, const realmtx_t& dat
 	NNTL_ASSERT(activations.size() == data_y.size() && !activations.empty() && !data_y.empty());
 	NNTL_ASSERT(t1.size() == activations.size() && t2.size() == t1.size());
 	const auto dataCnt = activations.numel();
-	const auto ptrA = activations.dataAsVec(), ptrY = data_y.dataAsVec();
-	const auto p1 = t1.dataAsVec(), p2 = t2.dataAsVec();
+	const auto ptrA = activations.data(), ptrY = data_y.data();
+	const auto p1 = t1.data(), p2 = t2.data();
 	constexpr auto realmin = std::numeric_limits<real_t>::min();
 	real_t ql = 0;
 	for (numel_cnt_t i = 0; i < dataCnt; ++i) {
@@ -1043,7 +1043,7 @@ void run_sigm_loss_xentropy(iRng& rg, iMath &iM, realmtx_t& act, realmtx_t& data
 	for (unsigned r = 0; r < maxReps; ++r) {
 		rg.gen_matrix_norm(act);
 		rg.gen_matrix_norm(data_y);
-		iM.ewBinarize(data_y, binFrac);
+		iM.ewBinarize_ip(data_y, binFrac);
 
 		bt = steady_clock::now();
 		lossNaive = sigm_loss_xentropy_naive(act, data_y);
@@ -1105,8 +1105,8 @@ void apply_momentum_FOR(realmtx_t& vW, const real_t momentum, const realmtx_t& d
 	NNTL_ASSERT(!vW.empty() && !dW.empty());
 
 	const auto dataCnt = vW.numel();
-	const auto pV = vW.dataAsVec();
-	const auto pdW = dW.dataAsVec();
+	const auto pV = vW.data();
+	const auto pdW = dW.data();
 	for (numel_cnt_t i = 0; i < dataCnt;++i) {
 		pV[i] = momentum*pV[i] + pdW[i];
 	}
@@ -1116,9 +1116,9 @@ void apply_momentum_WHILE(realmtx_t& vW, const real_t momentum, const realmtx_t&
 	NNTL_ASSERT(!vW.empty() && !dW.empty());
 
 	const auto dataCnt = vW.numel();
-	auto pV = vW.dataAsVec();
+	auto pV = vW.data();
 	const auto pVE = pV + dataCnt;
-	auto pdW = dW.dataAsVec();
+	auto pdW = dW.data();
 	while (pV!=pVE) {
 		*pV++ = momentum*(*pV) + *pdW++;
 	}
@@ -1224,7 +1224,7 @@ void test_sign_perf(iMath& iM, vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 	diff = nanoseconds(0);
 	for (unsigned r = 0; r < maxReps; ++r) {
 		rg.gen_matrix(dW, 100);
-		auto p = dW.dataAsVec();
+		auto p = dW.data();
 		const auto pE = p + dW.numel();
 		bt = steady_clock::now();
 		while (p!=pE) {
@@ -1247,7 +1247,7 @@ void test_sign_perf(iMath& iM, vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 	diff = nanoseconds(0);
 	for (unsigned r = 0; r < maxReps; ++r) {
 		rg.gen_matrix(dW, 100);
-		auto p = dW.dataAsVec();
+		auto p = dW.data();
 		const auto pE = p + dW.numel();
 		bt = steady_clock::now();
 		while (p != pE) {
@@ -1270,7 +1270,7 @@ void test_sign_perf(iMath& iM, vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 	diff = nanoseconds(0);
 	for (unsigned r = 0; r < maxReps; ++r) {
 		rg.gen_matrix(dW, 100);
-		auto p = dW.dataAsVec();
+		auto p = dW.data();
 		const auto pE = p + dW.numel();
 		bt = steady_clock::now();
 		while (p != pE) {
@@ -1312,9 +1312,9 @@ void calc_rmsproph_vec(iMath& iM, typename iMath::realmtx_t& dW, typename iMath:
 
 	NNTL_ASSERT(dW.size() == rmsF.size());
 
-	auto pdW = dW.dataAsVec();
-	auto prmsF = rmsF.dataAsVec();
-	auto pt = t1.dataAsVec();
+	auto pdW = dW.data();
+	auto prmsF = rmsF.data();
+	auto pt = t1.data();
 	const auto _1_emaDecay = 1 - emaDecay;
 	const auto im = dW.numel();
 	
@@ -1344,8 +1344,8 @@ void calc_rmsproph_ew(iMath& iM, typename iMath::realmtx_t& dW, typename iMath::
 
 	NNTL_ASSERT(dW.size() == rmsF.size());
 
-	auto pdW = dW.dataAsVec();
-	auto prmsF = rmsF.dataAsVec();
+	auto pdW = dW.data();
+	auto prmsF = rmsF.data();
 	const auto _1_emaDecay = 1 - emaDecay;
 	for (numel_cnt_t i = 0, im = dW.numel(); i < im; ++i) {
 		const auto w = pdW[i];
@@ -1427,7 +1427,7 @@ void dropout_batch(math_types::realmtx_ty& activs, math_types::real_ty dropoutFr
 	NNTL_ASSERT(dropoutFraction > 0 && dropoutFraction < 1);
 
 	iR.gen_matrix_no_bias_gtz(dropoutMask, 1);
-	auto pDM = dropoutMask.dataAsVec();
+	auto pDM = dropoutMask.data();
 	const auto pDME = pDM + dropoutMask.numel_no_bias();
 	while (pDM != pDME) {
 		auto v = *pDM;
@@ -1443,8 +1443,8 @@ void dropout_ew(math_types::realmtx_ty& activs, math_types::real_ty dropoutFract
 	NNTL_ASSERT(dropoutFraction > 0 && dropoutFraction < 1);
 
 	const auto dataCnt = activs.numel_no_bias();
-	auto pDM = dropoutMask.dataAsVec();
-	auto pA = activs.dataAsVec();
+	auto pDM = dropoutMask.data();
+	auto pA = activs.data();
 	for (math_types::realmtx_ty::numel_cnt_t i = 0; i < dataCnt; ++i) {
 		const auto rv = iR.gen_f_norm();
 		if (rv > dropoutFraction) {

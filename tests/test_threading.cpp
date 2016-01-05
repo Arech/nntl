@@ -65,7 +65,7 @@ void threads_basics_test(TT& t) {
 	const vec_len_t maxCnt = 2 * workersCnt;
 	math_types::realmtx_ty m(1, maxCnt + 1);
 	ASSERT_TRUE(!m.isAllocationFailed());
-	auto ptr = m.dataAsVec();
+	auto ptr = m.data();
 	
 	for (range_t mnumel = 1; mnumel <= maxCnt; ++mnumel) {
 		const auto maxCntPerWorker = static_cast<range_t>(ceil(static_cast<double>(mnumel) / workersCnt));

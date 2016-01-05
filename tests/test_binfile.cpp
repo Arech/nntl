@@ -57,7 +57,7 @@ TEST(TestBinFile, ReadMatrix) {
 	ASSERT_EQ(ErrorCode::Success, ec) << r.get_last_error_str();
 	ASSERT_EQ(realmtx_t::mtx_size_t(2, 2), m.size());
 	
-	const auto p = m.dataAsVec();
+	const auto p = m.data();
 	const auto im = m.numel();
 	for (realmtx_t::numel_cnt_t i = 0; i < im; ++i) ASSERT_EQ(mtx_content[i], p[i]);
 

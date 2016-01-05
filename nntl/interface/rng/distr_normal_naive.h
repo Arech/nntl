@@ -63,7 +63,7 @@ namespace rng {
 
 		void gen_matrix(realmtx_t& m)noexcept {
 			NNTL_ASSERT(!m.empty() && m.numel() > 0);
-			gen_vector(m.dataAsVec(), m.numel());
+			gen_vector(m.data(), m.numel());
 		}
 	};
 

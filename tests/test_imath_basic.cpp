@@ -70,6 +70,111 @@ constexpr unsigned TEST_PERF_REPEATS_COUNT = 500;
 constexpr unsigned TEST_CORRECTN_REPEATS_COUNT = 60, _baseRowsCnt = 300;
 #endif // NNTL_DEBUG
 
+//////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////
+
+void test_ewBinarize_ip_corr(vec_len_t rowsCnt, vec_len_t colsCnt = 10, const real_t frac = .5) {
+	MTXSIZE_SCOPED_TRACE1(rowsCnt, colsCnt, "ewBinarize_ip, frac=", frac);
+	constexpr unsigned testCorrRepCnt = TEST_CORRECTN_REPEATS_COUNT;
+
+	realmtx_t A(rowsCnt, colsCnt), A_orig(rowsCnt, colsCnt), A_ET(rowsCnt, colsCnt);
+	ASSERT_TRUE(!A_orig.isAllocationFailed() && !A.isAllocationFailed() && !A_ET.isAllocationFailed());
+	nnet_def_interfaces::iRng_t rg;
+	rg.set_ithreads(iM.ithreads());
+
+	for (unsigned r = 0; r < testCorrRepCnt; ++r) {
+		rg.gen_matrix_norm(A_orig);
+
+		A_orig.cloneTo(A_ET);
+		ewBinarize_ip_ET(A_ET, frac);
+
+		A_orig.cloneTo(A);
+		iM.ewBinarize_ip_st(A, frac);
+		ASSERT_MTX_EQ(A_ET, A, "st() failed correctness test");
+
+		A_orig.cloneTo(A);
+		iM.ex_ewBinarize_ip_st(A, frac);
+		ASSERT_MTX_EQ(A_ET, A, "ex_st() failed correctness test");
+
+		A_orig.cloneTo(A);
+		iM.ex2_ewBinarize_ip_st(A, frac);
+		ASSERT_MTX_EQ(A_ET, A, "ex2_st() failed correctness test");
+
+
+
+		A_orig.cloneTo(A);
+		iM.ewBinarize_ip_mt(A, frac);
+		ASSERT_MTX_EQ(A_ET, A, "mt() failed correctness test");
+
+		A_orig.cloneTo(A);
+		iM.ewBinarize_ip(A, frac);
+		ASSERT_MTX_EQ(A_ET, A, "() failed correctness test");
+	}
+
+}
+
+TEST(TestIMathBasic, ewBinarizeIp) {
+	const numel_cnt_t elmsMax = g_MinDataSizeDelta;
+	for (numel_cnt_t e = 1; e < elmsMax; ++e) {
+		ASSERT_NO_FATAL_FAILURE(test_ewBinarize_ip_corr(static_cast<vec_len_t>(e), 1, .5));
+		ASSERT_NO_FATAL_FAILURE(test_ewBinarize_ip_corr(static_cast<vec_len_t>(e), 1, .1));
+		ASSERT_NO_FATAL_FAILURE(test_ewBinarize_ip_corr(static_cast<vec_len_t>(e), 1, .9));
+	}
+
+	constexpr unsigned rowsCnt = _baseRowsCnt;
+	const vec_len_t maxCols = g_MinDataSizeDelta, maxRows = rowsCnt + g_MinDataSizeDelta;
+	for (vec_len_t r = rowsCnt; r < maxRows; ++r) {
+		for (vec_len_t c = 1; c < maxCols; ++c) ASSERT_NO_FATAL_FAILURE(test_ewBinarize_ip_corr(r, c, .5));
+	}
+}
+
+void test_ewBinarize_corr(vec_len_t rowsCnt, vec_len_t colsCnt = 10, const real_t frac = .5) {
+	MTXSIZE_SCOPED_TRACE1(rowsCnt, colsCnt, "ewBinarize, frac=", frac);
+	constexpr unsigned testCorrRepCnt = TEST_CORRECTN_REPEATS_COUNT;
+
+	typedef math::simple_matrix<char> binmtx_t;
+
+	realmtx_t A(rowsCnt, colsCnt);
+	binmtx_t DestET(rowsCnt, colsCnt), Dest(rowsCnt, colsCnt);
+
+	ASSERT_TRUE(!A.isAllocationFailed() && !DestET.isAllocationFailed() && !Dest.isAllocationFailed());
+	nnet_def_interfaces::iRng_t rg;
+	rg.set_ithreads(iM.ithreads());
+
+	for (unsigned r = 0; r < testCorrRepCnt; ++r) {
+		rg.gen_matrix_norm(A);
+
+		ewBinarize_ET(DestET, A, frac);
+
+		std::fill(Dest.begin(), Dest.end(), binmtx_t::value_type(-1));
+		iM.ewBinarize_st(Dest, A, frac);
+		ASSERT_MTX_EQ(DestET, Dest, "st() failed correctness test");
+
+		std::fill(Dest.begin(), Dest.end(), binmtx_t::value_type(-1));
+		iM.ewBinarize_mt(Dest, A, frac);
+		ASSERT_MTX_EQ(DestET, Dest, "mt() failed correctness test");
+
+		std::fill(Dest.begin(), Dest.end(), binmtx_t::value_type(-1));
+		iM.ewBinarize(Dest, A, frac);
+		ASSERT_MTX_EQ(DestET, Dest, "() failed correctness test");
+	}
+}
+
+TEST(TestIMathBasic, ewBinarize) {
+	const numel_cnt_t elmsMax = g_MinDataSizeDelta;
+	for (numel_cnt_t e = 1; e < elmsMax; ++e) {
+		ASSERT_NO_FATAL_FAILURE(test_ewBinarize_corr(static_cast<vec_len_t>(e), 1, .5));
+		ASSERT_NO_FATAL_FAILURE(test_ewBinarize_corr(static_cast<vec_len_t>(e), 1, .1));
+		ASSERT_NO_FATAL_FAILURE(test_ewBinarize_corr(static_cast<vec_len_t>(e), 1, .9));
+	}
+
+	constexpr unsigned rowsCnt = _baseRowsCnt;
+	const vec_len_t maxCols = g_MinDataSizeDelta, maxRows = rowsCnt + g_MinDataSizeDelta;
+	for (vec_len_t r = rowsCnt; r < maxRows; ++r) {
+		for (vec_len_t c = 1; c < maxCols; ++c) ASSERT_NO_FATAL_FAILURE(test_ewBinarize_corr(r, c, .5));
+	}
+}
+
 
 //////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////
@@ -413,15 +518,15 @@ void test_evAddScaledSign_ip(iMath& iM, vec_len_t rowsCnt, vec_len_t colsCnt = 1
 			evAddScaledSign_ip_ET(A2, scaleCoeff, B);
 
 			iM.evAddScaledSign_ip_st(A, scaleCoeff, B);
-			ASSERT_REALMTX_EQ(A2, A, "evAddScaledSign_ip_st failed correctness test");
+			ASSERT_MTX_EQ(A2, A, "evAddScaledSign_ip_st failed correctness test");
 
 			A3.cloneTo(A);
 			iM.evAddScaledSign_ip_mt(A, scaleCoeff, B);
-			ASSERT_REALMTX_EQ(A2, A, "evAddScaledSign_ip_mt failed correctness test");
+			ASSERT_MTX_EQ(A2, A, "evAddScaledSign_ip_mt failed correctness test");
 
 			A3.cloneTo(A);
 			iM.evAddScaledSign_ip(A, scaleCoeff, B);
-			ASSERT_REALMTX_EQ(A2, A, "evAddScaledSign_ip failed correctness test");
+			ASSERT_MTX_EQ(A2, A, "evAddScaledSign_ip failed correctness test");
 		}
 	}
 
@@ -490,15 +595,15 @@ void test_evAddScaled_ip(iMath& iM, vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 			evAddScaled_ip_ET(A2, scaleCoeff, B);
 
 			iM.evAddScaled_ip_st(A, scaleCoeff, B);
-			ASSERT_REALMTX_EQ(A2, A, "evAddScaled_ip_st failed correctness test");
+			ASSERT_MTX_EQ(A2, A, "evAddScaled_ip_st failed correctness test");
 
 			A3.cloneTo(A);
 			iM.evAddScaled_ip_mt(A, scaleCoeff, B);
-			ASSERT_REALMTX_EQ(A2, A, "evAddScaled_ip_mt failed correctness test");
+			ASSERT_MTX_EQ(A2, A, "evAddScaled_ip_mt failed correctness test");
 
 			A3.cloneTo(A);
 			iM.evAddScaled_ip(A, scaleCoeff, B);
-			ASSERT_REALMTX_EQ(A2, A, "evAddScaled_ip failed correctness test");
+			ASSERT_MTX_EQ(A2, A, "evAddScaled_ip failed correctness test");
 		}
 	}
 	
@@ -564,15 +669,15 @@ void test_evAdd_ip(iMath& iM, vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 			evAdd_ip_ET(A2, B);
 
 			iM.evAdd_ip_st(A, B);
-			ASSERT_REALMTX_EQ(A2, A, "evAdd_ip_st failed correctness test");
+			ASSERT_MTX_EQ(A2, A, "evAdd_ip_st failed correctness test");
 
 			A3.cloneTo(A);
 			iM.evAdd_ip_mt(A, B);
-			ASSERT_REALMTX_EQ(A2, A, "evAdd_ip_mt failed correctness test");
+			ASSERT_MTX_EQ(A2, A, "evAdd_ip_mt failed correctness test");
 
 			A3.cloneTo(A);
 			iM.evAdd_ip(A, B);
-			ASSERT_REALMTX_EQ(A2, A, "evAdd_ip failed correctness test");
+			ASSERT_MTX_EQ(A2, A, "evAdd_ip failed correctness test");
 		}
 	}
 	
@@ -637,12 +742,12 @@ void test_evMulCipSubip(iMath& iM, vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 		evCMulSub_ET(iM, vW3, momentum, W3);
 			
 		iM.evMulC_ip_Sub_ip_st(vW, momentum, W);
-		ASSERT_REALMTX_EQ(vW3, vW, "evMulC_ip_Sub_ip_st failed correctness test on vW");
-		ASSERT_REALMTX_EQ(W3, W, "evMulC_ip_Sub_ip_st failed correctness test on W");
+		ASSERT_MTX_EQ(vW3, vW, "evMulC_ip_Sub_ip_st failed correctness test on vW");
+		ASSERT_MTX_EQ(W3, W, "evMulC_ip_Sub_ip_st failed correctness test on W");
 
 		iM.evMulC_ip_Sub_ip_mt(vW2, momentum, W2);
-		ASSERT_REALMTX_EQ(vW3, vW2, "evMulC_ip_Sub_ip_mt failed correctness test on vW");
-		ASSERT_REALMTX_EQ(W3, W2, "evMulC_ip_Sub_ip_mt failed correctness test on W");
+		ASSERT_MTX_EQ(vW3, vW2, "evMulC_ip_Sub_ip_mt failed correctness test on vW");
+		ASSERT_MTX_EQ(W3, W2, "evMulC_ip_Sub_ip_mt failed correctness test on W");
 	}
 
 // 	rg.gen_matrix(vW2, 2);
@@ -809,7 +914,7 @@ void test_loss_sigm_xentropy(iMath& iM, vec_len_t rowsCnt, vec_len_t colsCnt = 1
 	for (unsigned r = 0; r < maxReps; ++r) {
 		rg.gen_matrix_norm(A);
 		rg.gen_matrix_norm(Y);
-		iM.ewBinarize(Y, frac);
+		iM.ewBinarize_ip(Y, frac);
 
 		etLoss = loss_sigm_xentropy_ET(A, Y);
 
@@ -869,13 +974,13 @@ void test_evSub(iMath& iM, vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 			evSub_ET(A, B, C2);
 
 			iM.evSub_st_naive(A, B, C);
-			ASSERT_REALMTX_EQ(C2, C, "evSub_st_naive failed correctness test");
+			ASSERT_MTX_EQ(C2, C, "evSub_st_naive failed correctness test");
 
 			iM.evSub_mt_naive(A, B, C);
-			ASSERT_REALMTX_EQ(C2, C, "evSub_mt_naive failed correctness test");
+			ASSERT_MTX_EQ(C2, C, "evSub_mt_naive failed correctness test");
 
 			iM.evSub(A, B, C);
-			ASSERT_REALMTX_EQ(C2, C, "evSub failed correctness test");
+			ASSERT_MTX_EQ(C2, C, "evSub failed correctness test");
 		}
 	}
 
@@ -939,22 +1044,22 @@ void test_evSub_ip(iMath& iM, vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 			evSub_ip_ET(A2, B);
 
 			iM.evSub_ip_st_naive(A, B);
-			ASSERT_REALMTX_EQ(A2, A, "evSub_ip_st_naive failed correctness test");
+			ASSERT_MTX_EQ(A2, A, "evSub_ip_st_naive failed correctness test");
 
 			A3.cloneTo(A);
 			iM.evSub_ip_mt_naive(A, B);
-			ASSERT_REALMTX_EQ(A2, A, "evSub_ip_mt_naive failed correctness test");
+			ASSERT_MTX_EQ(A2, A, "evSub_ip_mt_naive failed correctness test");
 
 			/*iM.evSub_ip_st_vec(A, B);
-			ASSERT_REALMTX_EQ(A2, A, "evSub_ip_st_vec failed correctness test");
+			ASSERT_MTX_EQ(A2, A, "evSub_ip_st_vec failed correctness test");
 
 			A3.cloneTo(A);
 			iM.evSub_ip_mt_vec(A, B);
-			ASSERT_REALMTX_EQ(A2, A, "evSub_ip_mt_vec failed correctness test");*/
+			ASSERT_MTX_EQ(A2, A, "evSub_ip_mt_vec failed correctness test");*/
 
 			A3.cloneTo(A);
 			iM.evSub_ip(A, B);
-			ASSERT_REALMTX_EQ(A2, A, "evSub_ip failed correctness test");
+			ASSERT_MTX_EQ(A2, A, "evSub_ip failed correctness test");
 		}
 	}
 
@@ -1033,15 +1138,15 @@ void test_apply_momentum(iMath& iM, vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 			apply_momentum_ET(vW2, momentum, dW);
 
 			iM.apply_momentum_st(vW, momentum, dW);
-			ASSERT_REALMTX_EQ(vW2, vW, "apply_momentum_st failed correctness test");
+			ASSERT_MTX_EQ(vW2, vW, "apply_momentum_st failed correctness test");
 
 			vW3.cloneTo(vW);
 			iM.apply_momentum_mt(vW,momentum, dW);
-			ASSERT_REALMTX_EQ(vW2, vW, "apply_momentum_mt failed correctness test");
+			ASSERT_MTX_EQ(vW2, vW, "apply_momentum_mt failed correctness test");
 
 			vW3.cloneTo(vW);
 			iM.apply_momentum(vW, momentum, dW);
-			ASSERT_REALMTX_EQ(vW2, vW, "apply_momentum failed correctness test");
+			ASSERT_MTX_EQ(vW2, vW, "apply_momentum failed correctness test");
 		}
 	}
 	rg.gen_matrix(vW, 2);
@@ -1114,32 +1219,32 @@ void test_applyILR_perf(iMath& iM, vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 			apply_ILR_ET(dW, prevdW, gain, decr, incr, capL, capH);
 
 			iM.apply_ILR_st_naive(dW2, prevdW, gain2, decr, incr, capL, capH);
-			ASSERT_REALMTX_EQ(dW2, dW, "apply_ILR_st_naive: wrong dLdW matrix content!");
-			ASSERT_REALMTX_EQ(gain2, gain, "apply_ILR_st_naive: wrong ILRGain matrix content!");
+			ASSERT_MTX_EQ(dW2, dW, "apply_ILR_st_naive: wrong dLdW matrix content!");
+			ASSERT_MTX_EQ(gain2, gain, "apply_ILR_st_naive: wrong ILRGain matrix content!");
 
 			dW3.cloneTo(dW2);
 			gain3.cloneTo(gain2);
 			iM.apply_ILR_st_vec(dW2, prevdW, gain2, decr, incr, capL, capH);
-			ASSERT_REALMTX_EQ(dW2, dW, "apply_ILR_st_vec: wrong dLdW matrix content!");
-			ASSERT_REALMTX_EQ(gain2, gain, "apply_ILR_st_vec: wrong ILRGain matrix content!");
+			ASSERT_MTX_EQ(dW2, dW, "apply_ILR_st_vec: wrong dLdW matrix content!");
+			ASSERT_MTX_EQ(gain2, gain, "apply_ILR_st_vec: wrong ILRGain matrix content!");
 
 			dW3.cloneTo(dW2);
 			gain3.cloneTo(gain2);
 			iM.apply_ILR_mt_naive(dW2, prevdW, gain2, decr, incr, capL, capH);
-			ASSERT_REALMTX_EQ(dW2, dW, "apply_ILR_mt_naive: wrong dLdW matrix content!");
-			ASSERT_REALMTX_EQ(gain2, gain, "apply_ILR_mt_naive: wrong ILRGain matrix content!");
+			ASSERT_MTX_EQ(dW2, dW, "apply_ILR_mt_naive: wrong dLdW matrix content!");
+			ASSERT_MTX_EQ(gain2, gain, "apply_ILR_mt_naive: wrong ILRGain matrix content!");
 
 			dW3.cloneTo(dW2);
 			gain3.cloneTo(gain2);
 			iM.apply_ILR_mt_vec(dW2, prevdW, gain2, decr, incr, capL, capH);
-			ASSERT_REALMTX_EQ(dW2, dW, "apply_ILR_mt_vec: wrong dLdW matrix content!");
-			ASSERT_REALMTX_EQ(gain2, gain, "apply_ILR_mt_vec: wrong ILRGain matrix content!");
+			ASSERT_MTX_EQ(dW2, dW, "apply_ILR_mt_vec: wrong dLdW matrix content!");
+			ASSERT_MTX_EQ(gain2, gain, "apply_ILR_mt_vec: wrong ILRGain matrix content!");
 
 			dW3.cloneTo(dW2);
 			gain3.cloneTo(gain2);
 			iM.apply_ILR(dW2, prevdW, gain2, decr, incr, capL, capH);
-			ASSERT_REALMTX_EQ(dW2, dW, "apply_ILR: wrong dLdW matrix content!");
-			ASSERT_REALMTX_EQ(gain2, gain, "apply_ILR: wrong ILRGain matrix content!");
+			ASSERT_MTX_EQ(dW2, dW, "apply_ILR: wrong dLdW matrix content!");
+			ASSERT_MTX_EQ(gain2, gain, "apply_ILR: wrong ILRGain matrix content!");
 		}
 	}
 
@@ -1242,13 +1347,13 @@ void test_evAbs_perf(iMath& iM, vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 			evAbs_ET(dest2, src);
 
 			iM.evAbs_st(dest, src);
-			ASSERT_REALMTX_EQ(dest2, dest, "evAbs_st failed correctness test");
+			ASSERT_MTX_EQ(dest2, dest, "evAbs_st failed correctness test");
 
 			iM.evAbs_mt(dest, src);
-			ASSERT_REALMTX_EQ(dest2, dest, "evAbs_mt failed correctness test");
+			ASSERT_MTX_EQ(dest2, dest, "evAbs_mt failed correctness test");
 
 			iM.evAbs(dest, src);
-			ASSERT_REALMTX_EQ(dest2, dest, "evAbs failed correctness test");
+			ASSERT_MTX_EQ(dest2, dest, "evAbs failed correctness test");
 		}
 	}
 	rg.gen_matrix(src, 10);
@@ -1308,13 +1413,13 @@ void test_evSquare_perf(iMath& iM, vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 			evSquare_ET(dest2, src);
 
 			iM.evSquare_st(dest, src);
-			ASSERT_REALMTX_EQ(dest2, dest, "evSquare_st failed correctness test");
+			ASSERT_MTX_EQ(dest2, dest, "evSquare_st failed correctness test");
 
 			iM.evSquare_mt(dest, src);
-			ASSERT_REALMTX_EQ(dest2, dest, "evSquare_mt failed correctness test");
+			ASSERT_MTX_EQ(dest2, dest, "evSquare_mt failed correctness test");
 
 			iM.evSquare(dest, src);
-			ASSERT_REALMTX_EQ(dest2, dest, "evSquare failed correctness test");
+			ASSERT_MTX_EQ(dest2, dest, "evSquare failed correctness test");
 		}
 	}
 	rg.gen_matrix(src, 10);
@@ -1386,20 +1491,20 @@ void test_modprop_perf(iMath& iM, vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 			ModProp_ET(dW2, rms2, lr, emaCoeff, numStab);
 
 			iM.ModProp_st(dW, rms, lr, emaCoeff, numStab);
-			ASSERT_REALMTX_EQ(dW2, dW, "ModProp_st: wrong dW");
-			ASSERT_REALMTX_EQ(rms2, rms, "ModProp_st: wrong rms");
+			ASSERT_MTX_EQ(dW2, dW, "ModProp_st: wrong dW");
+			ASSERT_MTX_EQ(rms2, rms, "ModProp_st: wrong rms");
 
 			dW3.cloneTo(dW);
 			rms3.cloneTo(rms);
 			iM.ModProp_mt(dW, rms, lr, emaCoeff, numStab);
-			ASSERT_REALMTX_EQ(dW2, dW, "ModProp_mt: wrong dW");
-			ASSERT_REALMTX_EQ(rms2, rms, "ModProp_mt: wrong rms");
+			ASSERT_MTX_EQ(dW2, dW, "ModProp_mt: wrong dW");
+			ASSERT_MTX_EQ(rms2, rms, "ModProp_mt: wrong rms");
 
 			dW3.cloneTo(dW);
 			rms3.cloneTo(rms);
 			iM.ModProp(dW, rms, lr, emaCoeff, numStab);
-			ASSERT_REALMTX_EQ(dW2, dW, "ModProp: wrong dW");
-			ASSERT_REALMTX_EQ(rms2, rms, "ModProp: wrong rms");
+			ASSERT_MTX_EQ(dW2, dW, "ModProp: wrong dW");
+			ASSERT_MTX_EQ(rms2, rms, "ModProp: wrong rms");
 		}
 	}
 
@@ -1474,15 +1579,15 @@ void test_rprop_perf(iMath& iM, vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 			RProp_ET(dW2, lr);
 
 			iM.RProp_st(dW, lr);
-			ASSERT_REALMTX_EQ(dW2, dW, "RProp_st: wrong dW");
+			ASSERT_MTX_EQ(dW2, dW, "RProp_st: wrong dW");
 
 			dW3.cloneTo(dW);
 			iM.RProp_mt(dW, lr);
-			ASSERT_REALMTX_EQ(dW2, dW, "RProp_mt: wrong dW");
+			ASSERT_MTX_EQ(dW2, dW, "RProp_mt: wrong dW");
 
 			dW3.cloneTo(dW);
 			iM.RProp(dW, lr);
-			ASSERT_REALMTX_EQ(dW2, dW, "RProp: wrong dW");
+			ASSERT_MTX_EQ(dW2, dW, "RProp: wrong dW");
 		}
 	}
 	//////////////////////////////////////////////////////////////////////////
@@ -1565,25 +1670,25 @@ void test_rmspropgraves_perf(iMath& iM, vec_len_t rowsCnt, vec_len_t colsCnt = 1
 			RMSProp_Graves_ET(dW2, rms2, rmsG2, lr, emaCoeff, numStab);
 
 			iM.RMSProp_Graves_st(dW, rms, rmsG, lr, emaCoeff, numStab);
-			ASSERT_REALMTX_EQ(dW2, dW, "RMSProp_Graves_st: wrong dW");
-			ASSERT_REALMTX_EQ(rms2, rms, "RMSProp_Graves_st: wrong rms");
-			ASSERT_REALMTX_EQ(rmsG2, rmsG, "RMSProp_Graves_st: wrong rmsG");
+			ASSERT_MTX_EQ(dW2, dW, "RMSProp_Graves_st: wrong dW");
+			ASSERT_MTX_EQ(rms2, rms, "RMSProp_Graves_st: wrong rms");
+			ASSERT_MTX_EQ(rmsG2, rmsG, "RMSProp_Graves_st: wrong rmsG");
 
 			dW3.cloneTo(dW);
 			rms3.cloneTo(rms);
 			rmsG3.cloneTo(rmsG);
 			iM.RMSProp_Graves_mt(dW, rms, rmsG, lr, emaCoeff, numStab);
-			ASSERT_REALMTX_EQ(dW2, dW, "RMSProp_Graves_mt: wrong dW");
-			ASSERT_REALMTX_EQ(rms2, rms, "RMSProp_Graves_mt: wrong rms");
-			ASSERT_REALMTX_EQ(rmsG2, rmsG, "RMSProp_Graves_mt: wrong rmsG");
+			ASSERT_MTX_EQ(dW2, dW, "RMSProp_Graves_mt: wrong dW");
+			ASSERT_MTX_EQ(rms2, rms, "RMSProp_Graves_mt: wrong rms");
+			ASSERT_MTX_EQ(rmsG2, rmsG, "RMSProp_Graves_mt: wrong rmsG");
 
 			dW3.cloneTo(dW);
 			rms3.cloneTo(rms);
 			rmsG3.cloneTo(rmsG);
 			iM.RMSProp_Graves(dW, rms, rmsG, lr, emaCoeff, numStab);
-			ASSERT_REALMTX_EQ(dW2, dW, "RMSProp_Graves: wrong dW");
-			ASSERT_REALMTX_EQ(rms2, rms, "RMSProp_Graves: wrong rms");
-			ASSERT_REALMTX_EQ(rmsG2, rmsG, "RMSProp_Graves: wrong rmsG");
+			ASSERT_MTX_EQ(dW2, dW, "RMSProp_Graves: wrong dW");
+			ASSERT_MTX_EQ(rms2, rms, "RMSProp_Graves: wrong rms");
+			ASSERT_MTX_EQ(rmsG2, rmsG, "RMSProp_Graves: wrong rmsG");
 		}
 	}
 	//////////////////////////////////////////////////////////////////////////
@@ -1660,20 +1765,20 @@ void test_rmsprophinton_perf(iMath& iM, vec_len_t rowsCnt, vec_len_t colsCnt = 1
 			RMSProp_Hinton_ET(dW2, rms2, lr, emaCoeff, numStab);
 
 			iM.RMSProp_Hinton_st(dW, rms, lr, emaCoeff, numStab);
-			ASSERT_REALMTX_EQ(dW2, dW, "RMSProp_Hinton_st: wrong dW");
-			ASSERT_REALMTX_EQ(rms2, rms, "RMSProp_Hinton_st: wrong rms");
+			ASSERT_MTX_EQ(dW2, dW, "RMSProp_Hinton_st: wrong dW");
+			ASSERT_MTX_EQ(rms2, rms, "RMSProp_Hinton_st: wrong rms");
 
 			dW3.cloneTo(dW);
 			rms3.cloneTo(rms);
 			iM.RMSProp_Hinton_mt(dW, rms, lr, emaCoeff, numStab);
-			ASSERT_REALMTX_EQ(dW2, dW, "RMSProp_Hinton_mt: wrong dW");
-			ASSERT_REALMTX_EQ(rms2, rms, "RMSProp_Hinton_mt: wrong rms");
+			ASSERT_MTX_EQ(dW2, dW, "RMSProp_Hinton_mt: wrong dW");
+			ASSERT_MTX_EQ(rms2, rms, "RMSProp_Hinton_mt: wrong rms");
 
 			dW3.cloneTo(dW);
 			rms3.cloneTo(rms);
 			iM.RMSProp_Hinton(dW, rms, lr, emaCoeff, numStab);
-			ASSERT_REALMTX_EQ(dW2, dW, "RMSProp_Hinton: wrong dW");
-			ASSERT_REALMTX_EQ(rms2, rms, "RMSProp_Hinton: wrong rms");
+			ASSERT_MTX_EQ(dW2, dW, "RMSProp_Hinton: wrong dW");
+			ASSERT_MTX_EQ(rms2, rms, "RMSProp_Hinton: wrong rms");
 		}
 	}
 	//////////////////////////////////////////////////////////////////////////
@@ -1749,20 +1854,20 @@ void test_make_dropout_perf(iMath& iM, vec_len_t rowsCnt, vec_len_t colsCnt = 10
 			act2.assert_biases_ok();
 
 			iM.make_dropout_st(act, dfrac, dm);
-			ASSERT_REALMTX_EQ(act2, act, "make_dropout_st: wrong act");
-			ASSERT_REALMTX_EQ(dm2, dm, "make_dropout_st: wrong dm");
+			ASSERT_MTX_EQ(act2, act, "make_dropout_st: wrong act");
+			ASSERT_MTX_EQ(dm2, dm, "make_dropout_st: wrong dm");
 
 			act3.cloneTo(act);
 			dm3.cloneTo(dm);
 			iM.make_dropout_mt(act, dfrac, dm);
-			ASSERT_REALMTX_EQ(act2, act, "make_dropout_mt: wrong act");
-			ASSERT_REALMTX_EQ(dm2, dm, "make_dropout_mt: wrong dm");
+			ASSERT_MTX_EQ(act2, act, "make_dropout_mt: wrong act");
+			ASSERT_MTX_EQ(dm2, dm, "make_dropout_mt: wrong dm");
 
 			act3.cloneTo(act);
 			dm3.cloneTo(dm);
 			iM.make_dropout(act, dfrac, dm);
-			ASSERT_REALMTX_EQ(act2, act, "make_dropout: wrong act");
-			ASSERT_REALMTX_EQ(dm2, dm, "make_dropout: wrong dm");
+			ASSERT_MTX_EQ(act2, act, "make_dropout: wrong act");
+			ASSERT_MTX_EQ(dm2, dm, "make_dropout: wrong dm");
 		}
 	}
 	//////////////////////////////////////////////////////////////////////////
@@ -1974,7 +2079,7 @@ TEST(TestIMathBasic, mExtractRowsCorrectness) {
 
 	realmtx_t src(rowsCnt, colsCnt), destSt(extrCnt, colsCnt), destMt(extrCnt, colsCnt);;
 	ASSERT_TRUE(!src.isAllocationFailed() && !destSt.isAllocationFailed() && !destMt.isAllocationFailed());
-	auto pSrc = src.dataAsVec();
+	auto pSrc = src.data();
 	for (numel_cnt_t i = 0, im = src.numel(); i < im; ++i) pSrc[i] = static_cast<real_t>(i);
 
 	std::vector<vec_len_t> vec(extrCnt);
@@ -2149,7 +2254,7 @@ TEST(TestIMathBasic, mMulABt_Cnb_biased) {
 	EXPECT_EQ(A, etA);
 	EXPECT_EQ(B, etB);
 
-	auto ptrC = C.dataAsVec(), ptrEt = etC.dataAsVec();
+	auto ptrC = C.data(), ptrEt = etC.data();
 	auto cnt = etC.numel(), bcnt = C.numel();
 	ASSERT_TRUE(cnt < bcnt);
 	for (numel_cnt_t i = 0; i < cnt; ++i) {
@@ -2182,7 +2287,7 @@ void test_evMul_ip(iMath& iM, vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 	rg.gen_matrix(etM, 5);
 	rg.gen_matrix(etB, 5);
 	ASSERT_TRUE(etB.cloneTo(B));
-	auto ptrEtM = etM.dataAsVec(), ptrDest = etDest.dataAsVec(), ptretB=etB.dataAsVec();
+	auto ptrEtM = etM.data(), ptrDest = etDest.data(), ptretB=etB.data();
 	for (unsigned i = 0; i < dataSize; ++i) ptrDest[i] = ptrEtM[i]* ptretB[i];
 
 	//testing performance
@@ -2292,7 +2397,7 @@ void test_evMulC_ip(iMath& iM, vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 	nnet_def_interfaces::iRng_t rg;
 	rg.set_ithreads(iM.ithreads());
 	rg.gen_matrix(etM, 5);
-	auto ptrEtM = etM.dataAsVec(), ptrDest=etDest.dataAsVec();
+	auto ptrEtM = etM.data(), ptrDest=etDest.data();
 	for (unsigned i = 0; i < dataSize; ++i) ptrDest[i] = mulC*ptrEtM[i];
 	
 	//testing performance
@@ -2402,7 +2507,7 @@ void test_sigm(iMath& iM, vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 	nnet_def_interfaces::iRng_t rg;
 	rg.set_ithreads(iM.ithreads());
 	rg.gen_matrix(etM, 2);
-	auto ptrEtM = etM.dataAsVec(), ptrDest = etDest.dataAsVec();
+	auto ptrEtM = etM.data(), ptrDest = etDest.data();
 	for (unsigned i = 0; i < biggestDataSize; ++i) {
 		ptrDest[i] = real_t(1.0) / (real_t(1.0) + std::exp(-ptrEtM[i]));
 	}
@@ -2425,7 +2530,7 @@ void test_sigm(iMath& iM, vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 			iM.sigm_st_naive(m);
 			diff += steady_clock::now() - bt;
 		}
-		const auto ptr = m.dataAsVec();
+		const auto ptr = m.data();
 		if (std::is_same<real_t, float>::value) {
 			for (numel_cnt_t i = 0; i < iMax; ++i) ASSERT_FLOAT_EQ(ptrDest[i], ptr[i]);
 		} else {
@@ -2447,7 +2552,7 @@ void test_sigm(iMath& iM, vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 			iM.sigm_mt_naive(m);
 			diff += steady_clock::now() - bt;
 		}
-		const auto ptr = m.dataAsVec();
+		const auto ptr = m.data();
 		if (std::is_same<real_t, float>::value) {
 			for (numel_cnt_t i = 0; i < iMax; ++i) ASSERT_FLOAT_EQ(ptrDest[i], ptr[i]);
 		} else {
@@ -2470,7 +2575,7 @@ void test_sigm(iMath& iM, vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 			iM.sigm_st_vec(m);
 			diff += steady_clock::now() - bt;
 		}
-		const auto ptr = m.dataAsVec();
+		const auto ptr = m.data();
 		for (numel_cnt_t i = 0; i < iMax; ++i) ASSERT_DOUBLE_EQ(ptrDest[i], ptr[i]);
 	}
 	STDCOUTL("st_vec:\t\t" << utils::duration_readable(diff, maxReps*threadsCount, &tstVect));
@@ -2488,7 +2593,7 @@ void test_sigm(iMath& iM, vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 			iM.sigm_mt_vec(m);
 			diff += steady_clock::now() - bt;
 		}
-		const auto ptr = m.dataAsVec();
+		const auto ptr = m.data();
 		for (numel_cnt_t i = 0; i < iMax; ++i) ASSERT_DOUBLE_EQ(ptrDest[i], ptr[i]);
 	}
 	STDCOUTL("mt_vec:\t\t" << utils::duration_readable(diff, maxReps*threadsCount, &tmtVect));
@@ -2507,7 +2612,7 @@ void test_sigm(iMath& iM, vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 			iM.sigm(m);
 			diff += steady_clock::now() - bt;
 		}
-		const auto ptr = m.dataAsVec();
+		const auto ptr = m.data();
 		if (std::is_same<real_t, float>::value) {
 			for (numel_cnt_t i = 0; i < iMax; ++i) ASSERT_FLOAT_EQ(ptrDest[i], ptr[i]);
 		} else {
@@ -2543,7 +2648,7 @@ void test_dsigm(iMath& iM, vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 	nnet_def_interfaces::iRng_t rg;
 	rg.set_ithreads(iM.ithreads());
 	rg.gen_matrix(etM, 10);
-	auto ptrEtM = etM.dataAsVec(), ptrDest = etDest.dataAsVec();
+	auto ptrEtM = etM.data(), ptrDest = etDest.data();
 	for (unsigned i = 0; i < dataSize; ++i) ptrDest[i] = ptrEtM[i] * (1 - ptrEtM[i]);
 	ASSERT_TRUE(etM.cloneTo(m));
 
@@ -2652,7 +2757,7 @@ void test_relu(iMath& iM, vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 	nnet_def_interfaces::iRng_t rg;
 	rg.set_ithreads(iM.ithreads());
 	rg.gen_matrix(etM, 2);
-	auto ptrEtM = etM.dataAsVec(), ptrDest = etDest.dataAsVec();
+	auto ptrEtM = etM.data(), ptrDest = etDest.data();
 	for (unsigned i = 0; i < biggestDataSize; ++i) {
 		ptrDest[i] = (ptrEtM[i] < 0) ? 0 : ptrEtM[i];
 	}
@@ -2675,7 +2780,7 @@ void test_relu(iMath& iM, vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 			iM.relu_st_naive(m);
 			diff += steady_clock::now() - bt;
 		}
-		const auto ptr = m.dataAsVec();
+		const auto ptr = m.data();
 		for (numel_cnt_t i = 0; i < iMax; ++i) ASSERT_DOUBLE_EQ(ptrDest[i], ptr[i]);
 	}
 	STDCOUTL("st_naive:\t" << utils::duration_readable(diff, maxReps*threadsCount, &tstNaive));
@@ -2693,7 +2798,7 @@ void test_relu(iMath& iM, vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 			iM.relu_mt_naive(m);
 			diff += steady_clock::now() - bt;
 		}
-		const auto ptr = m.dataAsVec();
+		const auto ptr = m.data();
 		for (numel_cnt_t i = 0; i < iMax; ++i) ASSERT_DOUBLE_EQ(ptrDest[i], ptr[i]);
 	}
 	STDCOUTL("mt_naive:\t" << utils::duration_readable(diff, maxReps*threadsCount, &tmtNaive));
@@ -2711,7 +2816,7 @@ void test_relu(iMath& iM, vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 			iM.relu_st_vec(m);
 			diff += steady_clock::now() - bt;
 		}
-		const auto ptr = m.dataAsVec();
+		const auto ptr = m.data();
 		for (numel_cnt_t i = 0; i < iMax; ++i) ASSERT_DOUBLE_EQ(ptrDest[i], ptr[i]);
 	}
 	STDCOUTL("st_vec:\t\t" << utils::duration_readable(diff, maxReps*threadsCount, &tstVect));
@@ -2729,7 +2834,7 @@ void test_relu(iMath& iM, vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 			iM.relu_mt_vec(m);
 			diff += steady_clock::now() - bt;
 		}
-		const auto ptr = m.dataAsVec();
+		const auto ptr = m.data();
 		for (numel_cnt_t i = 0; i < iMax; ++i) ASSERT_DOUBLE_EQ(ptrDest[i], ptr[i]);
 	}
 	STDCOUTL("mt_vec:\t\t" << utils::duration_readable(diff, maxReps*threadsCount, &tmtVect));*/
@@ -2747,7 +2852,7 @@ void test_relu(iMath& iM, vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 			iM.relu(m);
 			diff += steady_clock::now() - bt;
 		}
-		const auto ptr = m.dataAsVec();
+		const auto ptr = m.data();
 		for (numel_cnt_t i = 0; i < iMax; ++i) ASSERT_DOUBLE_EQ(ptrDest[i], ptr[i]);
 	}
 	STDCOUTL("best:\t\t" << utils::duration_readable(diff, maxReps*threadsCount, &tBest));
@@ -2779,7 +2884,7 @@ void test_drelu(iMath& iM, vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 	nnet_def_interfaces::iRng_t rg;
 	rg.set_ithreads(iM.ithreads());
 	rg.gen_matrix(etM, 10);
-	auto ptrEtM = etM.dataAsVec(), ptrDest = etDest.dataAsVec();
+	auto ptrEtM = etM.data(), ptrDest = etDest.data();
 	for (unsigned i = 0; i < dataSize; ++i) ptrDest[i] = ptrEtM[i]>0 ? 1 : 0;
 	ASSERT_TRUE(etM.cloneTo(m));
 
@@ -2863,7 +2968,7 @@ void test_loss_quadratic(iMath& iM, vec_len_t rowsCnt, vec_len_t colsCnt=10) {
 	ASSERT_TRUE(etA.cloneTo(A));
 	ASSERT_TRUE(etY.cloneTo(Y));
 	ASSERT_TRUE(etA == A && etY==Y);
-	auto ptrEtA = etA.dataAsVec(), ptrEtY = etY.dataAsVec();
+	auto ptrEtA = etA.data(), ptrEtY = etY.data();
 
 	for (unsigned i = 0; i < dataSize; ++i) {
 		const real_t v = ptrEtA[i]- ptrEtY[i];
@@ -2961,7 +3066,7 @@ void test_dSigmQuadLoss_dZ(iMath& iM, vec_len_t rowsCnt, vec_len_t colsCnt = 10)
 	rg.gen_matrix(etY, 5);
 	ASSERT_TRUE(etA.cloneTo(A) && etY.cloneTo(Y) && dLdZ.resize(etdLdZ));
 	ASSERT_TRUE(etY == Y && etA == A);
-	const auto ptretA = etA.dataAsVec(), ptretY = etY.dataAsVec(), ptretdLdZ = etdLdZ.dataAsVec();
+	const auto ptretA = etA.data(), ptretY = etY.data(), ptretdLdZ = etdLdZ.data();
 	for (numel_cnt_t i = 0; i < dataSize; ++i) {
 		const auto a = ptretA[i];
 		ptretdLdZ[i] = (a - ptretY[i])*a*(real_t(1.0) - a);

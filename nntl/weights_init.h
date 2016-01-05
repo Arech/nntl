@@ -86,7 +86,7 @@ namespace weights_init {
 			const real_t stdDev = scalingCoeff*sqrt(real_t(2.0) / prevLayerNeuronsCnt);
 
 			rng::distr_normal_naive<iRng_t> d(iR, real_t(0.0), stdDev);
-			d.gen_vector(W.dataAsVec(), realmtx_t::sNumel(W.rows(), prevLayerNeuronsCnt));
+			d.gen_vector(W.data(), realmtx_t::sNumel(W.rows(), prevLayerNeuronsCnt));
 
 			auto pBiases = W.colDataAsVec(prevLayerNeuronsCnt);
 			std::fill(pBiases, pBiases + W.rows(), real_t(0.0));
@@ -134,7 +134,7 @@ namespace weights_init {
 			rng::distr_normal_naive<iRng_t> d(iR, real_t(0.0), stdDev);
 			d.gen_matrix(src);
 
-			auto pS = src.dataAsVec();
+			auto pS = src.data();
 			//setting rowwise (I don't think we can significantly speed up this code and leave the same quality of randomness)
 			for (vec_len_t r = 0; r < thisLayerNeuronsCnt; ++r) {
 				std::random_shuffle(pIdxs, pIdxsE, iR);

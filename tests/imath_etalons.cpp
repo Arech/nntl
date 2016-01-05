@@ -36,6 +36,18 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////
 
+void ewBinarize_ip_ET(realmtx_t& A, const real_t frac)noexcept {
+	auto pA = A.data();
+	const auto pAE = pA + A.numel();
+	while (pA != pAE) {
+		const auto v = *pA;
+		//NNTL_ASSERT(v >= real_t(0.0) && v <= real_t(1.0));
+		*pA++ = v > frac ? real_t(1.0) : real_t(0.0);
+	}
+}
+
+////////////////////////////////////////////////////////////////////////// 
+
 void softmax_parts_ET(const realmtx_t& act, const real_t* pMax, real_t* pDenominator, real_t* pNumerator)noexcept {
 	NNTL_ASSERT(pMax && pDenominator && act.numel() > 0);
 	const auto rm = act.rows(), cm = act.cols();
@@ -61,7 +73,7 @@ void softmax_ET(realmtxdef_t& act, real_t* pTmp)noexcept {
 
 	mrwMax_ET(act, pMax);
 	softmax_parts_ET(act, pMax, pDenominator, pNumerator);
-	memcpy(act.dataAsVec(), pNumerator, act.byte_size());
+	memcpy(act.data(), pNumerator, act.byte_size());
 	mrwDivideByVec_ET(act, pDenominator);
 
 	if (bRestoreBiases) act.restore_biases();
@@ -70,7 +82,7 @@ void softmax_ET(realmtxdef_t& act, real_t* pTmp)noexcept {
 // L = sum( -y*log(a) )/activations.rows()
 real_t loss_softmax_xentropy_ET(const realmtx_t& activations, const realmtx_t& data_y)noexcept {
 	NNTL_ASSERT(activations.size() == data_y.size());
-	const auto pA = activations.dataAsVec(), pY = data_y.dataAsVec();
+	const auto pA = activations.data(), pY = data_y.data();
 	const auto ne = activations.numel();
 	real_t ret(0.0);
 	for (numel_cnt_t i = 0; i < ne; ++i) {
@@ -91,8 +103,8 @@ void apply_momentum_ET(realmtx_t& vW, const real_t momentum, const realmtx_t& dW
 	NNTL_ASSERT(!vW.empty() && !dW.empty());
 
 	const auto dataCnt = vW.numel();
-	const auto pV = vW.dataAsVec();
-	const auto pdW = dW.dataAsVec();
+	const auto pV = vW.data();
+	const auto pdW = dW.data();
 	for (numel_cnt_t i = 0; i < dataCnt; ++i) {
 		pV[i] = momentum*pV[i] + pdW[i];
 	}
@@ -107,9 +119,9 @@ void apply_ILR_ET(realmtx_t& dLdW, const realmtx_t& prevdLdW, realmtx_t& ILRGain
 	ASSERT_TRUE(decr > 0 && decr < 1 && incr>1 && capLow < capHigh && capLow>0);
 
 	const auto dataCnt = dLdW.numel();
-	auto pdW = dLdW.dataAsVec();
-	const auto prevdW = prevdLdW.dataAsVec();
-	auto pGain = ILRGain.dataAsVec();
+	auto pdW = dLdW.data();
+	const auto prevdW = prevdLdW.data();
+	auto pGain = ILRGain.data();
 
 	for (numel_cnt_t i = 0; i < dataCnt; ++i) {
 		const auto cond = pdW[i] * prevdW[i];
@@ -129,8 +141,8 @@ void apply_ILR_ET(realmtx_t& dLdW, const realmtx_t& prevdLdW, realmtx_t& ILRGain
 
 void evAbs_ET(realmtx_t& dest, const realmtx_t& src)noexcept {
 	ASSERT_EQ(dest.size(), src.size());
-	const auto pS = src.dataAsVec();
-	auto pD = dest.dataAsVec();
+	const auto pS = src.data();
+	auto pD = dest.data();
 	const auto dataCnt = src.numel();
 	for (numel_cnt_t i = 0; i < dataCnt; ++i)  pD[i] = abs(pS[i]);
 }
@@ -139,8 +151,8 @@ void evAdd_ip_ET(realmtx_t& A, const realmtx_t& B)noexcept {
 	NNTL_ASSERT(A.size() == B.size());
 
 	const auto dataCnt = A.numel();
-	const auto pA = A.dataAsVec();
-	const auto pB = B.dataAsVec();
+	const auto pA = A.data();
+	const auto pB = B.data();
 	for (numel_cnt_t i = 0; i < dataCnt; ++i) pA[i] += pB[i];
 }
 
@@ -148,8 +160,8 @@ void evAddScaled_ip_ET(realmtx_t& A, const real_t c, const realmtx_t& B)noexcept
 	NNTL_ASSERT(A.size() == B.size());
 
 	const auto dataCnt = A.numel();
-	const auto pA = A.dataAsVec();
-	const auto pB = B.dataAsVec();
+	const auto pA = A.data();
+	const auto pB = B.data();
 	for (numel_cnt_t i = 0; i < dataCnt; ++i) pA[i] += c*pB[i];
 }
 
@@ -157,16 +169,16 @@ void evAddScaledSign_ip_ET(realmtx_t& A, const real_t c, const realmtx_t& B)noex
 	NNTL_ASSERT(A.size() == B.size());
 
 	const auto dataCnt = A.numel();
-	const auto pA = A.dataAsVec();
-	const auto pB = B.dataAsVec();
+	const auto pA = A.data();
+	const auto pB = B.data();
 	for (numel_cnt_t i = 0; i < dataCnt; ++i) pA[i] += c*nntl::math::sign(pB[i]);
 }
 
 void evSquare_ET(realmtx_t& dest, const realmtx_t& src)noexcept {
 	ASSERT_EQ(dest.size(), src.size());
 
-	const auto pS = src.dataAsVec();
-	auto pD = dest.dataAsVec();
+	const auto pS = src.data();
+	auto pD = dest.data();
 	const auto dataCnt = src.numel();
 	for (numel_cnt_t i = 0; i < dataCnt; ++i) {
 		const auto s = pS[i];
@@ -178,8 +190,8 @@ void evSub_ET(const realmtx_t& A, const realmtx_t& B, realmtx_t& C)noexcept {
 	NNTL_ASSERT(A.size() == B.size() && A.size() == C.size());
 
 	const auto dataCnt = A.numel();
-	const auto pA = A.dataAsVec(), pB = B.dataAsVec();
-	const auto pC = C.dataAsVec();
+	const auto pA = A.data(), pB = B.data();
+	const auto pC = C.data();
 	for (numel_cnt_t i = 0; i < dataCnt; ++i) pC[i] = pA[i] - pB[i];
 }
 
@@ -187,15 +199,15 @@ void evSub_ip_ET(realmtx_t& A, const realmtx_t& B)noexcept {
 	NNTL_ASSERT(A.size() == B.size());
 
 	const auto dataCnt = A.numel();
-	const auto pA = A.dataAsVec();
-	const auto pB = B.dataAsVec();
+	const auto pA = A.data();
+	const auto pB = B.data();
 	for (numel_cnt_t i = 0; i < dataCnt; ++i) pA[i] -= pB[i];
 }
 
 real_t loss_sigm_xentropy_ET(const realmtx_t& activations, const realmtx_t& data_y)noexcept {
 	NNTL_ASSERT(activations.size() == data_y.size() && !activations.empty() && !data_y.empty());
 	const auto dataCnt = activations.numel();
-	const auto ptrA = activations.dataAsVec(), ptrY = data_y.dataAsVec();
+	const auto ptrA = activations.data(), ptrY = data_y.data();
 	constexpr auto log_zero = nntl::math::real_ty_limits<real_t>::log_almost_zero;
 	real_t ql = 0;
 	for (numel_cnt_t i = 0; i < dataCnt; ++i) {
@@ -217,8 +229,8 @@ real_t loss_sigm_xentropy_ET(const realmtx_t& activations, const realmtx_t& data
 
 void make_dropout_ET(realmtx_t& act, real_t dfrac, realmtx_t& dropoutMask)noexcept {
 	const auto dataCnt = act.numel_no_bias();
-	auto pDM = dropoutMask.dataAsVec();
-	const auto pA = act.dataAsVec();
+	auto pDM = dropoutMask.data();
+	const auto pA = act.data();
 	for (numel_cnt_t i = 0; i < dataCnt; ++i) {
 		if (pDM[i] > dfrac) {
 			pDM[i] = real_t(1);
@@ -234,8 +246,8 @@ void ModProp_ET(realmtx_t& dW, realmtx_t& rmsF, const real_t learningRate, const
 	ASSERT_TRUE(emaDecay > 0 && emaDecay < 1);
 	ASSERT_TRUE(numericStabilizer > 0 && numericStabilizer < 1);
 
-	auto pdW = dW.dataAsVec();
-	auto prmsF = rmsF.dataAsVec();
+	auto pdW = dW.data();
+	auto prmsF = rmsF.data();
 	const auto _1_emaDecay = 1 - emaDecay;
 	const auto dataCnt = dW.numel();
 	for (numel_cnt_t i = 0; i < dataCnt; ++i) {
@@ -248,9 +260,9 @@ void ModProp_ET(realmtx_t& dW, realmtx_t& rmsF, const real_t learningRate, const
 void RMSProp_Graves_ET(realmtx_t& dW, realmtx_t& rmsF, realmtx_t& rmsG, const real_t learningRate,
 	const real_t emaDecay, const real_t numericStabilizer)noexcept
 {
-	auto pdW = dW.dataAsVec();
-	auto prmsF = rmsF.dataAsVec();
-	auto prmsG = rmsG.dataAsVec();
+	auto pdW = dW.data();
+	auto prmsF = rmsF.data();
+	auto prmsG = rmsG.data();
 	const auto _1_emaDecay = 1 - emaDecay;
 	const auto dataCnt = dW.numel();
 	for (numel_cnt_t i = 0; i < dataCnt; ++i) {
@@ -263,8 +275,8 @@ void RMSProp_Graves_ET(realmtx_t& dW, realmtx_t& rmsF, realmtx_t& rmsG, const re
 void RMSProp_Hinton_ET(realmtx_t& dW, realmtx_t& rmsF, const real_t learningRate,
 	const real_t emaDecay, const real_t numericStabilizer)noexcept
 {
-	auto pdW = dW.dataAsVec();
-	auto prmsF = rmsF.dataAsVec();
+	auto pdW = dW.data();
+	auto prmsF = rmsF.data();
 	const auto _1_emaDecay = 1 - emaDecay;
 	const auto dataCnt = dW.numel();
 	for (numel_cnt_t i = 0; i < dataCnt; ++i) {
@@ -274,7 +286,7 @@ void RMSProp_Hinton_ET(realmtx_t& dW, realmtx_t& rmsF, const real_t learningRate
 }
 
 void RProp_ET(realmtx_t& dW, const real_t learningRate)noexcept {
-	auto p = dW.dataAsVec();
+	auto p = dW.data();
 	const auto im = dW.numel();
 	for (numel_cnt_t i = 0; i < im; ++i) {
 		const auto w = p[i];
@@ -320,7 +332,7 @@ real_t rowvecs_renorm_ET(realmtx_t& m, real_t* pTmp)noexcept {
 
 real_t vSumAbs_ET(const realmtx_t& A)noexcept {
 	const auto dataCnt = A.numel();
-	const auto p = A.dataAsVec();
+	const auto p = A.data();
 	real_t ret(0);
 	for (numel_cnt_t i = 0; i < dataCnt; ++i) ret += abs(p[i]);
 	return ret;
@@ -328,7 +340,7 @@ real_t vSumAbs_ET(const realmtx_t& A)noexcept {
 
 real_t vSumSquares_ET(const realmtx_t& A)noexcept {
 	const auto dataCnt = A.numel();
-	const auto p = A.dataAsVec();
+	const auto p = A.data();
 	real_t ret(0);
 	for (numel_cnt_t i = 0; i < dataCnt; ++i) ret += p[i] * p[i];
 	return ret;

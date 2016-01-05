@@ -158,32 +158,32 @@ namespace rng {
 		// matrix/vector generation (sequence from begin to end of numbers drawn from uniform distribution in [-a,a])
 		void gen_matrix(realmtx_t& mtx, const real_t a)noexcept {
 			NNTL_ASSERT(!mtx.emulatesBiases());
-			get_self().gen_vector(mtx.dataAsVec(), mtx.numel(), a);
+			get_self().gen_vector(mtx.data(), mtx.numel(), a);
 		}
 		void gen_matrix_no_bias(realmtx_t& mtx, const real_t a)noexcept {
 			NNTL_ASSERT(mtx.emulatesBiases());
-			get_self().gen_vector(mtx.dataAsVec(), mtx.numel_no_bias(), a);
+			get_self().gen_vector(mtx.data(), mtx.numel_no_bias(), a);
 		}
 
 		//generate matrix with values in range [0,1]
 		void gen_matrix_norm(realmtx_t& mtx)noexcept {
 			NNTL_ASSERT(!mtx.emulatesBiases());
-			get_self().gen_vector_norm(mtx.dataAsVec(), mtx.numel());
+			get_self().gen_vector_norm(mtx.data(), mtx.numel());
 		}
 		void gen_matrix_no_bias_norm(realmtx_t& mtx)noexcept {
 			NNTL_ASSERT(mtx.emulatesBiases());
-			get_self().gen_vector_norm(mtx.dataAsVec(), mtx.numel_no_bias());
+			get_self().gen_vector_norm(mtx.data(), mtx.numel_no_bias());
 		}
 
 		//////////////////////////////////////////////////////////////////////////
 		//generate matrix with values in range [0,a]
 		void gen_matrix_gtz(realmtx_t& mtx, const real_t a)noexcept {
 			NNTL_ASSERT(!mtx.emulatesBiases());
-			get_self().gen_vector_gtz(mtx.dataAsVec(), mtx.numel(), a);
+			get_self().gen_vector_gtz(mtx.data(), mtx.numel(), a);
 		}
 		void gen_matrix_no_bias_gtz(realmtx_t& mtx, const real_t a)noexcept {
 			NNTL_ASSERT(mtx.emulatesBiases());
-			get_self().gen_vector_gtz(mtx.dataAsVec(), mtx.numel_no_bias(), a);
+			get_self().gen_vector_gtz(mtx.data(), mtx.numel_no_bias(), a);
 		}
 
 		static uint32_t s64to32(uint64_t v)noexcept {

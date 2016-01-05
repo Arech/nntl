@@ -86,8 +86,12 @@ namespace math {
 		template<typename SeqIt>
 		nntl_interface void mExtractRows(const realmtx_t& src, SeqIt ridxsItBegin, const numel_cnt_t ridxsCnt, realmtx_t& dest)noexcept;
 
-		//binarize real-valued matrix with values in [0,1] according to 0<=frac<=1
-		nntl_interface void ewBinarize(realmtx_t& A, const real_t frac)noexcept;
+		//binarize elements of real-valued matrix according to their relaion to frac
+		nntl_interface void ewBinarize_ip(realmtx_t& A, const real_t frac)noexcept;
+
+		//binarize elements of real-valued matrix according to their relaion to frac into other matrix
+		template<typename DestContainerT>
+		nntl_interface void ewBinarize(DestContainerT& Dest, const realmtx_t& A, const real_t frac)noexcept;
 
 		// treat matrix as a set of row-vectors (matrices in col-major mode!). For each row-vector check, whether
 		// its length/norm is not longer, than predefined value. If it's longer, than rescale vector to this max length

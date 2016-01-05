@@ -78,10 +78,14 @@ namespace math {
 		}
 		
 		//////////////////////////////////////////////////////////////////////////
-		//binarize real-valued matrix with values in [0,1] according to 0<=frac<=1
-		void ewBinarize(realmtx_t& A, const real_t frac)noexcept {
-			//shouldn't just run _mt version
-			base_class_t::ewBinarize(A, frac);
+		//binarize elements of real-valued matrix according to their relaion to frac
+		void ewBinarize_ip(realmtx_t& A, const real_t frac)noexcept {
+			base_class_t::ewBinarize_ip(A, frac);//shouldn't just run _mt version
+		}
+		//binarize elements of real-valued matrix according to their relaion to frac into other matrix
+		template<typename DestContainerT>
+		void ewBinarize(DestContainerT& Dest, const realmtx_t& A, const real_t frac)noexcept {
+			base_class_t::ewBinarize(Dest, A, frac);//shouldn't just run _mt version
 		}
 
 		//////////////////////////////////////////////////////////////////////////

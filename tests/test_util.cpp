@@ -111,8 +111,8 @@ TEST(TestUtil, Clamp) {
 	real_t lo = -10, hi = 10;
 
 	bool bGotBig = false;
-	auto p = m.dataAsVec();
-	auto pd = d.dataAsVec();
+	auto p = m.data();
+	auto pd = d.data();
 	for (math_types::realmtx_ty::numel_cnt_t i = 0, im = m.numel(); i < im; ++i) {
 		auto v = p[i];
 		if (v > hi || v < lo) {

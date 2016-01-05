@@ -72,7 +72,7 @@ TEST(TestSimpleMatrix, ColMajorOrder) {
 	m.set(0, 2, 4);
 	m.set(1, 2, 5);
 
-	mtx::cvalue_ptr_t ptr = m.dataAsVec();
+	mtx::cvalue_ptr_t ptr = m.data();
 	for (int i = 0; i < 6;++i) {
 		EXPECT_EQ(i, ptr[i]) << "Wrong element at offset " << i;
 	}
@@ -84,7 +84,7 @@ TEST(TestSimpleMatrix, ExtractRowsFromColMajor) {
 	typedef math::simple_matrix<int> mtx;
 
 	mtx src(5, 2),destCM(3,2),destRM(3,2);
-	for (mtx::numel_cnt_t i = 0, im = src.numel(); i < im; ++i) src.dataAsVec()[i] = static_cast<int>(i);
+	for (mtx::numel_cnt_t i = 0, im = src.numel(); i < im; ++i) src.data()[i] = static_cast<int>(i);
 
 	std::vector<mtx::vec_len_t> v(3);
 	v[0]=1; v[1]=2; v[2]=4;
@@ -122,7 +122,7 @@ TEST(TestSimpleMatrix, ColMajorWithBiases) {
 	m.set(0, 2, 4);
 	m.set(1, 2, 5);
 
-	mtx::cvalue_ptr_t ptr = m.dataAsVec();
+	mtx::cvalue_ptr_t ptr = m.data();
 	for (int i = 0; i < 6; ++i) {
 		EXPECT_EQ(i, ptr[i]) << "Wrong element at offset " << i;
 	}

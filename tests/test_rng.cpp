@@ -132,7 +132,7 @@ void test_rngmt(iThreadsT&iT, math_types::realmtx_ty& m) {
 	nanoseconds diff;
 	constexpr unsigned maxReps = 5*TEST_PERF_REPEATS_COUNT;
 
-	auto ptr = m.dataAsVec();
+	auto ptr = m.data();
 	auto dataCnt = m.numel();
 
 	rng::AFRandom_mt<AFRng, iThreadsT> rg(iT);

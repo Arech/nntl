@@ -73,9 +73,9 @@ TEST(TestBOpenBLAS, Gemm) {
 
 	math::b_OpenBLAS::gemm(false, false,
 		A.rows(), B.cols(), A.cols(),
-		alpha, A.dataAsVec(true), A.rows(),
-		B.dataAsVec(true), B.rows(),
-		beta, C.dataAsVec(true), C.rows());
+		alpha, A.data(true), A.rows(),
+		B.data(true), B.rows(),
+		beta, C.data(true), C.rows());
 	ASSERT_TRUE(C == hcC);
 }
 */
@@ -83,7 +83,7 @@ TEST(TestBOpenBLAS, Gemm) {
 /*C.zeros();
 math::iACML::gemm( CblasNoTrans, CblasNoTrans,
 A.rows(), B.cols(), A.cols(),
-alpha, A.dataAsVec(true), A.rows(),
-B.dataAsVec(true), B.rows(),
-beta, C.dataAsVec(true), C.rows());
+alpha, A.data(true), A.rows(),
+B.data(true), B.rows(),
+beta, C.data(true), C.rows());
 ASSERT_TRUE(C == hcC);*/

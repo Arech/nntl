@@ -34,8 +34,6 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include "asserts.h"
 
-void ewBinarize_ET(realmtx_t& A, const real_t frac)noexcept;
-
 void mrwDivideByVec_ET(realmtx_t& A, const real_t* pDiv)noexcept;
 void mrwMulByVec_ET(realmtx_t& A, const real_t* pMul)noexcept;
 

@@ -48,6 +48,8 @@ namespace _impl {
 	//It is better, than nothing. But in future this pron should be substituted by a run-time function profiling over real-task data
 
 	template <> struct IMATH_BASIC_THR<double> : public SIMPLE_MATH_THR<double> {
+		static constexpr size_t ewBinarize_ip = 132000;
+		static constexpr size_t ewBinarize = 11000;
 
 		static constexpr size_t mExtractRows = 2000;
 		static constexpr size_t mCheck_normalize_rows = 124000;
@@ -99,6 +101,9 @@ namespace _impl {
 	};
 
 	template <> struct IMATH_BASIC_THR<float> : public SIMPLE_MATH_THR<float> {
+		static constexpr size_t ewBinarize_ip = 500000;
+		static constexpr size_t ewBinarize = 1100*19;
+
 		static constexpr size_t mExtractRows = 3100;
 		static constexpr size_t mCheck_normalize_rows = 250000;
 		static constexpr size_t evClamp = 14000;

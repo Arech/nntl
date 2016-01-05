@@ -6,6 +6,9 @@ _obsolette/
 data/*
 **/.svn
 tests_private/
+nntl+/
+tests+/
+
 
 #################
 ## Visual Studio

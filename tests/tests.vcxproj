@@ -210,6 +210,7 @@
     <ClInclude Include="..\nntl\layer_fully_connected.h" />
     <ClInclude Include="..\nntl\layer_input.h" />
     <ClInclude Include="..\nntl\layer_output.h" />
+    <ClInclude Include="..\nntl\nnet_evaluator.h" />
     <ClInclude Include="..\nntl\training_observer.h" />
     <ClInclude Include="..\nntl\nnet_def_interfaces.h" />
     <ClInclude Include="..\nntl\nnet_train_opts.h" />

@@ -90,12 +90,12 @@ namespace rng {
 		// weights generation (sequence from begin to end of numbers drawn from uniform distribution in [-a,a])
 // 		static void gen_matrix(realmtx_t& mtx, const real_t a)noexcept {
 // 			NNTL_ASSERT(!mtx.emulatesBiases());
-// 			gen_vector(mtx.dataAsVec(), mtx.numel(), a);
+// 			gen_vector(mtx.data(), mtx.numel(), a);
 // 		}
 // 		static void gen_matrix_no_bias(realmtx_t& mtx, const real_t a)noexcept {
 // 			NNTL_ASSERT();
 // 			NNTL_ASSERT(mtx.emulatesBiases());
-// 			gen_vector(mtx.dataAsVec(), mtx.numel_no_bias(), a);
+// 			gen_vector(mtx.data(), mtx.numel_no_bias(), a);
 // 		}
 		static void gen_vector(real_t* ptr, const size_t n, const real_t a)noexcept {
 			const real_t scale = 2 * a;
@@ -118,24 +118,24 @@ namespace rng {
 // 		//generate matrix with values in range [0,1]
 // 		static void gen_matrix_norm(realmtx_t& mtx)noexcept {
 // 			NNTL_ASSERT(!mtx.emulatesBiases());
-// 			gen_vector_norm(mtx.dataAsVec(), mtx.numel());
+// 			gen_vector_norm(mtx.data(), mtx.numel());
 // 		}
 // 		static void gen_matrix_no_bias_norm(realmtx_t& mtx)noexcept {
 // 			NNTL_ASSERT();
 // 			NNTL_ASSERT(mtx.emulatesBiases());
-// 			gen_vector_norm(mtx.dataAsVec(), mtx.numel_no_bias());
+// 			gen_vector_norm(mtx.data(), mtx.numel_no_bias());
 // 		}
 // 
 // 		//////////////////////////////////////////////////////////////////////////
 // 		//generate matrix with values in range [0,a]
 // 		static void gen_matrix_gtz(realmtx_t& mtx, const real_t a)noexcept {
 // 			NNTL_ASSERT(!mtx.emulatesBiases());
-// 			gen_vector_gtz(mtx.dataAsVec(), mtx.numel(), a);
+// 			gen_vector_gtz(mtx.data(), mtx.numel(), a);
 // 		}
 // 		static void gen_matrix_no_bias_gtz(realmtx_t& mtx, const real_t a)noexcept {
 // 			NNTL_ASSERT();
 // 			NNTL_ASSERT(mtx.emulatesBiases());
-// 			gen_vector_gtz( mtx.dataAsVec(), mtx.numel_no_bias(), a);
+// 			gen_vector_gtz( mtx.data(), mtx.numel_no_bias(), a);
 // 		}
 		//generate vector with values in range [0,a]
 		template<typename BaseType>

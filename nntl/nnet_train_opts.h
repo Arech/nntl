@@ -38,7 +38,7 @@ namespace nntl {
 
 	//////////////////////////////////////////////////////////////////////////
 	// options of training algo
-	template <typename cond_epoch_eval = nnet_cond_epoch_eval, typename TrainingObserver = training_observer_stdcout>
+	template <typename cond_epoch_eval = nnet_cond_epoch_eval, typename TrainingObserver = training_observer_stdcout<>>
 	class nnet_train_opts {
 		static_assert(std::is_base_of<i_training_observer, TrainingObserver>::value,
 			"TrainingObserver template parameter must be derived from i_training_observer");

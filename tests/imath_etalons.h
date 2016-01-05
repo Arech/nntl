@@ -45,6 +45,17 @@ void evCMulSub_ET(iMath& iM, realmtx_t& vW, const real_t momentum, realmtx_t& W)
 	iM.evSub_ip_st_naive(W, vW);
 }
 
+void ewBinarize_ip_ET(realmtx_t& A, const real_t frac)noexcept;
+template<typename BaseDestT>
+void ewBinarize_ET(nntl::math::simple_matrix<BaseDestT>& Dest, const realmtx_t& A, const real_t frac)noexcept {
+	auto pA = A.data();
+	auto pD = Dest.data();
+	const auto pAE = pA + A.numel();
+	while (pA != pAE) {
+		*pD++ = *pA++ > frac ? BaseDestT(1.0) : BaseDestT(0.0);
+	}
+}
+
 void softmax_parts_ET(const realmtx_t& act, const real_t* pMax, real_t* pDenominator, real_t* pNumerator)noexcept;
 //pTmp is a vector of length at least act.numel() + 2*act.rows()
 void softmax_ET(realmtxdef_t& act, real_t* pTmp)noexcept;

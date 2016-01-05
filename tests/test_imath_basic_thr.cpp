@@ -59,6 +59,138 @@ constexpr unsigned TEST_PERF_REPEATS_COUNT = 1000;
 //////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////
 
+void test_ewBinarize_ip_perf(vec_len_t rowsCnt, vec_len_t colsCnt = 10, const real_t frac = .5) {
+	const auto dataSize = realmtx_t::sNumel(rowsCnt, colsCnt);
+	STDCOUTL("**** testing ewBinarize_ip() over " << rowsCnt << "x" << colsCnt << " matrix (" << dataSize << " elements) with frac=" << frac << " ****");
+
+	constexpr unsigned maxReps = TEST_PERF_REPEATS_COUNT;
+	realmtx_t A(rowsCnt, colsCnt);
+	ASSERT_TRUE(!A.isAllocationFailed());
+
+	nnet_def_interfaces::iRng_t rg;
+	rg.set_ithreads(iM.ithreads());
+	tictoc tSt, tMt, tB, dt, t1, t2, dt1, dt2;
+	utils::prioritize_workers<utils::PriorityClass::PerfTesting, imath_basic_t::ithreads_t> pw(iM.ithreads());
+	for (unsigned r = 0; r < maxReps; ++r) {
+		rg.gen_matrix_norm(A);
+		tSt.tic();
+		iM.ewBinarize_ip_st(A, frac);
+		tSt.toc();
+
+		rg.gen_matrix_norm(A);
+		t1.tic();
+		iM.ex_ewBinarize_ip_st(A, frac);
+		t1.toc();
+
+		rg.gen_matrix_norm(A);
+		t2.tic();
+		iM.ex2_ewBinarize_ip_st(A, frac);
+		t2.toc();
+
+
+		rg.gen_matrix_norm(A);
+		dt.tic();
+		iM.ewBinarize_ip_st(A, frac);
+		dt.toc();
+
+		rg.gen_matrix_norm(A);
+		dt1.tic();
+		iM.ex_ewBinarize_ip_st(A, frac);
+		dt1.toc();
+
+		rg.gen_matrix_norm(A);
+		dt2.tic();
+		iM.ex2_ewBinarize_ip_st(A, frac);
+		dt2.toc();
+
+
+		rg.gen_matrix_norm(A);
+		tMt.tic();
+		iM.ewBinarize_ip_mt(A, frac);
+		tMt.toc();
+
+		rg.gen_matrix_norm(A);
+		tB.tic();
+		iM.ewBinarize_ip(A, frac);
+		tB.toc();
+	}
+	tSt.say("st");
+	dt.say("st");
+	t1.say("ex");
+	dt1.say("ex");
+	t2.say("ex2");
+	dt2.say("ex2");
+
+
+
+	tMt.say("mt");
+	tB.say("best");
+}
+
+TEST(TestIMathBasicPerf, ewBinarizeIp) {
+	NNTL_RUN_TEST2(imath_basic_t::Thresholds_t::ewBinarize_ip, 100) {
+		test_ewBinarize_ip_perf(i, 100, .5);
+		//test_ewBinarize_ip_perf(i, 100, .1);
+		//test_ewBinarize_ip_perf(i, 100, .9);
+	}
+
+#ifndef TESTS_SKIP_LONGRUNNING
+	test_ewBinarize_ip_perf(100000, 10, .5);
+#endif
+}
+
+
+void test_ewBinarize_perf(vec_len_t rowsCnt, vec_len_t colsCnt = 10, const real_t frac = .5) {
+	const auto dataSize = realmtx_t::sNumel(rowsCnt, colsCnt);
+	STDCOUTL("**** testing ewBinarize() over " << rowsCnt << "x" << colsCnt << " matrix (" << dataSize << " elements) with frac=" << frac << " ****");
+
+	typedef math::simple_matrix<char> binmtx_t;
+
+	constexpr unsigned maxReps = TEST_PERF_REPEATS_COUNT;
+	realmtx_t A(rowsCnt, colsCnt);
+	binmtx_t Dest(rowsCnt, colsCnt);
+	ASSERT_TRUE(!A.isAllocationFailed() && !Dest.isAllocationFailed());
+
+	nnet_def_interfaces::iRng_t rg;
+	rg.set_ithreads(iM.ithreads());
+	tictoc tSt, tMt, tB;
+	utils::prioritize_workers<utils::PriorityClass::PerfTesting, imath_basic_t::ithreads_t> pw(iM.ithreads());
+	for (unsigned r = 0; r < maxReps; ++r) {
+		rg.gen_matrix_norm(A);
+		tSt.tic();
+		iM.ewBinarize_st(Dest, A, frac);
+		tSt.toc();
+		
+		rg.gen_matrix_norm(A);
+		tMt.tic();
+		iM.ewBinarize_mt(Dest, A, frac);
+		tMt.toc();
+
+		rg.gen_matrix_norm(A);
+		tB.tic();
+		iM.ewBinarize(Dest, A, frac);
+		tB.toc();
+	}
+	tSt.say("st");
+	tMt.say("mt");
+	tB.say("best");
+}
+
+TEST(TestIMathBasicPerf, ewBinarize) {
+	NNTL_RUN_TEST2(imath_basic_t::Thresholds_t::ewBinarize, 100) {
+		test_ewBinarize_perf(i, 100, .5);
+		//test_ewBinarize_perf(i, 100, .1);
+		//test_ewBinarize_perf(i, 100, .9);
+	}
+
+#ifndef TESTS_SKIP_LONGRUNNING
+	test_ewBinarize_perf(100000, 10, .5);
+#endif
+}
+
+//////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////
+
 void test_softmax_parts_perf(vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 	const auto dataSize = realmtx_t::sNumel(rowsCnt, colsCnt);
 	STDCOUTL("**** testing softmax_parts() over " << rowsCnt << "x" << colsCnt << " matrix (" << dataSize << " elements) ****");

@@ -57,7 +57,7 @@ SCOPED_TRACE(_scopeMsg);
 inline void _ASSERT_REALMTX_NEAR(const realmtx_t& c1, const realmtx_t& c2, const char* descr, const double eps) noexcept {
 	ASSERT_EQ(c1.size(), c2.size()) << descr;
 	ASSERT_EQ(c1.emulatesBiases(), c2.emulatesBiases()) << descr;
-	const auto p1 = c1.dataAsVec(), p2 = c2.dataAsVec();
+	const auto p1 = c1.data(), p2 = c2.data();
 	const auto im = c1.numel();
 	for (numel_cnt_t i = 0; i < im; ++i) {
 		ASSERT_NEAR(p1[i], p2[i], eps) << "Mismatches element #" << i << " @ " << descr;
@@ -66,31 +66,46 @@ inline void _ASSERT_REALMTX_NEAR(const realmtx_t& c1, const realmtx_t& c2, const
 #define ASSERT_REALMTX_NEAR(c1,c2,descr,eps) ASSERT_NO_FATAL_FAILURE(_ASSERT_REALMTX_NEAR(c1,c2,descr,eps));
 
 template<typename BaseT>
-void _ASSERT_REALMTX_EQ(const nntl::math::simple_matrix<BaseT>& c1, const nntl::math::simple_matrix<BaseT>& c2, const char* descr = "") noexcept {
+//void _ASSERT_MTX_EQ(const nntl::math::simple_matrix<BaseT>& c1, const nntl::math::simple_matrix<BaseT>& c2, const char* descr = "") noexcept {
+void _ASSERT_MTX_EQ(const BaseT& c1, const BaseT& c2, const char* descr = "") noexcept {
 	static_assert(false, "WTF");
 }
-template<>
-inline void _ASSERT_REALMTX_EQ(const nntl::math::simple_matrix<float>& c1, const nntl::math::simple_matrix<float>& c2, const char* descr) noexcept {
+
+template<typename BaseT>
+std::enable_if_t<std::is_integral<BaseT>::value>
+_ASSERT_MTX_EQ(const nntl::math::simple_matrix<BaseT>& c1, const nntl::math::simple_matrix<BaseT>& c2, const char* descr = "") noexcept {
 	ASSERT_EQ(c1.size(), c2.size()) << descr;
 	ASSERT_EQ(c1.emulatesBiases(), c2.emulatesBiases()) << descr;
-	const auto p1 = c1.dataAsVec(), p2 = c2.dataAsVec();
+	const auto p1 = c1.data(), p2 = c2.data();
+	const auto im = c1.numel();
+	for (numel_cnt_t i = 0; i < im; ++i) {
+		ASSERT_EQ(p1[i], p2[i]) << "Mismatches element #" << i << " @ " << descr;
+	}
+}
+
+template<>
+inline void _ASSERT_MTX_EQ(const nntl::math::simple_matrix<float>& c1, const nntl::math::simple_matrix<float>& c2, const char* descr) noexcept {
+	ASSERT_EQ(c1.size(), c2.size()) << descr;
+	ASSERT_EQ(c1.emulatesBiases(), c2.emulatesBiases()) << descr;
+	const auto p1 = c1.data(), p2 = c2.data();
 	const auto im = c1.numel();
 	for (numel_cnt_t i = 0; i < im; ++i) {
 		ASSERT_FLOAT_EQ(p1[i], p2[i]) << "Mismatches element #" << i << " @ " << descr;
 	}
 }
 template<>
-inline void _ASSERT_REALMTX_EQ(const nntl::math::simple_matrix<double>& c1, const nntl::math::simple_matrix<double>& c2, const char* descr) noexcept {
+inline void _ASSERT_MTX_EQ(const nntl::math::simple_matrix<double>& c1, const nntl::math::simple_matrix<double>& c2, const char* descr) noexcept {
 	ASSERT_EQ(c1.size(), c2.size()) << descr;
 	ASSERT_EQ(c1.emulatesBiases(), c2.emulatesBiases()) << descr;
-	const auto p1 = c1.dataAsVec(), p2 = c2.dataAsVec();
+	const auto p1 = c1.data(), p2 = c2.data();
 	const auto im = c1.numel();
 	for (numel_cnt_t i = 0; i < im; ++i) {
 		ASSERT_DOUBLE_EQ(p1[i], p2[i]) << "Mismatches element #" << i << " @ " << descr;
 	}
 }
 
-#define ASSERT_REALMTX_EQ(c1,c2,descr) ASSERT_NO_FATAL_FAILURE(_ASSERT_REALMTX_EQ(c1,c2,descr));
+
+#define ASSERT_MTX_EQ(c1,c2,descr) ASSERT_NO_FATAL_FAILURE(_ASSERT_MTX_EQ(c1,c2,descr));
 
 //////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////

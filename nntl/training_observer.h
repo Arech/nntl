@@ -36,14 +36,14 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include "utils/chrono.h"
 
+#include "nnet_evaluator.h"
+
 namespace nntl {
 
 	// i_training_observer and derived classes must be default constructible
 	struct i_training_observer {
-		//typedef math_types::realmtx_ty realmtx_t;
 		typedef math_types::real_ty real_t;
 		typedef math::simple_matrix<real_t> realmtx_t;
-		//typedef realmtx_t::value_type real_t;
 		typedef realmtx_t::vec_len_t vec_len_t;
 		typedef realmtx_t::numel_cnt_t numel_cnt_t;
 		
@@ -81,22 +81,25 @@ namespace nntl {
 
 
 	//training_observer, that output results to std::cout
+	template<typename Evaluator = eval_classification_one_hot>
 	class training_observer_stdcout : public i_training_observer {
 	protected:
 		struct CLASSIFICATION_RESULTS {
 			size_t totalElements;
-			size_t correctlyClassified;
+			size_t correctlyClassified;//in fact, it's kind of a metric... Will refactor in future
 		};
 
 		typedef std::array<CLASSIFICATION_RESULTS, 2> classif_results_t;
-		//for each element of Y data (training/testing) contains index of true element class (column number of biggest element in a row)
-		typedef std::array<std::vector<vec_len_t>, 2> y_data_class_idx_t;
+	public:
+		typedef Evaluator evaluator_t;
+		static_assert(std::is_base_of<i_nnet_evaluator, Evaluator>::value, "Evaluator class must be derived from i_nnet_evaluator");
+		static_assert(std::is_default_constructible<evaluator_t>::value, "Evaluator class must be default constructible");
 
 	protected:
 		classif_results_t m_classifRes;
-		y_data_class_idx_t m_ydataClassIdxs;//preprocessed ground truth
-		y_data_class_idx_t m_nnClassIdxs;//storage for NN predictions
-
+	public:
+		evaluator_t m_evaluator;
+	protected:
 		size_t m_epochs, m_prevEpoch;
 
 	public:
@@ -104,22 +107,10 @@ namespace nntl {
 		bool init(size_t epochs, const realmtx_t& train_y, const realmtx_t& test_y, iMath& iM)noexcept {
 			m_epochs = epochs;
 			m_prevEpoch = 0;
-			
-			//TODO:exception handling!
-			m_ydataClassIdxs[0].resize(train_y.rows());
-			m_nnClassIdxs[0].resize(train_y.rows());
-			iM.mrwIdxsOfMax(train_y, &m_ydataClassIdxs[0][0]);
-
-			m_ydataClassIdxs[1].resize(test_y.rows());
-			m_nnClassIdxs[1].resize(test_y.rows());
-			iM.mrwIdxsOfMax(test_y, &m_ydataClassIdxs[1][0]);
-			return true;
+			return m_evaluator.init(train_y, test_y, iM);
 		}
 		void deinit()noexcept {
-			for (unsigned i = 0; i <= 1; ++i) {
-				m_ydataClassIdxs[i].clear();
-				m_nnClassIdxs[i].clear();
-			}
+			m_evaluator.deinit();
 		}
 
 		void on_training_start(vec_len_t trainElements, vec_len_t testElements, vec_len_t inDim, vec_len_t outDim, vec_len_t batchSize, numel_cnt_t nLP)noexcept {
@@ -136,12 +127,9 @@ namespace nntl {
 		template<typename iMath>
 		void inspect_results(const realmtx_t& data_y, const realmtx_t& activations, const bool bOnTestData, iMath& iM)noexcept {
 			NNTL_ASSERT(data_y.size() == activations.size());
-			NNTL_ASSERT(data_y.rows() == m_ydataClassIdxs[bOnTestData].size());
-
-			iM.mrwIdxsOfMax(activations, &m_nnClassIdxs[bOnTestData][0]);
-
+			
 			m_classifRes[bOnTestData].totalElements = data_y.rows();
-			m_classifRes[bOnTestData].correctlyClassified = iM.vCountSame(m_ydataClassIdxs[bOnTestData],m_nnClassIdxs[bOnTestData]);
+			m_classifRes[bOnTestData].correctlyClassified = m_evaluator.correctlyClassified(data_y, activations, bOnTestData, iM);
 		}
 
 		void on_training_fragment_end(size_t epochEnded, real_t trainLoss, real_t testLoss, const nanoseconds& elapsedSincePrevFragment)noexcept {
@@ -153,13 +141,11 @@ namespace nntl {
 			strchar_t szRep[uBufSize];
 			const real_t secs = real_t(elapsedSincePrevFragment.count()) / real_t(1e9);
 
-			const auto trainTE = m_classifRes[0].totalElements, trainW=trainTE- m_classifRes[0].correctlyClassified;
-			//trainCC = m_classifRes[0].correctlyClassified,
-			const real_t trErr = static_cast<real_t>(100 * trainW) / trainTE;
+			const auto trainTE = m_classifRes[0].totalElements, trainW = trainTE - m_classifRes[0].correctlyClassified;
+			const real_t trErr = real_t(trainW * 100) / trainTE;
 			
 			const auto testTE = m_classifRes[1].totalElements, testW = testTE - m_classifRes[1].correctlyClassified;
-			//testCC = m_classifRes[1].correctlyClassified, 
-			const real_t tErr = static_cast<real_t>(100 * testW) / testTE;
+			const real_t tErr = real_t(testW * 100) / testTE;
 			
 			sprintf_s(szRep, uBufSize, szReportFmt, epochEnded, m_epochs, secs, trainLoss, 
 				trErr, trainW, testLoss,tErr, testW);

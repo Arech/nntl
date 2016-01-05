@@ -36,16 +36,6 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////
 
-void ewBinarize_ET(realmtx_t& A, const real_t frac)noexcept {
-	auto pA = A.dataAsVec();
-	const auto pAE = pA + A.numel();
-	while (pA != pAE) {
-		const auto v = *pA;
-		NNTL_ASSERT(v >= real_t(0.0) && v <= real_t(1.0));
-		*pA++ = v > frac ? real_t(1.0) : real_t(0.0);
-	}
-}
-
 void mrwDivideByVec_ET(realmtx_t& A, const real_t* pDiv)noexcept {
 	NNTL_ASSERT(!A.empty() && pDiv);
 	const auto rm = A.rows(), cm = A.cols();
@@ -91,7 +81,7 @@ void mrwMax_ET(const realmtx_t& m, real_t* pMax, vec_len_t* pColIdxs) noexcept {
 void mrwSum_ip_ET(realmtx_t& src)noexcept {
 	NNTL_ASSERT(!src.empty() && src.numel() > 0);
 	const auto cm = src.cols(), rm = src.rows();
-	const auto pSum = src.dataAsVec();
+	const auto pSum = src.data();
 	for (vec_len_t c = 1; c < cm; ++c) {
 		for (vec_len_t r = 0; r < rm; ++r) {
 			pSum[r] += src.get(r, c);
