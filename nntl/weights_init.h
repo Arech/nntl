@@ -114,6 +114,10 @@ namespace weights_init {
 			NNTL_ASSERT(!W.empty() && W.numel() > 0);
 			const auto prevLayerNeuronsCnt = W.cols() - 1;
 			const auto thisLayerNeuronsCnt = W.rows();
+
+			//If you get the next assert, then you are violating the sense of sparse initialization (I did this a hundred of times by inattention)))
+			//Either make a bigger previous layer (add some neurons to make it total count (significantly) more than NonZeroUnitsCount)
+			// or lower NonZeroUnitsCount parameter
 			NNTL_ASSERT(prevLayerNeuronsCnt >= NonZeroUnitsCount);
 
 			W.zeros();
