@@ -83,7 +83,7 @@ Developed and tested on MSVC2015 on Windows 7. Other modern compilers will proba
 Don't hesitate to ask for help, if you are interested.
 
 ### How to Build tests Project
-1. You'll also need to download and build [Google Test](https://code.google.com/p/googletest/) (preferably version 1.7) to %NNTL_ROOT%/_extern/gtest-1.7.0/ (you'll need to build /mcvs/gtest.vcxproj project). Also download [RapidJson](http://rapidjson.org/) and unpack it to %NNTL_ROOT%/_extern/rapidjson/
+1. You'll also need to download and build [Google Test](https://code.google.com/p/googletest/) (preferably version 1.7) to %NNTL_ROOT%/_extern/gtest-1.7.0/ (you'll need to build /msvc/gtest.vcxproj project). Also download [RapidJson](http://rapidjson.org/) and unpack it to %NNTL_ROOT%/_extern/rapidjson/
 2. [Download](https://yadi.sk/d/Mx_6JxTukgJoN) or (provided you have Matlab/Octave installed) convert MNIST data with %NNTL_ROOT%/nntl/_supp/matlab/mnist2bin.m from [mnist_uint8.mat](https://github.com/rasmusbergpalm/DeepLearnToolbox/blob/master/data/mnist_uint8.mat) (supplied with DeepLearnToolbox) to correspongind small and full file. Put mnist60000.bin and mnist200_100.bin (the last file is MNIST dataset cropped to 200 train and 100 test samples version of full MNIST database for use in debug builds) to %NNTL_ROOT%/data/.
 3. I guess, that's enough to build tests project. It should pass all tests in debug and release modes.
 
