@@ -55,15 +55,15 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include <limits>
 
-#include "../errors.h"
-#include "../train_data.h"
+#include "../../errors.h"
+#include "../../train_data.h"
 
 //define necessary RAPIDJSON_ macros before including this file
 #define RAPIDJSON_SSE2
 #define RAPIDJSON_HAS_STDSTRING 1
-#include "../../_extern/rapidjson/include/rapidjson/document.h"
-#include "../../_extern/rapidjson/include/rapidjson/filereadstream.h"
-#include "../../_extern/rapidjson/include/rapidjson/error/en.h"
+#include "../../../_extern/rapidjson/include/rapidjson/document.h"
+#include "../../../_extern/rapidjson/include/rapidjson/filereadstream.h"
+#include "../../../_extern/rapidjson/include/rapidjson/error/en.h"
 
 namespace nntl_supp {
 

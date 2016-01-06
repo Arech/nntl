@@ -141,17 +141,11 @@
     <ClInclude Include="..\nntl\interface\math\bindings\b_yeppp.h">
       <Filter>nntl\interface\math\bindings</Filter>
     </ClInclude>
-    <ClInclude Include="..\nntl\_supp\jsonreader.h">
-      <Filter>nntl\_supp</Filter>
-    </ClInclude>
     <ClInclude Include="..\nntl\utils\chrono.h">
       <Filter>nntl\utils</Filter>
     </ClInclude>
     <ClInclude Include="..\nntl\interface\threads\parallel_range.h">
       <Filter>nntl\interface\threads</Filter>
-    </ClInclude>
-    <ClInclude Include="..\nntl\_supp\binfile.h">
-      <Filter>nntl\_supp</Filter>
     </ClInclude>
     <ClInclude Include="..\nntl\utils\scope_exit.h">
       <Filter>nntl\utils</Filter>
@@ -249,6 +243,12 @@
     <ClInclude Include="..\nntl\layer\_layer_base.h">
       <Filter>nntl\layer</Filter>
     </ClInclude>
+    <ClInclude Include="..\nntl\_supp\io\binfile.h">
+      <Filter>nntl\_supp\io</Filter>
+    </ClInclude>
+    <ClInclude Include="..\nntl\_supp\io\jsonreader.h">
+      <Filter>nntl\_supp\io</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="stdafx.cpp">
@@ -267,9 +267,6 @@
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="test_b_open_blas.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="test_b_yeppp.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="test_jsonreader.cpp">

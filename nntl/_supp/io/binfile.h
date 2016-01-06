@@ -34,11 +34,10 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //this file might be absent on non-windows OSes. It is used only for DWORD/WORD/BYTE typedefs, remove it and define them accordingly
 //#include <minwindef.h>
 
-#include "../errors.h"
-#include "../train_data.h"
-#include "../utils/scope_exit.h"
+#include "../../errors.h"
+#include "../../train_data.h"
+#include "../../utils/scope_exit.h"
 
-//#include <boost/algorithm/string/trim.hpp>
 
 namespace nntl_supp {
 

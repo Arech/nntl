@@ -228,8 +228,8 @@
     <ClInclude Include="..\nntl\nntl.h" />
     <ClInclude Include="..\nntl\utils.h" />
     <ClInclude Include="..\nntl\_nnet_errs.h" />
-    <ClInclude Include="..\nntl\_supp\binfile.h" />
-    <ClInclude Include="..\nntl\_supp\jsonreader.h" />
+    <ClInclude Include="..\nntl\_supp\io\binfile.h" />
+    <ClInclude Include="..\nntl\_supp\io\jsonreader.h" />
     <ClInclude Include="..\nntl\_test\test.h" />
     <ClInclude Include="..\nntl\utils\tictoc.h" />
     <ClInclude Include="..\_extern\agner.org\AF_randomc_h\random.h" />
@@ -261,10 +261,6 @@
     </ClCompile>
     <ClCompile Include="tests.cpp" />
     <ClCompile Include="test_util.cpp" />
-    <ClCompile Include="test_b_yeppp.cpp">
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>
-    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <None Include="..\nntl\_supp\matlab\export_2bin.m" />

@@ -34,7 +34,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "../nntl/math.h"
 #include "../nntl/common.h"
 
-#include "../nntl/_supp/binfile.h"
+#include "../nntl/_supp/io/binfile.h"
 
 #include <memory>
 #include <array>

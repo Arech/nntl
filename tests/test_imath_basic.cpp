@@ -39,7 +39,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "../nntl/interface/math/imath_basic.h"
 #include "../nntl/nnet_def_interfaces.h"
 
-#include "../nntl/_supp/jsonreader.h"
+#include "../nntl/_supp/io/jsonreader.h"
 
 #include <array>
 #include <numeric>

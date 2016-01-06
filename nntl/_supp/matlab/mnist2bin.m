@@ -1,6 +1,6 @@
 function mnist2bin( fname, cnt, cntt )
 %MNIST2BIN loads MNIST data from DeepLearnToolbox's mnist_uint8.mat and
-% stores it into file fname in nntl bin format (see nntl/_supp/binfile.h)
+% stores it into file fname in nntl bin format (see nntl/_supp/io/binfile.h)
 % cnt and cntt allows to specify how many samples to take from training and
 % testing set respectively.
 

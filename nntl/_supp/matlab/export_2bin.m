@@ -1,6 +1,6 @@
 function export_2bin( S, fname )
 %EXPORT_STRUCT_2BIN Export 2D matrix or struct to NNTL binary file
-% (see nntl/_supp/binfile.h for specifications)
+% (see nntl/_supp/io/binfile.h for specifications)
 
 MAX_FIELD_NAME_LENGTH=15;
 

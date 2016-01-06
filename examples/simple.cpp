@@ -34,7 +34,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include "../nntl/math.h"
 #include "../nntl/nntl.h"
-#include "../nntl/_supp/binfile.h"
+#include "../nntl/_supp/io/binfile.h"
 
 using namespace nntl;
 typedef nntl_supp::binfile reader_t;

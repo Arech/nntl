@@ -1,6 +1,6 @@
 function mnist2json( fname, cnt )
 %MNIST2JSON loads MNIST data from DeepLearnToolbox's mnist_uint8.mat and
-% stores it into file fname in json format (see nntl/_supp/jsonreader.h)
+% stores it into file fname in json format (see nntl/_supp/io/jsonreader.h)
 % cnt and cntt allows to specify how many samples to take from training and
 % testing set respectively.
 

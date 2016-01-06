@@ -35,7 +35,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include "../nntl/math.h"
 #include "../nntl/common.h"
-#include "../nntl/_supp/jsonreader.h"
+#include "../nntl/_supp/io/jsonreader.h"
 
 using namespace nntl;
 
