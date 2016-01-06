@@ -47,6 +47,7 @@ namespace activation {
 		typedef math::simple_matrix<real_t> realmtx_t;
 		typedef math::simple_matrix_deformable<real_t> realmtxdef_t;
 		typedef typename realmtx_t::numel_cnt_t numel_cnt_t;
+		typedef typename realmtx_t::vec_len_t vec_len_t;
 
 		//apply f to each srcdest matrix element. The biases (if any) must be left untouched!
 		template <typename iMath>

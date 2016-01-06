@@ -185,7 +185,6 @@ namespace nntl {
 				m_dLdW.useExternalStorage(&ptr[m_dLdZ.numel()], m_weights);
 				NNTL_ASSERT(!m_dLdZ.emulatesBiases() && !m_dLdW.emulatesBiases());
 				NNTL_ASSERT(cnt >= m_dLdZ.numel() + m_dLdW.numel());
-				//NNTL_ASSERT(m_dAdZ.size() == m_activations.size() && m_dLdW.size() == m_weights.size());
 			}
 		}
 

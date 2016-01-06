@@ -55,6 +55,8 @@ namespace nntl {
 		nntl_interface void deinit()noexcept;
 
 		//always called before on_training_fragment_end() twice: on training and on testing/validation data
+		// Call sequence inspect_results() + inspect_results() + on_training_fragment_end() is guaranteed for every epoch to be
+		// evaluated
 		//data_y must be the same as init(train_y)|bOnTestData==false or init(test_y)|bOnTestData==true
 		template<typename iMath>
 		nntl_interface void inspect_results(const realmtx_t& data_y, const realmtx_t& activations, const bool bOnTestData, iMath& iM)noexcept;

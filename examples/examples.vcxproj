@@ -116,7 +116,6 @@
       <FloatingPointModel>Fast</FloatingPointModel>
       <RuntimeTypeInfo>false</RuntimeTypeInfo>
       <EnablePREfast>true</EnablePREfast>
-      <CallingConvention>VectorCall</CallingConvention>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
@@ -160,7 +159,6 @@
       <BufferSecurityCheck>false</BufferSecurityCheck>
       <EnableParallelCodeGeneration>true</EnableParallelCodeGeneration>
       <RuntimeTypeInfo>false</RuntimeTypeInfo>
-      <CallingConvention>VectorCall</CallingConvention>
       <EnablePREfast>true</EnablePREfast>
     </ClCompile>
     <Link>
