@@ -18,3 +18,11 @@ rd /s /q examples\x64
 rd /s /q tests\Debug
 rd /s /q tests\Release
 rd /s /q tests\x64
+
+rd /s /q tests+\Debug
+rd /s /q tests+\Release
+rd /s /q tests+\x64
+
+rd /s /q tests_private\Debug
+rd /s /q tests_private\Release
+rd /s /q tests_private\x64

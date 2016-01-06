@@ -34,8 +34,6 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //It's not included anywhere in nntl core files, but is required for compilation.
 //#include it before any nntl core file 
 
-//TODO: move it into ../
-
 //redefine if needed, but don't use anywhere else
 //MUST be the same in all compilation units, DEFINE ON PROJECT-LEVEL
 #ifndef NNTL_CFG_DEFAULT_TYPE
@@ -43,52 +41,11 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #define NNTL_CFG_DEFAULT_TYPE double
 #endif
 
-
-//about NNTL_CFG_DEFAULT_TYPE and NNTL_CFG_DEFAULT_COL_MAJOR_ORDER
-// It looked like a good idea that should allow different compilation units to have different versions of API based on
-// this settings. However it turned out, it just won't work in MSVC2015. Either I'm doing something terribly wrong, or
-// it's really a compiler bug. But you can't have this settings different in different cpp files. Or, more precisely,
-// you can, but nobody knows which version really be used then. I got some weird results when tried to compile one cpp with
-// float/colmajor and another with double/rowmajor (variants of test_jsonreader.cpp) - it happend that despite the
-// different settings some pieces of latter code still have used float/colmajor instead of double/rowmajor, but at the
-// same time, typedefs derived from this code on the very upper level yielded correct double/rowmajor types.
-// Also, I tried to make templated version of _basic_types, but got the same results...
-// Therefore, you would better never use different values of this settings in a single project.
-
-
-//about BLAS and similar math libraries
-//Clearly, all math stuff should be offloaded to external fast-as-hell math library.
-// Which one, provided that there are huge number of options? I evaluated some of them to fit just 2 simple
-// criteria: be as optimized and fast as possible and work under Win x64. Here are the results:
-// a. ATLAS - very interesting, but huge problems (possibly performance too) on Win x64. Very tricky installation.
-//		Therefore decided not to waste time on it.
-// **b. AMD ACML - it's rumored that it's not very well optimized. And it is abandoned. But I probably will use it as a baseline
-// c. Boost uBLAS - known to be slow and almost abandoned
-// *d. Intel MKL - very promising as it's rumored as one of the best and fastest libs available. But it's non-free.
-//		May be later I'll be able to qualify for copy as open-source developer.
-// *e. Yeppp! - very promising, but doesn't support matrices, only vectors.---151202 - removed Yeppp! from the project as
-//		it doesn't provide any significant speedup over naive (though, properly crafted) versions.
-// **f. BLIS - very interesting, but lack of normal support of Win x64 make me cry...
-// **g. ulmBLAS - interesting project, but hard to believe it will last long...
-// ***h. OpenBLAS - Primary target.
-// **i. Blaze - looks good, but requires working BLAS install.
-// **j. Eigen - looks good, should try. But there are controversies about its real performance
-// k. clBLAS - might give it a try to quickstart GPU usage
-// *l. Armadillo - it's rumored that Armadillo is slow. And it requires BLAS too. Though, may be try it later.
-
-// There might be a need to link to several BLAS libraries in a single project (for benchmarking for example).
-// Doing it straight is a recipe for disaster
-// because of linker symbols collision. One possible workaround is to load libraries dynamically and call them via function
-// pointers. But this requires some additional (cross-platform) work to be done on dynamic library loading. I failed to find
-// a well implemented code that does this job (only QLibrary, but it's a hell to include it in project), therefore probably
-// had to do it myself.
-
-
 //TODO: there are faster implementations of stl vectors available. Find, evaluate and use them instead of std::vector
 //#include <vector>
 
-#include "../_defs.h"
-#include "math/simple_matrix.h"
+#include "_defs.h"
+#include "interface/math/simple_matrix.h"
 
 namespace nntl {
 namespace math {

@@ -44,7 +44,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <functional>
 #include <thread>
 
-#include "../threads.h"
+#include "../_i_threads.h"
 
 namespace nntl {
 namespace threads {

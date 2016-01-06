@@ -31,7 +31,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 #pragma once
 
-#include "../threads.h"
+#include "../_i_threads.h"
 
 #define TBB_USE_EXCEPTIONS 0
 

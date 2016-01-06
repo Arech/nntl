@@ -31,7 +31,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 #pragma once
 
-#include "_i_math.h"
+#include "../_i_math.h"
 #include "bindings/b_open_blas.h"
 //#include "bindings/b_yeppp.h"
 

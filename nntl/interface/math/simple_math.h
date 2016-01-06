@@ -34,7 +34,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //This file contains implementation of some simplest generic-purpose(!) math algorithms over the data
 // inside simple_matrix class object
 
-#include "../threads.h"
+#include "../_i_threads.h"
 #include "simple_matrix.h"
 #include "simple_math_thr.h"
 #include <algorithm>

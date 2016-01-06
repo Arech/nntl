@@ -33,7 +33,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 //TODO: cleanup all this mess. Move all performance testing code into separate module and leave only correctness tests.
 
-#include "../nntl/interface/math.h"
+#include "../nntl/math.h"
 #include "../nntl/common.h"
 
 #include "../nntl/interface/math/imath_basic.h"

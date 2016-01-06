@@ -31,8 +31,8 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 #pragma once
 
-#include <cstdint>
-#include <ctime>        // std::time
+//#include <cstdint>
+//#include <ctime>        // std::time
 
 namespace nntl {
 namespace rng {

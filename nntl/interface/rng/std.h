@@ -36,7 +36,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 // this file will be included by default.
 // It defines an interface to a rng generators, provided by STL.
 // Don't use it, it's slower than you can expect.
-#include "_i_rng.h"
+#include "../_i_rng.h"
 
 namespace nntl {
 namespace rng {

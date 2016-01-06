@@ -32,9 +32,9 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #pragma once
 
 //#include "layers_pack.h"
-#include "_nnet_errs.h"
-#include "nnet_def_interfaces.h"
-#include "grad_works.h"
+#include "../_nnet_errs.h"
+#include "../nnet_def_interfaces.h"
+#include "../grad_works.h"
 
 namespace nntl {
 

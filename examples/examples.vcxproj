@@ -76,8 +76,8 @@
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <LinkIncremental>true</LinkIncremental>
     <CodeAnalysisRuleSet>NativeRecommendedRules.ruleset</CodeAnalysisRuleSet>
-    <IncludePath>d:\c++\OpenBLAS-v0.2.14-Win64-int32\include\;$(SolutionDir)_extern\gtest-1.7.0\include\;D:\c++\boost;$(IncludePath)</IncludePath>
-    <LibraryPath>d:\c++\OpenBLAS-v0.2.14-Win64-int32\lib\;D:\c++\boost\lib\x64\lib;$(SolutionDir)_extern\gtest-1.7.0\msvc\x64\$(Configuration)\;$(LibraryPath)</LibraryPath>
+    <IncludePath>d:\c++\OpenBLAS-v0.2.14-Win64-int32\include\;$(SolutionDir)_extern\gtest-1.7.0\include\;D:\c++\boost;C:\Program Files\MATLAB\R2014a\extern\include;$(IncludePath)</IncludePath>
+    <LibraryPath>d:\c++\OpenBLAS-v0.2.14-Win64-int32\lib\;D:\c++\boost\lib\x64\lib;$(SolutionDir)_extern\gtest-1.7.0\msvc\x64\$(Configuration)\;C:\Program Files\MATLAB\R2014a\extern\lib\win64\microsoft;$(LibraryPath)</LibraryPath>
     <RunCodeAnalysis>true</RunCodeAnalysis>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
@@ -87,8 +87,8 @@
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <LinkIncremental>false</LinkIncremental>
     <CodeAnalysisRuleSet>NativeRecommendedRules.ruleset</CodeAnalysisRuleSet>
-    <IncludePath>d:\c++\OpenBLAS-v0.2.14-Win64-int32\include\;$(SolutionDir)_extern\gtest-1.7.0\include\;D:\c++\boost;$(IncludePath)</IncludePath>
-    <LibraryPath>d:\c++\OpenBLAS-v0.2.14-Win64-int32\lib\;D:\c++\boost\lib\x64\lib;$(SolutionDir)_extern\gtest-1.7.0\msvc\x64\$(Configuration)\;$(LibraryPath)</LibraryPath>
+    <IncludePath>d:\c++\OpenBLAS-v0.2.14-Win64-int32\include\;$(SolutionDir)_extern\gtest-1.7.0\include\;D:\c++\boost;C:\Program Files\MATLAB\R2014a\extern\include;$(IncludePath)</IncludePath>
+    <LibraryPath>d:\c++\OpenBLAS-v0.2.14-Win64-int32\lib\;D:\c++\boost\lib\x64\lib;$(SolutionDir)_extern\gtest-1.7.0\msvc\x64\$(Configuration)\;C:\Program Files\MATLAB\R2014a\extern\lib\win64\microsoft;$(LibraryPath)</LibraryPath>
     <RunCodeAnalysis>true</RunCodeAnalysis>
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">

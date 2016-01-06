@@ -37,7 +37,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #define NNTL_CFG_DEFAULT_TYPE double
 #define NNTL_CFG_DEFAULT_COL_MAJOR_ORDER 0*/
 
-#include "../nntl/interface/math.h"
+#include "../nntl/math.h"
 #include "../nntl/common.h"
 #include "../nntl/_supp/jsonreader.h"
 

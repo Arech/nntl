@@ -37,7 +37,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <condition_variable>
 #include <atomic>
 
-#include "../threads.h"
+#include "../_i_threads.h"
 
 namespace nntl {
 namespace threads {

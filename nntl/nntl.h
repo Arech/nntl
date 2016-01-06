@@ -39,7 +39,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "common.h"
 
 //include correct math interface in compilation unit (cpp) before this file
-//#include "interface/math.h"
+//#include "math.h"
 
 #include "utils.h"
 
@@ -50,10 +50,10 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include "activation.h"
 #include "layers_pack.h"
-#include "_layer_base.h"
-#include "layer_input.h"
-#include "layer_output.h"
-#include "layer_fully_connected.h"
+#include "layer/_layer_base.h"
+#include "layer/input.h"
+#include "layer/output.h"
+#include "layer/fully_connected.h"
 #include "nnet.h"
 
 //#include "interface/threads.h"

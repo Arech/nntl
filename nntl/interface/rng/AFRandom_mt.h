@@ -35,8 +35,8 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include "../../../_extern/agner.org/AF_randomc_h/random.h"
 
-#include "_i_rng.h"
-#include "../threads.h"
+#include "../_i_rng.h"
+#include "../_i_threads.h"
 
 #include "AFRandom_mt_thresholds.h"
 

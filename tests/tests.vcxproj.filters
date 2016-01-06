@@ -52,6 +52,12 @@
     <Filter Include="nntl\interface\mt_dispatcher">
       <UniqueIdentifier>{8f673c00-7595-4ff5-b60b-b7138005f6d7}</UniqueIdentifier>
     </Filter>
+    <Filter Include="nntl\_supp\io">
+      <UniqueIdentifier>{877f0750-5973-498c-98b9-9b5441dd632a}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="nntl\layer">
+      <UniqueIdentifier>{bd9910cb-a866-416e-87c4-fe090e6c14d0}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <Text Include="ReadMe.txt" />
@@ -66,12 +72,6 @@
     <ClInclude Include="targetver.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\nntl\interface\math.h">
-      <Filter>nntl\interface</Filter>
-    </ClInclude>
-    <ClInclude Include="..\nntl\interface\threads.h">
-      <Filter>nntl\interface</Filter>
-    </ClInclude>
     <ClInclude Include="..\nntl\nnet.h">
       <Filter>nntl</Filter>
     </ClInclude>
@@ -85,18 +85,6 @@
       <Filter>nntl</Filter>
     </ClInclude>
     <ClInclude Include="..\nntl\layers_pack.h">
-      <Filter>nntl</Filter>
-    </ClInclude>
-    <ClInclude Include="..\nntl\_layer_base.h">
-      <Filter>nntl</Filter>
-    </ClInclude>
-    <ClInclude Include="..\nntl\layer_input.h">
-      <Filter>nntl</Filter>
-    </ClInclude>
-    <ClInclude Include="..\nntl\layer_output.h">
-      <Filter>nntl</Filter>
-    </ClInclude>
-    <ClInclude Include="..\nntl\layer_fully_connected.h">
       <Filter>nntl</Filter>
     </ClInclude>
     <ClInclude Include="..\nntl\train_data.h">
@@ -138,9 +126,6 @@
     <ClInclude Include="..\nntl\interface\math\bindings\b_open_blas.h">
       <Filter>nntl\interface\math\bindings</Filter>
     </ClInclude>
-    <ClInclude Include="..\nntl\interface\math\_i_math.h">
-      <Filter>nntl\interface\math</Filter>
-    </ClInclude>
     <ClInclude Include="..\nntl\nnet_def_interfaces.h">
       <Filter>nntl</Filter>
     </ClInclude>
@@ -176,9 +161,6 @@
     </ClInclude>
     <ClInclude Include="..\nntl\utils\clamp.h">
       <Filter>nntl\utils</Filter>
-    </ClInclude>
-    <ClInclude Include="..\nntl\interface\rng\_i_rng.h">
-      <Filter>nntl\interface\rng</Filter>
     </ClInclude>
     <ClInclude Include="..\nntl\interface\rng\AFRandom.h">
       <Filter>nntl\interface\rng</Filter>
@@ -242,6 +224,30 @@
     </ClInclude>
     <ClInclude Include="..\nntl\nnet_evaluator.h">
       <Filter>nntl</Filter>
+    </ClInclude>
+    <ClInclude Include="..\nntl\math.h">
+      <Filter>nntl</Filter>
+    </ClInclude>
+    <ClInclude Include="..\nntl\interface\_i_math.h">
+      <Filter>nntl\interface</Filter>
+    </ClInclude>
+    <ClInclude Include="..\nntl\interface\_i_threads.h">
+      <Filter>nntl\interface</Filter>
+    </ClInclude>
+    <ClInclude Include="..\nntl\interface\_i_rng.h">
+      <Filter>nntl\interface</Filter>
+    </ClInclude>
+    <ClInclude Include="..\nntl\layer\output.h">
+      <Filter>nntl\layer</Filter>
+    </ClInclude>
+    <ClInclude Include="..\nntl\layer\input.h">
+      <Filter>nntl\layer</Filter>
+    </ClInclude>
+    <ClInclude Include="..\nntl\layer\fully_connected.h">
+      <Filter>nntl\layer</Filter>
+    </ClInclude>
+    <ClInclude Include="..\nntl\layer\_layer_base.h">
+      <Filter>nntl\layer</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

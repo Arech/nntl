@@ -31,7 +31,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 #include "stdafx.h"
 
-#include "../nntl/interface/math.h"
+#include "../nntl/math.h"
 //#include "../nntl/interface/math/i_open_blas.h"
 
 #include "../nntl/nntl.h"

@@ -37,7 +37,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <algorithm>
 #include <array>
 
-#include "_layer_base.h"
+#include "layer/_layer_base.h"
 #include "utils.h"
 
 #include "_nnet_errs.h"

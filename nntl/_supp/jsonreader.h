@@ -50,7 +50,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 // json2td is a class to read json file into object of train_data class
 // 
 // USAGE:
-// be sure to include correct math interface definition before this file, such as ../interface/math.h
+// be sure to include correct math interface definition before this file, such as ../math.h
 // 
 
 #include <limits>

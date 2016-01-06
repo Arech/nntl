@@ -32,7 +32,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #pragma once
 
 #include "../math.h"
-#include "../../common.h"
+#include "../common.h"
 
 namespace nntl {
 namespace math {

@@ -32,8 +32,6 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #pragma once
 
 #include "_layer_base.h"
-#include "activation.h"
-#include "utils/scope_exit.h"
 
 namespace nntl {
 
