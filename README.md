@@ -76,15 +76,16 @@ Developed and tested on MSVC2015 on Windows 7. Other modern compilers will proba
 ### How to Use NNTL
 1. Download NNTL and unpack it to some %NNTL_ROOT%
 2. Download RNGs from repository [AF_randomc_h](https://github.com/Arech/AF_randomc_h) and unpack it to %NNTL_ROOT%/_extern/agner.org/AF_randomc_h (actually it's only a single header file)
-3. Download or build suitable [OpenBLAS](http://www.openblas.net/) x64 [binaries](http://sourceforge.net/projects/openblas/files) and SDK. Place binaries in PATH or in corresponding debug/release solution folder. Correct paths to SDKs in Solution's "VC++ Directories" property page.
-  * you might also need to place __cdecl calling convention specifier to some OpenBLAS's functions declared in ./include/cblas.h that's used by nntl (it's at least cblas_dgemm() or cblas_sgemm() depending on base float type you're going to use). I made a [feature request](https://github.com/xianyi/OpenBLAS/issues/618) on that topic, but nobody knows, when it'll be implemented.
+3. Download or build suitable [OpenBLAS](http://www.openblas.net/) x64 [binaries](http://sourceforge.net/projects/openblas/files) and SDK. Place binaries in PATH or in corresponding debug/release solution folder. Correct paths to SDK in Solution's "VC++ Directories" property page.
 4. If your target CPU supports AVX/AVX2 instructions, update "Enable Enhanced Instruction Set" solution setting accordingly.
-5. if I didn't forget anything, now you can take a look at [.\nntl\examples\simple.cpp](https://github.com/Arech/nntl/blob/master/examples/simple.cpp) to see how to build your first feedforward neural network with NNTL. I'll write more about it later. Don't hesitate to ask for help, if you are interested.
+5. if I didn't forget anything, now you can take a look at [.\nntl\examples\simple.cpp](https://github.com/Arech/nntl/blob/master/examples/simple.cpp) to see how to build your first feedforward neural network with NNTL. I'll write more about it later.
+
+Don't hesitate to ask for help, if you are interested.
 
 ### How to Build tests Project
-1. You'll also need to download and build [Google Test](https://code.google.com/p/googletest/) (preferably version 1.7) to %NNTL_ROOT%/_extern/gtest-1.7.0/. Also download [RapidJson](http://rapidjson.org/) and unpack it to %NNTL_ROOT%/_extern/rapidjson/
-2. [Download](https://yadi.sk/d/Mx_6JxTukgJoN) or (provided you have Matlab/Octave) convert MNIST data with %NNTL_ROOT%/nntl/_supp/matlab/mnist2bin.m from [mnist_uint8.mat](https://github.com/rasmusbergpalm/DeepLearnToolbox/blob/master/data/mnist_uint8.mat) (supplied with DeepLearnToolbox). Put mnist60000.bin and mnist200_100.bin (the last file is MNIST dataset cropped to 200 train and 100 test samples version of full MNIST database for use in debug builds) to %NNTL_ROOT%/data/.
-3. I guess, that's enough to build tests project. It should pass all tests in debug and release modes. Don't hesitate to ask for help if needed.
+1. You'll also need to download and build [Google Test](https://code.google.com/p/googletest/) (preferably version 1.7) to %NNTL_ROOT%/_extern/gtest-1.7.0/ (you'll need to build /mcvs/gtest.vcxproj project). Also download [RapidJson](http://rapidjson.org/) and unpack it to %NNTL_ROOT%/_extern/rapidjson/
+2. [Download](https://yadi.sk/d/Mx_6JxTukgJoN) or (provided you have Matlab/Octave installed) convert MNIST data with %NNTL_ROOT%/nntl/_supp/matlab/mnist2bin.m from [mnist_uint8.mat](https://github.com/rasmusbergpalm/DeepLearnToolbox/blob/master/data/mnist_uint8.mat) (supplied with DeepLearnToolbox) to correspongind small and full file. Put mnist60000.bin and mnist200_100.bin (the last file is MNIST dataset cropped to 200 train and 100 test samples version of full MNIST database for use in debug builds) to %NNTL_ROOT%/data/.
+3. I guess, that's enough to build tests project. It should pass all tests in debug and release modes.
 
 ## Code Status
 I'm actively working on and with this project therefore I won't give any guarantees on API being stable. I'm pretty sure it may be changed from commit to commit, so keep it in mind.
