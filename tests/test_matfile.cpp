@@ -31,6 +31,8 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 #include "stdafx.h"
 
+#ifdef NNTL_MATLAB_AVAILABLE
+
 #include "../nntl/math.h"
 #include "../nntl/common.h"
 
@@ -154,3 +156,5 @@ TEST(TestMatfile, DumpNnet) {
 	mf & nn;
 	ASSERT_EQ(mf.ErrorCode::Success, mf.get_last_error()) << mf.get_last_error_str();
 }
+
+#endif
