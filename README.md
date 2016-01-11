@@ -83,7 +83,8 @@ Developed and tested on MSVC2015 on Windows 7. Other modern compilers will proba
 3. Download latest [Boost](http://www.boost.org/) and setup correct paths in Solution's "VC++ Directories" for include and library files of Boost. In fact compilation of Boost is not required, it's used in header-only mode, therefore actually only include folder should be updated. However this may not be the case for future versions of NNTL.
 4. Download or build suitable [OpenBLAS](http://www.openblas.net/) x64 [binaries](http://sourceforge.net/projects/openblas/files) and SDK. Place binaries in PATH or in corresponding debug/release solution folder. Correct paths to SDK in Solution's "VC++ Directories" property page.
 5. If your target CPU supports AVX/AVX2 instructions, update "Enable Enhanced Instruction Set" solution setting accordingly.
-6. if I didn't forget anything, now you can take a look at [.\nntl\examples\simple.cpp](https://github.com/Arech/nntl/blob/master/examples/simple.cpp) to see how to build your first feedforward neural network with NNTL. I'll write more about it later.
+6. If you have Matlab installed and want to use their `.mat` files to interchange data, then leave `NNTL_MATLAB_AVAILABLE` defined in `stdafx.h` and see instructions in `nntl/utils/matlab.h` on how to update solution build settings. If not - just comment out `NNTL_MATLAB_AVAILABLE` definition and don't use `nntl/_supp/io/matfile.h`.
+7. if I didn't forget anything, now you can take a look at [.\nntl\examples\simple.cpp](https://github.com/Arech/nntl/blob/master/examples/simple.cpp) to see how to build your first feedforward neural network with NNTL. I'll write more about it later.
 
 Don't hesitate to ask for help, if you are interested.
 
