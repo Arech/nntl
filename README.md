@@ -63,6 +63,10 @@ Just want to stress again: NNTL is not a kind of Plug-n-Play system to solve typ
   * weights initialization schemes
   * ...
 * OpenBLAS (for matrix*matrix multiplications) is the only external code dependency (not counting the Boost, which is de facto industry standard). OpenBLAS could be easily replaced/substituted if needed.
+* Three data loaders available (see `/nntl/_supp/io` folder):
+  * `jsonreader` reads input data from `.json` files (requires RapidJson, see below). It's the most crossplatform, but the slowest solution.
+  * `binfile` reads input data from nntl-custom binary file format. It's the fastest method to read data, however `.bin` files require the most disk space and are prone to cross-platform issues with data-sizes and endianness.
+  * `matfile` implements Saving and Loading Archive Concepts from boost::serialization, therefore allowing reading and writing data to and from Matlab's native `.mat` files (including dumping neural network object state into .mat file for inspection). Requires Matlab installed as well as `#define NNTL_MATLAB_AVAILABLE` to compile. `NNTL_MATLAB_AVAILABLE` is defined by default for all projects (see it in `stdafx.h`). See `nntl/utils/matlab.h` for details how to setup build environment to be able to compile NNTL with Matlab support (thanks to Mathworks, it's not harder than to plug in Boost support).
 
 ### Cons
 * achieving the best possible performance with small data sizes (for example, when using very small minibatches and/or small number of neurons) may require some manual tuning of thresholds that define when to use single- or multi-threaded branch of code. At this moment this thresholds are hardcoded into `\nntl\interface\math\imath_basic_thresholds.h` and `\nntl\interface\rng\AFRandom_mt_thresholds.h` respectively. So, you'll need to fix them all to suit your own hardware needs in order to get the best possible performance. However, if you're not going to use too small nets/batches, you'll probably be absolutely fine with current multithreading-by-default implementation of imath interface.
@@ -87,7 +91,7 @@ Don't hesitate to ask for help, if you are interested.
 There may be some other projects referenced in nntl.sln solution file, but absent in distribution, - it's ok, just ignore them.
 
 ### How to Build tests Project
-1. You'll also need to download and build [Google Test](https://github.com/google/googletest) (preferably version 1.7) to `%NNTL_ROOT%/_extern/gtest-1.7.0/` (you'll need to build /msvc/gtest.vcxproj project). Also download [RapidJson](http://rapidjson.org/) and unpack it to %NNTL_ROOT%/_extern/rapidjson/
+1. You'll also need to download and build [Google Test](https://github.com/google/googletest) (preferably version 1.7) to `%NNTL_ROOT%/_extern/gtest-1.7.0/` (you'll need to build `/msvc/gtest.vcxproj` project). Also download [RapidJson](http://rapidjson.org/) and unpack it to `%NNTL_ROOT%/_extern/rapidjson/`
 2. [Download](https://yadi.sk/d/Mx_6JxTukgJoN) or (provided you have Matlab/Octave installed) convert MNIST data with `%NNTL_ROOT%/nntl/_supp/matlab/mnist2bin.m` from [mnist_uint8.mat](https://github.com/rasmusbergpalm/DeepLearnToolbox/blob/master/data/mnist_uint8.mat) (supplied with DeepLearnToolbox) to correspongind small and full file. Put `mnist60000.bin` and `mnist200_100.bin` (the last file is MNIST dataset cropped to 200 train and 100 test samples version of full MNIST database for use in debug builds) to `%NNTL_ROOT%/data/`.
 3. I guess, that's enough to build tests project. It should pass all tests in debug and release modes. To run individual test case use [--gtest_filter](https://github.com/google/googletest/blob/master/googletest/docs/V1_7_AdvancedGuide.md#running-a-subset-of-the-tests) command line option.
 
