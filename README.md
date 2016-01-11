@@ -2,7 +2,7 @@
 Neural Network Template Library is a set of C++14 template classes that helps to implement fast vectorized feedforward neural networks. It is multithreaded, x64 friendly and uses OpenBLAS only as a back-end to multiply matrices. NNTL is a header only library and require no other dependencies, except for OpenBLAS and Boost.
 
 ### Performance
-Here is the performance of training 3 layer 768->500->300->10 network with sigmoid activation and quadratic loss function over MNIST dataset (60000 training samples and 10000 validation samples) for 20 epochs in minibatches of size 100 using double precision floating point math. NN implementation from [DeepLearnToolbox](https://github.com/rasmusbergpalm/DeepLearnToolbox) on Matlab R2014a x64 is taken as a baseline (it is also uses vectorized computations, multithreading and double as basic floating-point type). Hardware in both cases the same: AMD Phenom II X6 1090T @3500Mhz CPU (with all power-saving features turned off) with 16Gb of RAM under Windows 7 (swap file turned off, so no paging occur during testing). The CPU is pretty old today, it has only SSE2+ instructions (no AVX/AVX2), so everything should work a way faster on newer CPUs).
+Here is the performance of training 3 layer `768->500->300->10` network with sigmoid activation and quadratic loss function over MNIST dataset (60000 training samples and 10000 validation samples) for 20 epochs in minibatches of size 100 using double precision floating point math. NN implementation from [DeepLearnToolbox](https://github.com/rasmusbergpalm/DeepLearnToolbox) on Matlab R2014a x64 is taken as a baseline (it is also uses vectorized computations, multithreading and double as basic floating-point type). Hardware in both cases the same: AMD Phenom II X6 1090T @3500Mhz CPU (with all power-saving features turned off) with 16Gb of RAM under Windows 7 (swap file turned off, so no paging occur during testing). The CPU is pretty old today, it has only SSE2+ instructions (no AVX/AVX2), so everything should work a way faster on newer CPUs).
 
 Model|Baseline|NNTL|ratio
 -----|--------|----|-----
@@ -78,7 +78,7 @@ Just want to stress again: NNTL is not a kind of Plug-n-Play system to solve typ
 Developed and tested on MSVC2015 on Windows 7. Other modern compilers will probably require some hacks to compile. Please, submit your patches.
 
 ### How to Use NNTL
-1. Download NNTL and unpack it to some %NNTL_ROOT%
+1. Download NNTL and unpack it to some `%NNTL_ROOT%`
 2. Download RNGs from repository [AF_randomc_h](https://github.com/Arech/AF_randomc_h) and unpack it to `%NNTL_ROOT%/_extern/agner.org/AF_randomc_h` (actually it's only a single header file)
 3. Download latest [Boost](http://www.boost.org/) and setup correct paths in Solution's "VC++ Directories" for include and library files of Boost. In fact compilation of Boost is not required, it's used in header-only mode, therefore actually only include folder should be updated. However this may not be the case for future versions of NNTL.
 4. Download or build suitable [OpenBLAS](http://www.openblas.net/) x64 [binaries](http://sourceforge.net/projects/openblas/files) and SDK. Place binaries in PATH or in corresponding debug/release solution folder. Correct paths to SDK in Solution's "VC++ Directories" property page.
@@ -97,9 +97,9 @@ There may be some other projects referenced in nntl.sln solution file, but absen
 3. I guess, that's enough to build tests project. It should pass all tests in debug and release modes. To run individual test case use [--gtest_filter](https://github.com/google/googletest/blob/master/googletest/docs/V1_7_AdvancedGuide.md#running-a-subset-of-the-tests) command line option.
 
 ## Code Status
-I'm actively working on and with this project therefore I won't give any guarantees on API being stable. I'm pretty sure it may be changed from commit to commit, so keep it in mind.
+I'm actively working on and with this project therefore I won't issue any guarantees on any parts of API being stable. I'm pretty sure it may be changed from commit to commit, so keep it in mind.
 
-The code itself however should be fairly stable - I'll try to push only stable and well tested changes, though again - no guarantees. Remember to check the latest commit comments to find out if there're some instabilities possible.
+The code itself however should be fairly stable, but I won't guarantee that also. Please note - it's an experimental project and nowhere a near being mature, therefore you have a right to expect any kind of weirdness. Remember to check commits to find out if there're some instabilities expected. Feel free to contact me if you need assistance.
 
 ## Warning and Disclaimer
 The code uses very tight loops of mathematical operations that creates a huge load on CPU. I've encountered some hardware faults and BSODs on my overclocked system (that I thought to be very stable for a long time), until I relaxed overclocking significantly. So, if it'll burn your PC to the ash - you've been warned.
