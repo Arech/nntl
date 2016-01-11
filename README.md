@@ -1,5 +1,5 @@
 # nntl
-Neural Network Template Library is a set of C++14 template classes that helps to implement fast vectorized feedforward neural networks. It is multithreaded, x64 friendly and uses OpenBLAS only as a back-end to multiply matrices. NNTL is a header only library and require no other dependencies.
+Neural Network Template Library is a set of C++14 template classes that helps to implement fast vectorized feedforward neural networks. It is multithreaded, x64 friendly and uses OpenBLAS only as a back-end to multiply matrices. NNTL is a header only library and require no other dependencies, except for OpenBLAS and Boost.
 
 ### Performance
 Here is the performance of training 3 layer 768->500->300->10 network with sigmoid activation and quadratic loss function over MNIST dataset (60000 training samples and 10000 validation samples) for 20 epochs in minibatches of size 100 using double precision floating point math. NN implementation from [DeepLearnToolbox](https://github.com/rasmusbergpalm/DeepLearnToolbox) on Matlab R2014a x64 is taken as a baseline (it is also uses vectorized computations, multithreading and double as basic floating-point type). Hardware in both cases the same: AMD Phenom II X6 1090T @3500Mhz CPU (with all power-saving features turned off) with 16Gb of RAM under Windows 7 (swap file turned off, so no paging occur during testing). The CPU is pretty old today, it has only SSE2+ instructions (no AVX/AVX2), so everything should work a way faster on newer CPUs).
@@ -62,11 +62,11 @@ Just want to stress again: NNTL is not a kind of Plug-n-Play system to solve typ
   * activation functions
   * weights initialization schemes
   * ...
-* OpenBLAS (for matrix*matrix multiplications) is the only external code dependency. It could be easily replaced if needed.
+* OpenBLAS (for matrix*matrix multiplications) is the only external code dependency (not counting the Boost, which is de facto industry standard). OpenBLAS could be easily replaced/substituted if needed.
 
 ### Cons
-* achieving the best possible performance with small data sizes (for example, when using very small minibatches and/or small number of neurons) may require some manual tuning of thresholds that define when to use single- or multi-threaded branch of code. At this moment this thresholds are hardcoded into \nntl\interface\math\imath_basic_thresholds.h and \nntl\interface\rng\AFRandom_mt_thresholds.h respectively. So, you'll need to fix them all to suit your own hardware needs in order to get the best possible performance. However, if you're not going to use too small nets/batches, you'll probably be absolutely fine with current multithreading-by-default implementation of imath interface.
-* Random number generator is made on very fast RNGs developed by [Agner Fog](http://www.agner.org/random/randomc.zip). But they are GPL-licensed, therefore are distributed as a separate package [AF_randomc_h](https://github.com/Arech/AF_randomc_h) that has to be downloaded and placed at /_extern/agner.org/AF_randomc_h folder. If you don't like it, you can easily use your own RNG by implementing a few interface functions. I wouldn't recommend using a \nntl\interface\rng\std.h, because it is about 100-200 times slower than Agner Fog's RNGs (it matters a lot for dropout, for example).
+* achieving the best possible performance with small data sizes (for example, when using very small minibatches and/or small number of neurons) may require some manual tuning of thresholds that define when to use single- or multi-threaded branch of code. At this moment this thresholds are hardcoded into `\nntl\interface\math\imath_basic_thresholds.h` and `\nntl\interface\rng\AFRandom_mt_thresholds.h` respectively. So, you'll need to fix them all to suit your own hardware needs in order to get the best possible performance. However, if you're not going to use too small nets/batches, you'll probably be absolutely fine with current multithreading-by-default implementation of imath interface.
+* Random number generator is made on very fast RNGs developed by [Agner Fog](http://www.agner.org/random/randomc.zip). But they are GPL-licensed, therefore are distributed as a separate package [AF_randomc_h](https://github.com/Arech/AF_randomc_h) that has to be downloaded and placed at `/_extern/agner.org/AF_randomc_h` folder. If you don't like it, you can easily use your own RNG by implementing a few interface functions. I wouldn't recommend using a `\nntl\interface\rng\std.h`, because it is about 100-200 times slower than Agner Fog's RNGs (it matters a lot for dropout, for example).
 * Built and tested with only one compiler: MSVC2015 on Windows 7. That means, that most likely you'll have to fix some technical issues and incompatibles before you'll be able to compile it with another compiler. Please, submit patches.
 * Due to some historical reasons the code lacks handling exceptions, that can be thrown by external components (such as indicating low memory conditions in STL). Moreover, most of code has noexcept attribute. Probably, it won't hurt you much, if you have enought RAM.
 
@@ -75,10 +75,11 @@ Developed and tested on MSVC2015 on Windows 7. Other modern compilers will proba
 
 ### How to Use NNTL
 1. Download NNTL and unpack it to some %NNTL_ROOT%
-2. Download RNGs from repository [AF_randomc_h](https://github.com/Arech/AF_randomc_h) and unpack it to %NNTL_ROOT%/_extern/agner.org/AF_randomc_h (actually it's only a single header file)
-3. Download or build suitable [OpenBLAS](http://www.openblas.net/) x64 [binaries](http://sourceforge.net/projects/openblas/files) and SDK. Place binaries in PATH or in corresponding debug/release solution folder. Correct paths to SDK in Solution's "VC++ Directories" property page.
-4. If your target CPU supports AVX/AVX2 instructions, update "Enable Enhanced Instruction Set" solution setting accordingly.
-5. if I didn't forget anything, now you can take a look at [.\nntl\examples\simple.cpp](https://github.com/Arech/nntl/blob/master/examples/simple.cpp) to see how to build your first feedforward neural network with NNTL. I'll write more about it later.
+2. Download RNGs from repository [AF_randomc_h](https://github.com/Arech/AF_randomc_h) and unpack it to `%NNTL_ROOT%/_extern/agner.org/AF_randomc_h` (actually it's only a single header file)
+3. Download latest [Boost](http://www.boost.org/) and setup correct paths in Solution's "VC++ Directories" for include and library files of Boost. In fact compilation of Boost is not required, it's used in header-only mode, therefore actually only include folder should be updated. However this may not be the case for future versions of NNTL.
+4. Download or build suitable [OpenBLAS](http://www.openblas.net/) x64 [binaries](http://sourceforge.net/projects/openblas/files) and SDK. Place binaries in PATH or in corresponding debug/release solution folder. Correct paths to SDK in Solution's "VC++ Directories" property page.
+5. If your target CPU supports AVX/AVX2 instructions, update "Enable Enhanced Instruction Set" solution setting accordingly.
+6. if I didn't forget anything, now you can take a look at [.\nntl\examples\simple.cpp](https://github.com/Arech/nntl/blob/master/examples/simple.cpp) to see how to build your first feedforward neural network with NNTL. I'll write more about it later.
 
 Don't hesitate to ask for help, if you are interested.
 
@@ -86,8 +87,8 @@ Don't hesitate to ask for help, if you are interested.
 There may be some other projects referenced in nntl.sln solution file, but absent in distribution, - it's ok, just ignore them.
 
 ### How to Build tests Project
-1. You'll also need to download and build [Google Test](https://github.com/google/googletest) (preferably version 1.7) to %NNTL_ROOT%/_extern/gtest-1.7.0/ (you'll need to build /msvc/gtest.vcxproj project). Also download [RapidJson](http://rapidjson.org/) and unpack it to %NNTL_ROOT%/_extern/rapidjson/
-2. [Download](https://yadi.sk/d/Mx_6JxTukgJoN) or (provided you have Matlab/Octave installed) convert MNIST data with %NNTL_ROOT%/nntl/_supp/matlab/mnist2bin.m from [mnist_uint8.mat](https://github.com/rasmusbergpalm/DeepLearnToolbox/blob/master/data/mnist_uint8.mat) (supplied with DeepLearnToolbox) to correspongind small and full file. Put mnist60000.bin and mnist200_100.bin (the last file is MNIST dataset cropped to 200 train and 100 test samples version of full MNIST database for use in debug builds) to %NNTL_ROOT%/data/.
+1. You'll also need to download and build [Google Test](https://github.com/google/googletest) (preferably version 1.7) to `%NNTL_ROOT%/_extern/gtest-1.7.0/` (you'll need to build /msvc/gtest.vcxproj project). Also download [RapidJson](http://rapidjson.org/) and unpack it to %NNTL_ROOT%/_extern/rapidjson/
+2. [Download](https://yadi.sk/d/Mx_6JxTukgJoN) or (provided you have Matlab/Octave installed) convert MNIST data with `%NNTL_ROOT%/nntl/_supp/matlab/mnist2bin.m` from [mnist_uint8.mat](https://github.com/rasmusbergpalm/DeepLearnToolbox/blob/master/data/mnist_uint8.mat) (supplied with DeepLearnToolbox) to correspongind small and full file. Put `mnist60000.bin` and `mnist200_100.bin` (the last file is MNIST dataset cropped to 200 train and 100 test samples version of full MNIST database for use in debug builds) to `%NNTL_ROOT%/data/`.
 3. I guess, that's enough to build tests project. It should pass all tests in debug and release modes. To run individual test case use [--gtest_filter](https://github.com/google/googletest/blob/master/googletest/docs/V1_7_AdvancedGuide.md#running-a-subset-of-the-tests) command line option.
 
 ## Code Status
