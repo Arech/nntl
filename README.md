@@ -97,9 +97,11 @@ There may be some other projects referenced in nntl.sln solution file, but absen
 3. I guess, that's enough to build tests project. It should pass all tests in debug and release modes. To run individual test case use [--gtest_filter](https://github.com/google/googletest/blob/master/googletest/docs/V1_7_AdvancedGuide.md#running-a-subset-of-the-tests) command line option.
 
 ## Code Status
-I'm actively working on and with this project therefore I won't issue any guarantees on any parts of API being stable. I'm pretty sure it may be changed from commit to commit, so keep it in mind.
+The only thing I can guarantee at this moment is that I'm actively working on and with this project. I won't issue any guarantees on any parts of API being stable. I'm pretty sure it may be changed from commit to commit, so keep it in mind while working on derived projects.
 
-The code itself however should be fairly stable, but I won't guarantee that also. Please note - it's an experimental project and nowhere a near being mature, therefore you have a right to expect any kind of weirdness. Remember to check commits to find out if there're some instabilities expected. Feel free to contact me if you need assistance.
+The code itself however should be fairly stable, but I won't guarantee that also. Please note - it's an experimental project and nowhere a near being mature, therefore you have a right to expect any kind of weirdness. Remember to check commits to find out if there're some instabilities expected.
+
+Feel free to contact me if you need assistance.
 
 ## Warning and Disclaimer
 The code uses very tight loops of mathematical operations that creates a huge load on CPU. I've encountered some hardware faults and BSODs on my overclocked system (that I thought to be very stable for a long time), until I relaxed overclocking significantly. So, if it'll burn your PC to the ash - you've been warned.
