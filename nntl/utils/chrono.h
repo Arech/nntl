@@ -1,7 +1,7 @@
 /*
 This file is a part of NNTL project (https://github.com/Arech/nntl)
 
-Copyright (c) 2015, Arech (aradvert@gmail.com; https://github.com/Arech)
+Copyright (c) 2015-2016, Arech (aradvert@gmail.com; https://github.com/Arech)
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without
@@ -51,7 +51,7 @@ namespace utils {
 
 		template<typename per_t> struct period_name {
 			//static constexpr const strchar_t* name = NNTL_STRING("???");
-			static constexpr const char* name = "???";
+			static constexpr const char* name = "??";
 		};
 		template<> struct period_name<std::chrono::seconds> {
 			//static constexpr const strchar_t* name = NNTL_STRING("s");
@@ -63,7 +63,7 @@ namespace utils {
 		};
 		template<> struct period_name<std::chrono::microseconds> {
 			//static constexpr const strchar_t* name = NNTL_STRING("mcs");
-			static constexpr const char* name = "mcs";
+			static constexpr const char* name = "us";
 		};
 		template<> struct period_name<std::chrono::nanoseconds> {
 			//static constexpr const strchar_t* name = NNTL_STRING("ns");
@@ -92,7 +92,7 @@ namespace utils {
 		constexpr unsigned MAX_STR_SIZE = 256;
 		char str[MAX_STR_SIZE];
 #pragma warning(disable : 6031)
-		std::snprintf(str, MAX_STR_SIZE, "%8.3f %-3s", t, name);
+		std::snprintf(str, MAX_STR_SIZE, "%8.3f %-2s", t, name);
 #pragma warning(default : 6031)
 		return std::string(str);
 	};

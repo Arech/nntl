@@ -1,7 +1,7 @@
 /*
 This file is a part of NNTL project (https://github.com/Arech/nntl)
 
-Copyright (c) 2015, Arech (aradvert@gmail.com; https://github.com/Arech)
+Copyright (c) 2015-2016, Arech (aradvert@gmail.com; https://github.com/Arech)
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without
@@ -101,6 +101,18 @@ namespace nntl {
 		}
 		void clear()noexcept { set(real_t(0.0), real_t(0.0), real_t(0.0), real_t(0.0)); }
 		const bool bUseMe()const noexcept { return mulDecr > real_t(0.0); }
+
+		//////////////////////////////////////////////////////////////////////////
+		//Serialization support
+	private:
+		friend class boost::serialization::access;
+		template<class Archive>
+		void serialize(Archive & ar, const unsigned int version) {
+			ar & NNTL_SERIALIZATION_NVP(mulDecr);
+			ar & NNTL_SERIALIZATION_NVP(mulIncr);
+			ar & NNTL_SERIALIZATION_NVP(capLow);
+			ar & NNTL_SERIALIZATION_NVP(capHigh);
+		}
 	};
 
 
@@ -187,6 +199,31 @@ namespace nntl {
 		ILR m_ILR;
 
 		realmtx_t m_rmsF, m_rmsG, m_Vw, m_ILRGain, m_prevdLdW;
+
+		//////////////////////////////////////////////////////////////////////////
+		//Serialization support
+	private:
+		friend class boost::serialization::access;
+		template<class Archive>
+		void serialize(Archive & ar, const unsigned int version) {
+			//NB: DONT touch ANY of .useExternalStorage() matrices here, because it's absolutely temporary meaningless data
+			// and moreover, underlying storage may have already been freed.
+
+			if (utils::binary_option<true>(ar, serialization::serialize_training_parameters)) {
+				ar & m_ILR;//dont serialize as struct for ease of use in matlab
+				ar & NNTL_SERIALIZATION_NVP(m_learningRate);
+				ar & NNTL_SERIALIZATION_NVP(m_momentum);
+				ar & NNTL_SERIALIZATION_NVP(m_emaDecay);
+				ar & NNTL_SERIALIZATION_NVP(m_numericStabilizerEps);
+				ar & NNTL_SERIALIZATION_NVP(m_maxWeightVecNorm);
+				ar & NNTL_SERIALIZATION_NVP(m_L2);
+				ar & NNTL_SERIALIZATION_NVP(m_L1);
+				ar & NNTL_SERIALIZATION_NVP(m_type);
+				/*unsigned gradType = m_type;
+				ar & NNTL_SERIALIZATION_NVP(gradType);
+				m_type = static_cast<GradType>(gradType)*/;
+			}
+		}
 
 	protected:
 		void _flags_default()noexcept {
@@ -475,7 +512,7 @@ namespace nntl {
 		const bool use_L2_regularization()const noexcept { return m_flags[f_UseL2]; }
 
 	protected:
-		
+
 	};
 
 }

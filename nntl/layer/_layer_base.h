@@ -1,7 +1,7 @@
 /*
 This file is a part of NNTL project (https://github.com/Arech/nntl)
 
-Copyright (c) 2015, Arech (aradvert@gmail.com; https://github.com/Arech)
+Copyright (c) 2015-2016, Arech (aradvert@gmail.com; https://github.com/Arech)
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without
@@ -31,9 +31,10 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 #pragma once
 
-//#include "layers_pack.h"
 #include "../_nnet_errs.h"
 #include "../nnet_def_interfaces.h"
+#include "../serialization/serialization.h"
+
 #include "../grad_works.h"
 
 namespace nntl {
@@ -154,6 +155,11 @@ namespace nntl {
 		nntl_interface real_t lossAddendum()const noexcept;
 		//should return true, if the layer has a value to add to Loss function value (there's some regularizer attached)
 		nntl_interface bool hasLossAddendum()const noexcept;
+
+	private:
+		//support for boost::serialization
+		friend class boost::serialization::access;
+		template<class Archive> nntl_interface void serialize(Archive & ar, const unsigned int version) {}
 	};
 
 	//special marks for type checking of input and output layers
@@ -243,6 +249,13 @@ namespace nntl {
 			// from nnet during fprop() phase
 			//m_activations.resize(m_neurons_cnt);//there is no need to initialize allocated memory
 		}
+
+	private:
+		//////////////////////////////////////////////////////////////////////////
+		//Serialization support
+		friend class boost::serialization::access;
+		//nothing to do here at this moment, also leave nntl_interface marker to prevent calls.
+		template<class Archive> nntl_interface void serialize(Archive & ar, const unsigned int version) {}
 	};
 
 }

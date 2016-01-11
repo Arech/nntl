@@ -8,15 +8,15 @@ Redistribution and use in source and binary forms, with or without
 modification, are permitted provided that the following conditions are met:
 
 * Redistributions of source code must retain the above copyright notice, this
-  list of conditions and the following disclaimer.
+list of conditions and the following disclaimer.
 
 * Redistributions in binary form must reproduce the above copyright notice,
-  this list of conditions and the following disclaimer in the documentation
-  and/or other materials provided with the distribution.
+this list of conditions and the following disclaimer in the documentation
+and/or other materials provided with the distribution.
 
 * Neither the name of NNTL nor the names of its
-  contributors may be used to endorse or promote products derived from
-  this software without specific prior written permission.
+contributors may be used to endorse or promote products derived from
+this software without specific prior written permission.
 
 THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
 AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
@@ -29,51 +29,27 @@ CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
 OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
+
 #pragma once
 
-#include "../_i_threads.h"
-
-#define TBB_USE_EXCEPTIONS 0
-
-//TODO: how to link TBB in MSVC2015 project??? There are no appropriate binaries in latest (4.3-4.4) distributions
-
-#pragma warning(disable: 6297 6001)
-#include <tbb/tbb.h>
-#pragma warning(default: 6297 6001)
+//#include "serialization.h"
+#include "../utils/options.h"
 
 namespace nntl {
-	namespace threads {
+namespace serialization {
 
-		class IntelTBB : public _i_threads {
-			//!! copy constructor not needed
-			IntelTBB(const IntelTBB& other)noexcept = delete;
-			//!!assignment is not needed
-			IntelTBB& operator=(const IntelTBB& rhs) noexcept = delete;
+	enum CommonOptions {
+		serialize_training_parameters, //something like learning_rate, dropout_rate and etc
+		serialize_activations,
+		serialize_weights,
+		serialize_grad_works,
+		serialize_data_x,
 
-		protected:
-			typedef std::function<void(real_t*, numel_cnt_t)> func_t;
+		serialize_dropout_mask,
 
-		public:
-			~IntelTBB()noexcept {
-
-			}
-			IntelTBB()noexcept {
-
-			}
-
-			template<typename Func>
-			void run(Func&& F, real_t* ptr, const numel_cnt_t cnt) noexcept {
-				tbb::parallel_for(tbb::blocked_range<numel_cnt_t>(0, cnt), [=, &F](const tbb::blocked_range<size_t>& r) {
-					F(&ptr[r.begin()], r.size());
-				});
-			}
-
-		protected:
-
-		protected:
+		total_options
+	};
 
 
-		};
-
-	}
+}
 }

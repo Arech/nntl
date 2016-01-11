@@ -1,7 +1,7 @@
 /*
 This file is a part of NNTL project (https://github.com/Arech/nntl)
 
-Copyright (c) 2015, Arech (aradvert@gmail.com; https://github.com/Arech)
+Copyright (c) 2015-2016, Arech (aradvert@gmail.com; https://github.com/Arech)
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without
@@ -36,10 +36,11 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include "../nntl/nntl.h"
 
-#include "../nntl/utils/clamp.h"
+//#include "../nntl/utils/clamp.h"
 #include "../nntl/interface/rng/std.h"
 #include "../nntl/utils/chrono.h"
 #include "../nntl/utils/prioritize_workers.h"
+#include "../nntl/utils/options.h"
 
 using namespace nntl;
 #ifdef NNTL_DEBUG
@@ -50,8 +51,7 @@ constexpr unsigned TEST_PERF_REPEATS_COUNT = 400;
 constexpr unsigned TEST_CORRECTN_REPEATS_COUNT = 50;
 #endif // NNTL_DEBUG
 
-
-TEST(TestUtil, PrioritizeWorkersPerf) {
+TEST(TestUtils, PrioritizeWorkersPerf) {
 	typedef nntl::nnet_def_interfaces::iThreads_t def_threads_t;
 	using namespace std::chrono;
 
@@ -71,7 +71,7 @@ TEST(TestUtil, PrioritizeWorkersPerf) {
 }
 
 
-TEST(TestUtil, OwnOrUsePtr) {
+TEST(TestUtils, OwnOrUsePtr) {
 	int i = 1;
 	auto pu = utils::make_own_or_use_ptr(&i);
 	ASSERT_TRUE(!pu.bOwning);
@@ -99,7 +99,8 @@ TEST(TestUtil, OwnOrUsePtr) {
 
 }
 
-TEST(TestUtil, Clamp) {
+/*
+TEST(TestUtils, Clamp) {
 	using real_t = math_types::real_ty;
 	math_types::realmtx_ty m(50, 50), d;
 
@@ -139,4 +140,35 @@ TEST(TestUtil, Clamp) {
 	ASSERT_TRUE(!bGotBig);
 
 	ASSERT_EQ(m, d);
+}*/
+
+
+TEST(TestMatfile, Options) {
+	struct NoOptions {};
+	struct HasOptions : public utils::options<HasOptions> {};
+
+	enum BinOpts {
+		o1,
+		o2,
+		total_options
+	};
+	struct HasBinaryOptions : public utils::binary_options<BinOpts> {};
+
+	NoOptions no;
+	ASSERT_TRUE(!utils::binary_option(no, o2));
+	ASSERT_TRUE(utils::binary_option<true>(no, o2));
+
+	HasOptions ho;
+	ASSERT_TRUE(!utils::binary_option(ho, o2));
+	ASSERT_TRUE(utils::binary_option<true>(ho, o2));
+
+	HasBinaryOptions hbo;
+	ASSERT_TRUE(!utils::binary_option(hbo, o2));
+	ASSERT_TRUE(!utils::binary_option<true>(hbo, o2));
+	hbo.m_binary_options[o2] = true;
+	ASSERT_TRUE(utils::binary_option(hbo, o2));
+	ASSERT_TRUE(utils::binary_option<true>(hbo, o2));
+	hbo.m_binary_options[o2] = false;
+	ASSERT_TRUE(!utils::binary_option(hbo, o2));
+	ASSERT_TRUE(!utils::binary_option<true>(hbo, o2));
 }

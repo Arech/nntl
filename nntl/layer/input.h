@@ -1,7 +1,7 @@
 /*
 This file is a part of NNTL project (https://github.com/Arech/nntl)
 
-Copyright (c) 2015, Arech (aradvert@gmail.com; https://github.com/Arech)
+Copyright (c) 2015-2016, Arech (aradvert@gmail.com; https://github.com/Arech)
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without
@@ -51,6 +51,24 @@ namespace nntl {
 		typedef typename Interfaces::iMath_t iMath_t;
 		static_assert(std::is_base_of<math::_i_math<real_t>, iMath_t>::value, "Interfaces::iMath type should be derived from _i_math");
 		
+		//////////////////////////////////////////////////////////////////////////
+		//members
+	protected:
+		const realmtx_t* m_pActivations;
+
+		//////////////////////////////////////////////////////////////////////////
+		//Serialization support
+	private:
+		friend class boost::serialization::access;
+		template<class Archive>
+		std::enable_if_t<Archive::is_saving::value> serialize(Archive & ar, const unsigned int version) {
+			if (m_pActivations && utils::binary_option<true>(ar, serialization::serialize_data_x)) 
+				ar & serialization::make_nvp("data_x", * const_cast<realmtx_t*>(m_pActivations));
+		}
+		template<class Archive>
+		std::enable_if_t<Archive::is_loading::value> serialize(Archive & ar, const unsigned int version) {
+		}
+
 	public:
 
 		_layer_input(const neurons_count_t _neurons_cnt)noexcept :
@@ -114,11 +132,6 @@ namespace nntl {
 			//don't allocate activation vector here, cause it'll be received from fprop().
 			//m_activations.resize(m_neurons_cnt);//there is no need to initialize allocated memory
 		}
-
-		//////////////////////////////////////////////////////////////////////////
-		//members
-	protected:
-		const realmtx_t* m_pActivations;
 	};
 
 

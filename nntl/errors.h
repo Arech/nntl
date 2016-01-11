@@ -1,7 +1,7 @@
 /*
 This file is a part of NNTL project (https://github.com/Arech/nntl)
 
-Copyright (c) 2015, Arech (aradvert@gmail.com; https://github.com/Arech)
+Copyright (c) 2015-2016, Arech (aradvert@gmail.com; https://github.com/Arech)
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without
@@ -68,22 +68,23 @@ namespace nntl {
 
 	template <typename ErrStruct>
 	class _has_last_error {
+	public:
+		//type has to be defined in derived class and has Success member
+		typedef enum ErrStruct::ErrorCode ErrorCode;
+
+	private:
+		ErrorCode m_le;
+
 	protected:
 		_has_last_error()noexcept : m_le(ErrorCode::Success){}
 		~_has_last_error()noexcept {}
 
 	public:
-		//type has to be defined in derived class and has Success member
-		typedef enum ErrStruct::ErrorCode ErrorCode;
-
 		const ErrorCode get_last_error()const noexcept { return m_le; }
 		const strchar_t* get_last_error_str()const noexcept { return get_error_str(m_le); }
 		static const strchar_t* get_error_str(const ErrorCode ec) noexcept { return ErrStruct::get_error_str(ec); }
 
 	protected:
 		ErrorCode _set_last_error(ErrorCode ec)noexcept { m_le = ec; return ec; }
-
-	private:
-		ErrorCode m_le;
 	};
 }

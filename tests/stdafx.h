@@ -1,7 +1,7 @@
 /*
 This file is a part of NNTL project (https://github.com/Arech/nntl)
 
-Copyright (c) 2015, Arech (aradvert@gmail.com; https://github.com/Arech)
+Copyright (c) 2015-2016, Arech (aradvert@gmail.com; https://github.com/Arech)
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without
@@ -70,6 +70,10 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #define _GTEST_LIB "gtest.lib"
 #endif // _DEBUG
 #pragma comment(lib,_GTEST_LIB)
+
+//////////////////////////////////////////////////////////////////////////
+
+#define NNTL_MATLAB_AVAILABLE
 
 //////////////////////////////////////////////////////////////////////////
 

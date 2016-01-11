@@ -1,7 +1,7 @@
 /*
 This file is a part of NNTL project (https://github.com/Arech/nntl)
 
-Copyright (c) 2015, Arech (aradvert@gmail.com; https://github.com/Arech)
+Copyright (c) 2015-2016, Arech (aradvert@gmail.com; https://github.com/Arech)
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without
@@ -154,6 +154,8 @@ TEST(TestThreading, PerfComparision) {
 
 			bt = steady_clock::now();
 			wint.run([&](const par_range_t&)noexcept {
+				// we turned off exceptions at project level now, so this test probably won't show much.
+				// but it might be helpful with other compiler settings, so leave it be
 				v2++;
 			}, 100000000);
 			diffNE += steady_clock::now() - bt;

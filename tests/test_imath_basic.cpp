@@ -1,7 +1,7 @@
 /*
 This file is a part of NNTL project (https://github.com/Arech/nntl)
 
-Copyright (c) 2015, Arech (aradvert@gmail.com; https://github.com/Arech)
+Copyright (c) 2015-2016, Arech (aradvert@gmail.com; https://github.com/Arech)
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without
@@ -2186,7 +2186,9 @@ TEST(TestIMathBasic, mMulABt_Cnb) {
 	typedef math::iMath_basic<real_t, def_threads_t> iMB;
 	
 	using ErrCode = jsonreader::ErrorCode;
-	using realmtx_t = train_data::realmtx_t;
+	typedef math_types::real_ty real_t;
+	typedef train_data<real_t> train_data_t;
+	typedef train_data_t::mtx_t realmtx_t;
 	using mtx_size_t = realmtx_t::mtx_size_t;
 
 	realmtx_t A,B,C, etA, etB, etC;
@@ -2224,7 +2226,9 @@ TEST(TestIMathBasic, mMulABt_Cnb_biased) {
 	typedef math::iMath_basic<real_t, def_threads_t> iMB;
 
 	using ErrCode = jsonreader::ErrorCode;
-	using realmtx_t = train_data::realmtx_t;
+	typedef math_types::real_ty real_t;
+	typedef train_data<real_t> train_data_t;
+	typedef train_data_t::mtx_t realmtx_t;
 	using mtx_size_t = realmtx_t::mtx_size_t;
 
 	realmtx_t A, B, C, etA, etB, etC;
@@ -2647,7 +2651,7 @@ void test_dsigm(iMath& iM, vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 	//filling etalon
 	nnet_def_interfaces::iRng_t rg;
 	rg.set_ithreads(iM.ithreads());
-	rg.gen_matrix(etM, 10);
+	rg.gen_matrix_norm(etM);
 	auto ptrEtM = etM.data(), ptrDest = etDest.data();
 	for (unsigned i = 0; i < dataSize; ++i) ptrDest[i] = ptrEtM[i] * (1 - ptrEtM[i]);
 	ASSERT_TRUE(etM.cloneTo(m));

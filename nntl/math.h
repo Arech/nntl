@@ -1,7 +1,7 @@
 /*
 This file is a part of NNTL project (https://github.com/Arech/nntl)
 
-Copyright (c) 2015, Arech (aradvert@gmail.com; https://github.com/Arech)
+Copyright (c) 2015-2016, Arech (aradvert@gmail.com; https://github.com/Arech)
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without
@@ -50,6 +50,9 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 namespace nntl {
 namespace math {
 
+	//////////////////////////////////////////////////////////////////////////
+	// _basic_types is DEPRECATED and will be removed in future. Use correct template parameters where applicable.
+	// 
 	//class to store various math type definitions. May need to be rewritten to support different math libs.
 	//NNTL basic types is defined with _ty suffix. Aliases (typedefs) to this types defines with _t or _t_ (if collision 
 	// with standard types possible) suffix

@@ -1,7 +1,7 @@
 /*
 This file is a part of NNTL project (https://github.com/Arech/nntl)
 
-Copyright (c) 2015, Arech (aradvert@gmail.com; https://github.com/Arech)
+Copyright (c) 2015-2016, Arech (aradvert@gmail.com; https://github.com/Arech)
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without
@@ -70,11 +70,17 @@ namespace nntl {
 		bool m_bCalcFullLossValue;//if set to false, then only the main part of loss function will be calculated 
 		// (i.e. additional summands such as L2 weight penalty value will be stripped.
 		// This is done by skipping _layer_base::lossAddendum() calls for all layers)
+		
+		//setting to false will prevent nnet and all its components from deinitialization (except for some temporary memory, that 
+		// don't store anything valuable) on .train() exit
+		bool m_bImmediatelyDeinit;
 
 	public:
 		~nnet_train_opts()noexcept {}
 		nnet_train_opts(cond_epoch_eval_t&& cee)noexcept : m_vbEpochEval(std::move(cee)), m_BatchSize(0),
-			m_DivergenceCheckLastEpoch(5), m_DivergenceCheckThreshold(1e6f), m_bCalcFullLossValue(true){}
+			m_DivergenceCheckLastEpoch(5), m_DivergenceCheckThreshold(1e6f), m_bCalcFullLossValue(true),
+			m_bImmediatelyDeinit(false)
+		{}
 
 		self_t& setEpochEval(cond_epoch_eval_t&& cee)noexcept { m_vbEpochEval = std::forward(cee); return *this; }
 
@@ -94,6 +100,9 @@ namespace nntl {
 
 		bool calcFullLossValue()const noexcept { return m_bCalcFullLossValue; }
 		self_t& calcFullLossValue(bool cflv)noexcept { m_bCalcFullLossValue = cflv; return *this; }
+
+		bool ImmediatelyDeinit()const noexcept { return m_bImmediatelyDeinit; }
+		self_t& ImmediatelyDeinit(bool imd)noexcept { m_bImmediatelyDeinit = imd; return *this; }
 	};
 
 }

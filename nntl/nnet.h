@@ -1,7 +1,7 @@
 /*
 This file is a part of NNTL project (https://github.com/Arech/nntl)
 
-Copyright (c) 2015, Arech (aradvert@gmail.com; https://github.com/Arech)
+Copyright (c) 2015-2016, Arech (aradvert@gmail.com; https://github.com/Arech)
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without
@@ -73,6 +73,8 @@ namespace nntl {
 
 		typedef LayersPack layers_pack_t;
 
+		typedef train_data<real_t> train_data_t;
+
 		typedef typename layers_pack_t::realmtx_t realmtx_t;
 		//typedef typename realmtx_t::value_type real_t;
 		typedef typename realmtx_t::vec_len_t vec_len_t;
@@ -91,6 +93,15 @@ namespace nntl {
 		layer_index_t m_failedLayerIdx;
 
 		bool m_bCalcFullLossValue;//set based on nnet_train_opts::calcFullLossValue() and the value, returned by layers init()
+
+		//////////////////////////////////////////////////////////////////////////
+		//Serialization support
+	private:
+		friend class boost::serialization::access;
+		template<class Archive>
+		void serialize(Archive & ar, const unsigned int version) {
+			ar & m_Layers;
+		}
 
 	public:
 		~nnet()noexcept {}
@@ -134,7 +145,7 @@ namespace nntl {
 		}
 
 		template <typename _train_opts, typename _onEpochEndCB = _impl::DummyOnEpochEndCB>
-		ErrorCode train(train_data& td, _train_opts& opts, _onEpochEndCB&& onEpochEndCB = _impl::DummyOnEpochEndCB())noexcept {
+		ErrorCode train(train_data_t& td, _train_opts& opts, _onEpochEndCB&& onEpochEndCB = _impl::DummyOnEpochEndCB())noexcept {
 			if (td.empty()) return _set_last_error(ErrorCode::InvalidTD);
 
 			const auto& train_x = td.train_x();
@@ -165,8 +176,10 @@ namespace nntl {
 					return _set_last_error(le.first);
 				}
 			}
-			utils::scope_exit layers_deinit([this]() {
-				m_Layers.deinit(m_pMath.get());
+
+			//scheduling deinitialization with scope_exit to drop worries about returns;
+			utils::scope_exit layers_deinit([this, &opts]() {
+				if(opts.ImmediatelyDeinit()) m_Layers.deinit(m_pMath.get());
 			});
 			NNTL_ASSERT(LMR.maxSingledLdANumel > 0);//there must be at least room to store dL/dA
 
@@ -320,7 +333,7 @@ namespace nntl {
 
 		//returns test loss
 		template<typename Observer>
-		const real_t _report_training_fragment(const size_t epoch, const real_t trainLoss, const train_data& td,
+		const real_t _report_training_fragment(const size_t epoch, const real_t trainLoss, const train_data_t& td,
 			const std::chrono::nanoseconds& tElapsed, Observer& obs) noexcept
 		{
 			//relaxing thread priorities (we don't know in advance what callback functions actually do, so better relax it)
@@ -336,7 +349,7 @@ namespace nntl {
 			return testLoss;
 		}
 
-		bool _batchSizeOk(const train_data& td, vec_len_t batchSize)const noexcept {
+		bool _batchSizeOk(const train_data_t& td, vec_len_t batchSize)const noexcept {
 			//TODO: соответствие оптимизатора и размера батча (RProp только фулбатчевый)
 			double d = double(td.train_x().rows()) / double(batchSize);
 			return  d == floor(d);

@@ -1,7 +1,7 @@
 /*
 This file is a part of NNTL project (https://github.com/Arech/nntl)
 
-Copyright (c) 2015, Arech (aradvert@gmail.com; https://github.com/Arech)
+Copyright (c) 2015-2016, Arech (aradvert@gmail.com; https://github.com/Arech)
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without
@@ -36,7 +36,8 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //#include "bindings/b_yeppp.h"
 
 
-#include "../../utils/clamp.h"
+//#include "../../utils/clamp.h"
+#include <boost/algorithm/clamp.hpp>
 
 #include <limits>
 #include "imath_basic_thr.h"
@@ -562,7 +563,8 @@ namespace math {
 			NNTL_ASSERT(lo < hi);
 
 			auto p = m.data();
-			utils::boost::algorithm::clamp_range(p, p + m.numel(), p, lo, hi);
+			//utils::boost::algorithm::clamp_range(p, p + m.numel(), p, lo, hi);
+			boost::algorithm::clamp_range(p, p + m.numel(), p, lo, hi);
 		}
 		void evClamp_mt(realmtx_t& m, real_t lo, real_t hi)noexcept {
 			NNTL_ASSERT(m.numel() > 0 && !m.empty());
@@ -571,7 +573,8 @@ namespace math {
 			auto ptr = m.data();
 			m_threads.run([ptr, lo, hi](const par_range_t& r) {
 				auto p = ptr + r.offset();
-				utils::boost::algorithm::clamp_range(p, p + r.cnt(), p, lo, hi);
+				//utils::boost::algorithm::clamp_range(p, p + r.cnt(), p, lo, hi);
+				boost::algorithm::clamp_range(p, p + r.cnt(), p, lo, hi);
 			}, m.numel());
 		}
 

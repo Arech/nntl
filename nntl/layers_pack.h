@@ -1,7 +1,7 @@
 /*
 This file is a part of NNTL project (https://github.com/Arech/nntl)
 
-Copyright (c) 2015, Arech (aradvert@gmail.com; https://github.com/Arech)
+Copyright (c) 2015-2016, Arech (aradvert@gmail.com; https://github.com/Arech)
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without
@@ -148,6 +148,20 @@ namespace nntl {
 		// cache this value in general case?
 
 		//////////////////////////////////////////////////////////////////////////
+		//Serialization support
+	private:
+		friend class boost::serialization::access;
+		template<class Archive>
+		void serialize(Archive & ar, const unsigned int version) {
+			for_each_layer([&ar](auto& l) {
+				constexpr size_t maxStrlen = 64;
+				char lName[maxStrlen];
+				sprintf_s(lName, "layer%d", l.get_layer_idx());
+				ar & serialization::make_named_struct(lName, l);
+			});
+		}
+
+		//////////////////////////////////////////////////////////////////////////
 	public:
 		~layers_pack()noexcept {}
 		layers_pack(Layrs&... layrs) noexcept : m_layers(layrs...), m_lossAddendum(0.0){
@@ -163,7 +177,7 @@ namespace nntl {
 		//better don't play with _layers directly
 		_layers& get_layers()noexcept { return m_layers; }
 		
-		//and apply function _Func to each layer here
+		//and apply function _Func(auto& layer) to each layer here
 		template<typename _Func>
 		void for_each_layer(_Func&& f)noexcept {
 			utils::for_each_up(m_layers, std::move(f));

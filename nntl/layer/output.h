@@ -1,7 +1,7 @@
 /*
 This file is a part of NNTL project (https://github.com/Arech/nntl)
 
-Copyright (c) 2015, Arech (aradvert@gmail.com; https://github.com/Arech)
+Copyright (c) 2015-2016, Arech (aradvert@gmail.com; https://github.com/Arech)
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without
@@ -91,6 +91,32 @@ namespace nntl {
 
 		//this flag controls the weights matrix initialization and prevents reinitialization on next nnet.train() calls
 		bool m_bWeightsInitialized;
+
+		//////////////////////////////////////////////////////////////////////////
+		//Serialization support
+	private:
+		friend class boost::serialization::access;
+		template<class Archive>
+		void serialize(Archive & ar, const unsigned int version) {
+			//NB: DONT touch ANY of .useExternalStorage() matrices here, because it's absolutely temporary meaningless data
+			// and moreover, underlying storage may have already been freed.
+
+			if (utils::binary_option<true>(ar, serialization::serialize_activations)) ar & NNTL_SERIALIZATION_NVP(m_activations);
+
+			if (utils::binary_option<true>(ar, serialization::serialize_weights)) ar & NNTL_SERIALIZATION_NVP(m_weights);
+			
+			if (utils::binary_option<true>(ar, serialization::serialize_grad_works)) ar & m_gradientWorks;//dont use nvp or struct here for simplicity
+
+			if (utils::binary_option<true>(ar, serialization::serialize_training_parameters)) {
+				ar & NNTL_SERIALIZATION_NVP(m_bRestrictdLdZ);
+				ar & NNTL_SERIALIZATION_NVP(m_dLdZRestrictLowerBnd);
+				ar & NNTL_SERIALIZATION_NVP(m_dLdZRestrictUpperBnd);
+
+				ar & NNTL_SERIALIZATION_NVP(m_max_fprop_batch_size);
+				ar & NNTL_SERIALIZATION_NVP(m_training_batch_size);
+			}
+		}
+
 
 		//////////////////////////////////////////////////////////////////////////
 		//methods

@@ -1,7 +1,7 @@
 /*
 This file is a part of NNTL project (https://github.com/Arech/nntl)
 
-Copyright (c) 2015, Arech (aradvert@gmail.com; https://github.com/Arech)
+Copyright (c) 2015-2016, Arech (aradvert@gmail.com; https://github.com/Arech)
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without
@@ -54,8 +54,8 @@ using real_t = math_types::real_ty;
 #define MNIST_FILE MNIST_FILE_RELEASE
 #endif // _DEBUG
 
-template<bool bL2=true>
-void testL2L1(train_data& td, const real_t coeff, uint64_t rngSeed) noexcept{
+template<bool bL2=true, typename T_>
+void testL2L1(train_data<T_>& td, const real_t coeff, uint64_t rngSeed) noexcept{
 	if (bL2) {
 		STDCOUTL("Using l2coeff = " << coeff);
 	}else STDCOUTL("Using l1coeff = " << coeff);
@@ -99,10 +99,10 @@ void testL2L1(train_data& td, const real_t coeff, uint64_t rngSeed) noexcept{
 }
 
 TEST(TestNntl, L2L1) {
-	train_data td;
+	train_data<math_types::real_ty> td;
 	reader_t reader;
 
-	const auto srcFile = MNIST_FILE_DEBUG;
+	const auto srcFile = MNIST_FILE_DEBUG;//intended to use small (debug) variation here
 
 	STDCOUTL("Reading datafile '" << srcFile << "'...");
 	reader_t::ErrorCode rec = reader.read(srcFile, td);
@@ -130,7 +130,7 @@ TEST(TestNntl, L2L1) {
 
 
 TEST(TestNntl, Training) {
-	train_data td;
+	train_data<math_types::real_ty> td;
 	reader_t reader;
 	
 	STDCOUTL("Reading datafile '" << MNIST_FILE << "'...");

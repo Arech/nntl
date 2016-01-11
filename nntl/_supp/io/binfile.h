@@ -1,7 +1,7 @@
 /*
 This file is a part of NNTL project (https://github.com/Arech/nntl)
 
-Copyright (c) 2015, Arech (aradvert@gmail.com; https://github.com/Arech)
+Copyright (c) 2015-2016, Arech (aradvert@gmail.com; https://github.com/Arech)
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without
@@ -124,21 +124,25 @@ namespace nntl_supp {
 	};
 
 
-	class binfile : public nntl::_has_last_error<_binfile_errs> {
-	protected:
-		typedef nntl::train_data::realmtx_t realmtx_t;
-		typedef realmtx_t::value_type mtx_value_t;
-		typedef realmtx_t::vec_len_t vec_len_t;
+	class binfile : public nntl::_has_last_error<_binfile_errs>, protected nntl::math::simple_matrix_typedefs {
+ 	protected:
+// 		typedef nntl::train_data::realmtx_t realmtx_t;
+// 		typedef realmtx_t::value_type mtx_value_t;
+// 		typedef realmtx_t::vec_len_t vec_len_t;
+
+		template<typename T_> using simple_matrix = nntl::math::simple_matrix<T_>;
+		template<typename T_> using train_data = nntl::train_data<T_>;
 
 	public:
 		~binfile()noexcept {}
-		binfile()noexcept : nntl::_has_last_error<_binfile_errs>() {}
+		binfile()noexcept{}
 
 		// read fname, parses it as jsonized struct TD into dest var, which can be either nntl::train_data or nntl::train_data::mtx_t
 		// If readInto_t == nntl::train_data, then all X data will be created with emulateBiases() feature and bMakeMtxBiased param will be ignored
 		template <typename readInto_t>
-		const ErrorCode read(const nntl::strchar_t* fname, readInto_t& dest) {
-			static_assert(std::is_same<nntl::train_data, readInto_t>::value || std::is_same<realmtx_t, readInto_t>::value,
+		const ErrorCode read(const char* fname, readInto_t& dest) {
+			static_assert(std::is_same<train_data<typename readInto_t::value_type>, readInto_t>::value
+				|| std::is_same<simple_matrix<typename readInto_t::value_type>, readInto_t>::value,
 				"Only nntl::train_data or nntl::train_data::mtx_t is supported as readInto_t template parameter");
 
 			FILE* fp=nullptr;
@@ -173,7 +177,7 @@ namespace nntl_supp {
 			total_members
 		};
 
-		inline static const _root_members _name2id(const nntl::strchar_t* sz) noexcept {
+		inline static const _root_members _name2id(const char* sz) noexcept {
 			if (0 == strcmp("train_x", sz)) return _root_members::train_x;
 			if (0 == strcmp("train_y", sz)) return _root_members::train_y;
 			if (0 == strcmp("test_x", sz)) return _root_members::test_x;
@@ -181,17 +185,18 @@ namespace nntl_supp {
 			return _root_members::total_members;
 		}
 
-		template <typename readInto_t>
+		/*template <typename readInto_t, typename T_= typename readInto_t::value_type>
 		const ErrorCode _read_into(FILE* fp, readInto_t& dest)noexcept {
 			static_assert(!"No function specialization for type readInto_t");
-		}
+		}*/
 
-		template<>
-		const ErrorCode _read_into<nntl::train_data>(FILE* fp, nntl::train_data& dest)noexcept {
-			realmtx_t mtxs[total_members];
+		template<typename T_>
+		const ErrorCode _read_into(FILE* fp, train_data<T_>& dest)noexcept {
+			typedef simple_matrix<T_> mtx_t;
+			mtx_t mtxs[total_members];
 
 			for (unsigned nel = 0; nel < _root_members::total_members; ++nel) {
-				realmtx_t m;
+				mtx_t m;
 				_root_members fieldId;
 				const auto err = _read_field_entry(fp, m, fieldId, true);
 				if (ErrorCode::Success != err) return err;
@@ -207,8 +212,8 @@ namespace nntl_supp {
 
 			return ErrorCode::Success;
 		}
-		template<>
-		const ErrorCode _read_into<realmtx_t>(FILE* fp, realmtx_t& dest)noexcept {
+		template<typename T_>
+		const ErrorCode _read_into(FILE* fp, simple_matrix<T_>& dest)noexcept {
 			NNTL_ASSERT(!dest.bDontManageStorage());
 			NNTL_ASSERT(dest.empty());
 
@@ -216,7 +221,8 @@ namespace nntl_supp {
 			return _read_field_entry(fp, dest, f, false);
 		}
 
-		const ErrorCode _read_field_entry(FILE* fp, realmtx_t& m, _root_members& fieldId, const bool bReadTD=true)noexcept{
+		template<typename T_>
+		const ErrorCode _read_field_entry(FILE* fp, simple_matrix<T_>& m, _root_members& fieldId, const bool bReadTD=true)noexcept{
 			if (!m.empty()) return _set_last_error(ErrorCode::FieldHasBeenRead);
 
 			bin_file::FIELD_ENTRY fe;
@@ -227,13 +233,13 @@ namespace nntl_supp {
 #pragma warning(default:28020)
 
 			const auto fieldDataType = fe.bDataType;
-			const auto bSameTypes = bin_file::correct_data_type<mtx_value_t>(fieldDataType);
+			const auto bSameTypes = bin_file::correct_data_type<T_>(fieldDataType);
 
 			if (fe.dwRows <= 0 || fe.dwCols <= 0) return _set_last_error(ErrorCode::InvalidDataSize);
 
 			fe.bDataType = 0;
 			if (bReadTD) {
-				fieldId = _name2id(static_cast<const nntl::strchar_t*>(fe.szName));
+				fieldId = _name2id(fe.szName);
 				if(_root_members::total_members == fieldId) return _set_last_error(ErrorCode::UnknownFieldName);
 				if (_root_members::train_x == fieldId || _root_members::test_x == fieldId) {
 					m.will_emulate_biases();
@@ -271,11 +277,13 @@ namespace nntl_supp {
 			if (!bSameTypes) {
 				switch (fieldDataType) {
 				case bin_file::dt_float:
-					_convert_data<mtx_value_t, float>(m, static_cast<float*>(pReadTo));
+					//_convert_data<T_, float>(m, static_cast<float*>(pReadTo));
+					m.fill_from_array_no_bias(static_cast<const float*>(pReadTo));
 					break;
 
 				case bin_file::dt_double:
-					_convert_data<mtx_value_t, double>(m, static_cast<double*>(pReadTo));
+					//_convert_data<T_, double>(m, static_cast<double*>(pReadTo));
+					m.fill_from_array_no_bias(static_cast<const double*>(pReadTo));
 					break;
 				}
 
@@ -285,19 +293,19 @@ namespace nntl_supp {
 			return ErrorCode::Success;
 		}
 
-		template <typename dest_value_type, typename src_value_type>
-		void _convert_data(nntl::math::simple_matrix<dest_value_type>& dest, src_value_type* pSrc) noexcept {
+		/*template <typename dest_value_type, typename src_value_type>
+		static void _convert_data(simple_matrix<dest_value_type>& dest, src_value_type* pSrc) noexcept {
 			const auto pSrcE = pSrc + dest.numel_no_bias();
 			auto pD = dest.data();
 			while (pSrc != pSrcE) *pD++ = static_cast<dest_value_type>(*pSrc++);
-		}
+		}*/
 
 		template <typename readInto_t>
-		typename std::enable_if_t< std::is_same<realmtx_t, readInto_t>::value, bool> elements_count_correct(decltype(bin_file::HEADER::wFieldsCount) cnt)const noexcept {
+		typename std::enable_if_t< std::is_same<simple_matrix<typename readInto_t::value_type>, readInto_t>::value, bool> elements_count_correct(decltype(bin_file::HEADER::wFieldsCount) cnt)const noexcept {
 			return 1 == cnt;
 		}
 		template <typename readInto_t>
-		typename std::enable_if_t< std::is_same<nntl::train_data, readInto_t>::value, bool> elements_count_correct(decltype(bin_file::HEADER::wFieldsCount) cnt)const noexcept {
+		typename std::enable_if_t< std::is_same<train_data<typename readInto_t::value_type>, readInto_t>::value, bool> elements_count_correct(decltype(bin_file::HEADER::wFieldsCount) cnt)const noexcept {
 			return 4 == cnt;
 		}
 

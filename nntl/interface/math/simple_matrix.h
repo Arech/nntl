@@ -1,7 +1,7 @@
 /*
 This file is a part of NNTL project (https://github.com/Arech/nntl)
 
-Copyright (c) 2015, Arech (aradvert@gmail.com; https://github.com/Arech)
+Copyright (c) 2015-2016, Arech (aradvert@gmail.com; https://github.com/Arech)
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without
@@ -36,31 +36,31 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "../../_defs.h"
 #include "../threads/parallel_range.h"
 
-//TODO: Consider replacing generic memcpy/memcmp/memset and others similar generic functions with
+//#TODO: Consider replacing generic memcpy/memcmp/memset and others similar generic functions with
 //their versions from Agner Fox's asmlib. TEST if it really helps!!!!
 
 namespace nntl {
 namespace math {
 
-	// wrapper class to store vectors/matrices in column-major ordering
-	// Almost sure, that developing this class is like reinventing the wheel. But I don't know where to look for
-	// better implementations, therefore it might be faster to write the class myself than to try to find an
-	// alternative an apply it to my needs.
-	
-
-	template <typename T_>
-	class simple_matrix {
-	public:
-		typedef T_ value_type;
-		typedef value_type* value_ptr_t;
-		typedef const value_type* cvalue_ptr_t;
-
-		//typedef simple_matrix<value_type> self_t;
-
+	// types that don't rely on matrix value_type
+	struct simple_matrix_typedefs {
 		//rows/cols type. int should be enought. If not, redifine to smth bigger
 		typedef uint32_t vec_len_t;
 		typedef uint64_t numel_cnt_t;
 		typedef std::pair<const vec_len_t, const vec_len_t> mtx_size_t;
+	};
+
+	//////////////////////////////////////////////////////////////////////////
+	// wrapper class to store vectors/matrices in column-major ordering
+	// Almost sure, that developing this class is like reinventing the wheel. But I don't know where to look for
+	// better implementations, therefore it might be faster to write the class myself than to try to find an
+	// alternative an apply it to my needs.
+	template <typename T_>
+	class simple_matrix : public simple_matrix_typedefs {
+	public:
+		typedef T_ value_type;
+		typedef value_type* value_ptr_t;
+		typedef const value_type* cvalue_ptr_t;
 		
 		//////////////////////////////////////////////////////////////////////////
 		//members
@@ -324,6 +324,22 @@ namespace math {
 			std::fill(m_pData, m_pData + numel(), value_type(1.0));
 		}
 
+		// fills matrix with data from pSrc doing type conversion. Bias units left untouched.
+		template<typename OtherBaseT>
+		std::enable_if_t<!std::is_same<value_type, OtherBaseT>::value> fill_from_array_no_bias(const OtherBaseT*const pSrc)noexcept {
+			static_assert(std::is_arithmetic<OtherBaseT>::value, "OtherBaseT must be a simple arithmetic data type");
+			static_assert(!std::is_same<value_type, OtherBaseT>::value,"Use clone() to copy same type data");
+			NNTL_ASSERT(!empty() && numel() > 0);
+			const auto ne = numel_no_bias();
+			const auto p = data();
+			for (numel_cnt_t i = 0; i < ne; ++i) p[i] = static_cast<value_type>(pSrc[i]);
+		}
+		template<typename OtherBaseT>
+		std::enable_if_t<std::is_same<value_type, OtherBaseT>::value> fill_from_array_no_bias(const OtherBaseT*const pSrc)noexcept {
+			NNTL_ASSERT(!empty() && numel() > 0);
+			memcpy(m_pData, pSrc, byte_size_no_bias());
+		}
+
 		//ATTN: _i_math implementation should have a faster variants of this function.
 		//extract number=cnt rows by their indexes, specified by sequential iterator begin, into allocated dest matrix
 		/*template<typename SeqIt>
@@ -412,7 +428,8 @@ namespace math {
 			NNTL_ASSERT(!empty() && !m.empty());
 			//nonstrict nonequality it necessary here, because &[numel()] references element past the end of the allocated array
 			NNTL_ASSERT( &m.m_pData[m.numel()] <= m_pData || &m_pData[numel()] <= m.m_pData);
-		}		
+		}
+
 	};
 
 	//////////////////////////////////////////////////////////////////////////
@@ -437,6 +454,23 @@ namespace math {
 #endif // NNTL_DEBUG
 		}
 
+		simple_matrix_deformable(simple_matrix&& src)noexcept : _base_class(std::move(src)) {
+#ifdef NNTL_DEBUG
+			m_maxSize = numel();
+#endif // NNTL_DEBUG
+		}
+
+		simple_matrix_deformable& operator=(simple_matrix&& rhs) noexcept {
+			if (this != &rhs) {
+				_base_class::operator =(std::move(rhs));
+#ifdef NNTL_DEBUG
+				m_maxSize = numel();
+#endif // NNTL_DEBUG
+			}
+			return *this;
+		}
+
+
 		void clear()noexcept {
 #ifdef NNTL_DEBUG
 			m_maxSize = 0;
@@ -451,6 +485,12 @@ namespace math {
 			if (r) m_maxSize = numel();
 #endif // NNTL_DEBUG
 			return r;
+		}
+
+		void update_on_hidden_resize()noexcept {
+#ifdef NNTL_DEBUG
+			m_maxSize = numel();
+#endif // NNTL_DEBUG
 		}
 
 		const bool resize(const vec_len_t _rows, vec_len_t _cols)noexcept {

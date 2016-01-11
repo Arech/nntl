@@ -1,7 +1,7 @@
 /*
 This file is a part of NNTL project (https://github.com/Arech/nntl)
 
-Copyright (c) 2015, Arech (aradvert@gmail.com; https://github.com/Arech)
+Copyright (c) 2015-2016, Arech (aradvert@gmail.com; https://github.com/Arech)
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without
@@ -31,18 +31,41 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 #pragma once
 
+#include "serialization/serialization.h"
+
 namespace nntl {
 
 
 	//dummy struct to handle training data
+	template<typename BaseT>
 	class train_data {
 	public:
-		//typedef math_types::realmtx_ty realmtx_t;
-		typedef math_types::real_ty real_t;
-		typedef math::simple_matrix<real_t> realmtx_t;
+		typedef BaseT value_type;
+		typedef math::simple_matrix<value_type> mtx_t;
+		typedef math::simple_matrix_deformable<value_type> mtxdef_t;
 
+		//////////////////////////////////////////////////////////////////////////
+		//members
+	protected:
+		mtxdef_t m_train_x, m_train_y, m_test_x, m_test_y;
+
+		//////////////////////////////////////////////////////////////////////////
+		//Serialization support
+	private:
+		friend class boost::serialization::access;
+		template<class Archive>
+		void serialize(Archive & ar, const unsigned int version) {
+			ar & serialization::make_nvp("train_x", m_train_x);
+			ar & serialization::make_nvp("train_y", m_train_y);
+			ar & serialization::make_nvp("test_x", m_test_x);
+			ar & serialization::make_nvp("test_y", m_test_y);
+			NNTL_ASSERT(absorbsion_will_succeed(m_train_x, m_train_y, m_test_x, m_test_y));
+// 			STDCOUTL("serialize_training_parameters is " << std::boolalpha
+// 				<< utils::binary_option(ar, serialization::serialize_training_parameters) << std::noboolalpha);
+		}
+
+	public:
 		train_data()noexcept {}
-		~train_data() noexcept {};
 
 		//!! copy constructor not needed
 		train_data(const train_data& other)noexcept = delete;
@@ -51,19 +74,23 @@ namespace nntl {
 
 		//////////////////////////////////////////////////////////////////////////
 
-		const realmtx_t& train_x()const noexcept { return m_train_x; }
-		const realmtx_t& train_y()const noexcept { return m_train_y; }
-		const realmtx_t& test_x()const noexcept { return m_test_x; }
-		const realmtx_t& test_y()const noexcept { return m_test_y; }
+		const bool operator==(const train_data& rhs)const noexcept {
+			return m_train_x == rhs.m_train_x && m_train_y == rhs.m_train_y && m_test_x == rhs.m_test_x && m_test_y == rhs.m_test_y;
+		}
 
-		realmtx_t& train_x_mutable() noexcept { return m_train_x; }
-		realmtx_t& train_y_mutable() noexcept { return m_train_y; }
+		const mtxdef_t& train_x()const noexcept { return m_train_x; }
+		const mtxdef_t& train_y()const noexcept { return m_train_y; }
+		const mtxdef_t& test_x()const noexcept { return m_test_x; }
+		const mtxdef_t& test_y()const noexcept { return m_test_y; }
+
+		mtxdef_t& train_x_mutable() noexcept { return m_train_x; }
+		mtxdef_t& train_y_mutable() noexcept { return m_train_y; }
 
 		const bool empty()const noexcept {
 			return m_train_x.empty() || m_train_y.empty() || m_test_x.empty() || m_test_y.empty();
 		}
 
-		const bool absorb(realmtx_t&& _train_x, realmtx_t&& _train_y, realmtx_t&& _test_x, realmtx_t&& _test_y)noexcept{
+		const bool absorb(mtx_t&& _train_x, mtx_t&& _train_y, mtx_t&& _test_x, mtx_t&& _test_y)noexcept{
 			//, const bool noBiasEmulationNecessary=false)noexcept {
 			
 			if (!absorbsion_will_succeed(_train_x, _train_y,_test_x,_test_y))  return false;
@@ -74,8 +101,8 @@ namespace nntl {
 			return true;
 		}
 
-		static const bool absorbsion_will_succeed(
-			realmtx_t& _train_x, realmtx_t& _train_y, realmtx_t& _test_x, realmtx_t& _test_y)noexcept //, const bool noBiasEmulationNecessary) noexcept
+		static const bool absorbsion_will_succeed(const mtx_t& _train_x, const mtx_t& _train_y
+			, const mtx_t& _test_x, const mtx_t& _test_y)noexcept //, const bool noBiasEmulationNecessary) noexcept
 		{
 			return !_train_x.empty() && !_train_y.empty() && _train_x.rows() == _train_y.rows()
 				&& !_test_x.empty() && !_test_y.empty() && _test_x.rows() == _test_y.rows()
@@ -83,11 +110,5 @@ namespace nntl {
 				&& _train_x.emulatesBiases() && _test_x.emulatesBiases();
 				//&& (noBiasEmulationNecessary ^ _train_x.emulatesBiases()) && (noBiasEmulationNecessary ^ _test_x.emulatesBiases());
 		}
-
-		//////////////////////////////////////////////////////////////////////////
-		//members
-	protected:
-		realmtx_t m_train_x, m_train_y, m_test_x, m_test_y;
-
 	};
 }

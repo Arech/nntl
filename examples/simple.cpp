@@ -1,7 +1,7 @@
 /*
 This file is a part of NNTL project (https://github.com/Arech/nntl)
 
-Copyright (c) 2015, Arech (aradvert@gmail.com; https://github.com/Arech)
+Copyright (c) 2015-2016, Arech (aradvert@gmail.com; https://github.com/Arech)
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without
@@ -54,7 +54,7 @@ using real_t = math_types::real_ty;
 
 // make a simple NN without any fancy things, just simple 768->500->300->10 net without momentum and dropout
 TEST(Simple, PlainFFN) {
-	train_data td; //storage for MNIST train and test(validation) data
+	train_data<math_types::real_ty> td; //storage for MNIST train and test(validation) data
 	reader_t reader; //.bin file reader object
 
 	//1. reading training data from file into train_data td storage
@@ -108,7 +108,7 @@ TEST(Simple, PlainFFN) {
 // to http://yann.lecun.com/exdb/mnist/index.html. There were no signs of overfitting, so longer learning could
 // lead to even better results.
 TEST(Simple, NotSoPlainFFN) {
-	train_data td;
+	train_data<math_types::real_ty> td;
 	reader_t reader;
 
 	//1. reading training data from file into train_data td storage
@@ -174,7 +174,7 @@ TEST(Simple, NotSoPlainFFN) {
 //This setup is slightly simplier than previous one - just Nesterov Momentum, RMSProp and just a better weight initialization algorithm.
 // It beats the previous reaching less than 1.6% in less than 20 epochs.
 TEST(Simple, NesterovMomentumAndRMSPropOnly) {
-	train_data td;
+	train_data<math_types::real_ty> td;
 	reader_t reader;
 
 	STDCOUTL("Reading datafile '" << MNIST_FILE << "'...");

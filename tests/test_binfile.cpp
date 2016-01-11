@@ -1,7 +1,7 @@
 /*
 This file is a part of NNTL project (https://github.com/Arech/nntl)
 
-Copyright (c) 2015, Arech (aradvert@gmail.com; https://github.com/Arech)
+Copyright (c) 2015-2016, Arech (aradvert@gmail.com; https://github.com/Arech)
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without
@@ -64,10 +64,11 @@ TEST(TestBinFile, ReadMatrix) {
 }
 
 TEST(TestBinFile, ReadTrainData) {
-	typedef train_data::realmtx_t realmtx_t;
+	typedef math_types::real_ty real_t;
+	typedef train_data<real_t> train_data_t;
+	typedef train_data_t::mtx_t realmtx_t;
 	typedef realmtx_t::vec_len_t vec_len_t;
 	using mtx_size_t = realmtx_t::mtx_size_t;
-	using real_t = realmtx_t::value_type;
 
 	typedef nntl_supp::binfile binfile;
 	typedef binfile::ErrorCode ErrorCode;
@@ -75,7 +76,7 @@ TEST(TestBinFile, ReadTrainData) {
 	const strchar_t* mtx_fname = "./test_data/td.bin";
 	const double mtx_content[4]{ 1,4,3,2 };
 
-	train_data td;
+	train_data_t td;
 	binfile r;
 
 	auto ec = r.read(NNTL_STRING(mtx_fname), td);

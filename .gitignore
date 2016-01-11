@@ -116,3 +116,4 @@ Desktop.ini
 *.bmp
 *.bin
 !*/test_data/*.bin
+*.mat

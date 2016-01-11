@@ -1,7 +1,7 @@
 /*
 This file is a part of NNTL project (https://github.com/Arech/nntl)
 
-Copyright (c) 2015, Arech (aradvert@gmail.com; https://github.com/Arech)
+Copyright (c) 2015-2016, Arech (aradvert@gmail.com; https://github.com/Arech)
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without
@@ -48,9 +48,10 @@ using namespace nntl;
 TEST(TestJsonreader, ReadingAndParsingMatrix) {
 	using namespace nntl_supp;
 	using ErrCode = jsonreader::ErrorCode;
-	using realmtx_t = train_data::realmtx_t;
+	typedef math_types::real_ty real_t;
+	typedef train_data<real_t> train_data_t;
+	typedef train_data_t::mtx_t realmtx_t;
 	using mtx_size_t = realmtx_t::mtx_size_t;
-	using real_t = realmtx_t::value_type;
 	using vec_len_t = realmtx_t::vec_len_t;
 
 	realmtx_t m;
@@ -74,11 +75,14 @@ TEST(TestJsonreader, ReadingAndParsingMatrix) {
 TEST(TestJsonreader, ReadingAndParsingTrainData) {
 	using namespace nntl_supp;
 	using ErrCode = jsonreader::ErrorCode;
-	using mtx_size_t = train_data::realmtx_t::mtx_size_t;
-	using real_t = train_data::realmtx_t::value_type;
-	using vec_len_t = train_data::realmtx_t::vec_len_t;
+	typedef math_types::real_ty real_t;
+	typedef train_data<real_t> train_data_t;
+	typedef train_data_t::mtx_t realmtx_t;
+	using mtx_size_t = realmtx_t::mtx_size_t;
+	using real_t = realmtx_t::value_type;
+	using vec_len_t = realmtx_t::vec_len_t;
 
-	train_data td;
+	train_data_t td;
 	jsonreader reader;
 
 	ErrCode ec = reader.read(NNTL_STRING("./test_data/traindata.json"), td);

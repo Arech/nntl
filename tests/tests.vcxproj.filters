@@ -58,6 +58,9 @@
     <Filter Include="nntl\layer">
       <UniqueIdentifier>{bd9910cb-a866-416e-87c4-fe090e6c14d0}</UniqueIdentifier>
     </Filter>
+    <Filter Include="nntl\serialization">
+      <UniqueIdentifier>{290b233c-aeaa-449e-af80-22751cbfedc6}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <Text Include="ReadMe.txt" />
@@ -153,9 +156,6 @@
     <ClInclude Include="..\nntl\training_observer.h">
       <Filter>nntl</Filter>
     </ClInclude>
-    <ClInclude Include="..\nntl\utils\clamp.h">
-      <Filter>nntl\utils</Filter>
-    </ClInclude>
     <ClInclude Include="..\nntl\interface\rng\AFRandom.h">
       <Filter>nntl\interface\rng</Filter>
     </ClInclude>
@@ -249,6 +249,21 @@
     <ClInclude Include="..\nntl\_supp\io\jsonreader.h">
       <Filter>nntl\_supp\io</Filter>
     </ClInclude>
+    <ClInclude Include="..\nntl\_supp\io\matfile.h">
+      <Filter>nntl\_supp\io</Filter>
+    </ClInclude>
+    <ClInclude Include="..\nntl\utils\matlab.h">
+      <Filter>nntl\utils</Filter>
+    </ClInclude>
+    <ClInclude Include="..\nntl\serialization\serialization.h">
+      <Filter>nntl\serialization</Filter>
+    </ClInclude>
+    <ClInclude Include="..\nntl\utils\options.h">
+      <Filter>nntl\utils</Filter>
+    </ClInclude>
+    <ClInclude Include="..\nntl\serialization\options.h">
+      <Filter>nntl\serialization</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="stdafx.cpp">
@@ -297,6 +312,9 @@
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="test_imath_basic_thr.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="test_matfile.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
