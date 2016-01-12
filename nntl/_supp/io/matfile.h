@@ -48,7 +48,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include <vector>
 #include <stack>
-
+#include <bitset>
 
 namespace nntl_supp {
 
@@ -357,6 +357,13 @@ namespace nntl_supp {
 			return get_self().operator<<(static_cast<const nntl::math::simple_matrix<BaseT>&>(t));
 		}
 
+		template<size_t _Bits> self_ref_t operator<<(const std::bitset<_Bits>& t) {
+			NNTL_ASSERT((m_matFile && m_curVarName) || !"Open file with openForSave() and use nvp/named_struct to pass data for saving!");
+			//just a placeholder to make compiler happy. Don't need flags at the moment...
+			//#todo: implement
+			m_curVarName = nullptr;
+			return get_self();
+		}
 
 		template<typename T>
 		std::enable_if_t< std::is_arithmetic<T>::value, self_ref_t> operator<<(const T& t) {

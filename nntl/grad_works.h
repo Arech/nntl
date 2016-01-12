@@ -219,9 +219,18 @@ namespace nntl {
 				ar & NNTL_SERIALIZATION_NVP(m_L2);
 				ar & NNTL_SERIALIZATION_NVP(m_L1);
 				ar & NNTL_SERIALIZATION_NVP(m_type);
-				/*unsigned gradType = m_type;
-				ar & NNTL_SERIALIZATION_NVP(gradType);
-				m_type = static_cast<GradType>(gradType)*/;
+				ar & NNTL_SERIALIZATION_NVP(m_flags);
+			}
+
+			if (utils::binary_option<true>(ar, serialization::serialize_grad_works_state)) {
+				if (m_type == RMSProp_Hinton || m_type == RMSProp_Graves || m_type == ModProp) ar & NNTL_SERIALIZATION_NVP(m_rmsF);
+				if (m_type == RMSProp_Graves) ar & NNTL_SERIALIZATION_NVP(m_rmsG);
+
+				if (use_momentums()) ar & NNTL_SERIALIZATION_NVP(m_Vw);
+				if (use_individual_learning_rates()) {
+					ar & NNTL_SERIALIZATION_NVP(m_ILRGain);
+					if (!use_momentums() | !m_flags[f_ApplyILRToMomentumVelocity]) ar & NNTL_SERIALIZATION_NVP(m_prevdLdW);
+				}
 			}
 		}
 

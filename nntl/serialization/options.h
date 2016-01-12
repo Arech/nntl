@@ -39,11 +39,12 @@ namespace nntl {
 namespace serialization {
 
 	enum CommonOptions {
+		serialize_data_x,
 		serialize_training_parameters, //something like learning_rate, dropout_rate and etc
 		serialize_activations,
 		serialize_weights,
 		serialize_grad_works,
-		serialize_data_x,
+		serialize_grad_works_state,
 
 		serialize_dropout_mask,
 
