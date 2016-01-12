@@ -14,7 +14,7 @@ So, it's about a two times faster (and has a room for further improvements, btw)
 
 Also, one may switch to float data type instead of double to run the code yet about two times faster.
 
-I wouldn't state the NNTL is the fastest CPU implementation of feedforward neural networks, but nonetheless it's pretty fast and BSD-licensed (except for [random number generators](https://github.com/Arech/AF_randomc_h), that is GPL licensed, - but you can easily substitute RNG for you own if you want). It's intended to be as fast as possible, provided that the code is easy to understand and maintain.
+I wouldn't state the NNTL is the fastest CPU implementation of feedforward neural networks, but nonetheless it's pretty fast and BSD-licensed (except for [random number generators](https://github.com/Arech/AF_randomc_h), which is GPL licensed, - but you can easily substitute RNG for your own implementation if you want). It's intended to be as fast as possible, provided that the code is easy to understand and maintain.
 
 ## Currently Implemented NN Features
 * full-batch or mini-batch learning
