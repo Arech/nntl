@@ -58,12 +58,12 @@ namespace nntl {
 		// Call sequence inspect_results() + inspect_results() + on_training_fragment_end() is guaranteed for every epoch to be
 		// evaluated
 		//data_y must be the same as init(train_y)|bOnTestData==false or init(test_y)|bOnTestData==true
-		template<typename iMath>
-		nntl_interface void inspect_results(const realmtx_t& data_y, const realmtx_t& activations, const bool bOnTestData, iMath& iM)noexcept;
+		template<typename NnetT>
+		nntl_interface void inspect_results(const size_t epochEnded, const realmtx_t& data_y, const bool bOnTestData, const NnetT& nn)noexcept;
 
 		nntl_interface void on_training_start(vec_len_t trainElements, vec_len_t testElements, vec_len_t inDim, vec_len_t outDim, vec_len_t batchSize, numel_cnt_t nL)noexcept;
 		//epochEnded is zero based, so the first epoch is 0. Will be ==-1 on initial report (before training begins)
-		nntl_interface void on_training_fragment_end(size_t epochEnded, real_t trainLoss, real_t testLoss, const nanoseconds& elapsedSincePrevFragment)noexcept;
+		nntl_interface void on_training_fragment_end(const size_t epochEnded, const real_t trainLoss, const real_t testLoss, const nanoseconds& elapsedSincePrevFragment)noexcept;
 		nntl_interface void on_training_end(const nanoseconds& trainTime)noexcept;
 	};
 
@@ -73,11 +73,11 @@ namespace nntl {
 		void deinit()noexcept {}
 
 		//always called before on_training_fragment_end() twice: on training and on testing/validation data
-		template<typename iMath>
-		void inspect_results(const realmtx_t& data_y, const realmtx_t& activations, const bool bOnTestData, iMath& iM)noexcept {}
+		template<typename NnetT>
+		void inspect_results(const size_t epochEnded, const realmtx_t& data_y, const bool bOnTestData, const NnetT& nn)noexcept {}
 
 		void on_training_start(vec_len_t trainElements, vec_len_t testElements, vec_len_t inDim, vec_len_t outDim, vec_len_t batchSize, numel_cnt_t nL)noexcept {}
-		void on_training_fragment_end(size_t epochEnded, real_t trainLoss, real_t testLoss, const nanoseconds& elapsedSincePrevFragment)noexcept{}
+		void on_training_fragment_end(const size_t epochEnded, const real_t trainLoss, const real_t testLoss, const nanoseconds& elapsedSincePrevFragment)noexcept{}
 		void on_training_end(const nanoseconds& trainTime)noexcept {}
 	};
 
@@ -85,13 +85,12 @@ namespace nntl {
 	//simple observer, that outputs only loss function value to std::cout
 	class training_observer_simple_stdcout : public i_training_observer {
 	protected:
-		size_t m_epochs, m_prevEpoch;
+		size_t m_epochs;
 
 	public:
 		template<typename iMath>
 		bool init(size_t epochs, const realmtx_t& train_y, const realmtx_t& test_y, iMath& iM)noexcept {
 			m_epochs = epochs;
-			m_prevEpoch = 0;
 			return true;
 		}
 		void deinit()noexcept { }
@@ -107,21 +106,18 @@ namespace nntl {
 
 		//always called before on_training_fragment_end() twice: on training and on testing/validation data
 		//data_y must be the same as init(train_y)|bOnTestData==false or init(test_y)|bOnTestData==true
-		template<typename iMath>
-		void inspect_results(const realmtx_t& data_y, const realmtx_t& activations, const bool bOnTestData, iMath& iM)noexcept { }
+		template<typename NnetT>
+		void inspect_results(const size_t epochEnded, const realmtx_t& data_y, const bool bOnTestData, const NnetT& nn)noexcept { }
 
-		void on_training_fragment_end(size_t epochEnded, real_t trainLoss, real_t testLoss, const nanoseconds& elapsedSincePrevFragment)noexcept {
-			static constexpr strchar_t* szReportFmt = "% 3zd/%3zd %3.1fs trL=%8.5f, vL=%8.5f";
+		void on_training_fragment_end(const size_t epochEnded, const real_t trainLoss, const real_t testLoss, const nanoseconds& elapsedSincePrevFragment)noexcept {
+			static constexpr strchar_t* szReportFmt = "% 3zd/%-3zd %3.1fs trL=%8.5f, vL=%8.5f";
 			static constexpr unsigned uBufSize = 128;
-
-			++epochEnded;
-
+			
 			strchar_t szRep[uBufSize];
 			const real_t secs = real_t(elapsedSincePrevFragment.count()) / real_t(1e9);
 
-			sprintf_s(szRep, uBufSize, szReportFmt, epochEnded, m_epochs, secs, trainLoss, testLoss);
+			sprintf_s(szRep, uBufSize, szReportFmt, epochEnded+1, m_epochs, secs, trainLoss, testLoss);
 			std::cout << szRep << std::endl;
-			m_prevEpoch = epochEnded;
 		}
 
 		void on_training_end(const nanoseconds& trainTime)noexcept {
@@ -150,13 +146,12 @@ namespace nntl {
 	public:
 		evaluator_t m_evaluator;
 	protected:
-		size_t m_epochs, m_prevEpoch;
+		size_t m_epochs;
 
 	public:
 		template<typename iMath>
 		bool init(size_t epochs, const realmtx_t& train_y, const realmtx_t& test_y, iMath& iM)noexcept {
 			m_epochs = epochs;
-			m_prevEpoch = 0;
 			return m_evaluator.init(train_y, test_y, iM);
 		}
 		void deinit()noexcept {
@@ -174,20 +169,19 @@ namespace nntl {
 
 		//always called before on_training_fragment_end() twice: on training and on testing/validation data
 		//data_y must be the same as init(train_y)|bOnTestData==false or init(test_y)|bOnTestData==true
-		template<typename iMath>
-		void inspect_results(const realmtx_t& data_y, const realmtx_t& activations, const bool bOnTestData, iMath& iM)noexcept {
+		template<typename NnetT>
+		void inspect_results(const size_t epochEnded, const realmtx_t& data_y, const bool bOnTestData, const NnetT& nn)noexcept {
+			const auto& activations = nn.get_layer_pack().output_layer().get_activations();
 			NNTL_ASSERT(data_y.size() == activations.size());
 			
 			m_classifRes[bOnTestData].totalElements = data_y.rows();
-			m_classifRes[bOnTestData].correctlyClassified = m_evaluator.correctlyClassified(data_y, activations, bOnTestData, iM);
+			m_classifRes[bOnTestData].correctlyClassified = m_evaluator.correctlyClassified(data_y, activations, bOnTestData, nn.get_iMath());
 		}
 
-		void on_training_fragment_end(size_t epochEnded, real_t trainLoss, real_t testLoss, const nanoseconds& elapsedSincePrevFragment)noexcept {
-			static constexpr strchar_t* szReportFmt = "% 3zd/%3zd %3.1fs trL=%05.3f, trErr=%.2f%% (%zd), vL=%05.3f, vErr=%.2f%% (%zd)";
+		void on_training_fragment_end(const size_t epochEnded, const real_t trainLoss, const real_t testLoss, const nanoseconds& elapsedSincePrevFragment)noexcept {
+			static constexpr strchar_t* szReportFmt = "% 3zd/%-3zd %3.1fs trL=%05.3f, trErr=%.2f%% (%zd), vL=%05.3f, vErr=%.2f%% (%zd)";
 			static constexpr unsigned uBufSize = 128;
-
-			++epochEnded;
-
+			
 			strchar_t szRep[uBufSize];
 			const real_t secs = real_t(elapsedSincePrevFragment.count()) / real_t(1e9);
 
@@ -197,12 +191,10 @@ namespace nntl {
 			const auto testTE = m_classifRes[1].totalElements, testW = testTE - m_classifRes[1].correctlyClassified;
 			const real_t tErr = real_t(testW * 100) / testTE;
 			
-			sprintf_s(szRep, uBufSize, szReportFmt, epochEnded, m_epochs, secs, trainLoss, 
+			sprintf_s(szRep, uBufSize, szReportFmt, epochEnded+1, m_epochs, secs, trainLoss, 
 				trErr, trainW, testLoss,tErr, testW);
 			
 			std::cout << szRep << std::endl;
-
-			m_prevEpoch = epochEnded;
 		}
 
 		void on_training_end(const nanoseconds& trainTime)noexcept {

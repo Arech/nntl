@@ -206,12 +206,12 @@ namespace nntl {
 		//////////////////////////////////////////////////////////////////////////
 		//nntl_interface overridings
 		self_ref_t get_self() noexcept {
-			static_assert(std::is_base_of<_layer_base<FinalPolymorphChild>, FinalPolymorphChild>::value
+			static_assert(std::is_base_of<_layer_base<real_t, FinalPolymorphChild>, FinalPolymorphChild>::value
 				, "FinalPolymorphChild must derive from _layer_base<FinalPolymorphChild>");
 			return static_cast<self_ref_t>(*this);
 		}
 		self_cref_t get_self() const noexcept {
-			static_assert(std::is_base_of<_layer_base<FinalPolymorphChild>, FinalPolymorphChild>::value
+			static_assert(std::is_base_of<_layer_base<real_t, FinalPolymorphChild>, FinalPolymorphChild>::value
 				, "FinalPolymorphChild must derive from _layer_base<FinalPolymorphChild>");
 			return static_cast<self_cref_t>(*this);
 		}
@@ -220,12 +220,12 @@ namespace nntl {
 		const neurons_count_t get_incoming_neurons_cnt()const noexcept { return m_incoming_neurons_cnt; }
 		//const realmtx_t& get_activations()const noexcept { return m_activations; }
 
-		constexpr bool is_input_layer()const noexcept { return false; }
-		constexpr bool is_output_layer()const noexcept { return false; }
+		constexpr const bool is_input_layer()const noexcept { return false; }
+		constexpr const bool is_output_layer()const noexcept { return false; }
 
 		//returns a loss function summand, that's caused by this layer (for example, L2 regularizer adds term
 		// l2Coefficient*Sum(weights.^2) )
-		real_t lossAddendum()const noexcept { return real_t(0.0); }
+		constexpr const real_t lossAddendum()const noexcept { return real_t(0.0); }
 			
 		//////////////////////////////////////////////////////////////////////////
 		// other funcs

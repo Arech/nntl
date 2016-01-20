@@ -127,7 +127,7 @@ void test_ewBinarize_ip_perf(vec_len_t rowsCnt, vec_len_t colsCnt = 10, const re
 	tB.say("best");
 }
 
-TEST(TestIMathBasicPerf, ewBinarizeIp) {
+TEST(TestIMathBasicThr, ewBinarizeIp) {
 	NNTL_RUN_TEST2(imath_basic_t::Thresholds_t::ewBinarize_ip, 100) {
 		test_ewBinarize_ip_perf(i, 100, .5);
 		//test_ewBinarize_ip_perf(i, 100, .1);
@@ -176,7 +176,7 @@ void test_ewBinarize_perf(vec_len_t rowsCnt, vec_len_t colsCnt = 10, const real_
 	tB.say("best");
 }
 
-TEST(TestIMathBasicPerf, ewBinarize) {
+TEST(TestIMathBasicThr, ewBinarize) {
 	NNTL_RUN_TEST2(imath_basic_t::Thresholds_t::ewBinarize, 100) {
 		test_ewBinarize_perf(i, 100, .5);
 		//test_ewBinarize_perf(i, 100, .1);
@@ -269,7 +269,7 @@ void test_softmax_parts_perf(vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 	tMt.say("mt");
 	tB.say("best");
 }
-TEST(TestIMathBasicPerf, SoftmaxParts) {
+TEST(TestIMathBasicThr, SoftmaxParts) {
 	test_softmax_parts_perf(100, 50);
 	test_softmax_parts_perf(1000, 50);
 
@@ -406,7 +406,48 @@ TEST(TestIMathBasicThr, LossSoftmaxXentropy) {
 #endif
 }
 
-
-
 //////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////
+void test_loss_sigm_xentropy_perf(vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
+	const auto dataSize = realmtx_t::sNumel(rowsCnt, colsCnt);
+	STDCOUTL("**** testing loss_sigm_xentropy() over " << rowsCnt << "x" << colsCnt << " matrix (" << dataSize << " elements) ****");
+	constexpr unsigned maxReps = TEST_PERF_REPEATS_COUNT;
+
+	const real_t frac = .5;
+	realmtx_t A(rowsCnt, colsCnt), Y(rowsCnt, colsCnt);
+	real_t loss = 0;
+	ASSERT_TRUE(!A.isAllocationFailed() && !Y.isAllocationFailed());
+
+	iM.preinit(dataSize);
+	ASSERT_TRUE(iM.init());
+
+	nnet_def_interfaces::iRng_t rg;
+	rg.set_ithreads(iM.ithreads());
+
+	tictoc tSt, tMt, tB;
+	utils::prioritize_workers<utils::PriorityClass::PerfTesting, iThreads_t> pw(iM.ithreads());
+	for (unsigned r = 0; r < maxReps; ++r) {
+		rg.gen_matrix_norm(A);		rg.gen_matrix_norm(Y); iM.ewBinarize_ip(Y, frac);
+		tSt.tic();
+		loss += iM.loss_sigm_xentropy_st(A, Y);
+		tSt.toc();
+
+		rg.gen_matrix_norm(A);		rg.gen_matrix_norm(Y); iM.ewBinarize_ip(Y, frac);
+		tMt.tic();
+		loss += iM.loss_sigm_xentropy_mt(A, Y);
+		tMt.toc();
+
+		rg.gen_matrix_norm(A);		rg.gen_matrix_norm(Y); iM.ewBinarize_ip(Y, frac);
+		tB.tic();
+		loss += iM.loss_sigm_xentropy(A, Y);
+		tB.toc();
+	}
+	tSt.say("st");
+	tMt.say("mt");
+	tB.say("best");
+	STDCOUTL("l=" << loss);
+}
+TEST(TestIMathBasicThr, lossSigmXentropy) {
+	NNTL_RUN_TEST2(imath_basic_t::Thresholds_t::loss_sigm_xentropy, 1) test_loss_sigm_xentropy_perf(i, 1);
+}
+

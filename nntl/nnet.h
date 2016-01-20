@@ -50,7 +50,7 @@ namespace nntl {
 
 		struct DummyOnEpochEndCB {
 			template<typename _nnet, typename _opts>
-			bool operator()(_nnet& nn, _opts& opts, const size_t epochIdx) { 
+			constexpr const bool operator()(_nnet& nn, _opts& opts, const size_t epochIdx)const {
 				//return false to stop learning
 				return true; 
 			}
@@ -319,7 +319,7 @@ namespace nntl {
 			return _set_last_error(ErrorCode::Success);
 		}
 
-		layers_pack_t& get_layer_pack()noexcept { return m_Layers; }
+		layers_pack_t& get_layer_pack()const noexcept { return m_Layers; }
 		imath_t& get_iMath()const noexcept { return m_pMath.get(); }
 		irng_t& get_iRng()const noexcept { return m_pRng.get(); }
 
@@ -333,17 +333,17 @@ namespace nntl {
 
 		//returns test loss
 		template<typename Observer>
-		const real_t _report_training_fragment(const size_t epoch, const real_t trainLoss, const train_data_t& td,
+		const real_t _report_training_fragment(const size_t epoch, const real_t trainLoss, train_data_t& td,
 			const std::chrono::nanoseconds& tElapsed, Observer& obs) noexcept
 		{
 			//relaxing thread priorities (we don't know in advance what callback functions actually do, so better relax it)
 			utils::prioritize_workers<utils::PriorityClass::Normal, imath_t::ithreads_t> pw(m_pMath.get().ithreads());
 
-			const auto& activations = m_Layers.output_layer().get_activations();
-			obs.inspect_results(td.train_y(), activations, false, m_pMath.get());
+			//const auto& activations = m_Layers.output_layer().get_activations();
+			obs.inspect_results(epoch, td.train_y(), false, *this);
 
 			const auto testLoss = _calcLoss(td.test_x(), td.test_y());
-			obs.inspect_results(td.test_y(), activations, true, m_pMath.get());
+			obs.inspect_results(epoch, td.test_y(), true, *this);
 
 			obs.on_training_fragment_end(epoch, trainLoss, testLoss, tElapsed);
 			return testLoss;

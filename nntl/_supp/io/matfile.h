@@ -223,6 +223,9 @@ namespace nntl_supp {
 			m_matFile = matOpen(fname, "r");
 			return _set_last_error(m_matFile ? ErrorCode::Success : ErrorCode::FailedToOpenFile);
 		}
+		ErrorCode openForSave(const std::string& fname)noexcept { return openForSave(fname.c_str()); }
+		ErrorCode openForLoad(const std::string& fname)noexcept { return openForLoad(fname.c_str()); }
+
 		ErrorCode close()noexcept {
 			ErrorCode ec = ErrorCode::Success;
 			if (m_matFile) {

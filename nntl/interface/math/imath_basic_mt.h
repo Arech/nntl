@@ -229,13 +229,13 @@ namespace math {
 		// sigmoid function
 		//////////////////////////////////////////////////////////////////////////
 		void sigm(realmtx_t& srcdest) noexcept {
-			sigm_mt_naive(srcdest);
+			sigm_mt(srcdest);
 		}
 
 		//////////////////////////////////////////////////////////////////////////
 		// d(sigm)/d(arg) - sigmoid derivative df = f.*(1-f), where fValue is activation value (used in no_bias version)
 		void dsigm(const realmtx_t& fValue, realmtx_t& df) noexcept {
-			dsigm_mt_naive(fValue, df);
+			dsigm_mt(fValue, df);
 		}
 
 		//////////////////////////////////////////////////////////////////////////
@@ -275,7 +275,7 @@ namespace math {
 		// cross entropy function for sigmoid (applicable ONLY for binary data_y and sigmoid activation function)
 		// L = -y*log(a)-(1-y)log(1-a), dL/dz = dL/dA * dA/dZ = (a-y)
 		real_t loss_sigm_xentropy(const realmtx_t& activations, const realmtx_t& data_y)noexcept {
-			return loss_sigm_xentropy_mt_naivepart(activations, data_y);
+			return loss_sigm_xentropy_mt(activations, data_y);
 		}
 
 		real_t loss_softmax_xentropy(const realmtx_t& activations, const realmtx_t& data_y)noexcept {

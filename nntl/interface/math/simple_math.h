@@ -299,6 +299,9 @@ namespace math {
 			}
 		};
 
+		//#TODO: !!!!!!!!! Actually, proper and usually more effective way to pass simple and small solver objects BY VALUE.
+		//Test it here!
+
 		//////////////////////////////////////////////////////////////////////////
 		// Matrix/Vector elementwise operations
 		//////////////////////////////////////////////////////////////////////////

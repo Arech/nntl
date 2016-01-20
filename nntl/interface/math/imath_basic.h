@@ -1249,28 +1249,21 @@ namespace math {
 		// sigmoid function
 		//////////////////////////////////////////////////////////////////////////
 		void sigm(realmtx_t& srcdest) noexcept {
-			if (srcdest.numel() < Thresholds_t::sigm) {
-				get_self().sigm_st_naive(srcdest);
-			}else get_self().sigm_mt_naive(srcdest);
+			if (srcdest.numel_no_bias() < Thresholds_t::sigm) {
+				get_self().sigm_st(srcdest);
+			}else get_self().sigm_mt(srcdest);
 		}
 		// MUST ignore biases!
-		static void sigm_st_naive(realmtx_t& srcdest) noexcept {
+		static void sigm_st(realmtx_t& srcdest, const elms_range*const pER = nullptr) noexcept {
 			NNTL_ASSERT(!srcdest.empty());
-			const auto dataCnt = srcdest.numel_no_bias();
-			auto ptr = srcdest.data();
-			for (range_t i = 0; i < dataCnt; ++i) {
-				ptr[i] = real_t(1.0) / (real_t(1.0) + std::exp(-ptr[i]));
-			}
+			const elms_range& er = pER ? *pER : elms_range(0, srcdest.numel_no_bias());
+			const auto ptr = srcdest.data();
+			for (range_t i = er.elmBegin; i < er.elmEnd; ++i) ptr[i] = real_t(1.0) / (real_t(1.0) + std::exp(-ptr[i]));
 		}
-		void sigm_mt_naive(realmtx_t& srcdest) noexcept {
+		void sigm_mt(realmtx_t& srcdest) noexcept {
 			NNTL_ASSERT(!srcdest.empty());
-			auto ptr = srcdest.data();
-			m_threads.run([ptr](const par_range_t& r) {
-				const auto ofs = r.offset();
-				const auto im = ofs + r.cnt();
-				for (range_t i = ofs; i < im; ++i) {
-					ptr[i] = real_t(1.0) / (real_t(1.0) + std::exp(-ptr[i]));
-				}
+			m_threads.run([&srcdest, this](const par_range_t& pr) {
+				get_self().sigm_st(srcdest, &elms_range(pr));
 			}, srcdest.numel_no_bias());
 		}
 
@@ -1278,35 +1271,24 @@ namespace math {
 		// d(sigm)/d(arg) - sigmoid derivative df = f.*(1-f), where fValue is activation value (used in no_bias version)
 		void dsigm(const realmtx_t& fValue, realmtx_t& df) noexcept {
 			if (fValue.numel_no_bias() < Thresholds_t::dsigm) {
-				get_self().dsigm_st_naive(fValue, df);
-			} else get_self().dsigm_mt_naive(fValue, df);
+				get_self().dsigm_st(fValue, df);
+			} else get_self().dsigm_mt(fValue, df);
 		}
-		static void dsigm_st_naive(const realmtx_t& fValue, realmtx_t& df) noexcept {
+		static void dsigm_st(const realmtx_t& fValue, realmtx_t& df, const elms_range*const pER = nullptr) noexcept {
 			fValue.assert_storage_does_not_intersect(df);
 			NNTL_ASSERT(fValue.size_no_bias() == df.size());
-			const auto dataCnt = fValue.numel_no_bias();
-			auto ptrF = fValue.data();
-			auto ptrDF = df.data();
-			for (numel_cnt_t i = 0; i < dataCnt;++i) {
+			const elms_range& er = pER ? *pER : elms_range(0, fValue.numel_no_bias());
+			const auto ptrF = fValue.data();
+			const auto ptrDF = df.data();
+			for (numel_cnt_t i = er.elmBegin; i < er.elmEnd; ++i) {
 				const auto f = ptrF[i];
 				NNTL_ASSERT(f >= 0 && f <= 1);
 				ptrDF[i] = f*(real_t(1.0) - f);
 			}
 		}
-		void dsigm_mt_naive(const realmtx_t& fValue, realmtx_t& df) noexcept {
-			fValue.assert_storage_does_not_intersect(df);
-			NNTL_ASSERT(fValue.size_no_bias() == df.size());
-
-			auto ptrF = fValue.data();
-			auto ptrDF = df.data();
-			m_threads.run([ptrF, ptrDF](const par_range_t& r) {
-				const auto ofs = r.offset();
-				const auto im = ofs + r.cnt();
-				for (range_t i = ofs; i < im; ++i) {
-					const auto f = ptrF[i];
-					NNTL_ASSERT(f >= 0 && f <= 1);
-					ptrDF[i] = f*(real_t(1.0) - f);
-				}
+		void dsigm_mt(const realmtx_t& fValue, realmtx_t& df) noexcept {
+			m_threads.run([&fValue, &df, this](const par_range_t& pr) {
+				get_self().dsigm_st(fValue, df, &elms_range(pr));
 			}, fValue.numel_no_bias());
 		}
 		
@@ -1470,16 +1452,15 @@ namespace math {
 		// L = -y*log(a)-(1-y)log(1-a), dL/dz = dL/dA * dA/dZ = (a-y)
 		real_t loss_sigm_xentropy(const realmtx_t& activations, const realmtx_t& data_y)noexcept {
 			if (activations.numel() < Thresholds_t::loss_sigm_xentropy) {
-				return get_self().loss_sigm_xentropy_st_naivepart(activations, data_y);
-			} else return get_self().loss_sigm_xentropy_mt_naivepart(activations, data_y);
+				return get_self().loss_sigm_xentropy_st(activations, data_y);
+			} else return get_self().loss_sigm_xentropy_mt(activations, data_y);
 		}
-		static real_t loss_sigm_xentropy_st_naivepart(const realmtx_t& activations, const realmtx_t& data_y)noexcept {
+		static real_t _loss_sigm_xentropy_st(const realmtx_t& activations, const realmtx_t& data_y, const elms_range& er)noexcept {
 			NNTL_ASSERT(activations.size() == data_y.size() && !activations.empty() && !data_y.empty());
-			const auto dataCnt = activations.numel();
 			const auto ptrA = activations.data(), ptrY = data_y.data();
 			constexpr auto log_zero = math::real_ty_limits<real_t>::log_almost_zero;
 			real_t ql = 0;
-			for (numel_cnt_t i = 0; i < dataCnt; ++i) {
+			for (numel_cnt_t i = er.elmBegin; i < er.elmEnd; ++i) {
 				const auto y = ptrY[i];
 				const auto a = ptrA[i];
 				NNTL_ASSERT(y == real_t(0.0) || y == real_t(1.0));
@@ -1493,34 +1474,15 @@ namespace math {
 				}
 				NNTL_ASSERT(!isnan(ql));
 			}
-			return -ql / activations.rows();
+			return ql;
 		}
-		real_t loss_sigm_xentropy_mt_naivepart(const realmtx_t& activations, const realmtx_t& data_y)noexcept {
-			const auto ptrA = activations.data();
-			const auto ptrY = data_y.data();
-
-			real_t ql = m_threads.reduce([ptrA, ptrY](const par_range_t& r)->real_t {
-				const auto ofs = r.offset();
-				const numel_cnt_t im = ofs + r.cnt();
-				constexpr auto log_zero = math::real_ty_limits<real_t>::log_almost_zero;
-				real_t ret = 0;
-				for (numel_cnt_t i = ofs; i < im; ++i) {
-					const auto y = ptrY[i];
-					auto a = ptrA[i];
-					NNTL_ASSERT(y == real_t(0.0) || y == real_t(1.0));
-					NNTL_ASSERT(a >= real_t(0.0) && a <= real_t(1.0));
-
-					if (y > real_t(0.0)) {
-						ret += (a == real_t(0.0) ? log_zero : log(a));
-					} else {
-						const auto oma = real_t(1.0) - a;
-						ret += (oma == real_t(0.0) ? log_zero : log(oma));
-					}
-					NNTL_ASSERT(!isnan(ret));
-				}
-				return ret;
-			}, _reduce_final_sum, activations.numel());
-			return -ql / activations.rows();
+		real_t loss_sigm_xentropy_st(const realmtx_t& activations, const realmtx_t& data_y)noexcept {
+			return -get_self()._loss_sigm_xentropy_st(activations,data_y, elms_range(activations)) / activations.rows();
+		}
+		real_t loss_sigm_xentropy_mt(const realmtx_t& activations, const realmtx_t& data_y)noexcept {
+			return -m_threads.reduce([&activations, &data_y, this](const par_range_t& pr)->real_t {
+				return get_self()._loss_sigm_xentropy_st(activations, data_y, elms_range(pr));
+			}, _reduce_final_sum, activations.numel()) / activations.rows();
 		}
 
 		//////////////////////////////////////////////////////////////////////////

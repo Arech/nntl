@@ -44,5 +44,6 @@ namespace nntl {
 	//see also NNTL_STRING macro
 	// by now some code such as file-related functions in _supp{} may be bounded to char only in strchar_t
 	//TODO: Don't think it is good idea to solve it now.
+	// OBSOLETTE, use char instead
 	typedef char strchar_t;
 }

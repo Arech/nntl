@@ -54,10 +54,9 @@ namespace nntl {
 		// TODO: further testing required
 
 // #ifdef NNTL_THREADS_WINQDU_AVAILABLE
-// 		typedef threads::WinQDU<math_types::realmtx_ty::numel_cnt_t> iThreads_t;
-// 		//typedef threads::Std<math_types::realmtx_ty::numel_cnt_t> iThreads_t;
+// 		typedef threads::WinQDU<math::simple_matrix_typedefs::numel_cnt_t> iThreads_t;
 // #else
-		typedef threads::Std<math_types::realmtx_ty::numel_cnt_t> iThreads_t;
+		typedef threads::Std<math::simple_matrix_typedefs::numel_cnt_t> iThreads_t;
 //#endif // NNTL_THREADS_WINQDU_AVAILABLE
 
 		//typedef math::iMath_basic<math_types::real_ty, iThreads_t> iMath_t;

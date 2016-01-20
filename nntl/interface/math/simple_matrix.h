@@ -46,6 +46,7 @@ namespace math {
 	struct simple_matrix_typedefs {
 		//rows/cols type. int should be enought. If not, redifine to smth bigger
 		typedef uint32_t vec_len_t;
+		//#todo: size_t should be here!
 		typedef uint64_t numel_cnt_t;
 		typedef std::pair<const vec_len_t, const vec_len_t> mtx_size_t;
 	};

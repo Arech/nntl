@@ -132,8 +132,23 @@ namespace nntl {
 			//m_activations.dont_emulate_biases();
 		};
 
-		constexpr bool is_output_layer()const noexcept { return true; }
+		constexpr const bool is_output_layer()const noexcept { return true; }
 		const realmtx_t& get_activations()const noexcept { return m_activations; }
+
+		//#TODO: move all generic fullyconnected stuff into a special base class!
+
+		const realmtx_t& get_weights()const noexcept { 
+			NNTL_ASSERT(m_bWeightsInitialized);
+			return m_weights; 
+		}
+		//should be called after assembling layers into layer_pack, - it initializes _incoming_neurons_cnt
+		bool set_weights(realmtx_t&& W)noexcept {
+			if (W.empty() || W.emulatesBiases() || (W.cols() != get_incoming_neurons_cnt() + 1) || W.rows() != m_neurons_cnt) return false;
+			m_weights = std::move(W);
+			m_bWeightsInitialized = true;
+			return true;
+		}
+
 
 		ErrorCode init(_layer_init_data_t& lid)noexcept {
 			bool bSuccessfullyInitialized = false;
@@ -290,8 +305,13 @@ namespace nntl {
 		//use this function to put a restriction on dL/dZ value - this may help in training large networks
 		//(see Alex Graves's "Generating Sequences With Recurrent Neural Networks(2013)" )
 		self_ref_t restrict_dL_dZ(real_t lowerBnd, real_t upperBnd)noexcept {
-			NNTL_ASSERT(lowerBnd < upperBnd);
-			m_bRestrictdLdZ = true;
+			if (upperBnd == 0 || lowerBnd==0) {
+				NNTL_ASSERT(upperBnd == 0 && lowerBnd == 0);
+				m_bRestrictdLdZ = false;
+			} else {
+				NNTL_ASSERT(lowerBnd < 0 && upperBnd>0);
+				m_bRestrictdLdZ = true;
+			}
 			m_dLdZRestrictLowerBnd = lowerBnd;
 			m_dLdZRestrictUpperBnd = upperBnd;
 			return get_self();

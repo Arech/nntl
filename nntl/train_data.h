@@ -83,6 +83,11 @@ namespace nntl {
 		const mtxdef_t& test_x()const noexcept { return m_test_x; }
 		const mtxdef_t& test_y()const noexcept { return m_test_y; }
 
+		mtxdef_t& train_x()noexcept { return m_train_x; }
+		mtxdef_t& train_y()noexcept { return m_train_y; }
+		mtxdef_t& test_x()noexcept { return m_test_x; }
+		mtxdef_t& test_y()noexcept { return m_test_y; }
+
 		mtxdef_t& train_x_mutable() noexcept { return m_train_x; }
 		mtxdef_t& train_y_mutable() noexcept { return m_train_y; }
 

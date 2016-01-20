@@ -130,6 +130,19 @@ namespace nntl {
 		
 		const realmtx_t& get_activations()const noexcept { return m_activations; }
 
+		//#TODO: move all generic fullyconnected stuff into a special base class!
+
+		const realmtx_t& get_weights()const noexcept {
+			NNTL_ASSERT(m_bWeightsInitialized);
+			return m_weights;
+		}
+		bool set_weights(realmtx_t&& W)noexcept {
+			if (W.empty() || W.emulatesBiases() || (W.cols() != get_incoming_neurons_cnt() + 1) || W.rows() != m_neurons_cnt) return false;
+			m_weights = std::move(W);
+			m_bWeightsInitialized = true;
+			return true;
+		}
+
 		ErrorCode init(_layer_init_data_t& lid)noexcept {
 			bool bSuccessfullyInitialized = false;
 			utils::scope_exit onExit([&bSuccessfullyInitialized, this]() {
@@ -294,6 +307,9 @@ namespace nntl {
 			m_pMath->evMul_ip(m_dAdZ_dLdZ, dLdA);
 
 			if (bDropout()) {
+				//we must do it even though for sigmoid it's not necessary. But other activation function may
+				//have non-zero derivative at y=0. #todo Probably, could #consider a speedup here by introducing a special
+				// flag in an activation function that shows whether this step is necessary.
 				m_pMath->evMul_ip(m_dAdZ_dLdZ, m_dropoutMask);
 			}
 

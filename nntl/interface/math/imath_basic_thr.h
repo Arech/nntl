@@ -79,8 +79,8 @@ namespace _impl {
 		static constexpr size_t evAbs = 20300;
 		static constexpr size_t vSumAbs = 18000;//not tested		
 
-		static constexpr size_t sigm = 2600;
-		static constexpr size_t dsigm = 27500;
+		static constexpr size_t sigm = 1000;
+		static constexpr size_t dsigm = 28000;
 		static constexpr size_t dSigmQuadLoss_dZ = 14900;
 		static constexpr size_t relu = 6400;
 		static constexpr size_t drelu = 20500;
@@ -91,7 +91,7 @@ namespace _impl {
 		static constexpr size_t softmax = 3000;//not tested
 
 		static constexpr size_t loss_quadratic = 24400;
-		static constexpr size_t loss_sigm_xentropy = 765;
+		static constexpr size_t loss_sigm_xentropy = 800;
 		static constexpr size_t loss_softmax_xentropy = 1100;
 
 		static constexpr size_t RMSProp_Hinton = 2940;

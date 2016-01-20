@@ -53,12 +53,12 @@ namespace nntl {
 		}
 		nnet_cond_epoch_eval(size_t maxEpoch,size_t stride)noexcept : m_flgEvalPerf(maxEpoch, false) {
 			NNTL_ASSERT(maxEpoch > 0);
-			for (size_t i = 0; i < maxEpoch; i+=stride)  m_flgEvalPerf[i] = true;
+			for (size_t i = stride-1; i < maxEpoch; i+=stride)  m_flgEvalPerf[i] = true;
 			m_flgEvalPerf[maxEpoch - 1] = true;
 		}
 		nnet_cond_epoch_eval(size_t maxEpoch, size_t startsAt, size_t stride)noexcept : m_flgEvalPerf(maxEpoch, false) {
 			NNTL_ASSERT(maxEpoch > 0 && startsAt<=maxEpoch);
-			for (size_t i = startsAt; i < maxEpoch; i += stride)  m_flgEvalPerf[i] = true;
+			for (size_t i = startsAt-1; i < maxEpoch; i += stride)  m_flgEvalPerf[i] = true;
 			m_flgEvalPerf[maxEpoch - 1] = true;
 		}
 		nnet_cond_epoch_eval(nnet_cond_epoch_eval&& src)noexcept : m_flgEvalPerf(std::move(src.m_flgEvalPerf)) {}

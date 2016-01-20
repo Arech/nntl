@@ -73,6 +73,55 @@ constexpr unsigned TEST_CORRECTN_REPEATS_COUNT = 60, _baseRowsCnt = 300;
 //////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////
 
+
+template<typename base_t> struct loss_sigm_xentropy_EPS {};
+template<> struct loss_sigm_xentropy_EPS<double> { static constexpr double eps = 1e-10; };
+template<> struct loss_sigm_xentropy_EPS<float> { static constexpr double eps = 2e-5; };
+void test_loss_sigm_xentropy(vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
+	MTXSIZE_SCOPED_TRACE(rowsCnt, colsCnt, "loss_sigm_xentropy");
+	constexpr unsigned testCorrRepCnt = TEST_CORRECTN_REPEATS_COUNT;
+	const real_t frac = .5;
+	realmtx_t A(rowsCnt, colsCnt), Y(rowsCnt, colsCnt);
+	ASSERT_TRUE(!A.isAllocationFailed() && !Y.isAllocationFailed());
+
+	iM.preinit(A.numel());
+	ASSERT_TRUE(iM.init());
+	nnet_def_interfaces::iRng_t rg;
+	rg.set_ithreads(iM.ithreads());
+
+	for (unsigned r = 0; r < testCorrRepCnt; ++r) {
+		rg.gen_matrix_norm(A);
+		rg.gen_matrix_norm(Y);
+		iM.ewBinarize_ip(Y, frac);
+
+		real_t loss, etLoss = loss_sigm_xentropy_ET(A, Y);
+
+		loss = iM.loss_sigm_xentropy_st(A, Y);
+		ASSERT_NEAR(etLoss, loss, loss_sigm_xentropy_EPS<real_t>::eps);
+
+		loss = iM.loss_sigm_xentropy_mt(A, Y);
+		ASSERT_NEAR(etLoss, loss, loss_sigm_xentropy_EPS<real_t>::eps);
+
+		loss = iM.loss_sigm_xentropy(A, Y);
+		ASSERT_NEAR(etLoss, loss, loss_sigm_xentropy_EPS<real_t>::eps);
+	}
+}
+
+TEST(TestIMathBasic, lossSigmXentropy) {
+	const numel_cnt_t elmsMax = g_MinDataSizeDelta;
+	for (numel_cnt_t e = 1; e < elmsMax; ++e) {
+		ASSERT_NO_FATAL_FAILURE(test_loss_sigm_xentropy(static_cast<vec_len_t>(e), 1));
+	}
+	constexpr unsigned rowsCnt = _baseRowsCnt;
+	const vec_len_t maxCols = g_MinDataSizeDelta, maxRows = rowsCnt + g_MinDataSizeDelta;
+	for (vec_len_t r = rowsCnt; r < maxRows; ++r) {
+		for (vec_len_t c = 1; c < maxCols; ++c) ASSERT_NO_FATAL_FAILURE(test_loss_sigm_xentropy(r, c));
+	}
+}
+
+//////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////
+
 void test_ewBinarize_ip_corr(vec_len_t rowsCnt, vec_len_t colsCnt = 10, const real_t frac = .5) {
 	MTXSIZE_SCOPED_TRACE1(rowsCnt, colsCnt, "ewBinarize_ip, frac=", frac);
 	constexpr unsigned testCorrRepCnt = TEST_CORRECTN_REPEATS_COUNT;
@@ -880,69 +929,6 @@ TEST(TestIMathBasic, mCheckNormalizeRows) {
 		test_mCheck_normalize_rows(iM, i / 16, i);
 	}
 #endif // !TESTS_SKIP_LONGRUNNING
-}
-
-//////////////////////////////////////////////////////////////////////////
-//////////////////////////////////////////////////////////////////////////
-
-template<typename base_t> struct loss_sigm_xentropy_EPS {};
-template<> struct loss_sigm_xentropy_EPS<double> { static constexpr double eps = 1e-10; };
-template<> struct loss_sigm_xentropy_EPS<float> { static constexpr double eps = 2e-5; };
-template<typename iMath>
-void test_loss_sigm_xentropy(iMath& iM, vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
-	const auto dataSize = realmtx_t::sNumel(rowsCnt, colsCnt);
-	STDCOUTL("********* testing loss_sigm_xentropy() over " << rowsCnt << "x" << colsCnt << " matrix (" << dataSize << " elements) **************");
-
-	iM.preinit(dataSize);
-	ASSERT_TRUE(iM.init());
-
-	double tmtNaive, tstNaive, tBest;
-	steady_clock::time_point bt;
-	nanoseconds diffSt(0),diffMt(0),diffB(0);
-	constexpr unsigned maxReps = TEST_PERF_REPEATS_COUNT;
-
-	const real_t frac = .5;
-	realmtx_t A(rowsCnt, colsCnt), Y(rowsCnt, colsCnt);
-	real_t etLoss = 0, loss = 0;
-	ASSERT_EQ(dataSize, A.numel());
-
-	nnet_def_interfaces::iRng_t rg;
-	rg.set_ithreads(iM.ithreads());
-	
-	//testing performance
-	utils::prioritize_workers<utils::PriorityClass::PerfTesting, iMath::ithreads_t> pw(iM.ithreads());
-	for (unsigned r = 0; r < maxReps; ++r) {
-		rg.gen_matrix_norm(A);
-		rg.gen_matrix_norm(Y);
-		iM.ewBinarize_ip(Y, frac);
-
-		etLoss = loss_sigm_xentropy_ET(A, Y);
-
-		bt = steady_clock::now();
-		loss = iM.loss_sigm_xentropy_st_naivepart(A, Y);
-		diffSt += steady_clock::now() - bt;
-		ASSERT_NEAR(etLoss, loss, loss_sigm_xentropy_EPS<real_t>::eps);
-
-		bt = steady_clock::now();
-		loss = iM.loss_sigm_xentropy_mt_naivepart(A, Y);
-		diffMt += steady_clock::now() - bt;
-		ASSERT_NEAR(etLoss, loss, loss_sigm_xentropy_EPS<real_t>::eps);
-
-		bt = steady_clock::now();
-		loss = iM.loss_sigm_xentropy(A, Y);
-		diffB += steady_clock::now() - bt;
-		ASSERT_NEAR(etLoss, loss, loss_sigm_xentropy_EPS<real_t>::eps);
-	}
-	STDCOUTL("st_naivepart:\t" << utils::duration_readable(diffSt, maxReps, &tstNaive));
-	STDCOUTL("mt_naivepart:\t" << utils::duration_readable(diffMt, maxReps, &tmtNaive));
-	STDCOUTL("best:\t\t" << utils::duration_readable(diffB, maxReps, &tBest));
-}
-
-TEST(TestIMathBasic, lossSigmXentropy) {
-	typedef nntl::nnet_def_interfaces::iThreads_t def_threads_t;
-	typedef math::iMath_basic<real_t, def_threads_t> iMB;
-	iMB iM;
-	NNTL_RUN_TEST2(iMB::Thresholds_t::loss_sigm_xentropy, 1) test_loss_sigm_xentropy(iM, i, 1);
 }
 
 //////////////////////////////////////////////////////////////////////////
@@ -2531,7 +2517,7 @@ void test_sigm(iMath& iM, vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 			ASSERT_TRUE(m.cloneFrom(etM));
 			m.deform_rows(iMax);
 			bt = steady_clock::now();
-			iM.sigm_st_naive(m);
+			iM.sigm_st(m);
 			diff += steady_clock::now() - bt;
 		}
 		const auto ptr = m.data();
@@ -2553,7 +2539,7 @@ void test_sigm(iMath& iM, vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 			ASSERT_TRUE(m.cloneFrom(etM));
 			m.deform_rows(iMax);
 			bt = steady_clock::now();
-			iM.sigm_mt_naive(m);
+			iM.sigm_mt(m);
 			diff += steady_clock::now() - bt;
 		}
 		const auto ptr = m.data();
@@ -2630,7 +2616,7 @@ TEST(TestIMathBasic, Sigm) {
 	typedef nntl::nnet_def_interfaces::iThreads_t def_threads_t;
 	typedef math::iMath_basic<real_t, def_threads_t> iMB;
 	iMB iM;
-	NNTL_RUN_TEST2(iMB::Thresholds_t::sigm, 100) test_sigm(iM, i, 100);
+	NNTL_RUN_TEST2(iMB::Thresholds_t::sigm, 10) test_sigm(iM, i, 10);
 }
 
 //////////////////////////////////////////////////////////////////////////
@@ -2665,7 +2651,7 @@ void test_dsigm(iMath& iM, vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 	diff = nanoseconds(0);
 	for (unsigned r = 0; r < maxReps; ++r) {
 		bt = steady_clock::now();
-		iM.dsigm_st_naive(m, dest);
+		iM.dsigm_st(m, dest);
 		diff += steady_clock::now() - bt;
 	}
 	ASSERT_EQ(m, etM);
@@ -2678,7 +2664,7 @@ void test_dsigm(iMath& iM, vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 	diff = nanoseconds(0);
 	for (unsigned r = 0; r < maxReps; ++r) {
 		bt = steady_clock::now();
-		iM.dsigm_mt_naive(m, dest);
+		iM.dsigm_mt(m, dest);
 		diff += steady_clock::now() - bt;
 	}
 	ASSERT_EQ(m, etM);
@@ -2731,7 +2717,7 @@ TEST(TestIMathBasic, dsigm) {
 	typedef nntl::nnet_def_interfaces::iThreads_t def_threads_t;
 	typedef math::iMath_basic<real_t, def_threads_t> iMB;
 	iMB iM;
-	NNTL_RUN_TEST2(iMB::Thresholds_t::dsigm, 100) test_dsigm(iM, i, 100);
+	NNTL_RUN_TEST2(iMB::Thresholds_t::dsigm, 10) test_dsigm(iM, i, 10);
 }
 
 //////////////////////////////////////////////////////////////////////////

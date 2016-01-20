@@ -80,7 +80,7 @@ namespace nntl {
 			return *m_pActivations;
 		}
 
-		constexpr bool is_input_layer()const noexcept { return true; }
+		constexpr const bool is_input_layer()const noexcept { return true; }
 
 		//template <typename i_math_t = nnet_def_interfaces::Math, typename i_rng_t = nnet_def_interfaces::Rng>
 		//ErrorCode init(vec_len_t batchSize, numel_cnt_t& minMemFPropRequire, numel_cnt_t& minMemBPropRequire, i_math_t& iMath, i_rng_t& iRng)noexcept {
@@ -120,7 +120,7 @@ namespace nntl {
 		}
 
 		//should return true, if the layer has a value to add to Loss function value (there's some regularizer attached)
-		constexpr bool hasLossAddendum()const noexcept { return false; }
+		constexpr const bool hasLossAddendum()const noexcept { return false; }
 
 	protected:
 		friend class _preinit_layers;
