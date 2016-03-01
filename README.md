@@ -18,7 +18,7 @@ I wouldn't state the NNTL is the fastest CPU implementation of feedforward neura
 
 ## Currently Implemented NN Features
 * full-batch or mini-batch learning
-* individually tunable feedforward layers (i.e. almost all properties such as activation function, learning rate, dropout and other regularizers coefficients, and so on are defined on per layer basis). Construct any deep learning architecture you want.
+* individually tunable feedforward layers (i.e. almost all properties such as activation function, learning rate, dropout and other regularizers coefficients, and so on are defined on per layer basis). Layer containers, such as layer_pack_vertical and layer_pack_horizontal, can be used to create almost any feedforward neurons connectivity possible.
 * Activation units for output layer:
   * sigmoid with quadratic and cross-entropy (for binary target data) loss function
   * softmax with cross-entropy loss
