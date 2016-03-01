@@ -192,6 +192,10 @@
     <ClInclude Include="..\nntl\interface\rng\AFRandom_mt_thresholds.h" />
     <ClInclude Include="..\nntl\interface\rng\distr_normal_naive.h" />
     <ClInclude Include="..\nntl\interface\_i_rng.h" />
+    <ClInclude Include="..\nntl\layer\pack_horizontal.h" />
+    <ClInclude Include="..\nntl\layer\pack_vertical.h" />
+    <ClInclude Include="..\nntl\layer\_init_layers.h" />
+    <ClInclude Include="..\nntl\layer\_pack_.h" />
     <ClInclude Include="..\nntl\math.h" />
     <ClInclude Include="..\nntl\interface\math\bindings\b_acml.h" />
     <ClInclude Include="..\nntl\interface\math\bindings\b_open_blas.h" />
@@ -226,7 +230,7 @@
     <ClInclude Include="..\nntl\weights_init.h" />
     <ClInclude Include="..\nntl\_defs.h" />
     <ClInclude Include="..\nntl\layer\_layer_base.h" />
-    <ClInclude Include="..\nntl\layers_pack.h" />
+    <ClInclude Include="..\nntl\layers.h" />
     <ClInclude Include="..\nntl\nnet.h" />
     <ClInclude Include="..\nntl\nntl.h" />
     <ClInclude Include="..\nntl\utils.h" />
@@ -236,6 +240,7 @@
     <ClInclude Include="..\nntl\_supp\io\matfile.h" />
     <ClInclude Include="..\nntl\_test\test.h" />
     <ClInclude Include="..\nntl\utils\tictoc.h" />
+    <ClInclude Include="..\nntl\_test\test_weights_init.h" />
     <ClInclude Include="..\_extern\agner.org\AF_randomc_h\random.h" />
     <ClInclude Include="asserts.h" />
     <ClInclude Include="imath_etalons.h" />
@@ -249,7 +254,9 @@
     <ClCompile Include="test_binfile.cpp" />
     <ClCompile Include="test_imath_basic.cpp" />
     <ClCompile Include="test_imath_basic_thr.cpp" />
+    <ClCompile Include="test_layer_pack_horizontal.cpp" />
     <ClCompile Include="test_matfile.cpp" />
+    <ClCompile Include="test_nnet.cpp" />
     <ClCompile Include="test_perf_decisions.cpp" />
     <ClCompile Include="test_rng.cpp" />
     <ClCompile Include="test_simple_math.cpp" />

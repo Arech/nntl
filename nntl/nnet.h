@@ -81,7 +81,7 @@ namespace nntl {
 		typedef typename realmtx_t::numel_cnt_t numel_cnt_t;
 
 		typedef typename layers_pack_t::realmtxdef_t realmtxdef_t;
-		typedef typename layers_pack_t::floatmtxdef_array_t floatmtxdef_array_t;
+		typedef typename layers_pack_t::realmtxdef_array_t realmtxdef_array_t;
 
 		//////////////////////////////////////////////////////////////////////////
 		// members
@@ -158,8 +158,8 @@ namespace nntl {
 			NNTL_ASSERT(train_x.emulatesBiases());
 			NNTL_ASSERT(td.test_x().emulatesBiases());
 
-			if (train_x.cols_no_bias() != m_Layers.input_layer().m_neurons_cnt) return _set_last_error(ErrorCode::InvalidInputLayerNeuronsCount);
-			if (train_y.cols() != m_Layers.output_layer().m_neurons_cnt) return _set_last_error(ErrorCode::InvalidOutputLayerNeuronsCount);
+			if (train_x.cols_no_bias() != m_Layers.input_layer().get_neurons_cnt()) return _set_last_error(ErrorCode::InvalidInputLayerNeuronsCount);
+			if (train_y.cols() != m_Layers.output_layer().get_neurons_cnt()) return _set_last_error(ErrorCode::InvalidOutputLayerNeuronsCount);
 
 			const bool bMiniBatch = opts.batchSize() > 0 && opts.batchSize() < samplesCount;
 			const auto batchSize = bMiniBatch ? opts.batchSize() : samplesCount;
@@ -190,18 +190,20 @@ namespace nntl {
 			// and most time (for quadratic or crossentropy loss) it is (a-data_y) (we reverse common definition to get rid
 			// of negation in dL/dA = -error for error=data_y-a)
 			realmtx_t _batch_x, _batch_y;
-			realmtxdef_t train_dLdA;
-			floatmtxdef_array_t a_dLdA;
+			
+			//realmtxdef_t train_dLdA;//looks like it is unused
+			
+			realmtxdef_array_t a_dLdA;
 
 			// here is how we gonna spread temp buffers:
 			// 1. LMR.maxMemLayerTrainingRequire goes into m_Layers.initMem() to be used during fprop() or bprop() computations
 			// 2. 2*LMR.maxSingleActivationMtxNumel will be spread over 2 same sized dL/dA matrices (first will be the incoming dL/dA, the second will be
 			//		"outgoing" i.e. for lower layer). This matrices will be used during bprop() by m_Layers.bprop()
-			// 3. [samplesCount x train_y.cols()] will be used to compute loss function over whole training set (error matrix in particular)
+			// --dropped--3. [samplesCount x train_y.cols()] will be used to compute loss function over whole training set (error matrix in particular)
 			// 4. In minibatch version, there will be 2 additional matrices sized (batchSize, train_x.cols()) and (batchSize, train_y.cols())
 			//		to handle _batch_x and _batch_y data
 			const numel_cnt_t totalTempMemSize = LMR.maxMemLayerTrainingRequire + a_dLdA.size()*LMR.maxSingledLdANumel
-				+ (bTrainSetBigger ? train_y.numel() : td.test_y().numel()) //realmtx_t::sNumel(samplesCount,train_y.cols())
+				//+ (bTrainSetBigger ? train_y.numel() : td.test_y().numel()) //realmtx_t::sNumel(samplesCount,train_y.cols())
 				+ (bMiniBatch ? (realmtx_t::sNumel(batchSize, train_x.cols()) + realmtx_t::sNumel(batchSize, train_y.cols())) : 0);
 			std::unique_ptr<real_t[]> tempMemStorage(new(std::nothrow)real_t[totalTempMemSize]);
 			if (nullptr==tempMemStorage.get()) return _set_last_error(ErrorCode::CantAllocateMemoryForTempData);
@@ -209,8 +211,8 @@ namespace nntl {
 			{
 				numel_cnt_t spreadTempMemSize = 0;
 				// 3.
-				train_dLdA.useExternalStorage(&tempMemStorage[spreadTempMemSize], bTrainSetBigger ? train_y : td.test_y());
-				spreadTempMemSize += train_dLdA.numel();
+				//train_dLdA.useExternalStorage(&tempMemStorage[spreadTempMemSize], bTrainSetBigger ? train_y : td.test_y());
+				//spreadTempMemSize += train_dLdA.numel();
 
 				//4. _batch_x and _batch_y if necessary
 				if (bMiniBatch) {

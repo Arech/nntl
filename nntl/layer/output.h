@@ -36,21 +36,11 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 namespace nntl {
 
 	template<typename ActivFunc, typename Interfaces, typename GradWorks, typename FinalPolymorphChild>
-	class _layer_output : public m_layer_output, public _layer_base<typename Interfaces::iMath_t::real_t, FinalPolymorphChild> {
+	class _layer_output : public m_layer_output, public _layer_base<Interfaces, FinalPolymorphChild> {
 	private:
-		typedef _layer_base<typename Interfaces::iMath_t::real_t, FinalPolymorphChild> _base_class;
+		typedef _layer_base<Interfaces, FinalPolymorphChild> _base_class;
 
 	public:
-		typedef typename Interfaces::iMath_t iMath_t;
-		static_assert(std::is_base_of<math::_i_math<real_t>, iMath_t>::value, "Interfaces::iMath type should be derived from _i_math");
-
-		//typedef math_types::realmtxdef_ty realmtxdef_t;
-		typedef typename Interfaces::iMath_t::realmtxdef_t realmtxdef_t;
-		static_assert(std::is_base_of<realmtx_t, realmtxdef_t>::value, "math_types::realmtxdef_ty must be derived from math_types::realmtx_ty!");
-
-		typedef typename Interfaces::iRng_t iRng_t;
-		static_assert(std::is_base_of<rng::_i_rng, iRng_t>::value, "Interfaces::iRng type should be derived from _i_rng");
-
 		typedef ActivFunc activation_f_t;
 		//output layer uses only _i_function::f() (during forward propagation). During backward propagation _i_activation_loss::dLdZ()
 		//is used instead of _i_activation::df()
@@ -59,8 +49,6 @@ namespace nntl {
 
 		typedef GradWorks grad_works_t;
 		static_assert(std::is_base_of<_i_grad_works, grad_works_t>::value, "GradWorks template parameter should be derived from _i_grad_works");
-
-		typedef _impl::_layer_init_data<iMath_t, iRng_t> _layer_init_data_t;
 
 		//////////////////////////////////////////////////////////////////////////
 		//members
@@ -132,7 +120,11 @@ namespace nntl {
 			//m_activations.dont_emulate_biases();
 		};
 
-		constexpr const bool is_output_layer()const noexcept { return true; }
+		void get_layer_name(char* pName, const size_t cnt)const noexcept {
+			sprintf_s(pName, cnt, "outp%d", static_cast<unsigned>(get_layer_idx()));
+		}
+
+		//constexpr const bool is_output_layer()const noexcept { return true; }
 		const realmtx_t& get_activations()const noexcept { return m_activations; }
 
 		//#TODO: move all generic fullyconnected stuff into a special base class!
@@ -199,7 +191,7 @@ namespace nntl {
 			if (m_training_batch_size > 0) {
 				//we need 2 temporarily matrices for training: one for dA/dZ -> dL/dZ [batchSize x m_neurons_cnt]
 				// and one for dL/dW [m_neurons_cnt x get_incoming_neurons_cnt()+1]
-				lid.max_dLdA_numel = realmtx_t::sNumel(m_training_batch_size, m_activations.cols_no_bias());
+				lid.max_dLdA_numel = realmtx_t::sNumel(m_training_batch_size, m_neurons_cnt);
 				lid.maxMemBPropRequire = lid.max_dLdA_numel + m_weights.numel();
 			}
 
@@ -223,7 +215,7 @@ namespace nntl {
 		void initMem(real_t* ptr, numel_cnt_t cnt)noexcept {
 			if (m_training_batch_size > 0) {
 				m_dLdZ.useExternalStorage(ptr, m_training_batch_size, m_activations.cols_no_bias());
-				m_dLdW.useExternalStorage(&ptr[m_dLdZ.numel()], m_weights);
+				m_dLdW.useExternalStorage(ptr + m_dLdZ.numel(), m_weights);
 				NNTL_ASSERT(!m_dLdZ.emulatesBiases() && !m_dLdW.emulatesBiases());
 				NNTL_ASSERT(cnt >= m_dLdZ.numel() + m_dLdW.numel());
 			}
@@ -240,11 +232,7 @@ namespace nntl {
 			}
 		}
 
-		template <typename LowerLayer>
-		void fprop(const LowerLayer& lowerLayer)noexcept {
-			static_assert(std::is_base_of<_i_layer, LowerLayer>::value, "Template parameter LowerLayer must implement _i_layer");
-			const auto& prevActivations = lowerLayer.get_activations();
-
+		void _fprop(const realmtx_t& prevActivations)noexcept {
 			NNTL_ASSERT(m_activations.rows() == prevActivations.rows());
 			NNTL_ASSERT(prevActivations.cols() == m_weights.cols());
 
@@ -254,12 +242,13 @@ namespace nntl {
 			m_pMath->mMulABt_Cnb(prevActivations, m_weights, m_activations);
 			activation_f_t::f(m_activations, *m_pMath);
 		}
-
 		template <typename LowerLayer>
-		void bprop(const realmtx_t& data_y, const LowerLayer& lowerLayer, realmtx_t& dLdAPrev)noexcept {
-			static_assert(std::is_base_of<_i_layer, LowerLayer>::value, "Template parameter LowerLayer must implement _i_layer");
-			const auto& prevActivations = lowerLayer.get_activations();
+		void fprop(const LowerLayer& lowerLayer)noexcept {
+			static_assert(std::is_base_of<_i_layer_fprop, LowerLayer>::value, "Template parameter LowerLayer must implement _i_layer");
+			get_self()._fprop(lowerLayer.get_activations());
+		}
 
+		void _bprop(const realmtx_t& data_y, const realmtx_t& prevActivations, const bool bPrevLayerIsInput, realmtx_t& dLdAPrev)noexcept {
 			data_y.assert_storage_does_not_intersect(dLdAPrev);
 			dLdAPrev.assert_storage_does_not_intersect(m_dLdW);
 			dLdAPrev.assert_storage_does_not_intersect(m_dLdZ);
@@ -267,20 +256,18 @@ namespace nntl {
 			NNTL_ASSERT(m_activations.size() == data_y.size());
 			NNTL_ASSERT(m_dLdZ.size() == m_activations.size());
 			NNTL_ASSERT(m_dLdW.size() == m_weights.size());
-			NNTL_ASSERT(lowerLayer.is_input_layer() || prevActivations.emulatesBiases());//input layer in batch mode may have biases included, but no emulatesBiases() set
+			NNTL_ASSERT(bPrevLayerIsInput || prevActivations.emulatesBiases());//input layer in batch mode may have biases included, but no emulatesBiases() set
 			NNTL_ASSERT(mtx_size_t(m_training_batch_size, get_incoming_neurons_cnt() + 1) == prevActivations.size());
-			NNTL_ASSERT(lowerLayer.is_input_layer() || dLdAPrev.size() == prevActivations.size_no_bias());
-			
+			NNTL_ASSERT(bPrevLayerIsInput || dLdAPrev.size() == prevActivations.size_no_bias());
 
 			//compute dL/dZ
 			activation_f_t::dLdZ(m_activations, data_y, m_dLdZ, *m_pMath);
-
 			if (m_bRestrictdLdZ) m_pMath->evClamp(m_dLdZ, m_dLdZRestrictLowerBnd, m_dLdZRestrictUpperBnd);
 
 			//compute dL/dW = 1/batchsize * (dL/dZ)` * Aprev
 			m_pMath->mScaledMulAtB_C(real_t(1.0) / real_t(m_dLdZ.rows()), m_dLdZ, prevActivations, m_dLdW);
-			
-			if (!lowerLayer.is_input_layer()) {
+
+			if (!bPrevLayerIsInput) {
 				NNTL_ASSERT(!m_weights.emulatesBiases());
 				//finally compute dL/dAprev to use in lower layer. Before that make m_weights looks like there is no bias weights
 				m_weights.hide_last_col();
@@ -290,6 +277,13 @@ namespace nntl {
 
 			//now we can apply gradient to the weights
 			m_gradientWorks.apply_grad(m_weights, m_dLdW);
+		}
+		template <typename LowerLayer>
+		const unsigned bprop(const realmtx_t& data_y, const LowerLayer& lowerLayer, realmtx_t& dLdAPrev)noexcept {
+			static_assert(std::is_base_of<_i_layer_trainable, LowerLayer>::value, "Template parameter LowerLayer must implement _i_layer_trainable");
+			//STDCOUTL("bprop " << get_layer_name_str());
+			get_self()._bprop(data_y, lowerLayer.get_activations(), std::is_base_of<m_layer_input, LowerLayer>::value, dLdAPrev);
+			return 1;
 		}
 
 		//////////////////////////////////////////////////////////////////////////
@@ -322,13 +316,11 @@ namespace nntl {
 		}
 
 	protected:
-		friend class _preinit_layers;
-		void _preinit_layer(const layer_index_t idx, const neurons_count_t inc_neurons_cnt)noexcept {
+		friend class _impl::_preinit_layers;
+		void _preinit_layer(layer_index_t& idx, const neurons_count_t inc_neurons_cnt)noexcept {
 			NNTL_ASSERT(0 < idx);
 			NNTL_ASSERT(0 < inc_neurons_cnt);
 			_base_class::_preinit_layer(idx, inc_neurons_cnt);
-
-			//m_activations.resize(m_neurons_cnt);//there is no need to initialize allocated memory
 		}
 	};
 

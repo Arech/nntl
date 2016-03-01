@@ -49,7 +49,7 @@ namespace utils {
 	// primary template handles types that have no nested ::options_t member:
 	template< class, class = std::void_t<> >
 	struct has_options : std::false_type { };
-	// specialization recognizes types that do have a nested ::type member:
+	// specialization recognizes types that do have a nested ::options_t member:
 	template< class T >
 	struct has_options<T, std::void_t<typename T::options_t>> : std::true_type {};
 
@@ -64,10 +64,10 @@ namespace utils {
 		void turn_off_all_options()noexcept { m_binary_options.reset(); }
 	};
 
-	// primary template handles types that have no nested ::options_t member:
+	// primary template handles types that have no nested ::options_t and ::binary_options_enum_t members:
 	template< class, class = std::void_t<> >
 	struct has_binary_options : std::false_type { };
-	// specialization recognizes types that do have a nested ::type member:
+	// specialization recognizes types that do have a nested ::options_t and binary_options_enum_t members:
 	template< class T >
 	struct has_binary_options<T, std::void_t<typename T::options_t, typename T::binary_options_enum_t>> : std::true_type {};
 

@@ -38,19 +38,11 @@ namespace nntl {
 	//////////////////////////////////////////////////////////////////////////
 	// class to derive from when making final input layer. Need it to propagate correct FinalPolymorphChild to
 	// static polymorphism implementation here and in layer__base
-	//template<typename FinalPolymorphChild, typename MathInterface = nnet_def_interfaces::Math, typename RngInterface = nnet_def_interfaces::Rng>
-// 	class _layer_input : public m_layer_input, public _layer_base<FinalPolymorphChild, MathInterface, RngInterface> {
-// 	private:
-// 		typedef _layer_base<FinalPolymorphChild, MathInterface, RngInterface> _base_class;
 	template<typename Interfaces, typename FinalPolymorphChild>
-	class _layer_input : public m_layer_input, public _layer_base<typename Interfaces::iMath_t::real_t, FinalPolymorphChild> {
+	class _layer_input : public m_layer_input, public _layer_base<Interfaces, FinalPolymorphChild> {
 	private:
-		typedef _layer_base<typename Interfaces::iMath_t::real_t, FinalPolymorphChild> _base_class;
+		typedef _layer_base<Interfaces, FinalPolymorphChild> _base_class;
 
-	public:
-		typedef typename Interfaces::iMath_t iMath_t;
-		static_assert(std::is_base_of<math::_i_math<real_t>, iMath_t>::value, "Interfaces::iMath type should be derived from _i_math");
-		
 		//////////////////////////////////////////////////////////////////////////
 		//members
 	protected:
@@ -75,15 +67,17 @@ namespace nntl {
 			_base_class(_neurons_cnt), m_pActivations(nullptr) {};
 		~_layer_input() noexcept {};
 
+		void get_layer_name(char* pName, const size_t cnt)const noexcept {
+			sprintf_s(pName, cnt, "inp%d", static_cast<unsigned>(get_layer_idx()));
+		}
+
 		const realmtx_t& get_activations()const noexcept {
 			NNTL_ASSERT(nullptr != m_pActivations);
 			return *m_pActivations;
 		}
 
-		constexpr const bool is_input_layer()const noexcept { return true; }
+		//constexpr const bool is_input_layer()const noexcept { return true; }
 
-		//template <typename i_math_t = nnet_def_interfaces::Math, typename i_rng_t = nnet_def_interfaces::Rng>
-		//ErrorCode init(vec_len_t batchSize, numel_cnt_t& minMemFPropRequire, numel_cnt_t& minMemBPropRequire, i_math_t& iMath, i_rng_t& iRng)noexcept {
 		template<typename _layer_init_data_t>
 		ErrorCode init(_layer_init_data_t& lid)noexcept{
 			static_assert(std::is_base_of<math::_i_math<real_t>, _layer_init_data_t::i_math_t>::value, "i_math_t type should be derived from _i_math");
@@ -110,27 +104,23 @@ namespace nntl {
 			m_pActivations = &data_x;
 		}
 
-		//template <typename i_math_t = nnet_def_interfaces::Math>
-		//void bprop(const realmtx_t& dLdA, const realmtx_t& prevActivations, realmtx_t& dLdAPrev, i_math_t& iMath, const bool bPrevLayerIsInput)noexcept {
 		template <typename LowerLayer>
-		void bprop(realmtx_t& dLdA, const LowerLayer& lowerLayer, realmtx_t& dLdAPrev)noexcept{
+		const unsigned bprop(realmtx_t& dLdA, const LowerLayer& lowerLayer, realmtx_t& dLdAPrev)noexcept{
 			//static_assert(false, "There is no bprop() for input_layer!");
 			// will be used in invariant backprop algo
 			std::cout << "***** bprop in input layer " << (int)get_layer_idx() << std::endl;
+			return 1;
 		}
-
+		
 		//should return true, if the layer has a value to add to Loss function value (there's some regularizer attached)
 		constexpr const bool hasLossAddendum()const noexcept { return false; }
 
 	protected:
-		friend class _preinit_layers;
-		void _preinit_layer(const layer_index_t idx, const neurons_count_t inc_neurons_cnt)noexcept {
+		friend class _impl::_preinit_layers;
+		void _preinit_layer(layer_index_t& idx, const neurons_count_t inc_neurons_cnt)noexcept {
 			NNTL_ASSERT(0 == idx);
 			NNTL_ASSERT(0 == inc_neurons_cnt);
 			_base_class::_preinit_layer(idx, inc_neurons_cnt);
-
-			//don't allocate activation vector here, cause it'll be received from fprop().
-			//m_activations.resize(m_neurons_cnt);//there is no need to initialize allocated memory
 		}
 	};
 

@@ -83,7 +83,7 @@ TEST(Simple, PlainFFN) {
 	layer_output<activation::sigm_quad_loss<>> outp(td.train_y().cols(), learningRate);
 
 	//3. assemble layer references (!! - not layer objects, but references to them) into a single object - layer_pack. 
-	auto lp = make_layers_pack(inp, fcl, fcl2, outp);
+	auto lp = make_layers(inp, fcl, fcl2, outp);
 
 	//4. define NN training options (epochs count, conditions when to evaluate NN performance, etc)
 	nnet_cond_epoch_eval cee(epochs);
@@ -142,7 +142,7 @@ TEST(Simple, NotSoPlainFFN) {
 	outp.m_gradientWorks.set_type(optimizerType).set_nesterov_momentum(momentum);
 
 	//3. assemble layer references (!! - not layer objects, but references to them) into a single object - layer_pack. 
-	auto lp = make_layers_pack(inp, fcl, fcl2, outp);
+	auto lp = make_layers(inp, fcl, fcl2, outp);
 
 	//4. define NN training options (epochs count, conditions when to evaluate NN performance, etc)
 	nnet_cond_epoch_eval cee(epochs);
@@ -200,7 +200,7 @@ TEST(Simple, NesterovMomentumAndRMSPropOnly) {
 	layer_output<activation::sigm_quad_loss<w_init_scheme>> outp(td.train_y().cols(), learningRate);
 	outp.m_gradientWorks.set_nesterov_momentum(momentum).set_type(optType);
 
-	auto lp = make_layers_pack(inp, fcl, fcl2, outp);
+	auto lp = make_layers(inp, fcl, fcl2, outp);
 
 	nnet_cond_epoch_eval cee(epochs);
 	nnet_train_opts<decltype(cee)> opts(std::move(cee));

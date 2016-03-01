@@ -138,7 +138,7 @@ TEST(TestMatfile, DumpNnet) {
 	layer_fully_connected<> fcl2(50, learningRate);
 	layer_output<> outp(td.train_y().cols(), learningRate);
 
-	auto lp = make_layers_pack(inp, fcl, fcl2, outp);
+	auto lp = make_layers(inp, fcl, fcl2, outp);
 
 	nnet_cond_epoch_eval cee(epochs);
 	nnet_train_opts<decltype(cee)> opts(std::move(cee));

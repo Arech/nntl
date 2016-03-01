@@ -132,6 +132,8 @@ namespace math {
 
 		//inplace elementwise addition A = A+B
 		nntl_interface void evAdd_ip(realmtx_t& A, const realmtx_t& B)noexcept;
+		//inplace elementwise addition *pA = *pA + *pB
+		nntl_interface void vAdd_ip(real_t*const pA, const real_t*const pB, const numel_cnt_t dataCnt)noexcept;
 
 		//inplace elementwise adding of scaled vector: A = A + c*B;
 		nntl_interface void evAddScaled_ip(realmtx_t& A, const real_t c, const realmtx_t& B)noexcept;

@@ -128,6 +128,11 @@ namespace math {
 			if (m_bEmulateBiases) set_biases();
 		}
 
+		//useExternalStorage(value_ptr_t ptr, const simple_matrix& sizeLikeThis) variation
+		simple_matrix(value_ptr_t ptr, const simple_matrix& sizeLikeThis)noexcept : m_pData(nullptr), m_bDontManageStorage(false) {
+			useExternalStorage(ptr, sizeLikeThis);
+		}
+
 		simple_matrix(simple_matrix&& src)noexcept : m_pData(nullptr), m_rows(src.m_rows), m_cols(src.m_cols),
 			m_bEmulateBiases(src.m_bEmulateBiases), m_bDontManageStorage(src.m_bDontManageStorage)
 		{
@@ -178,6 +183,9 @@ namespace math {
 			return m_bEmulateBiases==rhs.m_bEmulateBiases && size() == rhs.size()
 				&& 0 == memcmp(m_pData, rhs.m_pData, byte_size());
 		}
+		const bool operator!=(const simple_matrix& rhs)const noexcept {
+			return !operator==(rhs);
+		}
 
 		const bool isAllocationFailed()const noexcept {
 			return nullptr == m_pData && m_rows>0 && m_cols>0;
@@ -203,7 +211,10 @@ namespace math {
 			NNTL_ASSERT(empty());
 			m_bEmulateBiases = false;
 		}
-		void assert_biases_ok()noexcept {
+
+		//function is expected to be called from context of NNTL_ASSERT macro. Real assertion happens inside of the function, so the
+		// return value is used only for compilation purposes, DON'T RELY ON IT!
+		const bool assert_biases_ok()const noexcept {
 #ifdef NNTL_DEBUG
 			NNTL_ASSERT(emulatesBiases());
 			
@@ -214,6 +225,7 @@ namespace math {
 				NNTL_ASSERT(*pS++ == value_type(1.0) || !"Bias check failed!");
 			}
 #endif // NNTL_DEBUG
+			return true;
 		}
 
 		//////////////////////////////////////////////////////////////////////////
@@ -397,11 +409,14 @@ namespace math {
 		}*/
 
 
-		const bool useExternalStorage(value_ptr_t ptr, const simple_matrix& sizeLikeThis)noexcept {
-			return useExternalStorage(ptr, sizeLikeThis.rows(), sizeLikeThis.cols(), sizeLikeThis.emulatesBiases());
+		void useExternalStorage(value_ptr_t ptr, const simple_matrix& sizeLikeThis)noexcept {
+			useExternalStorage(ptr, sizeLikeThis.rows(), sizeLikeThis.cols(), sizeLikeThis.emulatesBiases());
 		}
-		const bool useExternalStorage(value_ptr_t ptr, vec_len_t _rows, vec_len_t _cols, bool bEmulateBiases = false)noexcept {
-			NNTL_ASSERT(ptr != nullptr && _rows > 0 && _cols>0);
+		//note that bEmulateBiases doesn't increment _cols count and doesn't fill biases if specified! This is done to make
+		// sure that a caller knows that ptr will address enough space and to prevent unnecessary memory writes.
+		// Also this allows to use matrix sizeLikeThis as an argument to useExternalStorage() call
+		void useExternalStorage(value_ptr_t ptr, vec_len_t _rows, vec_len_t _cols, bool bEmulateBiases = false)noexcept {
+			NNTL_ASSERT(ptr && _rows > 0 && _cols>0);
 			_free();
 			m_bDontManageStorage = true;
 			m_pData = ptr;
@@ -412,7 +427,7 @@ namespace math {
 			//usually, external storage is used with shared memory to store temporary computations, therefore data won't survive between
 			// usages and there is no need to prefill it with biases. m_bEmulateBiases flag is helpful for routines like numel_no_bias()
 			//if (bEmulateBiases) _fill_biases();
-			return true;
+			//return true;
 		}
 
 		const bool useInternalStorage(vec_len_t _rows=0, vec_len_t _cols=0, bool bEmulateBiases = false)noexcept {
@@ -517,30 +532,25 @@ namespace math {
 			_free();
 			auto ptr = new(std::nothrow) value_type[ne];
 			if (nullptr == ptr)return false;
-			if (!useExternalStorage(ptr, ne)) {
-				delete[] ptr;
-				return false;
-			}
+			useExternalStorage(ptr, ne);
 			m_bDontManageStorage = false;
 			return true;
 		}
 
-		const bool useExternalStorage(value_ptr_t ptr, vec_len_t _rows, vec_len_t _cols, bool bEmulateBiases = false)noexcept {
-			const auto r = _base_class::useExternalStorage(ptr, _rows, _cols, bEmulateBiases);
+		void useExternalStorage(value_ptr_t ptr, vec_len_t _rows, vec_len_t _cols, bool bEmulateBiases = false)noexcept {
+			_base_class::useExternalStorage(ptr, _rows, _cols, bEmulateBiases);
 #ifdef NNTL_DEBUG
-			if (r) m_maxSize = numel();
+			m_maxSize = numel();
 #endif // NNTL_DEBUG
-			return r;
 		}
-		const bool useExternalStorage(value_ptr_t ptr, const simple_matrix& sizeLikeThis)noexcept {
-			return useExternalStorage(ptr, sizeLikeThis.rows(), sizeLikeThis.cols(), sizeLikeThis.emulatesBiases());
+		void useExternalStorage(value_ptr_t ptr, const simple_matrix& sizeLikeThis)noexcept {
+			useExternalStorage(ptr, sizeLikeThis.rows(), sizeLikeThis.cols(), sizeLikeThis.emulatesBiases());
 		}
-		const bool useExternalStorage(value_ptr_t ptr, numel_cnt_t cnt, bool bEmulateBiases = false)noexcept {
-			const auto r = _base_class::useExternalStorage(ptr, 1, 1, bEmulateBiases);
+		void useExternalStorage(value_ptr_t ptr, numel_cnt_t cnt, bool bEmulateBiases = false)noexcept {
+			_base_class::useExternalStorage(ptr, static_cast<vec_len_t>(cnt), 1, bEmulateBiases);
 #ifdef NNTL_DEBUG
-			if (r) m_maxSize = cnt;
+			m_maxSize = cnt;
 #endif // NNTL_DEBUG
-			return r;
 		}
 
 
@@ -572,7 +582,7 @@ namespace math {
 			}
 			return hasBiases;
 		}
-		void restore_biases()noexcept {
+		void restore_biases()noexcept { //should be called only if hide_biases() returned true
 			restore_last_col();
 			m_bEmulateBiases = true;
 		}

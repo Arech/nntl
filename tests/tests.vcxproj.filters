@@ -87,9 +87,6 @@
     <ClInclude Include="..\nntl\activation.h">
       <Filter>nntl</Filter>
     </ClInclude>
-    <ClInclude Include="..\nntl\layers_pack.h">
-      <Filter>nntl</Filter>
-    </ClInclude>
     <ClInclude Include="..\nntl\train_data.h">
       <Filter>nntl</Filter>
     </ClInclude>
@@ -264,6 +261,24 @@
     <ClInclude Include="..\nntl\serialization\options.h">
       <Filter>nntl\serialization</Filter>
     </ClInclude>
+    <ClInclude Include="..\nntl\layers.h">
+      <Filter>nntl</Filter>
+    </ClInclude>
+    <ClInclude Include="..\nntl\layer\pack_vertical.h">
+      <Filter>nntl\layer</Filter>
+    </ClInclude>
+    <ClInclude Include="..\nntl\layer\_init_layers.h">
+      <Filter>nntl\layer</Filter>
+    </ClInclude>
+    <ClInclude Include="..\nntl\layer\pack_horizontal.h">
+      <Filter>nntl\layer</Filter>
+    </ClInclude>
+    <ClInclude Include="..\nntl\layer\_pack_.h">
+      <Filter>nntl\layer</Filter>
+    </ClInclude>
+    <ClInclude Include="..\nntl\_test\test_weights_init.h">
+      <Filter>nntl\_test</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="stdafx.cpp">
@@ -315,6 +330,12 @@
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="test_matfile.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="test_nnet.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="test_layer_pack_horizontal.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>

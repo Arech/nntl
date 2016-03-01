@@ -922,27 +922,43 @@ namespace math {
 
 
 		//////////////////////////////////////////////////////////////////////////
+		//inplace elementwise addition *pA = *pA + *pB
+		void vAdd_ip(real_t*const pA, const real_t*const pB, const numel_cnt_t dataCnt)noexcept {
+			NNTL_ASSERT(pA && pB && dataCnt);
+			if (dataCnt < Thresholds_t::evAdd_ip) {
+				get_self().vAdd_ip_st(pA, pB, dataCnt);
+			} else get_self().vAdd_ip_mt(pA, pB, dataCnt);
+		}
+		static void _vAdd_ip_st(real_t*const pA, const real_t*const pB, const elms_range& er)noexcept {
+			NNTL_ASSERT(pA && pB);
+			for (numel_cnt_t i = er.elmBegin; i < er.elmEnd; ++i) pA[i] += pB[i];
+		}
+		void vAdd_ip_st(real_t*const pA, const real_t*const pB, const numel_cnt_t dataCnt)noexcept {
+			NNTL_ASSERT(pA && pB && dataCnt);
+			_vAdd_ip_st(pA, pB, elms_range(0,dataCnt));
+		}
+		void vAdd_ip_mt(real_t*const pA, const real_t*const pB, const numel_cnt_t dataCnt)noexcept {
+			NNTL_ASSERT(pA && pB && dataCnt);
+			m_threads.run([pA, pB](const par_range_t& pr) {
+				_vAdd_ip_st(pA, pB, elms_range(pr));
+			}, dataCnt);
+		}
+
+		//////////////////////////////////////////////////////////////////////////
 		//inplace elementwise addition A = A+B
 		void evAdd_ip(realmtx_t& A, const realmtx_t& B)noexcept {
 			if (A.numel() < Thresholds_t::evAdd_ip) {
 				get_self().evAdd_ip_st(A, B);
 			} else get_self().evAdd_ip_mt(A, B);
 		}
-		static void evAdd_ip_st(realmtx_t& A, const realmtx_t& B)noexcept {
+		static void evAdd_ip_st(realmtx_t& A, const realmtx_t& B, const elms_range*const pER = nullptr)noexcept {
 			NNTL_ASSERT(A.size() == B.size() && !A.empty() && !B.empty());
-			const auto pA = A.data();
-			const auto dataCnt = A.numel();
-			const auto pB = B.data();
-			for (numel_cnt_t i = 0; i < dataCnt; ++i) pA[i] += pB[i];
+			_vAdd_ip_st(A.data(), B.data(), pER ? *pER : elms_range(A));
 		}
 		void evAdd_ip_mt(realmtx_t& A, const realmtx_t& B)noexcept {
 			NNTL_ASSERT(A.size() == B.size() && !A.empty() && !B.empty());
-			const auto pA = A.data();
-			const auto pB = B.data();
-			m_threads.run([pA, pB](const par_range_t& r) {
-				const auto ofs = r.offset();
-				const auto im = ofs + r.cnt();
-				for (numel_cnt_t i = ofs; i < im; ++i) pA[i] += pB[i];
+			m_threads.run([&A, &B](const par_range_t& pr) {
+				_vAdd_ip_st(A.data(), B.data(), elms_range(pr));
 			}, A.numel());
 		}
 

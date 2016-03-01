@@ -49,11 +49,13 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "weights_init.h"
 
 #include "activation.h"
-#include "layers_pack.h"
+#include "layers.h"
 #include "layer/_layer_base.h"
 #include "layer/input.h"
 #include "layer/output.h"
 #include "layer/fully_connected.h"
+#include "layer/pack_vertical.h"
+#include "layer/pack_horizontal.h"
 #include "nnet.h"
 
 //#include "interface/threads.h"

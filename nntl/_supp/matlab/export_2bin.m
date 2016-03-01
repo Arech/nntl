@@ -1,8 +1,10 @@
-function export_2bin( S, fname )
+function export_2bin( S, fname, bDropUnknown )
 %EXPORT_STRUCT_2BIN Export 2D matrix or struct to NNTL binary file
 % (see nntl/_supp/io/binfile.h for specifications)
 
 MAX_FIELD_NAME_LENGTH=15;
+
+bDropUnknown = ~exist('bDropUnknown','var') || logical(bDropUnknown);
 
 if ~isstruct(S) && ismatrix(S)
 	S=struct('mtx',S);
@@ -21,11 +23,25 @@ fc = length(fn);
 
 %bin_file::HEADER
 fwrite(fid,'nntl','char');
-fwrite(fid,fc,'uint16');
+% TODO: bad code here
+if bDropUnknown
+	fwrite(fid,4,'uint16');
+else	
+	fwrite(fid,fc,'uint16');
+end
 
 %bin_file::FIELD_ENTRY
 for fidx=1:fc
 	fld = S.(fn{fidx});
+	
+	if bDropUnknown
+		switch fn{fidx}
+			case {'train_x','train_y','test_x','test_y'}				
+			otherwise
+				continue;
+		end
+	end
+	
 	if ~(isscalar(fld) || isvector(fld) || ismatrix(fld))
 		fclose(fid);
 		error('Unsupported field %s type', fn{fidx});

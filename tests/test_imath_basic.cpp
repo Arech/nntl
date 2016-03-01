@@ -409,7 +409,7 @@ TEST(TestIMathBasic, LossSoftmaxXentropy) {
 
 
 template<typename base_t> struct vSumAbs_EPS {};
-template<> struct vSumAbs_EPS<double> { static constexpr double eps = 2e-10; };
+template<> struct vSumAbs_EPS<double> { static constexpr double eps = 3e-10; };
 template<> struct vSumAbs_EPS<float> { static constexpr double eps = 2e-5; };
 template<typename iMath>
 void test_vSumAbs(iMath& iM, vec_len_t rowsCnt, vec_len_t colsCnt = 10) {

@@ -36,55 +36,54 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "../serialization/serialization.h"
 
 #include "../grad_works.h"
+#include "_init_layers.h"
 
 namespace nntl {
 
-	namespace _impl {
+	//////////////////////////////////////////////////////////////////////////
+	// interface that must be implemented by a layer in order to make fprop() function work (it PrevLayer_type, so this will help us to isolate
+	// which API in particular previous layer must implement)
+	template <typename RealT>
+	class _i_layer_fprop {
+	protected:
+		_i_layer_fprop()noexcept {};
+		~_i_layer_fprop()noexcept {};
 
-		template<typename i_math_t_, typename i_rng_t_>
-		struct _layer_init_data {
-			typedef i_math_t_ i_math_t;
-			typedef i_rng_t_ i_rng_t;
-			
-			typedef typename i_math_t::real_t real_t;
+		//!! copy constructor not needed
+		_i_layer_fprop(const _i_layer_fprop& other)noexcept; // = delete; //-it should be `delete`d, but factory function won't work if it is
+		//!!assignment is not needed
+		_i_layer_fprop& operator=(const _i_layer_fprop& rhs) noexcept; // = delete; //-it should be `delete`d, but factory function won't work if it is
 
-			typedef math::simple_matrix<real_t> realmtx_t;
-			typedef typename realmtx_t::vec_len_t vec_len_t;
-			typedef typename realmtx_t::numel_cnt_t numel_cnt_t;
+	public:
+		typedef RealT real_t;
+		typedef math::simple_matrix<real_t> realmtx_t;
+		typedef math::simple_matrix_deformable<real_t> realmtxdef_t;
+		static_assert(std::is_base_of<realmtx_t, realmtxdef_t>::value, "simple_matrix_deformable must be derived from simple_matrix!");
 
-			static_assert(std::is_base_of<math::_i_math<real_t>, i_math_t>::value, "i_math_t type should be derived from _i_math");
-			static_assert(std::is_base_of<rng::_i_rng, i_rng_t>::value, "i_rng_t type should be derived from _i_rng");
-			
+	public:
+		nntl_interface const realmtx_t& get_activations()const noexcept;
+	};
 
-			IN i_math_t& iMath;
-			IN i_rng_t& iRng;
-			
-			//fprop and bprop may use different batch sizes during single training session (for example, fprop()/bprop() uses small batch size
-			// during learning process, but whole data_x.rows() during fprop() for loss function computation. Therefore to reduce memory
-			// consumption during learning, we will demark fprop() memory requirements and bprop() mem reqs.
-			OUT numel_cnt_t maxMemFPropRequire;//this value should be set by layer.init()
-			OUT numel_cnt_t maxMemBPropRequire;//this value should be set by layer.init()
-			OUT numel_cnt_t max_dLdA_numel;//this value should be set by layer.init()
-			OUT numel_cnt_t nParamsToLearn;//total number of parameters, that layer has to learn during training, to be set by layer.init()
+	// and the same for bprop(). Derives from _i_layer_fprop because it generally need it API
+	template <typename RealT>
+	class _i_layer_trainable : public _i_layer_fprop<RealT>{
+	protected:
+		_i_layer_trainable()noexcept {};
+		~_i_layer_trainable()noexcept {};
 
-			IN const vec_len_t max_fprop_batch_size;//usually this is data_x.rows()
-			IN const vec_len_t training_batch_size;//usually this is batchSize
+		//!! copy constructor not needed
+		_i_layer_trainable(const _i_layer_trainable& other)noexcept; // = delete; //-it should be `delete`d, but factory function won't work if it is
+															 //!!assignment is not needed
+		_i_layer_trainable& operator=(const _i_layer_trainable& rhs) noexcept; // = delete; //-it should be `delete`d, but factory function won't work if it is
 
-			OUT bool bHasLossAddendum;//to be set by layer.init()
-
-			_layer_init_data(i_math_t& im, i_rng_t& ir, vec_len_t fbs, vec_len_t bbs) noexcept
-				: iMath(im), iRng(ir), max_fprop_batch_size(fbs), training_batch_size(bbs)
-			{
-				NNTL_ASSERT(max_fprop_batch_size >= training_batch_size);
-			}
-		};
-
-	}
+	public:
+		//nntl_interface const bool is_input_layer()const noexcept;
+	};
 
 	//////////////////////////////////////////////////////////////////////////
 	// layer interface definition
 	template<typename RealT>
-	class _i_layer {
+	class _i_layer : public _i_layer_trainable<RealT>, public math::simple_matrix_typedefs {
 	protected:
 		_i_layer()noexcept {};
 		~_i_layer()noexcept {};
@@ -96,35 +95,35 @@ namespace nntl {
 
 	public:
 		typedef _nnet_errs::ErrorCode ErrorCode;
-		typedef RealT real_t;
-		typedef math::simple_matrix<real_t> realmtx_t;
-		typedef typename realmtx_t::vec_len_t vec_len_t;
-		typedef typename realmtx_t::numel_cnt_t numel_cnt_t;
-		typedef typename realmtx_t::mtx_size_t mtx_size_t;
+
+		// Each layer must define an alias for type of math interface and rng interface (and they must be the same for all layers)
+		//typedef .... iMath_t
+		//typedef .... iRng_t
 
 		//////////////////////////////////////////////////////////////////////////
 		// base interface
 		// each call to own functions should go through get_self() to make polymorphyc function work
 		nntl_interface auto get_self() const noexcept;
 		nntl_interface const layer_index_t get_layer_idx() const noexcept;
+		nntl_interface const neurons_count_t get_neurons_cnt() const noexcept;
 		nntl_interface const neurons_count_t get_incoming_neurons_cnt()const noexcept;
-		nntl_interface const bool is_input_layer()const noexcept;
-		nntl_interface const bool is_output_layer()const noexcept;
 		
-		//it turns out that this function looks quite contradictory... Leave it until find out what's better to do..
-		nntl_interface const realmtx_t& get_activations()const noexcept;
+		//must obey to matlab variables naming convention
+		nntl_interface void get_layer_name(char* pName, const size_t cnt)const noexcept;
+		nntl_interface std::string get_layer_name_str()const noexcept;
 
-		//batchSize==0 puts layer into training mode with batchSize predefined by init()::lid.training_batch_size
+		// batchSize==0 puts layer into training mode with batchSize predefined by init()::lid.training_batch_size
 		// any batchSize>0 puts layer into evaluation/testing mode with that batchSize. bs must be <= init()::lid.max_fprop_batch_size
-		nntl_interface void set_mode(vec_len_t batchSize)noexcept;
+		// pNewActivationStorage is used in conjunction with compound layers, such as layer_pack_horizontal, that use
+		// their inner layers activations as own activation. If set, the layer must use this pointer as destination for activation units value
+		// (do something like m_activations.useExternalStorage(pNewActivationStorage) ). Resetting of biases is not required at this case, however.
+		// Layers, that should never be a part of other compound layers, should totally omit this parameter.
+		nntl_interface void set_mode(vec_len_t batchSize, real_t* pNewActivationStorage = nullptr)noexcept;
 
-		//minMemFPropRequire and minMemBPropRequire - vars to be set by init() implementation. Provides a way to reserve necessary
-		// memory to hold temporary data during fprop() and bprop(). At least this amount (minMemFPropRequire+minMemBPropRequire) of memory
-		// will be passed to subsequent call to initMem().
-		//template <typename i_math_t = nnet_def_interfaces::Math, typename i_rng_t = nnet_def_interfaces::Rng>
-		//nntl_interface ErrorCode init(vec_len_t batchSize, numel_cnt_t& minMemFPropRequire, numel_cnt_t& minMemBPropRequire, i_math_t& iMath, i_rng_t& iRng)noexcept;
+		// ATTN: more specific and non-templated version available for this function, see _layer_base for an example
+		// pNewActivationStorage - see comments to set_mode(). Layers, that should never be a part of other compound layers, should totally omit this parameter.
 		template<typename _layer_init_data_t>
-		nntl_interface ErrorCode init(_layer_init_data_t& lid)noexcept;
+		nntl_interface ErrorCode init(_layer_init_data_t& lid, real_t* pNewActivationStorage = nullptr)noexcept;
 
 		//frees any temporary resources that doesn't contain layer-specific information (i.e. layer weights shouldn't be freed).
 		//In other words, this routine burns some unnecessary fat layer gained during training, but don't touch any data necessary
@@ -141,17 +140,36 @@ namespace nntl {
 		template <typename LowerLayer>
 		nntl_interface void fprop(const LowerLayer& lowerLayer)noexcept;
 
-		//dLdA is derivative of loss function wrt this layer neuron activations. Size [batchSize x (layer_neuron_cnt+1)]
-		//dLdAPrev is derivative of loss function wrt to previous (lower) layer activations to compute by bprop(). Size [batchSize x (prev_layer_neuron_cnt+1)]
+		//dLdA is derivative of loss function wrt this layer neuron activations. Size [batchSize x layer_neuron_cnt] (bias units ignored - they're updated during dLdW application)
+		//dLdAPrev is derivative of loss function wrt to previous (lower) layer activations to compute by bprop(). Size [batchSize x prev_layer_neuron_cnt] (bias units ignored)
 		// Also during bprop() after computation of dLdAPrev layer must compute dL/dW and adjust its weights accordingly.
-		//flag bPrevLayerIsInput is set when previous layer is input layer and if not IBP, dont calc dLdAPrev
+		// realmtxdef_t is used in pack_* layers. Non-compound layers should use realmtxt_t instead.
+		// Function is allowed to use dLdA once it's not needed anymore as it wants (resizing included, provided it won't resize greater
+		// than max size - beware, btw, the run-time check applies only for DEBUG builds). Same for dLdAPrev, but on exit it must have
+		// a proper size and content.
 		template <typename LowerLayer>
-		nntl_interface void bprop(realmtx_t& dLdA, const LowerLayer& lowerLayer, realmtx_t& dLdAPrev)noexcept;
-		//output layer should use bprop(const realmtx_t& data_y, ...)
-		//need non-const for dLdA to make dropout work
+		nntl_interface unsigned bprop(realmtxdef_t& dLdA, const LowerLayer& lowerLayer, realmtxdef_t& dLdAPrev)noexcept;
+		//output layer must use form void bprop(const realmtx_t& data_y, const LowerLayer& lowerLayer, realmtxdef_t& dLdAPrev);
+		//On return value: in short, simple/single layers should return 1.
+		// In long: during init() phase, each layer returns the size of its dLdA matrix in _layer_init_data_t::max_dLdA_numel. Each of this
+		// values are aggregated by max() into greatest possible dLdA size for whole NNet. Then two matrices of this (greatest) size are allocated and
+		// passed to layers::bprop() function. One of these matrices will be used as dLdA and the other as dLdAPrev during each layer::bprop() call.
+		// What the return value from a bprop() does is it governs whether the caller must alternate these matrices on a call to lower layer
+		// bprop() (i.e. whether dLdAPrev is actually stored in dLdAPrev (return 1) or dLdAPrev is really stored in (aprropriately resized) dLdA -return 0).
+		// So, simple/single layers, that don't switch these matrices, should always return 1. However, compound layers (such as layer_pack_vertical),
+		// that consists of other layers (and must call bprop() on them), may reuse dLdA/dLdAPrev in order to eliminate the neccessity of additional
+		// temporary dLdA matrices and data coping, just by switching between dLdA and dLdAPrev between calls to inner bprop()'s. So, if there was
+		// even number of calls to inner layers bprop() occured, then the actual dLdAPrev of the whole compound layer will be inside of dLdA
+		// and a caller of compound layer's bprop() should NOT switch matrices on subsequent call to lower layer bprop(). Therefore, compound layer's
+		// bprop() must return 0 in that case.
+		
+
 		
 		//returns a loss function summand, that's caused by this layer (for example, L2 regularizer adds term
 		// l2Coefficient*Sum(weights.^2) )
+		// At this moment, the code of layers::calcLossAddendum() depends on a (possibly non-stable) fact, that a loss function
+		// addendum to be calculated doesn't depend on data_x or data_y (it depends on only internal nn properties, such as weights).
+		// This might not be the case in a future, - update layers::calcLossAddendum() definition then.
 		nntl_interface real_t lossAddendum()const noexcept;
 		//should return true, if the layer has a value to add to Loss function value (there's some regularizer attached)
 		nntl_interface bool hasLossAddendum()const noexcept;
@@ -162,15 +180,11 @@ namespace nntl {
 		template<class Archive> nntl_interface void serialize(Archive & ar, const unsigned int version) {}
 	};
 
-	//special marks for type checking of input and output layers
-	struct m_layer_input {};
-	struct m_layer_output {};
-
-
+	
 	//////////////////////////////////////////////////////////////////////////
 	// base class for all layers. Implements compile time polymorphism to get rid of virtual functions
-	template<typename RealT, typename FinalPolymorphChild>
-	class _layer_base : public _i_layer<RealT>{
+	template<typename Interfaces, typename FinalPolymorphChild>
+	class _layer_base : public _i_layer<typename Interfaces::iMath_t::real_t>{
 	public:
 		//////////////////////////////////////////////////////////////////////////
 		//typedefs
@@ -179,9 +193,17 @@ namespace nntl {
 		typedef const FinalPolymorphChild& self_cref_t;
 		typedef FinalPolymorphChild* self_ptr_t;
 
+		typedef typename Interfaces::iMath_t iMath_t;
+		static_assert(std::is_base_of<math::_i_math<real_t>, iMath_t>::value, "Interfaces::iMath type should be derived from _i_math");
+
+		typedef typename Interfaces::iRng_t iRng_t;
+		static_assert(std::is_base_of<rng::_i_rng, iRng_t>::value, "Interfaces::iRng type should be derived from _i_rng");
+
+		typedef _impl::_layer_init_data<iMath_t, iRng_t> _layer_init_data_t;
+
 		//////////////////////////////////////////////////////////////////////////
 		//members section (in "biggest first" order)
-	public:
+	protected:
 		const neurons_count_t m_neurons_cnt;
 
 	private:
@@ -206,22 +228,29 @@ namespace nntl {
 		//////////////////////////////////////////////////////////////////////////
 		//nntl_interface overridings
 		self_ref_t get_self() noexcept {
-			static_assert(std::is_base_of<_layer_base<real_t, FinalPolymorphChild>, FinalPolymorphChild>::value
+			static_assert(std::is_base_of<_layer_base, FinalPolymorphChild>::value
 				, "FinalPolymorphChild must derive from _layer_base<FinalPolymorphChild>");
 			return static_cast<self_ref_t>(*this);
 		}
 		self_cref_t get_self() const noexcept {
-			static_assert(std::is_base_of<_layer_base<real_t, FinalPolymorphChild>, FinalPolymorphChild>::value
+			static_assert(std::is_base_of<_layer_base, FinalPolymorphChild>::value
 				, "FinalPolymorphChild must derive from _layer_base<FinalPolymorphChild>");
 			return static_cast<self_cref_t>(*this);
 		}
 
 		const layer_index_t get_layer_idx() const noexcept { return m_layerIdx; }
+		const neurons_count_t get_neurons_cnt() const noexcept { return m_neurons_cnt; }
 		const neurons_count_t get_incoming_neurons_cnt()const noexcept { return m_incoming_neurons_cnt; }
-		//const realmtx_t& get_activations()const noexcept { return m_activations; }
 
-		constexpr const bool is_input_layer()const noexcept { return false; }
-		constexpr const bool is_output_layer()const noexcept { return false; }
+		void get_layer_name(char* pName, const size_t cnt)const noexcept {
+			sprintf_s(pName, cnt, "unk%d", static_cast<unsigned>(get_layer_idx()));
+		}
+		std::string get_layer_name_str()const noexcept {
+			constexpr size_t ml = 16;
+			char n[ml];
+			get_self().get_layer_name(n, ml);
+			return std::string(n);
+		}
 
 		//returns a loss function summand, that's caused by this layer (for example, L2 regularizer adds term
 		// l2Coefficient*Sum(weights.^2) )
@@ -232,8 +261,8 @@ namespace nntl {
 	protected:
 		//this is how we going to initialize layer indexes.
 		//template <typename LCur, typename LPrev> friend void _init_layers::operator()(LCur&& lc, LPrev&& lp, bool bFirst)noexcept;
-		friend class _preinit_layers;
-		void _preinit_layer(const layer_index_t idx, const neurons_count_t inc_neurons_cnt)noexcept{
+		friend class _impl::_preinit_layers;
+		void _preinit_layer(layer_index_t& idx, const neurons_count_t inc_neurons_cnt)noexcept{
 			//there should better be an exception, but we don't want exceptions at all.
 			//anyway, there is nothing to help to those who'll try to abuse this API...
 			NNTL_ASSERT(!m_layerIdx);
@@ -241,13 +270,7 @@ namespace nntl {
 
 			if (m_layerIdx || m_incoming_neurons_cnt) abort();
 			m_layerIdx = idx;
-			if (idx) m_incoming_neurons_cnt = inc_neurons_cnt;
-
-			//here is probably the best place to allocate memory, but this might be changed in future when
-			// will tune for processor cache efficiency
-			// upd: this is a work for derived classes. For example, input_layer doesn't need it at all, cause it will receive it
-			// from nnet during fprop() phase
-			//m_activations.resize(m_neurons_cnt);//there is no need to initialize allocated memory
+			if (idx++) m_incoming_neurons_cnt = inc_neurons_cnt;
 		}
 
 	private:
@@ -255,7 +278,8 @@ namespace nntl {
 		//Serialization support
 		friend class boost::serialization::access;
 		//nothing to do here at this moment, also leave nntl_interface marker to prevent calls.
-		template<class Archive> nntl_interface void serialize(Archive & ar, const unsigned int version) {}
+		template<class Archive> nntl_interface void serialize(Archive & ar, const unsigned int version);
 	};
+
 
 }

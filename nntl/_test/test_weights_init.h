@@ -8,15 +8,15 @@ Redistribution and use in source and binary forms, with or without
 modification, are permitted provided that the following conditions are met:
 
 * Redistributions of source code must retain the above copyright notice, this
-  list of conditions and the following disclaimer.
+list of conditions and the following disclaimer.
 
 * Redistributions in binary form must reproduce the above copyright notice,
-  this list of conditions and the following disclaimer in the documentation
-  and/or other materials provided with the distribution.
+this list of conditions and the following disclaimer in the documentation
+and/or other materials provided with the distribution.
 
 * Neither the name of NNTL nor the names of its
-  contributors may be used to endorse or promote products derived from
-  this software without specific prior written permission.
+contributors may be used to endorse or promote products derived from
+this software without specific prior written permission.
 
 THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
 AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
@@ -29,20 +29,24 @@ CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
 OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
-// tests.cpp : Defines the entry point for the console application.
-//
+#pragma once
 
-#include "stdafx.h"
+#include "../interface/rng/std.h"
+#include "../weights_init.h"
 
+namespace nntl {
+namespace test_weights_init {
 
-int __cdecl main(int argc, char **argv) {
-#ifdef NNTL_DEBUG
-	STDCOUTL("\n******\n*** This is DEBUG binary! All performance reports are invalid!\n******\n");
-#endif // NNTL_DEBUG
+	// define simpliest weights_init scheme that always produces the same results (for the same data size)
+	template<int rngSeed = 0, size_t scalingCoeff1e6 = 1000000>
+	struct Xavier : public weights_init::Xavier<scalingCoeff1e6> {
+		template <typename iRng_t>
+		static bool init(typename iRng_t::realmtx_t& W, iRng_t&)noexcept {
+			rng::Std drng(rngSeed);
+			return weights_init::Xavier<scalingCoeff1e6>::init(W, drng);
+		}
 
-	::testing::InitGoogleTest(&argc, argv);
+	};
 
-	int r = RUN_ALL_TESTS();
-	//std::cin.ignore();
-	return r;
+}
 }
