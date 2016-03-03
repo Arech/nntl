@@ -289,9 +289,17 @@ namespace nntl_supp {
 						get_self() << t.const_value();
 						NNTL_ASSERT(m_curVarName == nullptr);// m_curVarName must be cleaned by saver code if it succeded.
 															 //now save it to file
-						if (matPutVariable(m_matFile, t.name(), pNewStruct))  ec = ErrorCode::FailedToTransferVariable;
+
+						//#BUGBUG: shouldn't save directly to file here, or we'll lose inner structs here
+						//if (matPutVariable(m_matFile, t.name(), pNewStruct))  ec = ErrorCode::FailedToTransferVariable;
+						//m_structureStack.pop();
+						//mxDestroyArray(pNewStruct);
+
 						m_structureStack.pop();
-						mxDestroyArray(pNewStruct);
+						m_curVarName = t.name();
+						ec = _save_to_file_or_struct(pNewStruct);
+						NNTL_ASSERT(m_curVarName == nullptr);
+
 					} else ec = ErrorCode::FailedToCreateStructVariable;
 				}
 			} else ec = ErrorCode::NoFileOpened;

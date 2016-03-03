@@ -41,6 +41,30 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 namespace nntl {
 
 	//////////////////////////////////////////////////////////////////////////
+	//each layer_pack_* layer is expected to have a special typedef self_t LayerPack_t
+
+	//recognizer of layer_pack_* classes
+	// primary template handles types that have no nested ::LayerPack_t member:
+	template< class, class = std::void_t<> >
+	struct is_layer_pack : std::false_type { };
+	// specialization recognizes types that do have a nested ::LayerPack_t member:
+	template< class T >
+	struct is_layer_pack<T, std::void_t<typename T::LayerPack_t>> : std::true_type {};
+
+	//helper function to call internal _for_each_layer(f) for layer_pack_* classes
+	template<typename Func, typename LayerT> inline
+		std::enable_if_t<is_layer_pack<LayerT>::value> call_F_for_each_layer(Func& F, LayerT& l)noexcept
+	{
+		l.for_each_layer(F);
+	}
+	template<typename Func, typename LayerT> inline
+		std::enable_if_t<!is_layer_pack<LayerT>::value> call_F_for_each_layer(Func& F, LayerT& l)noexcept
+	{
+		F(l);
+	}
+
+
+	//////////////////////////////////////////////////////////////////////////
 	// interface that must be implemented by a layer in order to make fprop() function work (it PrevLayer_type, so this will help us to isolate
 	// which API in particular previous layer must implement)
 	template <typename RealT>

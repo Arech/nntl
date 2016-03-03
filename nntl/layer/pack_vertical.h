@@ -65,6 +65,8 @@ namespace nntl {
 		typedef const FinalPolymorphChild& self_cref_t;
 		typedef FinalPolymorphChild* self_ptr_t;
 
+		typedef self_t LayerPack_t;
+
 		typedef const std::tuple<Layrs&...> _layers;
 
 		static constexpr size_t layers_count = sizeof...(Layrs);
@@ -132,10 +134,18 @@ namespace nntl {
 
 		first_layer_t& first_layer()const noexcept { return std::get<0>(m_layers); }
 		last_layer_t& last_layer()const noexcept { return std::get<layers_count - 1>(m_layers); }
-		//and apply function _Func(auto& layer) to each layer here
+
+		//and apply function _Func(auto& layer) to each underlying (non-pack) layer here
 		template<typename _Func>
-		void for_each_layer(_Func&& f)const noexcept {
-			utils::for_each_up(m_layers, std::move(f));
+		void for_each_layer(_Func& f)const noexcept {
+			utils::for_each_up(m_layers, [&f](auto& l)noexcept {
+				call_F_for_each_layer(f, l);
+			});
+		}
+		//This will apply f to every layer, packed in tuple no matter whether it is a _pack_* kind of layer or no
+		template<typename _Func>
+		void for_each_packed_layer(_Func& f)const noexcept {
+			utils::for_each_up(m_layers, f);
 		}
 
 		const layer_index_t get_layer_idx() const noexcept { return m_layerIdx; }
@@ -157,13 +167,13 @@ namespace nntl {
 		//should return true, if the layer has a value to add to Loss function value (there's some regularizer attached)
 		bool hasLossAddendum()const noexcept {
 			bool b = false;
-			for_each_layer([&b](auto& l) {				b |= l.hasLossAddendum();			});
+			for_each_packed_layer([&b](auto& l) {				b |= l.hasLossAddendum();			});
 			return b;
 		}
 		//returns a loss function summand, that's caused by this layer
 		real_t lossAddendum()const noexcept {
 			real_t la(.0);
-			for_each_layer([&la](auto& l) {				la += l.lossAddendum();			});
+			for_each_packed_layer([&la](auto& l) {				la += l.lossAddendum();			});
 			return la;
 		}
 
@@ -201,11 +211,11 @@ namespace nntl {
 		}
 
 		void deinit() noexcept {
-			for_each_layer([](auto& l) {l.deinit(); });
+			for_each_packed_layer([](auto& l) {l.deinit(); });
 		}
 
 		void initMem(real_t* ptr, numel_cnt_t cnt)noexcept {
-			for_each_layer([=](auto& l) {l.initMem(ptr, cnt); });
+			for_each_packed_layer([=](auto& l) {l.initMem(ptr, cnt); });
 		}
 
 		//variation of fprop for normal layer
@@ -262,7 +272,7 @@ namespace nntl {
 		//support for boost::serialization
 		friend class boost::serialization::access;
 		template<class Archive> void serialize(Archive & ar, const unsigned int version) {
-			for_each_layer([&ar](auto& l) {
+			for_each_packed_layer([&ar](auto& l) {
 				constexpr size_t maxStrlen = 16;
 				char lName[maxStrlen];
 				l.get_layer_name(lName, maxStrlen);

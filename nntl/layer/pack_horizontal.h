@@ -63,6 +63,8 @@ namespace nntl {
 		typedef const FinalPolymorphChild& self_cref_t;
 		typedef FinalPolymorphChild* self_ptr_t;
 
+		typedef self_t LayerPack_t;
+
 		//shouldn't use references here (with PHLsT...)
 		typedef const std::tuple<PHLsT...> _phl_tuple;
 
@@ -174,13 +176,22 @@ namespace nntl {
 
 		const realmtx_t& get_activations()const noexcept { return m_activations; }
 
-		//and apply function _Func(auto& layer) to each layer here
+		//and apply function _Func(auto& layer) to each underlying (non-pack) layer here
 		template<typename _Func>
 		void for_each_layer(_Func& f)const noexcept {
 			utils::for_each_up(m_phl_tuple, [&f](auto& phl)noexcept {
-				f(phl.l); 
+				call_F_for_each_layer(f, phl.l);
 			});
 		}
+
+		//This will apply f to every layer, packed in tuple no matter whether it is a _pack_* kind of layer or no
+		template<typename _Func>
+		void for_each_packed_layer(_Func& f)const noexcept {
+			utils::for_each_up(m_phl_tuple, [&f](auto& phl)noexcept {
+				f(phl.l);
+			});
+		}
+
 		/*template<typename _Func>
 		void for_each_phl(_Func&& f)const noexcept {
 			utils::for_each_up(m_phl_tuple, std::move(f));
@@ -199,13 +210,13 @@ namespace nntl {
 		//should return true, if the layer has a value to add to Loss function value (there's some regularizer attached)
 		bool hasLossAddendum()const noexcept {
 			bool b = false;
-			for_each_layer([&b](auto& l) {				b |= l.hasLossAddendum();			});
+			for_each_packed_layer([&b](auto& l) {				b |= l.hasLossAddendum();			});
 			return b;
 		}
 		//returns a loss function summand, that's caused by this layer
 		real_t lossAddendum()const noexcept {
 			real_t la(.0);
-			for_each_layer([&la](auto& l) {				la += l.lossAddendum();			});
+			for_each_packed_layer([&la](auto& l) {				la += l.lossAddendum();			});
 			return la;
 		}
 
@@ -230,7 +241,7 @@ namespace nntl {
 			auto initD = lid.dupe();
 			auto& act = m_activations;
 			neurons_count_t firstNeuronOfs = 0, maxIncNeuronsCnt = 0;
-			for_each_layer([&](auto& l)noexcept {
+			for_each_packed_layer([&](auto& l)noexcept {
 				if (ErrorCode::Success == ec) {
 					initD.clean();
 					maxIncNeuronsCnt = std::max(maxIncNeuronsCnt, l.get_incoming_neurons_cnt());
@@ -265,7 +276,7 @@ namespace nntl {
 		}
 
 		void deinit() noexcept {
-			for_each_layer([](auto& l) {l.deinit(); });
+			for_each_packed_layer([](auto& l) {l.deinit(); });
 			m_activations.clear();
 			m_pTmpBiasStorage = nullptr;
 			m_layers_max_dLdA_numel = 0;
@@ -290,7 +301,7 @@ namespace nntl {
 				cnt -= 2 * m_layers_max_dLdA_numel;
 			}
 
-			for_each_layer([=](auto& l) {l.initMem(ptr, cnt); });
+			for_each_packed_layer([=](auto& l) {l.initMem(ptr, cnt); });
 		}
 
 		// we are not expecting this layer to be used on top of pack of other layers inside a compound layer,
@@ -311,7 +322,7 @@ namespace nntl {
 
 			auto& act = m_activations;
 			neurons_count_t firstNeuronOfs = 0;
-			for_each_layer([batchSize, &act, &firstNeuronOfs](auto& lyr)noexcept {
+			for_each_packed_layer([batchSize, &act, &firstNeuronOfs](auto& lyr)noexcept {
 				lyr.set_mode(batchSize, act.colDataAsVec(firstNeuronOfs));
 				firstNeuronOfs += lyr.get_neurons_cnt();
 			});
@@ -396,7 +407,7 @@ namespace nntl {
 		//support for boost::serialization
 		friend class boost::serialization::access;
 		template<class Archive> void serialize(Archive & ar, const unsigned int version) {
-			for_each_layer([&ar](auto& l) {
+			for_each_packed_layer([&ar](auto& l) {
 				constexpr size_t maxStrlen = 16;
 				char lName[maxStrlen];
 				l.get_layer_name(lName, maxStrlen);

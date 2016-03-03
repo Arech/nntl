@@ -108,7 +108,7 @@ namespace nntl {
 				static_assert(!std::is_base_of<m_layer_input, PHLT::layer_t>::value && !std::is_base_of<m_layer_output, PHLT::layer_t>::value,
 					"No input/output layers is allowed within _layer_pack_horizontal");
 				
-				NNTL_ASSERT(pPHLCheck && phl.m_offset < _incNeurons && (phl.m_offset + phl.m_count) <= _incNeurons);
+				NNTL_ASSERT(pPHLCheck && phl.m_count && phl.m_offset < _incNeurons && (phl.m_offset + phl.m_count) <= _incNeurons);
 				const auto pBeg = pPHLCheck + phl.m_offset, pEnd = pBeg + phl.m_count;
 				std::fill(pBeg, pEnd, char(1));
 

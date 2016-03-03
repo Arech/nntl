@@ -38,6 +38,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 namespace nntl {
 
+	//////////////////////////////////////////////////////////////////////////
 	template<typename LayerT>
 	struct PHL {//"let me speak from my heart in English" (c): that's a Part of Horizontal Layer :-D
 		typedef LayerT layer_t;

@@ -98,11 +98,10 @@ namespace nntl {
 		friend class boost::serialization::access;
 		template<class Archive>
 		void serialize(Archive & ar, const unsigned int version) {
-			for_each_layer([&ar](auto& l) {
+			for_each_packed_layer([&ar](auto& l) {
 				constexpr size_t maxStrlen = 16;
 				char lName[maxStrlen];
 				l.get_layer_name(lName, maxStrlen);
-				//sprintf_s(lName, "layer%d", l.get_layer_idx());
 				ar & serialization::make_named_struct(lName, l);
 			});
 		}
@@ -123,16 +122,32 @@ namespace nntl {
 		//better don't play with _layers directly
 		_layers& get_layers()noexcept { return m_layers; }
 		
-		//and apply function _Func(auto& layer) to each layer here
+		//and apply function _Func(auto& layer) to each underlying (non-pack) layer here
 		template<typename _Func>
-		void for_each_layer(_Func&& f)noexcept {
-			utils::for_each_up(m_layers, std::move(f));
+		void for_each_layer(_Func& f)noexcept {
+			//utils::for_each_up(m_layers, std::move(f));
+			utils::for_each_up(m_layers, [&f](auto& l) {
+				call_F_for_each_layer(f, l);
+			});
+		}
+		//This will apply f to every layer, packed in tuple no matter whether it is a _pack_* kind of layer or no
+		template<typename _Func>
+		void for_each_packed_layer(_Func& f)noexcept {
+			utils::for_each_up(m_layers, f);
 		}
 
-		// for each excluding the first
+		//and apply function _Func(auto& layer) to each underlying (non-pack) layer here excluding the first
 		template<typename _Func>
-		void for_each_layer_exc_input(_Func&& f)noexcept {
-			utils::for_each_exc_first_up(m_layers, std::move(f));
+		void for_each_layer_exc_input(_Func& f)noexcept {
+			//utils::for_each_exc_first_up(m_layers, std::move(f));
+			utils::for_each_exc_first_up(m_layers, [&f](auto& l) {
+				call_F_for_each_layer(f, l);
+			});
+		}
+		//This will apply f to every layer excluding the first, packed in tuple no matter whether it is a _pack_* kind of layer or no
+		template<typename _Func>
+		void for_each_packed_layer_exc_input(_Func& f)noexcept {
+			utils::for_each_exc_first_up(m_layers, f);
 		}
 
 		input_layer_t& input_layer()const noexcept { return std::get<0>(m_layers); }
