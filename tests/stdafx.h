@@ -42,6 +42,9 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //min() and max() triggers very weird compiler crash while doing ::std::numeric_limits<vec_len_t>::max()
 #define NOMINMAX
 
+//\vc\include\yvals.h(112): error C2338: /RTCc rejects conformant code, so it isn't supported by the C++ Standard Library.
+//Either remove this compiler option, or define _ALLOW_RTCc_IN_STL to acknowledge that you have received this warning.
+#define _ALLOW_RTCc_IN_STL
 
 #include "targetver.h"
 

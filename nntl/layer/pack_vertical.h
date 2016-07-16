@@ -285,7 +285,7 @@ namespace nntl {
 	//////////////////////////////////////////////////////////////////////////
 	// final implementation of layer with all functionality of _layer_fully_connected
 	// If you need to derive a new class, derive it from _layer_fully_connected (to make static polymorphism work)
-	template <typename ...Layrs>
+	/*template <typename ...Layrs>
 	class layer_pack_vertical final
 		: public _layer_pack_vertical<layer_pack_vertical<Layrs...>, Layrs...>
 	{
@@ -298,5 +298,23 @@ namespace nntl {
 	template <typename ...Layrs> inline
 		layer_pack_vertical <Layrs...> make_layer_pack_vertical(Layrs&... layrs) noexcept {
 		return layer_pack_vertical<Layrs...>(layrs...);
+	}*/
+
+	template <typename ...Layrs>
+	class layPV final
+		: public _layer_pack_vertical<layPV<Layrs...>, Layrs...>
+	{
+	public:
+		~layPV() noexcept {};
+		layPV(Layrs&... layrs) noexcept
+			: _layer_pack_vertical<layPV<Layrs...>, Layrs...>(layrs...) {};
+	};
+
+	template <typename ..._T>
+	using layer_pack_vertical = typename layPV<_T...>;
+
+	template <typename ...Layrs> inline
+		layPV <Layrs...> make_layer_pack_vertical(Layrs&... layrs) noexcept {
+		return layPV<Layrs...>(layrs...);
 	}
 }

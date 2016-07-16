@@ -56,6 +56,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "layer/fully_connected.h"
 #include "layer/pack_vertical.h"
 #include "layer/pack_horizontal.h"
+#include "layer/identity.h"
 #include "nnet.h"
 
 //#include "interface/threads.h"

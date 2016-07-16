@@ -263,8 +263,14 @@ namespace nntl {
 		}
 
 		const layer_index_t get_layer_idx() const noexcept { return m_layerIdx; }
-		const neurons_count_t get_neurons_cnt() const noexcept { return m_neurons_cnt; }
-		const neurons_count_t get_incoming_neurons_cnt()const noexcept { return m_incoming_neurons_cnt; }
+		const neurons_count_t get_neurons_cnt() const noexcept { 
+			NNTL_ASSERT(m_neurons_cnt);
+			return m_neurons_cnt;
+		}
+		const neurons_count_t get_incoming_neurons_cnt()const noexcept { 
+			NNTL_ASSERT(!m_layerIdx || m_incoming_neurons_cnt);
+			return m_incoming_neurons_cnt;
+		}
 
 		void get_layer_name(char* pName, const size_t cnt)const noexcept {
 			sprintf_s(pName, cnt, "unk%d", static_cast<unsigned>(get_layer_idx()));
@@ -294,7 +300,10 @@ namespace nntl {
 
 			if (m_layerIdx || m_incoming_neurons_cnt) abort();
 			m_layerIdx = idx;
-			if (idx++) m_incoming_neurons_cnt = inc_neurons_cnt;
+			if (idx++) {
+				NNTL_ASSERT(inc_neurons_cnt);
+				m_incoming_neurons_cnt = inc_neurons_cnt;
+			}
 		}
 
 	private:

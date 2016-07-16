@@ -189,8 +189,8 @@ namespace nntl {
 		//hint: weights initialized from uniform distribution [-b,b]. It's second raw momentum is b^2/3, so the mean norm should
 		//be about <row_vector_length>*b^2/3
 
-		real_t m_L2;//L2 (weight decay) regularizer coefficient
-		real_t m_L1;//L1 regularizer coefficient
+		real_t m_actualL2;//L2 (weight decay) regularizer coefficient
+		real_t m_actualL1;//L1 regularizer coefficient
 
 		GradType m_type;
 		
@@ -199,6 +199,9 @@ namespace nntl {
 		ILR m_ILR;
 
 		realmtx_t m_rmsF, m_rmsG, m_Vw, m_ILRGain, m_prevdLdW;
+
+		real_t m_L2;//L2 (weight decay) regularizer coefficient
+		real_t m_L1;//L1 regularizer coefficient
 
 		//////////////////////////////////////////////////////////////////////////
 		//Serialization support
@@ -247,10 +250,11 @@ namespace nntl {
 		//!!assignment is not needed
 		grad_works& operator=(const grad_works& rhs) noexcept = delete;
 
-		grad_works(const real_t lr) noexcept : m_pMath(nullptr), m_learningRate(lr), m_momentum(0.0), m_emaDecay(0.9),
-			m_numericStabilizerEps(.00001), m_maxWeightVecNorm(0.0), m_L1(0.0), m_L2(0.0),
+		grad_works(const real_t lr) noexcept : m_pMath(nullptr), m_momentum(0.0), m_emaDecay(0.9),
+			m_numericStabilizerEps(.00001), m_maxWeightVecNorm(0.0), m_L1(0.0), m_L2(0.0), m_actualL1(0.0), m_actualL2(0.0),
 			m_type(ClassicalConstant)
 		{
+			set_learning_rate(lr);
 			_flags_default();
 		}
 
@@ -317,14 +321,14 @@ namespace nntl {
 			if (use_L1_regularization()) {
 				const bool bIgnoreBiases = m_flags[f_L1RegIgnoreBias];
 				if (bIgnoreBiases) { dLdW.hide_last_col(); weights.hide_last_col(); }
-				m_pMath->evAddScaledSign_ip(dLdW, m_L1, weights);
+				m_pMath->evAddScaledSign_ip(dLdW, m_actualL1, weights);
 				if (bIgnoreBiases) { dLdW.restore_last_col(); weights.restore_last_col(); }
 			}
 
 			if (use_L2_regularization()) {
 				const bool bIgnoreBiases = m_flags[f_L2RegIgnoreBias];
 				if (bIgnoreBiases) { dLdW.hide_last_col(); weights.hide_last_col(); }
-				m_pMath->evAddScaled_ip(dLdW, m_L2, weights);
+				m_pMath->evAddScaled_ip(dLdW, m_actualL2, weights);
 				if (bIgnoreBiases) { dLdW.restore_last_col(); weights.restore_last_col(); }
 			}
 			
@@ -420,14 +424,14 @@ namespace nntl {
 			if (use_L1_regularization()) {
 				const bool bIgnoreBiases = m_flags[f_L1RegIgnoreBias];
 				if (bIgnoreBiases) _W.hide_last_col();
-				ret += m_L1 * m_pMath->vSumAbs(_W);
+				ret += m_actualL1 * m_pMath->vSumAbs(_W);
 				if (bIgnoreBiases) _W.restore_last_col();
 			}
 
 			if (use_L2_regularization()) {
 				const bool bIgnoreBiases = m_flags[f_L2RegIgnoreBias];
 				if (bIgnoreBiases) _W.hide_last_col();
-				ret += m_L2*real_t(.5) * m_pMath->vSumSquares(_W);
+				ret += m_actualL2*real_t(.5) * m_pMath->vSumSquares(_W);
 				if (bIgnoreBiases) _W.restore_last_col();
 			}
 
@@ -440,6 +444,8 @@ namespace nntl {
 
 		self_t& set_learning_rate(const real_t learningRate)noexcept {
 			m_learningRate = learningRate;
+			m_actualL1 = math::sign(m_learningRate)*m_L1;
+			m_actualL2 = math::sign(m_learningRate)*m_L2;
 			return *this;
 		}
 		const real_t learning_rate()const noexcept { return m_learningRate; }
@@ -496,6 +502,7 @@ namespace nntl {
 		self_t& set_L1(real_t l1, const bool bIgnoreBiasWeights = true)noexcept {
 			NNTL_ASSERT(l1 >= real_t(0.0));
 			m_L1 = l1;
+			m_actualL1 = math::sign(m_learningRate)*m_L1;
 			m_flags[f_UseL1] = m_L1 > real_t(0.0);
 			m_flags[f_L1RegIgnoreBias] = bIgnoreBiasWeights;
 			return *this;
@@ -504,6 +511,7 @@ namespace nntl {
 		self_t& set_L2(real_t l2, const bool bIgnoreBiasWeights = true)noexcept {
 			NNTL_ASSERT(l2 >= real_t(0.0));
 			m_L2 = l2;
+			m_actualL2 = math::sign(m_learningRate)*m_L2;
 			m_flags[f_UseL2] = m_L2 > real_t(0.0);
 			m_flags[f_L2RegIgnoreBias] = bIgnoreBiasWeights;
 			return *this;

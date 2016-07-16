@@ -279,6 +279,9 @@
     <ClInclude Include="..\nntl\_test\test_weights_init.h">
       <Filter>nntl\_test</Filter>
     </ClInclude>
+    <ClInclude Include="..\nntl\layer\identity.h">
+      <Filter>nntl\layer</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="stdafx.cpp">

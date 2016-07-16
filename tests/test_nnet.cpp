@@ -37,6 +37,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "../nntl/math.h"
 #include "../nntl/nntl.h"
 #include "../nntl/_supp/io/binfile.h"
+#include "../nntl/_supp/io/matfile.h"
 
 #include "asserts.h"
 
@@ -292,7 +293,7 @@ TEST(TestNnet, LayerPackVertical) {
 //////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////
 template<bool bL2 = true, typename T_>
-void testL2L1(train_data<T_>& td, const real_t coeff, uint64_t rngSeed) noexcept {
+void testL2L1(train_data<T_>& td, const real_t coeff, uint64_t rngSeed, const size_t maxEpochs=3, const real_t LR=.02, const char* pDumpFileName=nullptr) noexcept {
 	if (bL2) {
 		STDCOUTL("Using l2coeff = " << coeff);
 	} else STDCOUTL("Using l1coeff = " << coeff);
@@ -304,8 +305,8 @@ void testL2L1(train_data<T_>& td, const real_t coeff, uint64_t rngSeed) noexcept
 
 	layer_input<> inp(td.train_x().cols_no_bias());
 
-	size_t epochs = 3;
-	const real_t learningRate = .002;
+	const size_t epochs = maxEpochs;
+	const real_t learningRate = LR;
 
 	layer_fully_connected<activ_func> fcl(100, learningRate);
 	layer_fully_connected<activ_func> fcl2(100, learningRate);
@@ -331,8 +332,18 @@ void testL2L1(train_data<T_>& td, const real_t coeff, uint64_t rngSeed) noexcept
 	nn.get_iRng().seed64(rngSeed);
 
 	auto ec = nn.train(td, opts);
-
 	ASSERT_EQ(decltype(nn)::ErrorCode::Success, ec) << "Error code description: " << nn.get_last_error_string();
+
+#ifdef NNTL_MATLAB_AVAILABLE
+	if (pDumpFileName) {
+		nntl_supp::omatfile<> mf;
+		mf.turn_on_all_options();
+		mf.openForSave(std::string(pDumpFileName));
+		mf << serialization::make_nvp("outpW", outp.get_weights());
+		mf << serialization::make_nvp("fcl2W", fcl2.get_weights());
+		mf << serialization::make_nvp("fclW", fcl.get_weights());
+	}
+#endif
 }
 
 TEST(TestNnet, L2L1) {
@@ -362,6 +373,26 @@ TEST(TestNnet, L2L1) {
 		testL2L1<false>(td, 0, sv);
 		testL2L1<false>(td, .1, sv);
 	}
+}
+
+TEST(TestNnet, L2Weights) {
+	train_data<math_types::real_ty> td;
+	reader_t reader;
+
+	const auto srcFile = MNIST_FILE_DEBUG;//intended to use small (debug) variation here
+
+	STDCOUTL("Reading datafile '" << srcFile << "'...");
+	reader_t::ErrorCode rec = reader.read(srcFile, td);
+	ASSERT_EQ(reader_t::ErrorCode::Success, rec) << "Error code description: " << reader.get_last_error_str();
+	ASSERT_TRUE(td.train_x().emulatesBiases());
+	ASSERT_TRUE(td.test_x().emulatesBiases());
+
+	/*testL2L1<true>(td, 0, 0, 5, .02, "d:/Docs/Math/play_matlab/NoL2.mat");
+	testL2L1<true>(td, .1, 0, 5, .02, "d:/Docs/Math/play_matlab/L2.mat");
+	testL2L1<false>(td, .1, 0, 5, .02, "d:/Docs/Math/play_matlab/L1.mat");*/
+	testL2L1<true>(td, 0, 0, 5, .02);
+	testL2L1<true>(td, .1, 0, 5, .02);
+	testL2L1<false>(td, .1, 0, 5, .02);
 }
 
 //////////////////////////////////////////////////////////////////////////

@@ -46,9 +46,12 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "../../errors.h"
 #include "../../interface/math/simple_matrix.h"
 
+//#pragma warning(push)
+//#pragma warning( disable : 4503 )
 #include <vector>
 #include <stack>
 #include <bitset>
+//#pragma warning(pop)
 
 namespace nntl_supp {
 

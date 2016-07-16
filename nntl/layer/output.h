@@ -114,7 +114,7 @@ namespace nntl {
 		_layer_output(const neurons_count_t _neurons_cnt, real_t learningRate = 0.01) noexcept
 			: _base_class(_neurons_cnt), m_activations(), m_weights(), m_dLdZ(), m_dLdW(), m_bWeightsInitialized(false)
 			, m_gradientWorks(learningRate), m_max_fprop_batch_size(0), m_training_batch_size(0)
-			, m_pMath(nullptr), m_pRng(nullptr), m_bRestrictdLdZ(false)
+			, m_pMath(nullptr), m_pRng(nullptr), m_bRestrictdLdZ(false), m_dLdZRestrictLowerBnd(.0), m_dLdZRestrictUpperBnd(.0)
 		{
 			//dont need biases in last layer!  --- it is OFF by default
 			//m_activations.dont_emulate_biases();

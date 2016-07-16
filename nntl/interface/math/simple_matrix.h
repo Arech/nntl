@@ -76,8 +76,12 @@ namespace math {
 		// array of objects will require significantly less memory ( N x default alignment, which is 8 or even 16 bytes)
 		// That could lead to another speedup due to faster access to a class members within first 256 bytes of member space
 
-		bool m_bEmulateBiases;// off by default. Turn on before filling(resizing) matrix for X data storage. Will append
-							  // a last column prefilled with ones to emulate neuron biases.
+		bool m_bEmulateBiases;// off by default. Turn on before filling(resizing) matrix for X data storage. This will append
+		// an additional last column prefilled with ones to emulate neuron biases. Hence m_cols will be 1 greater, than specified
+		// to resize() operation. However, if you're going to use external memory management, then a call to useExternalStorage() 
+		// should contain _col, that takes additional bias column into account (i.e. a call to useExternalStorage() should should
+		// provide the function with a final memory bytes available)
+		//
 
 		bool m_bDontManageStorage;// off by default. Flag to support external memory management and useExternalStorage() functionality
 

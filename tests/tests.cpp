@@ -37,7 +37,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 int __cdecl main(int argc, char **argv) {
 #ifdef NNTL_DEBUG
-	STDCOUTL("\n******\n*** This is DEBUG binary! All performance reports are invalid!\n******\n");
+	STDCOUTL("\n******\n*** This is a DEBUG binary! All performance reports are invalid!\n******\n");
 #endif // NNTL_DEBUG
 
 	::testing::InitGoogleTest(&argc, argv);

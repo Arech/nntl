@@ -213,6 +213,7 @@ namespace nntl {
 				real_t ret(0.0);
 				utils::for_each_up(m_layers, [&](auto& lyr)noexcept {
 					const auto v = lyr.lossAddendum();
+					//may assert here when learningRate<0. Should find a better way to test loss addendum correctness
 					NNTL_ASSERT(v >= real_t(0.0));
 					ret += v;
 				});

@@ -188,10 +188,12 @@ namespace nntl {
 
 			if (m_training_batch_size > 0) {
 				//it'll be training session, therefore must allocate necessary supplementary matrices and form temporary memory reqs.
-				if (bDropout()) {
-					NNTL_ASSERT(!m_dropoutMask.emulatesBiases());
-					if (!m_dropoutMask.resize(m_training_batch_size, m_neurons_cnt)) return ErrorCode::CantAllocateMemoryForDropoutMask;
-				}
+// 				if (bDropout()) {
+// 					NNTL_ASSERT(!m_dropoutMask.emulatesBiases());
+// 					if (!m_dropoutMask.resize(m_training_batch_size, m_neurons_cnt)) return ErrorCode::CantAllocateMemoryForDropoutMask;
+// 				}
+ 				if(!_check_init_dropout()) return ErrorCode::CantAllocateMemoryForDropoutMask;
+
 				//we need 2 temporarily matrices for bprop(): one for dA/dZ -> dL/dZ [batchSize x m_neurons_cnt] and
 				// one for dL/dW [m_neurons_cnt x get_incoming_neurons_cnt()+1]
 				lid.max_dLdA_numel = realmtx_t::sNumel(m_training_batch_size, m_neurons_cnt);
@@ -318,8 +320,12 @@ namespace nntl {
 				m_pMath->evMul_ip(m_dAdZ_dLdZ, m_dropoutMask);
 			}
 
-			//compute dL/dW = 1/batchsize * (dL/dZ)` * Aprev
-			m_pMath->mScaledMulAtB_C(real_t(1.0) / real_t(m_dAdZ_dLdZ.rows()), m_dAdZ_dLdZ, prevActivations, m_dLdW);
+			//const auto bLearnLayer = m_gradientWorks.learning_rate() != real_t(0.0);
+
+			//if (bLearnLayer) {
+				//compute dL/dW = 1/batchsize * (dL/dZ)` * Aprev
+				m_pMath->mScaledMulAtB_C(real_t(1.0) / real_t(m_dAdZ_dLdZ.rows()), m_dAdZ_dLdZ, prevActivations, m_dLdW);
+			//}
 
 			if (!bPrevLayerIsInput) {
 				NNTL_ASSERT(!m_weights.emulatesBiases());
@@ -329,8 +335,10 @@ namespace nntl {
 				m_weights.restore_last_col();//restore weights back
 			}
 
-			//now we can apply gradient to the weights
-			m_gradientWorks.apply_grad(m_weights, m_dLdW);
+			//if (bLearnLayer) {
+				//now we can apply gradient to the weights
+				m_gradientWorks.apply_grad(m_weights, m_dLdW);
+			//}
 		}
 		template <typename LowerLayer>
 		const unsigned bprop(realmtx_t& dLdA, const LowerLayer& lowerLayer, realmtx_t& dLdAPrev)noexcept{
@@ -354,11 +362,23 @@ namespace nntl {
 		self_ref_t dropoutFraction(real_t dfrac)noexcept {
 			NNTL_ASSERT(0 <= dfrac && dfrac < 1);
 			m_dropoutFraction = dfrac;
+			if (!_check_init_dropout()) {
+				NNTL_ASSERT(!"Failed to init dropout, probably no memory");
+				abort();
+			}
 			return get_self();
 		}
 		const bool bDropout()const noexcept { return 0 < m_dropoutFraction; }
 
 	protected:
+		const bool _check_init_dropout()noexcept {
+			if (m_training_batch_size > 0 && bDropout()) {
+				NNTL_ASSERT(!m_dropoutMask.emulatesBiases());
+				return m_dropoutMask.resize(m_training_batch_size, m_neurons_cnt);
+			}
+			return true;
+		}
+
 		friend class _impl::_preinit_layers;
 		void _preinit_layer(layer_index_t& idx, const neurons_count_t inc_neurons_cnt)noexcept {
 			NNTL_ASSERT(0 < idx);

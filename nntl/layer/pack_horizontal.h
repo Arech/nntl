@@ -43,8 +43,8 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 // |----------------------------------|
 //      / | | | | |  .  | | | | | \
 //
-// layer_pack_horizontal uses neurons of the last layer some_layer_last as its activation units and
-// has a number of incoming neurons equal to the number of incoming neurons of first layer some_layer_first
+// layer_pack_horizontal always uses its own storage for activation units, therefore it can't be used within a stack of
+// compound layers
 // 
 #include "_pack_.h"
 #include "../utils.h"
@@ -420,7 +420,7 @@ namespace nntl {
 	//////////////////////////////////////////////////////////////////////////
 	// final implementation of layer with all functionality of _layer_fully_connected
 	// If you need to derive a new class, derive it from _layer_fully_connected (to make static polymorphism work)
-	template <typename ...PHLsT>
+	/*template <typename ...PHLsT>
 	class layer_pack_horizontal final
 		: public _layer_pack_horizontal<layer_pack_horizontal<PHLsT...>, PHLsT...>
 	{
@@ -429,9 +429,29 @@ namespace nntl {
 		layer_pack_horizontal(PHLsT&... phls) noexcept
 			: _layer_pack_horizontal<layer_pack_horizontal<PHLsT...>, PHLsT...>(phls...){};
 	};
+	
+	template <typename ...PHLsT> inline
+	layer_pack_horizontal <PHLsT...> make_layer_pack_horizontal(PHLsT&... phls) noexcept {
+	return layer_pack_horizontal<PHLsT...>(phls...);
+	}
+	*/
+
+	//to shorten class name to get rid of C4503
+	template <typename ...PHLsT>
+	class layPH final
+		: public _layer_pack_horizontal<layPH<PHLsT...>, PHLsT...>
+	{
+	public:
+		~layPH() noexcept {};
+		layPH(PHLsT&... phls) noexcept
+			: _layer_pack_horizontal<layPH<PHLsT...>, PHLsT...>(phls...) {};
+	};
+
+	template <typename ..._T>
+	using layer_pack_horizontal = typename layPH<_T...>;
 
 	template <typename ...PHLsT> inline
-		layer_pack_horizontal <PHLsT...> make_layer_pack_horizontal(PHLsT&... phls) noexcept {
-		return layer_pack_horizontal<PHLsT...>(phls...);
+		layPH <PHLsT...> make_layer_pack_horizontal(PHLsT&... phls) noexcept {
+		return layPH<PHLsT...>(phls...);
 	}
 }
