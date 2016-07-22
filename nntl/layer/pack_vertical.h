@@ -56,15 +56,10 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 namespace nntl {
 
 	template<typename FinalPolymorphChild, typename ...Layrs>
-	class _layer_pack_vertical : public _i_layer<typename std::remove_reference<typename std::tuple_element<0, const std::tuple<Layrs&...>>
-		::type>::type::iMath_t::real_t>
+	class _layer_pack_vertical : public _cpolym_layer_base<FinalPolymorphChild,
+		typename std::remove_reference<typename std::tuple_element<0, const std::tuple<Layrs&...>>::type>::type::iMath_t::real_t>
 	{
 	public:
-		typedef FinalPolymorphChild self_t;
-		typedef FinalPolymorphChild& self_ref_t;
-		typedef const FinalPolymorphChild& self_cref_t;
-		typedef FinalPolymorphChild* self_ptr_t;
-
 		//LayerPack_t is used to distinguish ordinary layers from layer packs (for example, to implement call_F_for_each_layer())
 		typedef self_t LayerPack_t;
 
@@ -80,6 +75,7 @@ namespace nntl {
 		static_assert(!std::is_base_of<m_layer_input, first_layer_t>::value, "First layer can't be the input layer!");
 		static_assert(!std::is_base_of<m_layer_output, last_layer_t>::value, "Last layer can't be the output layer!");
 
+		typedef typename first_layer_t::interfaces_t interfaces_t;
 		typedef typename first_layer_t::iMath_t iMath_t;
 		typedef typename first_layer_t::iRng_t iRng_t;
 		typedef typename first_layer_t::_layer_init_data_t _layer_init_data_t;
@@ -125,18 +121,7 @@ namespace nntl {
 					"Inner layers of _layer_pack_vertical mustn't be input or output layers!");
 			});
 		}
-
-		self_ref_t get_self() noexcept {
-			static_assert(std::is_base_of<_layer_pack_vertical, FinalPolymorphChild>::value
-				, "FinalPolymorphChild must derive from _layer_pack_vertical");
-			return static_cast<self_ref_t>(*this);
-		}
-		self_cref_t get_self() const noexcept {
-			static_assert(std::is_base_of<_layer_pack_vertical, FinalPolymorphChild>::value
-				, "FinalPolymorphChild must derive from _layer_pack_vertical");
-			return static_cast<self_cref_t>(*this);
-		}
-
+		
 		//and apply function _Func(auto& layer) to each underlying (non-pack) layer here
 		template<typename _Func>
 		void for_each_layer(_Func& f)const noexcept {

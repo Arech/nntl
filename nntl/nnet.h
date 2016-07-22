@@ -58,7 +58,7 @@ namespace nntl {
 
 	}
 
-	// RngInterface must be a type or a pointer to a type
+	// RngInterface as well as MathInterface must be a type or a pointer to a type
 	template <typename LayersPack, typename MathInterface = nnet_def_interfaces::iMath_t, typename RngInterface= nnet_def_interfaces::iRng_t>
 	class nnet : public _has_last_error<_nnet_errs> {
 	public:
@@ -83,12 +83,16 @@ namespace nntl {
 		typedef typename layers_pack_t::realmtxdef_t realmtxdef_t;
 		typedef typename layers_pack_t::realmtxdef_array_t realmtxdef_array_t;
 
+		typedef _impl::common_nn_data<imath_t, irng_t> common_data_t;
+
 		//////////////////////////////////////////////////////////////////////////
 		// members
 	protected:
 		layers_pack_t& m_Layers;
 		imath_ptr_t m_pMath;
 		irng_ptr_t m_pRng;
+
+		common_data_t m_CommonData;
 
 		layer_index_t m_failedLayerIdx;
 
@@ -105,25 +109,31 @@ namespace nntl {
 
 	public:
 		~nnet()noexcept {}
-		nnet(layers_pack_t& lp)noexcept : m_Layers(lp), m_failedLayerIdx(0){
+		nnet(layers_pack_t& lp)noexcept : m_Layers(lp), m_failedLayerIdx(0)
+			, m_pMath(), m_pRng(), m_CommonData(get_iMath(),get_iRng())
+		{
 			static_assert(m_pRng.bOwning && m_pMath.bOwning,"WTF?");
 			_init_rng();
 		}
 
-		nnet(layers_pack_t& lp, MathInterface mathi) noexcept : m_Layers(lp), m_pMath(mathi), m_failedLayerIdx(0) {
+		nnet(layers_pack_t& lp, MathInterface mathi) noexcept : m_Layers(lp), m_failedLayerIdx(0),
+			m_pMath(mathi), m_pRng(), m_CommonData(get_iMath(), get_iRng())
+		{
 			static_assert(std::is_pointer<MathInterface>::value, "mathi parameter must be pointer");
 			static_assert(!m_pMath.bOwning && m_pRng.bOwning, "WTF?");
 			_init_rng();
 		}
 
-		nnet(layers_pack_t& lp, RngInterface rngi) noexcept: m_Layers(lp), m_pRng(rngi), m_failedLayerIdx(0) {
+		nnet(layers_pack_t& lp, RngInterface rngi) noexcept: m_Layers(lp), m_failedLayerIdx(0),
+			m_pMath(), m_pRng(rngi), m_CommonData(get_iMath(), get_iRng())
+		{
 			static_assert(std::is_pointer<RngInterface>::value, "rngi parameter must be pointer");
 			static_assert(!m_pRng.bOwning && m_pMath.bOwning, "WTF?");
 			_init_rng();
 		}
 
-		nnet(layers_pack_t& lp, MathInterface mathi, RngInterface rngi) noexcept : m_Layers(lp),
-			m_pMath(mathi), m_pRng(rngi), m_failedLayerIdx(0)
+		nnet(layers_pack_t& lp, MathInterface mathi, RngInterface rngi) noexcept : m_Layers(lp), m_failedLayerIdx(0),
+			m_pMath(mathi), m_pRng(rngi), m_CommonData(get_iMath(), get_iRng())
 		{
 			static_assert(std::is_pointer<RngInterface>::value, "rngi parameter must be pointer");
 			static_assert(std::is_pointer<MathInterface>::value, "mathi parameter must be pointer");
@@ -143,6 +153,13 @@ namespace nntl {
 			les += std::string(NNTL_STRING(" (layer#")) + std::to_string(static_cast<std::uint64_t>(m_failedLayerIdx)) + NNTL_STRING(")");
 			return les;
 		}
+
+		layers_pack_t& get_layer_pack()const noexcept { return m_Layers; }
+		imath_t& get_iMath()const noexcept { return m_pMath.get(); }
+		irng_t& get_iRng()const noexcept { return m_pRng.get(); }
+		common_data_t& get_common_data()const noexcept { return m_CommonData; }
+
+
 
 		template <typename _train_opts, typename _onEpochEndCB = _impl::DummyOnEpochEndCB>
 		ErrorCode train(train_data_t& td, _train_opts& opts, _onEpochEndCB&& onEpochEndCB = _impl::DummyOnEpochEndCB())noexcept {
@@ -169,8 +186,9 @@ namespace nntl {
 			//////////////////////////////////////////////////////////////////////////
 			// perform layers initialization, gather temp memory requirements, then allocate and spread temp buffers
 			_impl::layers_mem_requirements<real_t> LMR;
+			m_CommonData.init(bTrainSetBigger ? samplesCount : td.test_x().rows(), batchSize);
 			{
-				const auto le = m_Layers.init(bTrainSetBigger ? samplesCount : td.test_x().rows(), batchSize, LMR, m_pMath.get(), m_pRng.get());
+				const auto le = m_Layers.init(m_CommonData, LMR);
 				if (ErrorCode::Success != le.first) {
 					m_failedLayerIdx = le.second;
 					return _set_last_error(le.first);
@@ -179,6 +197,7 @@ namespace nntl {
 
 			//scheduling deinitialization with scope_exit to drop worries about returns;
 			utils::scope_exit layers_deinit([this, &opts]() {
+				m_CommonData.deinit();
 				if(opts.ImmediatelyDeinit()) m_Layers.deinit(m_pMath.get());
 			});
 			NNTL_ASSERT(LMR.maxSingledLdANumel > 0);//there must be at least room to store dL/dA
@@ -320,10 +339,6 @@ namespace nntl {
 
 			return _set_last_error(ErrorCode::Success);
 		}
-
-		layers_pack_t& get_layer_pack()const noexcept { return m_Layers; }
-		imath_t& get_iMath()const noexcept { return m_pMath.get(); }
-		irng_t& get_iRng()const noexcept { return m_pRng.get(); }
 
 	protected:
 

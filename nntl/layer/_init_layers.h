@@ -150,24 +150,73 @@ namespace nntl {
 		};
 
 		//////////////////////////////////////////////////////////////////////////
-		// structure to be used in _i_layer.init()
+		// this structure will contain all common data shared between nn object and layers including
+		// pointers to math&rng interfaces and some data related to current nn.train() call only.
+		// This structure is expected to live within nn object (and share it lifetime) and can be reinitialized
+		// to work with another train() session. Reference to this structure is passed to each layer
+		// during layer.init() call and should be stored in it to provide access to its data.
 		template<typename i_math_t_, typename i_rng_t_>
-		struct _layer_init_data : public math::simple_matrix_typedefs {
+		struct common_nn_data : public math::simple_matrix_typedefs {
 			typedef i_math_t_ i_math_t;
 			typedef i_rng_t_ i_rng_t;
 			typedef typename i_math_t::real_t real_t;
-
 			static_assert(std::is_base_of<math::_i_math<real_t>, i_math_t>::value, "i_math_t type should be derived from _i_math");
 			static_assert(std::is_base_of<rng::_i_rng, i_rng_t>::value, "i_rng_t type should be derived from _i_rng");
 
+			typedef common_nn_data<i_math_t_, i_rng_t_> self_t;
+
+			//////////////////////////////////////////////////////////////////////////
+			//members
+		protected:
+			//same for every train() session
+			i_math_t& m_iMath;
+			i_rng_t& m_iRng;
+
+			//could be different in different train() sessions.
+			vec_len_t m_max_fprop_batch_size;//usually this is data_x.rows()
+			vec_len_t m_training_batch_size;//usually this is batchSize
+
+			//////////////////////////////////////////////////////////////////////////
+			// methods
+		public:
+			~common_nn_data()noexcept { deinit(); }
+			common_nn_data(i_math_t& im, i_rng_t& ir)noexcept : m_iMath(im), m_iRng(ir)
+				, m_max_fprop_batch_size(0), m_training_batch_size(0)
+			{}
+
+			void deinit()noexcept {
+				m_max_fprop_batch_size = 0;
+				m_training_batch_size = 0;
+			}
+
+			void init(vec_len_t fbs, vec_len_t bbs)noexcept {
+				NNTL_ASSERT(m_max_fprop_batch_size == 0 && m_training_batch_size == 0);
+				NNTL_ASSERT(fbs >= bbs);//essential assumption
+				m_max_fprop_batch_size = fbs;
+				m_training_batch_size = bbs;
+			}
+
+			i_math_t& iMath()const noexcept { return m_iMath; }
+			i_rng_t& iRng()const noexcept { return m_iRng; }
+			const vec_len_t max_fprop_batch_size()const noexcept {
+				NNTL_ASSERT(m_max_fprop_batch_size > 0);
+				return m_max_fprop_batch_size;
+			}
+			const vec_len_t training_batch_size()const noexcept {
+				NNTL_ASSERT(m_training_batch_size > 0);
+				return m_training_batch_size;
+			}
+		};
+
+		//////////////////////////////////////////////////////////////////////////
+		// structure to be used in _i_layer.init()
+		template<typename CommonNnData>
+		struct _layer_init_data : public math::simple_matrix_typedefs {
+			typedef CommonNnData common_data_t;
+
 			// "IN" marks variables that are passed to init() function, "OUT" marks output from init()
 
-			//#TODO we shouldn't store most of "IN" stuff within a layer. Instead, all this data should be stored within
-			//a struct, that is located within a NN object. Then, we'll just need to pass a reference to this struct to
-			// layers and store that reference. It would simplify the things greatly.
-
-			IN i_math_t& iMath;
-			IN i_rng_t& iRng;
+			IN const common_data_t& commonData;
 
 			//fprop and bprop may use different batch sizes during single training session (for example, fprop()/bprop() uses small batch size
 			// during learning process, but whole data_x.rows() during fprop() for loss function computation. Therefore to reduce memory
@@ -177,15 +226,10 @@ namespace nntl {
 			OUT numel_cnt_t max_dLdA_numel;//this value should be set by layer.init()
 			OUT numel_cnt_t nParamsToLearn;//total number of parameters, that layer has to learn during training, to be set by layer.init()
 
-			IN const vec_len_t max_fprop_batch_size;//usually this is data_x.rows()
-			IN const vec_len_t training_batch_size;//usually this is batchSize
-
 			OUT bool bHasLossAddendum;//to be set by layer.init()
 
-			_layer_init_data(i_math_t& im, i_rng_t& ir, vec_len_t fbs, vec_len_t bbs) noexcept
-				: iMath(im), iRng(ir), max_fprop_batch_size(fbs), training_batch_size(bbs)
-			{
-				NNTL_ASSERT(max_fprop_batch_size >= training_batch_size);//essential assumption
+			_layer_init_data(const common_data_t& cd) noexcept : commonData(cd) {
+				//clean(); //not necessary here because the struct is reused
 			}
 
 			void clean()noexcept {
@@ -205,7 +249,7 @@ namespace nntl {
 			}
 
 			_layer_init_data dupe()const noexcept {
-				return _layer_init_data(iMath, iRng, max_fprop_batch_size, training_batch_size);
+				return _layer_init_data(commonData);
 			}
 		};
 
@@ -218,6 +262,10 @@ namespace nntl {
 				maxSingledLdANumel, totalParamsToLearn;
 
 			bool bHasLossAddendum;
+
+			layers_mem_requirements() noexcept{
+				zeros();
+			}
 
 			void zeros()noexcept {
 				maxMemLayerTrainingRequire = 0;

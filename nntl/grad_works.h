@@ -274,7 +274,7 @@ namespace nntl {
 
 		//template<typename grad_init_t>
 		bool init(const init_struct_t& ind)noexcept {
-			//TODO: there must be some flag that prevents resetting of state data between distinct calls to nnet.train()
+			//TODO: there must be some flag that prevents resetting of the data state between distinct calls to nnet.train()
 			//(which causes init/deinit cycle)
 
 			if (use_momentums()) {

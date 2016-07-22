@@ -41,92 +41,43 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 namespace nntl {
 
 	template<typename Interfaces, typename FinalPolymorphChild>
-	class _layer_identity : public _i_layer<typename Interfaces::iMath_t::real_t> {
-	public:
-		//////////////////////////////////////////////////////////////////////////
-		//typedefs
-		typedef FinalPolymorphChild self_t;
-		typedef FinalPolymorphChild& self_ref_t;
-		typedef const FinalPolymorphChild& self_cref_t;
-		typedef FinalPolymorphChild* self_ptr_t;
-
-		typedef typename Interfaces::iMath_t iMath_t;
-		static_assert(std::is_base_of<math::_i_math<real_t>, iMath_t>::value, "Interfaces::iMath type should be derived from _i_math");
-
-		typedef typename Interfaces::iRng_t iRng_t;
-		static_assert(std::is_base_of<rng::_i_rng, iRng_t>::value, "Interfaces::iRng type should be derived from _i_rng");
-
-		typedef _impl::_layer_init_data<iMath_t, iRng_t> _layer_init_data_t;
+	class _layer_identity : public _layer_base<Interfaces, FinalPolymorphChild> {
+	private:
+		typedef _layer_base<Interfaces, FinalPolymorphChild> _base_class;
 
 		//////////////////////////////////////////////////////////////////////////
 		//members section (in "biggest first" order)
 	private:
 		realmtxdef_t m_activations;
 
-		vec_len_t m_max_fprop_batch_size, m_training_batch_size;
-
-		neurons_count_t m_neurons_cnt;
-		neurons_count_t m_incoming_neurons_cnt;
-		layer_index_t m_layerIdx;
-
 	public:
 		~_layer_identity()noexcept {}
-		_layer_identity()noexcept : m_neurons_cnt(0), m_incoming_neurons_cnt(0), m_layerIdx(0) {}
-
-		self_ref_t get_self() noexcept {
-			static_assert(std::is_base_of<_layer_base, FinalPolymorphChild>::value
-				, "FinalPolymorphChild must derive from _layer_base<FinalPolymorphChild>");
-			return static_cast<self_ref_t>(*this);
-		}
-		self_cref_t get_self() const noexcept {
-			static_assert(std::is_base_of<_layer_base, FinalPolymorphChild>::value
-				, "FinalPolymorphChild must derive from _layer_base<FinalPolymorphChild>");
-			return static_cast<self_cref_t>(*this);
-		}
-
-		const layer_index_t get_layer_idx() const noexcept { return m_layerIdx; }
-		const neurons_count_t get_neurons_cnt() const noexcept { 
-			NNTL_ASSERT(m_neurons_cnt);
-			return m_neurons_cnt;
-		}
-		const neurons_count_t get_incoming_neurons_cnt()const noexcept {
-			NNTL_ASSERT(m_incoming_neurons_cnt);
-			return m_incoming_neurons_cnt;
-		}
+		_layer_identity()noexcept : _base_class(0) {}
 
 		void get_layer_name(char* pName, const size_t cnt)const noexcept {
 			sprintf_s(pName, cnt, "id%d", static_cast<unsigned>(get_layer_idx()));
 		}
-		std::string get_layer_name_str()const noexcept {
-			constexpr size_t ml = 16;
-			char n[ml];
-			get_self().get_layer_name(n, ml);
-			return std::string(n);
-		}
-
-		//returns a loss function summand, that's caused by this layer (for example, L2 regularizer adds term
-		// l2Coefficient*Sum(weights.^2) )
-		constexpr const real_t lossAddendum()const noexcept { return real_t(0.0); }
 
 		//////////////////////////////////////////////////////////////////////////
 		const realmtx_t& get_activations()const noexcept { return m_activations; }
 
 		// pNewActivationStorage MUST be specified (we're expecting to be incapsulated into a layer_pack_horizontal)
-		ErrorCode init(_layer_init_data_t& lid, real_t* pNewActivationStorage = nullptr)noexcept {
+		ErrorCode init(_layer_init_data_t& lid, real_t* pNewActivationStorage)noexcept {
 			NNTL_ASSERT(pNewActivationStorage);
 
-			NNTL_ASSERT(m_neurons_cnt);
+			auto ec = _base_class::init(lid, pNewActivationStorage);
+			if (ErrorCode::Success != ec) return ec;
 
-			m_max_fprop_batch_size = lid.max_fprop_batch_size;
-			m_training_batch_size = lid.training_batch_size;
+			NNTL_ASSERT(get_self().get_neurons_cnt());
+			m_activations.useExternalStorage(pNewActivationStorage
+				, get_self().get_max_fprop_batch_size(), get_self().get_neurons_cnt() + 1, true);
 
-			m_activations.useExternalStorage(pNewActivationStorage, m_max_fprop_batch_size, m_neurons_cnt + 1, true);
-
-			return ErrorCode::Success;
+			return ec;
 		}
 
 		void deinit() noexcept {
 			m_activations.clear();
+			_base_class::deinit();
 		}
 		void initMem(real_t* ptr, numel_cnt_t cnt)noexcept {}
 
@@ -136,9 +87,10 @@ namespace nntl {
 
 			const bool bTraining = batchSize == 0;
 
-			NNTL_ASSERT(m_activations.emulatesBiases() && m_activations.bDontManageStorage() && m_neurons_cnt);
+			NNTL_ASSERT(m_activations.emulatesBiases() && m_activations.bDontManageStorage() && get_self().get_neurons_cnt());
 			//m_neurons_cnt + 1 for biases
-			m_activations.useExternalStorage(pNewActivationStorage, bTraining ? m_training_batch_size : batchSize, m_neurons_cnt + 1, true);
+			m_activations.useExternalStorage(pNewActivationStorage
+				, bTraining ? get_self().get_training_batch_size() : batchSize, get_self().get_neurons_cnt() + 1, true);
 			//should not restore biases here, because for compound layers its a job for their fprop() implementation
 		}
 
@@ -147,6 +99,7 @@ namespace nntl {
 			NNTL_ASSERT(m_activations.bDontManageStorage());
 			//just copying the data from prevActivations to m_activations
 			//We have to copy the data, because layer_pack_horizontal always uses its own storage for activations.
+			// ???? Are we ????
 			const bool r = prevActivations.cloneTo(m_activations);
 			NNTL_ASSERT(r);
 		}
@@ -172,14 +125,11 @@ namespace nntl {
 	protected:
 		friend class _impl::_preinit_layers;
 		void _preinit_layer(layer_index_t& idx, const neurons_count_t inc_neurons_cnt)noexcept {
-			NNTL_ASSERT(!m_layerIdx && !m_incoming_neurons_cnt && !m_neurons_cnt);
+			NNTL_ASSERT(!get_self().get_neurons_cnt());
 			NNTL_ASSERT(idx > 0 && inc_neurons_cnt > 0);
 
-			if (m_layerIdx || m_incoming_neurons_cnt || m_neurons_cnt || !idx || !inc_neurons_cnt) abort();
-
-			m_neurons_cnt = inc_neurons_cnt;
-			m_incoming_neurons_cnt = inc_neurons_cnt;
-			m_layerIdx = idx++;
+			_base_class::_preinit_layer(idx, inc_neurons_cnt);
+			get_self()._set_neurons_cnt(inc_neurons_cnt);
 		}
 
 	private:

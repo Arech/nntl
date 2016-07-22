@@ -213,11 +213,10 @@ namespace nntl {
 		template<class Archive> nntl_interface void serialize(Archive & ar, const unsigned int version) {}
 	};
 
-	
 	//////////////////////////////////////////////////////////////////////////
-	// base class for all layers. Implements compile time polymorphism to get rid of virtual functions
-	template<typename Interfaces, typename FinalPolymorphChild>
-	class _layer_base : public _i_layer<typename Interfaces::iMath_t::real_t>{
+	// poly base class, Implements compile time polymorphism to get rid of virtual functions
+	template<typename FinalPolymorphChild, typename RealT>
+	class _cpolym_layer_base : public _i_layer<RealT> {
 	public:
 		//////////////////////////////////////////////////////////////////////////
 		//typedefs
@@ -226,50 +225,99 @@ namespace nntl {
 		typedef const FinalPolymorphChild& self_cref_t;
 		typedef FinalPolymorphChild* self_ptr_t;
 
+		//////////////////////////////////////////////////////////////////////////
+		~_cpolym_layer_base()noexcept {}
+		_cpolym_layer_base()noexcept {}
+
+		self_ref_t get_self() noexcept {
+			static_assert(std::is_base_of<_cpolym_layer_base, FinalPolymorphChild>::value
+				, "FinalPolymorphChild must derive from _layer_base<FinalPolymorphChild>");
+			return static_cast<self_ref_t>(*this);
+		}
+		self_cref_t get_self() const noexcept {
+			static_assert(std::is_base_of<_cpolym_layer_base, FinalPolymorphChild>::value
+				, "FinalPolymorphChild must derive from _layer_base<FinalPolymorphChild>");
+			return static_cast<self_cref_t>(*this);
+		}
+	};
+	
+	//////////////////////////////////////////////////////////////////////////
+	// base class for all layers. Implements compile time polymorphism to get rid of virtual functions
+	template<typename Interfaces, typename FinalPolymorphChild>
+	//class _layer_base : public _i_layer<typename Interfaces::iMath_t::real_t>{
+	class _layer_base : public _cpolym_layer_base<FinalPolymorphChild, typename Interfaces::iMath_t::real_t> {
+	public:
+		//////////////////////////////////////////////////////////////////////////
+		//typedefs
+		typedef Interfaces interfaces_t;
+
 		typedef typename Interfaces::iMath_t iMath_t;
 		static_assert(std::is_base_of<math::_i_math<real_t>, iMath_t>::value, "Interfaces::iMath type should be derived from _i_math");
 
 		typedef typename Interfaces::iRng_t iRng_t;
 		static_assert(std::is_base_of<rng::_i_rng, iRng_t>::value, "Interfaces::iRng type should be derived from _i_rng");
 
-		typedef _impl::_layer_init_data<iMath_t, iRng_t> _layer_init_data_t;
+		typedef _impl::common_nn_data<iMath_t, iRng_t> common_data_t;
+		typedef _impl::_layer_init_data<common_data_t> _layer_init_data_t;
 
 		//////////////////////////////////////////////////////////////////////////
 		//members section (in "biggest first" order)
 	protected:
-		const neurons_count_t m_neurons_cnt;
+		const common_data_t* m_pCommonData;
 
 	private:
-		neurons_count_t m_incoming_neurons_cnt;
+		neurons_count_t m_neurons_cnt, m_incoming_neurons_cnt;
 		layer_index_t m_layerIdx;
 
 	protected:
 		bool m_bTraining;
 
+		//for layers that need to calculate their neurons count in run-time (layer_pack_horizontal)
+		void _set_neurons_cnt(const neurons_count_t nc)noexcept {
+			m_neurons_cnt = nc;
+		}
+
 	public:		
 		//////////////////////////////////////////////////////////////////////////
 		//constructors-destructor
 		~_layer_base()noexcept {};
-		_layer_base(const neurons_count_t _neurons_cnt)
-			noexcept : m_layerIdx(0), m_neurons_cnt(_neurons_cnt), m_incoming_neurons_cnt(0), m_bTraining(false)
+		_layer_base(const neurons_count_t _neurons_cnt) noexcept : m_pCommonData(nullptr)
+			, m_layerIdx(0), m_neurons_cnt(_neurons_cnt), m_incoming_neurons_cnt(0), m_bTraining(false)
 		{
-			NNTL_ASSERT(m_neurons_cnt > 0);
+			//NNTL_ASSERT(m_neurons_cnt > 0);
 			//m_activations.will_emulate_biases();
 		};
 		
-
+		//////////////////////////////////////////////////////////////////////////
+		// helpers to access common data 
+		const common_data_t& get_common_data()const noexcept {
+			NNTL_ASSERT(m_pCommonData);
+			return *m_pCommonData;
+		}
+		iMath_t& get_iMath()const noexcept {
+			NNTL_ASSERT(m_pCommonData);
+			return m_pCommonData->iMath();
+		}
+		iRng_t& get_iRng()const noexcept {
+			NNTL_ASSERT(m_pCommonData);
+			return m_pCommonData->iRng();
+		}
+		const vec_len_t get_max_fprop_batch_size()const noexcept {
+			NNTL_ASSERT(m_pCommonData);
+			return m_pCommonData->max_fprop_batch_size();
+		}
+		const vec_len_t get_training_batch_size()const noexcept {
+			NNTL_ASSERT(m_pCommonData);
+			return m_pCommonData->training_batch_size();
+		}
 		//////////////////////////////////////////////////////////////////////////
 		//nntl_interface overridings
-		self_ref_t get_self() noexcept {
-			static_assert(std::is_base_of<_layer_base, FinalPolymorphChild>::value
-				, "FinalPolymorphChild must derive from _layer_base<FinalPolymorphChild>");
-			return static_cast<self_ref_t>(*this);
+		ErrorCode init(_layer_init_data_t& lid, real_t* pNewActivationStorage = nullptr)noexcept {
+			NNTL_ASSERT(!m_pCommonData);
+			m_pCommonData = &lid.commonData;
+			return ErrorCode::Success;
 		}
-		self_cref_t get_self() const noexcept {
-			static_assert(std::is_base_of<_layer_base, FinalPolymorphChild>::value
-				, "FinalPolymorphChild must derive from _layer_base<FinalPolymorphChild>");
-			return static_cast<self_cref_t>(*this);
-		}
+		void deinit() noexcept { m_pCommonData = nullptr; }
 
 		const layer_index_t get_layer_idx() const noexcept { return m_layerIdx; }
 		const neurons_count_t get_neurons_cnt() const noexcept { 
@@ -312,7 +360,7 @@ namespace nntl {
 
 			if (m_layerIdx || m_incoming_neurons_cnt) abort();
 			m_layerIdx = idx;
-			if (idx++) {
+			if (idx++) {//special check for the first (input) layer that doesn't have any incoming neurons
 				NNTL_ASSERT(inc_neurons_cnt);
 				m_incoming_neurons_cnt = inc_neurons_cnt;
 			}

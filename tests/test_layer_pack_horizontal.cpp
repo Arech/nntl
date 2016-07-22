@@ -180,9 +180,11 @@ void test_same_layers(train_data<real_t>& td, uint64_t rngSeed) {
 	auto AlayersTuple = std::make_tuple(std::ref(Ainp), std::ref(Aund), std::ref(Aint));
 	utils::for_eachwp_up(AlayersTuple, _impl::_preinit_layers{});
 
-	_impl::_layer_init_data<nnet_def_interfaces::iMath_t, nnet_def_interfaces::iRng_t> lid(iMath, iRng, evalSamplesCnt, trainSamplesCnt);
+	typedef _impl::common_nn_data<nnet_def_interfaces::iMath_t, nnet_def_interfaces::iRng_t> common_data_t;
+	common_data_t CD(iMath, iRng);
+	CD.init(evalSamplesCnt, trainSamplesCnt);
+	_impl::_layer_init_data<common_data_t> lid(CD);
 	_impl::layers_mem_requirements<real_t> lmr;
-	lmr.zeros();
 
 	iRng.seed64(rngSeed);
 	lid.clean();

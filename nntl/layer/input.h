@@ -72,21 +72,19 @@ namespace nntl {
 		}
 
 		const realmtx_t& get_activations()const noexcept {
-			NNTL_ASSERT(nullptr != m_pActivations);
+			NNTL_ASSERT(m_pActivations);
 			return *m_pActivations;
 		}
 
-		//constexpr const bool is_input_layer()const noexcept { return true; }
-
-		template<typename _layer_init_data_t>
 		ErrorCode init(_layer_init_data_t& lid)noexcept{
-			static_assert(std::is_base_of<math::_i_math<real_t>, _layer_init_data_t::i_math_t>::value, "i_math_t type should be derived from _i_math");
-			static_assert(std::is_base_of<rng::_i_rng, _layer_init_data_t::i_rng_t>::value, "i_rng_t type should be derived from _i_rng");
+			auto ec = _base_class::init(lid);
+			if (ErrorCode::Success != ec) return ec;
 			m_pActivations = nullptr;
-			return ErrorCode::Success;
+			return ec;
 		}
 		void deinit()noexcept {
 			m_pActivations = nullptr;
+			_base_class::deinit();
 		}
 
 

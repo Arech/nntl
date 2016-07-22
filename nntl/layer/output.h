@@ -63,23 +63,16 @@ namespace nntl {
 
 		realmtxdef_t m_dLdW;//doesn't guarantee to retain it's value between usage in different code flows;
 		//may share memory with some other data structure. Must be deformable for grad_works_t
-
-		iMath_t* m_pMath;
-		iRng_t* m_pRng;
-
-		bool m_bRestrictdLdZ;//restriction flag should be permanent for init/deinit calls and changed only by explicit calls to respective functions
+		
 		real_t m_dLdZRestrictLowerBnd, m_dLdZRestrictUpperBnd;
+		bool m_bRestrictdLdZ;//restriction flag should be permanent for init/deinit calls and changed only by explicit calls to respective functions
+		
+	    //this flag controls the weights matrix initialization and prevents reinitialization on next nnet.train() calls
+		bool m_bWeightsInitialized;
 
 	public:
 		grad_works_t m_gradientWorks;
-
-	protected:
-
-		vec_len_t m_max_fprop_batch_size, m_training_batch_size;
-
-		//this flag controls the weights matrix initialization and prevents reinitialization on next nnet.train() calls
-		bool m_bWeightsInitialized;
-
+		
 		//////////////////////////////////////////////////////////////////////////
 		//Serialization support
 	private:
@@ -100,8 +93,8 @@ namespace nntl {
 				ar & NNTL_SERIALIZATION_NVP(m_dLdZRestrictLowerBnd);
 				ar & NNTL_SERIALIZATION_NVP(m_dLdZRestrictUpperBnd);
 
-				ar & NNTL_SERIALIZATION_NVP(m_max_fprop_batch_size);
-				ar & NNTL_SERIALIZATION_NVP(m_training_batch_size);
+				//ar & NNTL_SERIALIZATION_NVP(m_max_fprop_batch_size);
+				//ar & NNTL_SERIALIZATION_NVP(m_training_batch_size);
 			}
 		}
 
@@ -113,8 +106,8 @@ namespace nntl {
 
 		_layer_output(const neurons_count_t _neurons_cnt, real_t learningRate = 0.01) noexcept
 			: _base_class(_neurons_cnt), m_activations(), m_weights(), m_dLdZ(), m_dLdW(), m_bWeightsInitialized(false)
-			, m_gradientWorks(learningRate), m_max_fprop_batch_size(0), m_training_batch_size(0)
-			, m_pMath(nullptr), m_pRng(nullptr), m_bRestrictdLdZ(false), m_dLdZRestrictLowerBnd(.0), m_dLdZRestrictUpperBnd(.0)
+			, m_gradientWorks(learningRate)
+			, m_bRestrictdLdZ(false), m_dLdZRestrictLowerBnd(.0), m_dLdZRestrictUpperBnd(.0)
 		{
 			//dont need biases in last layer!  --- it is OFF by default
 			//m_activations.dont_emulate_biases();
@@ -135,7 +128,9 @@ namespace nntl {
 		}
 		//should be called after assembling layers into layer_pack, - it initializes _incoming_neurons_cnt
 		bool set_weights(realmtx_t&& W)noexcept {
-			if (W.empty() || W.emulatesBiases() || (W.cols() != get_incoming_neurons_cnt() + 1) || W.rows() != m_neurons_cnt) return false;
+			if (W.empty() || W.emulatesBiases() || (W.cols() != get_incoming_neurons_cnt() + 1)
+				|| W.rows() != get_self().get_neurons_cnt())
+				return false;
 			m_weights = std::move(W);
 			m_bWeightsInitialized = true;
 			return true;
@@ -143,6 +138,9 @@ namespace nntl {
 
 
 		ErrorCode init(_layer_init_data_t& lid)noexcept {
+			auto ec = _base_class::init(lid);
+			if (ErrorCode::Success != ec) return ec;
+
 			bool bSuccessfullyInitialized = false;
 			utils::scope_exit onExit([&bSuccessfullyInitialized, this]() {
 				if (!bSuccessfullyInitialized) {
@@ -150,25 +148,19 @@ namespace nntl {
 				}
 			});
 
-			m_pMath = &lid.iMath;
-			m_pRng = &lid.iRng;
-
-			m_max_fprop_batch_size = lid.max_fprop_batch_size;
-			m_training_batch_size = lid.training_batch_size;
-
 			NNTL_ASSERT(!m_weights.emulatesBiases());
 			if (m_bWeightsInitialized) {
 				//just double check everything is fine
-				NNTL_ASSERT(m_neurons_cnt == m_weights.rows());
+				NNTL_ASSERT(get_self().get_neurons_cnt() == m_weights.rows());
 				NNTL_ASSERT(get_incoming_neurons_cnt() + 1 == m_weights.cols());
 				NNTL_ASSERT(!m_weights.empty());
 			} else {
 				//TODO: initialize weights from storage for nn eval only
 
 				// initializing
-				if (!m_weights.resize(m_neurons_cnt, get_incoming_neurons_cnt() + 1)) return ErrorCode::CantAllocateMemoryForWeights;
+				if (!m_weights.resize(get_self().get_neurons_cnt(), get_incoming_neurons_cnt() + 1)) return ErrorCode::CantAllocateMemoryForWeights;
 
-				if (!activation_f_t::weights_scheme::init(m_weights, *m_pRng))return ErrorCode::CantInitializeWeights;
+				if (!activation_f_t::weights_scheme::init(m_weights, get_self().get_iRng()))return ErrorCode::CantInitializeWeights;
 
 				m_bWeightsInitialized = true;
 			}
@@ -176,31 +168,31 @@ namespace nntl {
 			lid.nParamsToLearn = m_weights.numel();
 
 			NNTL_ASSERT(!m_activations.emulatesBiases());
-			if (!m_activations.resize(m_max_fprop_batch_size, m_neurons_cnt)) return ErrorCode::CantAllocateMemoryForActivations;
+			if (!m_activations.resize(get_self().get_max_fprop_batch_size(), get_self().get_neurons_cnt())) return ErrorCode::CantAllocateMemoryForActivations;
 
 			//Math interface may have to operate on the following matrices:
 			// m_weights, m_dLdW - (m_neurons_cnt, get_incoming_neurons_cnt() + 1)
 			// m_activations - (m_max_fprop_batch_size, m_neurons_cnt) and unbiased matrices derived from m_activations - such as m_dLdZ
 			// prevActivations - size (m_training_batch_size, get_incoming_neurons_cnt() + 1)
-			m_pMath->preinit(std::max({
+			get_self().get_iMath().preinit(std::max({
 				m_weights.numel()
-				, activation_f_t::needTempMem(m_activations, *m_pMath)
-				, realmtx_t::sNumel(m_training_batch_size, get_incoming_neurons_cnt() + 1)
+				, activation_f_t::needTempMem(m_activations, get_self().get_iMath())
+				, realmtx_t::sNumel(get_self().get_training_batch_size(), get_incoming_neurons_cnt() + 1)
 			}));
 
-			if (m_training_batch_size > 0) {
+			if (get_self().get_training_batch_size() > 0) {
 				//we need 2 temporarily matrices for training: one for dA/dZ -> dL/dZ [batchSize x m_neurons_cnt]
 				// and one for dL/dW [m_neurons_cnt x get_incoming_neurons_cnt()+1]
-				lid.max_dLdA_numel = realmtx_t::sNumel(m_training_batch_size, m_neurons_cnt);
+				lid.max_dLdA_numel = realmtx_t::sNumel(get_self().get_training_batch_size(), get_self().get_neurons_cnt());
 				lid.maxMemBPropRequire = lid.max_dLdA_numel + m_weights.numel();
 			}
 
-			if (!m_gradientWorks.init(grad_works_t::init_struct_t(m_pMath, m_weights.size())))return ErrorCode::CantInitializeGradWorks;
+			if (!m_gradientWorks.init(grad_works_t::init_struct_t(& get_self().get_iMath(), m_weights.size())))return ErrorCode::CantInitializeGradWorks;
 
 			lid.bHasLossAddendum = hasLossAddendum();
 
 			bSuccessfullyInitialized = true;
-			return ErrorCode::Success;
+			return ec;
 		}
 
 		void deinit()noexcept {
@@ -208,13 +200,12 @@ namespace nntl {
 			m_activations.clear();
 			m_dLdZ.clear();
 			m_dLdW.clear();
-			m_pMath = nullptr;
-			m_pRng = nullptr;
+			_base_class::deinit();
 		}
 
 		void initMem(real_t* ptr, numel_cnt_t cnt)noexcept {
-			if (m_training_batch_size > 0) {
-				m_dLdZ.useExternalStorage(ptr, m_training_batch_size, m_activations.cols_no_bias());
+			if (get_self().get_training_batch_size() > 0) {
+				m_dLdZ.useExternalStorage(ptr, get_self().get_training_batch_size(), m_activations.cols_no_bias());
 				m_dLdW.useExternalStorage(ptr + m_dLdZ.numel(), m_weights);
 				NNTL_ASSERT(!m_dLdZ.emulatesBiases() && !m_dLdW.emulatesBiases());
 				NNTL_ASSERT(cnt >= m_dLdZ.numel() + m_dLdW.numel());
@@ -225,9 +216,9 @@ namespace nntl {
 			m_bTraining = batchSize == 0;
 			NNTL_ASSERT(!m_activations.emulatesBiases());
 			if (m_bTraining) {
-				m_activations.deform_rows(m_training_batch_size);
+				m_activations.deform_rows(get_self().get_training_batch_size());
 			} else {
-				NNTL_ASSERT(batchSize <= m_max_fprop_batch_size);
+				NNTL_ASSERT(batchSize <= get_self().get_max_fprop_batch_size());
 				m_activations.deform_rows(batchSize);
 			}
 		}
@@ -239,8 +230,10 @@ namespace nntl {
 			//might be necessary for Nesterov momentum application
 			if (m_bTraining) m_gradientWorks.pre_training_fprop(m_weights);
 
-			m_pMath->mMulABt_Cnb(prevActivations, m_weights, m_activations);
-			activation_f_t::f(m_activations, *m_pMath);
+			auto& _Math = get_self().get_iMath();
+
+			_Math.mMulABt_Cnb(prevActivations, m_weights, m_activations);
+			activation_f_t::f(m_activations, _Math);
 		}
 		template <typename LowerLayer>
 		void fprop(const LowerLayer& lowerLayer)noexcept {
@@ -257,21 +250,23 @@ namespace nntl {
 			NNTL_ASSERT(m_dLdZ.size() == m_activations.size());
 			NNTL_ASSERT(m_dLdW.size() == m_weights.size());
 			NNTL_ASSERT(bPrevLayerIsInput || prevActivations.emulatesBiases());//input layer in batch mode may have biases included, but no emulatesBiases() set
-			NNTL_ASSERT(mtx_size_t(m_training_batch_size, get_incoming_neurons_cnt() + 1) == prevActivations.size());
+			NNTL_ASSERT(mtx_size_t(get_self().get_training_batch_size(), get_self().get_incoming_neurons_cnt() + 1) == prevActivations.size());
 			NNTL_ASSERT(bPrevLayerIsInput || dLdAPrev.size() == prevActivations.size_no_bias());
 
+			auto& _Math = get_self().get_iMath();
+
 			//compute dL/dZ
-			activation_f_t::dLdZ(m_activations, data_y, m_dLdZ, *m_pMath);
-			if (m_bRestrictdLdZ) m_pMath->evClamp(m_dLdZ, m_dLdZRestrictLowerBnd, m_dLdZRestrictUpperBnd);
+			activation_f_t::dLdZ(m_activations, data_y, m_dLdZ, _Math);
+			if (m_bRestrictdLdZ) _Math.evClamp(m_dLdZ, m_dLdZRestrictLowerBnd, m_dLdZRestrictUpperBnd);
 
 			//compute dL/dW = 1/batchsize * (dL/dZ)` * Aprev
-			m_pMath->mScaledMulAtB_C(real_t(1.0) / real_t(m_dLdZ.rows()), m_dLdZ, prevActivations, m_dLdW);
+			_Math.mScaledMulAtB_C(real_t(1.0) / real_t(m_dLdZ.rows()), m_dLdZ, prevActivations, m_dLdW);
 
 			if (!bPrevLayerIsInput) {
 				NNTL_ASSERT(!m_weights.emulatesBiases());
 				//finally compute dL/dAprev to use in lower layer. Before that make m_weights looks like there is no bias weights
 				m_weights.hide_last_col();
-				m_pMath->mMulAB_C(m_dLdZ, m_weights, dLdAPrev);
+				_Math.mMulAB_C(m_dLdZ, m_weights, dLdAPrev);
 				m_weights.restore_last_col();//restore weights back
 			}
 

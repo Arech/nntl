@@ -155,17 +155,13 @@ namespace nntl {
 		preoutput_layer_t& preoutput_layer()const noexcept { return std::get<layers_count - 2>(m_layers); }
 
 		//perform layers initialization before training begins.
-		template <typename i_math_t, typename i_rng_t>
-		layer_error_t init(const vec_len_t max_data_x_rows, const vec_len_t bpropBatchSize,
-			_impl::layers_mem_requirements<real_t>& LMR, i_math_t& iMath, i_rng_t& iRng)const noexcept
+		template <typename CommonData>
+		layer_error_t init(const CommonData& cd, _impl::layers_mem_requirements<real_t>& LMR)const noexcept
 		{
-			static_assert(std::is_base_of<math::_i_math<real_t>, i_math_t>::value, "i_math_t type should be derived from _i_math");
-			static_assert(std::is_base_of<rng::_i_rng, i_rng_t>::value, "i_rng_t type should be derived from _i_rng");
-
-			LMR.zeros();
 			ErrorCode ec = ErrorCode::Success;
 			layer_index_t failedLayerIdx = 0;
-			_impl::_layer_init_data<i_math_t, i_rng_t> lid(iMath,iRng, max_data_x_rows, bpropBatchSize);
+
+			_impl::_layer_init_data<CommonData> lid(cd);
 
 			utils::for_each_up(m_layers, [&](auto& lyr)noexcept {
 				if (ErrorCode::Success == ec) {
@@ -180,18 +176,18 @@ namespace nntl {
 			});
 
 			if (ErrorCode::Success == ec) {
-				if (!iMath.init()) ec = ErrorCode::CantInitializeIMath;
+				if (! cd.iMath().init()) ec = ErrorCode::CantInitializeIMath;
 			}
 			return layer_error_t(ec, failedLayerIdx);
 		}
 		template <typename i_math_t>
-		void deinit(i_math_t& iMath)const noexcept {
+		void deinit(i_math_t& _Math)const noexcept {
 			static_assert(std::is_base_of<math::_i_math<real_t>, i_math_t>::value, "i_math_t type should be derived from _i_math");
 
 			utils::for_each_up(m_layers, [](auto& lyr)noexcept {
 				lyr.deinit();
 			});
-			iMath.deinit();
+			_Math.deinit();
 		}
 
 		void initMem(real_t* ptr, numel_cnt_t cnt)noexcept {
