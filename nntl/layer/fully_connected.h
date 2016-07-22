@@ -323,7 +323,14 @@ namespace nntl {
 			//const auto bLearnLayer = m_gradientWorks.learning_rate() != real_t(0.0);
 
 			//if (bLearnLayer) {
-				//compute dL/dW = 1/batchsize * (dL/dZ)` * Aprev
+			
+			//compute dL/dW = 1/batchsize * (dL/dZ)` * Aprev
+			// BTW: even if some of neurons of this layer could have been "disabled" by a dropout (therefore their
+			// corresponding dL/dZ element is set to zero), because we're working with batches, but not a single samples,
+			// due to averaging the dL/dW over the whole batch 
+			// (dLdW(i's neuron,j's lower layer neuron) = Sum_over_batch( dLdZ(i)*Aprev(j) ) ), it's almost impossible
+			// to get some element of dLdW equals to zero, because it'll require that dLdZ entries for some neuron over the
+			// whole batch were set to zero.
 				m_pMath->mScaledMulAtB_C(real_t(1.0) / real_t(m_dAdZ_dLdZ.rows()), m_dAdZ_dLdZ, prevActivations, m_dLdW);
 			//}
 

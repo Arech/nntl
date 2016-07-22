@@ -659,12 +659,12 @@ namespace math {
 			for (numel_cnt_t i = 0; i < dataCnt; ++i) {
 				auto pW = pdW + i;
 				auto pG = pGain + i;
-				const auto cond = prevdW[i] * (*pW);
+				const real_t cond = prevdW[i] * (*pW);
 				auto g = *pG;
-				if (cond > 0) {
+				if (cond > real_t(+0.0)) {
 					g *= incr;
 					if (g > capHigh) g = capHigh;
-				} else if (cond < 0) {
+				} else if (cond < real_t(-0.0)) {
 					g *= decr;
 					if (g < capLow) g = capLow;
 				}
@@ -691,10 +691,10 @@ namespace math {
 					auto pG = pGain + i;
 					const auto cond = prevdW[i] * (*pW);
 					auto g = *pG;
-					if (cond > 0) {
+					if (cond > real_t(+0.0)) {
 						g *= incr;
 						if (g > capHigh) g = capHigh;
-					} else if (cond < 0) {
+					} else if (cond < real_t(-0.0)) {
 						g *= decr;
 						if (g < capLow) g = capLow;
 					}
@@ -724,10 +724,10 @@ namespace math {
 				auto pG = pGain + i;
 				const auto cond = pCond[i];
 				auto g = *pG;
-				if (cond > 0) {
+				if (cond > real_t(+0.0)) {
 					g *= incr;
 					if (g > capHigh) g = capHigh;
-				} else if (cond < 0) {
+				} else if (cond < real_t(-0.0)) {
 					g *= decr;
 					if (g < capLow) g = capLow;
 				}
@@ -764,10 +764,10 @@ namespace math {
 					auto pG = pGn + i;
 					const auto cond = pCond[i];
 					auto g = *pG;
-					if (cond > 0) {
+					if (cond > real_t(+0.0)) {
 						g *= incr;
 						if (g > capHigh) g = capHigh;
-					} else if (cond < 0) {
+					} else if (cond < real_t(-0.0)) {
 						g *= decr;
 						if (g < capLow) g = capLow;
 					}

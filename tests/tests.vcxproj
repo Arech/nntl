@@ -193,10 +193,12 @@
     <ClInclude Include="..\nntl\interface\rng\distr_normal_naive.h" />
     <ClInclude Include="..\nntl\interface\_i_rng.h" />
     <ClInclude Include="..\nntl\layer\identity.h" />
+    <ClInclude Include="..\nntl\layer\pack_gated.h" />
     <ClInclude Include="..\nntl\layer\pack_horizontal.h" />
     <ClInclude Include="..\nntl\layer\pack_vertical.h" />
     <ClInclude Include="..\nntl\layer\_init_layers.h" />
     <ClInclude Include="..\nntl\layer\_pack_.h" />
+    <ClInclude Include="..\nntl\layer\_pack_traits.h" />
     <ClInclude Include="..\nntl\math.h" />
     <ClInclude Include="..\nntl\interface\math\bindings\b_acml.h" />
     <ClInclude Include="..\nntl\interface\math\bindings\b_open_blas.h" />

@@ -282,6 +282,12 @@
     <ClInclude Include="..\nntl\layer\identity.h">
       <Filter>nntl\layer</Filter>
     </ClInclude>
+    <ClInclude Include="..\nntl\layer\pack_gated.h">
+      <Filter>nntl\layer</Filter>
+    </ClInclude>
+    <ClInclude Include="..\nntl\layer\_pack_traits.h">
+      <Filter>nntl\layer</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="stdafx.cpp">

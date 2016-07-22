@@ -140,7 +140,7 @@ namespace nntl {
 				les = les + " Rapidjson: " + rapidjson::GetParseError_En(get_parse_error())
 					+ " Offset: " + std::to_string(get_parse_error_offset());
 			}*/
-			les += std::string(NNTL_STRING(" (layer#")) + std::to_string(static_cast<unsigned int>(m_failedLayerIdx)) + NNTL_STRING(")");
+			les += std::string(NNTL_STRING(" (layer#")) + std::to_string(static_cast<std::uint64_t>(m_failedLayerIdx)) + NNTL_STRING(")");
 			return les;
 		}
 

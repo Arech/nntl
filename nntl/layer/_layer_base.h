@@ -164,28 +164,37 @@ namespace nntl {
 		template <typename LowerLayer>
 		nntl_interface void fprop(const LowerLayer& lowerLayer)noexcept;
 
-		//dLdA is derivative of loss function wrt this layer neuron activations. Size [batchSize x layer_neuron_cnt] (bias units ignored - they're updated during dLdW application)
-		//dLdAPrev is derivative of loss function wrt to previous (lower) layer activations to compute by bprop(). Size [batchSize x prev_layer_neuron_cnt] (bias units ignored)
-		// Also during bprop() after computation of dLdAPrev layer must compute dL/dW and adjust its weights accordingly.
-		// realmtxdef_t is used in pack_* layers. Non-compound layers should use realmtxt_t instead.
-		// Function is allowed to use dLdA once it's not needed anymore as it wants (resizing included, provided it won't resize greater
-		// than max size - beware, btw, the run-time check applies only for DEBUG builds). Same for dLdAPrev, but on exit it must have
-		// a proper size and content.
+		// dLdA is derivative of loss function wrt this layer neuron activations.
+		// Size [batchSize x layer_neuron_cnt] (bias units ignored - they're updated during dLdW application)
+		// 
+		// dLdAPrev is derivative of loss function wrt to previous (lower) layer activations to compute by bprop().
+		// Size [batchSize x prev_layer_neuron_cnt] (bias units ignored)
+		// 
+		// A layer must compute dL/dW (derivative of loss function wrt layer parameters (weights)) and adjust
+		// its parameters accordingly after a computation of dLdAPrev during bprop() function.
+		//  
+		// realmtxdef_t type is used in pack_* layers. Non-compound layers should use realmtxt_t type instead.
+		// Function is allowed to use dLdA once it's not needed anymore as it wants (resizing operation included,
+		// provided that it won't resize it greater than max size. BTW, beware! The run-time check works only
+		// in DEBUG builds!). Same for dLdAPrev, but on exit from bprop() it must have a proper size and content.
 		template <typename LowerLayer>
 		nntl_interface unsigned bprop(realmtxdef_t& dLdA, const LowerLayer& lowerLayer, realmtxdef_t& dLdAPrev)noexcept;
 		//output layer must use form void bprop(const realmtx_t& data_y, const LowerLayer& lowerLayer, realmtxdef_t& dLdAPrev);
 		//On return value: in short, simple/single layers should return 1.
-		// In long: during init() phase, each layer returns the size of its dLdA matrix in _layer_init_data_t::max_dLdA_numel. Each of this
-		// values are aggregated by max() into greatest possible dLdA size for whole NNet. Then two matrices of this (greatest) size are allocated and
-		// passed to layers::bprop() function. One of these matrices will be used as dLdA and the other as dLdAPrev during each layer::bprop() call.
-		// What the return value from a bprop() does is it governs whether the caller must alternate these matrices on a call to lower layer
-		// bprop() (i.e. whether dLdAPrev is actually stored in dLdAPrev (return 1) or dLdAPrev is really stored in (aprropriately resized) dLdA -return 0).
-		// So, simple/single layers, that don't switch these matrices, should always return 1. However, compound layers (such as layer_pack_vertical),
-		// that consists of other layers (and must call bprop() on them), may reuse dLdA/dLdAPrev in order to eliminate the neccessity of additional
-		// temporary dLdA matrices and data coping, just by switching between dLdA and dLdAPrev between calls to inner bprop()'s. So, if there was
-		// even number of calls to inner layers bprop() occured, then the actual dLdAPrev of the whole compound layer will be inside of dLdA
-		// and a caller of compound layer's bprop() should NOT switch matrices on subsequent call to lower layer bprop(). Therefore, compound layer's
-		// bprop() must return 0 in that case.
+		// In long: during init() phase, each layer returns the size of its dLdA matrix in _layer_init_data_t::max_dLdA_numel.
+		// This values from every layer are aggregated by max() into greatest possible dLdA size for whole NNet.
+		// Then two matrices of this (greatest) size are allocated and passed to layers::bprop() function. One of these
+		// matrices will be used as dLdA and the other as dLdAPrev during each layer::bprop() call.
+		// What does the return value from a bprop() is it governs whether the caller must alternate these matrices
+		// on a call to lower layer bprop() (i.e. whether dLdAPrev is actually stored in dLdAPrev variable (return 1) or
+		// dLdAPrev is really stored in (aprropriately resized) dLdA variable -return 0).
+		// So, simple/single layers, that don't switch these matrices, should always return 1. However, compound layers
+		// (such as layer_pack_vertical), that consists of other layers (and must call bprop() on them), may reuse
+		// dLdA/dLdAPrev in order to eliminate the neccessity of additional temporary dLdA matrices and data coping,
+		// just by switching between dLdA and dLdAPrev between calls to inner bprop()'s. So, if there was
+		// even number of calls to inner layers bprop() occured, then the actual dLdAPrev of the whole compound
+		// layer will be inside of dLdA and a caller of compound layer's bprop() should NOT switch matrices on
+		// subsequent call to lower layer bprop(). Therefore, compound layer's bprop() must return 0 in that case.
 		
 
 		
@@ -292,6 +301,9 @@ namespace nntl {
 		//this is how we going to initialize layer indexes.
 		//template <typename LCur, typename LPrev> friend void _init_layers::operator()(LCur&& lc, LPrev&& lp, bool bFirst)noexcept;
 		friend class _impl::_preinit_layers;
+		//idx is passed by reference. On function enter it contains the lowest free layer index withing a NN.
+		// On function exit after this (and possibly encapsulated into this) layer preinitialization it 
+		// must contain next lowest free index.
 		void _preinit_layer(layer_index_t& idx, const neurons_count_t inc_neurons_cnt)noexcept{
 			//there should better be an exception, but we don't want exceptions at all.
 			//anyway, there is nothing to help to those who'll try to abuse this API...

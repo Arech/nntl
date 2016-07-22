@@ -65,6 +65,7 @@ namespace nntl {
 		typedef const FinalPolymorphChild& self_cref_t;
 		typedef FinalPolymorphChild* self_ptr_t;
 
+		//LayerPack_t is used to distinguish ordinary layers from layer packs (for example, to implement call_F_for_each_layer())
 		typedef self_t LayerPack_t;
 
 		typedef const std::tuple<Layrs&...> _layers;
@@ -73,6 +74,7 @@ namespace nntl {
 		static_assert(layers_count > 1, "For vertical pack with a single inner layer use that layer instead");
 		typedef typename std::remove_reference<typename std::tuple_element<0, _layers>::type>::type first_layer_t;
 		typedef typename std::remove_reference<typename std::tuple_element<layers_count - 1, _layers>::type>::type last_layer_t;
+		//fprop() moves from first to last layer.
 
 		//the first layer mustn't be input layer, the last - can't be output layer
 		static_assert(!std::is_base_of<m_layer_input, first_layer_t>::value, "First layer can't be the input layer!");
@@ -111,6 +113,9 @@ namespace nntl {
 			idx = initializer._idx;
 		}
 
+		first_layer_t& first_layer()const noexcept { return std::get<0>(m_layers); }
+		last_layer_t& last_layer()const noexcept { return std::get<layers_count - 1>(m_layers); }
+
 	public:
 		~_layer_pack_vertical()noexcept {}
 		_layer_pack_vertical(Layrs&... layrs)noexcept : m_layers(layrs...), m_layerIdx(0) {
@@ -132,9 +137,6 @@ namespace nntl {
 			return static_cast<self_cref_t>(*this);
 		}
 
-		first_layer_t& first_layer()const noexcept { return std::get<0>(m_layers); }
-		last_layer_t& last_layer()const noexcept { return std::get<layers_count - 1>(m_layers); }
-
 		//and apply function _Func(auto& layer) to each underlying (non-pack) layer here
 		template<typename _Func>
 		void for_each_layer(_Func& f)const noexcept {
@@ -149,13 +151,13 @@ namespace nntl {
 		}
 
 		const layer_index_t get_layer_idx() const noexcept { return m_layerIdx; }
-		const neurons_count_t get_neurons_cnt() const noexcept { return last_layer().get_neurons_cnt(); }
-		const neurons_count_t get_incoming_neurons_cnt()const noexcept { return  first_layer().get_incoming_neurons_cnt(); }
+		const neurons_count_t get_neurons_cnt() const noexcept { return get_self().last_layer().get_neurons_cnt(); }
+		const neurons_count_t get_incoming_neurons_cnt()const noexcept { return  get_self().first_layer().get_incoming_neurons_cnt(); }
 
-		const realmtx_t& get_activations()const noexcept { return last_layer().get_activations(); }
+		const realmtx_t& get_activations()const noexcept { return get_self().last_layer().get_activations(); }
 
 		void get_layer_name(char* pName, const size_t cnt)const noexcept {
-			sprintf_s(pName, cnt, "lpv%d", static_cast<unsigned>(get_layer_idx()));
+			sprintf_s(pName, cnt, "lpv%d", static_cast<unsigned>(get_self().get_layer_idx()));
 		}
 		std::string get_layer_name_str()const noexcept {
 			constexpr size_t ml = 16;
@@ -167,13 +169,13 @@ namespace nntl {
 		//should return true, if the layer has a value to add to Loss function value (there's some regularizer attached)
 		bool hasLossAddendum()const noexcept {
 			bool b = false;
-			for_each_packed_layer([&b](auto& l) {				b |= l.hasLossAddendum();			});
+			get_self().for_each_packed_layer([&b](auto& l) {				b |= l.hasLossAddendum();			});
 			return b;
 		}
 		//returns a loss function summand, that's caused by this layer
 		real_t lossAddendum()const noexcept {
 			real_t la(.0);
-			for_each_packed_layer([&la](auto& l) {				la += l.lossAddendum();			});
+			get_self().for_each_packed_layer([&la](auto& l) {				la += l.lossAddendum();			});
 			return la;
 		}
 
@@ -181,7 +183,7 @@ namespace nntl {
 			utils::for_each_exc_last_up(m_layers, [batchSize](auto& lyr)noexcept {
 				lyr.set_mode(batchSize);
 			});
-			last_layer().set_mode(batchSize, pNewActivationStorage);
+			get_self().last_layer().set_mode(batchSize, pNewActivationStorage);
 		}
 
 		ErrorCode init(_layer_init_data_t& lid, real_t* pNewActivationStorage = nullptr)noexcept {
@@ -201,21 +203,21 @@ namespace nntl {
 			//doubling the code by intention, because some layers can be incompatible with pNewActivationStorage specification
 			if (ErrorCode::Success == ec) {
 				initD.clean();
-				ec = last_layer().init(initD, pNewActivationStorage);
+				ec = get_self().last_layer().init(initD, pNewActivationStorage);
 				if (ErrorCode::Success == ec) {
 					lid.update(initD);
-				} else failedLayerIdx = last_layer().get_layer_idx();
+				} else failedLayerIdx = get_self().last_layer().get_layer_idx();
 			}
 			//#TODO need some way to return failedLayerIdx
 			return ec;
 		}
 
 		void deinit() noexcept {
-			for_each_packed_layer([](auto& l) {l.deinit(); });
+			get_self().for_each_packed_layer([](auto& l) {l.deinit(); });
 		}
 
 		void initMem(real_t* ptr, numel_cnt_t cnt)noexcept {
-			for_each_packed_layer([=](auto& l) {l.initMem(ptr, cnt); });
+			get_self().for_each_packed_layer([=](auto& l) {l.initMem(ptr, cnt); });
 		}
 
 		//variation of fprop for normal layer
@@ -231,7 +233,7 @@ namespace nntl {
 		std::enable_if_t<_impl::is_layer_wrapper<LowerLayerWrapper>::value> fprop(const LowerLayerWrapper& lowerLayer)noexcept
 		{
 			//STDCOUTL("In special " << get_layer_name_str());
-			first_layer().fprop(lowerLayer);
+			get_self().first_layer().fprop(lowerLayer);
 			utils::for_eachwp_up(m_layers, [](auto& lcur, auto& lprev, const bool)noexcept {
 				lcur.fprop(lprev);
 			});
@@ -260,7 +262,7 @@ namespace nntl {
 			if (std::is_base_of<m_layer_input, LowerLayer>::value) {
 				a_dLdA[nextMtxIdx]->deform(0, 0);
 			}else a_dLdA[nextMtxIdx]->deform_like_no_bias(lowerLayer.get_activations());
-			const unsigned bAlternate = first_layer().bprop(*a_dLdA[mtxIdx], lowerLayer, *a_dLdA[nextMtxIdx]);
+			const unsigned bAlternate = get_self().first_layer().bprop(*a_dLdA[mtxIdx], lowerLayer, *a_dLdA[nextMtxIdx]);
 			NNTL_ASSERT(1 == bAlternate || 0 == bAlternate);
 			mtxIdx ^= bAlternate;
 
@@ -272,7 +274,7 @@ namespace nntl {
 		//support for boost::serialization
 		friend class boost::serialization::access;
 		template<class Archive> void serialize(Archive & ar, const unsigned int version) {
-			for_each_packed_layer([&ar](auto& l) {
+			get_self().for_each_packed_layer([&ar](auto& l) {
 				constexpr size_t maxStrlen = 16;
 				char lName[maxStrlen];
 				l.get_layer_name(lName, maxStrlen);
@@ -283,8 +285,8 @@ namespace nntl {
 
 
 	//////////////////////////////////////////////////////////////////////////
-	// final implementation of layer with all functionality of _layer_fully_connected
-	// If you need to derive a new class, derive it from _layer_fully_connected (to make static polymorphism work)
+	// final implementation of layer with all functionality of _layer_pack_vertical
+	// If you need to derive a new class, derive it from _layer_pack_vertical (to make static polymorphism work)
 	/*template <typename ...Layrs>
 	class layer_pack_vertical final
 		: public _layer_pack_vertical<layer_pack_vertical<Layrs...>, Layrs...>
@@ -301,20 +303,20 @@ namespace nntl {
 	}*/
 
 	template <typename ...Layrs>
-	class layPV final
-		: public _layer_pack_vertical<layPV<Layrs...>, Layrs...>
+	class LPV final
+		: public _layer_pack_vertical<LPV<Layrs...>, Layrs...>
 	{
 	public:
-		~layPV() noexcept {};
-		layPV(Layrs&... layrs) noexcept
-			: _layer_pack_vertical<layPV<Layrs...>, Layrs...>(layrs...) {};
+		~LPV() noexcept {};
+		LPV(Layrs&... layrs) noexcept
+			: _layer_pack_vertical<LPV<Layrs...>, Layrs...>(layrs...) {};
 	};
 
 	template <typename ..._T>
-	using layer_pack_vertical = typename layPV<_T...>;
+	using layer_pack_vertical = typename LPV<_T...>;
 
 	template <typename ...Layrs> inline
-		layPV <Layrs...> make_layer_pack_vertical(Layrs&... layrs) noexcept {
-		return layPV<Layrs...>(layrs...);
+		LPV <Layrs...> make_layer_pack_vertical(Layrs&... layrs) noexcept {
+		return LPV<Layrs...>(layrs...);
 	}
 }

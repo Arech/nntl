@@ -34,6 +34,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include <type_traits>
 #include <algorithm>
+#include "_pack_traits.h"
 
 namespace nntl {
 
@@ -57,7 +58,7 @@ namespace nntl {
 			layer_index_t _idx;
 
 			char* pPHLCheck;//variable to hold a pointer to an array, that's used to check whether inner layers of _layer_pack_horizontal
-			//cover all activation units range of underlying layer
+			//cover all activation units of the range of underlying layer
 			//uninitialized by default in constructors
 
 			~_preinit_layers()noexcept {
@@ -68,7 +69,9 @@ namespace nntl {
 				NNTL_ASSERT(i && n);
 			}
 
+			//////////////////////////////////////////////////////////////////////////
 			// variation to comply utils::for_eachwp_up() callback
+			// To use with class layers{}
 			template <typename LCur, typename LPrev>
 			void operator()(LCur& lcur, LPrev& lprev, const bool bFirst)noexcept {
 				static_assert(std::is_base_of<_i_layer<typename std::remove_reference<LCur>::type::real_t >
@@ -94,6 +97,8 @@ namespace nntl {
 				NNTL_ASSERT(_idx > curIdx);
 			}
 
+			//////////////////////////////////////////////////////////////////////////
+			// some machinery necessary for the layer_pack_horizontal class
 			bool preparePHLCheck()noexcept {
 				NNTL_ASSERT(_incNeurons && !pPHLCheck);
 				pPHLCheck = new(std::nothrow) char[_incNeurons];
@@ -101,11 +106,11 @@ namespace nntl {
 				return nullptr != pPHLCheck;
 			}
 
-			// variation to comply utils::for_each_up() callback (used by _layer_pack_horizontal)
+			// variation to comply with utils::for_each_up() callback. For use with PHL structures in _layer_pack_horizontal
 			template<typename PHLT>
-			void operator()(PHLT& phl)noexcept {
-				static_assert(std::is_base_of<_i_layer<PHLT::layer_t::real_t>, PHLT::layer_t>::value, "Each layer must derive from i_layer");
-				static_assert(!std::is_base_of<m_layer_input, PHLT::layer_t>::value && !std::is_base_of<m_layer_output, PHLT::layer_t>::value,
+			std::enable_if_t<is_PHL<PHLT>::value> operator()(PHLT& phl)noexcept {
+				static_assert(std::is_base_of<_i_layer<PHLT::phl_original_t::real_t>, PHLT::phl_original_t>::value, "Each layer must derive from i_layer");
+				static_assert(!std::is_base_of<m_layer_input, PHLT::phl_original_t>::value && !std::is_base_of<m_layer_output, PHLT::phl_original_t>::value,
 					"No input/output layers is allowed within _layer_pack_horizontal");
 				
 				NNTL_ASSERT(pPHLCheck && phl.m_count && phl.m_offset < _incNeurons && (phl.m_offset + phl.m_count) <= _incNeurons);
@@ -128,6 +133,20 @@ namespace nntl {
 				pPHLCheck = nullptr;
 				return r;
 			}
+
+			//////////////////////////////////////////////////////////////////////////
+			// variation to use in other case just to preinit single layer
+			template<typename Layr>
+			std::enable_if_t<!is_PHL<Layr>::value> operator()(Layr& layr)noexcept {
+#ifdef NNTL_DEBUG
+				layer_index_t curIdx = _idx;
+#endif // NNTL_DEBUG
+
+				layr._preinit_layer(_idx, _incNeurons);
+#ifdef NNTL_DEBUG
+				NNTL_ASSERT(_idx > curIdx);
+#endif // NNTL_DEBUG
+			}
 		};
 
 		//////////////////////////////////////////////////////////////////////////
@@ -140,6 +159,12 @@ namespace nntl {
 
 			static_assert(std::is_base_of<math::_i_math<real_t>, i_math_t>::value, "i_math_t type should be derived from _i_math");
 			static_assert(std::is_base_of<rng::_i_rng, i_rng_t>::value, "i_rng_t type should be derived from _i_rng");
+
+			// "IN" marks variables that are passed to init() function, "OUT" marks output from init()
+
+			//#TODO we shouldn't store most of "IN" stuff within a layer. Instead, all this data should be stored within
+			//a struct, that is located within a NN object. Then, we'll just need to pass a reference to this struct to
+			// layers and store that reference. It would simplify the things greatly.
 
 			IN i_math_t& iMath;
 			IN i_rng_t& iRng;

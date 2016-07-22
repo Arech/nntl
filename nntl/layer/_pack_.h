@@ -35,19 +35,22 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 // defines common structs for layer_pack_* layers
 
 #include "_layer_base.h"
+#include "_pack_traits.h"
 
 namespace nntl {
 
 	//////////////////////////////////////////////////////////////////////////
 	template<typename LayerT>
 	struct PHL {//"let me speak from my heart in English" (c): that's a Part of Horizontal Layer :-D
-		typedef LayerT layer_t;
 
-		layer_t& l;
+		//this typedef will also help to distinguish between PHL and other structs.
+		typedef LayerT phl_original_t;
+
+		phl_original_t& l;
 		const neurons_count_t m_offset;//offset to a first neuron of previous layer activation that is sent to the LayerT input
 		const neurons_count_t m_count;//total number of neurons of previous layer that is sent to the LayerT input
 
-		PHL(layer_t& _l, const neurons_count_t o, const neurons_count_t c)noexcept:l(_l), m_offset(o), m_count(c) {}
+		PHL(phl_original_t& _l, const neurons_count_t o, const neurons_count_t c)noexcept:l(_l), m_offset(o), m_count(c) {}
 	};
 	template<typename LayerT> inline
 		PHL<LayerT> make_PHL(LayerT& l, const neurons_count_t o, const neurons_count_t c)noexcept
@@ -55,14 +58,6 @@ namespace nntl {
 		return PHL<LayerT>(l, o, c);
 	}
 
-	//////////////////////////////////////////////////////////////////////////
-	// traits recognizer
-	// primary template handles types that have no nested ::layer_t member:
-	template< class, class = std::void_t<> >
-	struct is_PHL : std::false_type { };
-	// specialization recognizes types that do have a nested ::layer_t member:
-	template< class T >
-	struct is_PHL<T, std::void_t<typename T::layer_t>> : std::true_type {};
 
 
 	namespace _impl {
@@ -73,6 +68,7 @@ namespace nntl {
 		template<typename WrappedLayer>
 		class trainable_layer_wrapper : public _i_layer_trainable<typename WrappedLayer::real_t>, public m_prop_input_marker<WrappedLayer> {
 		public:
+			//this typedef helps to distinguish *_wrapper classes from other classes
 			typedef WrappedLayer wrapped_layer_t;
 
 		protected:
@@ -90,6 +86,7 @@ namespace nntl {
 		template<typename WrappedLayer>
 		class trainable_partial_layer_wrapper : public _i_layer_trainable<typename WrappedLayer::real_t>, public m_prop_input_marker<WrappedLayer> {
 		public:
+			//this typedef helps to distinguish *_wrapper classes from other classes
 			typedef WrappedLayer wrapped_layer_t;
 
 		protected:

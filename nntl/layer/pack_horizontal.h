@@ -55,7 +55,7 @@ namespace nntl {
 
 	template<typename FinalPolymorphChild, typename ...PHLsT>
 	class _layer_pack_horizontal : public _i_layer<typename std::remove_reference<typename std::tuple_element<0, const std::tuple<PHLsT...>>
-		::type>::type::layer_t::iMath_t::real_t>
+		::type>::type::phl_original_t::iMath_t::real_t>
 	{
 	public:
 		typedef FinalPolymorphChild self_t;
@@ -63,6 +63,7 @@ namespace nntl {
 		typedef const FinalPolymorphChild& self_cref_t;
 		typedef FinalPolymorphChild* self_ptr_t;
 
+		//LayerPack_t is used to distinguish ordinary layers from layer packs (for example, to implement call_F_for_each_layer())
 		typedef self_t LayerPack_t;
 
 		//shouldn't use references here (with PHLsT...)
@@ -74,8 +75,8 @@ namespace nntl {
 		static_assert(is_PHL<typename std::remove_reference<typename std::tuple_element<0, _phl_tuple>::type>::type>::value, "_layer_pack_horizontal must be assembled from PHL objects!");
 		static_assert(is_PHL<typename std::remove_reference<typename std::tuple_element<phl_count - 1, _phl_tuple>::type>::type>::value, "_layer_pack_horizontal must be assembled from PHL objects!");
 
-		typedef typename std::remove_reference<typename std::tuple_element<0, _phl_tuple>::type>::type::layer_t first_layer_t;
-		typedef typename std::remove_reference<typename std::tuple_element<phl_count - 1, _phl_tuple>::type>::type::layer_t last_layer_t;
+		typedef typename std::remove_reference<typename std::tuple_element<0, _phl_tuple>::type>::type::phl_original_t first_layer_t;
+		typedef typename std::remove_reference<typename std::tuple_element<phl_count - 1, _phl_tuple>::type>::type::phl_original_t last_layer_t;
 		
 		typedef typename first_layer_t::iMath_t iMath_t;
 		typedef typename first_layer_t::iRng_t iRng_t;
@@ -149,8 +150,8 @@ namespace nntl {
 			neurons_count_t nc = 0;			
 			utils::for_each_up(m_phl_tuple, [&nc](auto& phl)noexcept {
 				static_assert(is_PHL<std::remove_reference_t<decltype(phl)>>::value, "_layer_pack_horizontal must be assembled from PHL objects!");
-				static_assert(!std::is_base_of<m_layer_input, std::remove_reference_t<decltype(phl)>::layer_t>::value
-					&& !std::is_base_of<m_layer_output, std::remove_reference_t<decltype(phl)>::layer_t>::value
+				static_assert(!std::is_base_of<m_layer_input, std::remove_reference_t<decltype(phl)>::phl_original_t>::value
+					&& !std::is_base_of<m_layer_output, std::remove_reference_t<decltype(phl)>::phl_original_t>::value
 					, "Inner layers of _layer_pack_horizontal mustn't be input or output layers!");
 				nc += phl.l.get_neurons_cnt();
 			});
@@ -198,7 +199,7 @@ namespace nntl {
 		}*/
 
 		void get_layer_name(char* pName, const size_t cnt)const noexcept {
-			sprintf_s(pName, cnt, "lph%d", static_cast<unsigned>(get_layer_idx()));
+			sprintf_s(pName, cnt, "lph%d", static_cast<unsigned>(get_self().get_layer_idx()));
 		}
 		std::string get_layer_name_str()const noexcept {
 			constexpr size_t ml = 16;
@@ -210,13 +211,13 @@ namespace nntl {
 		//should return true, if the layer has a value to add to Loss function value (there's some regularizer attached)
 		bool hasLossAddendum()const noexcept {
 			bool b = false;
-			for_each_packed_layer([&b](auto& l) {				b |= l.hasLossAddendum();			});
+			get_self().for_each_packed_layer([&b](auto& l) {				b |= l.hasLossAddendum();			});
 			return b;
 		}
 		//returns a loss function summand, that's caused by this layer
 		real_t lossAddendum()const noexcept {
 			real_t la(.0);
-			for_each_packed_layer([&la](auto& l) {				la += l.lossAddendum();			});
+			get_self().for_each_packed_layer([&la](auto& l) {				la += l.lossAddendum();			});
 			return la;
 		}
 
@@ -241,7 +242,7 @@ namespace nntl {
 			auto initD = lid.dupe();
 			auto& act = m_activations;
 			neurons_count_t firstNeuronOfs = 0, maxIncNeuronsCnt = 0;
-			for_each_packed_layer([&](auto& l)noexcept {
+			get_self().for_each_packed_layer([&](auto& l)noexcept {
 				if (ErrorCode::Success == ec) {
 					initD.clean();
 					maxIncNeuronsCnt = std::max(maxIncNeuronsCnt, l.get_incoming_neurons_cnt());
@@ -276,7 +277,7 @@ namespace nntl {
 		}
 
 		void deinit() noexcept {
-			for_each_packed_layer([](auto& l) {l.deinit(); });
+			get_self().for_each_packed_layer([](auto& l) {l.deinit(); });
 			m_activations.clear();
 			m_pTmpBiasStorage = nullptr;
 			m_layers_max_dLdA_numel = 0;
@@ -301,7 +302,7 @@ namespace nntl {
 				cnt -= 2 * m_layers_max_dLdA_numel;
 			}
 
-			for_each_packed_layer([=](auto& l) {l.initMem(ptr, cnt); });
+			get_self().for_each_packed_layer([=](auto& l) {l.initMem(ptr, cnt); });
 		}
 
 		// we are not expecting this layer to be used on top of pack of other layers inside a compound layer,
@@ -322,7 +323,7 @@ namespace nntl {
 
 			auto& act = m_activations;
 			neurons_count_t firstNeuronOfs = 0;
-			for_each_packed_layer([batchSize, &act, &firstNeuronOfs](auto& lyr)noexcept {
+			get_self().for_each_packed_layer([batchSize, &act, &firstNeuronOfs](auto& lyr)noexcept {
 				lyr.set_mode(batchSize, act.colDataAsVec(firstNeuronOfs));
 				firstNeuronOfs += lyr.get_neurons_cnt();
 			});
@@ -407,7 +408,7 @@ namespace nntl {
 		//support for boost::serialization
 		friend class boost::serialization::access;
 		template<class Archive> void serialize(Archive & ar, const unsigned int version) {
-			for_each_packed_layer([&ar](auto& l) {
+			get_self().for_each_packed_layer([&ar](auto& l) {
 				constexpr size_t maxStrlen = 16;
 				char lName[maxStrlen];
 				l.get_layer_name(lName, maxStrlen);
@@ -418,8 +419,8 @@ namespace nntl {
 
 
 	//////////////////////////////////////////////////////////////////////////
-	// final implementation of layer with all functionality of _layer_fully_connected
-	// If you need to derive a new class, derive it from _layer_fully_connected (to make static polymorphism work)
+	// final implementation of layer with all functionality of _layer_pack_horizontal
+	// If you need to derive a new class, derive it from _layer_pack_horizontal (to make static polymorphism work)
 	/*template <typename ...PHLsT>
 	class layer_pack_horizontal final
 		: public _layer_pack_horizontal<layer_pack_horizontal<PHLsT...>, PHLsT...>
@@ -438,20 +439,20 @@ namespace nntl {
 
 	//to shorten class name to get rid of C4503
 	template <typename ...PHLsT>
-	class layPH final
-		: public _layer_pack_horizontal<layPH<PHLsT...>, PHLsT...>
+	class LPH final
+		: public _layer_pack_horizontal<LPH<PHLsT...>, PHLsT...>
 	{
 	public:
-		~layPH() noexcept {};
-		layPH(PHLsT&... phls) noexcept
-			: _layer_pack_horizontal<layPH<PHLsT...>, PHLsT...>(phls...) {};
+		~LPH() noexcept {};
+		LPH(PHLsT&... phls) noexcept
+			: _layer_pack_horizontal<LPH<PHLsT...>, PHLsT...>(phls...) {};
 	};
 
 	template <typename ..._T>
-	using layer_pack_horizontal = typename layPH<_T...>;
+	using layer_pack_horizontal = typename LPH<_T...>;
 
 	template <typename ...PHLsT> inline
-		layPH <PHLsT...> make_layer_pack_horizontal(PHLsT&... phls) noexcept {
-		return layPH<PHLsT...>(phls...);
+		LPH <PHLsT...> make_layer_pack_horizontal(PHLsT&... phls) noexcept {
+		return LPH<PHLsT...>(phls...);
 	}
 }

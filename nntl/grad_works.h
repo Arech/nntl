@@ -52,6 +52,13 @@ namespace nntl {
 
 			grad_works_init(i_math_t* pM, const mtx_size_t& ws)noexcept:pMath(pM), weightsSize(ws) {}
 		};
+
+		//////////////////////////////////////////////////////////////////////////
+		// numeric stabilizer eps value for double and float calculations
+		template <typename real_t> struct NUM_STAB_EPS{};
+		template<> struct NUM_STAB_EPS<float> { static constexpr double value = 1e-5; };
+		template<> struct NUM_STAB_EPS<double> { static constexpr double value = 1e-9; };
+
 	}
 
 	struct _i_grad_works {
@@ -204,6 +211,12 @@ namespace nntl {
 		real_t m_L1;//L1 regularizer coefficient
 
 		//////////////////////////////////////////////////////////////////////////
+		// some static constants to make code consistent
+		static constexpr bool defApplyILR2MomentumVelocity = true;
+		static constexpr bool defRegularizersIgnoresBiasWeights = true;
+
+
+		//////////////////////////////////////////////////////////////////////////
 		//Serialization support
 	private:
 		friend class boost::serialization::access;
@@ -251,7 +264,8 @@ namespace nntl {
 		grad_works& operator=(const grad_works& rhs) noexcept = delete;
 
 		grad_works(const real_t lr) noexcept : m_pMath(nullptr), m_momentum(0.0), m_emaDecay(0.9),
-			m_numericStabilizerEps(.00001), m_maxWeightVecNorm(0.0), m_L1(0.0), m_L2(0.0), m_actualL1(0.0), m_actualL2(0.0),
+			m_numericStabilizerEps(_impl::NUM_STAB_EPS<real_t>::value), m_maxWeightVecNorm(0.0)
+			, m_L1(0.0), m_L2(0.0), m_actualL1(0.0), m_actualL2(0.0),
 			m_type(ClassicalConstant)
 		{
 			set_learning_rate(lr);
@@ -318,6 +332,13 @@ namespace nntl {
 			m_flags.reset(f_FirstRun);
 
 			//applying L1-L2 penalties
+			// BTW: because we're working with batches that averages dL/dW over many data samples and, possibly, over many 
+			// individual dropout masks, it is highly unlikely that any element of dLdW could have a value of zero
+			// (zero dL/dW means that we've found an optimal value of weight, that minimizes/maximizes the loss function).
+			// Therefore it is safe to assume, that weights tuning process is still incomplete here and we should apply other
+			// weights changing mechanisms, such as L1 or L2 regularization (we shouldn't do it if dL/dW for a weight is zero,
+			// because it'll drive the weight's value away from its optimal state).
+			// 
 			if (use_L1_regularization()) {
 				const bool bIgnoreBiases = m_flags[f_L1RegIgnoreBias];
 				if (bIgnoreBiases) { dLdW.hide_last_col(); weights.hide_last_col(); }
@@ -460,7 +481,7 @@ namespace nntl {
 			m_flags[f_UseILR] = m_ILR.bUseMe();
 			return *this;
 		}
-		self_t& set_momentum(real_t m, bool bApplyILRToMomentumVelocity = true)noexcept {
+		self_t& set_momentum(real_t m, bool bApplyILRToMomentumVelocity = defApplyILR2MomentumVelocity)noexcept {
 			NNTL_ASSERT(m >= 0 && m < 1);
 			m_momentum = m;
 			m_flags[f_UseMomentum] = m_momentum > real_t(0.0);
@@ -468,7 +489,7 @@ namespace nntl {
 			m_flags[f_ApplyILRToMomentumVelocity] = bApplyILRToMomentumVelocity;
 			return *this;
 		}
-		self_t& set_nesterov_momentum(real_t m, bool bApplyILRToMomentumVelocity = true)noexcept {
+		self_t& set_nesterov_momentum(real_t m, bool bApplyILRToMomentumVelocity = defApplyILR2MomentumVelocity)noexcept {
 			NNTL_ASSERT(m >= 0 && m < 1);
 			m_momentum = m;
 			m_flags[f_UseMomentum] = m_momentum > real_t(0.0);
@@ -491,7 +512,7 @@ namespace nntl {
 			return *this;
 		}
 
-		self_t& set_max_norm(const real_t mn, const bool bIgnoreBiasWeights = true)noexcept {
+		self_t& set_max_norm(const real_t mn, const bool bIgnoreBiasWeights = defRegularizersIgnoresBiasWeights)noexcept {
 			NNTL_ASSERT(mn >= real_t(0.0));
 			m_maxWeightVecNorm = mn;
 			m_flags[f_UseMaxNorm] = m_maxWeightVecNorm > real_t(0.0);
@@ -499,7 +520,7 @@ namespace nntl {
 			return *this;
 		}
 		//L1 is good for sparse signals
-		self_t& set_L1(real_t l1, const bool bIgnoreBiasWeights = true)noexcept {
+		self_t& set_L1(real_t l1, const bool bIgnoreBiasWeights = defRegularizersIgnoresBiasWeights)noexcept {
 			NNTL_ASSERT(l1 >= real_t(0.0));
 			m_L1 = l1;
 			m_actualL1 = math::sign(m_learningRate)*m_L1;
@@ -508,7 +529,7 @@ namespace nntl {
 			return *this;
 		}
 		//L2 is just good)
-		self_t& set_L2(real_t l2, const bool bIgnoreBiasWeights = true)noexcept {
+		self_t& set_L2(real_t l2, const bool bIgnoreBiasWeights = defRegularizersIgnoresBiasWeights)noexcept {
 			NNTL_ASSERT(l2 >= real_t(0.0));
 			m_L2 = l2;
 			m_actualL2 = math::sign(m_learningRate)*m_L2;

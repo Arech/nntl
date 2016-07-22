@@ -32,7 +32,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #pragma once
 
 // layer_identity defines a layer that just passes it's incoming data as activation units.
-// It's intended to be used within layer_pack_horizontal (and can't be used elsewhere)
+// It's intended to be used within a layer_pack_horizontal (and can't be used elsewhere)
 
 #include <type_traits>
 
@@ -111,7 +111,7 @@ namespace nntl {
 		//////////////////////////////////////////////////////////////////////////
 		const realmtx_t& get_activations()const noexcept { return m_activations; }
 
-		// pNewActivationStorage MUST be specified (we're expecting to be incapsulated into layer_pack_horizontal)
+		// pNewActivationStorage MUST be specified (we're expecting to be incapsulated into a layer_pack_horizontal)
 		ErrorCode init(_layer_init_data_t& lid, real_t* pNewActivationStorage = nullptr)noexcept {
 			NNTL_ASSERT(pNewActivationStorage);
 
@@ -146,6 +146,7 @@ namespace nntl {
 			NNTL_ASSERT(prevActivations.size() == m_activations.size());
 			NNTL_ASSERT(m_activations.bDontManageStorage());
 			//just copying the data from prevActivations to m_activations
+			//We have to copy the data, because layer_pack_horizontal always uses its own storage for activations.
 			const bool r = prevActivations.cloneTo(m_activations);
 			NNTL_ASSERT(r);
 		}
@@ -178,7 +179,7 @@ namespace nntl {
 
 			m_neurons_cnt = inc_neurons_cnt;
 			m_incoming_neurons_cnt = inc_neurons_cnt;
-			m_layerIdx = idx;
+			m_layerIdx = idx++;
 		}
 
 	private:
