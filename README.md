@@ -100,7 +100,7 @@ There may be some other projects referenced in nntl.sln solution file, but absen
 ## Code Status
 The only thing I can guarantee at this moment is that I'm actively working on and with this project. I won't issue any guarantees on any parts of API being stable. I'm pretty sure it may be changed from commit to commit, so keep it in mind while working on derived projects.
 
-The code itself however should be fairly stable, but I won't guarantee that also. Please note - it's an experimental project and nowhere a near being mature, therefore you have a right to expect any kind of weirdness. Remember to check commits to find out if there're some instabilities expected.
+The code itself however should be fairly stable, but I won't guarantee that also. Please note, it's an experimental project and nowhere near being mature, therefore you may expect any kind of weirdness. Remember to check commit descriptions to find out if there're some instabilities expected.
 
 Feel free to contact me if you need some assistance.
 
