@@ -38,6 +38,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "simple_matrix.h"
 #include "simple_math_thr.h"
 #include <algorithm>
+#include <numeric>
 
 namespace nntl {
 namespace math {
@@ -65,6 +66,8 @@ namespace math {
 		typedef typename realmtx_t::numel_cnt_t numel_cnt_t;
 
 		typedef simple_matrix_deformable<real_t> realmtxdef_t;
+
+		//typedef std::vector<vec_len_t> vector_of_vec_len_t;
 
 		typedef simple_rowcol_range<real_t> rowcol_range;
 		typedef simple_elements_range<real_t> elms_range;
@@ -971,6 +974,117 @@ namespace math {
 				get_self().mrwSum(fin, pVec);
 			});
 		}
+
+		//////////////////////////////////////////////////////////////////////////
+		//////////////////////////////////////////////////////////////////////////
+		// clone matrix columns to another more wide matrix
+		// srcCols - matrix with source columns to be copied into dest
+		// dest - destination matrix, must have the same rows count as srcCols
+		// colSpec - array of vec_len_t of size colSpecCnt==srcCols.cols(). Each element specifies how many
+		//		copies of a corresponding srcCols column must be made. For example, if colSpec is {2,3,4}, then
+		//		the srcCols must have 3 columns. The first column is copied 2 times into first 2 columns of dest,
+		//		the second - 3, the third - 4. Therefore, dest must contain 2+3+4=9 columns.		
+		void mCloneCols(const realmtx_t& srcCols, realmtx_t& dest, const vec_len_t*const pColSpec)noexcept {
+			if (srcCols.cols() < Thresholds_t::mCloneCols) {
+				get_self().mCloneCols_st(srcCols, dest, pColSpec);
+			} else get_self().mCloneCols_mt(srcCols, dest, pColSpec);
+		}
+
+		void mCloneCols_st(const realmtx_t& srcCols, realmtx_t& dest, const vec_len_t*const pColSpec, const vec_len_t firstCol=0, const vec_len_t _lastCol=0)noexcept {
+			NNTL_ASSERT(!srcCols.empty() && !dest.empty());
+			NNTL_ASSERT(pColSpec && srcCols.cols());
+			NNTL_ASSERT(srcCols.rows() == dest.rows());
+			NNTL_ASSERT(dest.cols() == std::accumulate(pColSpec, pColSpec+srcCols.cols(), vec_len_t(0)));
+			NNTL_ASSERT(firstCol < _lastCol || _lastCol == 0);
+			NNTL_ASSERT(firstCol < dest.cols() && _lastCol <= dest.cols());
+
+			//now we'll find which index within colSpec corresponds to column number firstCol
+			const vec_len_t csIdxMax = srcCols.cols() - 1;
+			vec_len_t csIdx = 0//also indexes cols within srcCols
+				, colsLeft = 0;
+			for (; csIdx <= csIdxMax; ++csIdx) {
+				const vec_len_t lc = colsLeft + pColSpec[csIdx];
+				if (lc>=firstCol) {
+					colsLeft = lc - firstCol;
+					//we've found necessary index, it's in csIdx
+					break;
+				}else colsLeft = lc;
+			}
+
+			const vec_len_t destCols = dest.cols();
+			NNTL_ASSERT(csIdx <= csIdxMax && colsLeft <= destCols);
+			if (csIdx <= csIdxMax && colsLeft <= destCols) {
+				auto pDest = dest.colDataAsVec(firstCol);
+				const auto pDE = dest.colDataAsVec(_lastCol ? _lastCol : destCols);
+				const auto _rows = static_cast<ptrdiff_t>(dest.rows());
+				auto pSrc = srcCols.colDataAsVec(csIdx);
+				const vec_len_t* pnCS = pColSpec + csIdx+1;
+				while (pDest != pDE) {
+					//lets find a source column to copy into pDest
+					NNTL_ASSERT(pnCS <= &pColSpec[csIdxMax] || colsLeft);
+					if (!colsLeft) {//should switch source column
+						colsLeft = *pnCS++;
+						pSrc += _rows;
+					}
+					--colsLeft;
+					memcpy(pDest, pSrc, sizeof(*pSrc)*_rows);
+					pDest += _rows;
+				}
+			}else{
+				//#todo exception here?
+				abort();
+			}
+		}
+		void mCloneCols_mt(const realmtx_t& srcCols, realmtx_t& dest, const vec_len_t*const pColSpec)noexcept {
+			NNTL_ASSERT(!srcCols.empty() && !dest.empty());
+			NNTL_ASSERT(pColSpec && srcCols.cols());
+			NNTL_ASSERT(srcCols.rows() == dest.rows());
+			NNTL_ASSERT(dest.cols() == std::accumulate(pColSpec, pColSpec + srcCols.cols(), vec_len_t(0)));
+			
+			m_threads.run([&srcCols, &dest, pColSpec, this](const par_range_t& pr) {
+				const auto colBeg = static_cast<vec_len_t>(pr.offset());
+				get_self().mCloneCols_st(srcCols, dest, pColSpec, colBeg, colBeg + static_cast<vec_len_t>(pr.cnt()));
+			},dest.cols());
+		}
+
+		//////////////////////////////////////////////////////////////////////////
+		//////////////////////////////////////////////////////////////////////////
+		// clone a matrix column to another more wide matrix dest.cols() number of times
+		// (optimized version of mCloneCols where srcCols.cols()==1 )
+		void mCloneCol(const realmtx_t& srcCol, realmtx_t& dest)noexcept {
+			if (dest.cols() < Thresholds_t::mCloneCol) {
+				get_self().mCloneCol_st(srcCol, dest);
+			} else get_self().mCloneCol_mt(srcCol, dest);
+		}
+
+		void mCloneCol_st(const realmtx_t& srcCol, realmtx_t&dest, const vec_len_t firstCol = 0, const vec_len_t _lastCol = 0)noexcept {
+			NNTL_ASSERT(!srcCol.empty() && !dest.empty());
+			NNTL_ASSERT(1 == srcCol.cols());
+			NNTL_ASSERT(srcCol.rows() == dest.rows());
+			NNTL_ASSERT(firstCol < _lastCol || _lastCol == 0);
+			NNTL_ASSERT(firstCol < dest.cols() && _lastCol <= dest.cols());
+
+			const auto _rows = static_cast<ptrdiff_t>(srcCol.rows());
+			const auto pSrc = srcCol.data();
+			auto pD = dest.colDataAsVec(firstCol);
+			const auto pDE = dest.colDataAsVec(_lastCol ? _lastCol : dest.cols());			
+			while (pD != pDE) {
+				memcpy(pD, pSrc, sizeof(*pSrc)*_rows);
+				pD += _rows;
+			}
+		}
+
+		void mCloneCol_mt(const realmtx_t& srcCol, realmtx_t& dest)noexcept {
+			NNTL_ASSERT(!srcCol.empty() && !dest.empty());
+			NNTL_ASSERT(1 == srcCol.cols());
+			NNTL_ASSERT(srcCol.rows() == dest.rows());
+
+			m_threads.run([&srcCol, &dest, this](const par_range_t& pr) {
+				const auto colBeg = static_cast<vec_len_t>(pr.offset());
+				get_self().mCloneCol_st(srcCol, dest, colBeg, colBeg + static_cast<vec_len_t>(pr.cnt()));
+			}, dest.cols());
+		}
+
 	};
 
 

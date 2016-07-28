@@ -80,6 +80,15 @@ namespace serialization {
 	}
 #define NNTL_SERIALIZATION_STRUCT(v) ::nntl::serialization::make_named_struct( NNTL_STRINGIZE(v), v )
 
+	//////////////////////////////////////////////////////////////////////////
+	// alias to call base's class serialize()
+	template<class Base, class Derived>
+	inline auto serialize_base_class(Derived &d)->decltype(::boost::serialization::base_object(d)) {
+		return ::boost::serialization::base_object(d);
+	}
+
+	//using serialize_base_class = ::boost::serialization::base_object<Base, Derived>(Derived &d);
+	//using serialize_base_class = ::boost::serialization::template base_object<Base, Derived>; //??
 
 	//////////////////////////////////////////////////////////////////////////
 	// Saving Archive concept base class

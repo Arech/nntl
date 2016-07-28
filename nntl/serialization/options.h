@@ -47,6 +47,7 @@ namespace serialization {
 		serialize_grad_works_state,
 
 		serialize_dropout_mask,
+		serialize_gating_mask,
 
 		total_options
 	};

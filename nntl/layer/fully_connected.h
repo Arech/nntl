@@ -33,10 +33,14 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include "_layer_base.h"
 
+//This is a basic building block of almost any feedforward neural network - fully connected layer of neurons.
+
 namespace nntl {
 
 	template<typename ActivFunc, typename Interfaces, typename GradWorks, typename FinalPolymorphChild>
-	class _layer_fully_connected : public _layer_base<Interfaces, FinalPolymorphChild> {
+	class _layer_fully_connected : public _layer_base<Interfaces, FinalPolymorphChild>
+		//, public _i_layer_gate<typename Interfaces::iMath_t::real_t>
+	{
 	private:
 		typedef _layer_base<Interfaces, FinalPolymorphChild> _base_class;
 
@@ -113,10 +117,10 @@ namespace nntl {
 		};
 
 		void get_layer_name(char* pName, const size_t cnt)const noexcept {
-			sprintf_s(pName, cnt, "fcl%d", static_cast<unsigned>(get_layer_idx()));
+			sprintf_s(pName, cnt, "fcl%d", static_cast<unsigned>(get_self().get_layer_idx()));
 		}
 		
-		const realmtx_t& get_activations()const noexcept { return m_activations; }
+		const realmtxdef_t& get_activations()const noexcept { return m_activations; }
 
 		//#TODO: move all generic fullyconnected stuff into a special base class!
 
@@ -125,9 +129,13 @@ namespace nntl {
 			return m_weights;
 		}
 		bool set_weights(realmtx_t&& W)noexcept {
-			if (W.empty() || W.emulatesBiases() 
+			if (W.empty() || W.emulatesBiases()
 				|| (W.cols() != get_self().get_incoming_neurons_cnt() + 1)
-				|| W.rows() != get_self().get_neurons_cnt()) return false;
+				|| W.rows() != get_self().get_neurons_cnt())
+			{
+				NNTL_ASSERT(!"Wrong weight matrix passed!");
+				return false;
+			}
 
 			m_weights = std::move(W);
 			m_bWeightsInitialized = true;
@@ -256,6 +264,7 @@ namespace nntl {
 			}
 		}
 
+	protected:
 		//help compiler to isolate fprop functionality from the specific of previous layer
 		void _fprop(const realmtx_t& prevActivations)noexcept {
 			NNTL_ASSERT(m_activations.rows() == prevActivations.rows());
@@ -284,8 +293,10 @@ namespace nntl {
 				NNTL_ASSERT(m_activations.bDontManageStorage() || m_activations.assert_biases_ok());
 			}
 
-			//TODO: sparsity penalty here
+			//TODO?: sparsity penalty here
 		}
+
+	public:
 		template <typename LowerLayer>
 		void fprop(const LowerLayer& lowerLayer)noexcept{
 			static_assert(std::is_base_of<_i_layer_fprop, LowerLayer>::value, "Template parameter LowerLayer must implement _i_layer_fprop");

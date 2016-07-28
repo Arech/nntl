@@ -71,6 +71,9 @@ namespace math {
 			static constexpr size_t mrwSum = 5000;
 			static constexpr size_t mrwSum_st = 24000;
 			static constexpr vec_len_t mrwSum_mt_cw_colsPerThread = 3;
+
+			static constexpr vec_len_t mCloneCols = 2;
+			static constexpr vec_len_t mCloneCol = 2;
 		};
 
 		template <> struct SIMPLE_MATH_THR<float> {
@@ -100,6 +103,8 @@ namespace math {
 			static constexpr size_t mrwSum_st = 24000*19/10;
 			static constexpr vec_len_t mrwSum_mt_cw_colsPerThread = 3;
 
+			static constexpr vec_len_t mCloneCols = 2;
+			static constexpr vec_len_t mCloneCol = 2;
 		};
 
 	}

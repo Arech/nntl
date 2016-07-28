@@ -347,6 +347,9 @@
     <ClCompile Include="test_layer_pack_horizontal.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="test_layer_pack_gated.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <None Include="..\nntl\_supp\matlab\td2json_file.m">

@@ -109,3 +109,38 @@ void mrwSum_ET(const realmtx_t& src, real_t* pVec)noexcept {
 		}
 	}
 }
+
+void mCloneCols_ET(const realmtx_t& srcCols, realmtx_t& dest, const vec_len_t*const pColSpec)noexcept {
+	NNTL_ASSERT(!srcCols.empty() && !dest.empty());
+	NNTL_ASSERT(pColSpec && srcCols.cols());
+	NNTL_ASSERT(srcCols.rows() == dest.rows());
+	NNTL_ASSERT(dest.cols() == std::accumulate(pColSpec, pColSpec + srcCols.cols(), vec_len_t(0)));
+
+	auto pSrc = srcCols.data();
+	auto pDest = dest.data();
+	const ptrdiff_t _rows = static_cast<ptrdiff_t> (dest.rows());
+	const size_t _csLen = srcCols.cols();
+	for (size_t i = 0; i < _csLen; ++i) {
+		const auto tCols = pColSpec[i];
+		for (vec_len_t c = 0; c < tCols; ++c) {
+			memcpy(pDest, pSrc, sizeof(*pSrc)*_rows);
+			pDest += _rows;
+		}
+		pSrc += _rows;
+	}
+}
+
+void mCloneCol_ET(const realmtx_t& srcCol, realmtx_t& dest)noexcept {
+	NNTL_ASSERT(!srcCol.empty() && !dest.empty());
+	NNTL_ASSERT(1 == srcCol.cols());
+	NNTL_ASSERT(srcCol.rows() == dest.rows());
+
+	const auto pS = srcCol.data();
+	auto pD = dest.data();
+	const auto pDE = pD + dest.numel();
+	const auto _r = dest.rows();
+	while (pD != pDE) {
+		memcpy(pD, pS, sizeof(*pS)*_r);
+		pD += _r;
+	}
+}

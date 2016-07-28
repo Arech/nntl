@@ -79,6 +79,7 @@ namespace nntl {
 		typedef typename first_layer_t::iMath_t iMath_t;
 		typedef typename first_layer_t::iRng_t iRng_t;
 		typedef typename first_layer_t::_layer_init_data_t _layer_init_data_t;
+		typedef typename first_layer_t::common_data_t common_data_t;
 
 	protected:
 		//we need 2 matrices for bprop()
@@ -121,7 +122,17 @@ namespace nntl {
 					"Inner layers of _layer_pack_vertical mustn't be input or output layers!");
 			});
 		}
+
+		//////////////////////////////////////////////////////////////////////////
+		// helpers to access common data 
+		// #todo this implies, that the following functions are described in _i_layer interface. It's not the case at this moment.
+		const common_data_t& get_common_data()const noexcept { return first_layer().get_common_data(); }
+		iMath_t& get_iMath()const noexcept { return first_layer().get_iMath(); }
+		iRng_t& get_iRng()const noexcept { return first_layer().get_iRng(); }
+		const vec_len_t get_max_fprop_batch_size()const noexcept { return first_layer().get_max_fprop_batch_size(); }
+		const vec_len_t get_training_batch_size()const noexcept { return first_layer().get_training_batch_size(); }
 		
+		//////////////////////////////////////////////////////////////////////////
 		//and apply function _Func(auto& layer) to each underlying (non-pack) layer here
 		template<typename _Func>
 		void for_each_layer(_Func& f)const noexcept {
@@ -139,16 +150,10 @@ namespace nntl {
 		const neurons_count_t get_neurons_cnt() const noexcept { return get_self().last_layer().get_neurons_cnt(); }
 		const neurons_count_t get_incoming_neurons_cnt()const noexcept { return  get_self().first_layer().get_incoming_neurons_cnt(); }
 
-		const realmtx_t& get_activations()const noexcept { return get_self().last_layer().get_activations(); }
+		const realmtxdef_t& get_activations()const noexcept { return get_self().last_layer().get_activations(); }
 
 		void get_layer_name(char* pName, const size_t cnt)const noexcept {
 			sprintf_s(pName, cnt, "lpv%d", static_cast<unsigned>(get_self().get_layer_idx()));
-		}
-		std::string get_layer_name_str()const noexcept {
-			constexpr size_t ml = 16;
-			char n[ml];
-			get_self().get_layer_name(n, ml);
-			return std::string(n);
 		}
 
 		//should return true, if the layer has a value to add to Loss function value (there's some regularizer attached)

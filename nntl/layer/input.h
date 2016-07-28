@@ -68,7 +68,7 @@ namespace nntl {
 		~_layer_input() noexcept {};
 
 		void get_layer_name(char* pName, const size_t cnt)const noexcept {
-			sprintf_s(pName, cnt, "inp%d", static_cast<unsigned>(get_layer_idx()));
+			sprintf_s(pName, cnt, "inp%d", static_cast<unsigned>(get_self().get_layer_idx()));
 		}
 
 		const realmtx_t& get_activations()const noexcept {

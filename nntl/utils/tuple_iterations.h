@@ -210,5 +210,22 @@ namespace utils {
 	void for_i_up(const Tuple& t, F<_get_size<Tuple>(t), Tuple> & f) {
 	_for_i_up_impl<std::tuple_size<Tuple>::value - 1, Tuple, F>::for_i(t,f);
 	}*/
+
+
+	//////////////////////////////////////////////////////////////////////////
+	// Creating a subtuple from tuple elements
+	// thanks to http://stackoverflow.com/questions/17854219/creating-a-sub-tuple-starting-from-a-stdtuplesome-types
+	// see also https://msdn.microsoft.com/en-us/library/mt125500.aspx
+	
+	template <typename... T, std::size_t... I>
+	auto subtuple_(const std::tuple<T...>& t, std::index_sequence<I...>) {
+		return std::make_tuple(std::get<I>(t)...);
+	}
+
+	template <int Trim, typename... T>
+	auto subtuple_trim_tail(const std::tuple<T...>& t) {
+		return subtuple_(t, std::make_index_sequence<sizeof...(T)-Trim>());
+	}
+
 }
 }

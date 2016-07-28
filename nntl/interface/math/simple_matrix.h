@@ -70,7 +70,7 @@ namespace math {
 		value_ptr_t m_pData;
 		vec_len_t m_rows, m_cols;
 
-		// TODO: probably it's better to turn m_bEmulateBiases and m_bDontManageStorage variables into template parameters,
+		// #TODO: probably it's better to turn m_bEmulateBiases and m_bDontManageStorage variables into template parameters,
 		// because it looks
 		// like we don't need to change them during lifetime of an object. It'll help to make class a little faster and
 		// array of objects will require significantly less memory ( N x default alignment, which is 8 or even 16 bytes)
@@ -198,11 +198,19 @@ namespace math {
 		const bool bDontManageStorage()const noexcept { return m_bDontManageStorage; }
 
 		//////////////////////////////////////////////////////////////////////////
-		void set_biases()const noexcept {
+		void fill_column_with(const vec_len_t c, const value_type v)noexcept {
+			NNTL_ASSERT(!empty() && m_rows && m_cols);
+			NNTL_ASSERT(c < m_cols);
+			const auto pC = colDataAsVec(c);
+			std::fill(pC, pC + m_rows, v);
+		}
+
+		void set_biases() noexcept {
 			NNTL_ASSERT(m_bEmulateBiases);
 			// filling last column with ones to emulate biases
-			const auto ne = numel();
-			std::fill(&m_pData[ne - m_rows], &m_pData[ne], value_type(1.0));
+			//const auto ne = numel();
+			//std::fill(&m_pData[ne - m_rows], &m_pData[ne], value_type(1.0));
+			fill_column_with(m_cols - 1, value_type(1.0));
 		}
 		const bool emulatesBiases()const noexcept { return m_bEmulateBiases; }
 		void will_emulate_biases()noexcept {
@@ -642,6 +650,8 @@ namespace math {
 	//////////////////////////////////////////////////////////////////////////
 	// helper class to define matrix rows-cols range
 	//////////////////////////////////////////////////////////////////////////
+	// in general, it depends on how to use it, but usually the class doesn't specify a rectangular sub-block of a matrix,
+	// but defines a range that starts and ends on the specified elements.
 	template<typename T_>
 	class simple_rowcol_range {
 	public:

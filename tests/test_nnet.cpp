@@ -292,8 +292,7 @@ TEST(TestNnet, LayerPackVertical) {
 
 //////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////
-template<bool bL2 = true, typename T_>
-void testL2L1(train_data<T_>& td, const real_t coeff, uint64_t rngSeed, const size_t maxEpochs=3, const real_t LR=.02, const char* pDumpFileName=nullptr) noexcept {
+void testL2L1(const bool bL2, train_data<real_t>& td, const real_t coeff, uint64_t rngSeed, const size_t maxEpochs=3, const real_t LR=.02, const char* pDumpFileName=nullptr) noexcept {
 	if (bL2) {
 		STDCOUTL("Using l2coeff = " << coeff);
 	} else STDCOUTL("Using l1coeff = " << coeff);
@@ -363,15 +362,15 @@ TEST(TestNnet, L2L1) {
 	STDCOUTL("*************** Testing L2 regularizer ******************* ");
 	for (unsigned i = 0; i < im; ++i) {
 		auto sv = std::time(0);
-		testL2L1<true>(td, 0, sv);
-		testL2L1<true>(td, .1, sv);
+		testL2L1(true,td, 0, sv);
+		testL2L1(true,td, .1, sv);
 	}
 
 	STDCOUTL("*************** Testing L1 regularizer ******************* ");
 	for (unsigned i = 0; i < im; ++i) {
 		auto sv = std::time(0);
-		testL2L1<false>(td, 0, sv);
-		testL2L1<false>(td, .1, sv);
+		testL2L1(false,td, 0, sv);
+		testL2L1(false,td, .1, sv);
 	}
 }
 
@@ -390,9 +389,9 @@ TEST(TestNnet, L2Weights) {
 	/*testL2L1<true>(td, 0, 0, 5, .02, "d:/Docs/Math/play_matlab/NoL2.mat");
 	testL2L1<true>(td, .1, 0, 5, .02, "d:/Docs/Math/play_matlab/L2.mat");
 	testL2L1<false>(td, .1, 0, 5, .02, "d:/Docs/Math/play_matlab/L1.mat");*/
-	testL2L1<true>(td, 0, 0, 5, .02);
-	testL2L1<true>(td, .1, 0, 5, .02);
-	testL2L1<false>(td, .1, 0, 5, .02);
+	testL2L1(true,td, 0, 0, 5, .02);
+	testL2L1(true,td, .1, 0, 5, .02);
+	testL2L1(false,td, .1, 0, 5, .02);
 }
 
 //////////////////////////////////////////////////////////////////////////

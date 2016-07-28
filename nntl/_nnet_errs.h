@@ -43,6 +43,7 @@ namespace nntl {
 			InvalidOutputLayerNeuronsCount,
 			CantAllocateMemoryForActivations,
 			CantAllocateMemoryForDropoutMask,
+			CantAllocateMemoryForGatingMask,
 			CantAllocateMemoryForTempData,
 			CantAllocateMemoryForWeights,
 			CantInitializeIMath,
@@ -62,6 +63,7 @@ namespace nntl {
 			case InvalidOutputLayerNeuronsCount: return NNTL_STRING("Output layer neurons count mismatches train_y width.");
 			case CantAllocateMemoryForActivations: return NNTL_STRING("Cant allocate memory for neuron activations");
 			case CantAllocateMemoryForDropoutMask: return NNTL_STRING("Cant allocate memory for dropout mask");
+			case CantAllocateMemoryForGatingMask: return NNTL_STRING("Cant allocate memory for gating mask");
 			case CantAllocateMemoryForTempData: return NNTL_STRING("Cant allocate memory for temporarily data");
 			case CantAllocateMemoryForWeights: return NNTL_STRING("Cant allocate memory for weight matrix");
 			case CantInitializeIMath: return NNTL_STRING("Cant initialize iMath interface");

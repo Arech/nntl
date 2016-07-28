@@ -56,6 +56,7 @@ namespace rng {
 		//nntl_interface _i_rng(seed_t s)noexcept {}
 
 		nntl_interface void seed(seed_t s) noexcept;
+		nntl_interface void seed64(uint64_t s) noexcept;
 		//nntl_interface void seed_array(const seed_t s[], unsigned seedsCnt) noexcept;
 
 		// generated_scalar_t is either int on 32bits or int64 on 64bits

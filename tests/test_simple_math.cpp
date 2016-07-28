@@ -31,6 +31,8 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 #include "stdafx.h"
 
+// this file implements tests of correctness. Performance tests should be placed at _thr.cpp
+
 #include "../nntl/math.h"
 #include "../nntl/common.h"
 
@@ -55,6 +57,110 @@ constexpr unsigned TEST_CORRECTN_REPEATS_COUNT = 60, _baseRowsCnt = 300;
 
 //////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////
+
+
+//////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////
+void test_mCloneCol_corr(vec_len_t srcRowsCnt, vec_len_t maxCloneCnt = 1, vec_len_t minCloneCnt = 1) {
+	constexpr unsigned testCorrRepCnt = TEST_CORRECTN_REPEATS_COUNT;
+	realmtx_t src(srcRowsCnt, 1);
+	ASSERT_TRUE(!src.isAllocationFailed());
+
+	nnet_def_interfaces::iRng_t rg;
+	rg.set_ithreads(iM.ithreads());
+	const vec_len_t ccSpan = maxCloneCnt - minCloneCnt;
+
+	for (unsigned rr = 0; rr < testCorrRepCnt; ++rr) {
+		rg.gen_matrix(src, 10);
+
+		vec_len_t destColsCnt = minCloneCnt + (ccSpan ? static_cast<vec_len_t>(rg.gen_i(ccSpan)) : 0);
+		
+		constexpr unsigned _scopeMsgLen = 128; \
+			char _scopeMsg[_scopeMsgLen]; \
+			sprintf_s(_scopeMsg, "mCloneCol src(%d,1)->dest(%d,%d)", srcRowsCnt, srcRowsCnt, destColsCnt); \
+			SCOPED_TRACE(_scopeMsg);
+
+		realmtx_t dest(srcRowsCnt, destColsCnt), destET(srcRowsCnt, destColsCnt);
+		ASSERT_TRUE(!dest.isAllocationFailed() && !destET.isAllocationFailed());
+
+		mCloneCol_ET(src, destET);
+
+		dest.zeros();
+		iM.mCloneCol_st(src, dest);
+		ASSERT_MTX_EQ(destET, dest, "st() failed");
+
+		dest.zeros();
+		iM.mCloneCol_mt(src, dest);
+		ASSERT_MTX_EQ(destET, dest, "mt() failed");
+
+		dest.zeros();
+		iM.mCloneCol(src, dest);
+		ASSERT_MTX_EQ(destET, dest, "() failed");
+	}
+}
+TEST(TestSimpleMath, mCloneCol) {
+	constexpr unsigned rowsCnt = 10, maxCloneCnt = 15;
+	for (vec_len_t cc = 1; cc <= maxCloneCnt; ++cc) {
+		ASSERT_NO_FATAL_FAILURE(test_mCloneCol_corr(rowsCnt, cc));
+	}
+}
+
+
+//////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////
+void test_mCloneCols_corr(vec_len_t srcRowsCnt, vec_len_t srcColsCnt, vec_len_t maxCloneCnt=1, vec_len_t minCloneCnt = 1) {
+	constexpr unsigned testCorrRepCnt = TEST_CORRECTN_REPEATS_COUNT;
+	realmtx_t src(srcRowsCnt, srcColsCnt);
+	ASSERT_TRUE(!src.isAllocationFailed());
+	std::vector<vec_len_t> colSpec(srcColsCnt);
+	
+	nnet_def_interfaces::iRng_t rg;
+	rg.set_ithreads(iM.ithreads());
+	const vec_len_t ccSpan = maxCloneCnt - minCloneCnt;
+
+	for (unsigned rr = 0; rr < testCorrRepCnt; ++rr) {
+		rg.gen_matrix(src, 10);
+
+		//filling colSpec
+		vec_len_t destColsCnt = 0;
+		for (vec_len_t sc = 0; sc < srcColsCnt; ++sc) {
+			const vec_len_t cc = minCloneCnt + (ccSpan ? static_cast<vec_len_t>(rg.gen_i(ccSpan)) : 0);
+			destColsCnt += cc;
+			colSpec[sc] = cc;
+		}
+
+		constexpr unsigned _scopeMsgLen = 128; \
+			char _scopeMsg[_scopeMsgLen]; \
+			sprintf_s(_scopeMsg, "mCloneCols src(%d,%d)->dest(%d,%d)", srcRowsCnt, srcColsCnt, srcRowsCnt, destColsCnt); \
+			SCOPED_TRACE(_scopeMsg);
+
+		realmtx_t dest(srcRowsCnt, destColsCnt), destET(srcRowsCnt, destColsCnt);
+		ASSERT_TRUE(!dest.isAllocationFailed() && !destET.isAllocationFailed());
+
+		mCloneCols_ET(src, destET, &colSpec[0]);
+
+		dest.zeros();
+		iM.mCloneCols_st(src, dest, &colSpec[0]);
+		ASSERT_MTX_EQ(destET, dest, "st() failed");
+
+		dest.zeros();
+		iM.mCloneCols_mt(src, dest, &colSpec[0]);
+		ASSERT_MTX_EQ(destET, dest, "mt() failed");
+
+		dest.zeros();
+		iM.mCloneCols(src, dest, &colSpec[0]);
+		ASSERT_MTX_EQ(destET, dest, "() failed");
+	}
+}
+TEST(TestSimpleMath, mCloneCols) {
+	constexpr unsigned rowsCnt = 10, maxCloneCnt=15;
+	const vec_len_t maxCols = g_MinDataSizeDelta;
+	for (vec_len_t c = 1; c < maxCols; ++c) {
+		for (vec_len_t cc = 1; cc <= maxCloneCnt; ++cc) {
+			ASSERT_NO_FATAL_FAILURE(test_mCloneCols_corr(rowsCnt, c, cc));
+		}
+	}
+}
 
 
 //////////////////////////////////////////////////////////////////////////

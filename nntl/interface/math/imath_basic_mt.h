@@ -89,6 +89,25 @@ namespace math {
 		}
 
 		//////////////////////////////////////////////////////////////////////////
+		// clone matrix columns to another more wide matrix
+		// srcCols - matrix with source columns to be copied into dest
+		// dest - destination matrix, must have the same rows count as srcCols
+		// colSpec - array of vec_len_t of size colSpecCnt== srcCols.cols(). Each element specifies how many
+		//		copies of a corresponding srcCols column must be made. For example, if colSpec is {2,3,4}, then
+		//		the srcCols must have 3 columns. The first column is copied 2 times into first 2 columns of dest,
+		//		the second - 3, the third - 4. Therefore, dest must contain 2+3+4=9 columns.		
+// 		void mCloneCols(const realmtx_t& srcCols, realmtx_t& dest, const vec_len_t*const pColSpec)noexcept {
+// 			base_class_t::mCloneCols(srcCols, dest, pColSpec);
+// 		}
+// 		function isn't used at this moment
+
+		// clone a matrix column to another more wide matrix dest.cols() number of times
+		// (optimized version of mCloneCols where srcCols.cols()==1 )
+		void mCloneCol(const realmtx_t& srcCol, realmtx_t& dest)noexcept {
+			base_class_t::mCloneCol(srcCol, dest);
+		}
+
+		//////////////////////////////////////////////////////////////////////////
 		// treat matrix as a set of row-vectors (matrices in col-major mode!). For each row-vector check, whether
 		// its length/norm is not longer, than predefined value. If it's longer, than rescale vector to this max length
 		// (for use in max-norm weights regularization)

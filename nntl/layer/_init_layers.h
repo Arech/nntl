@@ -42,6 +42,12 @@ namespace nntl {
 	struct m_layer_input {};
 	struct m_layer_output {};
 
+	//when a layer is derived from this class, it is expected to be used inside of some layer_pack_* objects and it
+	// doesn't have a neurons count specified in constructor. Instead, compound layer (or its support objects) specifies
+	// the number of neurons during their construction via _set_neurons_cnt().
+	// See layer_identity for an example
+	struct m_layer_autoneurons_cnt {};
+
 	namespace _impl {
 
 		template< class, class = std::void_t<> >

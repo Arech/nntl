@@ -31,9 +31,10 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 #pragma once
 
-// layer_pack_horizontal provides a way to gather other layers into a parallel (horizontal) pack and feed different ranges of
-// underlying activation units into different set of layers. I.e. it defines a layer (an object with _i_layer interface), that
-// consists of a set of other layers. Concatenation of their activations constitute a total layer activation.
+// layer_pack_horizontal (LPH) provides a way to concatenate activation matrices of a set of layers into a single
+// activation matrix, i.e. gather a set of layers into a single layer.
+// Moreover, LPH allows to feed different ranges of
+// underlying activation units into different set of layers.
 // 
 //    \  |  |  |  |     |  |  |  | /
 // |------layer_pack_horizontal-------|
@@ -43,8 +44,6 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 // |----------------------------------|
 //      / | | | | |  .  | | | | | \
 //
-// layer_pack_horizontal always uses its own storage for activation units, therefore it can't be used within a stack of
-// compound layers
 // 
 #include "_pack_.h"
 #include "../utils.h"
@@ -78,12 +77,6 @@ namespace nntl {
 		typedef typename std::remove_reference<typename std::tuple_element<0, _phl_tuple>::type>::type::phl_original_t first_layer_t;
 		typedef typename std::remove_reference<typename std::tuple_element<phl_count - 1, _phl_tuple>::type>::type::phl_original_t last_layer_t;
 		
-		//following definitions are the same for all layers within a network
-// 		typedef typename first_layer_t::iMath_t iMath_t;
-// 		typedef typename first_layer_t::iRng_t iRng_t;
-// 		typedef typename first_layer_t::_layer_init_data_t _layer_init_data_t;
-// 		typedef typename first_layer_t::common_data_t common_data_t;
-
 	protected:
 		//we need 2 matrices for bprop()
 		//typedef std::array<realmtxdef_t*, 2> realmtxdefptr_array_t;
@@ -99,14 +92,7 @@ namespace nntl {
 		// to allocate dLdA matricies to pass to layers bprop()
 
 		realmtxdef_t m_innerdLdA, m_innerdLdAPrev;
-
-		//iMath_t* m_pMath;
-		//vec_len_t m_max_fprop_batch_size, m_training_batch_size;
-
-	private:
-		//neurons_count_t m_neurons_cnt, m_incoming_neurons_cnt;
-		//layer_index_t m_layerIdx;
-
+		
 		//////////////////////////////////////////////////////////////////////////
 		//
 	protected:
@@ -158,7 +144,7 @@ namespace nntl {
 			m_activations.will_emulate_biases();
 		}
 
-		const realmtx_t& get_activations()const noexcept { return m_activations; }
+		const realmtxdef_t& get_activations()const noexcept { return m_activations; }
 
 		//and apply function _Func(auto& layer) to each underlying (non-pack) layer here
 		template<typename _Func>
@@ -195,15 +181,19 @@ namespace nntl {
 		}
 
 		//////////////////////////////////////////////////////////////////////////
-		// we are not expecting this layer to be used on top of pack of other layers inside a compound layer,
-		// therefore directly omitting last (special) parameter for that.
-		ErrorCode init(_layer_init_data_t& lid)noexcept {
+		ErrorCode init(_layer_init_data_t& lid, real_t* pNewActivationStorage = nullptr)noexcept {
 			auto ec = _base_class::init(lid);
 			if (ErrorCode::Success != ec) return ec;
 
 			//allocating m_activations
 			NNTL_ASSERT(m_activations.emulatesBiases());
-			if (!m_activations.resize(get_self().get_max_fprop_batch_size(), get_self().get_neurons_cnt())) return ErrorCode::CantAllocateMemoryForActivations;
+			if (pNewActivationStorage) {
+				m_activations.useExternalStorage(pNewActivationStorage
+					, get_self().get_max_fprop_batch_size(), get_self().get_neurons_cnt() + 1, true);
+			} else {
+				if (!m_activations.resize(get_self().get_max_fprop_batch_size(), get_self().get_neurons_cnt()))
+					return ErrorCode::CantAllocateMemoryForActivations;
+			}
 
 			layer_index_t failedLayerIdx = 0;
 
@@ -275,34 +265,48 @@ namespace nntl {
 			get_self().for_each_packed_layer([=](auto& l) {l.initMem(ptr, cnt); });
 		}
 
-		// we are not expecting this layer to be used on top of pack of other layers inside a compound layer,
-		// therefore directly omitting last (special) parameter for that.
-		void set_mode(vec_len_t batchSize)noexcept {
+		void set_mode(vec_len_t batchSize, real_t* pNewActivationStorage = nullptr)noexcept {
 			NNTL_ASSERT(m_activations.emulatesBiases());
 			// now we must resize m_activations and update activations of inner layers with set_mode variation
 
-			const auto _max_fprop_batch_size = get_self().get_max_fprop_batch_size();
+			m_bTraining = batchSize == 0;
+			const auto _training_batch_size = get_self().get_training_batch_size();
 			bool bRestoreBiases;
-			if (0 == batchSize) {//training mode, batch size is predefined
-				const auto _training_batch_size = get_self().get_training_batch_size();
-				m_activations.deform_rows(_training_batch_size);
-				bRestoreBiases = _training_batch_size != _max_fprop_batch_size;
-			} else {//evaluation mode, just make sure the batchSize is less then or equal to m_max_fprop_batch_size
-				NNTL_ASSERT(batchSize <= _max_fprop_batch_size);
-				m_activations.deform_rows(batchSize);
-				bRestoreBiases = batchSize != _max_fprop_batch_size;
+
+			if (pNewActivationStorage) {
+				NNTL_ASSERT(m_activations.bDontManageStorage());
+				//m_neurons_cnt + 1 for biases
+				m_activations.useExternalStorage(pNewActivationStorage
+					, m_bTraining ? _training_batch_size : batchSize, get_self().get_neurons_cnt() + 1, true);
+				//should not restore biases here, because for compound layers its a job for their fprop() implementation
+				bRestoreBiases = false;
+			} else {
+				NNTL_ASSERT(!m_activations.bDontManageStorage());
+
+				const auto _max_fprop_batch_size = get_self().get_max_fprop_batch_size();
+				if (m_bTraining) {//training mode, batch size is predefined
+					m_activations.deform_rows(_training_batch_size);
+					bRestoreBiases = _training_batch_size != _max_fprop_batch_size;
+				} else {//evaluation mode, just make sure the batchSize is less then or equal to m_max_fprop_batch_size
+					NNTL_ASSERT(batchSize <= _max_fprop_batch_size);
+					m_activations.deform_rows(batchSize);
+					bRestoreBiases = batchSize != _max_fprop_batch_size;
+				}
 			}
+
 
 			auto& act = m_activations;
 			neurons_count_t firstNeuronOfs = 0;
 			get_self().for_each_packed_layer([batchSize, &act, &firstNeuronOfs](auto& lyr)noexcept {
+				//we're just setting memory to store activation values of inner layers here.
+				//there's no need to play with biases here.
 				lyr.set_mode(batchSize, act.colDataAsVec(firstNeuronOfs));
 				firstNeuronOfs += lyr.get_neurons_cnt();
 			});
 			NNTL_ASSERT(firstNeuronOfs + 1 == act.cols());
 
-			if (bRestoreBiases) m_activations.set_biases();
-			NNTL_ASSERT(m_activations.assert_biases_ok());
+			if (bRestoreBiases) m_activations.set_biases();			
+			NNTL_ASSERT(pNewActivationStorage || m_activations.assert_biases_ok());
 		}
 
 		template <typename LowerLayer>

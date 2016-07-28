@@ -114,11 +114,11 @@ namespace nntl {
 		};
 
 		void get_layer_name(char* pName, const size_t cnt)const noexcept {
-			sprintf_s(pName, cnt, "outp%d", static_cast<unsigned>(get_layer_idx()));
+			sprintf_s(pName, cnt, "outp%d", static_cast<unsigned>(get_self().get_layer_idx()));
 		}
 
 		//constexpr const bool is_output_layer()const noexcept { return true; }
-		const realmtx_t& get_activations()const noexcept { return m_activations; }
+		const realmtxdef_t& get_activations()const noexcept { return m_activations; }
 
 		//#TODO: move all generic fullyconnected stuff into a special base class!
 
@@ -130,7 +130,10 @@ namespace nntl {
 		bool set_weights(realmtx_t&& W)noexcept {
 			if (W.empty() || W.emulatesBiases() || (W.cols() != get_incoming_neurons_cnt() + 1)
 				|| W.rows() != get_self().get_neurons_cnt())
+			{
+				NNTL_ASSERT(!"Wrong weight matrix passed!");
 				return false;
+			}
 			m_weights = std::move(W);
 			m_bWeightsInitialized = true;
 			return true;

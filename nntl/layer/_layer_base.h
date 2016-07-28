@@ -41,7 +41,9 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 namespace nntl {
 
 	//////////////////////////////////////////////////////////////////////////
+	//////////////////////////////////////////////////////////////////////////
 	//each layer_pack_* layer is expected to have a special typedef self_t LayerPack_t
+	// and it must implement for_each_layer() function
 
 	//recognizer of layer_pack_* classes
 	// primary template handles types that have no nested ::LayerPack_t member:
@@ -54,21 +56,49 @@ namespace nntl {
 	//helper function to call internal _for_each_layer(f) for layer_pack_* classes
 	template<typename Func, typename LayerT> inline
 		std::enable_if_t<is_layer_pack<LayerT>::value> call_F_for_each_layer(Func& F, LayerT& l)noexcept
-	{
-		l.for_each_layer(F);
-	}
+	{		l.for_each_layer(F);	}
 	template<typename Func, typename LayerT> inline
 		std::enable_if_t<!is_layer_pack<LayerT>::value> call_F_for_each_layer(Func& F, LayerT& l)noexcept
-	{
-		F(l);
-	}
+	{		F(l);	}
+
+	//////////////////////////////////////////////////////////////////////////
+	//////////////////////////////////////////////////////////////////////////
+	// layer with ::grad_works_t type defined is expected to have m_gradientWorks member
+	// (nonstandartized at this moment)
+
+	template< class, class = std::void_t<> >
+	struct layer_has_gradworks : std::false_type { };
+	// specialization recognizes types that do have a nested ::grad_works_t member:
+	template< class T >
+	struct layer_has_gradworks<T, std::void_t<typename T::grad_works_t>> : std::true_type {};
 
 
 	//////////////////////////////////////////////////////////////////////////
-	// interface that must be implemented by a layer in order to make fprop() function work (it PrevLayer_type, so this will help us to isolate
-	// which API in particular previous layer must implement)
+	//////////////////////////////////////////////////////////////////////////
 	template <typename RealT>
-	class _i_layer_fprop {
+	class _i_layer_typedefs : public math::simple_matrix_typedefs {
+	protected:
+		_i_layer_typedefs()noexcept {}
+		~_i_layer_typedefs()noexcept {}
+
+		//!! copy constructor not needed
+		_i_layer_typedefs(const _i_layer_typedefs& other)noexcept; // = delete; //-it should be `delete`d, but factory function won't work if it is
+															 //!!assignment is not needed
+		_i_layer_typedefs& operator=(const _i_layer_typedefs& rhs) noexcept; // = delete; //-it should be `delete`d, but factory function won't work if it is
+
+	public:
+		typedef RealT real_t;
+		typedef math::simple_matrix<real_t> realmtx_t;
+		typedef math::simple_matrix_deformable<real_t> realmtxdef_t;
+		static_assert(std::is_base_of<realmtx_t, realmtxdef_t>::value, "simple_matrix_deformable must be derived from simple_matrix!");
+	};
+
+	////////////////////////////////////////////////////////////////////////// 
+	// interface that must be implemented by a layer in order to make fprop() function work
+	// Layer, passed to fprop as the PrevLayer parameter must obey this interface.
+	// (#TODO is it necessary? Can we just drop it?)
+	template <typename RealT>
+	class _i_layer_fprop : public _i_layer_typedefs<RealT> {
 	protected:
 		_i_layer_fprop()noexcept {};
 		~_i_layer_fprop()noexcept {};
@@ -79,13 +109,23 @@ namespace nntl {
 		_i_layer_fprop& operator=(const _i_layer_fprop& rhs) noexcept; // = delete; //-it should be `delete`d, but factory function won't work if it is
 
 	public:
-		typedef RealT real_t;
-		typedef math::simple_matrix<real_t> realmtx_t;
-		typedef math::simple_matrix_deformable<real_t> realmtxdef_t;
-		static_assert(std::is_base_of<realmtx_t, realmtxdef_t>::value, "simple_matrix_deformable must be derived from simple_matrix!");
+		nntl_interface const realmtxdef_t& get_activations()const noexcept;
+	};
+
+	template <typename RealT>
+	class _i_layer_gate : private _i_layer_typedefs<RealT> {
+	protected:
+		_i_layer_gate()noexcept {};
+		~_i_layer_gate()noexcept {};
+
+		//!! copy constructor not needed
+		_i_layer_gate(const _i_layer_gate& other)noexcept; // = delete; //-it should be `delete`d, but factory function won't work if it is
+																	 //!!assignment is not needed
+		_i_layer_gate& operator=(const _i_layer_gate& rhs) noexcept; // = delete; //-it should be `delete`d, but factory function won't work if it is
 
 	public:
-		nntl_interface const realmtx_t& get_activations()const noexcept;
+		nntl_interface const realmtx_t& get_gate()const noexcept;
+		nntl_interface const vec_len_t get_gate_width()const noexcept;
 	};
 
 	// and the same for bprop(). Derives from _i_layer_fprop because it generally need it API
@@ -107,7 +147,7 @@ namespace nntl {
 	//////////////////////////////////////////////////////////////////////////
 	// layer interface definition
 	template<typename RealT>
-	class _i_layer : public _i_layer_trainable<RealT>, public math::simple_matrix_typedefs {
+	class _i_layer : public _i_layer_trainable<RealT> {
 	protected:
 		_i_layer()noexcept {};
 		~_i_layer()noexcept {};
@@ -130,6 +170,10 @@ namespace nntl {
 		nntl_interface auto get_self() const noexcept;
 		nntl_interface const layer_index_t get_layer_idx() const noexcept;
 		nntl_interface const neurons_count_t get_neurons_cnt() const noexcept;
+
+		//DON'T call this function unless you know what you're doing
+		nntl_interface void _set_neurons_cnt(const neurons_count_t nc)noexcept;
+
 		nntl_interface const neurons_count_t get_incoming_neurons_cnt()const noexcept;
 		
 		//must obey to matlab variables naming convention
@@ -138,14 +182,18 @@ namespace nntl {
 
 		// batchSize==0 puts layer into training mode with batchSize predefined by init()::lid.training_batch_size
 		// any batchSize>0 puts layer into evaluation/testing mode with that batchSize. bs must be <= init()::lid.max_fprop_batch_size
-		// pNewActivationStorage is used in conjunction with compound layers, such as layer_pack_horizontal, that use
-		// their inner layers activations as own activation. If set, the layer must use this pointer as destination for activation units value
-		// (do something like m_activations.useExternalStorage(pNewActivationStorage) ). Resetting of biases is not required at this case, however.
-		// Layers, that should never be a part of other compound layers, should totally omit this parameter.
+		// pNewActivationStorage is used in conjunction with compound layers, such as layer_pack_horizontal, that 
+		// provide their internal activation storage for embedded layers (to reduce data copying)
+		// If pNewActivationStorage is set, the layer must store its activations under this pointer
+		// (by doing something like m_activations.useExternalStorage(pNewActivationStorage) ).
+		// Resetting of biases is not required at this case, however.
+		// Layers, that should never be a part of other compound layers, should totally omit this parameter
+		// from function signature (not recommeded)
 		nntl_interface void set_mode(vec_len_t batchSize, real_t* pNewActivationStorage = nullptr)noexcept;
 
 		// ATTN: more specific and non-templated version available for this function, see _layer_base for an example
-		// pNewActivationStorage - see comments to set_mode(). Layers, that should never be a part of other compound layers, should totally omit this parameter.
+		// pNewActivationStorage - see comments to set_mode(). Layers, that should never be on top of a stack of layers
+		// withing compound layers, should totally omit this parameter.
 		template<typename _layer_init_data_t>
 		nntl_interface ErrorCode init(_layer_init_data_t& lid, real_t* pNewActivationStorage = nullptr)noexcept;
 
@@ -214,7 +262,8 @@ namespace nntl {
 	};
 
 	//////////////////////////////////////////////////////////////////////////
-	// poly base class, Implements compile time polymorphism to get rid of virtual functions
+	// poly base class, Implements compile time polymorphism (to get rid of virtual functions)
+	// and default _layer_name_ machinery
 	template<typename FinalPolymorphChild, typename RealT>
 	class _cpolym_layer_base : public _i_layer<RealT> {
 	public:
@@ -239,18 +288,32 @@ namespace nntl {
 				, "FinalPolymorphChild must derive from _layer_base<FinalPolymorphChild>");
 			return static_cast<self_cref_t>(*this);
 		}
+
+		void get_layer_name(char* pName, const size_t cnt)const noexcept {
+			NNTL_ASSERT(!"WTF? Derived class didn't override get_layer_name()!");
+			sprintf_s(pName, cnt, "unk%d", static_cast<unsigned>(get_self().get_layer_idx()));
+		}
+		std::string get_layer_name_str()const noexcept {
+			constexpr size_t ml = 16;
+			char n[ml];
+			get_self().get_layer_name(n, ml);
+			return std::string(n);
+		}
 	};
 	
 	//////////////////////////////////////////////////////////////////////////
-	// base class for all layers. Implements compile time polymorphism to get rid of virtual functions
+	// base class for most of layers.
+	// Implements compile time polymorphism (to get rid of virtual functions),
+	// default _layer_name_ machinery, some default basic typedefs and basic support machinery
+	// (init() function with common_data_t, layer index number, neurons count)
 	template<typename Interfaces, typename FinalPolymorphChild>
-	//class _layer_base : public _i_layer<typename Interfaces::iMath_t::real_t>{
 	class _layer_base : public _cpolym_layer_base<FinalPolymorphChild, typename Interfaces::iMath_t::real_t> {
 	public:
 		//////////////////////////////////////////////////////////////////////////
 		//typedefs
 		typedef Interfaces interfaces_t;
 
+		//#TODO Interfaces and its derived typedefs probably should be defined earlier in _i_layer_typedefs?
 		typedef typename Interfaces::iMath_t iMath_t;
 		static_assert(std::is_base_of<math::_i_math<real_t>, iMath_t>::value, "Interfaces::iMath type should be derived from _i_math");
 
@@ -272,21 +335,13 @@ namespace nntl {
 	protected:
 		bool m_bTraining;
 
-		//for layers that need to calculate their neurons count in run-time (layer_pack_horizontal)
-		void _set_neurons_cnt(const neurons_count_t nc)noexcept {
-			m_neurons_cnt = nc;
-		}
-
 	public:		
 		//////////////////////////////////////////////////////////////////////////
 		//constructors-destructor
 		~_layer_base()noexcept {};
 		_layer_base(const neurons_count_t _neurons_cnt) noexcept : m_pCommonData(nullptr)
 			, m_layerIdx(0), m_neurons_cnt(_neurons_cnt), m_incoming_neurons_cnt(0), m_bTraining(false)
-		{
-			//NNTL_ASSERT(m_neurons_cnt > 0);
-			//m_activations.will_emulate_biases();
-		};
+		{};
 		
 		//////////////////////////////////////////////////////////////////////////
 		// helpers to access common data 
@@ -324,20 +379,18 @@ namespace nntl {
 			NNTL_ASSERT(m_neurons_cnt);
 			return m_neurons_cnt;
 		}
-		const neurons_count_t get_incoming_neurons_cnt()const noexcept { 
-			NNTL_ASSERT(!m_layerIdx || m_incoming_neurons_cnt);
-			return m_incoming_neurons_cnt;
+		//for layers that need to calculate their neurons count in run-time (layer_pack_horizontal)
+		void _set_neurons_cnt(const neurons_count_t nc)noexcept {
+			NNTL_ASSERT(nc);
+			//NNTL_ASSERT(!m_neurons_cnt || nc==m_neurons_cnt);//to prevent double calls
+			NNTL_ASSERT(!m_neurons_cnt);//to prevent double calls
+			m_neurons_cnt = nc;
 		}
 
-		void get_layer_name(char* pName, const size_t cnt)const noexcept {
-			sprintf_s(pName, cnt, "unk%d", static_cast<unsigned>(get_layer_idx()));
-		}
-		std::string get_layer_name_str()const noexcept {
-			constexpr size_t ml = 16;
-			char n[ml];
-			get_self().get_layer_name(n, ml);
-			return std::string(n);
-		}
+		const neurons_count_t get_incoming_neurons_cnt()const noexcept { 
+			NNTL_ASSERT(!m_layerIdx || m_incoming_neurons_cnt);//m_incoming_neurons_cnt will be zero in input layer (it has m_layerIdx==0)
+			return m_incoming_neurons_cnt;
+		}		
 
 		//returns a loss function summand, that's caused by this layer (for example, L2 regularizer adds term
 		// l2Coefficient*Sum(weights.^2) )

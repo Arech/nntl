@@ -43,3 +43,6 @@ void mrwMax_ET(const realmtx_t& m, real_t* pMax = nullptr, vec_len_t* pColIdxs =
 
 void mrwSum_ip_ET(realmtx_t& src)noexcept;
 void mrwSum_ET(const realmtx_t& src, real_t* pVec)noexcept;
+
+void mCloneCols_ET(const realmtx_t& srcCols, realmtx_t& dest, const vec_len_t*const pColSpec)noexcept;
+void mCloneCol_ET(const realmtx_t& srcCol, realmtx_t& dest)noexcept;

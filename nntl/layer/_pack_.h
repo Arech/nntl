@@ -50,7 +50,19 @@ namespace nntl {
 		const neurons_count_t m_offset;//offset to a first neuron of previous layer activation that is sent to the LayerT input
 		const neurons_count_t m_count;//total number of neurons of previous layer that is sent to the LayerT input
 
-		PHL(phl_original_t& _l, const neurons_count_t o, const neurons_count_t c)noexcept:l(_l), m_offset(o), m_count(c) {}
+		template<typename _L = phl_original_t>
+		PHL(phl_original_t& _l, const neurons_count_t o, const neurons_count_t c
+			, typename std::enable_if<std::is_base_of<m_layer_autoneurons_cnt, _L>::value>::type* = 0)noexcept
+			:l(_l), m_offset(o), m_count(c)
+		{
+			l._set_neurons_cnt(c);
+		}
+
+		template<typename _L = phl_original_t >
+		PHL(phl_original_t& _l, const neurons_count_t o, const neurons_count_t c
+			, typename std::enable_if<!std::is_base_of<m_layer_autoneurons_cnt, _L>::value>::type* = 0)noexcept
+			:l(_l), m_offset(o), m_count(c)
+		{ }
 	};
 	template<typename LayerT> inline
 		PHL<LayerT> make_PHL(LayerT& l, const neurons_count_t o, const neurons_count_t c)noexcept

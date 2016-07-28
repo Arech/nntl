@@ -257,6 +257,7 @@
     <ClCompile Include="test_binfile.cpp" />
     <ClCompile Include="test_imath_basic.cpp" />
     <ClCompile Include="test_imath_basic_thr.cpp" />
+    <ClCompile Include="test_layer_pack_gated.cpp" />
     <ClCompile Include="test_layer_pack_horizontal.cpp" />
     <ClCompile Include="test_matfile.cpp" />
     <ClCompile Include="test_nnet.cpp" />
