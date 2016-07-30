@@ -175,19 +175,13 @@ namespace nntl {
 				}
 			});
 
-			if (ErrorCode::Success == ec) {
-				if (! cd.iMath().init()) ec = ErrorCode::CantInitializeIMath;
-			}
 			return layer_error_t(ec, failedLayerIdx);
 		}
-		template <typename i_math_t>
-		void deinit(i_math_t& _Math)const noexcept {
-			static_assert(std::is_base_of<math::_i_math<real_t>, i_math_t>::value, "i_math_t type should be derived from _i_math");
 
+		void deinit()const noexcept {
 			utils::for_each_up(m_layers, [](auto& lyr)noexcept {
 				lyr.deinit();
 			});
-			_Math.deinit();
 		}
 
 		void initMem(real_t* ptr, numel_cnt_t cnt)noexcept {

@@ -209,8 +209,12 @@ namespace nntl {
 				return m_max_fprop_batch_size;
 			}
 			const vec_len_t training_batch_size()const noexcept {
-				NNTL_ASSERT(m_training_batch_size > 0);
+				//NNTL_ASSERT(m_training_batch_size >= 0);//batch size could be 0 to run fprop() only
 				return m_training_batch_size;
+			}
+
+			const bool is_initialized()const noexcept {
+				return m_max_fprop_batch_size > 0;
 			}
 		};
 

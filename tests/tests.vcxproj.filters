@@ -288,6 +288,12 @@
     <ClInclude Include="..\nntl\layer\_pack_traits.h">
       <Filter>nntl\layer</Filter>
     </ClInclude>
+    <ClInclude Include="..\nntl\layer\pack_horizontal_gated.h">
+      <Filter>nntl\layer</Filter>
+    </ClInclude>
+    <ClInclude Include="common_routines.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="stdafx.cpp">
@@ -348,6 +354,12 @@
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="test_layer_pack_gated.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="test_layer_pack_horizontal_gated.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="common_routines.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>

@@ -155,6 +155,7 @@ namespace math {
 		}
 		void deinit()noexcept {
 			m_threadTempRawStorage.clear();
+			m_minTempStorageSize = 0;
 		}
 
 		//////////////////////////////////////////////////////////////////////////

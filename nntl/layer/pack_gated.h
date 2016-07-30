@@ -31,15 +31,17 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 #pragma once
 
-// NOT FINISHED YET!
-
 // layer_pack_gated is a layer wrapper, that uses underlying layer activation values as it's own activation values
 // when a value of special gating neuron (incapsulated in a layer obeying _i_layer_gate interface) is 1,
 // or uses zeros as activation values if the value of gating neuron is 0.
+// Learning process (backpropagation) is also controlled by the gating neuron. When it is closed, no information flows
+// down to underlying level and therefore it doesn't update its weights (I guess, it is effectively trains the layer
+// on only a subset of original data that is "opened" by the gate)
+// 
 //											 | | | | | | | |
 //			|--------------layer_pack_gated-----------------------|
-//			|				(0 or 1)		 | | | | | | | |	  |
-//			|		   gate----------->x     \ | | | | | | /      |
+//			|								 | | | | | | | |	  |
+//			|		  gate--->(0 or 1)MUL    \ | | | | | | /      |
 //			|			|		          |--underlying_layer--|  |
 //			|			/					  /  |  |  |  \		  |
 //		--->|>----------					  |  |  |  |  |       |
@@ -65,7 +67,7 @@ namespace nntl {
 	//nBinarize1e6 - if this parameter has non-zero value, then gating neuron values are binarized according
 	//to relation to value of real_t(nBinarize1e6/1e6)
 
-	template<typename FinalPolymorphChild, typename UnderlyingLayer, typename GatingLayer, int64_t nBinarize1e6=500000>
+	template<typename FinalPolymorphChild, typename UnderlyingLayer, typename GatingLayer, int32_t nBinarize1e6=500000>
 	class _layer_pack_gated : public _cpolym_layer_base<FinalPolymorphChild, typename UnderlyingLayer::real_t> {
 	public:
 		//LayerPack_t is used to distinguish ordinary layers from layer packs (for example, to implement call_F_for_each_layer())
@@ -188,18 +190,17 @@ namespace nntl {
 			NNTL_ASSERT(m_undLayer.get_activations().emulatesBiases());
 			NNTL_ASSERT(!m_gatingMask.emulatesBiases());
 			NNTL_ASSERT(m_undLayer.get_activations().size() != realmtx_t::mtx_size_t(0, 0));
-			if (!m_gatingMask.resize(m_undLayer.get_activations().size_no_bias())) {
+			if (m_gatingMask.resize(m_undLayer.get_activations().size_no_bias())) {
+				if (sbBinarizeGate) {
+					//we'll use iMath internal memory storage for binarized source matrix, therefore we must notify iMath about it
+					get_self().get_iMath().preinit(
+						realmtx_t::sNumel(get_self().get_max_fprop_batch_size(), m_gatingLayer.get_gate_width())
+					);
+				}
+			}else{
 				m_undLayer.deinit();
 				ec = ErrorCode::CantAllocateMemoryForGatingMask;
 			}
-
-			if (sbBinarizeGate) {
-				//we'll use iMath internal memory storage for binarized source matrix, therefore we must notify iMath about it
-				get_self().get_iMath().preinit( 
-					realmtx_t::sNumel(get_self().get_max_fprop_batch_size(), m_gatingLayer.get_gate_width()) 
-				);
-			}
-
 			return ec;
 		}
 
@@ -232,6 +233,7 @@ namespace nntl {
 		std::enable_if_t<!bg,self_ref_t> make_gating_mask()noexcept {
 			NNTL_ASSERT(1 == m_gatingLayer.get_gate_width());
 			NNTL_ASSERT(1 == m_gatingLayer.get_gate().cols());
+			NNTL_ASSERT(!m_gatingMask.emulatesBiases());
 			get_self().get_iMath().mCloneCol(m_gatingLayer.get_gate(), m_gatingMask);
 			return get_self();
 		}

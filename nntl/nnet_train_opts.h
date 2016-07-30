@@ -37,6 +37,51 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 namespace nntl {
 
 	//////////////////////////////////////////////////////////////////////////
+	//structure to hold the results of NNet evaluation
+	template<typename RealT>
+	struct nnet_eval_results {
+		typedef RealT real_t;
+
+		math::simple_matrix<real_t> output_activations;
+		real_t lossValue;
+
+		nnet_eval_results()noexcept:lossValue(0) {}
+
+		void reset()noexcept {
+			output_activations.clear();
+			lossValue = 0;
+		}
+
+		const bool operator==(const nnet_eval_results& rhs)const noexcept {
+			return lossValue == rhs.lossValue && output_activations == rhs.output_activations;
+		}
+		const bool operator!=(const nnet_eval_results& rhs)const noexcept {
+			return !operator==(rhs);
+		}
+	};
+
+	template<typename RealT>
+	struct nnet_td_eval_results {
+		typedef RealT real_t;
+
+		nnet_eval_results<real_t> trainSet;
+		nnet_eval_results<real_t> testSet;
+
+		void reset()noexcept {
+			trainSet.reset();
+			testSet.reset();
+		}
+
+		const bool operator==(const nnet_td_eval_results& rhs)const noexcept {
+			return trainSet == rhs.trainSet && testSet == rhs.testSet;
+		}
+		const bool operator!=(const nnet_td_eval_results& rhs)const noexcept {
+			return !operator==(rhs);
+		}
+	};
+
+
+	//////////////////////////////////////////////////////////////////////////
 	// options of training algo
 	template <typename cond_epoch_eval = nnet_cond_epoch_eval, typename TrainingObserver = training_observer_stdcout<>>
 	class nnet_train_opts {
@@ -56,6 +101,10 @@ namespace nntl {
 		//////////////////////////////////////////////////////////////////////////
 		//members
 	protected:
+		training_observer_t m_trainingObserver;
+
+		nnet_td_eval_results<real_t>* m_pNNEvalFinalRes;
+
 		cond_epoch_eval_t m_vbEpochEval;
 
 		//DivergenceCheck* vars describes how to check for nn algo divergence
@@ -64,8 +113,6 @@ namespace nntl {
 		batch_size_t m_BatchSize;
 
 		int16_t m_DivergenceCheckLastEpoch;//probably don't need a bigger type here
-
-		training_observer_t m_trainingObserver;
 
 		bool m_bCalcFullLossValue;//if set to false, then only the main part of loss function will be calculated 
 		// (i.e. additional summands such as L2 weight penalty value will be stripped.
@@ -79,13 +126,13 @@ namespace nntl {
 		~nnet_train_opts()noexcept {}
 		nnet_train_opts(cond_epoch_eval_t&& cee)noexcept : m_vbEpochEval(std::move(cee)), m_BatchSize(0),
 			m_DivergenceCheckLastEpoch(5), m_DivergenceCheckThreshold(1e6f), m_bCalcFullLossValue(true),
-			m_bImmediatelyDeinit(false)
+			m_bImmediatelyDeinit(false), m_pNNEvalFinalRes(nullptr)
 		{}
 
 		self_t& setEpochEval(cond_epoch_eval_t&& cee)noexcept { m_vbEpochEval = std::forward(cee); return *this; }
 
 		size_t maxEpoch()const noexcept { return m_vbEpochEval.maxEpoch(); }
-		const cond_epoch_eval_t& getCondEpochEval()const noexcept { return m_vbEpochEval; }
+		cond_epoch_eval_t& getCondEpochEval() noexcept { return m_vbEpochEval; }
 
 		real_t divergenceCheckThreshold() const noexcept { return m_DivergenceCheckThreshold; }
 		self_t& divergenceCheckThreshold(real_t val) noexcept { m_DivergenceCheckThreshold = val; return *this; }
@@ -103,6 +150,11 @@ namespace nntl {
 
 		bool ImmediatelyDeinit()const noexcept { return m_bImmediatelyDeinit; }
 		self_t& ImmediatelyDeinit(bool imd)noexcept { m_bImmediatelyDeinit = imd; return *this; }
+
+		const bool evalNNFinalPerf()const noexcept { return !!m_pNNEvalFinalRes; }
+		nnet_td_eval_results<real_t>& NNEvalFinalResults()const noexcept { NNTL_ASSERT(m_pNNEvalFinalRes);			return *m_pNNEvalFinalRes; }
+		self_t& NNEvalFinalResults(nnet_td_eval_results<real_t>& er)noexcept { m_pNNEvalFinalRes = &er; 			return *this; }
+		
 	};
 
 }

@@ -47,7 +47,6 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 namespace nntl {
 
 	namespace _impl {
-
 		struct DummyOnEpochEndCB {
 			template<typename _nnet, typename _opts>
 			constexpr const bool operator()(_nnet& nn, _opts& opts, const size_t epochIdx)const {
@@ -55,9 +54,21 @@ namespace nntl {
 				return true; 
 			}
 		};
+		
+		template<typename LayersT>
+		struct _tmp_train_data {
+			typename LayersT::realmtx_t _batch_x, _batch_y;
 
+			//dLdA is loss function derivative wrt activations. For the top level it's usually called an 'error' and defined like (data_y-a).
+			// We use slightly more generalized approach and name it appropriately. It's computed by _i_activation_loss::dloss
+			// and most time (for quadratic or crossentropy loss) it is (a-data_y) (we reverse common definition to get rid
+			// of negation in dL/dA = -error for error=data_y-a)
+			typename LayersT::realmtxdef_array_t a_dLdA;
+		};
 	}
 
+
+	//////////////////////////////////////////////////////////////////////////
 	// RngInterface as well as MathInterface must be a type or a pointer to a type
 	template <typename LayersPack, typename MathInterface = nnet_def_interfaces::iMath_t, typename RngInterface= nnet_def_interfaces::iRng_t>
 	class nnet : public _has_last_error<_nnet_errs> {
@@ -85,6 +96,11 @@ namespace nntl {
 
 		typedef _impl::common_nn_data<imath_t, irng_t> common_data_t;
 
+	protected:
+		//typedef _impl::layers_mem_requirements<real_t> layers_mem_requirements_t
+		
+		
+
 		//////////////////////////////////////////////////////////////////////////
 		// members
 	protected:
@@ -94,9 +110,15 @@ namespace nntl {
 
 		common_data_t m_CommonData;
 
+		_impl::layers_mem_requirements<real_t> m_LMR;
+		//std::unique_ptr<real_t[]> m_pTmpStor;
+		std::vector<real_t> m_pTmpStor;
+
+
 		layer_index_t m_failedLayerIdx;
 
 		bool m_bCalcFullLossValue;//set based on nnet_train_opts::calcFullLossValue() and the value, returned by layers init()
+		bool m_bRequireReinit;//set this flag to require nnet object and its layers to reinitialize on next call
 
 		//////////////////////////////////////////////////////////////////////////
 		//Serialization support
@@ -107,38 +129,202 @@ namespace nntl {
 			ar & m_Layers;
 		}
 
-	public:
-		~nnet()noexcept {}
-		nnet(layers_pack_t& lp)noexcept : m_Layers(lp), m_failedLayerIdx(0)
-			, m_pMath(), m_pRng(), m_CommonData(get_iMath(),get_iRng())
-		{
-			static_assert(m_pRng.bOwning && m_pMath.bOwning,"WTF?");
-			_init_rng();
+		//common operations on an object construction
+		void _supp_ctor_init()noexcept {
+			m_bRequireReinit = false;
+			m_failedLayerIdx = 0;
+			if (irng_t::is_multithreaded) {
+				m_pRng.get().set_ithreads(m_pMath.get().ithreads());
+			}
 		}
 
-		nnet(layers_pack_t& lp, MathInterface mathi) noexcept : m_Layers(lp), m_failedLayerIdx(0),
-			m_pMath(mathi), m_pRng(), m_CommonData(get_iMath(), get_iRng())
+	protected:
+		//returns test loss
+		template<typename Observer>
+		const real_t _report_training_fragment(const size_t epoch, const real_t trainLoss, train_data_t& td,
+			const std::chrono::nanoseconds& tElapsed, Observer& obs, nnet_eval_results<real_t>*const pTestEvalRes=nullptr) noexcept
+		{
+			//relaxing thread priorities (we don't know in advance what callback functions actually do, so better relax it)
+			utils::prioritize_workers<utils::PriorityClass::Normal, imath_t::ithreads_t> pw(m_pMath.get().ithreads());
+
+			//const auto& activations = m_Layers.output_layer().get_activations();
+			obs.inspect_results(epoch, td.train_y(), false, *this);
+
+			const auto testLoss = _calcLoss(td.test_x(), td.test_y());
+			if (pTestEvalRes) {
+				//saving training results
+				pTestEvalRes->lossValue = testLoss;
+				m_Layers.output_layer().get_activations().cloneTo(pTestEvalRes->output_activations);
+			}
+
+			obs.inspect_results(epoch, td.test_y(), true, *this);
+
+			obs.on_training_fragment_end(epoch, trainLoss, testLoss, tElapsed);
+			return testLoss;
+		}
+
+		bool _batchSizeOk(const train_data_t& td, vec_len_t batchSize)const noexcept {
+			//TODO: соответствие оптимизатора и размера батча (RProp только фулбатчевый)
+			double d = double(td.train_x().rows()) / double(batchSize);
+			return  d == floor(d);
+		}
+
+		void _fprop(const realmtx_t& data_x)noexcept {
+			//preparing for evaluation
+			m_Layers.set_mode(data_x.rows());
+			m_Layers.fprop(data_x);
+		}
+		real_t _calcLoss(const realmtx_t& data_x, const realmtx_t& data_y) noexcept {
+			NNTL_ASSERT(data_x.rows() == data_y.rows());
+			_fprop(data_x);
+
+			static_assert(std::is_base_of<activation::_i_activation_loss, layers_pack_t::output_layer_t::activation_f_t>::value,
+				"Activation function class of output layer must implement activation::_i_activation_loss interface");
+
+			auto lossValue = layers_pack_t::output_layer_t::activation_f_t::loss(m_Layers.output_layer().get_activations(), data_y, m_pMath.get());
+			if (m_bCalcFullLossValue) lossValue += m_Layers.calcLossAddendum();
+			return lossValue;
+		}
+
+		const bool _is_initialized(const vec_len_t biggestFprop, const vec_len_t batchSize)const noexcept {
+			return !m_bRequireReinit && m_CommonData.is_initialized()
+				&& biggestFprop<=m_CommonData.max_fprop_batch_size()
+				&& (0 == batchSize || batchSize == m_CommonData.training_batch_size());
+		}
+
+		//batchSize==0 means that _init is called for use in fprop scenario only
+		ErrorCode _init(const vec_len_t biggestFprop, vec_len_t batchSize = 0, const bool bMiniBatch = false
+			, const vec_len_t train_x_cols = 0, const vec_len_t train_y_cols = 0
+			, _impl::_tmp_train_data<layers_pack_t>* pTtd = nullptr)noexcept
+		{
+			NNTL_ASSERT((batchSize == 0 && pTtd == nullptr) || (batchSize != 0 && pTtd != nullptr));
+			if (_is_initialized(biggestFprop, batchSize)) {
+				_processTmpStor(bMiniBatch, train_x_cols, train_y_cols, batchSize, pTtd);
+				return ErrorCode::Success;
+			}
+			_deinit();
+			
+			bool bInitFinished = false;
+			utils::scope_exit _run_deinit([this, &bInitFinished]() {
+				if (!bInitFinished) _deinit();
+			});
+
+			m_CommonData.init(biggestFprop, batchSize);
+			
+			m_failedLayerIdx = 0;
+			const auto le = m_Layers.init(m_CommonData, m_LMR);
+			if (ErrorCode::Success != le.first) {
+				m_failedLayerIdx = le.second;
+				return le.first;
+			}
+			NNTL_ASSERT(m_LMR.maxSingledLdANumel > 0);//there must be at least room to store dL/dA
+			
+			if (!m_pMath.get().init()) return ErrorCode::CantInitializeIMath;
+
+			const numel_cnt_t totalTempMemSize = _totalTrainingMemSize(bMiniBatch, batchSize, train_x_cols, train_y_cols);
+			//m_pTmpStor.reset(new(std::nothrow)real_t[totalTempMemSize]);
+			//if (nullptr == m_pTmpStor.get()) return ErrorCode::CantAllocateMemoryForTempData;
+			m_pTmpStor.resize(totalTempMemSize);
+			
+			const auto _memUsed = _processTmpStor(bMiniBatch, train_x_cols, train_y_cols, batchSize, pTtd);
+			NNTL_ASSERT(totalTempMemSize == _memUsed);
+
+			bInitFinished = true;
+			return ErrorCode::Success;
+		}
+		const numel_cnt_t _totalTrainingMemSize(const bool bMiniBatch, const vec_len_t batchSize
+			, const vec_len_t train_x_cols, const vec_len_t train_y_cols)noexcept
+		{
+			// here is how we gonna spread temp buffers:
+			// 1. LMR.maxMemLayerTrainingRequire goes into m_Layers.initMem() to be used during fprop() or bprop() computations
+			// 2. 2*LMR.maxSingleActivationMtxNumel will be spread over 2 same sized dL/dA matrices (first will be the incoming dL/dA, the second will be
+			//		"outgoing" i.e. for lower layer). This matrices will be used during bprop() by m_Layers.bprop()
+			// 3. In minibatch version, there will be 2 additional matrices sized (batchSize, train_x.cols()) and (batchSize, train_y.cols())
+			//		to handle _batch_x and _batch_y data
+			//return m_tmd.LMR.maxMemLayerTrainingRequire + m_tmd.a_dLdA.size()*LMR.maxSingledLdANumel
+			
+ 			return m_LMR.maxMemLayerTrainingRequire
+				+ std::tuple_size<decltype(_impl::_tmp_train_data<layers_pack_t>::a_dLdA)>::value*m_LMR.maxSingledLdANumel
+ 				+ (bMiniBatch ? (realmtx_t::sNumel(batchSize, train_x_cols) + realmtx_t::sNumel(batchSize, train_y_cols)) : 0);
+		}
+
+		numel_cnt_t _processTmpStor(const bool bMiniBatch, const vec_len_t train_x_cols, const vec_len_t train_y_cols
+			,const vec_len_t batchSize, _impl::_tmp_train_data<layers_pack_t>* pTtd)noexcept
+		{
+			NNTL_ASSERT(m_pTmpStor.size() > 0);
+			//auto tempMemStorage = m_pTmpStor.get();
+			//NNTL_ASSERT(tempMemStorage);
+			auto& tempMemStorage = m_pTmpStor;
+
+			numel_cnt_t spreadTempMemSize = 0;
+
+			if (pTtd) {
+				//3. _batch_x and _batch_y if necessary
+				if (bMiniBatch) {
+					NNTL_ASSERT(train_x_cols && train_y_cols && batchSize);
+					pTtd->_batch_x.useExternalStorage(&tempMemStorage[spreadTempMemSize], batchSize, train_x_cols);
+					spreadTempMemSize += pTtd->_batch_x.numel();
+					pTtd->_batch_y.useExternalStorage(&tempMemStorage[spreadTempMemSize], batchSize, train_y_cols);
+					spreadTempMemSize += pTtd->_batch_y.numel();
+				}
+
+				//2. dLdA
+				for (unsigned i = 0; i < pTtd->a_dLdA.size(); ++i) {
+					pTtd->a_dLdA[i].useExternalStorage(&tempMemStorage[spreadTempMemSize], m_LMR.maxSingledLdANumel);
+					spreadTempMemSize += m_LMR.maxSingledLdANumel;
+				}
+			}
+
+			// 1.
+			if (m_LMR.maxMemLayerTrainingRequire > 0) {
+				m_Layers.initMem(&tempMemStorage[spreadTempMemSize], m_LMR.maxMemLayerTrainingRequire);
+				spreadTempMemSize += m_LMR.maxMemLayerTrainingRequire;
+			}
+
+			return spreadTempMemSize;
+		}
+
+		void _deinit()noexcept {
+			m_Layers.deinit();
+			m_CommonData.deinit();
+			m_pMath.get().deinit();
+			m_bRequireReinit = false;
+			m_LMR.zeros();
+			m_pTmpStor.clear();
+		}
+		
+	public:
+		~nnet()noexcept {}
+		nnet(layers_pack_t& lp)noexcept : m_Layers(lp), m_pMath(), m_pRng()
+			, m_CommonData(get_iMath(),get_iRng())
+		{
+			static_assert(m_pRng.bOwning && m_pMath.bOwning,"WTF?");
+			_supp_ctor_init();
+		}
+
+		nnet(layers_pack_t& lp, MathInterface mathi) noexcept : m_Layers(lp), m_pMath(mathi), m_pRng()
+			, m_CommonData(get_iMath(), get_iRng())
 		{
 			static_assert(std::is_pointer<MathInterface>::value, "mathi parameter must be pointer");
 			static_assert(!m_pMath.bOwning && m_pRng.bOwning, "WTF?");
-			_init_rng();
+			_supp_ctor_init();
 		}
 
-		nnet(layers_pack_t& lp, RngInterface rngi) noexcept: m_Layers(lp), m_failedLayerIdx(0),
-			m_pMath(), m_pRng(rngi), m_CommonData(get_iMath(), get_iRng())
+		nnet(layers_pack_t& lp, RngInterface rngi) noexcept: m_Layers(lp), m_pMath(), m_pRng(rngi)
+			, m_CommonData(get_iMath(), get_iRng())
 		{
 			static_assert(std::is_pointer<RngInterface>::value, "rngi parameter must be pointer");
 			static_assert(!m_pRng.bOwning && m_pMath.bOwning, "WTF?");
-			_init_rng();
+			_supp_ctor_init();
 		}
 
-		nnet(layers_pack_t& lp, MathInterface mathi, RngInterface rngi) noexcept : m_Layers(lp), m_failedLayerIdx(0),
-			m_pMath(mathi), m_pRng(rngi), m_CommonData(get_iMath(), get_iRng())
+		nnet(layers_pack_t& lp, MathInterface mathi, RngInterface rngi) noexcept : m_Layers(lp)
+			, m_pMath(mathi), m_pRng(rngi), m_CommonData(get_iMath(), get_iRng())
 		{
 			static_assert(std::is_pointer<RngInterface>::value, "rngi parameter must be pointer");
 			static_assert(std::is_pointer<MathInterface>::value, "mathi parameter must be pointer");
 			static_assert(!m_pRng.bOwning && !m_pMath.bOwning, "WTF?");
-			_init_rng();
+			_supp_ctor_init();
 		}
 
 		std::string get_last_error_string()const noexcept {
@@ -159,16 +345,17 @@ namespace nntl {
 		irng_t& get_iRng()const noexcept { return m_pRng.get(); }
 		common_data_t& get_common_data()const noexcept { return m_CommonData; }
 
-
+		//call this to force nnet and its dependents to reinitialize 
+		void require_reinit()noexcept { m_bRequireReinit = true; }
 
 		template <typename _train_opts, typename _onEpochEndCB = _impl::DummyOnEpochEndCB>
-		ErrorCode train(train_data_t& td, _train_opts& opts, _onEpochEndCB&& onEpochEndCB = _impl::DummyOnEpochEndCB())noexcept {
+		ErrorCode train(train_data_t& td, _train_opts& opts, _onEpochEndCB&& onEpochEndCB = _impl::DummyOnEpochEndCB())noexcept
+		{
 			if (td.empty()) return _set_last_error(ErrorCode::InvalidTD);
 
 			const auto& train_x = td.train_x();
 			const auto& train_y = td.train_y();
 			const vec_len_t samplesCount = train_x.rows();
-			const bool bTrainSetBigger = samplesCount >= td.test_x().rows();
 			NNTL_ASSERT(samplesCount == train_y.rows());
 
 			//X data must come with emulated biases included
@@ -178,85 +365,31 @@ namespace nntl {
 			if (train_x.cols_no_bias() != m_Layers.input_layer().get_neurons_cnt()) return _set_last_error(ErrorCode::InvalidInputLayerNeuronsCount);
 			if (train_y.cols() != m_Layers.output_layer().get_neurons_cnt()) return _set_last_error(ErrorCode::InvalidOutputLayerNeuronsCount);
 
+			const bool bTrainSetBigger = samplesCount >= td.test_x().rows();
 			const bool bMiniBatch = opts.batchSize() > 0 && opts.batchSize() < samplesCount;
+			const bool bSaveNNEvalResults = opts.evalNNFinalPerf();
 			const auto batchSize = bMiniBatch ? opts.batchSize() : samplesCount;
 			if (!_batchSizeOk(td, batchSize)) return _set_last_error(ErrorCode::BatchSizeMustBeMultipleOfTrainDataLength);
 
 			m_bCalcFullLossValue = opts.calcFullLossValue();
 			//////////////////////////////////////////////////////////////////////////
 			// perform layers initialization, gather temp memory requirements, then allocate and spread temp buffers
-			_impl::layers_mem_requirements<real_t> LMR;
-			m_CommonData.init(bTrainSetBigger ? samplesCount : td.test_x().rows(), batchSize);
-			{
-				const auto le = m_Layers.init(m_CommonData, LMR);
-				if (ErrorCode::Success != le.first) {
-					m_failedLayerIdx = le.second;
-					return _set_last_error(le.first);
-				}
-			}
+			_impl::_tmp_train_data<layers_pack_t> ttd;
+			auto ec = _init(bTrainSetBigger ? samplesCount : td.test_x().rows(), batchSize, bMiniBatch,
+				train_x.cols(), train_y.cols(), &ttd);
+			if (ErrorCode::Success != ec) return _set_last_error(ec);
 
-			//scheduling deinitialization with scope_exit to drop worries about returns;
+			//scheduling deinitialization with scope_exit to forget about return statements
 			utils::scope_exit layers_deinit([this, &opts]() {
-				m_CommonData.deinit();
-				if(opts.ImmediatelyDeinit()) m_Layers.deinit(m_pMath.get());
+				if (opts.ImmediatelyDeinit()) {
+					_deinit();
+				}
 			});
-			NNTL_ASSERT(LMR.maxSingledLdANumel > 0);//there must be at least room to store dL/dA
-
-			if (m_bCalcFullLossValue) m_bCalcFullLossValue = LMR.bHasLossAddendum;
-
-			//dLdA is loss function derivative wrt activations. For the top level it's usually called an 'error' and defined like (data_y-a).
-			// We use slightly more generalized approach and name it appropriately. It's computed by _i_activation_loss::dloss
-			// and most time (for quadratic or crossentropy loss) it is (a-data_y) (we reverse common definition to get rid
-			// of negation in dL/dA = -error for error=data_y-a)
-			realmtx_t _batch_x, _batch_y;
 			
-			//realmtxdef_t train_dLdA;//looks like it is unused
-			
-			realmtxdef_array_t a_dLdA;
+			if (m_bCalcFullLossValue) m_bCalcFullLossValue = m_LMR.bHasLossAddendum;
 
-			// here is how we gonna spread temp buffers:
-			// 1. LMR.maxMemLayerTrainingRequire goes into m_Layers.initMem() to be used during fprop() or bprop() computations
-			// 2. 2*LMR.maxSingleActivationMtxNumel will be spread over 2 same sized dL/dA matrices (first will be the incoming dL/dA, the second will be
-			//		"outgoing" i.e. for lower layer). This matrices will be used during bprop() by m_Layers.bprop()
-			// --dropped--3. [samplesCount x train_y.cols()] will be used to compute loss function over whole training set (error matrix in particular)
-			// 4. In minibatch version, there will be 2 additional matrices sized (batchSize, train_x.cols()) and (batchSize, train_y.cols())
-			//		to handle _batch_x and _batch_y data
-			const numel_cnt_t totalTempMemSize = LMR.maxMemLayerTrainingRequire + a_dLdA.size()*LMR.maxSingledLdANumel
-				//+ (bTrainSetBigger ? train_y.numel() : td.test_y().numel()) //realmtx_t::sNumel(samplesCount,train_y.cols())
-				+ (bMiniBatch ? (realmtx_t::sNumel(batchSize, train_x.cols()) + realmtx_t::sNumel(batchSize, train_y.cols())) : 0);
-			std::unique_ptr<real_t[]> tempMemStorage(new(std::nothrow)real_t[totalTempMemSize]);
-			if (nullptr==tempMemStorage.get()) return _set_last_error(ErrorCode::CantAllocateMemoryForTempData);
-
-			{
-				numel_cnt_t spreadTempMemSize = 0;
-				// 3.
-				//train_dLdA.useExternalStorage(&tempMemStorage[spreadTempMemSize], bTrainSetBigger ? train_y : td.test_y());
-				//spreadTempMemSize += train_dLdA.numel();
-
-				//4. _batch_x and _batch_y if necessary
-				if (bMiniBatch) {
-					_batch_x.useExternalStorage(&tempMemStorage[spreadTempMemSize], batchSize, train_x.cols());
-					spreadTempMemSize += _batch_x.numel();
-					_batch_y.useExternalStorage(&tempMemStorage[spreadTempMemSize], batchSize, train_y.cols());
-					spreadTempMemSize += _batch_y.numel();
-				}
-
-				//2. dLdA
-				for (unsigned i = 0; i < a_dLdA.size(); ++i) {
-					a_dLdA[i].useExternalStorage(&tempMemStorage[spreadTempMemSize], LMR.maxSingledLdANumel);
-					spreadTempMemSize += LMR.maxSingledLdANumel;
-				}
-
-				// 1.
-				if (LMR.maxMemLayerTrainingRequire > 0) {
-					m_Layers.initMem(&tempMemStorage[spreadTempMemSize], LMR.maxMemLayerTrainingRequire);
-					spreadTempMemSize += LMR.maxMemLayerTrainingRequire;
-				}
-
-				NNTL_ASSERT(spreadTempMemSize == totalTempMemSize);
-			}
-			realmtx_t& batch_x = bMiniBatch ? _batch_x : td.train_x_mutable();
-			realmtx_t& batch_y = bMiniBatch ? _batch_y : td.train_y_mutable();
+			realmtx_t& batch_x = bMiniBatch ? ttd._batch_x : td.train_x_mutable();
+			realmtx_t& batch_y = bMiniBatch ? ttd._batch_y : td.train_y_mutable();
 
 			std::vector<vec_len_t> vRowIdxs(bMiniBatch ? samplesCount : 0);
 			if (bMiniBatch) {
@@ -266,8 +399,11 @@ namespace nntl {
 			//////////////////////////////////////////////////////////////////////////
 			const auto& cee = opts.getCondEpochEval();
 			const size_t maxEpoch = opts.maxEpoch();
+			const auto lastEpoch = maxEpoch - 1;
 			const vec_len_t numBatches = samplesCount / batchSize;
 			const auto divergenceCheckLastEpoch = opts.divergenceCheckLastEpoch();
+
+			if (bSaveNNEvalResults) opts.getCondEpochEval().verbose(lastEpoch);
 
 			if (! opts.observer().init(maxEpoch, train_y, td.test_y(), m_pMath.get())) return _set_last_error(ErrorCode::CantInitializeObserver);
 			utils::scope_exit observer_deinit([&opts]() {
@@ -275,11 +411,13 @@ namespace nntl {
 			});
 			
 			//making initial report
-			opts.observer().on_training_start(samplesCount, td.test_x().rows(), train_x.cols_no_bias(), train_y.cols(), batchSize, LMR.totalParamsToLearn);
+			opts.observer().on_training_start(samplesCount, td.test_x().rows(), train_x.cols_no_bias(), train_y.cols(), batchSize, m_LMR.totalParamsToLearn);
 			if (m_bCalcFullLossValue) m_Layers.prepToCalcLossAddendum();
 			_report_training_fragment(-1, _calcLoss(train_x, train_y), td, std::chrono::nanoseconds(0), opts.observer());
 
 			m_Layers.set_mode(0);//prepare for training (sets to batchSize, that's already stored in Layers)
+
+			nnet_eval_results<real_t>* pTestEvalRes = nullptr;
 
 			NNTL_ASSERT(std::chrono::steady_clock::is_steady);
 			const auto trainingBeginsAt = std::chrono::steady_clock::now();//starting training timer
@@ -312,7 +450,7 @@ namespace nntl {
 						// in case of dropout) be distorted by that regularizer. Therefore there is no great point in computing error here and
 						// pass it to bprop() to be able to reuse it later in loss function computation (where it's suitable only in case of
 						// fullbatch learning and absence of dropout/regularizer). Therefore don't bother here with error and leave it to bprop()
-						m_Layers.bprop(batch_y, a_dLdA);
+						m_Layers.bprop(batch_y, ttd.a_dLdA);
 					}
 
 					const bool bInspectEpoch = cee(epochIdx);
@@ -326,7 +464,15 @@ namespace nntl {
 
 						if (bInspectEpoch) {
 							const auto epochPeriodEnds = std::chrono::steady_clock::now();
-							_report_training_fragment(epochIdx, trainLoss, td, epochPeriodEnds - epochPeriodBeginsAt, opts.observer());
+
+							if (bSaveNNEvalResults && epochIdx == lastEpoch) {
+								//saving training results
+								auto& trr = opts.NNEvalFinalResults().trainSet;
+								trr.lossValue = trainLoss;
+								m_Layers.output_layer().get_activations().cloneTo(trr.output_activations);
+								pTestEvalRes = &opts.NNEvalFinalResults().testSet;
+							}
+							_report_training_fragment(epochIdx, trainLoss, td, epochPeriodEnds - epochPeriodBeginsAt, opts.observer(), pTestEvalRes);
 							epochPeriodBeginsAt = epochPeriodEnds;//restarting period timer
 						}
 						m_Layers.set_mode(0);//restoring training mode after _calcLoss()
@@ -340,51 +486,44 @@ namespace nntl {
 			return _set_last_error(ErrorCode::Success);
 		}
 
-	protected:
+		ErrorCode fprop(const realmtx_t& data_x)noexcept {
+			auto ec = _init(data_x.rows());
+			if (ErrorCode::Success != ec) return _set_last_error(ec);
 
-		void _init_rng()noexcept {
-			if (irng_t::is_multithreaded) {
-				m_pRng.get().set_ithreads(m_pMath.get().ithreads());
-			}
+			_fprop(data_x);
+			return _set_last_error(ec);
 		}
 
-		//returns test loss
-		template<typename Observer>
-		const real_t _report_training_fragment(const size_t epoch, const real_t trainLoss, train_data_t& td,
-			const std::chrono::nanoseconds& tElapsed, Observer& obs) noexcept
-		{
-			//relaxing thread priorities (we don't know in advance what callback functions actually do, so better relax it)
-			utils::prioritize_workers<utils::PriorityClass::Normal, imath_t::ithreads_t> pw(m_pMath.get().ithreads());
-
-			//const auto& activations = m_Layers.output_layer().get_activations();
-			obs.inspect_results(epoch, td.train_y(), false, *this);
-
-			const auto testLoss = _calcLoss(td.test_x(), td.test_y());
-			obs.inspect_results(epoch, td.test_y(), true, *this);
-
-			obs.on_training_fragment_end(epoch, trainLoss, testLoss, tElapsed);
-			return testLoss;
-		}
-
-		bool _batchSizeOk(const train_data_t& td, vec_len_t batchSize)const noexcept {
-			//TODO: соответствие оптимизатора и размера батча (RProp только фулбатчевый)
-			double d = double(td.train_x().rows()) / double(batchSize);
-			return  d == floor(d);
-		}
-
-		real_t _calcLoss(const realmtx_t& data_x, const realmtx_t& data_y) noexcept {
+		ErrorCode calcLoss(const realmtx_t& data_x, const realmtx_t& data_y, real_t& lossVal) noexcept {
 			NNTL_ASSERT(data_x.rows() == data_y.rows());
-			//preparing for evaluation
-			m_Layers.set_mode(data_x.rows());
-			m_Layers.fprop(data_x);
 
-			static_assert(std::is_base_of<activation::_i_activation_loss, layers_pack_t::output_layer_t::activation_f_t>::value,
-				"Activation function class of output layer must implement activation::_i_activation_loss interface");
+			auto ec = _init(data_x.rows());
+			if (ErrorCode::Success != ec) return _set_last_error(ec);
 
-			auto lossValue = layers_pack_t::output_layer_t::activation_f_t::loss(m_Layers.output_layer().get_activations(), data_y, m_pMath.get());
-			if (m_bCalcFullLossValue) lossValue += m_Layers.calcLossAddendum();
-			return lossValue;
+			lossVal = _calcLoss(data_x, data_y);
+			return _set_last_error(ec);
 		}
+
+		ErrorCode eval(const realmtx_t& data_x, const realmtx_t& data_y, nnet_eval_results<real_t>& res)noexcept {
+			NNTL_ASSERT(data_x.rows() == data_y.rows());
+
+			auto ec = _init(data_x.rows());
+			if (ErrorCode::Success != ec) return _set_last_error(ec);
+
+			res.lossValue = _calcLoss(data_x, data_y);
+			m_Layers.output_layer().get_activations().cloneTo(res.output_activations);
+			return _set_last_error(ec);
+		}
+
+		ErrorCode td_eval(train_data_t& td, nnet_td_eval_results<real_t>& res)noexcept {
+			auto ec = eval(td.train_x(), td.train_y(), res.trainSet);
+			if (ec != ErrorCode::Success) return ec;
+			
+			ec = eval(td.test_x(), td.test_y(), res.testSet);
+			return ec;
+		}
+
+	
 	};
 
 	template <typename LayersPack>

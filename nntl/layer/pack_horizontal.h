@@ -76,10 +76,6 @@ namespace nntl {
 
 		typedef typename std::remove_reference<typename std::tuple_element<0, _phl_tuple>::type>::type::phl_original_t first_layer_t;
 		typedef typename std::remove_reference<typename std::tuple_element<phl_count - 1, _phl_tuple>::type>::type::phl_original_t last_layer_t;
-		
-	protected:
-		//we need 2 matrices for bprop()
-		//typedef std::array<realmtxdef_t*, 2> realmtxdefptr_array_t;
 
 	protected:
 		_phl_tuple m_phl_tuple;
@@ -182,7 +178,7 @@ namespace nntl {
 
 		//////////////////////////////////////////////////////////////////////////
 		ErrorCode init(_layer_init_data_t& lid, real_t* pNewActivationStorage = nullptr)noexcept {
-			auto ec = _base_class::init(lid);
+			auto ec = _base_class::init(lid, pNewActivationStorage);
 			if (ErrorCode::Success != ec) return ec;
 
 			//allocating m_activations
@@ -402,21 +398,6 @@ namespace nntl {
 	//////////////////////////////////////////////////////////////////////////
 	// final implementation of layer with all functionality of _layer_pack_horizontal
 	// If you need to derive a new class, derive it from _layer_pack_horizontal (to make static polymorphism work)
-	/*template <typename ...PHLsT>
-	class layer_pack_horizontal final
-		: public _layer_pack_horizontal<layer_pack_horizontal<PHLsT...>, PHLsT...>
-	{
-	public:
-		~layer_pack_horizontal() noexcept {};
-		layer_pack_horizontal(PHLsT&... phls) noexcept
-			: _layer_pack_horizontal<layer_pack_horizontal<PHLsT...>, PHLsT...>(phls...){};
-	};
-	
-	template <typename ...PHLsT> inline
-	layer_pack_horizontal <PHLsT...> make_layer_pack_horizontal(PHLsT&... phls) noexcept {
-	return layer_pack_horizontal<PHLsT...>(phls...);
-	}
-	*/
 
 	//to shorten class name to get rid of C4503
 	template <typename ...PHLsT>

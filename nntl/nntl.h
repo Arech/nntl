@@ -58,6 +58,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "layer/pack_horizontal.h"
 #include "layer/identity.h"
 #include "layer/pack_gated.h"
+#include "layer/pack_horizontal_gated.h"
 #include "nnet.h"
 
 //#include "interface/threads.h"

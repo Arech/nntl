@@ -101,7 +101,9 @@ namespace math {
 		//		the srcCols must have 3 columns. The first column is copied 2 times into first 2 columns of dest,
 		//		the second - 3, the third - 4. Therefore, dest must contain 2+3+4=9 columns.		
 		//nntl_interface void mCloneCols(const realmtx_t& srcCols, realmtx_t& dest, const vec_len_t*const pColSpec)noexcept;
-		//we're not using it now
+		//#todo we need this definition in interface, however when it is uncommented there is an ambiguity of the symbol arises,
+		//because mCloneCol() is already defined in _simpleMath class. Probably, I should refactor the interface definition.
+		
 
 		// clone a matrix column to another more wide matrix dest.cols() number of times
 		// (optimized version of mCloneCols where srcCols.cols()==1 )
