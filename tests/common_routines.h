@@ -98,7 +98,33 @@ void makeDataXForGatedSetup(const realmtx_t& data_x, const realmtx_t& data_y, iR
 	memcpy(new_x.colDataAsVec(gateIdx + 1), data_x.colDataAsVec(gateIdx), data_x.byte_size_no_bias() / 2);
 }
 
-void makeTdForGatedSetup(const nntl::train_data<real_t>& td, nntl::train_data<real_t>& tdGated, const uint64_t seedV, const bool bBinarize);
+template<typename iRngT, typename iMathT>
+void makeDataXForGatedSetup(const realmtx_t& data_x, const realmtx_t& data_y, iRngT& iR, iMathT& iM,
+	const bool bBinarize, const vec_len_t gatesCnt, realmtx_t& new_x)
+{
+	SCOPED_TRACE("makeDataXForGatedSetup");
+	const auto xWidth = data_x.cols_no_bias();
+
+	realmtx_t realMask(data_x.rows(), gatesCnt, false);
+	ASSERT_TRUE(!realMask.isAllocationFailed());
+	iR.gen_matrix_norm(realMask);
+	if (bBinarize) iM.ewBinarize_ip(realMask, real_t(.5));
+
+	_maskStat(realMask);
+
+	const auto gateIdx = xWidth / 4;
+
+	new_x.will_emulate_biases();
+	ASSERT_TRUE(new_x.resize(data_x.rows(), data_x.cols_no_bias() + gatesCnt)) << "Failed to resize new_x";
+	
+	memcpy(new_x.data(), data_x.data(), sizeof(real_t)*(data_x.colDataAsVec(gateIdx)-data_x.data()));
+	memcpy(new_x.colDataAsVec(gateIdx), realMask.data(), realMask.byte_size());
+	memcpy(new_x.colDataAsVec(gateIdx + gatesCnt), data_x.colDataAsVec(gateIdx),
+		sizeof(real_t)*(data_x.colDataAsVec(xWidth) - data_x.colDataAsVec(gateIdx)));
+}
+
+void makeTdForGatedSetup(const nntl::train_data<real_t>& td, nntl::train_data<real_t>& tdGated, const uint64_t seedV
+	, const bool bBinarize, const vec_len_t gatesCnt=1);
 
 
 template<typename _I>

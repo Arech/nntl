@@ -73,7 +73,9 @@ void _maskStat(const realmtx_t& m) {
 	STDCOUTL("Gating mask opens " << c << " samples. Total samples count is " << ne);
 }
 
-void makeTdForGatedSetup(const train_data<real_t>& td, train_data<real_t>& tdGated, const uint64_t seedV, const bool bBinarize) {
+void makeTdForGatedSetup(const train_data<real_t>& td, train_data<real_t>& tdGated, const uint64_t seedV,
+	const bool bBinarize, const vec_len_t gatesCnt)
+{
 	SCOPED_TRACE("makeTdForGatedSetup");
 
 	nnet_def_interfaces::iMath_t iM;
@@ -82,8 +84,14 @@ void makeTdForGatedSetup(const train_data<real_t>& td, train_data<real_t>& tdGat
 	iR.seed64(seedV);
 
 	realmtx_t ntr, nt, ntry, nty;
-	makeDataXForGatedSetup(td.train_x(), td.train_y(), iR, iM, bBinarize, ntr);
-	makeDataXForGatedSetup(td.test_x(), td.test_y(), iR, iM, bBinarize, nt);
+	if (1 == gatesCnt) {
+		makeDataXForGatedSetup(td.train_x(), td.train_y(), iR, iM, bBinarize, ntr);
+		makeDataXForGatedSetup(td.test_x(), td.test_y(), iR, iM, bBinarize, nt);
+	} else {
+		makeDataXForGatedSetup(td.train_x(), td.train_y(), iR, iM, bBinarize, gatesCnt, ntr);
+		makeDataXForGatedSetup(td.test_x(), td.test_y(), iR, iM, bBinarize, gatesCnt, nt);
+	}
+	
 	td.train_y().cloneTo(ntry);
 	td.test_y().cloneTo(nty);
 

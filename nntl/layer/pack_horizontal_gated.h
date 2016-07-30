@@ -182,7 +182,6 @@ namespace nntl {
 		// version without binarization for many layers
 		template<bool bg = sbBinarizeGate, size_t lc = gated_layers_count>
 		std::enable_if_t< (!bg && lc>1), self_ref_t> make_gating_mask()noexcept {
-			NNTL_ASSERT(get_self().get_neurons_cnt() - get_self().gating_layer().get_neurons_cnt() == get_self().gating_layer().get_gate_width());
 			NNTL_ASSERT(get_self().gating_layer().get_gate_width() == get_self().gating_layer().get_gate().cols());
 			NNTL_ASSERT(!m_gatingMask.emulatesBiases());
 			get_self().get_iMath().mCloneCols(get_self().gating_layer().get_gate(), m_gatingMask, &m_colSpec[0]);
@@ -210,7 +209,6 @@ namespace nntl {
 		// version with binarization for many layer
 		template<bool bg = sbBinarizeGate, size_t lc = gated_layers_count>
 		std::enable_if_t< (bg && lc > 1), self_ref_t> make_gating_mask()noexcept {
-			NNTL_ASSERT(get_self().get_neurons_cnt() - get_self().gating_layer().get_neurons_cnt() == get_self().gating_layer().get_gate_width());
 			NNTL_ASSERT(!m_gatingMask.emulatesBiases());
 
 			auto& origGate = get_self().gating_layer().get_gate();
