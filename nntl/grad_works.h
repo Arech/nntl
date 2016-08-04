@@ -311,8 +311,8 @@ namespace nntl {
 			m_rmsG.clear();
 			m_ILRGain.clear();
 			m_prevdLdW.clear();
-			m_ILR.clear();
-			_flags_default();
+			//m_ILR.clear();//we shouldn't clear this variable, as it contains only settings but not a run-time data
+			//_flags_default();//same for flags
 		}
 
 		void pre_training_fprop(realmtx_t& weights) noexcept {

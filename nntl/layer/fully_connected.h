@@ -415,15 +415,20 @@ namespace nntl {
 	template <typename ActivFunc = activation::sigm<>,
 		typename Interfaces=nnet_def_interfaces,
 		typename GradWorks = grad_works<typename Interfaces::iMath_t>
-	> class layer_fully_connected final 
-		: public _layer_fully_connected<ActivFunc, Interfaces, GradWorks, layer_fully_connected<ActivFunc, Interfaces, GradWorks>>
+	> class LFC final 
+		: public _layer_fully_connected<ActivFunc, Interfaces, GradWorks, LFC<ActivFunc, Interfaces, GradWorks>>
 	{
 	public:
-		~layer_fully_connected() noexcept {};
-		layer_fully_connected(const neurons_count_t _neurons_cnt,
+		~LFC() noexcept {};
+		LFC(const neurons_count_t _neurons_cnt,
 			const real_t learningRate=.01, const real_t dropoutFrac = 0.0) noexcept 
-			: _layer_fully_connected<ActivFunc, Interfaces, GradWorks, layer_fully_connected<ActivFunc, Interfaces, GradWorks>>
+			: _layer_fully_connected<ActivFunc, Interfaces, GradWorks, LFC<ActivFunc, Interfaces, GradWorks>>
 			(_neurons_cnt, learningRate, dropoutFrac) {};
 	};
+
+	template <typename ActivFunc = activation::sigm<>,
+		typename Interfaces = nnet_def_interfaces,
+		typename GradWorks = grad_works<typename Interfaces::iMath_t>
+	> using layer_fully_connected = typename LFC<ActivFunc, Interfaces, GradWorks>;
 }
 

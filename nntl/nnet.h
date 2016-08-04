@@ -202,6 +202,7 @@ namespace nntl {
 				_processTmpStor(bMiniBatch, train_x_cols, train_y_cols, batchSize, pTtd);
 				return ErrorCode::Success;
 			}
+			//#TODO we must be sure here that no internal objects settings will be hurt during deinit phase
 			_deinit();
 			
 			bool bInitFinished = false;
