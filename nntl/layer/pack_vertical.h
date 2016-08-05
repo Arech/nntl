@@ -180,6 +180,11 @@ namespace nntl {
 			ErrorCode ec = ErrorCode::Success;
 			layer_index_t failedLayerIdx = 0;
 
+			bool bSuccessfullyInitialized = false;
+			utils::scope_exit onExit([&bSuccessfullyInitialized, this]() {
+				if (!bSuccessfullyInitialized) deinit();
+			});
+
 			auto initD = lid.dupe();
 			utils::for_each_exc_last_up(m_layers, [&](auto& l)noexcept {
 				if (ErrorCode::Success == ec) {
@@ -199,6 +204,7 @@ namespace nntl {
 				} else failedLayerIdx = get_self().last_layer().get_layer_idx();
 			}
 			//#TODO need some way to return failedLayerIdx
+			if (ErrorCode::Success == ec) bSuccessfullyInitialized = true;
 			return ec;
 		}
 
@@ -223,17 +229,21 @@ namespace nntl {
 		std::enable_if_t<_impl::is_layer_wrapper<LowerLayerWrapper>::value> fprop(const LowerLayerWrapper& lowerLayer)noexcept
 		{
 			//STDCOUTL("In special " << get_layer_name_str());
+			NNTL_ASSERT(lowerLayer.get_activations().test_biases_ok());
 			get_self().first_layer().fprop(lowerLayer);
 			utils::for_eachwp_up(m_layers, [](auto& lcur, auto& lprev, const bool)noexcept {
+				NNTL_ASSERT(lprev.get_activations().test_biases_ok());
 				lcur.fprop(lprev);
+				NNTL_ASSERT(lprev.get_activations().test_biases_ok());
 			});
+			NNTL_ASSERT(lowerLayer.get_activations().test_biases_ok());
 		}
 
 		template <typename LowerLayer>
 		const unsigned bprop(realmtxdef_t& dLdA, const LowerLayer& lowerLayer, realmtxdef_t& dLdAPrev)noexcept {
 			static_assert(std::is_base_of<_i_layer_trainable, LowerLayer>::value, "Template parameter LowerLayer must implement _i_layer_trainable");
 			//STDCOUTL("bprop begin " << get_layer_name_str());
-
+			NNTL_ASSERT(lowerLayer.get_activations().test_biases_ok());
 			NNTL_ASSERT(dLdA.size() == last_layer().get_activations().size_no_bias());
 			NNTL_ASSERT( (std::is_base_of<m_layer_input, LowerLayer>::value) || dLdAPrev.size() == lowerLayer.get_activations().size_no_bias());
 
@@ -243,8 +253,10 @@ namespace nntl {
 			utils::for_eachwn_downfullbp(m_layers, [&mtxIdx, &a_dLdA](auto& lcur, auto& lprev, const bool)noexcept {
 				const unsigned nextMtxIdx = mtxIdx ^ 1;
 				a_dLdA[nextMtxIdx]->deform_like_no_bias(lprev.get_activations());
+				NNTL_ASSERT(lprev.get_activations().test_biases_ok());
 				const unsigned bAlternate = lcur.bprop(*a_dLdA[mtxIdx], lprev, *a_dLdA[nextMtxIdx]);
 				NNTL_ASSERT(1 == bAlternate || 0 == bAlternate);
+				NNTL_ASSERT(lprev.get_activations().test_biases_ok());
 				mtxIdx ^= bAlternate;
 			});
 
@@ -256,6 +268,7 @@ namespace nntl {
 			NNTL_ASSERT(1 == bAlternate || 0 == bAlternate);
 			mtxIdx ^= bAlternate;
 
+			NNTL_ASSERT(lowerLayer.get_activations().test_biases_ok());
 			//STDCOUTL("bprop end " << get_layer_name_str() << ", returns = " << mtxIdx);
 			return mtxIdx;
 		}

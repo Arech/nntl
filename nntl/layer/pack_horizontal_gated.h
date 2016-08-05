@@ -130,6 +130,11 @@ namespace nntl {
 			auto ec = _base_class::init(lid, pNewActivationStorage);
 			if (ErrorCode::Success != ec) return ec;
 
+			bool bSuccessfullyInitialized = false;
+			utils::scope_exit onExit([&bSuccessfullyInitialized, this]() {
+				if (!bSuccessfullyInitialized) deinit();
+			});
+
 			//we must resize gatingMask here to the size of underlying_layer activations, however gatingMask mustn't
 			//have an emulated bias column
 			NNTL_ASSERT(!m_gatingMask.emulatesBiases());
@@ -141,10 +146,9 @@ namespace nntl {
 						realmtx_t::sNumel(get_self().get_max_fprop_batch_size(), get_self().gating_layer().get_gate_width())
 					);
 				}
-			}else{
-				_base_class::deinit();
-				ec = ErrorCode::CantAllocateMemoryForGatingMask;
-			}
+			}else return ErrorCode::CantAllocateMemoryForGatingMask;
+
+			bSuccessfullyInitialized = true;
 			return ec;
 		}
 
@@ -257,12 +261,14 @@ namespace nntl {
 		template <typename LowerLayer>
 		void fprop(const LowerLayer& lowerLayer)noexcept {
 			static_assert(std::is_base_of<_i_layer_fprop, LowerLayer>::value, "Template parameter LowerLayer must implement _i_layer_fprop");
+			NNTL_ASSERT(lowerLayer.get_activations().test_biases_ok());
 			NNTL_ASSERT(m_gatingMask.rows() == get_self().get_activations().rows());
 			NNTL_ASSERT(m_gatingMask.rows() == lowerLayer.get_activations().rows());
 			NNTL_ASSERT(m_gatingMask.cols() == get_self().get_neurons_cnt() - get_self().gating_layer().get_neurons_cnt());
 
 			_base_class::fprop(lowerLayer);
 			get_self().make_gating_mask<>().apply_gating_mask(*const_cast<realmtxdef_t*>(&get_self().get_activations()));
+			NNTL_ASSERT(lowerLayer.get_activations().test_biases_ok());
 		}
 
 		template <typename LowerLayer>
@@ -277,7 +283,9 @@ namespace nntl {
 			NNTL_ASSERT((std::is_base_of<m_layer_input, LowerLayer>::value) || dLdAPrev.size() == lowerLayer.get_activations().size_no_bias());
 
 			get_self().apply_gating_mask(dLdA);
-			return _base_class::bprop(dLdA, lowerLayer, dLdAPrev);
+			const unsigned ret = _base_class::bprop(dLdA, lowerLayer, dLdAPrev);
+			NNTL_ASSERT(lowerLayer.get_activations().test_biases_ok());
+			return ret;
 		}
 
 	private:
@@ -286,10 +294,12 @@ namespace nntl {
 		template<class Archive> void serialize(Archive & ar, const unsigned int version) {
 			if (utils::binary_option<true>(ar, serialization::serialize_gating_mask)) ar & NNTL_SERIALIZATION_NVP(m_gatingMask);
 			if (utils::binary_option<true>(ar, serialization::serialize_training_parameters)) {
-				ar & serialization::make_nvp("gating_layer_id", get_self().gating_layer().get_layer_name_str());
+				size_t li = get_self().gating_layer().get_layer_idx();
+				ar & serialization::make_nvp("gating_layer_id", li);
 			}
 			//ar & serialization::make_named_struct(m_undLayer.get_layer_name_str(), m_undLayer);
-			ar & serialization::serialize_base_class<_base_class>(*this);
+			//ar & serialization::serialize_base_class<_base_class>(*this);
+			ar & boost::serialization::base_object<_base_class>(*this);
 		}
 	};
 

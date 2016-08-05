@@ -226,18 +226,20 @@ namespace math {
 
 		//function is expected to be called from context of NNTL_ASSERT macro. Real assertion happens inside of the function, so the
 		// return value is used only for compilation purposes, DON'T RELY ON IT!
-		const bool assert_biases_ok()const noexcept {
-#ifdef NNTL_DEBUG
-			NNTL_ASSERT(emulatesBiases());
+		const bool test_biases_ok()const noexcept {
+			//NNTL_ASSERT(emulatesBiases());
+			//if (!emulatesBiases()) return false;//not necessary test, because there's no restriction to have biases otherwise
 			
 			const auto ne = numel();
 			auto pS = &m_pData[ne - m_rows];
 			const auto pE = m_pData + ne;
+			bool cond = true;
 			while (pS != pE) {
-				NNTL_ASSERT(*pS++ == value_type(1.0) || !"Bias check failed!");
+				auto c = *pS++ == value_type(1.0);
+				NNTL_ASSERT(c || !"Bias check failed!");
+				cond = cond && c;
 			}
-#endif // NNTL_DEBUG
-			return true;
+			return cond;
 		}
 
 		//////////////////////////////////////////////////////////////////////////

@@ -46,6 +46,7 @@ namespace nntl {
 			CantAllocateMemoryForGatingMask,
 			CantAllocateMemoryForTempData,
 			CantAllocateMemoryForWeights,
+			//CantAllocateMemoryForTmpBiasStorage,
 			CantInitializeIMath,
 			CantInitializeObserver,
 			CantInitializeGradWorks,
@@ -66,6 +67,7 @@ namespace nntl {
 			case CantAllocateMemoryForGatingMask: return NNTL_STRING("Cant allocate memory for gating mask");
 			case CantAllocateMemoryForTempData: return NNTL_STRING("Cant allocate memory for temporarily data");
 			case CantAllocateMemoryForWeights: return NNTL_STRING("Cant allocate memory for weight matrix");
+			//case CantAllocateMemoryForTmpBiasStorage: return NNTL_STRING("Cant allocate memory for tmp bias storage");
 			case CantInitializeIMath: return NNTL_STRING("Cant initialize iMath interface");
 			case CantInitializeObserver: return NNTL_STRING("Cant initialize observer");
 			case CantInitializeGradWorks: return NNTL_STRING("Cant initialize grad_works object");

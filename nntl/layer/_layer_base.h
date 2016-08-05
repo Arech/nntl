@@ -202,9 +202,11 @@ namespace nntl {
 		// for new subsequent call to nnet.train()
 		nntl_interface void deinit() noexcept;
 
-		//provides a temporary storage for a layer. It is guaranteed, that during fprop() or bprop() the storage can be modified only by the layer
-		// (it's a shared memory and it can be modified elsewhere between calls to fprop()/bprop())
-		//function is guaranteed to be called if (minMemFPropRequire+minMemBPropRequire) set to >0 during init()
+		//provides a temporary storage for a layer. It is guaranteed, that during fprop() or bprop() the storage
+		// can be modified only by the layer. However, it's not a persistent storage and layer mustn't rely on it
+		// to retain it's content between calls to fprop()/bprop().
+		// Compound layers (that call other's layers fprop()/bprop()) should use this storage with a great care!
+		// Function is guaranteed to be called if (minMemFPropRequire+minMemBPropRequire) set to >0 during init()
 		// cnt is guaranteed to be at least as big as (minMemFPropRequire+minMemBPropRequire)
 		nntl_interface void initMem(real_t* ptr, numel_cnt_t cnt)noexcept;
 

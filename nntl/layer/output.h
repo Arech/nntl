@@ -146,9 +146,7 @@ namespace nntl {
 
 			bool bSuccessfullyInitialized = false;
 			utils::scope_exit onExit([&bSuccessfullyInitialized, this]() {
-				if (!bSuccessfullyInitialized) {
-					deinit();
-				}
+				if (!bSuccessfullyInitialized) deinit();
 			});
 
 			NNTL_ASSERT(!m_weights.emulatesBiases());
@@ -225,7 +223,7 @@ namespace nntl {
 				m_activations.deform_rows(batchSize);
 			}
 		}
-
+	protected:
 		void _fprop(const realmtx_t& prevActivations)noexcept {
 			NNTL_ASSERT(m_activations.rows() == prevActivations.rows());
 			NNTL_ASSERT(prevActivations.cols() == m_weights.cols());
@@ -238,12 +236,6 @@ namespace nntl {
 			_Math.mMulABt_Cnb(prevActivations, m_weights, m_activations);
 			activation_f_t::f(m_activations, _Math);
 		}
-		template <typename LowerLayer>
-		void fprop(const LowerLayer& lowerLayer)noexcept {
-			static_assert(std::is_base_of<_i_layer_fprop, LowerLayer>::value, "Template parameter LowerLayer must implement _i_layer");
-			get_self()._fprop(lowerLayer.get_activations());
-		}
-
 		void _bprop(const realmtx_t& data_y, const realmtx_t& prevActivations, const bool bPrevLayerIsInput, realmtx_t& dLdAPrev)noexcept {
 			data_y.assert_storage_does_not_intersect(dLdAPrev);
 			dLdAPrev.assert_storage_does_not_intersect(m_dLdW);
@@ -276,11 +268,21 @@ namespace nntl {
 			//now we can apply gradient to the weights
 			m_gradientWorks.apply_grad(m_weights, m_dLdW);
 		}
+	public:
+		template <typename LowerLayer>
+		void fprop(const LowerLayer& lowerLayer)noexcept {
+			static_assert(std::is_base_of<_i_layer_fprop, LowerLayer>::value, "Template parameter LowerLayer must implement _i_layer");
+			NNTL_ASSERT(lowerLayer.get_activations().test_biases_ok());
+			get_self()._fprop(lowerLayer.get_activations());
+			NNTL_ASSERT(lowerLayer.get_activations().test_biases_ok());
+		}		
 		template <typename LowerLayer>
 		const unsigned bprop(const realmtx_t& data_y, const LowerLayer& lowerLayer, realmtx_t& dLdAPrev)noexcept {
 			static_assert(std::is_base_of<_i_layer_trainable, LowerLayer>::value, "Template parameter LowerLayer must implement _i_layer_trainable");
 			//STDCOUTL("bprop " << get_layer_name_str());
+			NNTL_ASSERT(lowerLayer.get_activations().test_biases_ok());
 			get_self()._bprop(data_y, lowerLayer.get_activations(), std::is_base_of<m_layer_input, LowerLayer>::value, dLdAPrev);
+			NNTL_ASSERT(lowerLayer.get_activations().test_biases_ok());
 			return 1;
 		}
 

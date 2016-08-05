@@ -99,6 +99,9 @@ namespace nntl {
 			//, const bool noBiasEmulationNecessary=false)noexcept {
 			
 			if (!absorbsion_will_succeed(_train_x, _train_y,_test_x,_test_y))  return false;
+			NNTL_ASSERT(_train_x.test_biases_ok());
+			NNTL_ASSERT(_test_x.test_biases_ok());
+
 			m_train_x = std::move(_train_x);
 			m_train_y = std::move(_train_y);
 			m_test_x = std::move(_test_x);

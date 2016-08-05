@@ -81,14 +81,16 @@ namespace nntl {
 		_phl_tuple m_phl_tuple;
 		realmtxdef_t m_activations;//its content assembled from individual activations of inner layers in-place
 
-		real_t* m_pTmpBiasStorage;//addresses at max m_max_fprop_batch_size elements to store a column of data of previous layer activation,
-		// that will be replaced by biases during fprop phase.
+		// addresses at max m_max_fprop_batch_size elements to store a column of data of previous layer activation,
+		// that will be replaced by biases during fprop()/bprop() phase.
+		real_t* m_pTmpBiasStorage;
+
 
 		numel_cnt_t m_layers_max_dLdA_numel;//max lid.max_dLdA_numel gathered from inner layers during init() phase. This value is used 
 		// to allocate dLdA matricies to pass to layers bprop()
 
 		realmtxdef_t m_innerdLdA, m_innerdLdAPrev;
-		
+				
 		//////////////////////////////////////////////////////////////////////////
 		//
 	protected:
@@ -118,30 +120,46 @@ namespace nntl {
 			idx = initializer._idx;
 		}
 
+
+		void _cleanBiasStorage()noexcept {
+			if (m_pTmpBiasStorage) {
+				//delete[] m_pTmpBiasStorage;
+				m_pTmpBiasStorage = nullptr;
+			}
+		}
+
 		first_layer_t& first_layer()const noexcept { return std::get<0>(m_phl_tuple).l; }
 		last_layer_t& last_layer()const noexcept { return std::get<phl_count - 1>(m_phl_tuple).l; }
-
-	public:
-		~_layer_pack_horizontal()noexcept {}
-		_layer_pack_horizontal(PHLsT&... phls)noexcept : _base_class(0)//we'll update neurons cnt a bit later in the code
-			,m_phl_tuple(phls...), m_pTmpBiasStorage(nullptr), m_layers_max_dLdA_numel(0)
-		{
-			//calculate m_neurons_cnt
-			neurons_count_t nc = 0;			
-			utils::for_each_up(m_phl_tuple, [&nc](auto& phl)noexcept {
+		
+	private:
+		static const neurons_count_t _calcNeuronsCnt(const _phl_tuple& tupl) noexcept {
+			neurons_count_t nc = 0;
+			utils::for_each_up(tupl, [&nc](const auto& phl)noexcept {
 				static_assert(is_PHL<std::remove_reference_t<decltype(phl)>>::value, "_layer_pack_horizontal must be assembled from PHL objects!");
 				static_assert(!std::is_base_of<m_layer_input, std::remove_reference_t<decltype(phl)>::phl_original_t>::value
 					&& !std::is_base_of<m_layer_output, std::remove_reference_t<decltype(phl)>::phl_original_t>::value
 					, "Inner layers of _layer_pack_horizontal mustn't be input or output layers!");
+				static_assert(std::is_base_of<_i_layer<std::remove_reference_t<decltype(phl)>::phl_original_t::real_t>
+					, std::remove_reference_t<decltype(phl)>::phl_original_t>::value, "Each layer must derive from i_layer");
+
 				nc += phl.l.get_neurons_cnt();
 			});
-			get_self()._set_neurons_cnt(nc);
+			return nc;
+		}
 
+	public:
+		~_layer_pack_horizontal()noexcept {
+			_cleanBiasStorage();
+		}
+		_layer_pack_horizontal(PHLsT&... phls)noexcept : _base_class(_calcNeuronsCnt(_phl_tuple(phls...)))
+			, m_phl_tuple(phls...)
+			, m_pTmpBiasStorage(nullptr), m_layers_max_dLdA_numel(0)
+		{
 			m_activations.will_emulate_biases();
 		}
 
 		const realmtxdef_t& get_activations()const noexcept { return m_activations; }
-
+		
 		//and apply function _Func(auto& layer) to each underlying (non-pack) layer here
 		template<typename _Func>
 		void for_each_layer(_Func& f)const noexcept {
@@ -181,6 +199,11 @@ namespace nntl {
 			auto ec = _base_class::init(lid, pNewActivationStorage);
 			if (ErrorCode::Success != ec) return ec;
 
+			bool bSuccessfullyInitialized = false;
+			utils::scope_exit onExit([&bSuccessfullyInitialized, this]() {
+				if (!bSuccessfullyInitialized) deinit();
+			});
+
 			//allocating m_activations
 			NNTL_ASSERT(m_activations.emulatesBiases());
 			if (pNewActivationStorage) {
@@ -211,6 +234,11 @@ namespace nntl {
 			NNTL_ASSERT(firstNeuronOfs + 1 == act.cols());
 
 			if (ErrorCode::Success == ec) {
+				//preparing room for tmp bias storage.
+				/*NNTL_ASSERT(!m_pTmpBiasStorage);
+				m_pTmpBiasStorage = new(std::nothrow)real_t[get_self().get_max_fprop_batch_size()];
+				if (!m_pTmpBiasStorage) return ErrorCode::CantAllocateMemoryForTmpBiasStorage;*/
+
 				//appending training requirements for this (top-level) layer
 
 				//we'll need a column-vector of length m_max_fprop_batch_size to store a data column of previous layer activation,
@@ -228,6 +256,9 @@ namespace nntl {
 					lid.maxMemBPropRequire += get_self().get_max_fprop_batch_size() + 2 * m_layers_max_dLdA_numel;
 				}
 			}
+
+			if (ErrorCode::Success == ec) bSuccessfullyInitialized = true;
+
 			//#TODO need some way to return failedLayerIdx
 			return ec;
 		}
@@ -235,7 +266,7 @@ namespace nntl {
 		void deinit() noexcept {
 			get_self().for_each_packed_layer([](auto& l) {l.deinit(); });
 			m_activations.clear();
-			m_pTmpBiasStorage = nullptr;
+			_cleanBiasStorage();
 			m_layers_max_dLdA_numel = 0;
 			m_innerdLdA.clear();
 			m_innerdLdAPrev.clear();
@@ -302,18 +333,20 @@ namespace nntl {
 			NNTL_ASSERT(firstNeuronOfs + 1 == act.cols());
 
 			if (bRestoreBiases) m_activations.set_biases();			
-			NNTL_ASSERT(pNewActivationStorage || m_activations.assert_biases_ok());
+			NNTL_ASSERT(pNewActivationStorage || m_activations.test_biases_ok());
 		}
 
 		template <typename LowerLayer>
 		void fprop(const LowerLayer& lowerLayer)noexcept{
 			static_assert(std::is_base_of<_i_layer_fprop, LowerLayer>::value, "Template parameter LowerLayer must implement _i_layer_fprop");
-			NNTL_ASSERT(m_activations.assert_biases_ok());
+			NNTL_ASSERT(lowerLayer.get_activations().test_biases_ok());
+
 			const auto pTmpBiasStorage = m_pTmpBiasStorage;
 			utils::for_each_up(m_phl_tuple, [&lowerLayer, pTmpBiasStorage](const auto& phl) {
 				phl.l.fprop(_impl::trainable_partial_layer_wrapper<LowerLayer>(lowerLayer.get_activations(), pTmpBiasStorage, phl));
 			});
-			NNTL_ASSERT(m_activations.assert_biases_ok());
+			
+			NNTL_ASSERT(lowerLayer.get_activations().test_biases_ok());
 		}
 
 		// in order to implement backprop for inner layers, we must provide them with correct dLdA and dLdAPrev, each of which must
@@ -332,7 +365,8 @@ namespace nntl {
 		template <typename LowerLayer>
 		const unsigned bprop(realmtx_t& dLdA, const LowerLayer& lowerLayer, realmtx_t& dLdAPrev)noexcept {
 			static_assert(std::is_base_of<_i_layer_trainable, LowerLayer>::value, "Template parameter LowerLayer must implement _i_layer_trainable");
-			NNTL_ASSERT(m_activations.assert_biases_ok());
+			NNTL_ASSERT(lowerLayer.get_activations().test_biases_ok());
+			//NNTL_ASSERT(m_activations.test_biases_ok());
 			NNTL_ASSERT(dLdA.size() == get_self().get_activations().size_no_bias());
 			NNTL_ASSERT((std::is_base_of<m_layer_input, LowerLayer>::value) || dLdAPrev.size() == lowerLayer.get_activations().size_no_bias());
 			
@@ -376,8 +410,8 @@ namespace nntl {
 
 				firstNeuronOfs += lyr.get_neurons_cnt();
 			});
-			NNTL_ASSERT(firstNeuronOfs + 1 == m_activations.cols());
-
+			NNTL_ASSERT(firstNeuronOfs == m_activations.cols_no_bias());
+			NNTL_ASSERT(lowerLayer.get_activations().test_biases_ok());
 			return 1;
 		}
 

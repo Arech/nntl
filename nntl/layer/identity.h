@@ -97,7 +97,7 @@ namespace nntl {
 				, bTraining ? get_self().get_training_batch_size() : batchSize, get_self().get_neurons_cnt() + 1, true);
 			//should not restore biases here, because for compound layers its a job for their fprop() implementation
 		}
-
+	protected:
 		void _fprop(const realmtx_t& prevActivations)noexcept {
 			NNTL_ASSERT(prevActivations.size() == m_activations.size());
 			NNTL_ASSERT(m_activations.bDontManageStorage());
@@ -109,11 +109,14 @@ namespace nntl {
 			NNTL_ASSERT(r);
 		}
 
+	public:
 		//we're restricting the use of layer_identity to layer_pack_horizontal only
 		template <typename LowerLayerWrapper>
 		std::enable_if_t<_impl::is_layer_wrapper<LowerLayerWrapper>::value> fprop(const LowerLayerWrapper& lowerLayer)noexcept{
 			static_assert(std::is_base_of<_i_layer_fprop, LowerLayerWrapper>::value, "Template parameter LowerLayerWrapper must implement _i_layer_fprop");
+			NNTL_ASSERT(lowerLayer.get_activations().test_biases_ok());
 			get_self()._fprop(lowerLayer.get_activations());
+			NNTL_ASSERT(lowerLayer.get_activations().test_biases_ok());
 		}
 
 		template <typename LowerLayerWrapper>
@@ -121,6 +124,7 @@ namespace nntl {
 			bprop(realmtx_t& dLdA, const LowerLayerWrapper& lowerLayer, realmtx_t& dLdAPrev)noexcept
 		{
 			//nothing to do here
+			NNTL_ASSERT(lowerLayer.get_activations().test_biases_ok());
 			return 0;//indicating that dL/dA for previous layer is actually in dLdA parameter (not in dLdAPrev)
 		}
 
@@ -208,9 +212,8 @@ namespace nntl {
 		template<class Archive> void serialize(Archive & ar, const unsigned int version) {
 			//#todo must correctly call base class serialize()
 			//NNTL_ASSERT(!"must correctly call base class serialize()");
-			//ar & boost::serialization::base_object<_base_class>(*this);
-			
-			ar & serialization::serialize_base_class<_base_class>(*this);
+			ar & boost::serialization::base_object<_base_class>(*this);
+			//ar & serialization::serialize_base_class<_base_class>(*this);
 		}
 	};
 

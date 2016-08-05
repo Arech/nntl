@@ -82,10 +82,10 @@ namespace serialization {
 
 	//////////////////////////////////////////////////////////////////////////
 	// alias to call base's class serialize()
-	template<class Base, class Derived>
-	inline auto serialize_base_class(Derived &d)->decltype(::boost::serialization::base_object(d)) {
-		return ::boost::serialization::base_object(d);
-	}
+// 	template<class Base, class Derived>
+// 	inline typename ::boost::serialization::detail::base_cast<Base, Derived>::type & serialize_base_class(Derived &d) {
+// 		return ::boost::serialization::base_object(d);
+// 	}
 
 	//using serialize_base_class = ::boost::serialization::base_object<Base, Derived>(Derived &d);
 	//using serialize_base_class = ::boost::serialization::template base_object<Base, Derived>; //??

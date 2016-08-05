@@ -98,7 +98,7 @@ namespace nntl {
 			//NNTL_ASSERT(data_x.emulatesBiases());
 			//cant check it here because in mini-batch version data_x will be a slice (including bias) from original train_x. Therefore
 			// just leave the check on nnet class
-
+			NNTL_ASSERT(data_x.test_biases_ok());
 			m_pActivations = &data_x;
 		}
 

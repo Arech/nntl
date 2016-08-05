@@ -343,3 +343,33 @@ TEST(TestLayerPackHorizontal, SameLayers) {
 	ASSERT_NO_FATAL_FAILURE(test_same_layers(td, 0));
 	ASSERT_NO_FATAL_FAILURE(test_same_layers(td, std::time(0)));
 }
+
+
+/*
+TEST(TestLayerPackHorizontal, InnerLayersIntersectsTestCheck) {
+#ifndef NNTL_DEBUG
+	STDCOUTL("!!!! This test should primarily be ran in DEBUG mode to utilize nntl's internal asserts!");
+#endif
+
+	layer_input<> li1(10);
+	LFC<> l11(2);
+	LFC<> l12(2);
+	auto lph1 = make_layer_pack_horizontal(
+		make_PHL(l11, 0, 5),
+		make_PHL(l12, 5, 5)
+	);
+	ASSERT_TRUE(!lph1.isInnerLayersIntersects());
+	layer_output<> lo1(1);
+	auto lp1 = make_layers(li1, lph1,lo1);//to test _preinit code
+
+	layer_input<> li2(10);
+	LFC<> l21(2);
+	LFC<> l22(2);
+	auto lph2 = make_layer_pack_horizontal(
+		make_PHL(l21, 0, 6),
+		make_PHL(l22, 5, 5)
+	);
+	ASSERT_TRUE(lph2.isInnerLayersIntersects());
+	layer_output<> lo2(1);
+	auto lp2 = make_layers(li2, lph2, lo2);
+}*/

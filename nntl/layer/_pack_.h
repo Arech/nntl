@@ -108,7 +108,7 @@ namespace nntl {
 		public:
 			~trainable_partial_layer_wrapper()noexcept {
 				//we must restore the original data back to bias column
-				NNTL_ASSERT(m_act.assert_biases_ok());
+				NNTL_ASSERT(m_act.test_biases_ok());
 				memcpy(m_act.colDataAsVec(m_act.cols()-1), m_pTmpBiasStor, sizeof(*m_pTmpBiasStor)*m_act.rows());
 			}
 

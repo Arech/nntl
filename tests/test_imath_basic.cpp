@@ -1829,7 +1829,7 @@ void test_make_dropout_perf(iMath& iM, vec_len_t rowsCnt, vec_len_t colsCnt = 10
 		ASSERT_TRUE(!act2.isAllocationFailed() && !dm2.isAllocationFailed()&& !act3.isAllocationFailed() && !dm3.isAllocationFailed());
 		for (unsigned r = 0; r < testCorrRepCnt; ++r) {
 			rg.gen_matrix_no_bias(act, 5);
-			act.assert_biases_ok();
+			ASSERT_TRUE(act.test_biases_ok());
 			act.cloneTo(act2);
 			act.cloneTo(act3);
 			rg.gen_matrix_norm(dm);
@@ -1837,7 +1837,7 @@ void test_make_dropout_perf(iMath& iM, vec_len_t rowsCnt, vec_len_t colsCnt = 10
 			dm.cloneTo(dm3);
 
 			make_dropout_ET(act2, dfrac, dm2);
-			act2.assert_biases_ok();
+			ASSERT_TRUE(act2.test_biases_ok());
 
 			iM.make_dropout_st(act, dfrac, dm);
 			ASSERT_MTX_EQ(act2, act, "make_dropout_st: wrong act");
@@ -1861,38 +1861,38 @@ void test_make_dropout_perf(iMath& iM, vec_len_t rowsCnt, vec_len_t colsCnt = 10
 	utils::prioritize_workers<utils::PriorityClass::PerfTesting, iMath::ithreads_t> pw(iM.ithreads());
 
 	rg.gen_matrix_no_bias(act, 5);
-	act.assert_biases_ok();
+	ASSERT_TRUE(act.test_biases_ok());
 	diff = nanoseconds(0);
 	for (unsigned r = 0; r < maxReps; ++r) {
 		rg.gen_matrix_norm(dm);
 		bt = steady_clock::now();
 		iM.make_dropout_st(act, dfrac, dm);
 		diff += steady_clock::now() - bt;
-		act.assert_biases_ok();
+		ASSERT_TRUE(act.test_biases_ok());
 	}
 	STDCOUTL("st:\t\t" << utils::duration_readable(diff, maxReps, &tstNaive));
 
 	rg.gen_matrix_no_bias(act, 5);
-	act.assert_biases_ok();
+	ASSERT_TRUE(act.test_biases_ok());
 	diff = nanoseconds(0);
 	for (unsigned r = 0; r < maxReps; ++r) {
 		rg.gen_matrix_norm(dm);
 		bt = steady_clock::now();
 		iM.make_dropout_mt(act, dfrac, dm);
 		diff += steady_clock::now() - bt;
-		act.assert_biases_ok();
+		ASSERT_TRUE(act.test_biases_ok());
 	}
 	STDCOUTL("mt:\t\t" << utils::duration_readable(diff, maxReps, &tmtNaive));
 
 	rg.gen_matrix_no_bias(act, 5);
-	act.assert_biases_ok();
+	ASSERT_TRUE(act.test_biases_ok());
 	diff = nanoseconds(0);
 	for (unsigned r = 0; r < maxReps; ++r) {
 		rg.gen_matrix_norm(dm);
 		bt = steady_clock::now();
 		iM.make_dropout(act, dfrac, dm);
 		diff += steady_clock::now() - bt;
-		act.assert_biases_ok();
+		ASSERT_TRUE(act.test_biases_ok());
 	}
 	STDCOUTL("best:\t\t" << utils::duration_readable(diff, maxReps, &tBest));
 }

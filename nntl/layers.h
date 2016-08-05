@@ -220,9 +220,12 @@ namespace nntl {
 		}
 
 		void fprop(const realmtx_t& data_x)const noexcept {
+			NNTL_ASSERT(data_x.test_biases_ok());
 			input_layer().fprop(data_x);
 			utils::for_eachwp_up(m_layers, [](auto& lcur, auto& lprev, const bool)noexcept {
+				NNTL_ASSERT(lprev.get_activations().test_biases_ok());
 				lcur.fprop(lprev);
+				NNTL_ASSERT(lprev.get_activations().test_biases_ok());
 			});
 		}
 
@@ -241,10 +244,15 @@ namespace nntl {
 				if (bPrevIsFirstLayer) {
 					//TODO: for IBP we'd need a normal matrix
 					a_dLdA[nextMtxIdx].deform(0, 0);
-				}else a_dLdA[nextMtxIdx].deform_like_no_bias(lprev.get_activations());
+				} else {
+					a_dLdA[nextMtxIdx].deform_like_no_bias(lprev.get_activations());
+				}
 				
+				NNTL_ASSERT(lprev.get_activations().test_biases_ok());
 				const unsigned bAlternate = lcur.bprop(a_dLdA[mtxIdx], lprev, a_dLdA[nextMtxIdx]);
 				NNTL_ASSERT(1 == bAlternate || 0 == bAlternate);
+				NNTL_ASSERT(lprev.get_activations().test_biases_ok());
+
 				mtxIdx ^= bAlternate;
 			});
 		}
@@ -256,4 +264,25 @@ namespace nntl {
 	}
 
 
+	//////////////////////////////////////////////////////////////////////////
+	// helpers to change various layer properties that may or may not exist
+	struct hlpr_layer_set_learning_rate {
+		template<typename _L> std::enable_if_t<nntl::layer_has_gradworks<_L>::value> operator()(_L& l, typename _L::real_t lr)noexcept {
+			l.m_gradientWorks.set_learning_rate(lr);
+		}
+		template<typename _L> std::enable_if_t<!nntl::layer_has_gradworks<_L>::value> operator()(_L& l, typename _L::real_t lr)noexcept {}
+	};	
+	struct hlpr_layer_learning_rate_decay {
+		template<typename _L> std::enable_if_t<nntl::layer_has_gradworks<_L>::value> operator()(_L& l, typename _L::real_t decayCoeff)noexcept {
+			l.m_gradientWorks.set_learning_rate(l.m_gradientWorks.learning_rate()*decayCoeff);
+		}
+		template<typename _L> std::enable_if_t<!nntl::layer_has_gradworks<_L>::value> operator()(_L& l, typename _L::real_t decayCoeff)noexcept {}
+	};
+
+	struct hlpr_layer_set_nesterov_momentum {
+		template<typename _L> std::enable_if_t<nntl::layer_has_gradworks<_L>::value> operator()(_L& l, typename _L::real_t nm)noexcept {
+			l.m_gradientWorks.set_nesterov_momentum(nm);
+		}
+		template<typename _L> std::enable_if_t<!nntl::layer_has_gradworks<_L>::value> operator()(_L& l, typename _L::real_t nm)noexcept {}
+	};
 };

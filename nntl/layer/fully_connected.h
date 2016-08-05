@@ -148,9 +148,7 @@ namespace nntl {
 
 			bool bSuccessfullyInitialized = false;
 			utils::scope_exit onExit([&bSuccessfullyInitialized, this]() {
-				if (!bSuccessfullyInitialized) {
-					deinit();
-				}
+				if (!bSuccessfullyInitialized) deinit();
 			});
 			
 			NNTL_ASSERT(!m_weights.emulatesBiases());
@@ -260,13 +258,14 @@ namespace nntl {
 					bRestoreBiases = batchSize != _max_fprop_batch_size;
 				}
 				if (bRestoreBiases) m_activations.set_biases();
-				NNTL_ASSERT(m_activations.assert_biases_ok());
+				NNTL_ASSERT(m_activations.test_biases_ok());
 			}
 		}
 
 	protected:
 		//help compiler to isolate fprop functionality from the specific of previous layer
 		void _fprop(const realmtx_t& prevActivations)noexcept {
+			NNTL_ASSERT(prevActivations.test_biases_ok());
 			NNTL_ASSERT(m_activations.rows() == prevActivations.rows());
 			NNTL_ASSERT(prevActivations.cols() == m_weights.cols());
 
@@ -276,9 +275,9 @@ namespace nntl {
 			auto& _Math = get_self().get_iMath();
 
 			_Math.mMulABt_Cnb(prevActivations, m_weights, m_activations);
-			NNTL_ASSERT(m_activations.bDontManageStorage() || m_activations.assert_biases_ok());
+			NNTL_ASSERT(m_activations.bDontManageStorage() || m_activations.test_biases_ok());
 			activation_f_t::f(m_activations, _Math);
-			NNTL_ASSERT(m_activations.bDontManageStorage() || m_activations.assert_biases_ok());
+			NNTL_ASSERT(m_activations.bDontManageStorage() || m_activations.test_biases_ok());
 
 			if (bDropout()) {
 				NNTL_ASSERT(0 < m_dropoutFraction && m_dropoutFraction < 1);
@@ -290,20 +289,13 @@ namespace nntl {
 					//only applying dropoutFraction
 					_Math.evMulC_ip_Anb(m_activations, real_t(1.0) - m_dropoutFraction);
 				}
-				NNTL_ASSERT(m_activations.bDontManageStorage() || m_activations.assert_biases_ok());
+				NNTL_ASSERT(m_activations.bDontManageStorage() || m_activations.test_biases_ok());
 			}
+
+			NNTL_ASSERT(prevActivations.test_biases_ok());
 
 			//TODO?: sparsity penalty here
 		}
-
-	public:
-		template <typename LowerLayer>
-		void fprop(const LowerLayer& lowerLayer)noexcept{
-			static_assert(std::is_base_of<_i_layer_fprop, LowerLayer>::value, "Template parameter LowerLayer must implement _i_layer_fprop");
-			//STDCOUTL("In " << get_layer_name_str());
-			get_self()._fprop(lowerLayer.get_activations());
-		}
-
 
 		void _bprop(realmtx_t& dLdA, const realmtx_t& prevActivations, const bool bPrevLayerIsInput, realmtx_t& dLdAPrev)noexcept {
 			dLdA.assert_storage_does_not_intersect(dLdAPrev);
@@ -311,6 +303,8 @@ namespace nntl {
 			dLdA.assert_storage_does_not_intersect(m_dAdZ_dLdZ);
 			dLdAPrev.assert_storage_does_not_intersect(m_dLdW);
 			dLdAPrev.assert_storage_does_not_intersect(m_dAdZ_dLdZ);
+			NNTL_ASSERT(prevActivations.test_biases_ok());
+
 			NNTL_ASSERT(m_activations.emulatesBiases() && !m_dAdZ_dLdZ.emulatesBiases() && !m_dLdW.emulatesBiases());
 
 			NNTL_ASSERT(m_activations.size_no_bias() == dLdA.size());
@@ -335,10 +329,6 @@ namespace nntl {
 				_Math.evMul_ip(m_dAdZ_dLdZ, m_dropoutMask);
 			}
 
-			//const auto bLearnLayer = m_gradientWorks.learning_rate() != real_t(0.0);
-
-			//if (bLearnLayer) {
-			
 			//compute dL/dW = 1/batchsize * (dL/dZ)` * Aprev
 			// BTW: even if some of neurons of this layer could have been "disabled" by a dropout (therefore their
 			// corresponding dL/dZ element is set to zero), because we're working with batches, but not a single samples,
@@ -347,7 +337,6 @@ namespace nntl {
 			// to get some element of dLdW equals to zero, because it'll require that dLdZ entries for some neuron over the
 			// whole batch were set to zero.
 			_Math.mScaledMulAtB_C(real_t(1.0) / real_t(m_dAdZ_dLdZ.rows()), m_dAdZ_dLdZ, prevActivations, m_dLdW);
-			//}
 
 			if (!bPrevLayerIsInput) {
 				NNTL_ASSERT(!m_weights.emulatesBiases());
@@ -357,16 +346,31 @@ namespace nntl {
 				m_weights.restore_last_col();//restore weights back
 			}
 
-			//if (bLearnLayer) {
-				//now we can apply gradient to the weights
-				m_gradientWorks.apply_grad(m_weights, m_dLdW);
-			//}
+			//now we can apply gradient to the weights
+			m_gradientWorks.apply_grad(m_weights, m_dLdW);
+
+			NNTL_ASSERT(prevActivations.test_biases_ok());
 		}
+
+	public:
+		template <typename LowerLayer>
+		void fprop(const LowerLayer& lowerLayer)noexcept{
+			static_assert(std::is_base_of<_i_layer_fprop, LowerLayer>::value, "Template parameter LowerLayer must implement _i_layer_fprop");
+			//STDCOUTL("In " << get_layer_name_str());
+			NNTL_ASSERT(lowerLayer.get_activations().test_biases_ok());
+			get_self()._fprop(lowerLayer.get_activations());
+			NNTL_ASSERT(lowerLayer.get_activations().test_biases_ok());
+		}
+
+
+		
 		template <typename LowerLayer>
 		const unsigned bprop(realmtx_t& dLdA, const LowerLayer& lowerLayer, realmtx_t& dLdAPrev)noexcept{
 			static_assert(std::is_base_of<_i_layer_trainable, LowerLayer>::value, "Template parameter LowerLayer must implement _i_layer_trainable");
 			//STDCOUTL("bprop " << get_layer_name_str());
+			NNTL_ASSERT(lowerLayer.get_activations().test_biases_ok());
 			get_self()._bprop(dLdA, lowerLayer.get_activations(), std::is_base_of<m_layer_input, LowerLayer>::value, dLdAPrev);
+			NNTL_ASSERT(lowerLayer.get_activations().test_biases_ok());
 			return 1;
 		}
 

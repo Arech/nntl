@@ -60,18 +60,18 @@ namespace nntl {
 		//class to help propagate NN structure through layer stack during that stack creation
 		class _preinit_layers {
 		public:
-			neurons_count_t _incNeurons;
-			layer_index_t _idx;
+			char* m_pPHLCheckStorage;//variable to hold a pointer to an array, that's used to check whether inner layers
+							// of _layer_pack_horizontal cover all activation units of the range of underlying layer
+							// Initialized to nullptr by default in constructors.
 
-			char* pPHLCheck;//variable to hold a pointer to an array, that's used to check whether inner layers of _layer_pack_horizontal
-			//cover all activation units of the range of underlying layer
-			//uninitialized by default in constructors
+			neurons_count_t _incNeurons;
+			layer_index_t _idx;			
 
 			~_preinit_layers()noexcept {
-				if(pPHLCheck) delete[] pPHLCheck;
+				if(m_pPHLCheckStorage) delete[] m_pPHLCheckStorage;
 			}
-			_preinit_layers() noexcept : _idx(0), _incNeurons(0), pPHLCheck(nullptr) {}
-			_preinit_layers(const layer_index_t i, const neurons_count_t n) noexcept : _idx(i), _incNeurons(n), pPHLCheck(nullptr) {
+			_preinit_layers() noexcept : _idx(0), _incNeurons(0), m_pPHLCheckStorage(nullptr) {}
+			_preinit_layers(const layer_index_t i, const neurons_count_t n) noexcept : _idx(i), _incNeurons(n), m_pPHLCheckStorage(nullptr) {
 				NNTL_ASSERT(i && n);
 			}
 
@@ -106,10 +106,10 @@ namespace nntl {
 			//////////////////////////////////////////////////////////////////////////
 			// some machinery necessary for the layer_pack_horizontal class
 			bool preparePHLCheck()noexcept {
-				NNTL_ASSERT(_incNeurons && !pPHLCheck);
-				pPHLCheck = new(std::nothrow) char[_incNeurons];
-				if (pPHLCheck) memset(pPHLCheck, 0, _incNeurons);
-				return nullptr != pPHLCheck;
+				NNTL_ASSERT(_incNeurons && !m_pPHLCheckStorage);
+				m_pPHLCheckStorage = new(std::nothrow) char[_incNeurons];
+				if (m_pPHLCheckStorage) memset(m_pPHLCheckStorage, 0, _incNeurons);
+				return nullptr != m_pPHLCheckStorage;
 			}
 
 			// variation to comply with utils::for_each_up() callback. For use with PHL structures in _layer_pack_horizontal
@@ -119,9 +119,9 @@ namespace nntl {
 				static_assert(!std::is_base_of<m_layer_input, PHLT::phl_original_t>::value && !std::is_base_of<m_layer_output, PHLT::phl_original_t>::value,
 					"No input/output layers is allowed within _layer_pack_horizontal");
 				
-				NNTL_ASSERT(pPHLCheck && phl.m_count && phl.m_offset < _incNeurons && (phl.m_offset + phl.m_count) <= _incNeurons);
-				const auto pBeg = pPHLCheck + phl.m_offset, pEnd = pBeg + phl.m_count;
-				std::fill(pBeg, pEnd, char(1));
+				NNTL_ASSERT(m_pPHLCheckStorage && phl.m_count && phl.m_offset < _incNeurons && (phl.m_offset + phl.m_count) <= _incNeurons);
+				const auto pBeg = m_pPHLCheckStorage + phl.m_offset;
+				std::fill(pBeg, pBeg + phl.m_count, char(1));
 
 #ifdef NNTL_DEBUG
 				layer_index_t curIdx = _idx;
@@ -131,12 +131,12 @@ namespace nntl {
 			}
 
 			bool PHLCheck()noexcept {
-				NNTL_ASSERT(pPHLCheck);
-				const bool r = std::all_of(pPHLCheck, pPHLCheck + _incNeurons, [](const char c)->bool {
+				NNTL_ASSERT(m_pPHLCheckStorage);
+				const bool r = std::all_of(m_pPHLCheckStorage, m_pPHLCheckStorage + _incNeurons, [](const char c)->bool {
 					return c == char(1);
 				});
-				delete[] pPHLCheck;
-				pPHLCheck = nullptr;
+				delete[] m_pPHLCheckStorage;
+				m_pPHLCheckStorage = nullptr;
 				return r;
 			}
 
