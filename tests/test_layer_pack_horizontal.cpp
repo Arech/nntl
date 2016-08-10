@@ -184,7 +184,7 @@ void test_same_layers(train_data<real_t>& td, uint64_t rngSeed) {
 	common_data_t CD(iMath, iRng);
 	CD.init(evalSamplesCnt, trainSamplesCnt);
 	_impl::_layer_init_data<common_data_t> lid(CD);
-	_impl::layers_mem_requirements<real_t> lmr;
+	_impl::layers_mem_requirements lmr;
 
 	iRng.seed64(rngSeed);
 	lid.clean();

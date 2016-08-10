@@ -185,6 +185,10 @@ namespace nntl {
 				if (!bSuccessfullyInitialized) deinit();
 			});
 
+			//we must initialize encapsulated layers and find out their initMem() requirements. Things to consider:
+			// - we'll be passing dLdA and dLdAPrev arguments of bprop() down to layer stack, therefore we must
+			//		propagate/return max() of layer's max_dLdA_numel as ours lid.max_dLdA_numel.
+			// - layers will be called sequentially and so will be used the shared memory.
 			auto initD = lid.dupe();
 			utils::for_each_exc_last_up(m_layers, [&](auto& l)noexcept {
 				if (ErrorCode::Success == ec) {
@@ -213,6 +217,7 @@ namespace nntl {
 		}
 
 		void initMem(real_t* ptr, numel_cnt_t cnt)noexcept {
+			//we'd just pass the pointer data down to layer stack
 			get_self().for_each_packed_layer([=](auto& l) {l.initMem(ptr, cnt); });
 		}
 

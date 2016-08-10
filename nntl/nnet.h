@@ -95,11 +95,7 @@ namespace nntl {
 		typedef typename layers_pack_t::realmtxdef_array_t realmtxdef_array_t;
 
 		typedef _impl::common_nn_data<imath_t, irng_t> common_data_t;
-
-	protected:
-		//typedef _impl::layers_mem_requirements<real_t> layers_mem_requirements_t
-		
-		
+	
 
 		//////////////////////////////////////////////////////////////////////////
 		// members
@@ -110,7 +106,7 @@ namespace nntl {
 
 		common_data_t m_CommonData;
 
-		_impl::layers_mem_requirements<real_t> m_LMR;
+		_impl::layers_mem_requirements m_LMR;
 		//std::unique_ptr<real_t[]> m_pTmpStor;
 		std::vector<real_t> m_pTmpStor;
 

@@ -182,10 +182,13 @@ namespace nntl {
 			}));
 
 			if (get_self().get_training_batch_size() > 0) {
-				//we need 2 temporarily matrices for training: one for dA/dZ -> dL/dZ [batchSize x m_neurons_cnt]
-				// and one for dL/dW [m_neurons_cnt x get_incoming_neurons_cnt()+1]
-				lid.max_dLdA_numel = realmtx_t::sNumel(get_self().get_training_batch_size(), get_self().get_neurons_cnt());
-				lid.maxMemBPropRequire = lid.max_dLdA_numel + m_weights.numel();
+				//There's no dLdA coming into the output layer, therefore leave max_dLdA_numel it zeroed
+				//lid.max_dLdA_numel = 0; ///realmtx_t::sNumel(get_self().get_training_batch_size(), get_self().get_neurons_cnt());
+				
+				// we'll need 2 temporarily matrices for bprop(): one for dA/dZ -> dL/dZ [batchSize x m_neurons_cnt] and
+				// the other for dL/dW [m_neurons_cnt x get_incoming_neurons_cnt()+1]
+				lid.maxMemBPropRequire = realmtx_t::sNumel(get_self().get_training_batch_size(), get_self().get_neurons_cnt())
+					+ m_weights.numel();
 			}
 
 			if (!m_gradientWorks.init(grad_works_t::init_struct_t(& get_self().get_iMath(), m_weights.size())))return ErrorCode::CantInitializeGradWorks;

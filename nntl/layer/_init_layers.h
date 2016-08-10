@@ -179,8 +179,8 @@ namespace nntl {
 			i_rng_t& m_iRng;
 
 			//could be different in different train() sessions.
-			vec_len_t m_max_fprop_batch_size;//usually this is data_x.rows()
-			vec_len_t m_training_batch_size;//usually this is batchSize
+			vec_len_t m_max_fprop_batch_size;//The biggest samples count for fprop(), usually this is data_x.rows()
+			vec_len_t m_training_batch_size;//Fixed samples count for bprop(), usually it is a batchSize
 
 			//////////////////////////////////////////////////////////////////////////
 			// methods
@@ -219,7 +219,10 @@ namespace nntl {
 		};
 
 		//////////////////////////////////////////////////////////////////////////
-		// structure to be used in _i_layer.init()
+		// This structure is passed to a _i_layer.init() during initialization phase.
+		// OUT marks variables that should be filled/returned by a layer if applicable. Most of this variables are used to
+		// find out how many shared memory real_t's should be allocated by a nnet object during initialization phase
+		// and passed to the layer.initMem().
 		template<typename CommonNnData>
 		struct _layer_init_data : public math::simple_matrix_typedefs {
 			typedef CommonNnData common_data_t;
@@ -228,13 +231,16 @@ namespace nntl {
 
 			IN const common_data_t& commonData;
 
-			//fprop and bprop may use different batch sizes during single training session (for example, fprop()/bprop() uses small batch size
-			// during learning process, but whole data_x.rows() during fprop() for loss function computation. Therefore to reduce memory
-			// consumption during learning, we will demark fprop() memory requirements and bprop() mem reqs.
-			OUT numel_cnt_t maxMemFPropRequire;//this value should be set by layer.init()
-			OUT numel_cnt_t maxMemBPropRequire;//this value should be set by layer.init()
-			OUT numel_cnt_t max_dLdA_numel;//this value should be set by layer.init()
-			OUT numel_cnt_t nParamsToLearn;//total number of parameters, that layer has to learn during training, to be set by layer.init()
+			//fprop and bprop may use different batch sizes during single training session (for example, fprop()/bprop()
+			// uses small batch size during learning process, but whole data_x.rows() during fprop() for loss function
+			// computation. Therefore to reduce memory consumption during evaluating and learning, we will demark fprop()
+			// memory requirements from bprop() mem reqs.
+			OUT numel_cnt_t maxMemFPropRequire;// total size of <real_t> array to be passed to layer.initMem() in order to compute fprop()
+			OUT numel_cnt_t maxMemBPropRequire;// same for bprop - that's how much <real_t>s must be addressed by pointer passed to .initMem() in order to bprop() works
+			OUT numel_cnt_t max_dLdA_numel;//Biggest size of dLdA matrix (numel) that could be passed into a layer for bprop()
+			// We can always calculate this variable by knowing the batchSize and the layer's neurons count, aren't we?
+			//NOOO!!! It's not the case for compound layers!!! We need this variable!
+			OUT numel_cnt_t nParamsToLearn;//total number of parameters, that layer has to learn during training
 
 			OUT bool bHasLossAddendum;//to be set by layer.init()
 
@@ -242,6 +248,8 @@ namespace nntl {
 				//clean(); //not necessary here because the struct is reused
 			}
 
+			//this function must be called on the object before it is passed to layer.init()
+			//i.e. _i_layer.init() expects the object to be clean()'ed
 			void clean()noexcept {
 				maxMemFPropRequire = 0;
 				maxMemBPropRequire = 0;
@@ -250,6 +258,7 @@ namespace nntl {
 				bHasLossAddendum = false;
 			}
 
+			//used by compound layers to gather data from layers encapsulated into them.
 			void update(const _layer_init_data& o)noexcept {
 				maxMemFPropRequire = std::max(maxMemFPropRequire, o.maxMemFPropRequire);
 				maxMemBPropRequire = std::max(maxMemBPropRequire, o.maxMemBPropRequire);
@@ -264,12 +273,12 @@ namespace nntl {
 		};
 
 		//////////////////////////////////////////////////////////////////////////
-		// structure to be used in layers.init()
-		template<typename RealT>
+		// structure to be filled during layers.init() to return necessary data back to nnet object
 		struct layers_mem_requirements : public math::simple_matrix_typedefs {
-			numel_cnt_t maxMemLayerTrainingRequire,//useful for nnet.train()
-				maxMemLayersFPropRequire,//useful for nnet.eval()
-				maxSingledLdANumel, totalParamsToLearn;
+			numel_cnt_t maxMemLayerTrainingRequire,//for nnet.train()
+				maxMemLayersFPropRequire,//#todo for nnet.eval()
+				maxSingledLdANumel,//the biggest dLdA matrix required for bprop()
+				totalParamsToLearn;//The total parameters count the model has
 
 			bool bHasLossAddendum;
 
@@ -280,13 +289,13 @@ namespace nntl {
 			void zeros()noexcept {
 				maxMemLayerTrainingRequire = 0;
 				maxMemLayersFPropRequire = 0;
-				maxSingledLdANumel = 0;//single! biggest matrix numel() used in bprop()
+				maxSingledLdANumel = 0;//single! The biggest matrix.numel() to be used in a bprop()
 				totalParamsToLearn = 0;
 				bHasLossAddendum = false;
 			}
 
-			void updateLayerReq(numel_cnt_t mmlF, numel_cnt_t mmlB
-				, numel_cnt_t maxdLdA, numel_cnt_t nLP, bool _HasLossAddendum)noexcept
+			void updateLayerReq(const numel_cnt_t mmlF, const numel_cnt_t mmlB
+				, const numel_cnt_t maxdLdA, const numel_cnt_t nLP, const bool _HasLossAddendum)noexcept
 			{
 				maxMemLayerTrainingRequire = std::max({ maxMemLayerTrainingRequire, mmlF, mmlB });
 				maxMemLayersFPropRequire = std::max(maxMemLayersFPropRequire, mmlF);
@@ -294,13 +303,18 @@ namespace nntl {
 				totalParamsToLearn += nLP;
 				bHasLossAddendum |= _HasLossAddendum;
 			}
-			template<typename _layer_init_data_t>
+			/*template<typename _layer_init_data_t>
 			void updateLayerReq(const _layer_init_data_t& lid)noexcept {
 				maxMemLayerTrainingRequire = std::max({ maxMemLayerTrainingRequire, lid.maxMemFPropRequire, lid.maxMemBPropRequire });
 				maxMemLayersFPropRequire = std::max(maxMemLayersFPropRequire, lid.maxMemFPropRequire);
 				maxSingledLdANumel = std::max(maxSingledLdANumel, lid.max_dLdA_numel);
 				totalParamsToLearn += lid.nParamsToLearn;
 				bHasLossAddendum |= lid.bHasLossAddendum;
+			}*/
+			template<typename _layer_init_data_t>
+			void updateLayerReq(const _layer_init_data_t& lid)noexcept {
+				return updateLayerReq(lid.maxMemFPropRequire, lid.maxMemBPropRequire, lid.max_dLdA_numel
+					, lid.nParamsToLearn, lid.bHasLossAddendum);
 			}
 		};
 	}

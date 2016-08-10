@@ -192,8 +192,9 @@ namespace nntl {
 		nntl_interface void set_mode(vec_len_t batchSize, real_t* pNewActivationStorage = nullptr)noexcept;
 
 		// ATTN: more specific and non-templated version available for this function, see _layer_base for an example
-		// pNewActivationStorage - see comments to set_mode(). Layers, that should never be on top of a stack of layers
-		// withing compound layers, should totally omit this parameter.
+		// On the pNewActivationStorage see comments to the set_mode(). Layers that should never be on the top of a stack of layers
+		// inside of compound layers, should totally omit this parameter to break compilation.
+		// For the _layer_init_data_t parameter see the _impl::_layer_init_data<>.
 		template<typename _layer_init_data_t>
 		nntl_interface ErrorCode init(_layer_init_data_t& lid, real_t* pNewActivationStorage = nullptr)noexcept;
 
@@ -205,9 +206,10 @@ namespace nntl {
 		//provides a temporary storage for a layer. It is guaranteed, that during fprop() or bprop() the storage
 		// can be modified only by the layer. However, it's not a persistent storage and layer mustn't rely on it
 		// to retain it's content between calls to fprop()/bprop().
-		// Compound layers (that call other's layers fprop()/bprop()) should use this storage with a great care!
-		// Function is guaranteed to be called if (minMemFPropRequire+minMemBPropRequire) set to >0 during init()
-		// cnt is guaranteed to be at least as big as (minMemFPropRequire+minMemBPropRequire)
+		// Compound layers (that call other's layers fprop()/bprop()) should use this storage with a great care.
+		// Function is guaranteed to be called if
+		// max(_layer_init_data::minMemFPropRequire,_layer_init_data::minMemBPropRequire) set to be >0 during init()
+		// cnt is guaranteed to be at least as big as max(minMemFPropRequire,minMemBPropRequire)
 		nntl_interface void initMem(real_t* ptr, numel_cnt_t cnt)noexcept;
 
 		//input layer should use slightly different specialization: void fprop(const realmtx_t& data_x)noexcept
@@ -215,7 +217,8 @@ namespace nntl {
 		nntl_interface void fprop(const LowerLayer& lowerLayer)noexcept;
 
 		// dLdA is derivative of loss function wrt this layer neuron activations.
-		// Size [batchSize x layer_neuron_cnt] (bias units ignored - they're updated during dLdW application)
+		// Size [batchSize x layer_neuron_cnt] (bias units ignored - their weights actually belongs to upper layer
+		// and therefore are updated during that layer's bprop() phase and dLdW application)
 		// 
 		// dLdAPrev is derivative of loss function wrt to previous (lower) layer activations to compute by bprop().
 		// Size [batchSize x prev_layer_neuron_cnt] (bias units ignored)
@@ -225,7 +228,7 @@ namespace nntl {
 		//  
 		// realmtxdef_t type is used in pack_* layers. Non-compound layers should use realmtxt_t type instead.
 		// Function is allowed to use dLdA once it's not needed anymore as it wants (resizing operation included,
-		// provided that it won't resize it greater than max size. BTW, beware! The run-time check works only
+		// provided that it won't resize it greater than max size. BTW, beware! The run-time check of maximum matrix size works only
 		// in DEBUG builds!). Same for dLdAPrev, but on exit from bprop() it must have a proper size and content.
 		template <typename LowerLayer>
 		nntl_interface unsigned bprop(realmtxdef_t& dLdA, const LowerLayer& lowerLayer, realmtxdef_t& dLdAPrev)noexcept;

@@ -214,12 +214,18 @@ namespace nntl {
 					return ErrorCode::CantAllocateMemoryForActivations;
 			}
 
-			layer_index_t failedLayerIdx = 0;
+			//now we must initialize encapsulated layers and that's a tricky part.
+			// - we can't pass dLdA & dLdAPrev to these layers, because they could also be compound and may require
+			//		a far bigger matrix sizes than dLdA allows. Therefore we must calculate the biggest max_dLdA_numel 
+			//		for these layers (including dLdAPrev!!!) and allocate 2 corresponding matrices to be used as dLdA & dLdAPrev.
+			//		Ours max_dLdA_numel should be set to [batchSize, neuronsCount]
+			// - We should aggregate layers initMem() requirements and add them to ours
 
+			layer_index_t failedLayerIdx = 0;
 			NNTL_ASSERT(0 == lid.max_dLdA_numel && 0 == lid.maxMemFPropRequire && 0 == lid.maxMemBPropRequire);
 			auto initD = lid.dupe();
 			auto& act = m_activations;
-			neurons_count_t firstNeuronOfs = 0, maxIncNeuronsCnt = 0;
+			neurons_count_t firstNeuronOfs = 0, maxIncNeuronsCnt = 0;//we need maxIncNeuronsCnt to calculate the biggest possible internal dLdAPrev
 			get_self().for_each_packed_layer([&](auto& l)noexcept {
 				if (ErrorCode::Success == ec) {
 					initD.clean();
@@ -234,11 +240,6 @@ namespace nntl {
 			NNTL_ASSERT(firstNeuronOfs + 1 == act.cols());
 
 			if (ErrorCode::Success == ec) {
-				//preparing room for tmp bias storage.
-				/*NNTL_ASSERT(!m_pTmpBiasStorage);
-				m_pTmpBiasStorage = new(std::nothrow)real_t[get_self().get_max_fprop_batch_size()];
-				if (!m_pTmpBiasStorage) return ErrorCode::CantAllocateMemoryForTmpBiasStorage;*/
-
 				//appending training requirements for this (top-level) layer
 
 				//we'll need a column-vector of length m_max_fprop_batch_size to store a data column of previous layer activation,
@@ -250,9 +251,16 @@ namespace nntl {
 					// saving max_dLdA_numel, gathered from inner layers and substituting it for this layer max_dLdA_numel
 					m_layers_max_dLdA_numel = std::max(lid.max_dLdA_numel
 						, realmtx_t::sNumel(get_self().get_training_batch_size(), maxIncNeuronsCnt));
+					//The first argument of max() - lid.max_dLdA_numel - describes the biggest dLdA size, the second
+					//argument (realmtx_t::sNumel(get_self().get_training_batch_size(), maxIncNeuronsCnt)) describes the biggest
+					// dLdAPrev.
+
+					//The biggest "outside" dLdA is limited to activation matrix size (we can't send dLdA passed as bprop() argument
+					//to encapsulated layer's bprop()
 					lid.max_dLdA_numel = realmtx_t::sNumel(get_self().get_training_batch_size(), get_self().get_neurons_cnt());
 					
-					//reserving memory for two inner dLdA matrices AND a column-vector of length m_max_fprop_batch_size to store a data column of previous layer activation
+					//reserving memory (additional to what encapsulated layers require) for two inner dLdA matrices
+					// AND a column-vector of length m_max_fprop_batch_size to store a data column of previous layer activation
 					lid.maxMemBPropRequire += get_self().get_max_fprop_batch_size() + 2 * m_layers_max_dLdA_numel;
 				}
 			}
@@ -389,6 +397,13 @@ namespace nntl {
 				NNTL_ASSERT(firstNeuronOfs + m_innerdLdA.cols() <= dLdA.cols());
 				NNTL_ASSERT(m_innerdLdA.rows() == dLdA.rows() && _training_batch_size == m_innerdLdA.rows());
 				memcpy(m_innerdLdA.data(), dLdA.colDataAsVec(firstNeuronOfs), m_innerdLdA.byte_size());
+
+				//#consider если для каждого внутреннего слоя помнить max_dLdA_numel, и она окажется меньше m_innerdLdA.numel() и
+				//m_innerdLdAPrev.numel, то можно избежать копирования dLdA в m_innerdLdA передавая данные напрямую, адресуя
+				// их внутри dLdA - в этом случае соседние данные dLdA других слоёв останутся в безопасности.
+				// Однако, в большинстве случаев условие будет не выполняться (т.к. внутренние слои представляют собой обычно
+				// жирные фиче-детекторы с меньшем числом выходов, чем внутренних нейронов - у них dLdA для внутренних слоёв
+				// больше располагаемой тут dLdA внешнего слоя)
 
 				//setting up the m_innerdLdAPrev
 				if (bLowerLayerIsInput) {

@@ -1404,7 +1404,7 @@ namespace math {
 			const auto ptrF = fValue.data();
 			const auto ptrDF = df.data();
 			for (numel_cnt_t i = 0; i < dataCnt; ++i) {
-				ptrDF[i] = ptrF[i]>0 ? real_t(1.0) : real_t(0.0);
+				ptrDF[i] = ptrF[i]>real_t(0.) ? real_t(1.0) : real_t(0.0);
 			}
 		}
 		void drelu_mt_naive(const realmtx_t& fValue, realmtx_t& df) noexcept {
@@ -1417,7 +1417,7 @@ namespace math {
 				const auto ofs = r.offset();
 				const auto im = ofs + r.cnt();
 				for (range_t i = ofs; i < im; ++i) {
-					ptrDF[i] = ptrF[i]>0 ? real_t(1.0) : real_t(0.0);
+					ptrDF[i] = ptrF[i]>real_t(0.) ? real_t(1.0) : real_t(0.0);
 				}
 			}, fValue.numel_no_bias());
 		}

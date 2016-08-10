@@ -66,7 +66,7 @@ namespace nntl {
 		//////////////////////////////////////////////////////////////////////////
 		const realmtxdef_t& get_activations()const noexcept { return m_activations; }
 
-		// pNewActivationStorage MUST be specified (we're expecting to be incapsulated into a layer_pack_horizontal)
+		// pNewActivationStorage MUST be specified (we're expecting to be encapsulated into a layer_pack_horizontal)
 		ErrorCode init(_layer_init_data_t& lid, real_t* pNewActivationStorage)noexcept {
 			NNTL_ASSERT(pNewActivationStorage);
 
@@ -85,8 +85,8 @@ namespace nntl {
 		}
 		void initMem(real_t* ptr, numel_cnt_t cnt)noexcept {}
 
-		// pNewActivationStorage MUST be specified (we're expecting to be incapsulated into layer_pack_horizontal)
-		void set_mode(vec_len_t batchSize, real_t* pNewActivationStorage = nullptr)noexcept {
+		// pNewActivationStorage MUST be specified (we're expecting to be encapsulated into layer_pack_horizontal)
+		void set_mode(vec_len_t batchSize, real_t* pNewActivationStorage)noexcept {
 			NNTL_ASSERT(pNewActivationStorage);
 
 			const bool bTraining = batchSize == 0;
@@ -178,7 +178,7 @@ namespace nntl {
 		const realmtx_t& get_gate()const noexcept { return m_gate; }
 		const vec_len_t get_gate_width()const noexcept { return get_self().get_neurons_cnt(); }
 
-		// pNewActivationStorage MUST be specified (we're expecting to be incapsulated into a layer_pack_horizontal)
+		// pNewActivationStorage MUST be specified (we're expecting to be encapsulated into a layer_pack_horizontal)
 		ErrorCode init(_layer_init_data_t& lid, real_t* pNewActivationStorage)noexcept {
 			NNTL_ASSERT(pNewActivationStorage);
 
@@ -195,8 +195,8 @@ namespace nntl {
 			m_gate.clear();
 			_base_class::deinit();
 		}
-		// pNewActivationStorage MUST be specified (we're expecting to be incapsulated into layer_pack_horizontal)
-		void set_mode(vec_len_t batchSize, real_t* pNewActivationStorage = nullptr)noexcept {
+		// pNewActivationStorage MUST be specified (we're expecting to be encapsulated into layer_pack_horizontal)
+		void set_mode(vec_len_t batchSize, real_t* pNewActivationStorage)noexcept {
 			NNTL_ASSERT(pNewActivationStorage);
 			_base_class::set_mode(batchSize, pNewActivationStorage);
 

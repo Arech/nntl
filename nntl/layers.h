@@ -156,7 +156,7 @@ namespace nntl {
 
 		//perform layers initialization before training begins.
 		template <typename CommonData>
-		layer_error_t init(const CommonData& cd, _impl::layers_mem_requirements<real_t>& LMR)const noexcept
+		layer_error_t init(const CommonData& cd, _impl::layers_mem_requirements& LMR)const noexcept
 		{
 			ErrorCode ec = ErrorCode::Success;
 			layer_index_t failedLayerIdx = 0;
