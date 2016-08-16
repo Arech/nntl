@@ -107,6 +107,35 @@ namespace math {
 		}
 
 		//////////////////////////////////////////////////////////////////////////
+		// Transforms a data matrix to be used by tiled layer. For a data with biases it looks like this:
+		//																	|x1_1...x1_n 1|		:transformed data_x
+		//																	|........... 1|		:to be fed to the layer
+		//	data_x=|x1_1..x1_n. . . .xi_1..xi_n. . . .xk_1..xk_n 1|	===>	|xi_1...xi_n 1|
+		//																	|........... 1|
+		//																	|xk_1...xk_n 1|
+		// For a data without biases the same, just drop all the ones in the picture.
+		// If src is biased matrix, then src must be a matrix of size [m, k*n+1], dest - [k*m, n+1], also biased.
+		//		Last column of dest is reserved to contain biases and must be preinitialized to 1s
+		// If src doesn't have biases, then it's size must be equal to [m, k*n], dest.size() == [k*m, n]
+		void mTilingRoll(const realmtx_t& src, realmtx_t& dest)noexcept {
+			base_class_t::mTilingRoll(src, dest);
+		}
+		
+		// Transforms a data matrix from a tiled layer format back to normal. For a data with biases it looks like this:
+		//																	|x1_1...x1_n 1|		:transformed data_x
+		//																	|........... 1|		:to be fed to the layer
+		//	data_x=|x1_1..x1_n. . . .xi_1..xi_n. . . .xk_1..xk_n 1|	<===	|xi_1...xi_n 1|
+		//																	|........... 1|
+		//																	|xk_1...xk_n 1|
+		// For a data without biases the same, just drop all the ones in the picture.
+		// If src is biased matrix, then src must be a matrix of size [k*m, n+1], dest - [m, k*n+1], also biased.
+		//		Last column of dest is reserved to contain biases and must be preinitialized to 1s
+		// If src doesn't have biases, then it's size must be equal to [k*m, n], dest.size() == [k*m, n]
+		void mTilingUnroll(const realmtx_t& src, realmtx_t& dest)noexcept {
+			base_class_t::mTilingUnroll(src, dest);
+		}
+
+		//////////////////////////////////////////////////////////////////////////
 		// treat matrix as a set of row-vectors (matrices in col-major mode!). For each row-vector check, whether
 		// its length/norm is not longer, than predefined value. If it's longer, than rescale vector to this max length
 		// (for use in max-norm weights regularization)

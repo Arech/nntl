@@ -132,7 +132,7 @@ namespace nntl {
 
 			bool bSuccessfullyInitialized = false;
 			utils::scope_exit onExit([&bSuccessfullyInitialized, this]() {
-				if (!bSuccessfullyInitialized) deinit();
+				if (!bSuccessfullyInitialized) get_self().deinit();
 			});
 
 			//we must resize gatingMask here to the size of underlying_layer activations, however gatingMask mustn't

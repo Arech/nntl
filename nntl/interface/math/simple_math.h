@@ -410,9 +410,10 @@ namespace math {
 			//TODO: for some algorithms and datasizes it may be highly beneficial to make smart partitioning, that takes into account
 			//CPU cache size (will probably require more than workers_count() call to worker function, but each call will run significanly
 			// faster, due to correct cache use)
-			m_threads.run([&A, F{ std::move(Func) }](const par_range_t& pr) {
+			//m_threads.run([&A, F{ std::move(Func) }](const par_range_t& pr) {
+			m_threads.run([&A, &F{ std::forward<LambdaF>(Func) }](const par_range_t& pr) {
 				const auto colBeg = static_cast<vec_len_t>(pr.offset());
-				F(rowcol_range(A, colBeg, colBeg + static_cast<vec_len_t>(pr.cnt())), pr.tid());
+				std::forward<LambdaF>(F)(rowcol_range(A, colBeg, colBeg + static_cast<vec_len_t>(pr.cnt())), pr.tid());
 			}, A.cols());
 		}
 		//Variation to make a vector out of const A
@@ -431,16 +432,16 @@ namespace math {
 			//TODO: for some algorithms and datasizes it may be highly beneficial to make smart partitioning, that takes into account
 			//CPU cache size (will probably require more than workers_count() call to worker function, but each call will run significanly
 			// faster, due to correct cache use)
-			m_threads.run([&A, pTmpMem, rm, F{ std::move(Func) }](const par_range_t& pr) {
+			m_threads.run([&A, pTmpMem, rm, &F{ std::forward<LambdaF>(Func) }](const par_range_t& pr) {
 				const auto colBeg = static_cast<vec_len_t>(pr.offset());
 				auto pVec = pTmpMem + realmtx_t::sNumel(rm, pr.tid());
-				F(rowcol_range(A, colBeg, colBeg + static_cast<vec_len_t>(pr.cnt())), pVec);
+				std::forward<LambdaF>(F)(rowcol_range(A, colBeg, colBeg + static_cast<vec_len_t>(pr.cnt())), pVec);
 			}, cm, threadsToUse, &threadsUsed);
 			NNTL_ASSERT(threadsToUse == threadsUsed);
 			realmtx_t fin;
 			fin.useExternalStorage(pTmpMem, rm, threadsUsed);
 			//FinFunc(static_cast<const MtxT&>(fin));
-			FinFunc(fin);
+			std::forward<LambdaFinal>(FinFunc)(fin);
 		}
 
 		//Variation to make a vector out of const A, using additional (second) temporary data vector
@@ -466,19 +467,19 @@ namespace math {
 			//TODO: for some algorithms and datasizes it may be highly beneficial to make smart partitioning, that takes into account
 			//CPU cache size (will probably require more than workers_count() call to worker function, but each call will run significanly
 			// faster, due to correct cache use)
-			m_threads.run([&A, pMainVec, pScndVec, rm, F{ std::move(Func) }](const par_range_t& pr) {
+			m_threads.run([&A, pMainVec, pScndVec, rm, &F{ std::forward<LambdaF>(Func) }](const par_range_t& pr) {
 				const auto _tmpElmOffset = realmtx_t::sNumel(rm, pr.tid());
 				auto pVec = pMainVec + _tmpElmOffset;
 				auto pSVec = pScndVec + _tmpElmOffset;
 				const auto colBeg = static_cast<vec_len_t>(pr.offset());
-				F(rowcol_range(A, colBeg, colBeg + static_cast<vec_len_t>(pr.cnt())), pVec, pSVec);
+				std::forward<LambdaF>(F)(rowcol_range(A, colBeg, colBeg + static_cast<vec_len_t>(pr.cnt())), pVec, pSVec);
 			}, cm, threadsToUse, &threadsUsed);
 			NNTL_ASSERT(threadsToUse == threadsUsed);
 
 			realmtx_t fin;
 			fin.useExternalStorage(pMainVec, rm, threadsUsed);
 			//FinFunc(static_cast<const MtxT&>(fin), pScndVec);
-			FinFunc(fin, pScndVec);
+			std::forward<LambdaFinal>(FinFunc)(fin, pScndVec);
 		}
 
 		//////////////////////////////////////////////////////////////////////////
@@ -487,9 +488,9 @@ namespace math {
 		template<typename MtxT, typename LambdaF>
 		nntl_force_inline void _processMtx_rw(MtxT& A, LambdaF&& Func)noexcept {
 			NNTL_ASSERT(!A.empty() && A.numel() > 0);
-			m_threads.run([&A, F{ std::move(Func) }](const par_range_t& pr) {
+			m_threads.run([&A, &F{ std::forward<LambdaF>(Func) }](const par_range_t& pr) {
 				const auto ofs = static_cast<vec_len_t>(pr.offset());
-				F(rowcol_range(ofs, ofs + static_cast<vec_len_t>(pr.cnt()), A));
+				std::forward<LambdaF>(F)(rowcol_range(ofs, ofs + static_cast<vec_len_t>(pr.cnt()), A));
 			}, A.rows());
 		}
 
@@ -990,7 +991,6 @@ namespace math {
 				get_self().mCloneCols_st(srcCols, dest, pColSpec);
 			} else get_self().mCloneCols_mt(srcCols, dest, pColSpec);
 		}
-
 		void mCloneCols_st(const realmtx_t& srcCols, realmtx_t& dest, const vec_len_t*const pColSpec, const vec_len_t firstCol=0, const vec_len_t _lastCol=0)noexcept {
 			NNTL_ASSERT(!srcCols.empty() && !dest.empty());
 			NNTL_ASSERT(pColSpec && srcCols.cols());
@@ -1017,7 +1017,7 @@ namespace math {
 			if (csIdx <= csIdxMax && colsLeft <= destCols) {
 				auto pDest = dest.colDataAsVec(firstCol);
 				const auto pDE = dest.colDataAsVec(_lastCol ? _lastCol : destCols);
-				const auto _rows = static_cast<ptrdiff_t>(dest.rows());
+				const auto _rows = static_cast<numel_cnt_t>(dest.rows());
 				auto pSrc = srcCols.colDataAsVec(csIdx);
 				const vec_len_t* pnCS = pColSpec + csIdx+1;
 				while (pDest != pDE) {
@@ -1041,7 +1041,7 @@ namespace math {
 			NNTL_ASSERT(pColSpec && srcCols.cols());
 			NNTL_ASSERT(srcCols.rows() == dest.rows());
 			NNTL_ASSERT(dest.cols() == std::accumulate(pColSpec, pColSpec + srcCols.cols(), vec_len_t(0)));
-			
+
 			m_threads.run([&srcCols, &dest, pColSpec, this](const par_range_t& pr) {
 				const auto colBeg = static_cast<vec_len_t>(pr.offset());
 				get_self().mCloneCols_st(srcCols, dest, pColSpec, colBeg, colBeg + static_cast<vec_len_t>(pr.cnt()));
@@ -1057,15 +1057,14 @@ namespace math {
 				get_self().mCloneCol_st(srcCol, dest);
 			} else get_self().mCloneCol_mt(srcCol, dest);
 		}
-
-		void mCloneCol_st(const realmtx_t& srcCol, realmtx_t&dest, const vec_len_t firstCol = 0, const vec_len_t _lastCol = 0)noexcept {
+		void mCloneCol_st(const realmtx_t& srcCol, realmtx_t&dest, const vec_len_t firstCol = 0, const vec_len_t _lastCol = 0)const noexcept {
 			NNTL_ASSERT(!srcCol.empty() && !dest.empty());
 			NNTL_ASSERT(1 == srcCol.cols());
 			NNTL_ASSERT(srcCol.rows() == dest.rows());
 			NNTL_ASSERT(firstCol < _lastCol || _lastCol == 0);
 			NNTL_ASSERT(firstCol < dest.cols() && _lastCol <= dest.cols());
 
-			const auto _rows = static_cast<ptrdiff_t>(srcCol.rows());
+			const auto _rows = static_cast<numel_cnt_t>(srcCol.rows());
 			const auto pSrc = srcCol.data();
 			auto pD = dest.colDataAsVec(firstCol);
 			const auto pDE = dest.colDataAsVec(_lastCol ? _lastCol : dest.cols());			
@@ -1074,7 +1073,6 @@ namespace math {
 				pD += _rows;
 			}
 		}
-
 		void mCloneCol_mt(const realmtx_t& srcCol, realmtx_t& dest)noexcept {
 			NNTL_ASSERT(!srcCol.empty() && !dest.empty());
 			NNTL_ASSERT(1 == srcCol.cols());
@@ -1084,6 +1082,322 @@ namespace math {
 				const auto colBeg = static_cast<vec_len_t>(pr.offset());
 				get_self().mCloneCol_st(srcCol, dest, colBeg, colBeg + static_cast<vec_len_t>(pr.cnt()));
 			}, dest.cols());
+		}
+
+		//////////////////////////////////////////////////////////////////////////
+		//////////////////////////////////////////////////////////////////////////
+		// Transforms a data matrix to be used by tiled layer. For a data with biases it looks like this:
+		//																	|x1_1...x1_n 1|		:transformed data_x
+		//																	|........... 1|		:to be fed to the layer
+		//	data_x=|x1_1..x1_n. . . .xi_1..xi_n. . . .xk_1..xk_n 1|	===>	|xi_1...xi_n 1|
+		//																	|........... 1|
+		//																	|xk_1...xk_n 1|
+		// For a data without biases the same, just drop all the ones in the picture.
+		// If src is biased matrix, then src must be a matrix of size [m, k*n+1], dest - [k*m, n+1], also biased.
+		//		Last column of dest is reserved to contain biases and must be preinitialized to 1s
+		// If src doesn't have biases, then it's size must be equal to [m, k*n], dest.size() == [k*m, n]
+		void mTilingRoll(const realmtx_t& src, realmtx_t& dest)noexcept {
+			if (src.numel_no_bias()<Thresholds_t::mTilingRoll) {
+				get_self().mTilingRoll_st(src, dest);
+			} else get_self().mTilingRoll_mt(src, dest);
+		}
+		//#TODO Thresholds in this group are nuts.
+		void mTilingRoll_st(const realmtx_t& src, realmtx_t& dest)noexcept {
+			get_self().mTilingRoll_seqwrite_st(src, dest);
+		}
+		void mTilingRoll_mt(const realmtx_t& src, realmtx_t& dest)noexcept {
+			if (dest.cols_no_bias() < Thresholds_t::mTilingRoll_mt_cols) {
+				get_self().mTilingRoll_seqread_mt(src, dest);
+			}else get_self().mTilingRoll_seqwrite_mt(src, dest);
+			
+		}
+		//sequential reading version, firstCol and _lastCol applies to src matrix
+		void mTilingRoll_seqread_st(const realmtx_t& src, realmtx_t& dest, const vec_len_t firstCol = 0, const vec_len_t _lastCol = 0)const noexcept {
+			NNTL_ASSERT(!src.empty() && !dest.empty());
+			NNTL_ASSERT(!(src.emulatesBiases() ^ dest.emulatesBiases()));
+			NNTL_ASSERT(src.rows() && src.cols_no_bias());
+			NNTL_ASSERT(dest.rows() && dest.cols_no_bias());
+			NNTL_ASSERT(src.rows() < dest.rows());
+			NNTL_ASSERT(dest.cols_no_bias() < src.cols_no_bias());
+			NNTL_ASSERT(firstCol != 0 || _lastCol != 0 || !src.emulatesBiases() || src.test_biases_ok());
+			NNTL_ASSERT(firstCol != 0 || _lastCol != 0 || !dest.emulatesBiases() || dest.test_biases_ok());
+
+			const vec_len_t lastCol = _lastCol ? _lastCol : src.cols_no_bias();
+			NNTL_ASSERT(firstCol < src.cols_no_bias());
+			NNTL_ASSERT(lastCol <= src.cols_no_bias());
+			NNTL_ASSERT(firstCol <= lastCol);
+
+			const auto m = static_cast<numel_cnt_t>(src.rows());
+			const auto km = static_cast<numel_cnt_t>(dest.rows());
+			const numel_cnt_t k = km / m;
+			NNTL_ASSERT(km == k*m);//to make sure no rounding happened
+			const vec_len_t n = dest.cols_no_bias();
+			NNTL_ASSERT(src.cols_no_bias() == k*n);
+
+			const vec_len_t kIdx = firstCol / n;
+			auto pDFirst = dest.data() + m*kIdx;
+			auto pD = pDFirst + km*(firstCol - kIdx*n);
+			const auto pDLast = dest.colDataAsVec(n - 1);
+			//NNTL_ASSERT(pD + m*(lastCol - firstCol) <= dest.colDataAsVec(n));
+			auto pS = src.colDataAsVec(firstCol);
+			const auto pSE = pS + m*(lastCol - firstCol);
+			NNTL_ASSERT(pSE <= src.colDataAsVec(src.cols_no_bias()));
+			while (pS != pSE) {
+				NNTL_ASSERT(pD + m <= dest.colDataAsVec(n));
+				NNTL_ASSERT(pS + m <= src.colDataAsVec(src.cols_no_bias()));
+				memcpy(pD, pS, sizeof(*pD)*m);
+				pS += m;
+				if (pD < pDLast) {
+					pD += km;//nIdx increments
+				} else {//should increment kIdx and wrap nIdx to zero
+					pDFirst += m;
+					pD = pDFirst;
+				}
+			}
+
+			NNTL_ASSERT(firstCol != 0 || _lastCol != 0 || !src.emulatesBiases() || src.test_biases_ok());
+			NNTL_ASSERT(firstCol != 0 || _lastCol != 0 || !dest.emulatesBiases() || dest.test_biases_ok());
+		}
+		void mTilingRoll_seqread_mt(const realmtx_t& src, realmtx_t& dest)noexcept {
+			NNTL_ASSERT(!src.empty() && !dest.empty());
+			NNTL_ASSERT(!(src.emulatesBiases() ^ dest.emulatesBiases()));
+			NNTL_ASSERT(src.rows() && src.cols_no_bias());
+			NNTL_ASSERT(dest.rows() && dest.cols_no_bias());
+			NNTL_ASSERT(src.rows() < dest.rows());
+			NNTL_ASSERT(dest.cols_no_bias() < src.cols_no_bias());
+			NNTL_ASSERT(!src.emulatesBiases() || src.test_biases_ok());
+			NNTL_ASSERT(!dest.emulatesBiases() || dest.test_biases_ok());
+
+			m_threads.run([&src, &dest, this](const par_range_t& pr) {
+				const auto colBeg = static_cast<vec_len_t>(pr.offset());
+				get_self().mTilingRoll_seqread_st(src, dest, colBeg, colBeg + static_cast<vec_len_t>(pr.cnt()));
+			}, src.cols_no_bias());
+
+			NNTL_ASSERT(!src.emulatesBiases() || src.test_biases_ok());
+			NNTL_ASSERT(!dest.emulatesBiases() || dest.test_biases_ok());
+		}
+		//sequential writing version, firstCol and _lastCol applies to dest matrix
+		void mTilingRoll_seqwrite_st(const realmtx_t& src, realmtx_t& dest, const vec_len_t firstCol = 0, const vec_len_t _lastCol = 0)const noexcept {
+			NNTL_ASSERT(!src.empty() && !dest.empty());
+			NNTL_ASSERT(!(src.emulatesBiases() ^ dest.emulatesBiases()));
+			NNTL_ASSERT(src.rows() && src.cols_no_bias());
+			NNTL_ASSERT(dest.rows() && dest.cols_no_bias());
+			NNTL_ASSERT(src.rows() < dest.rows());
+			NNTL_ASSERT(dest.cols_no_bias() < src.cols_no_bias());
+			NNTL_ASSERT(firstCol != 0 || _lastCol != 0 || !src.emulatesBiases() || src.test_biases_ok());
+			NNTL_ASSERT(firstCol != 0 || _lastCol != 0 || !dest.emulatesBiases() || dest.test_biases_ok());
+
+			const vec_len_t n = dest.cols_no_bias();
+			const vec_len_t lastCol = _lastCol ? _lastCol : n;
+			NNTL_ASSERT(firstCol < n);
+			NNTL_ASSERT(lastCol <= n);
+			NNTL_ASSERT(firstCol <= lastCol);
+
+			const auto m = static_cast<numel_cnt_t>(src.rows());
+			const auto k = static_cast<numel_cnt_t>(dest.rows()) / m;
+			NNTL_ASSERT(dest.rows() == static_cast<vec_len_t>(k*m));//to make sure no rounding happened
+			NNTL_ASSERT(src.cols_no_bias() == k*n);
+
+			const numel_cnt_t nm = m*n;
+
+			auto pD = dest.colDataAsVec(firstCol);
+			const auto pDE = pD + static_cast<numel_cnt_t>(dest.rows())*(lastCol - firstCol);
+
+			auto pSFirst = src.colDataAsVec(firstCol);
+			auto pS = pSFirst;
+			const auto pSLast = src.colDataAsVec(src.cols_no_bias() - n);
+			
+			while (pD != pDE) {
+				NNTL_ASSERT(pD + m <= dest.colDataAsVec(n));
+				NNTL_ASSERT(pS + m <= src.colDataAsVec(src.cols_no_bias()));
+				memcpy(pD, pS, sizeof(*pD)*m);
+				pD += m;
+				if (pS < pSLast) {
+					pS += nm;
+				} else {
+					pSFirst += m;
+					pS = pSFirst;
+				}
+			}
+			NNTL_ASSERT(firstCol != 0 || _lastCol != 0 || !src.emulatesBiases() || src.test_biases_ok());
+			NNTL_ASSERT(firstCol != 0 || _lastCol != 0 || !dest.emulatesBiases() || dest.test_biases_ok());
+		}
+		void mTilingRoll_seqwrite_mt(const realmtx_t& src, realmtx_t& dest)noexcept {
+			NNTL_ASSERT(!src.empty() && !dest.empty());
+			NNTL_ASSERT(!(src.emulatesBiases() ^ dest.emulatesBiases()));
+			NNTL_ASSERT(src.rows() && src.cols_no_bias());
+			NNTL_ASSERT(dest.rows() && dest.cols_no_bias());
+			NNTL_ASSERT(src.rows() < dest.rows());
+			NNTL_ASSERT(dest.cols_no_bias() < src.cols_no_bias());
+			NNTL_ASSERT(!src.emulatesBiases() || src.test_biases_ok());
+			NNTL_ASSERT(!dest.emulatesBiases() || dest.test_biases_ok());
+
+			m_threads.run([&src, &dest, this](const par_range_t& pr) {
+				const auto colBeg = static_cast<vec_len_t>(pr.offset());
+				get_self().mTilingRoll_seqwrite_st(src, dest, colBeg, colBeg + static_cast<vec_len_t>(pr.cnt()));
+			}, dest.cols_no_bias());
+
+			NNTL_ASSERT(!src.emulatesBiases() || src.test_biases_ok());
+			NNTL_ASSERT(!dest.emulatesBiases() || dest.test_biases_ok());
+		}
+
+
+		//////////////////////////////////////////////////////////////////////////
+		//////////////////////////////////////////////////////////////////////////
+		// Transforms a data matrix from a tiled layer format back to normal. For a data with biases it looks like this:
+		//																	|x1_1...x1_n 1|		:transformed data_x
+		//																	|........... 1|		:to be fed to the layer
+		//	data_x=|x1_1..x1_n. . . .xi_1..xi_n. . . .xk_1..xk_n 1|	<===	|xi_1...xi_n 1|
+		//																	|........... 1|
+		//																	|xk_1...xk_n 1|
+		// For a data without biases the same, just drop all the ones in the picture.
+		// If src is biased matrix, then src must be a matrix of size [k*m, n+1], dest - [m, k*n+1], also biased.
+		//		Last column of dest is reserved to contain biases and must be preinitialized to 1s
+		// If src doesn't have biases, then it's size must be equal to [k*m, n], dest.size() == [k*m, n]
+		void mTilingUnroll(const realmtx_t& src, realmtx_t& dest)noexcept {
+			if (src.numel_no_bias() < Thresholds_t::mTilingUnroll) {
+				get_self().mTilingUnroll_st(src, dest);
+			} else get_self().mTilingUnroll_mt(src, dest);
+		}
+		//#TODO Thresholds in this group are nuts.
+		void mTilingUnroll_st(const realmtx_t& src, realmtx_t& dest)noexcept {
+			get_self().mTilingUnroll_seqread_st(src, dest);
+		}
+		void mTilingUnroll_mt(const realmtx_t& src, realmtx_t& dest)noexcept {
+			if (dest.cols_no_bias() < Thresholds_t::mTilingUnroll_mt_cols) {
+				get_self().mTilingUnroll_seqwrite_mt(src, dest);
+			} else get_self().mTilingUnroll_seqread_mt(src, dest);
+
+		}
+		//sequential writing version, firstCol and _lastCol applies to dest matrix
+		void mTilingUnroll_seqwrite_st(const realmtx_t& src, realmtx_t& dest, const vec_len_t firstCol = 0, const vec_len_t _lastCol = 0)const noexcept {
+			NNTL_ASSERT(!dest.empty() && !src.empty());
+			NNTL_ASSERT(!(dest.emulatesBiases() ^ src.emulatesBiases()));
+			NNTL_ASSERT(dest.rows() && dest.cols_no_bias());
+			NNTL_ASSERT(src.rows() && src.cols_no_bias());
+			NNTL_ASSERT(dest.rows() < src.rows());
+			NNTL_ASSERT(src.cols_no_bias() < dest.cols_no_bias());
+			NNTL_ASSERT(firstCol != 0 || _lastCol != 0 || !dest.emulatesBiases() || dest.test_biases_ok());
+			NNTL_ASSERT(firstCol != 0 || _lastCol != 0 || !src.emulatesBiases() || src.test_biases_ok());
+
+			const vec_len_t lastCol = _lastCol ? _lastCol : dest.cols_no_bias();
+			NNTL_ASSERT(firstCol < dest.cols_no_bias());
+			NNTL_ASSERT(lastCol <= dest.cols_no_bias());
+			NNTL_ASSERT(firstCol <= lastCol);
+
+			const auto m = static_cast<numel_cnt_t>(dest.rows());
+			const auto km = static_cast<numel_cnt_t>(src.rows());
+			const vec_len_t k = static_cast<vec_len_t>(km / m);
+			NNTL_ASSERT(km == k*m);//to make sure no rounding happened
+			const vec_len_t n = src.cols_no_bias();
+			NNTL_ASSERT(dest.cols_no_bias() == k*n);
+
+			//const vec_len_t srcFirstCol = firstCol / k;
+			//auto pSFirst = src.colDataAsVec(srcFirstCol) + m*(firstCol - srcFirstCol*k);
+			const vec_len_t kIdx = firstCol / n;
+			auto pSFirst = src.data() + m*kIdx;
+			auto pS = pSFirst + km*(firstCol - kIdx*n);
+			const auto pSLast = src.colDataAsVec(n - 1);
+			//NNTL_ASSERT(pS + m*(lastCol - firstCol) <= src.colDataAsVec(n));
+			auto pD = dest.colDataAsVec(firstCol);
+			const auto pDE = pD + m*(lastCol - firstCol);
+			NNTL_ASSERT(pDE <= dest.colDataAsVec(dest.cols_no_bias()));
+			while (pD != pDE) {
+				NNTL_ASSERT(pS + m <= src.colDataAsVec(n));
+				NNTL_ASSERT(pD + m <= dest.colDataAsVec(dest.cols_no_bias()));
+				memcpy(pD, pS, sizeof(*pS)*m);
+				pD += m;
+				if (pS < pSLast) {
+					pS += km;
+				} else {
+					pSFirst += m;
+					pS = pSFirst;
+				}
+			}
+			NNTL_ASSERT(firstCol != 0 || _lastCol != 0 || !dest.emulatesBiases() || dest.test_biases_ok());
+			NNTL_ASSERT(firstCol != 0 || _lastCol != 0 || !src.emulatesBiases() || src.test_biases_ok());
+		}
+		void mTilingUnroll_seqwrite_mt(const realmtx_t& src, realmtx_t& dest)noexcept {
+			NNTL_ASSERT(!dest.empty() && !src.empty());
+			NNTL_ASSERT(!(dest.emulatesBiases() ^ src.emulatesBiases()));
+			NNTL_ASSERT(dest.rows() && dest.cols_no_bias());
+			NNTL_ASSERT(src.rows() && src.cols_no_bias());
+			NNTL_ASSERT(dest.rows() < src.rows());
+			NNTL_ASSERT(src.cols_no_bias() < dest.cols_no_bias());
+			NNTL_ASSERT(!dest.emulatesBiases() || dest.test_biases_ok());
+			NNTL_ASSERT(!src.emulatesBiases() || src.test_biases_ok());
+
+			m_threads.run([&dest, &src, this](const par_range_t& pr) {
+				const auto colBeg = static_cast<vec_len_t>(pr.offset());
+				get_self().mTilingUnroll_seqwrite_st(src, dest, colBeg, colBeg + static_cast<vec_len_t>(pr.cnt()));
+			}, dest.cols_no_bias());
+
+			NNTL_ASSERT(!dest.emulatesBiases() || dest.test_biases_ok());
+			NNTL_ASSERT(!src.emulatesBiases() || src.test_biases_ok());
+		}
+		//sequential reading version, firstCol and _lastCol applies to src matrix
+		void mTilingUnroll_seqread_st(const realmtx_t& src, realmtx_t& dest, const vec_len_t firstCol = 0, const vec_len_t _lastCol = 0)const noexcept {
+			NNTL_ASSERT(!dest.empty() && !src.empty());
+			NNTL_ASSERT(!(dest.emulatesBiases() ^ src.emulatesBiases()));
+			NNTL_ASSERT(dest.rows() && dest.cols_no_bias());
+			NNTL_ASSERT(src.rows() && src.cols_no_bias());
+			NNTL_ASSERT(dest.rows() < src.rows());
+			NNTL_ASSERT(src.cols_no_bias() < dest.cols_no_bias());
+			NNTL_ASSERT(firstCol != 0 || _lastCol != 0 || !dest.emulatesBiases() || dest.test_biases_ok());
+			NNTL_ASSERT(firstCol != 0 || _lastCol != 0 || !src.emulatesBiases() || src.test_biases_ok());
+
+			const vec_len_t n = src.cols_no_bias();
+			const vec_len_t lastCol = _lastCol ? _lastCol : n;
+			NNTL_ASSERT(firstCol < n);
+			NNTL_ASSERT(lastCol <= n);
+			NNTL_ASSERT(firstCol <= lastCol);
+
+			const auto m = static_cast<numel_cnt_t>(dest.rows());
+			const vec_len_t k = src.rows() / static_cast<vec_len_t>(m);
+			NNTL_ASSERT(src.rows() == static_cast<vec_len_t>(m*k));//to make sure no rounding happened
+			NNTL_ASSERT(dest.cols_no_bias() == k*n);
+
+			const numel_cnt_t nm = m*n;
+
+			auto pS = src.colDataAsVec(firstCol);
+			const auto pSE = pS + src.rows()*(lastCol - firstCol);
+
+			auto pDFirst = dest.colDataAsVec(firstCol);
+			auto pD = pDFirst;
+			const auto pDLast = dest.colDataAsVec(dest.cols_no_bias() - n);
+
+			while (pS != pSE) {
+				NNTL_ASSERT(pS + m <= src.colDataAsVec(n));
+				NNTL_ASSERT(pD + m <= dest.colDataAsVec(dest.cols_no_bias()));
+				memcpy(pD, pS, sizeof(*pS)*m);
+				pS += m;
+				if (pD < pDLast) {
+					pD += nm;
+				} else {
+					pDFirst += m;
+					pD = pDFirst;
+				}
+			}
+			NNTL_ASSERT(firstCol != 0 || _lastCol != 0 || !dest.emulatesBiases() || dest.test_biases_ok());
+			NNTL_ASSERT(firstCol != 0 || _lastCol != 0 || !src.emulatesBiases() || src.test_biases_ok());
+		}
+		void mTilingUnroll_seqread_mt(const realmtx_t& src, realmtx_t& dest)noexcept {
+			NNTL_ASSERT(!src.empty() && !dest.empty());
+			NNTL_ASSERT(!(src.emulatesBiases() ^ dest.emulatesBiases()));
+			NNTL_ASSERT(src.rows() && src.cols_no_bias());
+			NNTL_ASSERT(dest.rows() && dest.cols_no_bias());
+			NNTL_ASSERT(dest.rows() < src.rows());
+			NNTL_ASSERT(src.cols_no_bias() < dest.cols_no_bias());
+			NNTL_ASSERT(!src.emulatesBiases() || src.test_biases_ok());
+			NNTL_ASSERT(!dest.emulatesBiases() || dest.test_biases_ok());
+
+			m_threads.run([&src, &dest, this](const par_range_t& pr) {
+				const auto colBeg = static_cast<vec_len_t>(pr.offset());
+				get_self().mTilingUnroll_seqread_st(src, dest, colBeg, colBeg + static_cast<vec_len_t>(pr.cnt()));
+			}, src.cols_no_bias());
+
+			NNTL_ASSERT(!src.emulatesBiases() || src.test_biases_ok());
+			NNTL_ASSERT(!dest.emulatesBiases() || dest.test_biases_ok());
 		}
 
 	};

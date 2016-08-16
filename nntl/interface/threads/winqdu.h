@@ -144,7 +144,7 @@ namespace threads {
 			//DONE: well, it worth less than 9mks to parallelize execution therefore won't bother...
 			if (cnt <= 1) {
 				if (pThreadsUsed) *pThreadsUsed = 1;
-				F(par_range_t(cnt));
+				std::forward<Func>(F)(par_range_t(cnt));
 			} else {
 				AcquireSRWLockExclusive(&m_srwlock);
 				m_fnRun = F;
@@ -157,7 +157,7 @@ namespace threads {
 				WakeAllConditionVariable(&m_waitingOrders);
 				ReleaseSRWLockExclusive(&m_srwlock);
 
-				F(par_range_t(prevOfs, cnt - prevOfs, 0));
+				std::forward<Func>(F)(par_range_t(prevOfs, cnt - prevOfs, 0));
 
 				if (m_workingCnt > 0) {
 					AcquireSRWLockExclusive(&m_srwlock);
@@ -174,7 +174,7 @@ namespace threads {
 			//TODO: decide whether it is worth to use workers here
 			//DONE: well, it worth less than 9mks to parallelize execution therefore won't bother...
 			if (cnt <= 1) {
-				return FRed( par_range_t(cnt) );
+				return std::forward<Func>(FRed)( par_range_t(cnt) );
 			} else {
 				AcquireSRWLockExclusive(&m_srwlock);
 				m_fnReduce = FRed;
@@ -191,7 +191,7 @@ namespace threads {
 				WakeAllConditionVariable(&m_waitingOrders);
 				ReleaseSRWLockExclusive(&m_srwlock);
 
-				*rc = FRed(par_range_t(prevOfs, cnt - prevOfs, 0));
+				*rc = std::forward<Func>(FRed)(par_range_t(prevOfs, cnt - prevOfs, 0));
 
 				if (m_workingCnt > 0) {
 					AcquireSRWLockExclusive(&m_srwlock);
@@ -200,7 +200,7 @@ namespace threads {
 					}
 					ReleaseSRWLockExclusive(&m_srwlock);
 				}
-				return FRF(rc, workersOnReduce);
+				return std::forward<FinalReduceFunc>(FRF)(rc, workersOnReduce);
 			}
 		}
 

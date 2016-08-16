@@ -475,7 +475,7 @@ namespace nntl {
 						m_Layers.set_mode(0);//restoring training mode after _calcLoss()
 					}
 
-					if (! onEpochEndCB(*this, opts, epochIdx)) break;
+					if (! std::forward<_onEpochEndCB>(onEpochEndCB)(*this, opts, epochIdx)) break;
 				}
 			}
 			opts.observer().on_training_end(std::chrono::steady_clock::now()- trainingBeginsAt);
@@ -520,6 +520,16 @@ namespace nntl {
 			return ec;
 		}
 
+
+		//////////////////////////////////////////////////////////////////////////
+		// use this function for unit-tesing only
+		//batchSize==0 means that _init is called for use in fprop scenario only
+		ErrorCode ___init(const vec_len_t biggestFprop, vec_len_t batchSize = 0, const bool bMiniBatch = false
+			, const vec_len_t train_x_cols = 0, const vec_len_t train_y_cols = 0
+			, _impl::_tmp_train_data<layers_pack_t>* pTtd = nullptr)noexcept
+		{
+			return _init(biggestFprop, batchSize, bMiniBatch, train_x_cols, train_y_cols, pTtd);
+		}
 	
 	};
 

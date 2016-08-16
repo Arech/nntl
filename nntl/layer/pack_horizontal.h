@@ -120,14 +120,6 @@ namespace nntl {
 			idx = initializer._idx;
 		}
 
-
-		void _cleanBiasStorage()noexcept {
-			if (m_pTmpBiasStorage) {
-				//delete[] m_pTmpBiasStorage;
-				m_pTmpBiasStorage = nullptr;
-			}
-		}
-
 		first_layer_t& first_layer()const noexcept { return std::get<0>(m_phl_tuple).l; }
 		last_layer_t& last_layer()const noexcept { return std::get<phl_count - 1>(m_phl_tuple).l; }
 		
@@ -148,12 +140,9 @@ namespace nntl {
 		}
 
 	public:
-		~_layer_pack_horizontal()noexcept {
-			_cleanBiasStorage();
-		}
+		~_layer_pack_horizontal()noexcept {}
 		_layer_pack_horizontal(PHLsT&... phls)noexcept : _base_class(_calcNeuronsCnt(_phl_tuple(phls...)))
-			, m_phl_tuple(phls...)
-			, m_pTmpBiasStorage(nullptr), m_layers_max_dLdA_numel(0)
+			, m_phl_tuple(phls...), m_pTmpBiasStorage(nullptr), m_layers_max_dLdA_numel(0)
 		{
 			m_activations.will_emulate_biases();
 		}
@@ -162,17 +151,17 @@ namespace nntl {
 		
 		//and apply function _Func(auto& layer) to each underlying (non-pack) layer here
 		template<typename _Func>
-		void for_each_layer(_Func& f)const noexcept {
-			utils::for_each_up(m_phl_tuple, [&f](auto& phl)noexcept {
-				call_F_for_each_layer(f, phl.l);
+		void for_each_layer(_Func&& f)const noexcept {
+			utils::for_each_up(m_phl_tuple, [&func{ std::forward<_Func>(f) }](auto& phl)noexcept {
+				call_F_for_each_layer(std::forward<_Func>(func), phl.l);
 			});
 		}
 
 		//This will apply f to every layer, packed in tuple no matter whether it is a _pack_* kind of layer or no
 		template<typename _Func>
-		void for_each_packed_layer(_Func& f)const noexcept {
-			utils::for_each_up(m_phl_tuple, [&f](auto& phl)noexcept {
-				f(phl.l);
+		void for_each_packed_layer(_Func&& f)const noexcept {
+			utils::for_each_up(m_phl_tuple, [&func{ std::forward<_Func>(f) }](auto& phl)noexcept {
+				std::forward<_Func>(func)(phl.l);
 			});
 		}
 
@@ -201,7 +190,7 @@ namespace nntl {
 
 			bool bSuccessfullyInitialized = false;
 			utils::scope_exit onExit([&bSuccessfullyInitialized, this]() {
-				if (!bSuccessfullyInitialized) deinit();
+				if (!bSuccessfullyInitialized) get_self().deinit();
 			});
 
 			//allocating m_activations
@@ -274,7 +263,7 @@ namespace nntl {
 		void deinit() noexcept {
 			get_self().for_each_packed_layer([](auto& l) {l.deinit(); });
 			m_activations.clear();
-			_cleanBiasStorage();
+			m_pTmpBiasStorage = nullptr;
 			m_layers_max_dLdA_numel = 0;
 			m_innerdLdA.clear();
 			m_innerdLdAPrev.clear();
@@ -357,7 +346,7 @@ namespace nntl {
 			NNTL_ASSERT(lowerLayer.get_activations().test_biases_ok());
 		}
 
-		// in order to implement backprop for inner layers, we must provide them with correct dLdA and dLdAPrev, each of which must
+		// in order to implement backprop for the inner layers, we must provide them with a correct dLdA and dLdAPrev, each of which must
 		// address at least _layer_init_data_t::max_dLdA_numel elements, that layers returned during init() phase.
 		// Some things to consider:
 		// - there might be a compound layer in m_phl_tuple (such as layer_pack_vertical). That means, that it may require a far bigger
@@ -466,4 +455,5 @@ namespace nntl {
 		LPH <PHLsT...> make_layer_pack_horizontal(PHLsT&... phls) noexcept {
 		return LPH<PHLsT...>(phls...);
 	}
+
 }

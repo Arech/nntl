@@ -55,11 +55,15 @@ namespace nntl {
 
 	//helper function to call internal _for_each_layer(f) for layer_pack_* classes
 	template<typename Func, typename LayerT> inline
-		std::enable_if_t<is_layer_pack<LayerT>::value> call_F_for_each_layer(Func& F, LayerT& l)noexcept
-	{		l.for_each_layer(F);	}
+		std::enable_if_t<is_layer_pack<LayerT>::value> call_F_for_each_layer(Func&& F, LayerT& l)noexcept
+	{
+		l.for_each_layer(std::forward<Func>(F));
+	}
 	template<typename Func, typename LayerT> inline
-		std::enable_if_t<!is_layer_pack<LayerT>::value> call_F_for_each_layer(Func& F, LayerT& l)noexcept
-	{		F(l);	}
+		std::enable_if_t<!is_layer_pack<LayerT>::value> call_F_for_each_layer(Func&& F, LayerT& l)noexcept
+	{
+		std::forward<Func>(F)(l);
+	}
 
 	//////////////////////////////////////////////////////////////////////////
 	//////////////////////////////////////////////////////////////////////////
@@ -233,17 +237,17 @@ namespace nntl {
 		template <typename LowerLayer>
 		nntl_interface unsigned bprop(realmtxdef_t& dLdA, const LowerLayer& lowerLayer, realmtxdef_t& dLdAPrev)noexcept;
 		//output layer must use form void bprop(const realmtx_t& data_y, const LowerLayer& lowerLayer, realmtxdef_t& dLdAPrev);
-		//On return value: in short, simple/single layers should return 1.
-		// In long: during init() phase, each layer returns the size of its dLdA matrix in _layer_init_data_t::max_dLdA_numel.
-		// This values from every layer are aggregated by max() into greatest possible dLdA size for whole NNet.
-		// Then two matrices of this (greatest) size are allocated and passed to layers::bprop() function. One of these
-		// matrices will be used as dLdA and the other as dLdAPrev during each layer::bprop() call.
-		// What does the return value from a bprop() is it governs whether the caller must alternate these matrices
-		// on a call to lower layer bprop() (i.e. whether dLdAPrev is actually stored in dLdAPrev variable (return 1) or
-		// dLdAPrev is really stored in (aprropriately resized) dLdA variable -return 0).
-		// So, simple/single layers, that don't switch these matrices, should always return 1. However, compound layers
+		//On return value: in a short, simple/single layers should return 1.
+		// In a long: during the init() phase, each layer returns the size of its dLdA matrix in _layer_init_data_t::max_dLdA_numel.
+		// This values gathered from every layer in a layers stack are aggregated by max() into the biggest possible dLdA size for whole NNet.
+		// Then two matrices of this (biggest) size are allocated and passed to layers::bprop() function. One of these
+		// matrices will be used as dLdA and the other as dLdAPrev during each call to a layer::bprop().
+		// What does the return value from a bprop() do is it governs whether the caller must alternate these matrices
+		// on a call to lower layer bprop() (i.e. whether a real dLdAPrev is actually stored in dLdAPrev variable (return 1) or
+		// the dLdAPrev is really stored in the (appropriately resized) dLdA variable - return 0).
+		// So, simple/single layers, that don't switch/reuse these matrices, should always return 1. However, compound layers
 		// (such as layer_pack_vertical), that consists of other layers (and must call bprop() on them), may reuse
-		// dLdA/dLdAPrev in order to eliminate the neccessity of additional temporary dLdA matrices and data coping,
+		// dLdA&dLdAPrev variable in order to eliminate the necessity of additional temporary dLdA matrices and corresponding data coping,
 		// just by switching between dLdA and dLdAPrev between calls to inner bprop()'s. So, if there was
 		// even number of calls to inner layers bprop() occured, then the actual dLdAPrev of the whole compound
 		// layer will be inside of dLdA and a caller of compound layer's bprop() should NOT switch matrices on

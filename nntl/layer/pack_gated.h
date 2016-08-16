@@ -138,8 +138,8 @@ namespace nntl {
 
 		//and apply function _Func(auto& layer) to underlying layer
 		template<typename _Func>
-		void for_each_layer(_Func& f)const noexcept {
-			call_F_for_each_layer(f, m_undLayer);
+		void for_each_layer(_Func&& f)const noexcept {
+			call_F_for_each_layer(std::forward<_Func>(f), m_undLayer);
 		}
 
 		underlying_layer_t& underlying_layer()const noexcept { return m_undLayer; }
@@ -188,7 +188,7 @@ namespace nntl {
 
 			bool bSuccessfullyInitialized = false;
 			utils::scope_exit onExit([&bSuccessfullyInitialized, this]() {
-				if (!bSuccessfullyInitialized) deinit();
+				if (!bSuccessfullyInitialized) get_self().deinit();
 			});
 
 			//we must resize gatingMask here to the size of underlying_layer activations, however gatingMask mustn't

@@ -31,6 +31,8 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 #pragma once
 
+#include "../nntl/nntl.h"
+
 #define MNIST_FILE_DEBUG "../data/mnist200_100.bin"
 #define MNIST_FILE_RELEASE  "../data/mnist60000.bin"
 
@@ -43,39 +45,14 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #define MNIST_FILE MNIST_FILE_RELEASE
 #endif // _DEBUG
 
+void seqFillMtx(realmtx_t& m);
+
 void readTd(nntl::train_data<real_t>& td, const char* pFile = MNIST_FILE);
 
 void _allowMask(const realmtx_t& srcMask, realmtx_t& mask, const realmtx_t& data_y, const vec_len_t c);
 
 void _maskStat(const realmtx_t& m);
 
-
-/*
-template<typename iRngT, typename iMathT>
-void makeDataXForGatedSetup(const realmtx_t& data_x, const realmtx_t& data_y, iRngT& iR, iMathT& iM, const bool bBinarize, realmtx_t& new_x) {
-SCOPED_TRACE("makeDataXForGatedSetup");
-
-realmtx_t mask(data_x.rows(),1,false), realMask(data_x.rows(), 1, false);
-ASSERT_TRUE(!mask.isAllocationFailed() && !realMask.isAllocationFailed());
-iR.gen_matrix_norm(mask);
-if (bBinarize) iM.ewBinarize_ip(mask, real_t(.5));
-
-realMask.zeros();
-_allowMask(mask, realMask, data_y, 1);
-_allowMask(mask, realMask, data_y, 7);
-
-_maskStat(realMask);
-
-const auto origXWidth = data_x.cols_no_bias();
-
-new_x.will_emulate_biases();
-ASSERT_TRUE(new_x.resize(data_x.rows(), origXWidth + 1 + 2)) << "Failed to resize new_x";
-
-memcpy(new_x.data(), data_x.data(), data_x.byte_size_no_bias());
-memcpy(new_x.colDataAsVec(origXWidth), realMask.data(), realMask.byte_size());
-memcpy(new_x.colDataAsVec(origXWidth + 1), data_y.colDataAsVec(1), data_y.rows() * sizeof(real_t));
-memcpy(new_x.colDataAsVec(origXWidth + 2), data_y.colDataAsVec(7), data_y.rows() * sizeof(real_t));
-}*/
 
 template<typename iRngT, typename iMathT>
 void makeDataXForGatedSetup(const realmtx_t& data_x, const realmtx_t& data_y, iRngT& iR, iMathT& iM, const bool bBinarize, realmtx_t& new_x) {

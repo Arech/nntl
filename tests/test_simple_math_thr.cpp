@@ -41,6 +41,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "../nntl/utils/tictoc.h"
 
 #include "simple_math_etalons.h"
+#include "common_routines.h"
 
 using namespace nntl;
 using namespace nntl::utils;
@@ -55,6 +56,103 @@ constexpr unsigned TEST_PERF_REPEATS_COUNT = 10;
 #else
 constexpr unsigned TEST_PERF_REPEATS_COUNT = 1000;
 #endif // NNTL_DEBUG
+
+//////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////
+
+void test_mTilingRoll(vec_len_t rowsCnt, vec_len_t colsCnt, vec_len_t k) {
+	const auto dataSize = k*realmtx_t::sNumel(rowsCnt, colsCnt);
+	STDCOUTL("**** testing mTilingRoll() variations over " << rowsCnt << "x" << colsCnt << " matrix, k=" << k << " tiles(" << dataSize << " elements) ****");
+
+	constexpr unsigned maxIntReps = 5;
+	constexpr unsigned maxReps = 1*TEST_PERF_REPEATS_COUNT / maxIntReps;
+
+	realmtx_t src(rowsCnt, colsCnt*k), dest(k*rowsCnt, colsCnt), destET(k*rowsCnt, colsCnt);
+	ASSERT_TRUE(!src.isAllocationFailed() && !dest.isAllocationFailed() && !destET.isAllocationFailed());
+
+	tictoc tSt, tMt, tB, tStSR, tMtSR, tStSW, tMtSW;
+	utils::prioritize_workers<utils::PriorityClass::PerfTesting, simple_math_t::ithreads_t> pw(iM.ithreads());
+
+	seqFillMtx(src);
+	for (unsigned r = 0; r < maxReps; ++r) {
+		if (!r) {
+			mTilingRoll_ET(src, destET);
+			dest.zeros();
+		}
+
+		tStSR.tic();
+		for (unsigned ir = 0; ir < maxIntReps;++ir) iM.mTilingRoll_seqread_st(src, dest);
+		tStSR.toc();
+		if (!r) {
+			ASSERT_MTX_EQ(destET, dest,"_seqread_st");
+			dest.zeros();
+		}
+
+		tStSW.tic();
+		for (unsigned ir = 0; ir < maxIntReps; ++ir)iM.mTilingRoll_seqwrite_st(src, dest);
+		tStSW.toc();
+		if (!r) {
+			ASSERT_MTX_EQ(destET, dest, "_seqwrite_st");
+			dest.zeros();
+		}
+
+		tMtSR.tic();
+		for (unsigned ir = 0; ir < maxIntReps; ++ir)iM.mTilingRoll_seqread_mt(src, dest);
+		tMtSR.toc();
+		if (!r) {
+			ASSERT_MTX_EQ(destET, dest, "_seqread_mt");
+			dest.zeros();
+		}
+
+		tMtSW.tic();
+		for (unsigned ir = 0; ir < maxIntReps; ++ir)iM.mTilingRoll_seqwrite_mt(src, dest);
+		tMtSW.toc();
+		if (!r) {
+			ASSERT_MTX_EQ(destET, dest, "_seqwrite_mt");
+			dest.zeros();
+		}
+		
+		tSt.tic();
+		for (unsigned ir = 0; ir < maxIntReps; ++ir)iM.mTilingRoll_st(src, dest);
+		tSt.toc();
+		if (!r) {
+			ASSERT_MTX_EQ(destET, dest, "_st");
+			dest.zeros();
+		}
+
+		tMt.tic();
+		for (unsigned ir = 0; ir < maxIntReps; ++ir)iM.mTilingRoll_mt(src, dest);
+		tMt.toc();
+		if (!r) {
+			ASSERT_MTX_EQ(destET, dest, "_mt");
+			dest.zeros();
+		}
+
+		tB.tic();
+		for (unsigned ir = 0; ir < maxIntReps; ++ir)iM.mTilingRoll(src, dest);
+		tB.toc();
+		if (!r) {
+			ASSERT_MTX_EQ(destET, dest, "()");
+			dest.zeros();
+		}
+	}
+	tStSR.say("StSR");
+	tStSW.say("StSW");
+	tMtSR.say("MtSR");
+	tMtSW.say("MtSW");
+	tSt.say("st");
+	tMt.say("mt");
+	tB.say("best");
+}
+TEST(TestSimpleMathThr, mTilingRoll) {
+	for (unsigned k = 2; k < 10; ++k) {
+		NNTL_RUN_TEST2(simple_math_t::Thresholds_t::mTilingRoll, k*100) test_mTilingRoll(100, i, k);
+	}
+
+// 	test_mTilingRoll(70000, 8, 6);
+// 	test_mTilingRoll(70000, 8, 10);
+}
+
 
 //////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////

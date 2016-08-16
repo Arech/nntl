@@ -42,6 +42,8 @@ namespace nntl {
 			InvalidInputLayerNeuronsCount,
 			InvalidOutputLayerNeuronsCount,
 			CantAllocateMemoryForActivations,
+			CantAllocateMemoryForInnerActivations,
+			CantAllocateMemoryForInnerLLActivations,
 			CantAllocateMemoryForDropoutMask,
 			CantAllocateMemoryForGatingMask,
 			CantAllocateMemoryForTempData,
@@ -63,6 +65,8 @@ namespace nntl {
 			case InvalidInputLayerNeuronsCount: return NNTL_STRING("Input layer neurons count mismatches train_x width.");
 			case InvalidOutputLayerNeuronsCount: return NNTL_STRING("Output layer neurons count mismatches train_y width.");
 			case CantAllocateMemoryForActivations: return NNTL_STRING("Cant allocate memory for neuron activations");
+			case CantAllocateMemoryForInnerActivations: return NNTL_STRING("Cant allocate memory for inner neurons activations");
+			case CantAllocateMemoryForInnerLLActivations: return NNTL_STRING("Cant allocate memory for inner activations of a lower layer");
 			case CantAllocateMemoryForDropoutMask: return NNTL_STRING("Cant allocate memory for dropout mask");
 			case CantAllocateMemoryForGatingMask: return NNTL_STRING("Cant allocate memory for gating mask");
 			case CantAllocateMemoryForTempData: return NNTL_STRING("Cant allocate memory for temporarily data");

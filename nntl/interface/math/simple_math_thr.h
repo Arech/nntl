@@ -74,6 +74,12 @@ namespace math {
 
 			static constexpr vec_len_t mCloneCols = 2;
 			static constexpr vec_len_t mCloneCol = 2;
+
+			static constexpr vec_len_t mTilingRoll = 23000;
+			static constexpr vec_len_t mTilingRoll_mt_cols = 3;
+
+			static constexpr vec_len_t mTilingUnroll = 23000;
+			static constexpr vec_len_t mTilingUnroll_mt_cols = 3;
 		};
 
 		template <> struct SIMPLE_MATH_THR<float> {
@@ -105,6 +111,12 @@ namespace math {
 
 			static constexpr vec_len_t mCloneCols = 2;
 			static constexpr vec_len_t mCloneCol = 2;
+
+			static constexpr vec_len_t mTilingRoll = 23000*19/10;
+			static constexpr vec_len_t mTilingRoll_mt_cols = 3;
+
+			static constexpr vec_len_t mTilingUnroll = 23000*19/10;
+			static constexpr vec_len_t mTilingUnroll_mt_cols = 3;
 		};
 
 	}

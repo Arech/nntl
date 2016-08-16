@@ -124,30 +124,30 @@ namespace nntl {
 		
 		//and apply function _Func(auto& layer) to each underlying (non-pack) layer here
 		template<typename _Func>
-		void for_each_layer(_Func& f)noexcept {
+		void for_each_layer(_Func&& f)noexcept {
 			//utils::for_each_up(m_layers, std::move(f));
-			utils::for_each_up(m_layers, [&f](auto& l) {
-				call_F_for_each_layer(f, l);
+			utils::for_each_up(m_layers, [&func{ std::forward<_Func>(f) }](auto& l) {
+				call_F_for_each_layer(std::forward<_Func>(func), l);
 			});
 		}
 		//This will apply f to every layer, packed in tuple no matter whether it is a _pack_* kind of layer or no
 		template<typename _Func>
-		void for_each_packed_layer(_Func& f)noexcept {
-			utils::for_each_up(m_layers, f);
+		void for_each_packed_layer(_Func&& f)noexcept {
+			utils::for_each_up(m_layers, std::forward<_Func>(f));
 		}
 
 		//and apply function _Func(auto& layer) to each underlying (non-pack) layer here excluding the first
 		template<typename _Func>
-		void for_each_layer_exc_input(_Func& f)noexcept {
+		void for_each_layer_exc_input(_Func&& f)noexcept {
 			//utils::for_each_exc_first_up(m_layers, std::move(f));
-			utils::for_each_exc_first_up(m_layers, [&f](auto& l) {
-				call_F_for_each_layer(f, l);
+			utils::for_each_exc_first_up(m_layers, [&func{ std::forward<_Func>(f) }](auto& l) {
+				call_F_for_each_layer(std::forward<_Func>(func), l);
 			});
 		}
 		//This will apply f to every layer excluding the first, packed in tuple no matter whether it is a _pack_* kind of layer or no
 		template<typename _Func>
-		void for_each_packed_layer_exc_input(_Func& f)noexcept {
-			utils::for_each_exc_first_up(m_layers, f);
+		void for_each_packed_layer_exc_input(_Func&& f)noexcept {
+			utils::for_each_exc_first_up(m_layers, std::forward<_Func>(f));
 		}
 
 		input_layer_t& input_layer()const noexcept { return std::get<0>(m_layers); }
@@ -249,6 +249,7 @@ namespace nntl {
 				}
 				
 				NNTL_ASSERT(lprev.get_activations().test_biases_ok());
+				NNTL_ASSERT(a_dLdA[mtxIdx].size() == lcur.get_activations().size_no_bias());
 				const unsigned bAlternate = lcur.bprop(a_dLdA[mtxIdx], lprev, a_dLdA[nextMtxIdx]);
 				NNTL_ASSERT(1 == bAlternate || 0 == bAlternate);
 				NNTL_ASSERT(lprev.get_activations().test_biases_ok());

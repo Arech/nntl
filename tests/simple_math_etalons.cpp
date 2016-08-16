@@ -33,8 +33,96 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "stdafx.h"
 #include "simple_math_etalons.h"
 
-//////////////////////////////////////////////////////////////////////////
-//////////////////////////////////////////////////////////////////////////
+
+// Transforms a data matrix from a tiled layer format back to normal. For a data with biases it looks like this:
+//																	|x1_1...x1_n 1|		:transformed data_x
+//																	|........... 1|		:to be fed to the layer
+//	data_x=|x1_1..x1_n. . . .xi_1..xi_n. . . .xk_1..xk_n 1|	<===	|xi_1...xi_n 1|
+//																	|........... 1|
+//																	|xk_1...xk_n 1|
+// For a data without biases the same, just drop all the ones in the picture.
+// If src is biased matrix, then src must be a matrix of size [k*m, n+1], dest - [m, k*n+1], also biased.
+//		Last column of dest is reserved to contain biases and must be preinitialized to 1s
+// If src doesn't have biases, then it's size must be equal to [k*m, n], dest.size() == [k*m, n]
+void mTilingUnroll_ET(const realmtx_t& src, realmtx_t& dest)noexcept {
+	NNTL_ASSERT(!dest.empty() && !src.empty());
+	NNTL_ASSERT(!(dest.emulatesBiases() ^ src.emulatesBiases()));
+	NNTL_ASSERT(dest.rows() && (dest.cols() > static_cast<vec_len_t>(dest.emulatesBiases())));
+	NNTL_ASSERT(src.rows() && (src.cols() > static_cast<vec_len_t>(src.emulatesBiases())));
+	NNTL_ASSERT(dest.rows() < src.rows());
+	NNTL_ASSERT(src.cols_no_bias() < dest.cols_no_bias());
+	NNTL_ASSERT(!dest.emulatesBiases() || dest.test_biases_ok());
+	NNTL_ASSERT(!src.emulatesBiases() || src.test_biases_ok());
+
+	const vec_len_t m = dest.rows();
+	const auto km = src.rows();
+	const vec_len_t k = km / m;
+	NNTL_ASSERT(km == k*m);//to make sure no rounding happened
+	const vec_len_t n = src.cols_no_bias();
+	NNTL_ASSERT(dest.cols_no_bias() == k*n);
+
+	const auto pD = dest.data();
+	const auto pS = src.data();
+
+	for (vec_len_t ssr = 0; ssr < k; ++ssr) {
+		for (vec_len_t sc = 0; sc < n; ++sc) {
+			const auto psrc = pS + size_t(sc)*km + size_t(ssr)*m;
+			NNTL_ASSERT(psrc + m <= src.colDataAsVec(n));
+			const auto pdest = pD + (size_t(ssr)*n + sc)*m;
+			NNTL_ASSERT(pdest + m <= dest.colDataAsVec(dest.cols_no_bias()));
+			memcpy(pdest, psrc, sizeof(*pdest)*m);
+		}
+	}
+
+	NNTL_ASSERT(!dest.emulatesBiases() || dest.test_biases_ok());
+	NNTL_ASSERT(!src.emulatesBiases() || src.test_biases_ok());
+}
+
+
+
+// Transforms a data matrix to be used by tiled layer. For a data with biases it looks like this:
+//																	|x1_1...x1_n 1|		:transformed data_x
+//																	|........... 1|		:to be fed to the layer
+//	data_x=|x1_1..x1_n. . . .xi_1..xi_n. . . .xk_1..xk_n 1|	===>	|xi_1...xi_n 1|
+//																	|........... 1|
+//																	|xk_1...xk_n 1|
+// For a data without biases the same, just drop all the ones in the picture.
+// If src is biased matrix, then src must be a matrix of size [m, k*n+1], dest - [k*m, n+1], also biased.
+//		Last column of dest is reserved to contain biases and must be preinitialized to 1s
+// If src doesn't have biases, then it's size must be equal to [m, k*n], dest.size() == [k*m, n]
+void mTilingRoll_ET(const realmtx_t& src, realmtx_t& dest)noexcept {
+	NNTL_ASSERT(!src.empty() && !dest.empty());
+	NNTL_ASSERT(!(src.emulatesBiases() ^ dest.emulatesBiases()));
+	NNTL_ASSERT(src.rows() && (src.cols() > static_cast<vec_len_t>(src.emulatesBiases())));
+	NNTL_ASSERT(dest.rows() && (dest.cols() > static_cast<vec_len_t>(dest.emulatesBiases())));
+	NNTL_ASSERT(src.rows() < dest.rows());
+	NNTL_ASSERT(dest.cols_no_bias() < src.cols_no_bias());
+	NNTL_ASSERT(!src.emulatesBiases() || src.test_biases_ok());
+	NNTL_ASSERT(!dest.emulatesBiases() || dest.test_biases_ok());
+
+	const vec_len_t m = src.rows();
+	const auto km = dest.rows();
+	const vec_len_t k = km / m;
+	NNTL_ASSERT(km == k*m);//to make sure no rounding happened
+	const vec_len_t n = dest.cols_no_bias();
+	NNTL_ASSERT(src.cols_no_bias() == k*n);
+
+	const auto pS = src.data();
+	const auto pD = dest.data();
+	
+	for (vec_len_t dsr = 0; dsr < k; ++dsr) {
+		for (vec_len_t dc = 0; dc < n; ++dc) {
+			const auto pdest = pD + size_t(dc)*km + size_t(dsr)*m;
+			NNTL_ASSERT(pdest+m <= dest.colDataAsVec(n));
+			const auto psrc = pS + (size_t(dsr)*n + dc)*m;
+			NNTL_ASSERT(psrc + m <= src.colDataAsVec(src.cols_no_bias()));
+			memcpy(pdest, psrc, sizeof(*psrc)*m);
+		}
+	}
+
+	NNTL_ASSERT(!src.emulatesBiases() || src.test_biases_ok());
+	NNTL_ASSERT(!dest.emulatesBiases() || dest.test_biases_ok());
+}
 
 real_t ewSumProd_ET(const realmtx_t& A, const realmtx_t& B)noexcept {
 	NNTL_ASSERT(!A.empty() && !B.empty() && B.size() == A.size());

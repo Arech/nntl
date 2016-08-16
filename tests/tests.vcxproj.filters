@@ -294,6 +294,9 @@
     <ClInclude Include="common_routines.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="..\nntl\layer\pack_tile.h">
+      <Filter>nntl\layer</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="stdafx.cpp">
@@ -360,6 +363,9 @@
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="common_routines.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="test_layer_pack_tile.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>

@@ -112,6 +112,32 @@ namespace math {
 		//because mCloneCol() is already defined in _simpleMath class. Probably, I should refactor the interface definition.
 
 
+		// Transforms a data matrix from a tiled layer format back to normal. For a data with biases it looks like this:
+		//																	|x1_1...x1_n 1|		:transformed data_x
+		//																	|........... 1|		:to be fed to the layer
+		//	data_x=|x1_1..x1_n. . . .xi_1..xi_n. . . .xk_1..xk_n 1|	<===	|xi_1...xi_n 1|
+		//																	|........... 1|
+		//																	|xk_1...xk_n 1|
+		// For a data without biases the same, just drop all the ones in the picture.
+		// If src is biased matrix, then src must be a matrix of size [k*m, n+1], dest - [m, k*n+1], also biased.
+		//		Last column of dest is reserved to contain biases and must be preinitialized to 1s
+		// If src doesn't have biases, then it's size must be equal to [k*m, n], dest.size() == [k*m, n]
+		//nntl_interface void mTilingUnroll(const realmtx_t& src, realmtx_t& dest)noexcept;
+		//#todo we need this definition in interface, however when it is uncommented there is an ambiguity of the symbol arises,
+
+		// Transforms a data matrix to be used by tiled layer. For a data with biases it looks like this:
+		//																	|x1_1...x1_n 1|		:transformed data_x
+		//																	|........... 1|		:to be fed to the layer
+		//	data_x=|x1_1..x1_n. . . .xi_1..xi_n. . . .xk_1..xk_n 1|	===>	|xi_1...xi_n 1|
+		//																	|........... 1|
+		//																	|xk_1...xk_n 1|
+		// For a data without biases the same, just drop all the ones in the picture.
+		// If src is biased matrix, then src must be a matrix of size [m, k*n+1], dest - [k*m, n+1], also biased.
+		//		Last column of dest is reserved to contain biases and must be preinitialized to 1s
+		// If src doesn't have biases, then it's size must be equal to [m, k*n], dest.size() == [k*m, n]
+		//nntl_interface void mTilingRoll(const realmtx_t& src, realmtx_t& dest)noexcept;
+		//#todo we need this definition in interface, however when it is uncommented there is an ambiguity of the symbol arises,
+
 		// treat matrix as a set of row-vectors (matrices in col-major mode!). For each row-vector check, whether
 		// its length/norm is not longer, than predefined value. If it's longer, than rescale vector to this max length
 		// (for use in max-norm weights regularization)

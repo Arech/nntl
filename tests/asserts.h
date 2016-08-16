@@ -60,7 +60,8 @@ inline void _ASSERT_REALMTX_NEAR(const realmtx_t& c1, const realmtx_t& c2, const
 	const auto p1 = c1.data(), p2 = c2.data();
 	const auto im = c1.numel();
 	for (numel_cnt_t i = 0; i < im; ++i) {
-		ASSERT_NEAR(p1[i], p2[i], eps) << "Mismatches element #" << i << " @ " << descr;
+		ASSERT_NEAR(p1[i], p2[i], eps) << "Mismatches element #" << i << "(" << (i%c1.rows()) << "," << (i/c1.rows()) 
+			<< ") of [" << c1.rows() << "," << c1.cols() << "] @ " << descr;
 	}
 }
 #define ASSERT_REALMTX_NEAR(c1,c2,descr,eps) ASSERT_NO_FATAL_FAILURE(_ASSERT_REALMTX_NEAR(c1,c2,descr,eps));

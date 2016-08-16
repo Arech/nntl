@@ -134,7 +134,7 @@ public:
 			//DONE: well, it worth about 14mks to parallelize execution therefore won't bother...
 			if (cnt <= 1) {
 				if (pThreadsUsed) *pThreadsUsed = 1;
-				F(par_range_t(cnt));
+				std::forward<Func>(F)(par_range_t(cnt));
 			} else {
 				locker_t lk(m_lock);
 
@@ -148,7 +148,7 @@ public:
 				m_waitingOrders.notify_all();
 				lk.unlock();
 
-				F(par_range_t(prevOfs, cnt - prevOfs, 0));
+				std::forward<Func>(F)(par_range_t(prevOfs, cnt - prevOfs, 0));
 
 				if (m_workingCnt > 0) {
 					lk.lock();
@@ -166,7 +166,7 @@ public:
 			//TODO: decide whether it is worth to use workers here
 			//DONE: well, it worth less than 9mks to parallelize execution therefore won't bother...
 			if (cnt <= 1) {
-				return FRed( par_range_t(cnt) );
+				return std::forward<Func>(FRed)( par_range_t(cnt) );
 			} else {
 				locker_t lk(m_lock);
 
@@ -184,14 +184,14 @@ public:
 				m_waitingOrders.notify_all();
 				lk.unlock();
 
-				*rc = FRed(par_range_t(prevOfs, cnt - prevOfs, 0));
+				*rc = std::forward<Func>(FRed)(par_range_t(prevOfs, cnt - prevOfs, 0));
 
 				if (m_workingCnt > 0) {
 					lk.lock();
 					while (m_workingCnt > 0)  m_orderDone.wait(lk);
 					lk.unlock();
 				}
-				return FRF(rc, workersOnReduce);
+				return std::forward<FinalReduceFunc>(FRF)(rc, workersOnReduce);
 			}
 		}
 

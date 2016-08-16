@@ -113,8 +113,8 @@ namespace nntl {
 			}
 
 			template<typename PhlT>
-			trainable_partial_layer_wrapper(const realmtx_t& underlyingLayerAct, real_t* pTmpBiasStor, const PhlT& phl ) :
-				m_pTmpBiasStor(pTmpBiasStor)
+			trainable_partial_layer_wrapper(const realmtx_t& underlyingLayerAct, real_t* pTmpBiasStor, const PhlT& phl)
+				: m_pTmpBiasStor(pTmpBiasStor)
 			{
 				NNTL_ASSERT(phl.m_offset + phl.m_count <= underlyingLayerAct.cols_no_bias());
 				m_act.useExternalStorage(

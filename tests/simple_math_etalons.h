@@ -34,6 +34,9 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include "asserts.h"
 
+void mTilingRoll_ET(const realmtx_t& src, realmtx_t& dest)noexcept;
+void mTilingUnroll_ET(const realmtx_t& src, realmtx_t& dest)noexcept;
+
 real_t ewSumProd_ET(const realmtx_t& A, const realmtx_t& B)noexcept;
 
 void mrwDivideByVec_ET(realmtx_t& A, const real_t* pDiv)noexcept;

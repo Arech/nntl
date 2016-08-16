@@ -119,7 +119,7 @@ namespace math {
 			m_rows(_rows), m_cols(_cols), m_bEmulateBiases(_bEmulBias), m_bDontManageStorage(false)
 		{
 			NNTL_ASSERT(_rows > 0 && _cols > 0);
-			if (m_bEmulateBiases) m_cols++;
+			if (m_bEmulateBiases) ++m_cols;
 			_realloc();
 			if (m_bEmulateBiases) set_biases();
 		}
@@ -127,7 +127,7 @@ namespace math {
 			m_rows(msize.first), m_cols(msize.second), m_bEmulateBiases(_bEmulBias), m_bDontManageStorage(false)
 		{
 			NNTL_ASSERT(m_rows > 0 && m_cols > 0);
-			if (m_bEmulateBiases) m_cols++;
+			if (m_bEmulateBiases) ++m_cols;
 			_realloc();
 			if (m_bEmulateBiases) set_biases();
 		}
@@ -248,22 +248,31 @@ namespace math {
 
 		// ***if biases are emulated, then actual columns number is one greater, than data cols number
 		const vec_len_t cols_no_bias() const noexcept { 
-			if (m_bEmulateBiases && m_cols>0) {
+			if (m_bEmulateBiases) {
+				NNTL_ASSERT(m_cols > 0);
 				return m_cols - 1;
 			}else return m_cols;
 		}
 
 		const mtx_size_t size()const noexcept { return mtx_size_t(m_rows, m_cols); }
 		const mtx_size_t size_no_bias()const noexcept { 
-			if (m_bEmulateBiases && m_cols > 0) {
+			if (m_bEmulateBiases) {
+				NNTL_ASSERT(m_cols > 0);
 				return mtx_size_t(m_rows, m_cols-1);
 			}else return size();
 		}
-		static constexpr numel_cnt_t sNumel(vec_len_t r, vec_len_t c)noexcept { return static_cast<numel_cnt_t>(r)*static_cast<numel_cnt_t>(c); }
+		static constexpr numel_cnt_t sNumel(vec_len_t r, vec_len_t c)noexcept { 
+			//NNTL_ASSERT(r && c); //sNumel is used in many cases where r==0 or c==0 is perfectly legal. No need to assert here.
+			return static_cast<numel_cnt_t>(r)*static_cast<numel_cnt_t>(c); 
+		}
 		static constexpr numel_cnt_t sNumel(const mtx_size_t s)noexcept { return sNumel(s.first, s.second); }
-		const numel_cnt_t numel()const noexcept { return sNumel(m_rows,m_cols); }
+		const numel_cnt_t numel()const noexcept { 
+			//NNTL_ASSERT(m_rows && m_cols);
+			return sNumel(m_rows,m_cols); 
+		}
 		const numel_cnt_t numel_no_bias()const noexcept { 
-			if (m_bEmulateBiases && m_cols>0) {
+			if (m_bEmulateBiases) {
+				NNTL_ASSERT(m_cols > 0);
 				return sNumel(m_rows,m_cols-1);
 			} else return numel();
 		}

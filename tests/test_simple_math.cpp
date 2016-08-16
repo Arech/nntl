@@ -38,8 +38,10 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include "../nntl/interface/math/simple_math.h"
 #include "../nntl/nnet_def_interfaces.h"
+#include "../nntl/_supp/io/matfile.h"
 
 #include "simple_math_etalons.h"
+#include "common_routines.h"
 
 using namespace nntl;
 
@@ -58,6 +60,203 @@ constexpr unsigned TEST_CORRECTN_REPEATS_COUNT = 60, _baseRowsCnt = 300;
 //////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////
 
+/*
+TEST(TestSimpleMath, DumpmTilingRoll) {
+	constexpr vec_len_t k = 5, r = 2, c = 3;
+	realmtx_t src(r, k*c, true), dest(k*r, c, true);
+	ASSERT_TRUE(!src.isAllocationFailed());
+	seqFillMtx(src);
+
+	mTilingRoll_ET(src, dest);
+
+	nntl_supp::omatfile<> mf;
+	ASSERT_EQ(mf.ErrorCode::Success, mf.openForSave("./test_data/test.mat"));
+
+	mf << NNTL_SERIALIZATION_NVP(src);
+	mf << NNTL_SERIALIZATION_NVP(dest);
+}*/
+
+//////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////
+void test_mTilingUnroll_corr(const vec_len_t maxSrcRows, const vec_len_t maxSrcCols, const vec_len_t maxK) {
+	ASSERT_TRUE(maxSrcRows && maxSrcCols && maxK > 1);
+
+	for (vec_len_t k = 2; k < maxK; ++k) {
+		for (vec_len_t srcRows = 1; srcRows < maxSrcRows; ++srcRows) {
+			for (vec_len_t _srcCols = 1; _srcCols < maxSrcCols; ++_srcCols) {
+				for (unsigned char _b = 0; _b < 2; ++_b) {
+					const bool bBiased = !!_b;
+
+					constexpr unsigned _scopeMsgLen = 128; \
+						char _scopeMsg[_scopeMsgLen]; \
+						sprintf_s(_scopeMsg, "mTilingUnroll (%s) dest(%d,%d)*%d <- src(%d,%d)", bBiased ? "biased" : "not biased"
+							, srcRows, k*_srcCols + _b, k, k*srcRows, _srcCols + _b); \
+						SCOPED_TRACE(_scopeMsg);
+
+					realmtx_t dest(srcRows, k*_srcCols, bBiased), destET(srcRows, k*_srcCols, bBiased), src(k*srcRows, _srcCols, bBiased);
+					ASSERT_TRUE(!dest.isAllocationFailed() && !destET.isAllocationFailed() && !src.isAllocationFailed());
+
+					seqFillMtx(src);
+
+					mTilingUnroll_ET(src, destET);
+					if (bBiased) {
+						ASSERT_TRUE(src.test_biases_ok());
+						ASSERT_TRUE(destET.test_biases_ok());
+					}
+
+					dest.zeros();
+					iM.mTilingUnroll_seqread_st(src, dest);
+					if (bBiased) ASSERT_TRUE(dest.test_biases_ok());
+					ASSERT_MTX_EQ(destET, dest, "_seqread_st()");
+
+					dest.zeros();
+					iM.mTilingUnroll_seqwrite_st(src, dest);
+					if (bBiased) ASSERT_TRUE(dest.test_biases_ok());
+					ASSERT_MTX_EQ(destET, dest, "_seqwrite_st()");
+
+					dest.zeros();
+					iM.mTilingUnroll_seqread_mt(src, dest);
+					if (bBiased) ASSERT_TRUE(dest.test_biases_ok());
+					ASSERT_MTX_EQ(destET, dest, "_seqread_mt()");
+
+					dest.zeros();
+					iM.mTilingUnroll_seqwrite_mt(src, dest);
+					if (bBiased) ASSERT_TRUE(dest.test_biases_ok());
+					ASSERT_MTX_EQ(destET, dest, "_seqwrite_mt()");
+
+					dest.zeros();
+					iM.mTilingUnroll_st(src, dest);
+					if (bBiased) ASSERT_TRUE(dest.test_biases_ok());
+					ASSERT_MTX_EQ(destET, dest, "_st()");
+
+					dest.zeros();
+					iM.mTilingUnroll_mt(src, dest);
+					if (bBiased) ASSERT_TRUE(dest.test_biases_ok());
+					ASSERT_MTX_EQ(destET, dest, "_mt()");
+
+					dest.zeros();
+					iM.mTilingUnroll(src, dest);
+					if (bBiased) ASSERT_TRUE(dest.test_biases_ok());
+					ASSERT_MTX_EQ(destET, dest, "()");
+				}
+			}
+		}
+	}
+}
+
+void test_mTilingEtalons(const vec_len_t maxSrcRows, const vec_len_t maxSrcCols, const vec_len_t maxK) {
+	ASSERT_TRUE(maxSrcRows && maxSrcCols && maxK > 1);
+
+	for (vec_len_t k = 2; k < maxK; ++k) {
+		for (vec_len_t srcRows = 1; srcRows < maxSrcRows; ++srcRows) {
+			for (vec_len_t _srcCols = 1; _srcCols < maxSrcCols; ++_srcCols) {
+				for (unsigned char _b = 0; _b < 2; ++_b) {
+					const bool bBiased = !!_b;
+
+					constexpr unsigned _scopeMsgLen = 128; \
+						char _scopeMsg[_scopeMsgLen]; \
+						sprintf_s(_scopeMsg, "test_mTilingEtalons (%s) src(%d,%d)*%d -> dest(%d,%d)", bBiased ? "biased" : "not biased"
+							, srcRows, k*_srcCols + _b, k, k*srcRows, _srcCols + _b); \
+						SCOPED_TRACE(_scopeMsg);
+
+					realmtx_t src(srcRows, k*_srcCols, bBiased), destET(k*srcRows, _srcCols, bBiased),
+						destET2(k*srcRows, _srcCols, bBiased), src2(srcRows, k*_srcCols, bBiased);
+					ASSERT_TRUE(!src.isAllocationFailed() && !destET.isAllocationFailed() 
+						&& !destET2.isAllocationFailed() && !src2.isAllocationFailed());
+
+					seqFillMtx(src);
+
+					mTilingRoll_ET(src, destET);
+					if (bBiased) {
+						ASSERT_TRUE(src.test_biases_ok());
+						ASSERT_TRUE(destET.test_biases_ok());
+					}
+					mTilingUnroll_ET(destET, src2);
+					ASSERT_MTX_EQ(src, src2, "Roll/Unroll failed");
+
+					mTilingRoll_ET(src2, destET2);
+					ASSERT_MTX_EQ(destET, destET2, "Unroll/roll failed");
+				}
+			}
+		}
+	}
+}
+
+TEST(TestSimpleMath, mTilingUnroll) {
+	ASSERT_NO_FATAL_FAILURE(test_mTilingEtalons(4, 4, 4));
+	ASSERT_NO_FATAL_FAILURE(test_mTilingUnroll_corr(2 * g_MinDataSizeDelta, 2 * g_MinDataSizeDelta, g_MinDataSizeDelta));
+}
+
+//////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////
+void test_mTilingRoll_corr(const vec_len_t maxSrcRows,const vec_len_t maxSrcCols, const vec_len_t maxK) {
+	ASSERT_TRUE(maxSrcRows && maxSrcCols && maxK>1);
+
+	for (vec_len_t k = 2; k < maxK;++k) {
+		for (vec_len_t srcRows = 1; srcRows < maxSrcRows; ++srcRows) {
+			for (vec_len_t _srcCols = 1; _srcCols < maxSrcCols; ++_srcCols) {
+				for (unsigned char _b = 0; _b < 2;++_b) {
+					const bool bBiased = !!_b;
+
+					constexpr unsigned _scopeMsgLen = 128; \
+						char _scopeMsg[_scopeMsgLen]; \
+						sprintf_s(_scopeMsg, "mTilingRoll (%s) src(%d,%d)*%d -> dest(%d,%d)", bBiased?"biased":"not biased"
+							, srcRows, k*_srcCols + _b, k, k*srcRows, _srcCols + _b); \
+						SCOPED_TRACE(_scopeMsg);
+
+					realmtx_t src(srcRows, k*_srcCols, bBiased), destET(k*srcRows,_srcCols,bBiased), dest(k*srcRows, _srcCols, bBiased);
+					ASSERT_TRUE(!src.isAllocationFailed() && !destET.isAllocationFailed() && !dest.isAllocationFailed());
+
+					seqFillMtx(src);
+
+					mTilingRoll_ET(src, destET);
+					if (bBiased) {
+						ASSERT_TRUE(src.test_biases_ok());
+						ASSERT_TRUE(destET.test_biases_ok());
+					}
+
+					dest.zeros();
+					iM.mTilingRoll_seqread_st(src, dest);
+					if (bBiased) ASSERT_TRUE(dest.test_biases_ok());
+					ASSERT_MTX_EQ(destET, dest, "_seqread_st()");
+
+					dest.zeros();
+					iM.mTilingRoll_seqwrite_st(src, dest);
+					if (bBiased) ASSERT_TRUE(dest.test_biases_ok());
+					ASSERT_MTX_EQ(destET, dest, "_seqwrite_st()");
+
+					dest.zeros();
+					iM.mTilingRoll_seqread_mt(src, dest);
+					if (bBiased) ASSERT_TRUE(dest.test_biases_ok());
+					ASSERT_MTX_EQ(destET, dest, "_seqread_mt()");
+
+					dest.zeros();
+					iM.mTilingRoll_seqwrite_mt(src, dest);
+					if (bBiased) ASSERT_TRUE(dest.test_biases_ok());
+					ASSERT_MTX_EQ(destET, dest, "_seqwrite_mt()");
+
+					dest.zeros();
+					iM.mTilingRoll_st(src, dest);
+					if (bBiased) ASSERT_TRUE(dest.test_biases_ok());
+					ASSERT_MTX_EQ(destET, dest, "_st()");
+
+					dest.zeros();
+					iM.mTilingRoll_mt(src, dest);
+					if (bBiased) ASSERT_TRUE(dest.test_biases_ok());
+					ASSERT_MTX_EQ(destET, dest, "_mt()");
+
+					dest.zeros();
+					iM.mTilingRoll(src, dest);
+					if (bBiased) ASSERT_TRUE(dest.test_biases_ok());
+					ASSERT_MTX_EQ(destET, dest, "()");
+				}
+			}
+		}
+	}
+}
+TEST(TestSimpleMath, mTilingRoll) {
+	ASSERT_NO_FATAL_FAILURE(test_mTilingRoll_corr(2 * g_MinDataSizeDelta, 2 * g_MinDataSizeDelta, g_MinDataSizeDelta));
+}
 
 //////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////

@@ -43,7 +43,7 @@ namespace nntl {
 	struct m_layer_output {};
 
 	//when a layer is derived from this class, it is expected to be used inside of some layer_pack_* objects and it
-	// doesn't have a neurons count specified in constructor. Instead, compound layer (or its support objects) specifies
+	// doesn't have a neurons count specified in constructor. Instead, compound layer (or it's support objects) specifies
 	// the number of neurons during their construction via _set_neurons_cnt().
 	// See layer_identity for an example
 	struct m_layer_autoneurons_cnt {};
@@ -175,8 +175,8 @@ namespace nntl {
 			//members
 		protected:
 			//same for every train() session
-			i_math_t& m_iMath;
-			i_rng_t& m_iRng;
+			i_math_t* m_iMath;
+			i_rng_t* m_iRng;
 
 			//could be different in different train() sessions.
 			vec_len_t m_max_fprop_batch_size;//The biggest samples count for fprop(), usually this is data_x.rows()
@@ -186,34 +186,46 @@ namespace nntl {
 			// methods
 		public:
 			~common_nn_data()noexcept { deinit(); }
-			common_nn_data(i_math_t& im, i_rng_t& ir)noexcept : m_iMath(im), m_iRng(ir)
+			common_nn_data()noexcept : m_iMath(nullptr), m_iRng(nullptr)
 				, m_max_fprop_batch_size(0), m_training_batch_size(0)
 			{}
+			common_nn_data(i_math_t& im, i_rng_t& ir)noexcept : m_iMath(&im), m_iRng(&ir)
+				, m_max_fprop_batch_size(0), m_training_batch_size(0)
+			{}
+
+			//call before the object use if the default constructor have been used
+			void setInterfaces(i_math_t& im, i_rng_t& ir)noexcept {
+				m_iMath = &im;
+				m_iRng = &ir;
+			}
 
 			void deinit()noexcept {
 				m_max_fprop_batch_size = 0;
 				m_training_batch_size = 0;
 			}
-
 			void init(vec_len_t fbs, vec_len_t bbs)noexcept {
+				NNTL_ASSERT(m_iMath && m_iRng);//must be preinitialized!
 				NNTL_ASSERT(m_max_fprop_batch_size == 0 && m_training_batch_size == 0);
 				NNTL_ASSERT(fbs >= bbs);//essential assumption
 				m_max_fprop_batch_size = fbs;
 				m_training_batch_size = bbs;
 			}
 
-			i_math_t& iMath()const noexcept { return m_iMath; }
-			i_rng_t& iRng()const noexcept { return m_iRng; }
+			i_math_t& iMath()const noexcept { NNTL_ASSERT(m_iMath); return *m_iMath; }
+			i_rng_t& iRng()const noexcept { NNTL_ASSERT(m_iRng); return *m_iRng; }
 			const vec_len_t max_fprop_batch_size()const noexcept {
+				NNTL_ASSERT(m_iMath && m_iRng);//must be preinitialized!
 				NNTL_ASSERT(m_max_fprop_batch_size > 0);
 				return m_max_fprop_batch_size;
 			}
 			const vec_len_t training_batch_size()const noexcept {
 				//NNTL_ASSERT(m_training_batch_size >= 0);//batch size could be 0 to run fprop() only
+				NNTL_ASSERT(m_iMath && m_iRng);//must be preinitialized!
 				return m_training_batch_size;
 			}
 
 			const bool is_initialized()const noexcept {
+				NNTL_ASSERT(m_iMath && m_iRng);//must be preinitialized!
 				return m_max_fprop_batch_size > 0;
 			}
 		};

@@ -134,7 +134,8 @@ namespace nntl {
 				NNTL_ASSERT(!"Wrong weight matrix passed!");
 				return false;
 			}
-			m_weights = std::move(W);
+			//m_weights = std::move(W);
+			m_weights = std::forward<realmtx_t>(W);
 			m_bWeightsInitialized = true;
 			return true;
 		}
@@ -146,14 +147,14 @@ namespace nntl {
 
 			bool bSuccessfullyInitialized = false;
 			utils::scope_exit onExit([&bSuccessfullyInitialized, this]() {
-				if (!bSuccessfullyInitialized) deinit();
+				if (!bSuccessfullyInitialized) get_self().deinit();
 			});
 
 			NNTL_ASSERT(!m_weights.emulatesBiases());
 			if (m_bWeightsInitialized) {
 				//just double check everything is fine
 				NNTL_ASSERT(get_self().get_neurons_cnt() == m_weights.rows());
-				NNTL_ASSERT(get_incoming_neurons_cnt() + 1 == m_weights.cols());
+				NNTL_ASSERT(get_self().get_incoming_neurons_cnt() + 1 == m_weights.cols());
 				NNTL_ASSERT(!m_weights.empty());
 			} else {
 				//TODO: initialize weights from storage for nn eval only

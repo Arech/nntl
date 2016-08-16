@@ -178,17 +178,17 @@ TEST(TestLayerPackGated, Simple) {
 	const auto gateIdx = td.train_x().cols_no_bias()/2;
 	makeTdForGatedSetup(td, gatedTd, seedV, true);
 
-	STDCOUTL("With partially opened gate - should be worse than a baseline");
+	STDCOUTL("With partially opened gate - should be worse than the baseline");
 	//simple_gatedNN<simple_case_common_info,true>(gatedTd, gateIdx, seedV);
 	simple_gatedNN<simple_case_common_info, false>(gatedTd, gateIdx, seedV);
 
-	STDCOUTL("Gate completely closed - should demonstrate very poor results");
+	STDCOUTL("Gate completely closed - should demonstrate poor results");
 	gatedTd.train_x().fill_column_with(gateIdx, real_t(0.));
 	gatedTd.test_x().fill_column_with(gateIdx, real_t(0.));
 	//simple_gatedNN<simple_case_common_info, true>(gatedTd, gateIdx, seedV);
 	simple_gatedNN<simple_case_common_info, false>(gatedTd, gateIdx, seedV);
 
-	STDCOUTL("Gate completely opened - should demonstrate similar to baseline results");
+	STDCOUTL("Gate completely opened - should demonstrate similar to the baseline results");
 	gatedTd.train_x().fill_column_with(gateIdx, real_t(1.));
 	gatedTd.test_x().fill_column_with(gateIdx, real_t(1.));
 	//simple_gatedNN<simple_case_common_info, true>(gatedTd, gateIdx, seedV);

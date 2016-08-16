@@ -41,6 +41,17 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 using namespace nntl;
 typedef nntl_supp::binfile reader_t;
 
+
+void seqFillMtx(realmtx_t& m) {
+	NNTL_ASSERT(!m.empty() && m.numel_no_bias());
+	const auto p = m.data();
+	const auto ne = m.numel_no_bias();
+	for (size_t i = 0; i < ne;++i) {
+		p[i] = static_cast<real_t>(i+1);
+	}
+}
+
+
 void readTd(train_data<real_t>& td, const char* pFile) {
 	SCOPED_TRACE("readTd");
 	reader_t reader;

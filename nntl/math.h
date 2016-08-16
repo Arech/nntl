@@ -86,7 +86,7 @@ namespace math {
 	template <typename T> int sign(T val) {
 		return (T(+0.0) < val) - (val < T(-0.0));
 	}
-
+	
 	template <typename _T> struct real_ty_limits {};
 	template <> struct real_ty_limits<double> {
 		//natural log of closest to zero but non zero (realmin) value
@@ -128,10 +128,5 @@ namespace math {
 			return n*eps_lower(v);
 		}
 	};
-
-	//choose necessary types right after inclusion of this file (or similar with basic_types definition) with 
-	// code:
-	// namespace nntl{ using math_types = math::basic_types; }
-
 }
 }

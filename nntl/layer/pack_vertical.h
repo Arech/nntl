@@ -135,15 +135,15 @@ namespace nntl {
 		//////////////////////////////////////////////////////////////////////////
 		//and apply function _Func(auto& layer) to each underlying (non-pack) layer here
 		template<typename _Func>
-		void for_each_layer(_Func& f)const noexcept {
-			utils::for_each_up(m_layers, [&f](auto& l)noexcept {
-				call_F_for_each_layer(f, l);
+		void for_each_layer(_Func&& f)const noexcept {
+			utils::for_each_up(m_layers, [&func{ std::forward<_Func>(f) }](auto& l)noexcept {
+				call_F_for_each_layer(std::forward<_Func>(func), l);
 			});
 		}
 		//This will apply f to every layer, packed in tuple no matter whether it is a _pack_* kind of layer or no
 		template<typename _Func>
-		void for_each_packed_layer(_Func& f)const noexcept {
-			utils::for_each_up(m_layers, f);
+		void for_each_packed_layer(_Func&& f)const noexcept {
+			utils::for_each_up(m_layers, std::forward<_Func>(f));
 		}
 
 		const layer_index_t get_layer_idx() const noexcept { return m_layerIdx; }
@@ -182,7 +182,7 @@ namespace nntl {
 
 			bool bSuccessfullyInitialized = false;
 			utils::scope_exit onExit([&bSuccessfullyInitialized, this]() {
-				if (!bSuccessfullyInitialized) deinit();
+				if (!bSuccessfullyInitialized) get_self().deinit();
 			});
 
 			//we must initialize encapsulated layers and find out their initMem() requirements. Things to consider:
@@ -259,7 +259,10 @@ namespace nntl {
 				const unsigned nextMtxIdx = mtxIdx ^ 1;
 				a_dLdA[nextMtxIdx]->deform_like_no_bias(lprev.get_activations());
 				NNTL_ASSERT(lprev.get_activations().test_biases_ok());
+				NNTL_ASSERT(a_dLdA[mtxIdx]->size() == lcur.get_activations().size_no_bias());
+
 				const unsigned bAlternate = lcur.bprop(*a_dLdA[mtxIdx], lprev, *a_dLdA[nextMtxIdx]);
+
 				NNTL_ASSERT(1 == bAlternate || 0 == bAlternate);
 				NNTL_ASSERT(lprev.get_activations().test_biases_ok());
 				mtxIdx ^= bAlternate;
