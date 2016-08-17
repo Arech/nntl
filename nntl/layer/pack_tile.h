@@ -325,7 +325,7 @@ namespace nntl {
 			}
 
 			//changing the mode of m_tiledLayer.
-			m_tiledLayer.set_mode(batchSize, m_innerActivations.data());
+			m_tiledLayer.set_mode(tiles_count*batchSize, m_innerActivations.data());
 		}
 
 		////////////////////////////////////////////////////////////////////////////
