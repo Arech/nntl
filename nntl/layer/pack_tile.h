@@ -333,6 +333,10 @@ namespace nntl {
 		template <typename LowerLayer, bool _C= bExpectSpecialDataX>
 		std::enable_if_t<_C> fprop(const LowerLayer& lowerLayer)noexcept {
 			static_assert(std::is_base_of<_i_layer_fprop, LowerLayer>::value, "Template parameter LowerLayer must implement _i_layer_fprop");
+			
+			static_assert(std::is_base_of<m_layer_input, LowerLayer>::value, "When bExpectSpecialDataX is set the lowerLayer must be layer_input!");
+			//and moreover, it must produce specially prepared data!
+						
 			auto& llAct = lowerLayer.get_activations();
 			NNTL_ASSERT(llAct.test_biases_ok());
 			NNTL_ASSERT(llAct.size() == realmtx_t::mtx_size_t(m_activations.rows()
