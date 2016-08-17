@@ -170,9 +170,9 @@ namespace nntl {
 			m_Layers.set_mode(data_x.rows());
 			m_Layers.fprop(data_x);
 		}
-		real_t _calcLoss(const realmtx_t& data_x, const realmtx_t& data_y) noexcept {
+		real_t _calcLoss(const realmtx_t& data_x, const realmtx_t& data_y, const bool bDropFProp = false) noexcept {
 			NNTL_ASSERT(data_x.rows() == data_y.rows());
-			_fprop(data_x);
+			if (!bDropFProp) _fprop(data_x);
 
 			static_assert(std::is_base_of<activation::_i_activation_loss, layers_pack_t::output_layer_t::activation_f_t>::value,
 				"Activation function class of output layer must implement activation::_i_activation_loss interface");
@@ -365,6 +365,7 @@ namespace nntl {
 			const bool bTrainSetBigger = samplesCount >= td.test_x().rows();
 			const bool bMiniBatch = opts.batchSize() > 0 && opts.batchSize() < samplesCount;
 			const bool bSaveNNEvalResults = opts.evalNNFinalPerf();
+			const bool bDropFProp4ErrorCalc = !bMiniBatch && opts.dropFProp4FullBatchErrorCalc();
 			const auto batchSize = bMiniBatch ? opts.batchSize() : samplesCount;
 			if (!_batchSizeOk(td, batchSize)) return _set_last_error(ErrorCode::BatchSizeMustBeMultipleOfTrainDataLength);
 
@@ -452,9 +453,11 @@ namespace nntl {
 
 					const bool bInspectEpoch = cee(epochIdx);
 					const bool bCheckForDivergence = epochIdx < divergenceCheckLastEpoch;
-					if (bCheckForDivergence || bInspectEpoch) {
+					if (bInspectEpoch || bCheckForDivergence) {
+						const bool bLastEpoch = epochIdx == lastEpoch;
+
 						if (m_bCalcFullLossValue) m_Layers.prepToCalcLossAddendum();
-						const auto trainLoss = _calcLoss(train_x, train_y);
+						const auto trainLoss = _calcLoss(train_x, train_y, bDropFProp4ErrorCalc && !bLastEpoch);
 						if (bCheckForDivergence && trainLoss >= opts.divergenceCheckThreshold()) {
 							return _set_last_error(ErrorCode::NNDiverged);
 						}
@@ -462,7 +465,7 @@ namespace nntl {
 						if (bInspectEpoch) {
 							const auto epochPeriodEnds = std::chrono::steady_clock::now();
 
-							if (bSaveNNEvalResults && epochIdx == lastEpoch) {
+							if (bSaveNNEvalResults && bLastEpoch) {
 								//saving training results
 								auto& trr = opts.NNEvalFinalResults().trainSet;
 								trr.lossValue = trainLoss;

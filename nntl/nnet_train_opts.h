@@ -122,11 +122,17 @@ namespace nntl {
 		// don't store anything valuable) on .train() exit
 		bool m_bImmediatelyDeinit;
 
+		//set this flag to true to skip forward pass during training set error calculation in full-batch mode
+		//This will make error value report slightly wrong (will return errVal for the previous pass), but
+		// bring some speedup
+		bool m_bDropFProp4TrainingSetErrorCalculationWhileFullBatch;
+
 	public:
 		~nnet_train_opts()noexcept {}
 		nnet_train_opts(cond_epoch_eval_t&& cee)noexcept : m_vbEpochEval(std::move(cee)), m_BatchSize(0),
 			m_DivergenceCheckLastEpoch(5), m_DivergenceCheckThreshold(1e6f), m_bCalcFullLossValue(true),
-			m_bImmediatelyDeinit(false), m_pNNEvalFinalRes(nullptr)
+			m_bImmediatelyDeinit(false), m_pNNEvalFinalRes(nullptr),
+			m_bDropFProp4TrainingSetErrorCalculationWhileFullBatch(false)
 		{}
 
 		self_t& setEpochEval(cond_epoch_eval_t&& cee)noexcept { m_vbEpochEval = std::forward(cee); return *this; }
@@ -150,6 +156,9 @@ namespace nntl {
 
 		bool ImmediatelyDeinit()const noexcept { return m_bImmediatelyDeinit; }
 		self_t& ImmediatelyDeinit(bool imd)noexcept { m_bImmediatelyDeinit = imd; return *this; }
+
+		self_t& dropFProp4FullBatchErrorCalc(bool f)noexcept { m_bDropFProp4TrainingSetErrorCalculationWhileFullBatch = f; return *this; }
+		bool dropFProp4FullBatchErrorCalc()const noexcept { return m_bDropFProp4TrainingSetErrorCalculationWhileFullBatch; }
 
 		const bool evalNNFinalPerf()const noexcept { return !!m_pNNEvalFinalRes; }
 		nnet_td_eval_results<real_t>& NNEvalFinalResults()const noexcept { NNTL_ASSERT(m_pNNEvalFinalRes);			return *m_pNNEvalFinalRes; }
