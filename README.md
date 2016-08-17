@@ -89,7 +89,7 @@ Just want to stress again: NNTL is not a kind of Plug-n-Play system to solve typ
 * There is almost no documentation at this moment. You shouldn't be scared be necessity of reading code and code comments in order to undestand how to use some components. However, I tried to make this process easy by extensively commenting code and making it clean&clear. You decide if it helps and feel free to contact me if you need clarifications.
 
 ## Compilers Supported
-Developed and tested on MSVC2015 (update 3 at this moment) on Windows 7. Other modern compilers will probably require some hacks to compile. Please, submit your patches.
+Developed and tested on MSVC2015 (update 3 at this moment) on Windows 7. Other modern compilers will probably require some hacks to compile, however, I don't think these hacks would be critical. Please, submit your patches.
 
 ### How to Use NNTL
 1. Download NNTL and unpack it to some `%NNTL_ROOT%`
