@@ -310,11 +310,11 @@ real_t rowvecs_renorm_ET(realmtx_t& m, real_t* pTmp)noexcept {
 	}
 
 	//finding average norm
-	real_t meanNorm = std::accumulate(pTmp, pTmp + mRows, 0.0) / mRows;
+	real_t meanNorm = static_cast<real_t>(std::accumulate(pTmp, pTmp + mRows, 0.0) / mRows);
 
 	//test and renormalize
 	//const real_t newNorm = meanNorm - sqrt(math::real_ty_limits<real_t>::eps_lower_n(meanNorm, rowvecs_renorm_MULT));
-	const real_t newNorm = meanNorm - sqrt(nntl::math::real_ty_limits<real_t>::eps_lower(meanNorm));
+	const real_t newNorm = meanNorm - 2*sqrt(nntl::math::real_ty_limits<real_t>::eps_lower(meanNorm));
 	for (vec_len_t r = 0; r < mRows; ++r) {
 		if (pTmp[r] > meanNorm) {
 			const real_t normCoeff = sqrt(newNorm / pTmp[r]);

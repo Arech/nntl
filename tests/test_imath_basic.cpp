@@ -76,7 +76,7 @@ constexpr unsigned TEST_CORRECTN_REPEATS_COUNT = 60, _baseRowsCnt = 300;
 
 template<typename base_t> struct loss_sigm_xentropy_EPS {};
 template<> struct loss_sigm_xentropy_EPS<double> { static constexpr double eps = 1e-10; };
-template<> struct loss_sigm_xentropy_EPS<float> { static constexpr double eps = 2e-5; };
+template<> struct loss_sigm_xentropy_EPS<float> { static constexpr float eps = 4e-5f; };
 void test_loss_sigm_xentropy(vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 	MTXSIZE_SCOPED_TRACE(rowsCnt, colsCnt, "loss_sigm_xentropy");
 	constexpr unsigned testCorrRepCnt = TEST_CORRECTN_REPEATS_COUNT;
@@ -165,19 +165,19 @@ void test_ewBinarize_ip_corr(vec_len_t rowsCnt, vec_len_t colsCnt = 10, const re
 TEST(TestIMathBasic, ewBinarizeIp) {
 	const numel_cnt_t elmsMax = g_MinDataSizeDelta;
 	for (numel_cnt_t e = 1; e < elmsMax; ++e) {
-		ASSERT_NO_FATAL_FAILURE(test_ewBinarize_ip_corr(static_cast<vec_len_t>(e), 1, .5));
-		ASSERT_NO_FATAL_FAILURE(test_ewBinarize_ip_corr(static_cast<vec_len_t>(e), 1, .1));
-		ASSERT_NO_FATAL_FAILURE(test_ewBinarize_ip_corr(static_cast<vec_len_t>(e), 1, .9));
+		ASSERT_NO_FATAL_FAILURE(test_ewBinarize_ip_corr(static_cast<vec_len_t>(e), 1, real_t(.5)));
+		ASSERT_NO_FATAL_FAILURE(test_ewBinarize_ip_corr(static_cast<vec_len_t>(e), 1, real_t(.1)));
+		ASSERT_NO_FATAL_FAILURE(test_ewBinarize_ip_corr(static_cast<vec_len_t>(e), 1, real_t(.9)));
 	}
 
 	constexpr unsigned rowsCnt = _baseRowsCnt;
 	const vec_len_t maxCols = g_MinDataSizeDelta, maxRows = rowsCnt + g_MinDataSizeDelta;
 	for (vec_len_t r = rowsCnt; r < maxRows; ++r) {
-		for (vec_len_t c = 1; c < maxCols; ++c) ASSERT_NO_FATAL_FAILURE(test_ewBinarize_ip_corr(r, c, .5));
+		for (vec_len_t c = 1; c < maxCols; ++c) ASSERT_NO_FATAL_FAILURE(test_ewBinarize_ip_corr(r, c, real_t(.5)));
 	}
 }
 
-void test_ewBinarize_corr(vec_len_t rowsCnt, vec_len_t colsCnt = 10, const real_t frac = .5) {
+void test_ewBinarize_corr(vec_len_t rowsCnt, vec_len_t colsCnt = 10, const real_t frac = real_t(.5)) {
 	MTXSIZE_SCOPED_TRACE1(rowsCnt, colsCnt, "ewBinarize, frac=", frac);
 	constexpr unsigned testCorrRepCnt = TEST_CORRECTN_REPEATS_COUNT;
 
@@ -212,15 +212,15 @@ void test_ewBinarize_corr(vec_len_t rowsCnt, vec_len_t colsCnt = 10, const real_
 TEST(TestIMathBasic, ewBinarize) {
 	const numel_cnt_t elmsMax = g_MinDataSizeDelta;
 	for (numel_cnt_t e = 1; e < elmsMax; ++e) {
-		ASSERT_NO_FATAL_FAILURE(test_ewBinarize_corr(static_cast<vec_len_t>(e), 1, .5));
-		ASSERT_NO_FATAL_FAILURE(test_ewBinarize_corr(static_cast<vec_len_t>(e), 1, .1));
-		ASSERT_NO_FATAL_FAILURE(test_ewBinarize_corr(static_cast<vec_len_t>(e), 1, .9));
+		ASSERT_NO_FATAL_FAILURE(test_ewBinarize_corr(static_cast<vec_len_t>(e), 1, real_t(.5)));
+		ASSERT_NO_FATAL_FAILURE(test_ewBinarize_corr(static_cast<vec_len_t>(e), 1, real_t(.1)));
+		ASSERT_NO_FATAL_FAILURE(test_ewBinarize_corr(static_cast<vec_len_t>(e), 1, real_t(.9)));
 	}
 
 	constexpr unsigned rowsCnt = _baseRowsCnt;
 	const vec_len_t maxCols = g_MinDataSizeDelta, maxRows = rowsCnt + g_MinDataSizeDelta;
 	for (vec_len_t r = rowsCnt; r < maxRows; ++r) {
-		for (vec_len_t c = 1; c < maxCols; ++c) ASSERT_NO_FATAL_FAILURE(test_ewBinarize_corr(r, c, .5));
+		for (vec_len_t c = 1; c < maxCols; ++c) ASSERT_NO_FATAL_FAILURE(test_ewBinarize_corr(r, c, real_t(.5)));
 	}
 }
 
@@ -230,7 +230,7 @@ TEST(TestIMathBasic, ewBinarize) {
 
 template<typename base_t> struct softmax_parts_EPS {};
 template<> struct softmax_parts_EPS<double> { static constexpr double eps = 1e-10; };
-template<> struct softmax_parts_EPS<float> { static constexpr double eps = 1e-5; };
+template<> struct softmax_parts_EPS<float> { static constexpr float eps = 1e-5f; };
 
 void test_softmax_parts(vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 	MTXSIZE_SCOPED_TRACE(rowsCnt, colsCnt, "softmax_parts");
@@ -371,7 +371,7 @@ TEST(TestIMathBasic, Softmax) {
 
 template<typename base_t> struct loss_softmax_xentropy_EPS {};
 template<> struct loss_softmax_xentropy_EPS<double> { static constexpr double eps = 1e-10; };
-template<> struct loss_softmax_xentropy_EPS<float> { static constexpr double eps = 2e-5; };
+template<> struct loss_softmax_xentropy_EPS<float> { static constexpr float eps = 4e-5f; };
 void test_loss_softmax_xentropy(vec_len_t rowsCnt, vec_len_t colsCnt) {
 	MTXSIZE_SCOPED_TRACE(rowsCnt, colsCnt, "loss_softmax_xentropy");
 	constexpr unsigned testCorrRepCnt = TEST_CORRECTN_REPEATS_COUNT;
@@ -410,7 +410,7 @@ TEST(TestIMathBasic, LossSoftmaxXentropy) {
 
 template<typename base_t> struct vSumAbs_EPS {};
 template<> struct vSumAbs_EPS<double> { static constexpr double eps = 3e-10; };
-template<> struct vSumAbs_EPS<float> { static constexpr double eps = 2e-5; };
+template<> struct vSumAbs_EPS<float> { static constexpr float eps = 5e-2f; };
 template<typename iMath>
 void test_vSumAbs(iMath& iM, vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 	const auto dataSize = realmtx_t::sNumel(rowsCnt, colsCnt);
@@ -424,7 +424,7 @@ void test_vSumAbs(iMath& iM, vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 	nnet_def_interfaces::iRng_t rg;
 	rg.set_ithreads(iM.ithreads());
 	for (unsigned r = 0; r < testCorrRepCnt; ++r) {
-		rg.gen_matrix(A, 2);
+		rg.gen_matrix(A, 1);
 
 		const auto vss = vSumAbs_ET(A);
 
@@ -478,7 +478,7 @@ TEST(TestIMathBasic, vSumAbs) {
 
 template<typename base_t> struct vSumSquares_EPS {};
 template<> struct vSumSquares_EPS<double> { static constexpr double eps = 1e-10; };
-template<> struct vSumSquares_EPS<float> { static constexpr double eps = 2e-5; };
+template<> struct vSumSquares_EPS<float> { static constexpr double eps = 5e-2; };
 template<typename iMath>
 void test_vSumSquares(iMath& iM, vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 	const auto dataSize = realmtx_t::sNumel(rowsCnt, colsCnt);
@@ -492,7 +492,7 @@ void test_vSumSquares(iMath& iM, vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 	nnet_def_interfaces::iRng_t rg;
 	rg.set_ithreads(iM.ithreads());
 	for (unsigned r = 0; r < testCorrRepCnt; ++r) {
-		rg.gen_matrix(A, 2);
+		rg.gen_matrix(A, 1);
 
 		const auto vss = vSumSquares_ET(A);
 		
@@ -773,7 +773,7 @@ void test_evMulCipSubip(iMath& iM, vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 
 	constexpr unsigned maxReps = TEST_PERF_REPEATS_COUNT, testCorrRepCnt = TEST_CORRECTN_REPEATS_COUNT;
 
-	const real_t momentum = .9;
+	const real_t momentum(real_t(.9));
 	realmtx_t vW(rowsCnt, colsCnt), W(colsCnt, rowsCnt), vW2(colsCnt, rowsCnt), W2(colsCnt, rowsCnt), vW3(colsCnt, rowsCnt), W3(colsCnt, rowsCnt);
 	ASSERT_TRUE(!vW.isAllocationFailed() && !W.isAllocationFailed() && !vW2.isAllocationFailed()
 		&& !W2.isAllocationFailed() && !vW3.isAllocationFailed() && !W3.isAllocationFailed());
@@ -845,7 +845,7 @@ TEST(TestIMathBasic, evMulCipSubip) {
 
 template<typename base_t> struct mCheck_normalize_rows_EPS {};
 template<> struct mCheck_normalize_rows_EPS<double> { static constexpr double eps = 1e-10; };
-template<> struct mCheck_normalize_rows_EPS<float> { static constexpr double eps = 4e-5; };
+template<> struct mCheck_normalize_rows_EPS<float> { static constexpr float eps = 8e-5f; };
 
 template<typename iMath>
 void test_mCheck_normalize_rows(iMath& iM, vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
@@ -1104,7 +1104,7 @@ void test_apply_momentum(iMath& iM, vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 	nanoseconds diff;
 	constexpr unsigned maxReps = TEST_PERF_REPEATS_COUNT, testCorrRepCnt = TEST_CORRECTN_REPEATS_COUNT;
 
-	const real_t momentum = 0.9;
+	const real_t momentum(real_t(0.9));
 	realmtx_t dW(rowsCnt, colsCnt), vW(rowsCnt, colsCnt);
 	ASSERT_TRUE(!dW.isAllocationFailed() && !vW.isAllocationFailed());
 
@@ -1176,7 +1176,7 @@ void test_applyILR_perf(iMath& iM, vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 	nanoseconds diff;
 	constexpr unsigned maxReps = TEST_PERF_REPEATS_COUNT, testCorrRepCnt = TEST_CORRECTN_REPEATS_COUNT;
 
-	real_t decr = .9, incr = (1/0.9), capH = 9.9, capL = 0.1;
+	real_t decr = real_t(.9), incr = real_t(1/0.9), capH = real_t(9.9), capL = real_t(0.1);
 
 	realmtx_t dW(rowsCnt, colsCnt), prevdW(rowsCnt, colsCnt), gain(rowsCnt, colsCnt);
 	ASSERT_TRUE(!dW.isAllocationFailed() && !prevdW.isAllocationFailed() && !gain.isAllocationFailed() );
@@ -1450,7 +1450,7 @@ void test_modprop_perf(iMath& iM, vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 	nanoseconds diff;
 	constexpr unsigned maxReps = TEST_PERF_REPEATS_COUNT, testCorrRepCnt = TEST_CORRECTN_REPEATS_COUNT;
 
-	real_t emaCoeff = .9, lr = .1, numStab = .00001;
+	real_t emaCoeff = real_t(.9), lr = real_t(.1), numStab = real_t(.00001);
 
 	realmtx_t dW(rowsCnt, colsCnt), rms(rowsCnt, colsCnt);
 	ASSERT_TRUE(!dW.isAllocationFailed() && !rms.isAllocationFailed());
@@ -1545,7 +1545,7 @@ void test_rprop_perf(iMath& iM, vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 	nanoseconds diff;
 	constexpr unsigned maxReps = TEST_PERF_REPEATS_COUNT, testCorrRepCnt = TEST_CORRECTN_REPEATS_COUNT;
 
-	real_t lr = .1;
+	real_t lr = real_t(.1);
 
 	realmtx_t dW(rowsCnt, colsCnt);
 	ASSERT_TRUE(!dW.isAllocationFailed());
@@ -1628,7 +1628,7 @@ void test_rmspropgraves_perf(iMath& iM, vec_len_t rowsCnt, vec_len_t colsCnt = 1
 	nanoseconds diff;
 	constexpr unsigned maxReps = TEST_PERF_REPEATS_COUNT, testCorrRepCnt = TEST_CORRECTN_REPEATS_COUNT;
 
-	real_t emaCoeff = .9, lr = .1, numStab = .00001;
+	real_t emaCoeff = real_t(.9), lr = real_t(.1), numStab = real_t(.00001);
 
 	realmtx_t dW(rowsCnt, colsCnt), rms(rowsCnt, colsCnt), rmsG(rowsCnt, colsCnt);
 	ASSERT_TRUE(!dW.isAllocationFailed() && !rms.isAllocationFailed() && !rmsG.isAllocationFailed());
@@ -1729,7 +1729,7 @@ void test_rmsprophinton_perf(iMath& iM, vec_len_t rowsCnt, vec_len_t colsCnt = 1
 	nanoseconds diff;
 	constexpr unsigned maxReps = TEST_PERF_REPEATS_COUNT, testCorrRepCnt = TEST_CORRECTN_REPEATS_COUNT;
 
-	real_t emaCoeff = .9, lr = .1, numStab = .00001;
+	real_t emaCoeff = real_t(.9), lr = real_t(.1), numStab = real_t(.00001);
 
 	realmtx_t dW(rowsCnt, colsCnt), rms(rowsCnt, colsCnt);
 	ASSERT_TRUE(!dW.isAllocationFailed() && !rms.isAllocationFailed());
@@ -2379,7 +2379,7 @@ void test_evMulC_ip(iMath& iM, vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 	nanoseconds diff;
 	constexpr unsigned maxReps = TEST_PERF_REPEATS_COUNT;
 
-	const real_t mulC = 0.01;
+	const real_t mulC = real_t(0.01);
 	realmtx_t m, etM(rowsCnt, colsCnt), etDest(rowsCnt, colsCnt);
 	ASSERT_EQ(dataSize, etM.numel());
 
@@ -2465,7 +2465,7 @@ TEST(TestIMathBasic, evMulC_ip) {
 //////////////////////////////////////////////////////////////////////////
 template<typename base_t> struct sigm_EPS {};
 template<> struct sigm_EPS<double> { static constexpr double eps = 1e-12; };
-template<> struct sigm_EPS<float> { static constexpr double eps = 1e-6; };
+template<> struct sigm_EPS<float> { static constexpr float eps = 1e-6f; };
 
 template<typename iMath>
 void test_sigm(iMath& iM, vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
@@ -2520,12 +2520,15 @@ void test_sigm(iMath& iM, vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 			iM.sigm_st(m);
 			diff += steady_clock::now() - bt;
 		}
-		const auto ptr = m.data();
+		/*const auto ptr = m.data();
 		if (std::is_same<real_t, float>::value) {
 			for (numel_cnt_t i = 0; i < iMax; ++i) ASSERT_FLOAT_EQ(ptrDest[i], ptr[i]);
 		} else {
 			for (numel_cnt_t i = 0; i < iMax; ++i) ASSERT_DOUBLE_EQ(ptrDest[i], ptr[i]);
-		}
+		}*/
+		etDest.deform_rows(iMax);
+		ASSERT_REALMTX_NEAR(etDest, m, "st_naive failed", sigm_EPS<real_t>::eps);
+		etDest.deform_rows(biggestDataSize);
 	}
 	STDCOUTL("st_naive:\t" << utils::duration_readable(diff, maxReps*threadsCount, &tstNaive));
 
@@ -2931,7 +2934,7 @@ TEST(TestIMathBasic, drelu) {
 //////////////////////////////////////////////////////////////////////////
 template<typename base_t> struct loss_quadratic_EPS {};
 template<> struct loss_quadratic_EPS<double> { static constexpr double eps = 1e-10; };
-template<> struct loss_quadratic_EPS<float> { static constexpr double eps = 8e-4; };
+template<> struct loss_quadratic_EPS<float> { static constexpr float eps = 1e-2f; };
 template<typename iMath>
 void test_loss_quadratic(iMath& iM, vec_len_t rowsCnt, vec_len_t colsCnt=10) {
 	const auto dataSize = realmtx_t::sNumel(rowsCnt, colsCnt);

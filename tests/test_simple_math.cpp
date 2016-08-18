@@ -367,7 +367,7 @@ TEST(TestSimpleMath, mCloneCols) {
 
 template<typename base_t> struct ewSumProd_EPS {};
 template<> struct ewSumProd_EPS<double> { static constexpr double eps = 1e-10; };
-template<> struct ewSumProd_EPS<float> { static constexpr double eps = 3e-5; };
+template<> struct ewSumProd_EPS<float> { static constexpr float eps = 2e-2f; };
 void test_ewSumProd_corr(vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 	MTXSIZE_SCOPED_TRACE(rowsCnt, colsCnt, "ewSumProd");
 	constexpr unsigned testCorrRepCnt = TEST_CORRECTN_REPEATS_COUNT;
@@ -651,7 +651,7 @@ TEST(TestSimpleMath, mrwMax) {
 //////////////////////////////////////////////////////////////////////////
 template<typename base_t> struct mrwSumIp_EPS {};
 template<> struct mrwSumIp_EPS<double> { static constexpr double eps = 1e-12; };
-template<> struct mrwSumIp_EPS<float> { static constexpr double eps = 1e-6; };
+template<> struct mrwSumIp_EPS<float> { static constexpr float eps = 5e-5f; };
 void test_mrwSumIp_corr(vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 	MTXSIZE_SCOPED_TRACE(rowsCnt, colsCnt, "mrwSum_ip");
 	constexpr unsigned testCorrRepCnt = TEST_CORRECTN_REPEATS_COUNT;
@@ -717,7 +717,7 @@ TEST(TestSimpleMath, mrwSumIp) {
 
 template<typename base_t> struct mrwSum_EPS {};
 template<> struct mrwSum_EPS<double> { static constexpr double eps = 1e-12; };
-template<> struct mrwSum_EPS<float> { static constexpr double eps = 1e-6; };
+template<> struct mrwSum_EPS<float> { static constexpr float eps = 8e-5f; };
 void test_mrwSum_corr(vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 	MTXSIZE_SCOPED_TRACE(rowsCnt, colsCnt, "mrwSum");
 	constexpr unsigned testCorrRepCnt = TEST_CORRECTN_REPEATS_COUNT;

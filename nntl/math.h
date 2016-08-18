@@ -37,8 +37,8 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //redefine if needed, but don't use anywhere else
 //MUST be the same in all compilation units, DEFINE ON PROJECT-LEVEL
 #ifndef NNTL_CFG_DEFAULT_TYPE
-//#define NNTL_CFG_DEFAULT_TYPE float
-#define NNTL_CFG_DEFAULT_TYPE double
+#define NNTL_CFG_DEFAULT_TYPE float
+//#define NNTL_CFG_DEFAULT_TYPE double
 #endif
 
 //TODO: there are faster implementations of stl vectors available. Find, evaluate and use them instead of std::vector

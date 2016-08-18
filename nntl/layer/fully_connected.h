@@ -304,6 +304,7 @@ namespace nntl {
 			dLdA.assert_storage_does_not_intersect(m_dAdZ_dLdZ);
 			dLdAPrev.assert_storage_does_not_intersect(m_dLdW);
 			dLdAPrev.assert_storage_does_not_intersect(m_dAdZ_dLdZ);
+			NNTL_ASSERT(m_bTraining);
 			NNTL_ASSERT(prevActivations.test_biases_ok());
 
 			NNTL_ASSERT(m_activations.emulatesBiases() && !m_dAdZ_dLdZ.emulatesBiases() && !m_dLdW.emulatesBiases());

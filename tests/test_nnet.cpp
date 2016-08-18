@@ -75,7 +75,7 @@ TEST(TestNnet, ) {
 void test_LayerPackVertical1(train_data<real_t>& td, uint64_t rngSeed)noexcept {
 	SCOPED_TRACE("test_LayerPackVertical1");
 	size_t epochs = 5;
-	const real_t learningRate = .01;
+	const real_t learningRate = real_t(.01);
 
 	layer_input<> Ainp(td.train_x().cols_no_bias());
 
@@ -122,7 +122,7 @@ void test_LayerPackVertical1(train_data<real_t>& td, uint64_t rngSeed)noexcept {
 void test_LayerPackVertical2(train_data<real_t>& td, uint64_t rngSeed)noexcept {
 	SCOPED_TRACE("test_LayerPackVertical2");
 	size_t epochs = 5;
-	const real_t learningRate = .01;
+	const real_t learningRate = real_t(.01);
 
 	layer_input<> Ainp(td.train_x().cols_no_bias());
 
@@ -172,7 +172,7 @@ void test_LayerPackVertical2(train_data<real_t>& td, uint64_t rngSeed)noexcept {
 void test_LayerPackVertical3(train_data<real_t>& td, uint64_t rngSeed)noexcept {
 	SCOPED_TRACE("test_LayerPackVertical3");
 	size_t epochs = 5;
-	const real_t learningRate = .01;
+	const real_t learningRate = real_t(.01);
 
 	layer_input<> Ainp(td.train_x().cols_no_bias());
 
@@ -222,7 +222,7 @@ void test_LayerPackVertical3(train_data<real_t>& td, uint64_t rngSeed)noexcept {
 void test_LayerPackVertical4(train_data<real_t>& td, uint64_t rngSeed)noexcept {
 	SCOPED_TRACE("test_LayerPackVertical4");
 	size_t epochs = 5;
-	const real_t learningRate = .01;
+	const real_t learningRate = real_t(.01);
 
 	layer_input<> Ainp(td.train_x().cols_no_bias());
 
@@ -363,14 +363,14 @@ TEST(TestNnet, L2L1) {
 	for (unsigned i = 0; i < im; ++i) {
 		auto sv = std::time(0);
 		testL2L1(true,td, 0, sv);
-		testL2L1(true,td, .1, sv);
+		testL2L1(true,td, real_t(.1), sv);
 	}
 
 	STDCOUTL("*************** Testing L1 regularizer ******************* ");
 	for (unsigned i = 0; i < im; ++i) {
 		auto sv = std::time(0);
 		testL2L1(false,td, 0, sv);
-		testL2L1(false,td, .1, sv);
+		testL2L1(false,td, real_t(.1), sv);
 	}
 }
 
@@ -389,14 +389,16 @@ TEST(TestNnet, L2Weights) {
 	/*testL2L1<true>(td, 0, 0, 5, .02, "d:/Docs/Math/play_matlab/NoL2.mat");
 	testL2L1<true>(td, .1, 0, 5, .02, "d:/Docs/Math/play_matlab/L2.mat");
 	testL2L1<false>(td, .1, 0, 5, .02, "d:/Docs/Math/play_matlab/L1.mat");*/
-	testL2L1(true,td, 0, 0, 5, .02);
-	testL2L1(true,td, .1, 0, 5, .02);
-	testL2L1(false,td, .1, 0, 5, .02);
+	testL2L1(true,td, 0, 0, 5, real_t(.02));
+	testL2L1(true,td, real_t(.1), 0, 5, real_t(.02));
+	testL2L1(false,td, real_t(.1), 0, 5, real_t(.02));
 }
 
 //////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////
 
+//There's no need in this "test". It's more like an example than a test.
+/*
 TEST(TestNnet, Training) {
 	train_data<real_t> td;
 	reader_t reader;
@@ -452,3 +454,4 @@ TEST(TestNnet, Training) {
 
 	ASSERT_EQ(decltype(nn)::ErrorCode::Success, ec) << "Error code description: " << nn.get_last_error_string();
 }
+*/

@@ -373,7 +373,7 @@ void check_evCMulSub(iMath& iM, vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 	//		W = W-vW
 	// is better: operation-wise, or combined
 
-	const float momentum = 0.95;
+	const float momentum = real_t(0.95);
 	constexpr unsigned maxReps = TEST_PERF_REPEATS_COUNT;
 	realmtx_t vW(rowsCnt, colsCnt), W(colsCnt, rowsCnt), vW2(colsCnt, rowsCnt), W2(colsCnt, rowsCnt);
 	ASSERT_TRUE(!vW.isAllocationFailed() && !W.isAllocationFailed() && !vW2.isAllocationFailed() && !W2.isAllocationFailed());
@@ -584,7 +584,7 @@ real_t rowvecs_renorm_ET(realmtx_t& m, real_t* pTmp)noexcept {
 
 	//test and renormalize
 	//const real_t newNorm = meanNorm - sqrt(math::real_ty_limits<real_t>::eps_lower_n(meanNorm, rowvecs_renorm_MULT));
-	const real_t newNorm = meanNorm - sqrt(math::real_ty_limits<real_t>::eps_lower(meanNorm));
+	const real_t newNorm = meanNorm - 2*sqrt(math::real_ty_limits<real_t>::eps_lower(meanNorm));
 	for (vec_len_t r = 0; r < mRows; ++r) {
 		if (pTmp[r] > meanNorm) {
 			const real_t normCoeff = sqrt(newNorm / pTmp[r]);
@@ -620,7 +620,7 @@ void rowvecs_renorm_naive(realmtx_t& m, real_t maxLenSquared, real_t* pTmp)noexc
 
 	//test and renormalize
 	//const real_t newNorm = maxLenSquared - sqrt(math::real_ty_limits<real_t>::eps_lower_n(maxLenSquared, rowvecs_renorm_MULT));
-	const real_t newNorm = maxLenSquared - sqrt(math::real_ty_limits<real_t>::eps_lower(maxLenSquared));
+	const real_t newNorm = maxLenSquared - 2*sqrt(math::real_ty_limits<real_t>::eps_lower(maxLenSquared));
 	auto pRow = m.data();
 	const auto pRowE = pRow + mRows;
 	while (pRow!=pRowE) {
@@ -658,7 +658,7 @@ void rowvecs_renorm_clmnw(realmtx_t& A, real_t maxNormSquared, real_t* pTmp)noex
 
 	//Saving normalization coefficient into pTmp for those rows, that needs normalization, or ones for those, that doesn't need.
 	//const real_t newNorm = maxNormSquared - sqrt(math::real_ty_limits<real_t>::eps_lower_n(maxNormSquared, rowvecs_renorm_MULT));
-	const real_t newNorm = maxNormSquared - sqrt(math::real_ty_limits<real_t>::eps_lower(maxNormSquared));
+	const real_t newNorm = maxNormSquared - 2*sqrt(math::real_ty_limits<real_t>::eps_lower(maxNormSquared));
 	auto pCurNorm = pTmp;
 	const auto pTmpE = pTmp + mRows;
 	while (pCurNorm != pTmpE) {
@@ -699,7 +699,7 @@ void rowvecs_renorm_clmnw2(realmtx_t& m, real_t maxLenSquared, real_t* pTmp)noex
 
 	//Saving normalization coefficient into pTmp for those rows, that needs normalization, or ones for those, that doesn't need.
 	//const real_t newNorm = maxLenSquared - sqrt(math::real_ty_limits<real_t>::eps_lower_n(maxLenSquared, rowvecs_renorm_MULT));
-	const real_t newNorm = maxLenSquared - sqrt(math::real_ty_limits<real_t>::eps_lower(maxLenSquared));
+	const real_t newNorm = maxLenSquared - 2*sqrt(math::real_ty_limits<real_t>::eps_lower(maxLenSquared));
 	auto pCurNorm = pTmp;
 	const auto pTmpE = pTmp + mRows;
 	while (pCurNorm != pTmpE) {
@@ -742,7 +742,7 @@ void rowvecs_renorm_clmnw_part(realmtx_t& m, real_t maxLenSquared, real_t* pTmp,
 	//Saving normalization coefficient into pTmp for those rows, that needs normalization, or ones for those, that doesn't need.
 	//memset(pOffs, 0, sizeof(*pOffs)*mRows);
 	//const real_t newNorm = maxLenSquared - sqrt(math::real_ty_limits<real_t>::eps_lower_n(maxLenSquared, rowvecs_renorm_MULT));
-	const real_t newNorm = maxLenSquared - sqrt(math::real_ty_limits<real_t>::eps_lower(maxLenSquared));
+	const real_t newNorm = maxLenSquared - 2*sqrt(math::real_ty_limits<real_t>::eps_lower(maxLenSquared));
 	auto pT = pTmp, pCurNorm = pTmp, pPrevNorm = pTmp;
 	const auto pTmpE = pTmp + mRows;
 	auto pOE = pOffs;
@@ -1080,9 +1080,9 @@ void check_sigm_loss_xentropy(iMath& iM, vec_len_t rowsCnt, vec_len_t colsCnt = 
 
 	utils::prioritize_workers<utils::PriorityClass::PerfTesting, iMath::ithreads_t> pw(iM.ithreads());
 
-	run_sigm_loss_xentropy(rg, iM, act, data_y, t1, t2, maxReps, .5);
-	run_sigm_loss_xentropy(rg, iM, act, data_y, t1, t2, maxReps, .1);
-	run_sigm_loss_xentropy(rg, iM, act, data_y, t1, t2, maxReps, .9);
+	run_sigm_loss_xentropy(rg, iM, act, data_y, t1, t2, maxReps, real_t(.5));
+	run_sigm_loss_xentropy(rg, iM, act, data_y, t1, t2, maxReps, real_t(.1));
+	run_sigm_loss_xentropy(rg, iM, act, data_y, t1, t2, maxReps, real_t(.9));
 }
 TEST(TestPerfDecisions, sigmLossXentropy) {
 	typedef nntl::nnet_def_interfaces::iThreads_t def_threads_t;
@@ -1133,7 +1133,7 @@ void check_apply_momentum_perf(iMath& iM, vec_len_t rowsCnt, vec_len_t colsCnt =
 	nanoseconds diff;
 	constexpr unsigned maxReps = TEST_PERF_REPEATS_COUNT;
 
-	real_t momentum=.9;
+	real_t momentum= real_t(.9);
 
 	realmtx_t dW(rowsCnt, colsCnt), vW(rowsCnt, colsCnt);
 	ASSERT_TRUE(!dW.isAllocationFailed() && !vW.isAllocationFailed());
@@ -1208,7 +1208,7 @@ void test_sign_perf(iMath& iM, vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 	//testing performance
 	utils::prioritize_workers<utils::PriorityClass::PerfTesting, iMath::ithreads_t> pw(iM.ithreads());
 
-	real_t lr = .1;
+	real_t lr = real_t(.1);
 
 	real_t pz = real_t(+0.0), nz = real_t(-0.0), p1 = real_t(1), n1 = real_t(-1);
 

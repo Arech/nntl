@@ -362,6 +362,7 @@ namespace nntl {
 		template <typename LowerLayer>
 		const unsigned bprop(realmtx_t& dLdA, const LowerLayer& lowerLayer, realmtx_t& dLdAPrev)noexcept {
 			static_assert(std::is_base_of<_i_layer_trainable, LowerLayer>::value, "Template parameter LowerLayer must implement _i_layer_trainable");
+			NNTL_ASSERT(m_bTraining);
 			NNTL_ASSERT(lowerLayer.get_activations().test_biases_ok());
 			//NNTL_ASSERT(m_activations.test_biases_ok());
 			NNTL_ASSERT(dLdA.size() == get_self().get_activations().size_no_bias());

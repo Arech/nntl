@@ -56,7 +56,7 @@ namespace nntl {
 		//////////////////////////////////////////////////////////////////////////
 		// numeric stabilizer eps value for double and float calculations
 		template <typename real_t> struct NUM_STAB_EPS{};
-		template<> struct NUM_STAB_EPS<float> { static constexpr double value = 1e-5; };
+		template<> struct NUM_STAB_EPS<float> { static constexpr float value = 1e-5f; };
 		template<> struct NUM_STAB_EPS<double> { static constexpr double value = 1e-9; };
 
 	}
@@ -263,9 +263,9 @@ namespace nntl {
 		//!!assignment is not needed
 		grad_works& operator=(const grad_works& rhs) noexcept = delete;
 
-		grad_works(const real_t lr) noexcept : m_pMath(nullptr), m_momentum(0.0), m_emaDecay(0.9),
-			m_numericStabilizerEps(_impl::NUM_STAB_EPS<real_t>::value), m_maxWeightVecNorm(0.0)
-			, m_L1(0.0), m_L2(0.0), m_actualL1(0.0), m_actualL2(0.0),
+		grad_works(const real_t lr) noexcept : m_pMath(nullptr), m_momentum(real_t(0.0)), m_emaDecay(real_t(0.9)),
+			m_numericStabilizerEps(_impl::NUM_STAB_EPS<real_t>::value), m_maxWeightVecNorm(real_t(0.0))
+			, m_L1(real_t(0.0)), m_L2(real_t(0.0)), m_actualL1(real_t(0.0)), m_actualL2(real_t(0.0)),
 			m_type(ClassicalConstant)
 		{
 			set_learning_rate(lr);

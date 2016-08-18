@@ -161,10 +161,10 @@ struct simple_case_common_info {
 	static constexpr size_t epochs = 20;
 #endif
 
-	static constexpr real_t learningRate = .001;
+	static constexpr real_t learningRate = real_t(.001);
 	static constexpr size_t batchSize = 100;
 
-	static constexpr real_t nesterovMomentum = .9;
+	static constexpr real_t nesterovMomentum = real_t(.9);
 };
 
 //it's a bad test but it was fast to write. It's much harder to write more sophisticated one.

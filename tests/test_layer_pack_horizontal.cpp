@@ -69,7 +69,7 @@ TEST(TestLayerPackHorizontal, Simple) {
 	ASSERT_TRUE(td.test_x().emulatesBiases());
 
 	size_t epochs = 5;
-	const real_t learningRate = .01;
+	const real_t learningRate = real_t(.01);
 
 	const auto train_x_dim = td.train_x().cols_no_bias();
 	layer_input<> Binp(train_x_dim);

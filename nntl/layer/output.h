@@ -244,6 +244,7 @@ namespace nntl {
 			data_y.assert_storage_does_not_intersect(dLdAPrev);
 			dLdAPrev.assert_storage_does_not_intersect(m_dLdW);
 			dLdAPrev.assert_storage_does_not_intersect(m_dLdZ);
+			NNTL_ASSERT(m_bTraining);
 			NNTL_ASSERT(!m_dLdZ.emulatesBiases() && !m_dLdW.emulatesBiases());
 			NNTL_ASSERT(m_activations.size() == data_y.size());
 			NNTL_ASSERT(m_dLdZ.size() == m_activations.size());

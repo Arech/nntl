@@ -439,7 +439,7 @@ namespace math {
 			// that doesn't need.
 			// Making newNorm slightly less, than maxNormSquared to make sure the result will be less than max norm.
 			//const real_t newNorm = maxNormSquared - math::real_ty_limits<real_t>::eps_lower_n(maxNormSquared, sCheck_normalize_rows_MULT);
-			const real_t newNorm = maxNormSquared - sqrt(math::real_ty_limits<real_t>::eps_lower(maxNormSquared));
+			const real_t newNorm = maxNormSquared - 2*sqrt(math::real_ty_limits<real_t>::eps_lower(maxNormSquared));
 			auto pCurNorm = pTmp;
 			const auto pTmpE = pTmp + mRows;
 			while (pCurNorm != pTmpE) {
@@ -499,7 +499,7 @@ namespace math {
 
 			// calc scaling coefficients
 			const auto pRowNormE = pRowNorm + mRows;
-			const real_t newNorm = maxNormSquared - sqrt(math::real_ty_limits<real_t>::eps_lower(maxNormSquared));
+			const real_t newNorm = maxNormSquared - 2*sqrt(math::real_ty_limits<real_t>::eps_lower(maxNormSquared));
 			auto pCurNorm = pRowNorm;
 			while (pCurNorm != pRowNormE) {
 				const auto rowNorm = *pCurNorm;

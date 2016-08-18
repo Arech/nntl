@@ -72,7 +72,7 @@ namespace nntl {
 
 		static constexpr size_t gated_layers_count = phl_count - 1;
 
-		static constexpr real_t sBinarizeFrac = real_t(nBinarize1e6) / 1000000;
+		static constexpr real_t sBinarizeFrac = real_t(nBinarize1e6) / real_t(1e6);
 		static constexpr bool sbBinarizeGate = (0 != nBinarize1e6);
 
 	protected:

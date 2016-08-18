@@ -65,7 +65,7 @@ TEST(TestMatfile, ReadWriteMat) {
 	for (unsigned i = 0; i < double_mtx.numel(); ++i) double_mtx.data()[i] = double(2.1) * i;
 
 	double dET = 3.3, d;
-	float fET = 2.1, f;
+	float fET = 2.1f, f;
 
 	train_data<math_types::real_ty> td_ET,td;
 	ASSERT_TRUE(get_td(td_ET));
@@ -131,7 +131,7 @@ TEST(TestMatfile, DumpNnet) {
 	ASSERT_TRUE(td.test_x().emulatesBiases());
 
 	size_t epochs = 5;
-	const real_t learningRate = .002;
+	const real_t learningRate = real_t(.002);
 
 	layer_input<> inp(td.train_x().cols_no_bias());
 	layer_fully_connected<> fcl(60, learningRate);
