@@ -53,13 +53,13 @@ namespace nntl {
 		}
 		nnet_cond_epoch_eval(size_t maxEpoch,size_t stride)noexcept : m_flgEvalPerf(maxEpoch, false) {
 			NNTL_ASSERT(maxEpoch > 0);
-			for (size_t i = stride-1; i < maxEpoch; i+=stride)  m_flgEvalPerf[i] = true;
-			m_flgEvalPerf[maxEpoch - 1] = true;
+			verbose(stride+1, maxEpoch, stride);
+			verbose(maxEpoch - 1);
 		}
 		nnet_cond_epoch_eval(size_t maxEpoch, size_t startsAt, size_t stride)noexcept : m_flgEvalPerf(maxEpoch, false) {
 			NNTL_ASSERT(maxEpoch > 0 && startsAt<=maxEpoch);
-			for (size_t i = startsAt-1; i < maxEpoch; i += stride)  m_flgEvalPerf[i] = true;
-			m_flgEvalPerf[maxEpoch - 1] = true;
+			verbose(startsAt, maxEpoch, stride);
+			verbose(maxEpoch - 1);
 		}
 		nnet_cond_epoch_eval(nnet_cond_epoch_eval&& src)noexcept : m_flgEvalPerf(std::move(src.m_flgEvalPerf)) {}
 
@@ -74,7 +74,17 @@ namespace nntl {
 		//using () instead of [] because can't (and don't need to) return reference
 		const bool operator()(size_t e)const noexcept { return m_flgEvalPerf[e]; }
 
-		self_t& verbose(size_t e)noexcept { m_flgEvalPerf[e] = true; return *this; }
+		self_t& set(size_t i, const bool v)noexcept { m_flgEvalPerf[i] = v; return *this; }
+		self_t& set(const size_t _beg, const size_t _end, const size_t stride, const bool v)noexcept {
+			for (size_t i = _beg - 1; i < _end; i += stride) m_flgEvalPerf[i] = v;
+			return *this;
+		}
+
+		self_t& verbose(size_t i)noexcept { return set(i, true); }
+		self_t& verbose(size_t _beg, size_t _end, size_t stride = 1)noexcept { return set(_beg, _end, stride, true); }
+
+		self_t& silence(size_t i)noexcept { return set(i, false); }
+		self_t& silence(size_t _beg, size_t _end, size_t stride = 1)noexcept { return set(_beg, _end, stride, false); }
 	};
 
 }

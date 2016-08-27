@@ -239,6 +239,14 @@ namespace math {
 		nntl_interface void relu(realmtx_t& srcdest) noexcept;
 		nntl_interface void drelu(const realmtx_t& fValue, realmtx_t& df) noexcept;
 
+		nntl_interface void leakyrelu(realmtx_t& srcdest, const real_t leak) noexcept;
+		nntl_interface void dleakyrelu(const realmtx_t& fValue, realmtx_t& df, const real_t leak) noexcept;
+
+		nntl_interface void elu(realmtx_t& srcdest, const real_t alpha) noexcept;
+		nntl_interface void delu(const realmtx_t& fValue, realmtx_t& df, const real_t alpha) noexcept;
+		nntl_interface void elu_unitalpha(realmtx_t& srcdest) noexcept;
+		nntl_interface void delu_unitalpha(const realmtx_t& fValue, realmtx_t& df) noexcept;
+
 		//////////////////////////////////////////////////////////////////////////
 		//SoftMax
 		// helper function that return the amount of temporary memory (in real_t) needed to process by softmax()

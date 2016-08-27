@@ -373,7 +373,7 @@ void check_evCMulSub(iMath& iM, vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 	//		W = W-vW
 	// is better: operation-wise, or combined
 
-	const float momentum = real_t(0.95);
+	const real_t momentum = real_t(0.95);
 	constexpr unsigned maxReps = TEST_PERF_REPEATS_COUNT;
 	realmtx_t vW(rowsCnt, colsCnt), W(colsCnt, rowsCnt), vW2(colsCnt, rowsCnt), W2(colsCnt, rowsCnt);
 	ASSERT_TRUE(!vW.isAllocationFailed() && !W.isAllocationFailed() && !vW2.isAllocationFailed() && !W2.isAllocationFailed());

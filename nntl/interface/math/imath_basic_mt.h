@@ -305,6 +305,27 @@ namespace math {
 			 drelu_mt_naive(fValue, df);
 		}
 
+		void leakyrelu(realmtx_t& srcdest, const real_t leak) noexcept {
+			leakyrelu_mt(srcdest, leak);
+		}
+		void dleakyrelu(const realmtx_t& fValue, realmtx_t& df, const real_t leak) noexcept {
+			dleakyrelu_mt(fValue, df, leak);
+		}
+
+		void elu(realmtx_t& srcdest, const real_t alpha) noexcept {
+			elu_mt(srcdest, alpha);
+		}
+		void delu(const realmtx_t& fValue, realmtx_t& df, const real_t alpha) noexcept {
+			delu_mt(fValue, df, alpha);
+		}
+
+		void elu_unitalpha(realmtx_t& srcdest) noexcept {
+			elu_unitalpha_mt(srcdest);
+		}
+		void delu_unitalpha(const realmtx_t& fValue, realmtx_t& df) noexcept {
+			delu_unitalpha_mt(fValue, df);
+		}
+
 		//////////////////////////////////////////////////////////////////////////
 		//SoftMax
 		// MUST ignore biases!

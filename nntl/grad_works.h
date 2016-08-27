@@ -57,7 +57,7 @@ namespace nntl {
 		// numeric stabilizer eps value for double and float calculations
 		template <typename real_t> struct NUM_STAB_EPS{};
 		template<> struct NUM_STAB_EPS<float> { static constexpr float value = 1e-5f; };
-		template<> struct NUM_STAB_EPS<double> { static constexpr double value = 1e-9; };
+		template<> struct NUM_STAB_EPS<double> { static constexpr double value = 1e-8; };
 
 	}
 
@@ -212,7 +212,10 @@ namespace nntl {
 
 		//////////////////////////////////////////////////////////////////////////
 		// some static constants to make code consistent
-		static constexpr bool defApplyILR2MomentumVelocity = true;
+		
+		static constexpr bool defApplyILR2MomentumVelocity = false;//true value for this setting may prevent setups with ILR,
+		//dropout & momentum to learn correctly.
+
 		static constexpr bool defRegularizersIgnoresBiasWeights = true;
 
 
@@ -503,7 +506,7 @@ namespace nntl {
 			return *this;
 		}
 		self_t& set_numeric_stabilizer(real_t n)noexcept {
-			NNTL_ASSERT(n >= 0 && n < real_t(.1));
+			NNTL_ASSERT(n >= 0 && n < real_t(1.));
 			m_numericStabilizerEps = n;
 			return *this;
 		}

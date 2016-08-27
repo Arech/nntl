@@ -76,7 +76,7 @@ constexpr unsigned TEST_CORRECTN_REPEATS_COUNT = 60, _baseRowsCnt = 300;
 
 template<typename base_t> struct loss_sigm_xentropy_EPS {};
 template<> struct loss_sigm_xentropy_EPS<double> { static constexpr double eps = 1e-10; };
-template<> struct loss_sigm_xentropy_EPS<float> { static constexpr float eps = 4e-5f; };
+template<> struct loss_sigm_xentropy_EPS<float> { static constexpr float eps = 5e-5f; };
 void test_loss_sigm_xentropy(vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 	MTXSIZE_SCOPED_TRACE(rowsCnt, colsCnt, "loss_sigm_xentropy");
 	constexpr unsigned testCorrRepCnt = TEST_CORRECTN_REPEATS_COUNT;
@@ -410,7 +410,7 @@ TEST(TestIMathBasic, LossSoftmaxXentropy) {
 
 template<typename base_t> struct vSumAbs_EPS {};
 template<> struct vSumAbs_EPS<double> { static constexpr double eps = 3e-10; };
-template<> struct vSumAbs_EPS<float> { static constexpr float eps = 5e-2f; };
+template<> struct vSumAbs_EPS<float> { static constexpr float eps = .2f; };
 template<typename iMath>
 void test_vSumAbs(iMath& iM, vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 	const auto dataSize = realmtx_t::sNumel(rowsCnt, colsCnt);
@@ -478,7 +478,7 @@ TEST(TestIMathBasic, vSumAbs) {
 
 template<typename base_t> struct vSumSquares_EPS {};
 template<> struct vSumSquares_EPS<double> { static constexpr double eps = 1e-10; };
-template<> struct vSumSquares_EPS<float> { static constexpr double eps = 5e-2; };
+template<> struct vSumSquares_EPS<float> { static constexpr float eps = .1f; };
 template<typename iMath>
 void test_vSumSquares(iMath& iM, vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 	const auto dataSize = realmtx_t::sNumel(rowsCnt, colsCnt);
@@ -2724,213 +2724,244 @@ TEST(TestIMathBasic, dsigm) {
 }
 
 //////////////////////////////////////////////////////////////////////////
-template<typename iMath>
-void test_relu(iMath& iM, vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
-	typedef typename iMath::ithreads_t threads_t;
-	typedef math_types::realmtxdef_ty realmtxdef_t;
-	
-	const auto dataSize = realmtx_t::sNumel(rowsCnt, colsCnt);
-	STDCOUTL("********* testing relu() over ~" << dataSize << " elements) **************");
-
-	EXPECT_TRUE(steady_clock::is_steady);
-	double tmtNaive, tstNaive, tBest;//tstVect, tmtVect
-	steady_clock::time_point bt;
-	nanoseconds diff;
-	const unsigned maxReps = TEST_PERF_REPEATS_COUNT;
-
-	const auto threadsCount = iM.ithreads().workers_count();
-	ASSERT_TRUE(threadsCount > 0);
-	const auto biggestDataSize = static_cast<realmtx_t::vec_len_t>(dataSize + threadsCount);
-
-	realmtxdef_t m, etDest(biggestDataSize, 1);
-	realmtx_t etM(biggestDataSize, 1);
-	ASSERT_TRUE(biggestDataSize == etM.numel());
-
-	//filling etalon
-	nnet_def_interfaces::iRng_t rg;
-	rg.set_ithreads(iM.ithreads());
-	rg.gen_matrix(etM, 2);
-	auto ptrEtM = etM.data(), ptrDest = etDest.data();
-	for (unsigned i = 0; i < biggestDataSize; ++i) {
-		ptrDest[i] = (ptrEtM[i] < 0) ? 0 : ptrEtM[i];
-	}
-	ASSERT_TRUE(m.cloneFrom(etM));
-	ASSERT_TRUE(etM == m);
-
-	//testing performance
-	utils::prioritize_workers<utils::PriorityClass::PerfTesting, iMath::ithreads_t> pw(iM.ithreads());
-
-	//////////////////////////////////////////////////////////////////////////
-	//single threaded naive
-	diff = nanoseconds(0);
-	for (threads_t::thread_id_t t = 0; t < threadsCount; ++t) {
-		const unsigned iMax = static_cast<realmtx_t::vec_len_t>(dataSize + t);
-		for (unsigned r = 0; r < maxReps; ++r) {
-			m.deform_rows(biggestDataSize);
-			ASSERT_TRUE(m.cloneFrom(etM));
-			m.deform_rows(iMax);
-			bt = steady_clock::now();
-			iM.relu_st_naive(m);
-			diff += steady_clock::now() - bt;
-		}
-		const auto ptr = m.data();
-		for (numel_cnt_t i = 0; i < iMax; ++i) ASSERT_DOUBLE_EQ(ptrDest[i], ptr[i]);
-	}
-	STDCOUTL("st_naive:\t" << utils::duration_readable(diff, maxReps*threadsCount, &tstNaive));
-
-	//////////////////////////////////////////////////////////////////////////
-	//multi threaded naive
-	diff = nanoseconds(0);
-	for (threads_t::thread_id_t t = 0; t < threadsCount; ++t) {
-		const unsigned iMax = static_cast<realmtx_t::vec_len_t>(dataSize + t);
-		for (unsigned r = 0; r < maxReps; ++r) {
-			m.deform_rows(biggestDataSize);
-			ASSERT_TRUE(m.cloneFrom(etM));
-			m.deform_rows(iMax);
-			bt = steady_clock::now();
-			iM.relu_mt_naive(m);
-			diff += steady_clock::now() - bt;
-		}
-		const auto ptr = m.data();
-		for (numel_cnt_t i = 0; i < iMax; ++i) ASSERT_DOUBLE_EQ(ptrDest[i], ptr[i]);
-	}
-	STDCOUTL("mt_naive:\t" << utils::duration_readable(diff, maxReps*threadsCount, &tmtNaive));
-
-	/*//////////////////////////////////////////////////////////////////////////
-	//single threaded vectorized
-	diff = nanoseconds(0);
-	for (threads_t::thread_id_t t = 0; t < threadsCount; ++t) {
-		const unsigned iMax = static_cast<realmtx_t::vec_len_t>(dataSize + t);
-		for (unsigned r = 0; r < maxReps; ++r) {
-			m.deform_rows(biggestDataSize);
-			ASSERT_TRUE(m.cloneFrom(etM));
-			m.deform_rows(iMax);
-			bt = steady_clock::now();
-			iM.relu_st_vec(m);
-			diff += steady_clock::now() - bt;
-		}
-		const auto ptr = m.data();
-		for (numel_cnt_t i = 0; i < iMax; ++i) ASSERT_DOUBLE_EQ(ptrDest[i], ptr[i]);
-	}
-	STDCOUTL("st_vec:\t\t" << utils::duration_readable(diff, maxReps*threadsCount, &tstVect));
-
-	//////////////////////////////////////////////////////////////////////////
-	//multi threaded vectorized
-	diff = nanoseconds(0);
-	for (threads_t::thread_id_t t = 0; t < threadsCount; ++t) {
-		const unsigned iMax = static_cast<realmtx_t::vec_len_t>(dataSize + t);
-		for (unsigned r = 0; r < maxReps; ++r) {
-			m.deform_rows(biggestDataSize);
-			ASSERT_TRUE(m.cloneFrom(etM));
-			m.deform_rows(iMax);
-			bt = steady_clock::now();
-			iM.relu_mt_vec(m);
-			diff += steady_clock::now() - bt;
-		}
-		const auto ptr = m.data();
-		for (numel_cnt_t i = 0; i < iMax; ++i) ASSERT_DOUBLE_EQ(ptrDest[i], ptr[i]);
-	}
-	STDCOUTL("mt_vec:\t\t" << utils::duration_readable(diff, maxReps*threadsCount, &tmtVect));*/
-
-	//////////////////////////////////////////////////////////////////////////
-	//best
-	diff = nanoseconds(0);
-	for (threads_t::thread_id_t t = 0; t < threadsCount; ++t) {
-		const unsigned iMax = static_cast<realmtx_t::vec_len_t>(dataSize + t);
-		for (unsigned r = 0; r < maxReps; ++r) {
-			m.deform_rows(biggestDataSize);
-			ASSERT_TRUE(m.cloneFrom(etM));
-			m.deform_rows(iMax);
-			bt = steady_clock::now();
-			iM.relu(m);
-			diff += steady_clock::now() - bt;
-		}
-		const auto ptr = m.data();
-		for (numel_cnt_t i = 0; i < iMax; ++i) ASSERT_DOUBLE_EQ(ptrDest[i], ptr[i]);
-	}
-	STDCOUTL("best:\t\t" << utils::duration_readable(diff, maxReps*threadsCount, &tBest));
-}
-
-TEST(TestIMathBasic, Relu) {
-	typedef nntl::nnet_def_interfaces::iThreads_t def_threads_t;
-	typedef math::iMath_basic<real_t, def_threads_t> iMB;
-	iMB iM;
-	NNTL_RUN_TEST2(iMB::Thresholds_t::relu, 10) test_relu(iM, i, 10);
-}
-
 //////////////////////////////////////////////////////////////////////////
-template<typename iMath>
-void test_drelu(iMath& iM, vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
-	const auto dataSize = realmtx_t::sNumel(rowsCnt, colsCnt);
-	STDCOUTL("********* testing drelu() over " << rowsCnt << "x" << colsCnt << " matrix (" << dataSize << " elements) **************");
+void test_relu_corr(vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
+	MTXSIZE_SCOPED_TRACE(rowsCnt, colsCnt, "test_relu_corr");
+	constexpr unsigned testCorrRepCnt = 10;
+	realmtx_t src(rowsCnt, colsCnt, true), F(rowsCnt, colsCnt,true), F_ET(rowsCnt, colsCnt,true);
+	ASSERT_TRUE(!src.isAllocationFailed() && !F.isAllocationFailed() && !F_ET.isAllocationFailed());
 
-	EXPECT_TRUE(steady_clock::is_steady);
-	double tstNaive, tmtNaive, tBest;
-	steady_clock::time_point bt;
-	nanoseconds diff;
-	constexpr unsigned maxReps = TEST_PERF_REPEATS_COUNT;
-
-	realmtx_t m, etM(rowsCnt, colsCnt), etDest(rowsCnt, colsCnt), dest(rowsCnt, colsCnt);
-	ASSERT_EQ(dataSize, etM.numel());
-
-	//filling etalon
 	nnet_def_interfaces::iRng_t rg;
 	rg.set_ithreads(iM.ithreads());
-	rg.gen_matrix(etM, 10);
-	auto ptrEtM = etM.data(), ptrDest = etDest.data();
-	for (unsigned i = 0; i < dataSize; ++i) ptrDest[i] = ptrEtM[i]>0 ? 1 : 0;
-	ASSERT_TRUE(etM.cloneTo(m));
+	for (unsigned r = 0; r < testCorrRepCnt; ++r) {
+		rg.gen_matrix_no_bias(src, 2);
+		ASSERT_TRUE(src.test_biases_ok());
+		src.cloneTo(F_ET);
 
-	//testing performance
-	utils::prioritize_workers<utils::PriorityClass::PerfTesting, iMath::ithreads_t> pw(iM.ithreads());
+		relu_ET(F_ET);
+		ASSERT_TRUE(F_ET.test_biases_ok());
 
-	//////////////////////////////////////////////////////////////////////////
-	//single threaded naive
-	dest.zeros();
-	diff = nanoseconds(0);
-	for (unsigned r = 0; r < maxReps; ++r) {
-		bt = steady_clock::now();
-		iM.drelu_st_naive(m, dest);
-		diff += steady_clock::now() - bt;
+		src.cloneTo(F);
+		iM.relu_st_naive(F);
+		ASSERT_MTX_EQ(F, F_ET, "_st() failed");
+
+		src.cloneTo(F);
+		iM.relu_mt_naive(F);
+		ASSERT_MTX_EQ(F, F_ET, "_mt() failed");
+
+		src.cloneTo(F);
+		iM.relu(F);
+		ASSERT_MTX_EQ(F, F_ET, "() failed");
 	}
-	ASSERT_EQ(m, etM);
-	ASSERT_EQ(dest, etDest);
-	STDCOUTL("st_naive:\t" << utils::duration_readable(diff, maxReps, &tstNaive));
-
-	//////////////////////////////////////////////////////////////////////////
-	//multi threaded naive
-	dest.zeros();
-	diff = nanoseconds(0);
-	for (unsigned r = 0; r < maxReps; ++r) {
-		bt = steady_clock::now();
-		iM.drelu_mt_naive(m, dest);
-		diff += steady_clock::now() - bt;
+}
+TEST(TestIMathBasic, Relu) {
+	for (vec_len_t r = 1; r < g_MinDataSizeDelta; ++r) {
+		for (vec_len_t c = 1; c < g_MinDataSizeDelta; ++c) {
+			test_relu_corr(r, c);
+		}
 	}
-	ASSERT_EQ(m, etM);
-	ASSERT_EQ(dest, etDest);
-	STDCOUTL("mt_naive:\t" << utils::duration_readable(diff, maxReps, &tmtNaive));
+}
+void test_drelu_corr(vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
+	MTXSIZE_SCOPED_TRACE(rowsCnt, colsCnt, "test_drelu_corr");
+	constexpr unsigned testCorrRepCnt = 10;
+	realmtx_t df_ET(rowsCnt, colsCnt, false), F(rowsCnt, colsCnt, true), dfM(rowsCnt, colsCnt, false);
+	ASSERT_TRUE(!df_ET.isAllocationFailed() && !F.isAllocationFailed() && !dfM.isAllocationFailed());
 
-	//////////////////////////////////////////////////////////////////////////
-	//best guess
-	dest.zeros();
-	diff = nanoseconds(0);
-	for (unsigned r = 0; r < maxReps; ++r) {
-		bt = steady_clock::now();
-		iM.drelu(m, dest);
-		diff += steady_clock::now() - bt;
+	nnet_def_interfaces::iRng_t rg;
+	rg.set_ithreads(iM.ithreads());
+	for (unsigned r = 0; r < testCorrRepCnt; ++r) {
+		rg.gen_matrix_no_bias(F, 2);
+		ASSERT_TRUE(F.test_biases_ok());
+
+		drelu_ET(F,df_ET);
+		ASSERT_TRUE(F.test_biases_ok());
+
+		iM.drelu_st_naive(F,dfM);
+		ASSERT_MTX_EQ(df_ET, dfM, "_st() failed");
+
+		iM.drelu_mt_naive(F, dfM);
+		ASSERT_MTX_EQ(df_ET, dfM, "_mt() failed");
+
+		iM.drelu(F, dfM);
+		ASSERT_MTX_EQ(df_ET, dfM, "() failed");
 	}
-	ASSERT_EQ(m, etM);
-	ASSERT_EQ(dest, etDest);
-	STDCOUTL("best:\t\t" << utils::duration_readable(diff, maxReps, &tBest));
+}
+TEST(TestIMathBasic, DRelu) {
+	for (vec_len_t r = 1; r < g_MinDataSizeDelta; ++r) {
+		for (vec_len_t c = 1; c < g_MinDataSizeDelta; ++c) {
+			test_drelu_corr(r, c);
+		}
+	}
+}
+//////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////
+void test_leakyrelu_corr(vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
+	MTXSIZE_SCOPED_TRACE(rowsCnt, colsCnt, "test_leakyrelu_corr");
+	constexpr unsigned testCorrRepCnt = 10;
+	realmtx_t src(rowsCnt, colsCnt, true), F(rowsCnt, colsCnt, true), F_ET(rowsCnt, colsCnt, true);
+	ASSERT_TRUE(!src.isAllocationFailed() && !F.isAllocationFailed() && !F_ET.isAllocationFailed());
+	const real_t leak = real_t(.001);
+	nnet_def_interfaces::iRng_t rg;
+	rg.set_ithreads(iM.ithreads());
+	for (unsigned r = 0; r < testCorrRepCnt; ++r) {
+		rg.gen_matrix_no_bias(src, 2);
+		ASSERT_TRUE(src.test_biases_ok());
+		src.cloneTo(F_ET);
+
+		leakyrelu_ET(F_ET, leak);
+		ASSERT_TRUE(F_ET.test_biases_ok());
+
+		src.cloneTo(F);
+		iM.leakyrelu_st(F, leak);
+		ASSERT_MTX_EQ(F, F_ET, "_st() failed");
+
+		src.cloneTo(F);
+		iM.leakyrelu_mt(F, leak);
+		ASSERT_MTX_EQ(F, F_ET, "_mt() failed");
+
+		src.cloneTo(F);
+		iM.leakyrelu(F, leak);
+		ASSERT_MTX_EQ(F, F_ET, "() failed");
+	}
+}
+TEST(TestIMathBasic, LeakyRelu) {
+	for (vec_len_t r = 1; r < g_MinDataSizeDelta; ++r) {
+		for (vec_len_t c = 1; c < g_MinDataSizeDelta; ++c) {
+			test_leakyrelu_corr(r, c);
+		}
+	}
+}
+void test_dleakyrelu_corr(vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
+	MTXSIZE_SCOPED_TRACE(rowsCnt, colsCnt, "test_dleakyrelu_corr");
+	constexpr unsigned testCorrRepCnt = 10;
+	realmtx_t df_ET(rowsCnt, colsCnt, false), F(rowsCnt, colsCnt, true), dfM(rowsCnt, colsCnt, false);
+	ASSERT_TRUE(!df_ET.isAllocationFailed() && !F.isAllocationFailed() && !dfM.isAllocationFailed());
+	const real_t leak = real_t(.001);
+	nnet_def_interfaces::iRng_t rg;
+	rg.set_ithreads(iM.ithreads());
+	for (unsigned r = 0; r < testCorrRepCnt; ++r) {
+		rg.gen_matrix_no_bias(F, 2);
+		ASSERT_TRUE(F.test_biases_ok());
+
+		dleakyrelu_ET(F, df_ET, leak);
+		ASSERT_TRUE(F.test_biases_ok());
+
+		iM.dleakyrelu_st(F, dfM, leak);
+		ASSERT_MTX_EQ(df_ET, dfM, "_st() failed");
+
+		iM.dleakyrelu_mt(F, dfM, leak);
+		ASSERT_MTX_EQ(df_ET, dfM, "_mt() failed");
+
+		iM.dleakyrelu(F, dfM, leak);
+		ASSERT_MTX_EQ(df_ET, dfM, "() failed");
+	}
+}
+TEST(TestIMathBasic, DLeakyRelu) {
+	for (vec_len_t r = 1; r < g_MinDataSizeDelta; ++r) {
+		for (vec_len_t c = 1; c < g_MinDataSizeDelta; ++c) {
+			test_dleakyrelu_corr(r, c);
+		}
+	}
+}
+//////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////
+void test_elu_corr(vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
+	MTXSIZE_SCOPED_TRACE(rowsCnt, colsCnt, "test_elu_corr");
+	constexpr unsigned testCorrRepCnt = 10;
+	realmtx_t src(rowsCnt, colsCnt, true), F(rowsCnt, colsCnt, true), F_ET(rowsCnt, colsCnt, true), FU_ET(rowsCnt, colsCnt, true);
+	ASSERT_TRUE(!src.isAllocationFailed() && !F.isAllocationFailed() && !F_ET.isAllocationFailed() && !FU_ET.isAllocationFailed());
+
+	const real_t alpha = real_t(2.5);
+
+	nnet_def_interfaces::iRng_t rg;
+	rg.set_ithreads(iM.ithreads());
+	for (unsigned r = 0; r < testCorrRepCnt; ++r) {
+		rg.gen_matrix_no_bias(src, 2);
+		ASSERT_TRUE(src.test_biases_ok());
+
+		src.cloneTo(F_ET);
+		elu_ET(F_ET, alpha);
+		ASSERT_TRUE(F_ET.test_biases_ok());
+		src.cloneTo(FU_ET);
+		elu_unitalpha_ET(FU_ET);
+		ASSERT_TRUE(FU_ET.test_biases_ok());
+		//ASSERT_TRUE(FU_ET != F_ET);
+
+		src.cloneTo(F);
+		iM.elu_st(F, alpha);
+		ASSERT_MTX_EQ(F, F_ET, "elu_st() failed");
+		src.cloneTo(F);
+		iM.elu_unitalpha_st(F);
+		ASSERT_MTX_EQ(F, FU_ET, "elu_unitalpha_st() failed");
+
+		src.cloneTo(F);
+		iM.elu_mt(F, alpha);
+		ASSERT_MTX_EQ(F, F_ET, "elu_mt() failed");
+		src.cloneTo(F);
+		iM.elu_unitalpha_mt(F);
+		ASSERT_MTX_EQ(F, FU_ET, "elu_unitalpha_mt() failed");
+
+		src.cloneTo(F);
+		iM.elu(F, alpha);
+		ASSERT_MTX_EQ(F, F_ET, "elu() failed");
+		src.cloneTo(F);
+		iM.elu_unitalpha(F);
+		ASSERT_MTX_EQ(F, FU_ET, "elu_unitalpha() failed");
+	}
+}
+TEST(TestIMathBasic, ELU) {
+	for (vec_len_t r = 1; r < g_MinDataSizeDelta; ++r) {
+		for (vec_len_t c = 1; c < g_MinDataSizeDelta; ++c) {
+			test_elu_corr(r, c);
+		}
+	}
+}
+void test_delu_corr(vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
+	MTXSIZE_SCOPED_TRACE(rowsCnt, colsCnt, "test_delu_corr");
+	constexpr unsigned testCorrRepCnt = 10;
+	realmtx_t df_ET(rowsCnt, colsCnt, false), F(rowsCnt, colsCnt, true), dfM(rowsCnt, colsCnt, false), dfU_ET(rowsCnt, colsCnt, false);
+	ASSERT_TRUE(!df_ET.isAllocationFailed() && !F.isAllocationFailed() && !dfM.isAllocationFailed() && !dfU_ET.isAllocationFailed());
+	
+	const real_t alpha = real_t(2.5);
+
+	nnet_def_interfaces::iRng_t rg;
+	rg.set_ithreads(iM.ithreads());
+	for (unsigned r = 0; r < testCorrRepCnt; ++r) {
+		rg.gen_matrix_no_bias(F, 2);
+		ASSERT_TRUE(F.test_biases_ok());
+
+		delu_ET(F, df_ET, alpha);
+		ASSERT_TRUE(F.test_biases_ok());
+		delu_unitalpha_ET(F, dfU_ET);
+		ASSERT_TRUE(F.test_biases_ok());
+		//ASSERT_TRUE(df_ET != dfU_ET);
+		
+		iM.delu_st(F, dfM, alpha);
+		ASSERT_MTX_EQ(df_ET, dfM, "delu_st() failed");
+		iM.delu_unitalpha_st(F, dfM);
+		ASSERT_MTX_EQ(dfU_ET, dfM, "delu_unitalpha_st() failed");
+
+		iM.delu_mt(F, dfM, alpha);
+		ASSERT_MTX_EQ(df_ET, dfM, "delu_mt() failed");
+		iM.delu_unitalpha_mt(F, dfM);
+		ASSERT_MTX_EQ(dfU_ET, dfM, "delu_unitalpha_mt() failed");
+
+		iM.delu(F, dfM, alpha);
+		ASSERT_MTX_EQ(df_ET, dfM, "delu() failed");
+		iM.delu_unitalpha(F, dfM);
+		ASSERT_MTX_EQ(dfU_ET, dfM, "delu_unitalpha() failed");
+	}
+}
+TEST(TestIMathBasic, DELU) {
+	for (vec_len_t r = 1; r < g_MinDataSizeDelta; ++r) {
+		for (vec_len_t c = 1; c < g_MinDataSizeDelta; ++c) {
+			test_delu_corr(r, c);
+		}
+	}
 }
 
-TEST(TestIMathBasic, drelu) {
-	typedef nntl::nnet_def_interfaces::iThreads_t def_threads_t;
-	typedef math::iMath_basic<real_t, def_threads_t> iMB;
-	iMB iM;
-	NNTL_RUN_TEST2(iMB::Thresholds_t::drelu, 10) test_drelu(iM, i, 10);
-}
 
+////////////////////////////////////////////////////////////////////////// 
 //////////////////////////////////////////////////////////////////////////
 template<typename base_t> struct loss_quadratic_EPS {};
 template<> struct loss_quadratic_EPS<double> { static constexpr double eps = 1e-10; };

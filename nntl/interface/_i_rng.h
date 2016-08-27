@@ -68,7 +68,7 @@ namespace rng {
 		nntl_interface real_t gen_f_norm()noexcept;
 
 		//////////////////////////////////////////////////////////////////////////
-		// matrix/vector generation (sequence from begin to end of numbers drawn from uniform distribution in [-a,a])
+		// matrix/vector generation (sequence of numbers drawn from uniform distribution in [-a,a])
 		nntl_interface void gen_vector(real_t* ptr, const size_t n, const real_t a)noexcept;
 
 		//////////////////////////////////////////////////////////////////////////

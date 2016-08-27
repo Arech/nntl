@@ -1277,7 +1277,7 @@ namespace math {
 			NNTL_ASSERT(src.rows() && src.cols_no_bias());
 			NNTL_ASSERT(dest.rows() < src.rows());
 			NNTL_ASSERT(src.cols_no_bias() < dest.cols_no_bias());
-			NNTL_ASSERT(firstCol != 0 || _lastCol != 0 || !dest.emulatesBiases() || dest.test_biases_ok());
+			//NNTL_ASSERT(firstCol != 0 || _lastCol != 0 || !dest.emulatesBiases() || dest.test_biases_ok());
 			NNTL_ASSERT(firstCol != 0 || _lastCol != 0 || !src.emulatesBiases() || src.test_biases_ok());
 
 			const vec_len_t lastCol = _lastCol ? _lastCol : dest.cols_no_bias();
@@ -1314,7 +1314,7 @@ namespace math {
 					pS = pSFirst;
 				}
 			}
-			NNTL_ASSERT(firstCol != 0 || _lastCol != 0 || !dest.emulatesBiases() || dest.test_biases_ok());
+			//NNTL_ASSERT(firstCol != 0 || _lastCol != 0 || !dest.emulatesBiases() || dest.test_biases_ok());
 			NNTL_ASSERT(firstCol != 0 || _lastCol != 0 || !src.emulatesBiases() || src.test_biases_ok());
 		}
 		void mTilingUnroll_seqwrite_mt(const realmtx_t& src, realmtx_t& dest)noexcept {
@@ -1324,7 +1324,7 @@ namespace math {
 			NNTL_ASSERT(src.rows() && src.cols_no_bias());
 			NNTL_ASSERT(dest.rows() < src.rows());
 			NNTL_ASSERT(src.cols_no_bias() < dest.cols_no_bias());
-			NNTL_ASSERT(!dest.emulatesBiases() || dest.test_biases_ok());
+			//NNTL_ASSERT(!dest.emulatesBiases() || dest.test_biases_ok());
 			NNTL_ASSERT(!src.emulatesBiases() || src.test_biases_ok());
 
 			m_threads.run([&dest, &src, this](const par_range_t& pr) {
@@ -1332,7 +1332,7 @@ namespace math {
 				get_self().mTilingUnroll_seqwrite_st(src, dest, colBeg, colBeg + static_cast<vec_len_t>(pr.cnt()));
 			}, dest.cols_no_bias());
 
-			NNTL_ASSERT(!dest.emulatesBiases() || dest.test_biases_ok());
+			//NNTL_ASSERT(!dest.emulatesBiases() || dest.test_biases_ok());
 			NNTL_ASSERT(!src.emulatesBiases() || src.test_biases_ok());
 		}
 		//sequential reading version, firstCol and _lastCol applies to src matrix
@@ -1343,7 +1343,7 @@ namespace math {
 			NNTL_ASSERT(src.rows() && src.cols_no_bias());
 			NNTL_ASSERT(dest.rows() < src.rows());
 			NNTL_ASSERT(src.cols_no_bias() < dest.cols_no_bias());
-			NNTL_ASSERT(firstCol != 0 || _lastCol != 0 || !dest.emulatesBiases() || dest.test_biases_ok());
+			//NNTL_ASSERT(firstCol != 0 || _lastCol != 0 || !dest.emulatesBiases() || dest.test_biases_ok());
 			NNTL_ASSERT(firstCol != 0 || _lastCol != 0 || !src.emulatesBiases() || src.test_biases_ok());
 
 			const vec_len_t n = src.cols_no_bias();
@@ -1378,7 +1378,7 @@ namespace math {
 					pD = pDFirst;
 				}
 			}
-			NNTL_ASSERT(firstCol != 0 || _lastCol != 0 || !dest.emulatesBiases() || dest.test_biases_ok());
+			//NNTL_ASSERT(firstCol != 0 || _lastCol != 0 || !dest.emulatesBiases() || dest.test_biases_ok());
 			NNTL_ASSERT(firstCol != 0 || _lastCol != 0 || !src.emulatesBiases() || src.test_biases_ok());
 		}
 		void mTilingUnroll_seqread_mt(const realmtx_t& src, realmtx_t& dest)noexcept {
@@ -1389,7 +1389,7 @@ namespace math {
 			NNTL_ASSERT(dest.rows() < src.rows());
 			NNTL_ASSERT(src.cols_no_bias() < dest.cols_no_bias());
 			NNTL_ASSERT(!src.emulatesBiases() || src.test_biases_ok());
-			NNTL_ASSERT(!dest.emulatesBiases() || dest.test_biases_ok());
+			//NNTL_ASSERT(!dest.emulatesBiases() || dest.test_biases_ok());
 
 			m_threads.run([&src, &dest, this](const par_range_t& pr) {
 				const auto colBeg = static_cast<vec_len_t>(pr.offset());
@@ -1397,7 +1397,7 @@ namespace math {
 			}, src.cols_no_bias());
 
 			NNTL_ASSERT(!src.emulatesBiases() || src.test_biases_ok());
-			NNTL_ASSERT(!dest.emulatesBiases() || dest.test_biases_ok());
+			//NNTL_ASSERT(!dest.emulatesBiases() || dest.test_biases_ok());
 		}
 
 	};

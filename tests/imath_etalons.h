@@ -83,3 +83,12 @@ real_t vSumAbs_ET(const realmtx_t& A)noexcept;
 real_t vSumSquares_ET(const realmtx_t& A)noexcept;
 real_t rowvecs_renorm_ET(realmtx_t& m, real_t* pTmp)noexcept;
 
+void relu_ET(realmtx_t& f);
+void drelu_ET(const realmtx_t& f, realmtx_t& df);
+void leakyrelu_ET(realmtx_t& f, const real_t leak);
+void dleakyrelu_ET(const realmtx_t& f, realmtx_t& df, const real_t leak);
+
+void elu_ET(realmtx_t& f, const real_t alpha);
+void delu_ET(const realmtx_t& f, realmtx_t& df, const real_t alpha);
+void elu_unitalpha_ET(realmtx_t& f);
+void delu_unitalpha_ET(const realmtx_t& f, realmtx_t& df);

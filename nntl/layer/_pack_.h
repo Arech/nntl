@@ -103,26 +103,37 @@ namespace nntl {
 
 		protected:
 			realmtx_t m_act;
-			real_t*const m_pTmpBiasStor;
+			real_t* m_pTmpBiasStor;
 
 		public:
 			~trainable_partial_layer_wrapper()noexcept {
 				//we must restore the original data back to bias column
 				NNTL_ASSERT(m_act.test_biases_ok());
-				memcpy(m_act.colDataAsVec(m_act.cols()-1), m_pTmpBiasStor, sizeof(*m_pTmpBiasStor)*m_act.rows());
+				if(m_pTmpBiasStor) memcpy(m_act.colDataAsVec(m_act.cols()-1), m_pTmpBiasStor, sizeof(*m_pTmpBiasStor)*m_act.rows());
 			}
 
 			template<typename PhlT>
 			trainable_partial_layer_wrapper(const realmtx_t& underlyingLayerAct, real_t* pTmpBiasStor, const PhlT& phl)
 				: m_pTmpBiasStor(pTmpBiasStor)
 			{
+				NNTL_ASSERT(underlyingLayerAct.test_biases_ok());
+				//don't test for underlyingLayerAct.emulatesBiases() here because if underlyingLayerAct belongs to a input_layer in
+				//a minibatch mode, then this flag might be turned off while still there're biases set.
+				// #todo: this flag should be turned ON for all layer activations INCLUDING input layer.
+				
 				NNTL_ASSERT(phl.m_offset + phl.m_count <= underlyingLayerAct.cols_no_bias());
 				m_act.useExternalStorage(
 					const_cast<real_t*>(underlyingLayerAct.colDataAsVec(phl.m_offset)), underlyingLayerAct.rows(), phl.m_count + 1, true
 					);
-				//now we must save the real data under bias column and refill biases. On object destruction we must restore this data back
-				memcpy(m_pTmpBiasStor, m_act.colDataAsVec(phl.m_count), sizeof(*m_pTmpBiasStor)*m_act.rows());
-				m_act.set_biases();
+				if (phl.m_offset + phl.m_count >= underlyingLayerAct.cols_no_bias()) {
+					//biases must have already been set, because it's the end of the underlyingLayerAct matrix!
+					NNTL_ASSERT(m_act.test_biases_ok());
+					m_pTmpBiasStor = nullptr;
+				} else {
+					//now we must save the real data under bias column and refill biases. On object destruction we must restore this data back
+					memcpy(m_pTmpBiasStor, m_act.colDataAsVec(phl.m_count), sizeof(*m_pTmpBiasStor)*m_act.rows());
+					m_act.set_biases();
+				}
 			}
 
 			const realmtx_t& get_activations()const noexcept { return m_act; }

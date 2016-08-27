@@ -58,6 +58,352 @@ constexpr unsigned TEST_PERF_REPEATS_COUNT = 1000;
 
 //////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////
+void test_elu_perf(vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
+	const auto dataSize = realmtx_t::sNumel(rowsCnt, colsCnt);
+	STDCOUTL("**** testing elu() over " << rowsCnt << "x" << colsCnt << " matrix (" << dataSize << " elements) ****");
+
+	constexpr unsigned maxReps = TEST_PERF_REPEATS_COUNT;
+	realmtx_t A(rowsCnt, colsCnt), Asrc(rowsCnt, colsCnt);
+	ASSERT_TRUE(!A.isAllocationFailed() && !Asrc.isAllocationFailed());
+
+	const auto alpha = real_t(.5);
+
+	nnet_def_interfaces::iRng_t rg;
+	rg.set_ithreads(iM.ithreads());
+	tictoc tSt, tMt, tB, tSt2, tMt2;
+	utils::prioritize_workers<utils::PriorityClass::PerfTesting, imath_basic_t::ithreads_t> pw(iM.ithreads());
+	for (unsigned r = 0; r < maxReps; ++r) {
+		rg.gen_matrix(Asrc, real_t(5.));
+
+		Asrc.cloneTo(A);
+		tSt.tic();
+		iM.elu_st(A, alpha);
+		tSt.toc();
+
+		Asrc.cloneTo(A);
+		tMt.tic();
+		iM.elu_mt(A, alpha);
+		tMt.toc();
+
+		Asrc.cloneTo(A);
+		tSt2.tic();
+		iM.elu_st(A, alpha);
+		tSt2.toc();
+	
+		Asrc.cloneTo(A);
+		tMt2.tic();
+		iM.elu_mt(A, alpha);
+		tMt2.toc();
+
+		Asrc.cloneTo(A);
+		tB.tic();
+		iM.elu(A, alpha);
+		tB.toc();
+	}
+	tSt.say("st");
+	tSt2.say("st2");
+	tMt.say("mt");
+	tMt2.say("mt2");
+
+	tB.say("best");
+}
+
+TEST(TestIMathBasicThr, ELU) {
+	NNTL_RUN_TEST2(imath_basic_t::Thresholds_t::elu, 100) {
+		test_elu_perf(i, 100);
+	}
+
+#ifndef TESTS_SKIP_LONGRUNNING
+	//test_elu_perf(100000, 10);
+#endif
+}
+
+void test_elu_unitalpha_perf(vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
+	const auto dataSize = realmtx_t::sNumel(rowsCnt, colsCnt);
+	STDCOUTL("**** testing elu_unitalpha() over " << rowsCnt << "x" << colsCnt << " matrix (" << dataSize << " elements) ****");
+
+	constexpr unsigned maxReps = TEST_PERF_REPEATS_COUNT;
+	realmtx_t A(rowsCnt, colsCnt), Asrc(rowsCnt, colsCnt);
+	ASSERT_TRUE(!A.isAllocationFailed() && !Asrc.isAllocationFailed());
+
+	nnet_def_interfaces::iRng_t rg;
+	rg.set_ithreads(iM.ithreads());
+	tictoc tSt, tMt, tB, tSt2, tMt2;
+	utils::prioritize_workers<utils::PriorityClass::PerfTesting, imath_basic_t::ithreads_t> pw(iM.ithreads());
+	for (unsigned r = 0; r < maxReps; ++r) {
+		rg.gen_matrix(Asrc, real_t(5.));
+
+		Asrc.cloneTo(A);
+		tSt.tic();
+		iM.elu_unitalpha_st(A);
+		tSt.toc();
+
+		Asrc.cloneTo(A);
+		tMt.tic();
+		iM.elu_unitalpha_mt(A);
+		tMt.toc();
+
+		Asrc.cloneTo(A);
+		tSt2.tic();
+		iM.elu_unitalpha_st(A);
+		tSt2.toc();
+
+		Asrc.cloneTo(A);
+		tMt2.tic();
+		iM.elu_unitalpha_mt(A);
+		tMt2.toc();
+
+		Asrc.cloneTo(A);
+		tB.tic();
+		iM.elu_unitalpha(A);
+		tB.toc();
+	}
+	tSt.say("st");
+	tSt2.say("st2");
+	tMt.say("mt");
+	tMt2.say("mt2");
+
+	tB.say("best");
+}
+
+TEST(TestIMathBasicThr, ELU_unitalpha) {
+	NNTL_RUN_TEST2(imath_basic_t::Thresholds_t::elu_unitalpha, 100) {
+		test_elu_unitalpha_perf(i, 100);
+	}
+
+#ifndef TESTS_SKIP_LONGRUNNING
+	//test_elu_unitalpha_perf(100000, 10);
+#endif
+}
+
+//////////////////////////////////////////////////////////////////////////
+void test_delu_perf(vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
+	const auto dataSize = realmtx_t::sNumel(rowsCnt, colsCnt);
+	STDCOUTL("**** testing delu() over " << rowsCnt << "x" << colsCnt << " matrix (" << dataSize << " elements) ****");
+
+	constexpr unsigned maxReps = TEST_PERF_REPEATS_COUNT;
+	realmtx_t F(rowsCnt, colsCnt), DF(rowsCnt, colsCnt);
+	ASSERT_TRUE(!F.isAllocationFailed() && !DF.isAllocationFailed());
+
+	const auto alpha = real_t(5.);
+
+	nnet_def_interfaces::iRng_t rg;
+	rg.set_ithreads(iM.ithreads());
+	tictoc tSt, tMt, tB, tSt2, tMt2;
+	utils::prioritize_workers<utils::PriorityClass::PerfTesting, imath_basic_t::ithreads_t> pw(iM.ithreads());
+	for (unsigned r = 0; r < maxReps; ++r) {
+		rg.gen_matrix(F, real_t(5.0));
+
+		tSt.tic();
+		iM.delu_st(F, DF, alpha);
+		tSt.toc();
+
+		tMt.tic();
+		iM.delu_mt(F, DF, alpha);
+		tMt.toc();
+
+		tSt2.tic();
+		iM.delu_st(F, DF, alpha);
+		tSt2.toc();
+
+		tMt2.tic();
+		iM.delu_mt(F, DF, alpha);
+		tMt2.toc();
+
+		tB.tic();
+		iM.delu(F, DF, alpha);
+		tB.toc();
+	}
+	tSt.say("st");
+	tSt2.say("st2");
+	tMt.say("mt");
+	tMt2.say("mt2");
+
+	tB.say("best");
+}
+
+TEST(TestIMathBasicThr, DELU) {
+	NNTL_RUN_TEST2(imath_basic_t::Thresholds_t::delu, 100) {
+		test_delu_perf(i, 100);
+	}
+
+#ifndef TESTS_SKIP_LONGRUNNING
+	//test_delu_perf(100000, 10);
+#endif
+}
+
+void test_delu_unitalpha_perf(vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
+	const auto dataSize = realmtx_t::sNumel(rowsCnt, colsCnt);
+	STDCOUTL("**** testing delu_unitalpha() over " << rowsCnt << "x" << colsCnt << " matrix (" << dataSize << " elements) ****");
+
+	constexpr unsigned maxReps = TEST_PERF_REPEATS_COUNT;
+	realmtx_t F(rowsCnt, colsCnt), DF(rowsCnt, colsCnt);
+	ASSERT_TRUE(!F.isAllocationFailed() && !DF.isAllocationFailed());
+	
+	nnet_def_interfaces::iRng_t rg;
+	rg.set_ithreads(iM.ithreads());
+	tictoc tSt, tMt, tB, tSt2, tMt2;
+	utils::prioritize_workers<utils::PriorityClass::PerfTesting, imath_basic_t::ithreads_t> pw(iM.ithreads());
+	for (unsigned r = 0; r < maxReps; ++r) {
+		rg.gen_matrix(F, real_t(5.0));
+
+		tSt.tic();
+		iM.delu_unitalpha_st(F, DF);
+		tSt.toc();
+
+		tMt.tic();
+		iM.delu_unitalpha_mt(F, DF);
+		tMt.toc();
+
+		tSt2.tic();
+		iM.delu_unitalpha_st(F, DF);
+		tSt2.toc();
+
+		tMt2.tic();
+		iM.delu_unitalpha_mt(F, DF);
+		tMt2.toc();
+
+		tB.tic();
+		iM.delu_unitalpha(F, DF);
+		tB.toc();
+	}
+	tSt.say("st");
+	tSt2.say("st2");
+	tMt.say("mt");
+	tMt2.say("mt2");
+
+	tB.say("best");
+}
+
+TEST(TestIMathBasicThr, DELU_unitalpha) {
+	NNTL_RUN_TEST2(imath_basic_t::Thresholds_t::delu_unitalpha, 100) {
+		test_delu_unitalpha_perf(i, 100);
+	}
+
+#ifndef TESTS_SKIP_LONGRUNNING
+	//test_delu_unitalpha_perf(100000, 10);
+#endif
+}
+
+//////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////
+void test_LeakyRelu_perf(vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
+	const auto dataSize = realmtx_t::sNumel(rowsCnt, colsCnt);
+	STDCOUTL("**** testing leaky_relu() over " << rowsCnt << "x" << colsCnt << " matrix (" << dataSize << " elements) ****");
+
+	constexpr unsigned maxReps = TEST_PERF_REPEATS_COUNT;
+	realmtx_t A(rowsCnt, colsCnt), Asrc(rowsCnt, colsCnt);
+	ASSERT_TRUE(!A.isAllocationFailed() && !Asrc.isAllocationFailed());
+
+	const auto leak = real_t(.01);
+
+	nnet_def_interfaces::iRng_t rg;
+	rg.set_ithreads(iM.ithreads());
+	tictoc tSt, tMt, tB, tSt2, tMt2;
+	utils::prioritize_workers<utils::PriorityClass::PerfTesting, imath_basic_t::ithreads_t> pw(iM.ithreads());
+	for (unsigned r = 0; r < maxReps; ++r) {
+		rg.gen_matrix(Asrc, real_t(5.));
+
+		Asrc.cloneTo(A);
+		tSt.tic();
+		iM.leakyrelu_st(A, leak);
+		tSt.toc();
+
+		Asrc.cloneTo(A);
+		tMt.tic();
+		iM.leakyrelu_mt(A, leak);
+		tMt.toc();
+
+		Asrc.cloneTo(A);
+		tSt2.tic();
+		iM.leakyrelu_st(A, leak);
+		tSt2.toc();
+
+		Asrc.cloneTo(A);
+		tMt2.tic();
+		iM.leakyrelu_mt(A, leak);
+		tMt2.toc();
+
+		Asrc.cloneTo(A);
+		tB.tic();
+		iM.leakyrelu(A, leak);
+		tB.toc();
+	}
+	tSt.say("st");
+	tSt2.say("st2");
+	tMt.say("mt");
+	tMt2.say("mt2");
+
+	tB.say("best");
+}
+TEST(TestIMathBasicThr, LeakyRelu) {
+	NNTL_RUN_TEST2(imath_basic_t::Thresholds_t::leakyrelu, 100) {
+		test_LeakyRelu_perf(i, 100);
+	}
+
+#ifndef TESTS_SKIP_LONGRUNNING
+	//test_LeakyRelu_perf(100000, 10);
+#endif
+}
+//////////////////////////////////////////////////////////////////////////
+void test_dleakyrelu_perf(vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
+	const auto dataSize = realmtx_t::sNumel(rowsCnt, colsCnt);
+	STDCOUTL("**** testing dleakyrelu() over " << rowsCnt << "x" << colsCnt << " matrix (" << dataSize << " elements) ****");
+
+	constexpr unsigned maxReps = TEST_PERF_REPEATS_COUNT;
+	realmtx_t F(rowsCnt, colsCnt), DF(rowsCnt, colsCnt);
+	ASSERT_TRUE(!F.isAllocationFailed() && !DF.isAllocationFailed());
+
+	const auto leak = real_t(5.);
+
+	nnet_def_interfaces::iRng_t rg;
+	rg.set_ithreads(iM.ithreads());
+	tictoc tSt, tMt, tB, tSt2, tMt2;
+	utils::prioritize_workers<utils::PriorityClass::PerfTesting, imath_basic_t::ithreads_t> pw(iM.ithreads());
+	for (unsigned r = 0; r < maxReps; ++r) {
+		rg.gen_matrix(F, real_t(5.0));
+
+		tSt.tic();
+		iM.dleakyrelu_st(F, DF, leak);
+		tSt.toc();
+
+		tMt.tic();
+		iM.dleakyrelu_mt(F, DF, leak);
+		tMt.toc();
+
+		tSt2.tic();
+		iM.dleakyrelu_st(F, DF, leak);
+		tSt2.toc();
+
+		tMt2.tic();
+		iM.dleakyrelu_mt(F, DF, leak);
+		tMt2.toc();
+
+		tB.tic();
+		iM.dleakyrelu(F, DF, leak);
+		tB.toc();
+	}
+	tSt.say("st");
+	tSt2.say("st2");
+	tMt.say("mt");
+	tMt2.say("mt2");
+
+	tB.say("best");
+}
+
+TEST(TestIMathBasicThr, DLeakyRelu) {
+	NNTL_RUN_TEST2(imath_basic_t::Thresholds_t::dleakyrelu, 100) {
+		test_dleakyrelu_perf(i, 100);
+	}
+
+#ifndef TESTS_SKIP_LONGRUNNING
+	//test_dleakyrelu_perf(100000, 10);
+#endif
+}
+
+
+//////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////
 
 void test_ewBinarize_ip_perf(vec_len_t rowsCnt, vec_len_t colsCnt = 10, const real_t frac = .5) {
 	const auto dataSize = realmtx_t::sNumel(rowsCnt, colsCnt);

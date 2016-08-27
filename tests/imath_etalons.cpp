@@ -345,3 +345,55 @@ real_t vSumSquares_ET(const realmtx_t& A)noexcept {
 	for (numel_cnt_t i = 0; i < dataCnt; ++i) ret += p[i] * p[i];
 	return ret;
 }
+
+//////////////////////////////////////////////////////////////////////////
+void relu_ET(realmtx_t& f) {
+	const auto p = f.data();
+	const auto ne = f.numel_no_bias();
+	for (numel_cnt_t i = 0; i < ne; ++i) {
+		if (p[i]<real_t(+0.)) p[i] = real_t(0.);
+	}
+}
+void drelu_ET(const realmtx_t& f, realmtx_t& df) {
+	const auto p = f.data();
+	const auto pd = df.data();
+	const auto ne = f.numel_no_bias();
+	for (numel_cnt_t i = 0; i < ne; ++i) {
+		pd[i] = (p[i] < real_t(+0.)) ? real_t(0.) : real_t(1.);
+	}
+}
+void leakyrelu_ET(realmtx_t& f, const real_t leak) {
+	NNTL_ASSERT(leak > real_t(+0.));
+	const auto p = f.data();
+	const auto ne = f.numel_no_bias();
+	for (numel_cnt_t i = 0; i < ne; ++i) {
+		if (p[i] < real_t(+0.)) p[i] *= leak;
+	}
+}
+void dleakyrelu_ET(const realmtx_t& f, realmtx_t& df, const real_t leak) {
+	const auto p = f.data();
+	const auto pd = df.data();
+	const auto ne = f.numel_no_bias();
+	for (numel_cnt_t i = 0; i < ne; ++i) {
+		pd[i] = (p[i] < real_t(+0.)) ? leak : real_t(1.);
+	}
+}
+
+void elu_ET(realmtx_t& f, const real_t alpha) {
+	const auto p = f.data();
+	const auto ne = f.numel_no_bias();
+	for (numel_cnt_t i = 0; i < ne; ++i) {
+		if (p[i] < real_t(+0.)) p[i] = alpha*(std::exp(p[i]) - real_t(1.));
+	}
+}
+//#TODO: probably it's better to make df value out of plain x value instead of f(x). Update this and related functions and tests
+void delu_ET(const realmtx_t& f, realmtx_t& df, const real_t alpha) {
+	const auto p = f.data();
+	const auto pd = df.data();
+	const auto ne = f.numel_no_bias();
+	for (numel_cnt_t i = 0; i < ne; ++i) {
+		pd[i] = (p[i] < real_t(+0.)) ? (p[i] + alpha) : real_t(1.);
+	}
+}
+void elu_unitalpha_ET(realmtx_t& f) { elu_ET(f, real_t(1.0)); }
+void delu_unitalpha_ET(const realmtx_t& f, realmtx_t& df) { delu_ET(f, df, real_t(1.0)); }

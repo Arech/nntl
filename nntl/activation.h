@@ -218,5 +218,76 @@ namespace activation {
 		}
 	};
 
+	//////////////////////////////////////////////////////////////////////////
+	// Leaky Relu
+	template<size_t LeakKInv100=10000, typename WeightsInitScheme = weights_init::He_Zhang<>>
+	class leaky_relu : public _i_activation {
+		leaky_relu() = delete;
+		~leaky_relu() = delete;
+	public:
+		typedef WeightsInitScheme weights_scheme;
+		static constexpr real_t LeakK = real_t(100.0) / real_t(LeakKInv100);
+
+	public:
+		//apply f to each srcdest matrix element. The biases (if any) must be left untouched!
+		template <typename iMath>
+		static void f(realmtx_t& srcdest, iMath& m) noexcept {
+			static_assert(std::is_base_of<math::_i_math<real_t>, iMath>::value, "iMath should implement math::_i_math");
+			m.leakyrelu(srcdest, LeakK);
+		};
+
+		template <typename iMath>
+		static void df(const realmtx_t& fValue, realmtx_t& df, iMath& m) noexcept {
+			static_assert(std::is_base_of<math::_i_math<real_t>, iMath>::value, "iMath should implement math::_i_math");
+			m.dleakyrelu(fValue, df, LeakK);//fValue is used in no_bias version!
+		}
+	};
+
+	template<typename WeightsInitScheme = weights_init::He_Zhang<>>
+	using leaky_relu_1000 = leaky_relu<100000, WeightsInitScheme>;
+	template<typename WeightsInitScheme = weights_init::He_Zhang<>>
+	using leaky_relu_100 = leaky_relu<10000, WeightsInitScheme>;
+	template<typename WeightsInitScheme = weights_init::He_Zhang<>>
+	using very_leaky_relu_5p5 = leaky_relu<550, WeightsInitScheme>;
+
+	//////////////////////////////////////////////////////////////////////////
+	// ELU
+	template<size_t Alpha1e3 = 1000, typename WeightsInitScheme = weights_init::He_Zhang<>>
+	class elu : public _i_activation {
+		elu() = delete;
+		~elu() = delete;
+	public:
+		typedef WeightsInitScheme weights_scheme;
+		static constexpr real_t Alpha = real_t(Alpha1e3) / real_t(1000.0);
+		static constexpr bool bIsUnitAlpha = (Alpha1e3 == 1000);
+
+	public:
+		//apply f to each srcdest matrix element. The biases (if any) must be left untouched!
+		template <typename iMath, bool bUnitAlpha = bIsUnitAlpha>
+		static std::enable_if_t<!bUnitAlpha> f(realmtx_t& srcdest, iMath& m) noexcept {
+			static_assert(std::is_base_of<math::_i_math<real_t>, iMath>::value, "iMath should implement math::_i_math");
+			m.elu(srcdest, Alpha);
+		};
+		template <typename iMath, bool bUnitAlpha = bIsUnitAlpha>
+		static std::enable_if_t<bUnitAlpha> f(realmtx_t& srcdest, iMath& m) noexcept {
+			static_assert(std::is_base_of<math::_i_math<real_t>, iMath>::value, "iMath should implement math::_i_math");
+			m.elu_unitalpha(srcdest);
+		};
+
+		template <typename iMath, bool bUnitAlpha = bIsUnitAlpha>
+		static std::enable_if_t<!bUnitAlpha> df(const realmtx_t& fValue, realmtx_t& df, iMath& m) noexcept {
+			static_assert(std::is_base_of<math::_i_math<real_t>, iMath>::value, "iMath should implement math::_i_math");
+			m.delu(fValue, df, Alpha);//fValue is used in no_bias version!
+		}
+		template <typename iMath, bool bUnitAlpha = bIsUnitAlpha>
+		static std::enable_if_t<bUnitAlpha> df(const realmtx_t& fValue, realmtx_t& df, iMath& m) noexcept {
+			static_assert(std::is_base_of<math::_i_math<real_t>, iMath>::value, "iMath should implement math::_i_math");
+			m.delu_unitalpha(fValue, df);//fValue is used in no_bias version!
+		}
+	};
+
+	template<typename WeightsInitScheme = weights_init::He_Zhang<>>
+	using elu_unitalpha = elu<1000, WeightsInitScheme>;
+
 }
 }
