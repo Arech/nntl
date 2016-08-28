@@ -33,28 +33,28 @@ I wouldn't state the NNTL is the fastest CPU implementation of feedforward neura
     * **layer_pack_tile** allows to process different sequential subsets of neurons by a single layer producing different output for each subset.
     * **layer_pack_vertical** helps to build a vertical stack of layers that is represented as a single (compound) layer.
 * Activation units for an output layer:
-  * sigmoid with quadratic and cross-entropy (for binary target data) loss function
-  * softmax with cross-entropy loss
+  * sigmoid with **quadratic** and **cross-entropy** (for binary target data) loss function
+  * **softmax** with cross-entropy loss
 * Activation units for hidden layers:
-  * Sigmoid
-  * Rectified linear units (ReLU)
-  * Leaky ReLU
-  * Exponential Linear Units (ELU)
+  * **Sigm**oid
+  * Rectified linear units (**ReLU**)
+  * **Leaky ReLU**
+  * Exponential Linear Units (**ELU**)
 * Neuron weights initialization schemes:
-  * According to Xavier et al. "Understanding the difficulty of training deep feedforward neural networks" 2010 (so called "Xavier initialization" - good for sigmoids)
-  * According to He, Zhang et al. "Delving Deep into Rectifiers: Surpassing Human-Level Performance on ImageNet Classification" 2015 (amazing for ReLU)
-  * According to Martens "Deep learning via Hessian-free optimization" 2010 and Sutskever, Martens et al. "On the importance of initialization and momentum in deep learning" 2013 (so called "Sparse initialization" or SI - for sigmoids)
+  * According to **Xavier** et al. "Understanding the difficulty of training deep feedforward neural networks" 2010 (so called "Xavier initialization" - good for sigmoids)
+  * According to **He, Zhang** et al. "Delving Deep into Rectifiers: Surpassing Human-Level Performance on ImageNet Classification" 2015 (amazing for ReLU)
+  * According to **Martens** "Deep learning via Hessian-free optimization" 2010 and Sutskever, Martens et al. "On the importance of initialization and momentum in deep learning" 2013 (so called "Sparse initialization" or SI - for sigmoids)
 * Optimizers:
   * "classical" constant learning rate
-  * RMSProp as Geoffrey Hinton introduced it in "Neural Networks for Machine Learning" course, lecture 6
+  * **RMSProp** as Geoffrey Hinton introduced it in "Neural Networks for Machine Learning" course, lecture 6
   * RMSProp modification by Alex Graves (as described in his paper “Generating Sequences With Recurrent Neural Networks” (2013), equations (38)–(45))
-  * RProp (sign of a gradient)
+  * **RProp** (sign of a gradient)
   * my own slightly mad modification of RMSProp (probably, someone is also invented it, don't know), which I call ModProp, that uses abs() of gradient in EMA instead of square as in RMSProp. It's slightly faster, than RMSProp, because it eliminates the need of squaring and square rooting, and sometimes it helps to learn weights when no other techniques helps (the latter is probably related to some specific properties of data I used, but anyway, it might be helpful to try it).
-* Classical momentum / Nesterov momentum (a.k.a. Nesterov Accelerated Gradient or NAG for short)
+* Classical **momentum** / **Nesterov momentum** (a.k.a. Nesterov Accelerated Gradient or NAG for short)
 * Regularizers:
-  * Dropout
-  * L1 and L2 (weight decay) regularizers
-  * Constraint for a total length of neuron incoming weight vector - so called max-norm regularization. Once neuron weights grow too much, they are getting scaled so their norm will fit into some predefined value (Srivastava, Hinton, et.al "Dropout: A Simple Way to Prevent Neural Networks from Overfitting" 2014)
+  * **Dropout** (actually, it's so called "inverted dropout" where activations is scaled only at a training time, during testing activations with and without dropout remains the same).
+  * **L1** and **L2** (weight decay) regularizers.
+  * Constraint for a total length of neuron incoming weight vector - so called **max-norm** regularization. Once neuron weights grow too much, they are getting scaled so their norm will fit into some predefined value (Srivastava, Hinton, et.al "Dropout: A Simple Way to Prevent Neural Networks from Overfitting" 2014)
   * Constraints for a magnitude of derivative of loss function in outer layer (idea taken from aforementioned “Generating Sequences With Recurrent Neural Networks” (2013) by Alex Graves)
 * Individual Adaptive Learning Rates (ILR in code) based on agreement in signs of current and previous gradient or momentum velocity.
 * Early stopping, learning rates decay, momentum modification and etc.. Any tuning of learning variables you would like during actual training process.
