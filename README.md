@@ -21,17 +21,17 @@ I wouldn't state the NNTL is the fastest CPU implementation of feedforward neura
 * individually tunable feedforward layers (i.e. almost all properties such as activation function, learning rate, dropout and other regularizers coefficients, and so on are defined on per layer basis).
 * The following feedforward layer types has been implemented allowing one to create many types of feedforward neuron connectivity that helps to encapsulate some prior knowledge of a data into a neural network architecture:
   * ordinary layers:
-    * **layer_fully_connected** is the basic layer type where all the magic happens
-    * **layer_output** is a variation of fully connected layer specialized to be an output of a neural network
-    * **layer_input** provides a common interface to a data for hidden layers
-    * **layer_identity** allows one to pass an incoming data to upper layers unmodified (used inside of compound layers)
-    * **layer_identity_gate** passes incoming neurons up to a layer stack while allowing *_gated layer types to use them as a gating source.
+    * layer_**fully_connected** is the basic layer type where all the magic happens
+    * layer_**output** is a variation of fully connected layer specialized to be an output of a neural network
+    * layer_**input** provides a common interface to a data for hidden layers
+    * layer_**identity** allows one to pass an incoming data to upper layers unmodified (used inside of compound layers)
+    * layer_**identity_gate** passes incoming neurons up to a layer stack while allowing *_gated layer types to use them as a gating source.
   * compound layers (that layer types allows to encapsulate other layers in some way to produce more sophisticated architectures):
-    * **layer_pack_gated** helps to deal with an optional source data and allows to train a feature detector that is specialized only on the optional part of data.
-    * **layer_pack_horizontal** is designed to feed different sequential (and possibly overlapping) ranges of underlying neurons to a corresponding different layers. For example, this allows one to build a set of feature detectors each of which is specialized on a specific subset of data features.
-    * **layer_pack_horizontal_gated** adds a gating ability to a layer_pack_horizontal. It allows one to build a set of feature detectors for an optional data.
-    * **layer_pack_tile** allows to process different sequential subsets of neurons by a single layer producing different output for each subset.
-    * **layer_pack_vertical** helps to build a vertical stack of layers that is represented as a single (compound) layer.
+    * layer_**pack_gated** helps to deal with an optional source data and allows to train a feature detector that is specialized only on the optional part of data.
+    * layer_**pack_horizontal** is designed to feed different sequential (and possibly overlapping) ranges of underlying neurons to a corresponding different layers. For example, this allows one to build a set of feature detectors each of which is specialized on a specific subset of data features.
+    * layer_**pack_horizontal_gated** adds a gating ability to a layer_pack_horizontal. It allows one to build a set of feature detectors for an optional data.
+    * layer_**pack_tile** allows to process different sequential subsets of neurons by a single layer producing different output for each subset.
+    * layer_**pack_vertical** helps to build a vertical stack of layers that is represented as a single (compound) layer.
 * Activation units for an output layer:
   * sigmoid with **quadratic** and **cross-entropy** (for binary target data) loss function
   * **softmax** with cross-entropy loss
