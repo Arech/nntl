@@ -227,13 +227,17 @@ real_t loss_sigm_xentropy_ET(const realmtx_t& activations, const realmtx_t& data
 	return -ql / activations.rows();
 }
 
-void make_dropout_ET(realmtx_t& act, real_t dfrac, realmtx_t& dropoutMask)noexcept {
+//inverted dropout
+void make_dropout_ET(realmtx_t& act, const real_t dropPercAct, realmtx_t& dropoutMask)noexcept {
 	const auto dataCnt = act.numel_no_bias();
 	auto pDM = dropoutMask.data();
 	const auto pA = act.data();
+	const real_t dropPercActInv = real_t(1.) / dropPercAct;
+
 	for (numel_cnt_t i = 0; i < dataCnt; ++i) {
-		if (pDM[i] > dfrac) {
-			pDM[i] = real_t(1);
+		if (pDM[i] < dropPercAct) {
+			pDM[i] = dropPercActInv;
+			pA[i] *= dropPercActInv;
 		} else {
 			pDM[i] = real_t(0);
 			pA[i] = real_t(0);

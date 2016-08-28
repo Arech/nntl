@@ -65,7 +65,7 @@ TEST(Simple, PlainFFN) {
 
 	//2. define NN layers and their properties
 	size_t epochs = 20;
-	const real_t learningRate = .1;
+	const real_t learningRate(real_t(.1));
 
 	// a. input layer (take a look at .cols_no_bias() call - it's required here instead .cols() because upon data
 	// reading from file, the code appends to all _x data
@@ -117,8 +117,8 @@ TEST(Simple, NotSoPlainFFN) {
 	ASSERT_EQ(reader_t::ErrorCode::Success, rec) << "Error code description: " << reader.get_last_error_str();
 
 	//2. define NN layers and their properties
-	size_t epochs = 30;
-	const real_t learningRate = .001, dropoutRate = .5, momentum = .93, learningRateDecayCoeff = .95;
+	size_t epochs = 40;
+	const real_t learningRate (real_t(.001)), dropoutRate (real_t(.5)), momentum (real_t(.9)), learningRateDecayCoeff(real_t(.97));
 	
 	// a. input layer
 	layer_input<> inp(td.train_x().cols_no_bias());
@@ -148,10 +148,11 @@ TEST(Simple, NotSoPlainFFN) {
 	nnet_cond_epoch_eval cee(epochs);
 	nnet_train_opts<decltype(cee)> opts(std::move(cee));
 
-	opts.batchSize(100);
+	opts.batchSize(200);
 
 	//5. make instance of NN 
 	auto nn = make_nnet(lp);
+	//nn.get_iRng().seed64(0x01ed59);
 
 	//5.5 define callback
 	auto onEpochEndCB = [learningRateDecayCoeff](auto& nn, auto& opts, const size_t epochIdx)->bool {
@@ -182,8 +183,8 @@ TEST(Simple, NesterovMomentumAndRMSPropOnly) {
 	ASSERT_EQ(reader_t::ErrorCode::Success, rec) << "Error code description: " << reader.get_last_error_str();
 
 	size_t epochs = 20;
-	const real_t learningRate = 0.0005;
-	const real_t dropoutFrac = 0, momentum = 0.9;
+	const real_t learningRate (real_t(0.0005));
+	const real_t dropoutFrac (real_t(0.)), momentum (real_t(0.9));
 
 	layer_input<> inp(td.train_x().cols_no_bias());
 

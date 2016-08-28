@@ -579,15 +579,46 @@ namespace math {
 		}
 
 		//////////////////////////////////////////////////////////////////////////
-		//on entry dropoutMask must be filled with random values in [0,1]
-		//binarizes dropoutMask according to dropoutFraction value and applies dropoutMask to activations
-		// act must be used in "no_bias" mode
-		void make_dropout(realmtx_t& act, real_t dfrac, realmtx_t& dropoutMask)noexcept {
+		//on entry the dropoutMask must be filled with random values in range [0,1]
+		//Function binarizes dropoutMask according to dropoutFraction value and applies dropoutMask to activations
+		// dropPercAct - probability of keeping unit active
+		// act must be used in "no_bias" mode.
+		// Actually, the function must implement so called "inverted Dropout", see http://cs231n.github.io/neural-networks-2/
+		void make_dropout(realmtx_t& act, const real_t dropPercAct, realmtx_t& dropoutMask)noexcept {
 			if (act.numel_no_bias() < Thresholds_t::make_dropout) {
-				get_self().make_dropout_st(act, dfrac, dropoutMask);
-			} else get_self().make_dropout_mt(act, dfrac, dropoutMask);
+				get_self().make_dropout_st(act, dropPercAct, dropoutMask);
+			} else get_self().make_dropout_mt(act, dropPercAct, dropoutMask);
 		}
-		static void make_dropout_st(realmtx_t& act, real_t dfrac, realmtx_t& dropoutMask)noexcept {
+		static void make_dropout_st(realmtx_t& act, const real_t dropPercAct, realmtx_t& dropoutMask, const elms_range*const pER = nullptr) noexcept {
+			NNTL_ASSERT(act.emulatesBiases() && !dropoutMask.emulatesBiases());
+			NNTL_ASSERT(act.size_no_bias() == dropoutMask.size());
+			NNTL_ASSERT(dropPercAct > 0 && dropPercAct < 1);
+
+			const real_t dropPercActInv = real_t(1.) / dropPercAct;
+			const elms_range& er = pER ? *pER : elms_range(0, dropoutMask.numel());
+			auto pDM = dropoutMask.data()+er.elmBegin;
+			const auto pDME = pDM + er.totalElements();
+			while (pDM != pDME) {
+				const auto v = *pDM;
+				NNTL_ASSERT(v >= real_t(0.0) && v <= real_t(1.0));
+				*pDM++ = v < dropPercAct ? dropPercActInv : real_t(0.);
+			}
+
+			const auto pA = act.data();
+			pDM = dropoutMask.data();
+			for (numel_cnt_t i = er.elmBegin; i < er.elmEnd; ++i) pA[i] *= pDM[i];
+		}
+		void make_dropout_mt(realmtx_t& act, const real_t dropPercAct, realmtx_t& dropoutMask)noexcept {
+			NNTL_ASSERT(act.emulatesBiases() && !dropoutMask.emulatesBiases());
+			NNTL_ASSERT(act.size_no_bias() == dropoutMask.size());
+			NNTL_ASSERT(dropPercAct > 0 && dropPercAct < 1);
+			m_threads.run([&act, &dropoutMask, dropPercAct,this](const par_range_t& r) {
+				get_self().make_dropout_st(act, dropPercAct, dropoutMask, &elms_range(r));
+			}, dropoutMask.numel());
+		}
+
+
+		/*static void make_dropout_st(realmtx_t& act, real_t dfrac, realmtx_t& dropoutMask)noexcept {
 			NNTL_ASSERT(act.emulatesBiases() && !dropoutMask.emulatesBiases());
 			NNTL_ASSERT(act.size_no_bias() == dropoutMask.size());
 			NNTL_ASSERT(dfrac > 0 && dfrac < 1);
@@ -626,7 +657,7 @@ namespace math {
 				const auto pAct = pA + r.offset();
 				for (numel_cnt_t i = 0; i < cnt; ++i) pAct[i] *= pD[i];
 			}, act.numel_no_bias());
-		}
+		}*/
 
 		//////////////////////////////////////////////////////////////////////////
 		//apply individual learning rate to dLdW

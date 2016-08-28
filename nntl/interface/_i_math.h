@@ -150,10 +150,12 @@ namespace math {
 		//clamps matrix values into range
 		nntl_interface void evClamp(realmtx_t& m, real_t lo, real_t hi)noexcept;
 
-		//on entry dropoutMask must be filled with random values in [0,1]
-		//binarizes dropoutMask according to dropoutFraction value and applies dropoutMask to activations
-		// act must be used in "no_bias" mode
-		nntl_interface void make_dropout(realmtx_t& act, real_t dfrac, realmtx_t& dropoutMask)noexcept;
+		//on entry the dropoutMask must be filled with random values in range [0,1]
+		//Function binarizes dropoutMask according to dropoutFraction value and applies dropoutMask to activations
+		// act must be used in "no_bias" mode.
+		// dropPercAct - probability of keeping unit active
+		// Actually, the function must implement so called "Inverse Dropout", see http://cs231n.github.io/neural-networks-2/
+		nntl_interface void make_dropout(realmtx_t& act, const real_t dropPercAct, realmtx_t& dropoutMask)noexcept;
 
 		//apply individual learning rate to dLdW
 		nntl_interface void apply_ILR(realmtx_t& dLdW, const realmtx_t& prevdLdW, realmtx_t& ILRGain,

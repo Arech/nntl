@@ -163,8 +163,9 @@ namespace math {
 		//on entry dropoutMask must be filled with random values in [0,1]
 		//binarizes dropoutMask according to dropoutFraction value and applies dropoutMask to activations
 		// act must be used in "no_bias" mode
-		void make_dropout(realmtx_t& act, real_t dfrac, realmtx_t& dropoutMask)noexcept {
-			make_dropout_mt(act, dfrac, dropoutMask);
+		// Actually, the function must implement so called "inverted Dropout", see http://cs231n.github.io/neural-networks-2/
+		void make_dropout(realmtx_t& act, real_t dropPercAct, realmtx_t& dropoutMask)noexcept {
+			make_dropout_mt(act, dropPercAct, dropoutMask);
 		}
 		//////////////////////////////////////////////////////////////////////////
 		//apply individual learning rate to dLdW

@@ -72,7 +72,7 @@ void evSquare_ET(realmtx_t& dest, const realmtx_t& src)noexcept;
 void evSub_ET(const realmtx_t& A, const realmtx_t& B, realmtx_t& C)noexcept;
 void evSub_ip_ET(realmtx_t& A, const realmtx_t& B)noexcept;
 real_t loss_sigm_xentropy_ET(const realmtx_t& activations, const realmtx_t& data_y)noexcept;
-void make_dropout_ET(realmtx_t& act, real_t dfrac, realmtx_t& dropoutMask)noexcept;
+void make_dropout_ET(realmtx_t& act, const real_t dfrac, realmtx_t& dropoutMask)noexcept;
 
 void ModProp_ET(realmtx_t& dW, realmtx_t& rmsF, const real_t learningRate, const real_t emaDecay, const real_t numericStabilizer)noexcept;
 void RMSProp_Graves_ET(realmtx_t& dW, realmtx_t& rmsF, realmtx_t& rmsG, const real_t learningRate, const real_t emaDecay, const real_t numericStabilizer)noexcept;

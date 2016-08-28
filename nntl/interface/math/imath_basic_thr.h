@@ -54,7 +54,7 @@ namespace _impl {
 		static constexpr size_t mExtractRows = 2000;
 		static constexpr size_t mCheck_normalize_rows = 124000;
 		static constexpr size_t evClamp = 9000;
-		static constexpr size_t make_dropout = 6700;
+		static constexpr size_t make_dropout = 7000;
 
 		static constexpr size_t apply_ILR_st = 3035;
 		static constexpr size_t apply_ILR_mt_lo = 131000;
@@ -115,7 +115,7 @@ namespace _impl {
 		static constexpr size_t mExtractRows = 3100;
 		static constexpr size_t mCheck_normalize_rows = 250000;
 		static constexpr size_t evClamp = 14000;
-		static constexpr size_t make_dropout = 19000;
+		static constexpr size_t make_dropout = 13000;//*
 
 		static constexpr size_t apply_ILR_st = 3100;
 		static constexpr size_t apply_ILR_mt_lo = 240000;
@@ -146,13 +146,13 @@ namespace _impl {
 
 		static constexpr size_t relu = 5500;
 		static constexpr size_t drelu = 4700;
-		static constexpr size_t leakyrelu = 5400;
-		static constexpr size_t dleakyrelu = 4700;
+		static constexpr size_t leakyrelu = 5400;//*
+		static constexpr size_t dleakyrelu = 4700;//*
 
-		static constexpr size_t elu = 1400;
-		static constexpr size_t delu = 4700;
-		static constexpr size_t elu_unitalpha = 1500;
-		static constexpr size_t delu_unitalpha = 4700;
+		static constexpr size_t elu = 1400;//*
+		static constexpr size_t delu = 4700;//*
+		static constexpr size_t elu_unitalpha = 1500;//*
+		static constexpr size_t delu_unitalpha = 4700;//*
 
 		static constexpr size_t softmax_parts = 3200;
 		static constexpr size_t softmax_parts_mt_cw_ColsPerThread = 3;

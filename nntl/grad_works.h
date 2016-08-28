@@ -337,7 +337,7 @@ namespace nntl {
 			//applying L1-L2 penalties
 			// BTW: because we're working with batches that averages dL/dW over many data samples and, possibly, over many 
 			// individual dropout masks, it is highly unlikely that any element of dLdW could have a value of zero
-			// (zero dL/dW means that we've found an optimal value of weight, that minimizes/maximizes the loss function).
+			// (zero dL/dW means that we've found an optimal value of weight, that minimizes/maximizes the loss function, or a saddle point).
 			// Therefore it is safe to assume, that weights tuning process is still incomplete here and we should apply other
 			// weights changing mechanisms, such as L1 or L2 regularization (we shouldn't do it if dL/dW for a weight is zero,
 			// because it'll drive the weight's value away from its optimal state).

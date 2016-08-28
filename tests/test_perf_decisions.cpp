@@ -1419,7 +1419,7 @@ TEST(TestPerfDecisions, RmsPropH) {
 
 //////////////////////////////////////////////////////////////////////////
 // perf test to find out which strategy better to performing dropout - processing elementwise, or 'vectorized'
-// Almost no difference for my hardware, so going to implement 'vectorized' version, because batch RNG may provide some benefits
+// dropout_batch is significantly faster
 template<typename iRng_t, typename iMath_t>
 void dropout_batch(math_types::realmtx_ty& activs, math_types::real_ty dropoutFraction, math_types::realmtx_ty& dropoutMask, iRng_t& iR, iMath_t& iM) {
 	NNTL_ASSERT(activs.size() == dropoutMask.size());
@@ -1499,6 +1499,8 @@ void test_dropout_perf(iMath& iM, vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 	STDCOUTL("batch:\t" << utils::duration_readable(diff, maxReps, &tBatch));
 }
 
+/*
+ * this is BS
 TEST(TestPerfDecisions, Dropout) {
 	typedef nntl::nnet_def_interfaces::iThreads_t def_threads_t;
 	typedef math::iMath_basic<real_t, def_threads_t> iMB;
@@ -1513,5 +1515,5 @@ TEST(TestPerfDecisions, Dropout) {
 	test_dropout_perf(iM, 10000);
 	//test_dropout_perf(iM, 100000);
 #endif
-}
+}*/
 //////////////////////////////////////////////////////////////////////////

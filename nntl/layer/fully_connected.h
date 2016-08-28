@@ -62,9 +62,9 @@ namespace nntl {
 		// during backpropagation  - and that's the reason, why is it deformable)
 		realmtxdef_t m_weights;
 		
-		//matrix of dropped out neuron activations, used when m_dropoutFraction>0
+		//matrix of dropped out neuron activations, used when 1>m_dropoutPercentActive>0
 		realmtx_t m_dropoutMask;//<batch_size rows> x <m_neurons_cnt cols> (must not have a bias column)
-		real_t m_dropoutFraction;
+		real_t m_dropoutPercentActive;//probability of keeping unit active
 
 		realmtx_t m_dAdZ_dLdZ;//doesn't guarantee to retain it's value between usage in different code flows; may share memory with some other data structure
 
@@ -88,7 +88,7 @@ namespace nntl {
 			// and moreover, underlying storage may have already been freed.
 
 			if (utils::binary_option<true>(ar, serialization::serialize_training_parameters)) {
-				ar & NNTL_SERIALIZATION_NVP(m_dropoutFraction);
+				ar & NNTL_SERIALIZATION_NVP(m_dropoutPercentActive);
 				//ar & NNTL_SERIALIZATION_NVP(m_max_fprop_batch_size);
 				//ar & NNTL_SERIALIZATION_NVP(m_training_batch_size);
 			}
@@ -107,12 +107,12 @@ namespace nntl {
 		// functions
 	public:
 		~_layer_fully_connected() noexcept {};
-		_layer_fully_connected(const neurons_count_t _neurons_cnt, real_t learningRate = .01, real_t dropoutFrac=0.0)noexcept
+		_layer_fully_connected(const neurons_count_t _neurons_cnt, const real_t learningRate = real_t(.01), const real_t dpa = real_t(1.0))noexcept
 			: _base_class(_neurons_cnt), m_activations(), m_weights(), m_bWeightsInitialized(false)
 				, m_gradientWorks(learningRate)
-				, m_dropoutMask(), m_dropoutFraction(dropoutFrac)
+				, m_dropoutMask(), m_dropoutPercentActive(dpa)
 		{
-			NNTL_ASSERT(0 <= m_dropoutFraction && m_dropoutFraction < 1);
+			if (m_dropoutPercentActive <= real_t(+0.) || m_dropoutPercentActive > real_t(1.)) m_dropoutPercentActive = real_t(1.);
 			m_activations.will_emulate_biases();
 		};
 
@@ -187,15 +187,11 @@ namespace nntl {
 			get_self().get_iMath().preinit(std::max({
 				m_weights.numel()
 				,activation_f_t::needTempMem(m_activations,get_self().get_iMath())
-				,realmtx_t::sNumel(get_self().get_training_batch_size(), get_incoming_neurons_cnt() + 1) 
+				,realmtx_t::sNumel(get_self().get_training_batch_size(), get_incoming_neurons_cnt() + 1)
 			}));
 
 			if (get_self().get_training_batch_size() > 0) {
 				//it'll be training session, therefore must allocate necessary supplementary matrices and form temporary memory reqs.
-// 				if (bDropout()) {
-// 					NNTL_ASSERT(!m_dropoutMask.emulatesBiases());
-// 					if (!m_dropoutMask.resize(m_training_batch_size, m_neurons_cnt)) return ErrorCode::CantAllocateMemoryForDropoutMask;
-// 				}
  				if(!_check_init_dropout()) return ErrorCode::CantAllocateMemoryForDropoutMask;
 
 				lid.max_dLdA_numel = realmtx_t::sNumel(get_self().get_training_batch_size(), get_self().get_neurons_cnt());
@@ -281,14 +277,15 @@ namespace nntl {
 			NNTL_ASSERT(m_activations.bDontManageStorage() || m_activations.test_biases_ok());
 
 			if (bDropout()) {
-				NNTL_ASSERT(0 < m_dropoutFraction && m_dropoutFraction < 1);
+				NNTL_ASSERT(real_t(0.) < m_dropoutPercentActive && m_dropoutPercentActive < real_t(1.));
 				if (m_bTraining) {
 					//must make dropoutMask and apply it
 					get_self().get_iRng().gen_matrix_norm(m_dropoutMask);
-					_Math.make_dropout(m_activations, m_dropoutFraction, m_dropoutMask);
+					_Math.make_dropout(m_activations, m_dropoutPercentActive, m_dropoutMask);
 				} else {
-					//only applying dropoutFraction
-					_Math.evMulC_ip_Anb(m_activations, real_t(1.0) - m_dropoutFraction);
+					//only applying dropoutPercentActive -- we don't need to do this since make_dropout() implements so called 
+					// "inverse dropout" that doesn't require this step
+					//_Math.evMulC_ip_Anb(m_activations, real_t(1.0) - m_dropoutPercentActive);
 				}
 				NNTL_ASSERT(m_activations.bDontManageStorage() || m_activations.test_biases_ok());
 			}
@@ -318,16 +315,24 @@ namespace nntl {
 			NNTL_ASSERT(bPrevLayerIsInput || dLdAPrev.size() == prevActivations.size_no_bias());//in vanilla simple BP we shouldn't calculate dLdAPrev for the first layer
 
 			auto& _Math = get_self().get_iMath();
+			const bool bUseDropout = bDropout();
 
+			if (bUseDropout) {
+				//we must undo the scaling step from inverted dropout in order to obtain correct activation values
+				//That is must be done as a basis to obtain correct dL/dA
+				_Math.evMulC_ip_Anb(m_activations, m_dropoutPercentActive);
+			}
+			
 			//computing dA/dZ(no_bias)
 			activation_f_t::df(m_activations, m_dAdZ_dLdZ, _Math);
+
 			//compute dL/dZ=dL/dA.*dA/dZ into dA/dZ
 			_Math.evMul_ip(m_dAdZ_dLdZ, dLdA);
 
-			if (bDropout()) {
-				//we must do it even though for sigmoid it's not necessary. But other activation function may
-				//have non-zero derivative at y=0. #todo Probably, could #consider a speedup here by introducing a special
-				// flag in an activation function that shows whether this step is necessary.
+			if (bUseDropout) {
+				//we must cancel activations that was dropped out by the mask (should they've been restored by activation_f_t::df())
+				//and restore the scale of dA/dZ according to 1/p
+				//because the true scaled_dA/dZ = 1/p * computed_dA/dZ (same for dL/dZ)
 				_Math.evMul_ip(m_dAdZ_dLdZ, m_dropoutMask);
 			}
 
@@ -386,17 +391,18 @@ namespace nntl {
 
 		//////////////////////////////////////////////////////////////////////////
 
-		const real_t dropoutFraction()const noexcept { return m_dropoutFraction; }
-		self_ref_t dropoutFraction(real_t dfrac)noexcept {
-			NNTL_ASSERT(0 <= dfrac && dfrac < 1);
-			m_dropoutFraction = dfrac;
+		const real_t dropoutPercentActive()const noexcept { return m_dropoutPercentActive; }
+		self_ref_t dropoutPercentActive(real_t dpa)noexcept {
+			NNTL_ASSERT(real_t(0.) < dpa && dpa <= real_t(1.));
+			if (dpa <= real_t(+0.) || dpa > real_t(1.)) dpa = real_t(1.);
+			m_dropoutPercentActive = dpa;
 			if (!_check_init_dropout()) {
 				NNTL_ASSERT(!"Failed to init dropout, probably no memory");
 				abort();
 			}
 			return get_self();
 		}
-		const bool bDropout()const noexcept { return 0 < m_dropoutFraction; }
+		const bool bDropout()const noexcept { return m_dropoutPercentActive < real_t(1.); }
 
 	protected:
 		const bool _check_init_dropout()noexcept {
