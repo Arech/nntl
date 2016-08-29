@@ -50,6 +50,7 @@ I wouldn't state the NNTL is the fastest CPU implementation of feedforward neura
   * RMSProp modification by Alex Graves (as described in his paper “Generating Sequences With Recurrent Neural Networks” (2013), equations (38)–(45))
   * **RProp** (sign of a gradient)
   * my own slightly mad modification of RMSProp (probably, someone is also invented it, don't know), which I call ModProp, that uses abs() of gradient in EMA instead of square as in RMSProp. It's slightly faster, than RMSProp, because it eliminates the need of squaring and square rooting, and sometimes it helps to learn weights when no other techniques helps (the latter is probably related to some specific properties of data I used, but anyway, it might be helpful to try it).
+  * **Adam** and **AdaMax** (Kingma, Ba "Adam: A Method for Stochastic Optimization" 2014). I've added numeric stabilizer coefficient to the latter method (it's absent in original description, though it is probably should be there). It's possible to turn it off completely if necessary to get AdaMax exactly as described in paper.
 * Classical **momentum** / **Nesterov momentum** (a.k.a. Nesterov Accelerated Gradient or NAG for short)
 * Regularizers:
   * **Dropout** (actually, it's so called "inverted dropout" where activations is scaled only at a training time, during testing activations with and without dropout remains the same).
