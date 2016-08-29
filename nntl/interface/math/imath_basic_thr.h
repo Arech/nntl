@@ -106,6 +106,8 @@ namespace _impl {
 		static constexpr size_t RMSProp_Graves = 2970;
 		static constexpr size_t RProp = 5220;
 		static constexpr size_t ModProp = 4170;
+		static constexpr size_t Adam = 3000;
+		static constexpr size_t AdaMax = 1200;
 	};
 
 	template <> struct IMATH_BASIC_THR<float> : public SIMPLE_MATH_THR<float> {
@@ -163,10 +165,12 @@ namespace _impl {
 		static constexpr size_t loss_sigm_xentropy = 750;
 		static constexpr size_t loss_softmax_xentropy = 1000;
 
-		static constexpr size_t RMSProp_Hinton = 6100;
-		static constexpr size_t RMSProp_Graves = 6300;
+		static constexpr size_t RMSProp_Hinton = 8100;
+		static constexpr size_t RMSProp_Graves = 8000;
 		static constexpr size_t RProp = 12000;
 		static constexpr size_t ModProp = 9300;
+		static constexpr size_t Adam = 8000;//*
+		static constexpr size_t AdaMax = 2900;//*
 	};
 
 }

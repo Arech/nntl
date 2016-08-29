@@ -117,8 +117,9 @@ TEST(Simple, NotSoPlainFFN) {
 	ASSERT_EQ(reader_t::ErrorCode::Success, rec) << "Error code description: " << reader.get_last_error_str();
 
 	//2. define NN layers and their properties
-	size_t epochs = 40;
-	const real_t learningRate (real_t(.001)), dropoutRate (real_t(.5)), momentum (real_t(.9)), learningRateDecayCoeff(real_t(.97));
+	size_t epochs = 30;
+	const real_t learningRate(real_t(.001)), dropoutRate(real_t(.5)), momentum(real_t(.9))
+		, learningRateDecayCoeff(real_t(.97)), numStab(real_t(1e-8));// _impl::NUM_STAB_EPS<real_t>::value);//real_t(1e-8));
 	
 	// a. input layer
 	layer_input<> inp(td.train_x().cols_no_bias());
@@ -136,10 +137,15 @@ TEST(Simple, NotSoPlainFFN) {
 
 	//d. setting layers properties
 	auto optimizerType = decltype(fcl)::grad_works_t::RMSProp_Hinton;
+
+	//you may want to try other optimizers, however it'll require hyperparams tuning.
+	//auto optimizerType = decltype(fcl)::grad_works_t::RMSProp_Graves;
+	//auto optimizerType = decltype(fcl)::grad_works_t::Adam;
+	//auto optimizerType = decltype(fcl)::grad_works_t::AdaMax;
 	
-	fcl.m_gradientWorks.set_type(optimizerType).set_nesterov_momentum(momentum);
-	fcl2.m_gradientWorks.set_type(optimizerType).set_nesterov_momentum(momentum);
-	outp.m_gradientWorks.set_type(optimizerType).set_nesterov_momentum(momentum);
+	fcl.m_gradientWorks.set_type(optimizerType).nesterov_momentum(momentum).numeric_stabilizer(numStab);
+	fcl2.m_gradientWorks.set_type(optimizerType).nesterov_momentum(momentum).numeric_stabilizer(numStab);
+	outp.m_gradientWorks.set_type(optimizerType).nesterov_momentum(momentum).numeric_stabilizer(numStab);
 
 	//3. assemble layer references (!! - not layer objects, but references to them) into a single object - layer_pack. 
 	auto lp = make_layers(inp, fcl, fcl2, outp);
@@ -148,7 +154,7 @@ TEST(Simple, NotSoPlainFFN) {
 	nnet_cond_epoch_eval cee(epochs);
 	nnet_train_opts<decltype(cee)> opts(std::move(cee));
 
-	opts.batchSize(200);
+	opts.batchSize(100);
 
 	//5. make instance of NN 
 	auto nn = make_nnet(lp);
@@ -159,7 +165,7 @@ TEST(Simple, NotSoPlainFFN) {
 		// well, we can capture references to layer objects in lambda capture clause and use them directly here,
 		// but lets get an access to them through nn object, passed as function parameter.
 		nn.get_layer_pack().for_each_layer_exc_input([learningRateDecayCoeff](auto& l) {
-			l.m_gradientWorks.set_learning_rate(l.m_gradientWorks.learning_rate()*learningRateDecayCoeff);
+			l.m_gradientWorks.learning_rate(l.m_gradientWorks.learning_rate()*learningRateDecayCoeff);
 		});
 		//return false to stop learning
 		return true;
@@ -195,11 +201,11 @@ TEST(Simple, NesterovMomentumAndRMSPropOnly) {
 	layer_fully_connected<activ_func> fcl2(300, learningRate, dropoutFrac);
 
 	auto optType = decltype(fcl)::grad_works_t::RMSProp_Hinton;
-	fcl.m_gradientWorks.set_nesterov_momentum(momentum).set_type(optType);
-	fcl2.m_gradientWorks.set_nesterov_momentum(momentum).set_type(optType);
+	fcl.m_gradientWorks.nesterov_momentum(momentum).set_type(optType);
+	fcl2.m_gradientWorks.nesterov_momentum(momentum).set_type(optType);
 
 	layer_output<activation::sigm_quad_loss<w_init_scheme>> outp(td.train_y().cols(), learningRate);
-	outp.m_gradientWorks.set_nesterov_momentum(momentum).set_type(optType);
+	outp.m_gradientWorks.nesterov_momentum(momentum).set_type(optType);
 
 	auto lp = make_layers(inp, fcl, fcl2, outp);
 

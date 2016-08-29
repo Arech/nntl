@@ -316,7 +316,7 @@ namespace math {
 		template<typename DestContainerT>
 		void ewBinarize_mt(DestContainerT& Dest, const realmtx_t& A, const real_t frac)noexcept {
 			m_threads.run([&Dest, &A, frac, this](const par_range_t& pr) {
-				get_self().ewBinarize_st(Dest, A, frac, &elms_range(pr));
+				get_self()._iewBinarize_st(Dest.data(), A, frac, elms_range(pr));
 			}, A.numel());
 		}
 
@@ -589,13 +589,15 @@ namespace math {
 				get_self().make_dropout_st(act, dropPercAct, dropoutMask);
 			} else get_self().make_dropout_mt(act, dropPercAct, dropoutMask);
 		}
-		static void make_dropout_st(realmtx_t& act, const real_t dropPercAct, realmtx_t& dropoutMask, const elms_range*const pER = nullptr) noexcept {
+		void make_dropout_st(realmtx_t& act, const real_t dropPercAct, realmtx_t& dropoutMask, const elms_range*const pER = nullptr) const noexcept {
+			get_self()._imake_dropout_st(act, dropPercAct, dropoutMask, pER ? *pER : elms_range(0, dropoutMask.numel()));
+		}
+		static void _imake_dropout_st(realmtx_t& act, const real_t dropPercAct, realmtx_t& dropoutMask, const elms_range& er) noexcept {
 			NNTL_ASSERT(act.emulatesBiases() && !dropoutMask.emulatesBiases());
 			NNTL_ASSERT(act.size_no_bias() == dropoutMask.size());
 			NNTL_ASSERT(dropPercAct > 0 && dropPercAct < 1);
 
 			const real_t dropPercActInv = real_t(1.) / dropPercAct;
-			const elms_range& er = pER ? *pER : elms_range(0, dropoutMask.numel());
 			auto pDM = dropoutMask.data()+er.elmBegin;
 			const auto pDME = pDM + er.totalElements();
 			while (pDM != pDME) {
@@ -613,52 +615,10 @@ namespace math {
 			NNTL_ASSERT(act.size_no_bias() == dropoutMask.size());
 			NNTL_ASSERT(dropPercAct > 0 && dropPercAct < 1);
 			m_threads.run([&act, &dropoutMask, dropPercAct,this](const par_range_t& r) {
-				get_self().make_dropout_st(act, dropPercAct, dropoutMask, &elms_range(r));
+				get_self()._imake_dropout_st(act, dropPercAct, dropoutMask, elms_range(r));
 			}, dropoutMask.numel());
 		}
-
-
-		/*static void make_dropout_st(realmtx_t& act, real_t dfrac, realmtx_t& dropoutMask)noexcept {
-			NNTL_ASSERT(act.emulatesBiases() && !dropoutMask.emulatesBiases());
-			NNTL_ASSERT(act.size_no_bias() == dropoutMask.size());
-			NNTL_ASSERT(dfrac > 0 && dfrac < 1);
-
-			const auto dataCnt = act.numel_no_bias();
-			auto pDM = dropoutMask.data();
-			const auto pDME = pDM + dataCnt;
-			while (pDM != pDME) {
-				const auto v = *pDM;
-				NNTL_ASSERT(v >= real_t(0.0) && v <= real_t(1.0));
-				*pDM++ = v > dfrac ? real_t(1.0) : real_t(0.0);
-			}
-
-			const auto pA = act.data();
-			pDM = dropoutMask.data();
-			for (numel_cnt_t i = 0; i < dataCnt; ++i) pA[i] *= pDM[i];
-		}
-		void make_dropout_mt(realmtx_t& act, real_t dfrac, realmtx_t& dropoutMask)noexcept {
-			NNTL_ASSERT(act.emulatesBiases() && !dropoutMask.emulatesBiases());
-			NNTL_ASSERT(act.size_no_bias() == dropoutMask.size());
-			NNTL_ASSERT(dfrac > 0 && dfrac < 1);
-
-			const auto pDM = dropoutMask.data();
-			const auto pA = act.data();
-			m_threads.run([pA, pDM, dfrac](const par_range_t& r) {
-				const auto pD = pDM + r.offset();
-				auto p = pD;
-				const auto cnt = r.cnt();
-				const auto pDE = pD + cnt;
-				while (p != pDE) {
-					const auto v = *p;
-					NNTL_ASSERT(v >= real_t(0.0) && v <= real_t(1.0));
-					*p++ = v > dfrac ? real_t(1.0) : real_t(0.0);
-				}
-
-				const auto pAct = pA + r.offset();
-				for (numel_cnt_t i = 0; i < cnt; ++i) pAct[i] *= pD[i];
-			}, act.numel_no_bias());
-		}*/
-
+		
 		//////////////////////////////////////////////////////////////////////////
 		//apply individual learning rate to dLdW
 		void apply_ILR(realmtx_t& dLdW, const realmtx_t& prevdLdW, realmtx_t& ILRGain,
@@ -960,18 +920,18 @@ namespace math {
 				get_self().vAdd_ip_st(pA, pB, dataCnt);
 			} else get_self().vAdd_ip_mt(pA, pB, dataCnt);
 		}
-		static void _vAdd_ip_st(real_t*const pA, const real_t*const pB, const elms_range& er)noexcept {
+		static void _ivAdd_ip_st(real_t*const pA, const real_t*const pB, const elms_range& er)noexcept {
 			NNTL_ASSERT(pA && pB);
 			for (numel_cnt_t i = er.elmBegin; i < er.elmEnd; ++i) pA[i] += pB[i];
 		}
-		void vAdd_ip_st(real_t*const pA, const real_t*const pB, const numel_cnt_t dataCnt)noexcept {
+		void vAdd_ip_st(real_t*const pA, const real_t*const pB, const numel_cnt_t dataCnt, const elms_range*const pER=nullptr)noexcept {
 			NNTL_ASSERT(pA && pB && dataCnt);
-			_vAdd_ip_st(pA, pB, elms_range(0,dataCnt));
+			_ivAdd_ip_st(pA, pB, pER ? *pER : elms_range(0, dataCnt));
 		}
 		void vAdd_ip_mt(real_t*const pA, const real_t*const pB, const numel_cnt_t dataCnt)noexcept {
 			NNTL_ASSERT(pA && pB && dataCnt);
 			m_threads.run([pA, pB](const par_range_t& pr) {
-				_vAdd_ip_st(pA, pB, elms_range(pr));
+				_ivAdd_ip_st(pA, pB, elms_range(pr));
 			}, dataCnt);
 		}
 
@@ -984,12 +944,12 @@ namespace math {
 		}
 		static void evAdd_ip_st(realmtx_t& A, const realmtx_t& B, const elms_range*const pER = nullptr)noexcept {
 			NNTL_ASSERT(A.size() == B.size() && !A.empty() && !B.empty());
-			_vAdd_ip_st(A.data(), B.data(), pER ? *pER : elms_range(A));
+			_ivAdd_ip_st(A.data(), B.data(), pER ? *pER : elms_range(A));
 		}
 		void evAdd_ip_mt(realmtx_t& A, const realmtx_t& B)noexcept {
 			NNTL_ASSERT(A.size() == B.size() && !A.empty() && !B.empty());
 			m_threads.run([&A, &B](const par_range_t& pr) {
-				_vAdd_ip_st(A.data(), B.data(), elms_range(pr));
+				_ivAdd_ip_st(A.data(), B.data(), elms_range(pr));
 			}, A.numel());
 		}
 
@@ -1301,16 +1261,18 @@ namespace math {
 			}else get_self().sigm_mt(srcdest);
 		}
 		// MUST ignore biases!
-		static void sigm_st(realmtx_t& srcdest, const elms_range*const pER = nullptr) noexcept {
+		void sigm_st(realmtx_t& srcdest, const elms_range*const pER = nullptr) const noexcept {
+			get_self()._isigm_st(srcdest, pER ? *pER : elms_range(0, srcdest.numel_no_bias()));
+		}
+		static void _isigm_st(realmtx_t& srcdest, const elms_range& er) noexcept {
 			NNTL_ASSERT(!srcdest.empty());
-			const elms_range& er = pER ? *pER : elms_range(0, srcdest.numel_no_bias());
 			const auto ptr = srcdest.data();
 			for (range_t i = er.elmBegin; i < er.elmEnd; ++i) ptr[i] = real_t(1.0) / (real_t(1.0) + std::exp(-ptr[i]));
 		}
 		void sigm_mt(realmtx_t& srcdest) noexcept {
 			NNTL_ASSERT(!srcdest.empty());
 			m_threads.run([&srcdest, this](const par_range_t& pr) {
-				get_self().sigm_st(srcdest, &elms_range(pr));
+				get_self()._isigm_st(srcdest, elms_range(pr));
 			}, srcdest.numel_no_bias());
 		}
 
@@ -1321,10 +1283,12 @@ namespace math {
 				get_self().dsigm_st(fValue, df);
 			} else get_self().dsigm_mt(fValue, df);
 		}
-		static void dsigm_st(const realmtx_t& fValue, realmtx_t& df, const elms_range*const pER = nullptr) noexcept {
+		void dsigm_st(const realmtx_t& fValue, realmtx_t& df, const elms_range*const pER = nullptr) noexcept {
+			get_self()._idsigm_st(fValue, df, pER ? *pER : elms_range(0, fValue.numel_no_bias()));
+		}
+		static void _idsigm_st(const realmtx_t& fValue, realmtx_t& df, const elms_range& er) noexcept {
 			fValue.assert_storage_does_not_intersect(df);
 			NNTL_ASSERT(fValue.size_no_bias() == df.size());
-			const elms_range& er = pER ? *pER : elms_range(0, fValue.numel_no_bias());
 			const auto ptrF = fValue.data();
 			const auto ptrDF = df.data();
 			for (numel_cnt_t i = er.elmBegin; i < er.elmEnd; ++i) {
@@ -1335,7 +1299,7 @@ namespace math {
 		}
 		void dsigm_mt(const realmtx_t& fValue, realmtx_t& df) noexcept {
 			m_threads.run([&fValue, &df, this](const par_range_t& pr) {
-				get_self().dsigm_st(fValue, df, &elms_range(pr));
+				get_self()._idsigm_st(fValue, df, elms_range(pr));
 			}, fValue.numel_no_bias());
 		}
 		
@@ -1398,9 +1362,11 @@ namespace math {
 				get_self().relu_st_naive(srcdest);
 			} else get_self().relu_mt_naive(srcdest);
 		}
-		static void relu_st_naive(realmtx_t& srcdest, const elms_range*const pER = nullptr) noexcept {
+		void relu_st_naive(realmtx_t& srcdest, const elms_range*const pER = nullptr) noexcept {
+			get_self()._irelu_st_naive(srcdest, pER ? *pER : elms_range(0, srcdest.numel_no_bias()));
+		}
+		static void _irelu_st_naive(realmtx_t& srcdest, const elms_range& er) noexcept {
 			NNTL_ASSERT(!srcdest.empty());
-			const elms_range& er = pER ? *pER : elms_range(0, srcdest.numel_no_bias());
 			auto pV = srcdest.data() + er.elmBegin;
 			const auto pVE = pV + er.totalElements();
 			while (pV != pVE) {
@@ -1411,7 +1377,7 @@ namespace math {
 		void relu_mt_naive(realmtx_t& srcdest) noexcept {
 			NNTL_ASSERT(!srcdest.empty());
 			m_threads.run([&srcdest,this](const par_range_t& r) {
-				get_self().relu_st_naive(srcdest, &elms_range(r));
+				get_self()._irelu_st_naive(srcdest, elms_range(r));
 			}, srcdest.numel_no_bias());
 		}
 
@@ -1422,10 +1388,12 @@ namespace math {
 				get_self().drelu_st_naive(fValue, df);
 			} else get_self().drelu_mt_naive(fValue, df);
 		}
-		static void drelu_st_naive(const realmtx_t& fValue, realmtx_t& df, const elms_range*const pER = nullptr) noexcept {
+		void drelu_st_naive(const realmtx_t& fValue, realmtx_t& df, const elms_range*const pER = nullptr) noexcept {
+			get_self()._idrelu_st_naive(fValue, df, pER ? *pER : elms_range(df));
+		}
+		static void _idrelu_st_naive(const realmtx_t& fValue, realmtx_t& df, const elms_range& er) noexcept {
 			fValue.assert_storage_does_not_intersect(df);
 			NNTL_ASSERT(fValue.size_no_bias() == df.size());
-			const elms_range& er = pER ? *pER : elms_range(df);
 			const auto ptrF = fValue.data();
 			const auto ptrDF = df.data();
 			for (numel_cnt_t i = er.elmBegin; i < er.elmEnd; ++i) {
@@ -1436,7 +1404,7 @@ namespace math {
 			fValue.assert_storage_does_not_intersect(df);
 			NNTL_ASSERT(fValue.size_no_bias() == df.size());
 			m_threads.run([&fValue, &df,this](const par_range_t& r) {
-				get_self().drelu_st_naive(fValue, df, &elms_range(r));
+				get_self()._idrelu_st_naive(fValue, df, elms_range(r));
 			}, df.numel());
 		}
 		//////////////////////////////////////////////////////////////////////////
@@ -1447,10 +1415,12 @@ namespace math {
 				get_self().leakyrelu_st(srcdest, leak);
 			} else get_self().leakyrelu_mt(srcdest, leak);
 		}
-		static void leakyrelu_st(realmtx_t& srcdest, const real_t leak, const elms_range*const pER = nullptr) noexcept {
+		void leakyrelu_st(realmtx_t& srcdest, const real_t leak, const elms_range*const pER = nullptr) noexcept {
+			get_self()._ileakyrelu_st(srcdest, leak, pER ? *pER : elms_range(0, srcdest.numel_no_bias()));
+		}
+		static void _ileakyrelu_st(realmtx_t& srcdest, const real_t leak, const elms_range& er) noexcept {
 			NNTL_ASSERT(!srcdest.empty());
 			NNTL_ASSERT(leak > real_t(0.0));
-			const elms_range& er = pER ? *pER : elms_range(0, srcdest.numel_no_bias());
 			auto pV = srcdest.data() + er.elmBegin;
 			const auto pVE = pV + er.totalElements();
 			while (pV != pVE) {
@@ -1462,7 +1432,7 @@ namespace math {
 		void leakyrelu_mt(realmtx_t& srcdest, const real_t leak) noexcept {
 			NNTL_ASSERT(!srcdest.empty());
 			m_threads.run([&srcdest, leak, this](const par_range_t& r) {
-				get_self().leakyrelu_st(srcdest, leak, &elms_range(r));
+				get_self()._ileakyrelu_st(srcdest, leak, elms_range(r));
 			}, srcdest.numel_no_bias());
 		}
 		//////////////////////////////////////////////////////////////////////////
@@ -1472,11 +1442,13 @@ namespace math {
 				get_self().dleakyrelu_st(fValue, df, leak);
 			} else get_self().dleakyrelu_mt(fValue, df, leak);
 		}
-		static void dleakyrelu_st(const realmtx_t& fValue, realmtx_t& df, const real_t leak, const elms_range*const pER = nullptr) noexcept {
+		void dleakyrelu_st(const realmtx_t& fValue, realmtx_t& df, const real_t leak, const elms_range*const pER = nullptr) noexcept {
+			get_self()._idleakyrelu_st(fValue, df, leak, pER ? *pER : elms_range(df));
+		}
+		static void _idleakyrelu_st(const realmtx_t& fValue, realmtx_t& df, const real_t leak, const elms_range& er) noexcept {
 			fValue.assert_storage_does_not_intersect(df);
 			NNTL_ASSERT(leak > real_t(0.0));
 			NNTL_ASSERT(fValue.size_no_bias() == df.size());
-			const elms_range& er = pER ? *pER : elms_range(df);
 			const auto ptrF = fValue.data();
 			const auto ptrDF = df.data();
 			for (numel_cnt_t i = er.elmBegin; i < er.elmEnd; ++i) {
@@ -1487,7 +1459,7 @@ namespace math {
 			fValue.assert_storage_does_not_intersect(df);
 			NNTL_ASSERT(fValue.size_no_bias() == df.size());
 			m_threads.run([&fValue, &df, leak,this](const par_range_t& r) {
-				get_self().dleakyrelu_st(fValue, df, leak, &elms_range(r));
+				get_self()._idleakyrelu_st(fValue, df, leak, elms_range(r));
 			}, df.numel());
 		}
 		//////////////////////////////////////////////////////////////////////////
@@ -1498,10 +1470,12 @@ namespace math {
 				get_self().elu_st(srcdest, alpha);
 			} else get_self().elu_mt(srcdest, alpha);
 		}
-		static void elu_st(realmtx_t& srcdest, const real_t alpha, const elms_range*const pER = nullptr) noexcept {
+		void elu_st(realmtx_t& srcdest, const real_t alpha, const elms_range*const pER = nullptr) const noexcept {
+			get_self()._ielu_st(srcdest, alpha, pER ? *pER : elms_range(0, srcdest.numel_no_bias()));
+		}
+		static void _ielu_st(realmtx_t& srcdest, const real_t alpha, const elms_range& er) noexcept {
 			NNTL_ASSERT(!srcdest.empty());
 			NNTL_ASSERT(alpha > real_t(0.0));
-			const elms_range& er = pER ? *pER : elms_range(0, srcdest.numel_no_bias());
 			auto pV = srcdest.data() + er.elmBegin;
 			const auto pVE = pV + er.totalElements();
 			while (pV != pVE) {
@@ -1513,7 +1487,7 @@ namespace math {
 		void elu_mt(realmtx_t& srcdest, const real_t alpha) noexcept {
 			NNTL_ASSERT(!srcdest.empty());
 			m_threads.run([&srcdest, alpha, this](const par_range_t& r) {
-				get_self().elu_st(srcdest, alpha, &elms_range(r));
+				get_self()._ielu_st(srcdest, alpha, elms_range(r));
 			}, srcdest.numel_no_bias());
 		}
 		//////////////////////////////////////////////////////////////////////////
@@ -1523,11 +1497,13 @@ namespace math {
 				get_self().delu_st(fValue, df, alpha);
 			} else get_self().delu_mt(fValue, df, alpha);
 		}
-		static void delu_st(const realmtx_t& fValue, realmtx_t& df, const real_t alpha, const elms_range*const pER = nullptr) noexcept {
+		void delu_st(const realmtx_t& fValue, realmtx_t& df, const real_t alpha, const elms_range*const pER = nullptr) const noexcept {
+			get_self()._idelu_st(fValue, df, alpha, pER ? *pER : elms_range(df));
+		}
+		static void _idelu_st(const realmtx_t& fValue, realmtx_t& df, const real_t alpha, const elms_range& er) noexcept {
 			fValue.assert_storage_does_not_intersect(df);
 			NNTL_ASSERT(alpha > real_t(0.0));
 			NNTL_ASSERT(fValue.size_no_bias() == df.size());
-			const elms_range& er = pER ? *pER : elms_range(df);
 			const auto ptrF = fValue.data();
 			const auto ptrDF = df.data();
 			for (numel_cnt_t i = er.elmBegin; i < er.elmEnd; ++i) {
@@ -1539,7 +1515,7 @@ namespace math {
 			fValue.assert_storage_does_not_intersect(df);
 			NNTL_ASSERT(fValue.size_no_bias() == df.size());
 			m_threads.run([&fValue, &df, alpha, this](const par_range_t& r) {
-				get_self().delu_st(fValue, df, alpha, &elms_range(r));
+				get_self()._idelu_st(fValue, df, alpha, elms_range(r));
 			}, df.numel());
 		}
 		//////////////////////////////////////////////////////////////////////////
@@ -1550,9 +1526,11 @@ namespace math {
 				get_self().elu_unitalpha_st(srcdest);
 			} else get_self().elu_unitalpha_mt(srcdest);
 		}
-		static void elu_unitalpha_st(realmtx_t& srcdest, const elms_range*const pER = nullptr) noexcept {
+		void elu_unitalpha_st(realmtx_t& srcdest, const elms_range*const pER = nullptr) const noexcept {
+			get_self()._ielu_unitalpha_st(srcdest, pER ? *pER : elms_range(0, srcdest.numel_no_bias()));
+		}
+		static void _ielu_unitalpha_st(realmtx_t& srcdest, const elms_range& er) noexcept {
 			NNTL_ASSERT(!srcdest.empty());
-			const elms_range& er = pER ? *pER : elms_range(0, srcdest.numel_no_bias());
 			auto pV = srcdest.data() + er.elmBegin;
 			const auto pVE = pV + er.totalElements();
 			while (pV != pVE) {
@@ -1564,7 +1542,7 @@ namespace math {
 		void elu_unitalpha_mt(realmtx_t& srcdest) noexcept {
 			NNTL_ASSERT(!srcdest.empty());
 			m_threads.run([&srcdest, this](const par_range_t& r) {
-				get_self().elu_unitalpha_st(srcdest, &elms_range(r));
+				get_self()._ielu_unitalpha_st(srcdest, elms_range(r));
 			}, srcdest.numel_no_bias());
 		}
 		//////////////////////////////////////////////////////////////////////////
@@ -1574,10 +1552,12 @@ namespace math {
 				get_self().delu_unitalpha_st(fValue, df);
 			} else get_self().delu_unitalpha_mt(fValue, df);
 		}
-		static void delu_unitalpha_st(const realmtx_t& fValue, realmtx_t& df, const elms_range*const pER = nullptr) noexcept {
+		void delu_unitalpha_st(const realmtx_t& fValue, realmtx_t& df, const elms_range*const pER = nullptr) noexcept {
+			get_self()._idelu_unitalpha_st(fValue, df, pER ? *pER : elms_range(df));
+		}
+		static void _idelu_unitalpha_st(const realmtx_t& fValue, realmtx_t& df, const elms_range& er) noexcept {
 			fValue.assert_storage_does_not_intersect(df);
 			NNTL_ASSERT(fValue.size_no_bias() == df.size());
-			const elms_range& er = pER ? *pER : elms_range(df);
 			const auto ptrF = fValue.data();
 			const auto ptrDF = df.data();
 			for (numel_cnt_t i = er.elmBegin; i < er.elmEnd; ++i) {
@@ -1589,7 +1569,7 @@ namespace math {
 			fValue.assert_storage_does_not_intersect(df);
 			NNTL_ASSERT(fValue.size_no_bias() == df.size());
 			m_threads.run([&fValue, &df, this](const par_range_t& r) {
-				get_self().delu_unitalpha_st(fValue, df, &elms_range(r));
+				get_self()._idelu_unitalpha_st(fValue, df, elms_range(r));
 			}, df.numel());
 		}
 
@@ -1642,7 +1622,10 @@ namespace math {
 				return get_self().loss_sigm_xentropy_st(activations, data_y);
 			} else return get_self().loss_sigm_xentropy_mt(activations, data_y);
 		}
-		static real_t _loss_sigm_xentropy_st(const realmtx_t& activations, const realmtx_t& data_y, const elms_range& er)noexcept {
+		real_t loss_sigm_xentropy_st(const realmtx_t& activations, const realmtx_t& data_y, const elms_range*const pER = nullptr)noexcept {
+			return -get_self()._iloss_sigm_xentropy_st(activations, data_y, pER ? *pER : elms_range(activations)) / activations.rows();
+		}
+		static real_t _iloss_sigm_xentropy_st(const realmtx_t& activations, const realmtx_t& data_y, const elms_range& er)noexcept {
 			NNTL_ASSERT(activations.size() == data_y.size() && !activations.empty() && !data_y.empty());
 			const auto ptrA = activations.data(), ptrY = data_y.data();
 			constexpr auto log_zero = math::real_ty_limits<real_t>::log_almost_zero;
@@ -1663,12 +1646,9 @@ namespace math {
 			}
 			return ql;
 		}
-		real_t loss_sigm_xentropy_st(const realmtx_t& activations, const realmtx_t& data_y)noexcept {
-			return -get_self()._loss_sigm_xentropy_st(activations,data_y, elms_range(activations)) / activations.rows();
-		}
 		real_t loss_sigm_xentropy_mt(const realmtx_t& activations, const realmtx_t& data_y)noexcept {
 			return -m_threads.reduce([&activations, &data_y, this](const par_range_t& pr)->real_t {
-				return get_self()._loss_sigm_xentropy_st(activations, data_y, elms_range(pr));
+				return get_self()._iloss_sigm_xentropy_st(activations, data_y, elms_range(pr));
 			}, _reduce_final_sum, activations.numel()) / activations.rows();
 		}
 
@@ -1680,7 +1660,7 @@ namespace math {
 				return get_self().loss_softmax_xentropy_st(activations, data_y);
 			}else return get_self().loss_softmax_xentropy_mt(activations, data_y);
 		}
-		static real_t _loss_softmax_xentropy_sum_st(const real_t*const pA, const real_t*const pY, const elms_range& er)noexcept {
+		static real_t _iloss_softmax_xentropy_sum_st(const real_t*const pA, const real_t*const pY, const elms_range& er)noexcept {
 			real_t ret(0.0);
 			for (numel_cnt_t i = er.elmBegin; i < er.elmEnd; ++i) {
 				auto a = pA[i];
@@ -1695,13 +1675,13 @@ namespace math {
 		}
 		static real_t loss_softmax_xentropy_st(const realmtx_t& activations, const realmtx_t& data_y, const elms_range*const pER = nullptr)noexcept {
 			NNTL_ASSERT(!activations.empty() && !data_y.empty() && data_y.size() == activations.size());
-			return _loss_softmax_xentropy_sum_st(activations.data(), data_y.data(), pER ? *pER : elms_range(activations)) / activations.rows();
+			return _iloss_softmax_xentropy_sum_st(activations.data(), data_y.data(), pER ? *pER : elms_range(activations)) / activations.rows();
 		}
 		real_t loss_softmax_xentropy_mt(const realmtx_t& activations, const realmtx_t& data_y)noexcept {
 			NNTL_ASSERT(!activations.empty() && !data_y.empty() && data_y.size() == activations.size());
 			const auto pA = activations.data(), pY = data_y.data();
 			return m_threads.reduce([pA, pY](const par_range_t& pr)->real_t {
-				return _loss_softmax_xentropy_sum_st(pA, pY, elms_range(pr));
+				return _iloss_softmax_xentropy_sum_st(pA, pY, elms_range(pr));
 			}, _reduce_final_sum, activations.numel()) / activations.rows();
 		}
 
@@ -1722,8 +1702,8 @@ namespace math {
 			NNTL_ASSERT(emaDecay > 0 && emaDecay < 1);
 			NNTL_ASSERT(numericStabilizer > 0 && numericStabilizer < 1);
 
-			//TODO: this implementation probably isn't vectorized well
-
+			//#TODO: this implementation probably isn't vectorized well
+			//#consider switching for() to a while(). See the Adam()'s comments
 			const auto pdW = dW.data(), prmsF = rmsF.data();
 			const auto _1_emaDecay = 1 - emaDecay;
 			const auto dataCnt = dW.numel();
@@ -1742,8 +1722,8 @@ namespace math {
 			NNTL_ASSERT(emaDecay > 0 && emaDecay < 1);
 			NNTL_ASSERT(numericStabilizer > 0 && numericStabilizer < 1);
 
-			//TODO: this implementation probably isn't vectorized well
-
+			//#TODO: this implementation probably isn't vectorized well
+			//#consider refactoring to a single call to _st() version
 			const auto pdW = dW.data(), prmsF = rmsF.data();
 			m_threads.run([pdW,prmsF,learningRate,emaDecay,numericStabilizer](const par_range_t& r) {
 				const auto _1_emaDecay = 1 - emaDecay;
@@ -1773,11 +1753,11 @@ namespace math {
 			NNTL_ASSERT(emaDecay > 0 && emaDecay < 1);
 			NNTL_ASSERT(numericStabilizer > 0 && numericStabilizer < 1);
 
-			//TODO: this implementation probably isn't vectorized well
-
-			auto pdW = dW.data();
-			auto prmsF = rmsF.data();
-			auto prmsG = rmsG.data();
+			//#TODO: this implementation probably isn't vectorized well
+			//#consider switching for() to a while(). See the Adam()'s comments
+			const auto pdW = dW.data();
+			const auto prmsF = rmsF.data();
+			const auto prmsG = rmsG.data();
 			const auto _1_emaDecay = 1 - emaDecay;
 			const auto dataCnt = dW.numel();
 			for (numel_cnt_t i = 0; i < dataCnt; ++i) {
@@ -1798,11 +1778,11 @@ namespace math {
 			NNTL_ASSERT(emaDecay > 0 && emaDecay < 1);
 			NNTL_ASSERT(numericStabilizer > 0 && numericStabilizer < 1);
 
-			//TODO: this implementation probably isn't vectorized well
-
-			auto pdW = dW.data();
-			auto prmsF = rmsF.data();
-			auto prmsG = rmsG.data();
+			//#TODO: this implementation probably isn't vectorized well
+			//#consider refactoring to a single call to _st() version
+			const auto pdW = dW.data();
+			const auto prmsF = rmsF.data();
+			const auto prmsG = rmsG.data();
 			m_threads.run([pdW, prmsF, prmsG, learningRate, emaDecay, numericStabilizer](const par_range_t& r) {
 				const auto _1_emaDecay = 1 - emaDecay;
 				const auto ofs = r.offset();
@@ -1861,8 +1841,8 @@ namespace math {
 			NNTL_ASSERT(emaDecay > 0 && emaDecay < 1);
 			NNTL_ASSERT(numericStabilizer > 0 && numericStabilizer < 1);
 
-			//TODO: this implementation probably isn't vectorized well
-
+			//#TODO: this implementation probably isn't vectorized well
+			//#consider switching for() to a while(). See the Adam()'s comments
 			auto pdW = dW.data();
 			auto prmsF = rmsF.data();
 			const auto _1_emaDecay = 1 - emaDecay;
@@ -1883,8 +1863,8 @@ namespace math {
 			NNTL_ASSERT(emaDecay > 0 && emaDecay < 1);
 			NNTL_ASSERT(numericStabilizer > 0 && numericStabilizer < 1);
 
-			//TODO: this implementation probably isn't vectorized well
-
+			//#TODO: this implementation probably isn't vectorized well
+			//#consider refactoring to a single call to _st() version
 			auto pdW = dW.data();
 			auto prmsF = rmsF.data();
 			m_threads.run([pdW, prmsF, learningRate, emaDecay, numericStabilizer](const par_range_t& r) {
@@ -1899,6 +1879,141 @@ namespace math {
 					*pF = ema;
 					*pW = learningRate*(w / (ema + numericStabilizer));
 				}
+			}, dW.numel());
+		}
+		//////////////////////////////////////////////////////////////////////////
+		// Adam - A Method for Stochastic Optimization.1412.6980v8 implementation
+		//on a first call beta1t and beta2t must be initialized with 1
+		void Adam(realmtx_t& dW, realmtx_t& Mt, realmtx_t& Vt, real_t& beta1t, real_t& beta2t, const real_t learningRate,
+			const real_t beta1, const real_t beta2, const real_t numericStabilizer)noexcept
+		{
+			if (dW.numel() < Thresholds_t::Adam) {
+				get_self().Adam_st(dW, Mt, Vt, beta1t, beta2t, learningRate, beta1, beta2, numericStabilizer);
+			} else get_self().Adam_mt(dW, Mt, Vt, beta1t, beta2t, learningRate, beta1, beta2, numericStabilizer);
+		}
+		void Adam_st(realmtx_t& dW, realmtx_t& Mt, realmtx_t& Vt, real_t& beta1t, real_t& beta2t, const real_t learningRate,
+			const real_t beta1, const real_t beta2, const real_t numericStabilizer, const elms_range*const pER = nullptr) noexcept
+		{
+			get_self()._iAdam_st(dW, Mt, Vt, beta1t, beta2t, learningRate, beta1, beta2, numericStabilizer, pER ? *pER : elms_range(0, dW.numel()), !!pER);
+		}
+		static void _iAdam_st(realmtx_t& dW, realmtx_t& Mt, realmtx_t& Vt, real_t& beta1t, real_t& beta2t, const real_t learningRate,
+			const real_t beta1, const real_t beta2, const real_t numericStabilizer, const elms_range& er, const bool bInsideMT = true) noexcept
+		{
+			NNTL_ASSERT(dW.size() == Mt.size() && dW.size() == Vt.size());
+			NNTL_ASSERT(real_t(0.) < learningRate && learningRate < real_t(1.));
+			NNTL_ASSERT(real_t(0.) < beta1 && beta1 < real_t(1.));
+			NNTL_ASSERT(real_t(0.) < beta2 && beta2 < real_t(1.));
+			NNTL_ASSERT(real_t(0.) < numericStabilizer && numericStabilizer < real_t(1.));
+			NNTL_ASSERT(real_t(0.) <= beta1t && beta1t <= real_t(1.));
+			NNTL_ASSERT(real_t(0.) <= beta2t && beta2t <= real_t(1.));
+
+			if (!bInsideMT) {//This means, we're running outside of _mt version
+				beta1t *= beta1;
+				beta2t *= beta2;
+				NNTL_ASSERT(beta1t < real_t(1.));
+				NNTL_ASSERT(beta2t < real_t(1.));
+			}
+			const auto alphat = learningRate*sqrt(real_t(1.) - beta2t) / (real_t(1.) - beta1t);
+			const auto ombeta1 = real_t(1.) - beta1, ombeta2 = real_t(1.) - beta2;
+
+			auto pdW = dW.data()+ er.elmBegin, pMt = Mt.data()+ er.elmBegin, pVt = Vt.data()+ er.elmBegin;
+			const auto pDWE = pdW + er.totalElements();
+			while (pdW != pDWE) {
+				const auto g = *pdW;
+				const auto m = (*pMt)*beta1 + g*ombeta1;
+				*pMt++ = m;
+				const auto v = (*pVt)*beta2 + g*g*ombeta2;
+				*pVt++ = v;
+				*pdW++ = alphat*m / (sqrt(v) + numericStabilizer);
+			}
+			//FFFUUUUUUUUCK! for() cycle (commented out below) works about 4-5 times slower, than while().
+			// Don't know why did I choose to use for() for an RMSProp_*() implementation.
+			// #TODO refactor & check all related functions, esp RMSProp_*() family.
+			// 
+			/*const auto pdW = dW.data(), pMt = Mt.data(), pVt = Vt.data();
+			for (numel_cnt_t i = er.elmBegin; i < er.elmEnd; ++i) {
+				const auto pG = pdW + i, pM = pMt + i, pV = pVt + i;
+				const auto g = *pG;
+				const auto m = (*pM)*beta1 + g*ombeta1;
+				*pM = m;
+				const auto v = (*pV)*beta2 + g*g*ombeta2;
+				*pV = v;
+				*pG = alphat*m / (sqrt(v) + numericStabilizer);
+			}*/
+		}
+		void Adam_mt(realmtx_t& dW, realmtx_t& Mt, realmtx_t& Vt, real_t& beta1t, real_t& beta2t, const real_t learningRate,
+			const real_t beta1, const real_t beta2, const real_t numericStabilizer) noexcept
+		{
+			NNTL_ASSERT(dW.size() == Mt.size() && dW.size() == Vt.size());
+			NNTL_ASSERT(real_t(0.) < learningRate && learningRate < real_t(1.));
+			NNTL_ASSERT(real_t(0.) < beta1 && beta1 < real_t(1.));
+			NNTL_ASSERT(real_t(0.) < beta2 && beta2 < real_t(1.));
+			NNTL_ASSERT(real_t(0.) < numericStabilizer && numericStabilizer < real_t(1.));
+			NNTL_ASSERT(real_t(0.) <= beta1t && beta1t <= real_t(1.));
+			NNTL_ASSERT(real_t(0.) <= beta2t && beta2t <= real_t(1.));
+			beta1t *= beta1;
+			beta2t *= beta2;
+			NNTL_ASSERT(beta1t < real_t(1.));
+			NNTL_ASSERT(beta2t < real_t(1.));
+			m_threads.run([&dW, &Mt, &Vt, &beta1t, &beta2t, learningRate, beta1, beta2, numericStabilizer,this](const par_range_t& r) {
+				get_self()._iAdam_st(dW, Mt, Vt, beta1t, beta2t, learningRate, beta1, beta2, numericStabilizer, elms_range(r), true);
+			}, dW.numel());
+		}
+
+		//////////////////////////////////////////////////////////////////////////
+		// AdaMax - 1412.6980v8 implementation
+		//on a first call beta1t must be initialized with 1
+		void AdaMax(realmtx_t& dW, realmtx_t& Mt, realmtx_t& Ut, real_t& beta1t, const real_t learningRate,
+			const real_t beta1, const real_t beta2, const real_t numericStabilizer)noexcept
+		{
+			if (dW.numel() < Thresholds_t::AdaMax) {
+				get_self().AdaMax_st(dW, Mt, Ut, beta1t, learningRate, beta1, beta2, numericStabilizer);
+			} else get_self().AdaMax_mt(dW, Mt, Ut, beta1t, learningRate, beta1, beta2, numericStabilizer);
+		}
+		void AdaMax_st(realmtx_t& dW, realmtx_t& Mt, realmtx_t& Ut, real_t& beta1t, const real_t learningRate,
+			const real_t beta1, const real_t beta2, const real_t numericStabilizer, const elms_range*const pER = nullptr) noexcept
+		{
+			get_self()._iAdaMax_st(dW, Mt, Ut, beta1t, learningRate, beta1, beta2, numericStabilizer, pER ? *pER : elms_range(0, dW.numel()), !!pER);
+		}
+		static void _iAdaMax_st(realmtx_t& dW, realmtx_t& Mt, realmtx_t& Ut, real_t& beta1t, const real_t learningRate,
+			const real_t beta1, const real_t beta2, const real_t numericStabilizer, const elms_range& er, const bool bInsideMT = true) noexcept
+		{
+			NNTL_ASSERT(dW.size() == Mt.size() && dW.size() == Ut.size());
+			NNTL_ASSERT(real_t(0.) < learningRate && learningRate < real_t(1.));
+			NNTL_ASSERT(real_t(0.) < beta1 && beta1 < real_t(1.));
+			NNTL_ASSERT(real_t(0.) < beta2 && beta2 < real_t(1.));
+			NNTL_ASSERT(real_t(0.) <= beta1t && beta1t <= real_t(1.));
+
+			if (!bInsideMT) {//This means, we're running outside of _mt version
+				beta1t *= beta1;
+				NNTL_ASSERT(beta1t < real_t(1.));
+			}
+			const auto alphat = learningRate / (real_t(1.) - beta1t);
+			const auto ombeta1 = real_t(1.) - beta1;
+
+			auto pdW = dW.data() + er.elmBegin, pMt = Mt.data() + er.elmBegin, pUt = Ut.data() + er.elmBegin;
+			const auto pDWE = pdW + er.totalElements();
+			while (pdW != pDWE) {
+				const auto g = *pdW;
+				const auto m = (*pMt)*beta1 + g*ombeta1;
+				*pMt++ = m;
+				const auto u = std::max({abs(g),beta2*(*pUt)});
+				*pUt++ = u;
+				*pdW++ = alphat*m / (u + numericStabilizer);
+			}
+		}
+		void AdaMax_mt(realmtx_t& dW, realmtx_t& Mt, realmtx_t& Ut, real_t& beta1t, const real_t learningRate,
+			const real_t beta1, const real_t beta2, const real_t numericStabilizer) noexcept
+		{
+			NNTL_ASSERT(dW.size() == Mt.size() && dW.size() == Ut.size());
+			NNTL_ASSERT(real_t(0.) < learningRate && learningRate < real_t(1.));
+			NNTL_ASSERT(real_t(0.) < beta1 && beta1 < real_t(1.));
+			NNTL_ASSERT(real_t(0.) < beta2 && beta2 < real_t(1.));
+			NNTL_ASSERT(real_t(0.) <= beta1t && beta1t <= real_t(1.));
+			beta1t *= beta1;
+			NNTL_ASSERT(beta1t < real_t(1.));
+			m_threads.run([&dW, &Mt, &Ut, &beta1t, learningRate, beta1, beta2, numericStabilizer, this](const par_range_t& r) {
+				get_self()._iAdaMax_st(dW, Mt, Ut, beta1t, learningRate, beta1, beta2, numericStabilizer, elms_range(r), true);
 			}, dW.numel());
 		}
 	};

@@ -644,10 +644,11 @@ namespace math {
 	public:
 		const numel_cnt_t elmEnd;
 		const numel_cnt_t elmBegin;
+		//const bool bInsideMT;
 
 	public:
 		~simple_elements_range()noexcept {}
-		simple_elements_range(const simplemtx_t& A)noexcept : elmEnd(A.numel()), elmBegin(0) {}
+		simple_elements_range(const simplemtx_t& A)noexcept : elmEnd(A.numel()), elmBegin(0){}
 
 		simple_elements_range(const par_range_t& pr)noexcept : elmEnd(pr.offset() + pr.cnt()), elmBegin(pr.offset()) {}
 

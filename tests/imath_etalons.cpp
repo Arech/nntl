@@ -33,6 +33,8 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "stdafx.h"
 #include "imath_etalons.h"
 
+#include <algorithm>
+
 //////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////
 
@@ -301,6 +303,57 @@ void RProp_ET(realmtx_t& dW, const real_t learningRate)noexcept {
 		} else p[i] = real_t(0);
 	}
 }
+
+//////////////////////////////////////////////////////////////////////////
+
+void Adam_ET(realmtx_t& dW, realmtx_t& Mt, realmtx_t& Vt, real_t& beta1t, real_t& beta2t, const real_t learningRate,
+	const real_t beta1, const real_t beta2, const real_t numericStabilizer)noexcept 
+{
+	NNTL_ASSERT(dW.size() == Mt.size() && dW.size() == Vt.size());
+	NNTL_ASSERT(real_t(0.) < learningRate && learningRate < real_t(1.));
+	NNTL_ASSERT(real_t(0.) < beta1 && beta1 < real_t(1.));
+	NNTL_ASSERT(real_t(0.) < beta2 && beta2 < real_t(1.));
+	NNTL_ASSERT(real_t(0.) < numericStabilizer && numericStabilizer < real_t(1.));
+	NNTL_ASSERT(real_t(0.) <= beta1t && beta1t <= real_t(1.));
+	NNTL_ASSERT(real_t(0.) <= beta2t && beta2t <= real_t(1.));
+
+	beta1t *= beta1;
+	beta2t *= beta2;
+	const real_t alphat = learningRate*sqrt(real_t(1.) - beta2t) / (real_t(1.) - beta1t);
+	const real_t ombeta1 = real_t(1.) - beta1, ombeta2 = real_t(1.) - beta2;
+	const auto ne = dW.numel();
+	const auto pDw = dW.data(), pMt = Mt.data(), pVt = Vt.data();
+	for (numel_cnt_t i = 0; i < ne; ++i) {
+		const auto g = pDw[i];
+		pMt[i] = beta1*pMt[i] + ombeta1*g;
+		pVt[i] = beta2*pVt[i] + ombeta2*g*g;
+		pDw[i] = alphat*pMt[i] / (sqrt(pVt[i]) + numericStabilizer);
+	}
+}
+
+void AdaMax_ET(realmtx_t& dW, realmtx_t& Mt, realmtx_t& Ut, real_t& beta1t, const real_t learningRate,
+	const real_t beta1, const real_t beta2, const real_t numericStabilizer)noexcept
+{
+	NNTL_ASSERT(dW.size() == Mt.size() && dW.size() == Ut.size());
+	NNTL_ASSERT(real_t(0.) < learningRate && learningRate < real_t(1.));
+	NNTL_ASSERT(real_t(0.) < beta1 && beta1 < real_t(1.));
+	NNTL_ASSERT(real_t(0.) < beta2 && beta2 < real_t(1.));
+	NNTL_ASSERT(real_t(0.) <= beta1t && beta1t <= real_t(1.));
+
+	beta1t *= beta1;
+	const real_t alphat = learningRate / (real_t(1.) - beta1t);
+	const real_t ombeta1 = real_t(1.) - beta1;
+	const auto ne = dW.numel();
+	const auto pDw = dW.data(), pMt = Mt.data(), pUt = Ut.data();
+	for (numel_cnt_t i = 0; i < ne; ++i) {
+		const auto g = pDw[i];
+		pMt[i] = beta1*pMt[i] + ombeta1*g;
+		pUt[i] = std::max({ beta2*pUt[i] ,abs(g) });
+		pDw[i] = alphat*pMt[i] / (pUt[i] + numericStabilizer);
+	}
+}
+
+//////////////////////////////////////////////////////////////////////////
 
 real_t rowvecs_renorm_ET(realmtx_t& m, real_t* pTmp)noexcept {
 	//calculate current norms of row-vectors into pTmp

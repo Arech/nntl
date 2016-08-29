@@ -56,7 +56,7 @@ namespace nntl {
 		//////////////////////////////////////////////////////////////////////////
 		// numeric stabilizer eps value for double and float calculations
 		template <typename real_t> struct NUM_STAB_EPS{};
-		template<> struct NUM_STAB_EPS<float> { static constexpr float value = 1e-5f; };
+		template<> struct NUM_STAB_EPS<float> { static constexpr float value = 1e-8f; };
 		template<> struct NUM_STAB_EPS<double> { static constexpr double value = 1e-8; };
 
 	}
@@ -74,7 +74,7 @@ namespace nntl {
 		nntl_interface bool init(const grad_init_t& ind)noexcept;
 		nntl_interface void deinit()noexcept;
 
-		nntl_interface auto set_learning_rate(const real_t learningRate)noexcept;
+		nntl_interface auto learning_rate(const real_t learningRate)noexcept;
 		nntl_interface const real_t learning_rate()const noexcept;
 
 		nntl_interface void pre_training_fprop(realmtx_t& weights)noexcept;
@@ -142,7 +142,13 @@ namespace nntl {
 			ModProp,//My own update to RMSProp (may be someone also invented it, have no idea)
 			// It's like RMSProp, but divide dW by ema( abs(dW) ), instead of sqrt(ema(dW ^ 2)).
 			// Works faster and...sometimes helps to learn weights when no other techniques works... Don't know why, may be it's data-related.
+			
+			Adam,//b1=.9, b2=.999, numStab=1e-8, learningRate=.001; --- remember to set numeric_stabilizer() correctly!!!
+			AdaMax,// see Adam - A Method for Stochastic Optimization.1412.6980v8
 		};
+
+#define _NNTL_GRAD_WORKS_OPTIM_REQUIRE_MTX_A (m_type == RMSProp_Hinton || m_type == RMSProp_Graves || m_type == ModProp || m_type == Adam || m_type==AdaMax)
+#define _NNTL_GRAD_WORKS_OPTIM_REQUIRE_MTX_B (m_type == RMSProp_Graves || m_type == Adam || m_type == AdaMax)
 
 	protected:
 		enum AlgFlags {
@@ -152,8 +158,8 @@ namespace nntl {
 			f_UseNesterovMomentum,//Flag to turn on Nesterov Momentum, aka Nesterov Accelerated Gradient method.
 			// The definition is (Sutskever, Martens et al. "On the importance of initialization and momentum in deep learning",2013):
 			//		vW(t+1) = momentum*vW(t) - scaling*grad_Loss( W(t)+momentum*vW(t))
-			//		W(t+1)  = W(t) + vW(t+1)
-			// We'll change the sign of vW (for the compability with other code) and reorganize operations in the following way
+			//		W(t+1)  = W(t) + momentum*vW(t) - scaling*grad_Loss( W(t)+momentum*vW(t)) = W(t) + vW(t+1)
+			// We need to change the sign of vW (for the compability with other code) and reorganize operations in the following way
 			// (1)  vW`(t+1)= momentum*vW(t)
 			// (2)  W`(t+1) = W(t) - momentum*vW(t)
 			//				= W(t) - vW`(t+1)
@@ -190,7 +196,7 @@ namespace nntl {
 		real_t m_learningRate;
 
 		real_t m_momentum;
-		real_t m_emaDecay;
+		real_t m_optBeta1, m_optBeta2;
 		real_t m_numericStabilizerEps;
 		real_t m_maxWeightVecNorm;//coefficient of max-norm regularization ||W||2 <= c (see "Dropout: A Simple Way to Prevent Neural Networks from Overfitting".2014)
 		//hint: weights initialized from uniform distribution [-b,b]. It's second raw momentum is b^2/3, so the mean norm should
@@ -205,10 +211,13 @@ namespace nntl {
 
 		ILR m_ILR;
 
-		realmtx_t m_rmsF, m_rmsG, m_Vw, m_ILRGain, m_prevdLdW;
+		realmtx_t m_Vw, m_ILRGain, m_prevdLdW;
+		realmtx_t m_optMtxA, m_optMtxB;//some optimizers require additional memory.
 
 		real_t m_L2;//L2 (weight decay) regularizer coefficient
 		real_t m_L1;//L1 regularizer coefficient
+
+		real_t m_optBeta1t, m_optBeta2t;//storage for coefficients some optimizers (Adam, AdaMax) needed
 
 		//////////////////////////////////////////////////////////////////////////
 		// some static constants to make code consistent
@@ -232,18 +241,21 @@ namespace nntl {
 				ar & m_ILR;//dont serialize as struct for ease of use in matlab
 				ar & NNTL_SERIALIZATION_NVP(m_learningRate);
 				ar & NNTL_SERIALIZATION_NVP(m_momentum);
-				ar & NNTL_SERIALIZATION_NVP(m_emaDecay);
+				ar & NNTL_SERIALIZATION_NVP(m_optBeta1);
+				ar & NNTL_SERIALIZATION_NVP(m_optBeta2);
 				ar & NNTL_SERIALIZATION_NVP(m_numericStabilizerEps);
 				ar & NNTL_SERIALIZATION_NVP(m_maxWeightVecNorm);
 				ar & NNTL_SERIALIZATION_NVP(m_L2);
 				ar & NNTL_SERIALIZATION_NVP(m_L1);
 				ar & NNTL_SERIALIZATION_NVP(m_type);
 				ar & NNTL_SERIALIZATION_NVP(m_flags);
+				ar & NNTL_SERIALIZATION_NVP(m_optBeta1t);
+				ar & NNTL_SERIALIZATION_NVP(m_optBeta2t);
 			}
 
 			if (utils::binary_option<true>(ar, serialization::serialize_grad_works_state)) {
-				if (m_type == RMSProp_Hinton || m_type == RMSProp_Graves || m_type == ModProp) ar & NNTL_SERIALIZATION_NVP(m_rmsF);
-				if (m_type == RMSProp_Graves) ar & NNTL_SERIALIZATION_NVP(m_rmsG);
+				if (_NNTL_GRAD_WORKS_OPTIM_REQUIRE_MTX_A) ar & NNTL_SERIALIZATION_NVP(m_optMtxA);
+				if (_NNTL_GRAD_WORKS_OPTIM_REQUIRE_MTX_B) ar & NNTL_SERIALIZATION_NVP(m_optMtxB);
 
 				if (use_momentums()) ar & NNTL_SERIALIZATION_NVP(m_Vw);
 				if (use_individual_learning_rates()) {
@@ -266,12 +278,14 @@ namespace nntl {
 		//!!assignment is not needed
 		grad_works& operator=(const grad_works& rhs) noexcept = delete;
 
-		grad_works(const real_t lr) noexcept : m_pMath(nullptr), m_momentum(real_t(0.0)), m_emaDecay(real_t(0.9)),
-			m_numericStabilizerEps(_impl::NUM_STAB_EPS<real_t>::value), m_maxWeightVecNorm(real_t(0.0))
-			, m_L1(real_t(0.0)), m_L2(real_t(0.0)), m_actualL1(real_t(0.0)), m_actualL2(real_t(0.0)),
-			m_type(ClassicalConstant)
+		grad_works(const real_t lr) noexcept : m_pMath(nullptr), m_momentum(real_t(0.0))
+			, m_optBeta1(real_t(0.9)), m_optBeta2(real_t(0.999))
+			, m_numericStabilizerEps(_impl::NUM_STAB_EPS<real_t>::value), m_maxWeightVecNorm(real_t(0.0))
+			, m_L1(real_t(0.0)), m_L2(real_t(0.0)), m_actualL1(real_t(0.0)), m_actualL2(real_t(0.0))
+			, m_optBeta1t(real_t(1.)), m_optBeta2t(real_t(1.))
+			, m_type(ClassicalConstant)
 		{
-			set_learning_rate(lr);
+			learning_rate(lr);
 			_flags_default();
 		}
 
@@ -285,12 +299,12 @@ namespace nntl {
 				m_Vw.zeros();
 			}
 
-			if (m_type == RMSProp_Hinton || m_type == RMSProp_Graves || m_type == ModProp) {
-				if (!m_rmsF.resize(ind.weightsSize))return false;
+			if (_NNTL_GRAD_WORKS_OPTIM_REQUIRE_MTX_A) {
+				if (!m_optMtxA.resize(ind.weightsSize))return false;
 			}
 
-			if (m_type == RMSProp_Graves) {
-				if (!m_rmsG.resize(ind.weightsSize))return false;
+			if (_NNTL_GRAD_WORKS_OPTIM_REQUIRE_MTX_B) {
+				if (!m_optMtxB.resize(ind.weightsSize))return false;
 			}
 
 			if (use_individual_learning_rates()) {
@@ -310,8 +324,8 @@ namespace nntl {
 			//TODO: current cleanup code is not compatible with multiple nnet::train() calls
 
 			m_Vw.clear();
-			m_rmsF.clear();
-			m_rmsG.clear();
+			m_optMtxA.clear();
+			m_optMtxB.clear();
 			m_ILRGain.clear();
 			m_prevdLdW.clear();
 			//m_ILR.clear();//we shouldn't clear this variable, as it contains only settings but not a run-time data
@@ -363,17 +377,17 @@ namespace nntl {
 
 			case RMSProp_Hinton:
 				if (bFirstRun) {
-					m_pMath->evSquare(m_rmsF, dLdW);
+					m_pMath->evSquare(m_optMtxA, dLdW);
 					m_pMath->evMulC_ip(dLdW, m_learningRate);
-				} else m_pMath->RMSProp_Hinton(dLdW, m_rmsF, m_learningRate, m_emaDecay, m_numericStabilizerEps);
+				} else m_pMath->RMSProp_Hinton(dLdW, m_optMtxA, m_learningRate, m_optBeta1, m_numericStabilizerEps);
 				break;
 
 			case RMSProp_Graves:
 				if (bFirstRun) {
-					m_pMath->evSquare(m_rmsF, dLdW);
-					dLdW.cloneTo(m_rmsG);
+					m_pMath->evSquare(m_optMtxA, dLdW);
+					dLdW.cloneTo(m_optMtxB);
 					m_pMath->evMulC_ip(dLdW, m_learningRate);
-				} else m_pMath->RMSProp_Graves(dLdW, m_rmsF, m_rmsG, m_learningRate, m_emaDecay, m_numericStabilizerEps);
+				} else m_pMath->RMSProp_Graves(dLdW, m_optMtxA, m_optMtxB, m_learningRate, m_optBeta1, m_numericStabilizerEps);
 				break;
 
 			case RProp:
@@ -382,9 +396,28 @@ namespace nntl {
 
 			case ModProp:
 				if (bFirstRun) {
-					m_pMath->evAbs(m_rmsF, dLdW);
+					m_pMath->evAbs(m_optMtxA, dLdW);
 					m_pMath->evMulC_ip(dLdW, m_learningRate);
-				} else m_pMath->ModProp(dLdW, m_rmsF, m_learningRate, m_emaDecay, m_numericStabilizerEps);
+				} else m_pMath->ModProp(dLdW, m_optMtxA, m_learningRate, m_optBeta1, m_numericStabilizerEps);
+				break;
+
+			case Adam:
+				if (bFirstRun) {
+					m_optBeta1t = real_t(1.);
+					m_optBeta2t = real_t(1.);
+					m_optMtxA.zeros();
+					m_optMtxB.zeros();
+				};
+				m_pMath->Adam(dLdW, m_optMtxA, m_optMtxB, m_optBeta1t, m_optBeta2t, m_learningRate, m_optBeta1, m_optBeta2, m_numericStabilizerEps);
+				break;
+
+			case AdaMax:
+				if (bFirstRun) {
+					m_optBeta1t = real_t(1.);
+					m_optMtxA.zeros();
+					m_optMtxB.zeros();
+				};
+				m_pMath->AdaMax(dLdW, m_optMtxA, m_optMtxB, m_optBeta1t, m_learningRate, m_optBeta1, m_optBeta2, m_numericStabilizerEps);
 				break;
 
 			default:
@@ -466,7 +499,7 @@ namespace nntl {
 
 		//////////////////////////////////////////////////////////////////////////
 
-		self_t& set_learning_rate(const real_t learningRate)noexcept {
+		self_t& learning_rate(const real_t learningRate)noexcept {
 			m_learningRate = learningRate;
 			m_actualL1 = math::sign(m_learningRate)*m_L1;
 			m_actualL2 = math::sign(m_learningRate)*m_L2;
@@ -484,7 +517,7 @@ namespace nntl {
 			m_flags[f_UseILR] = m_ILR.bUseMe();
 			return *this;
 		}
-		self_t& set_momentum(real_t m, bool bApplyILRToMomentumVelocity = defApplyILR2MomentumVelocity)noexcept {
+		self_t& momentum(real_t m, bool bApplyILRToMomentumVelocity = defApplyILR2MomentumVelocity)noexcept {
 			NNTL_ASSERT(m >= 0 && m < 1);
 			m_momentum = m;
 			m_flags[f_UseMomentum] = m_momentum > real_t(0.0);
@@ -492,7 +525,7 @@ namespace nntl {
 			m_flags[f_ApplyILRToMomentumVelocity] = bApplyILRToMomentumVelocity;
 			return *this;
 		}
-		self_t& set_nesterov_momentum(real_t m, bool bApplyILRToMomentumVelocity = defApplyILR2MomentumVelocity)noexcept {
+		self_t& nesterov_momentum(real_t m, bool bApplyILRToMomentumVelocity = defApplyILR2MomentumVelocity)noexcept {
 			NNTL_ASSERT(m >= 0 && m < 1);
 			m_momentum = m;
 			m_flags[f_UseMomentum] = m_momentum > real_t(0.0);
@@ -500,12 +533,21 @@ namespace nntl {
 			m_flags[f_ApplyILRToMomentumVelocity] = bApplyILRToMomentumVelocity;
 			return *this;
 		}
-		self_t& set_ema_decay(real_t c)noexcept {
+
+		self_t& beta1(real_t c)noexcept {
 			NNTL_ASSERT(c > 0 && c < 1);
-			m_emaDecay = c;
+			m_optBeta1 = c;
 			return *this;
 		}
-		self_t& set_numeric_stabilizer(real_t n)noexcept {
+		const real_t beta1()const noexcept { return m_optBeta1; }
+		self_t& beta2(real_t c)noexcept {
+			NNTL_ASSERT(c > 0 && c < 1);
+			m_optBeta2 = c;
+			return *this;
+		}
+		const real_t beta2()const noexcept { return m_optBeta2; }
+
+		self_t& numeric_stabilizer(real_t n)noexcept {
 			NNTL_ASSERT(n >= 0 && n < real_t(1.));
 			m_numericStabilizerEps = n;
 			return *this;
@@ -515,7 +557,7 @@ namespace nntl {
 			return *this;
 		}
 
-		self_t& set_max_norm(const real_t mn, const bool bIgnoreBiasWeights = defRegularizersIgnoresBiasWeights)noexcept {
+		self_t& max_norm(const real_t mn, const bool bIgnoreBiasWeights = defRegularizersIgnoresBiasWeights)noexcept {
 			NNTL_ASSERT(mn >= real_t(0.0));
 			m_maxWeightVecNorm = mn;
 			m_flags[f_UseMaxNorm] = m_maxWeightVecNorm > real_t(0.0);
@@ -523,7 +565,7 @@ namespace nntl {
 			return *this;
 		}
 		//L1 is good for sparse signals
-		self_t& set_L1(real_t l1, const bool bIgnoreBiasWeights = defRegularizersIgnoresBiasWeights)noexcept {
+		self_t& L1(real_t l1, const bool bIgnoreBiasWeights = defRegularizersIgnoresBiasWeights)noexcept {
 			NNTL_ASSERT(l1 >= real_t(0.0));
 			m_L1 = l1;
 			m_actualL1 = math::sign(m_learningRate)*m_L1;
@@ -532,7 +574,7 @@ namespace nntl {
 			return *this;
 		}
 		//L2 is just good)
-		self_t& set_L2(real_t l2, const bool bIgnoreBiasWeights = defRegularizersIgnoresBiasWeights)noexcept {
+		self_t& L2(real_t l2, const bool bIgnoreBiasWeights = defRegularizersIgnoresBiasWeights)noexcept {
 			NNTL_ASSERT(l2 >= real_t(0.0));
 			m_L2 = l2;
 			m_actualL2 = math::sign(m_learningRate)*m_L2;

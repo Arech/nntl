@@ -379,6 +379,18 @@ namespace math {
 		{
 			ModProp_mt(dW, rmsF, learningRate, emaDecay, numericStabilizer);
 		}
+
+		void Adam(realmtx_t& dW, realmtx_t& Mt, realmtx_t& Vt, real_t& beta1t, real_t& beta2t, const real_t learningRate,
+			const real_t beta1, const real_t beta2, const real_t numericStabilizer)noexcept
+		{
+			get_self().Adam_mt(dW, Mt, Vt, beta1t, beta2t, learningRate, beta1, beta2, numericStabilizer);
+		}
+
+		void AdaMax(realmtx_t& dW, realmtx_t& Mt, realmtx_t& Ut, real_t& beta1t, const real_t learningRate,
+			const real_t beta1, const real_t beta2, const real_t numericStabilizer)noexcept
+		{
+			get_self().AdaMax_mt(dW, Mt, Ut, beta1t, learningRate, beta1, beta2, numericStabilizer);
+		}
 	};
 
 }

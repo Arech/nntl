@@ -280,6 +280,11 @@ namespace math {
 		nntl_interface void RProp(realmtx_t& dW, const real_t learningRate)noexcept;
 		nntl_interface void ModProp(realmtx_t& dW, realmtx_t& rmsF, const real_t learningRate,
 			const real_t emaDecay, const real_t numericStabilizer)noexcept;
+
+		nntl_interface void Adam(realmtx_t& dW, realmtx_t& Mt, realmtx_t& Vt, real_t& beta1t, real_t& beta2t, const real_t learningRate,
+			const real_t beta1, const real_t beta2, const real_t numericStabilizer)noexcept;
+		nntl_interface void AdaMax(realmtx_t& dW, realmtx_t& Mt, realmtx_t& Ut, real_t& beta1t, const real_t learningRate,
+			const real_t beta1, const real_t beta2, const real_t numericStabilizer)noexcept;
 	};
 
 }

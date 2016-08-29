@@ -71,6 +71,17 @@ namespace math {
 
 		typedef simple_rowcol_range<real_t> rowcol_range;
 		typedef simple_elements_range<real_t> elms_range;
+		// here's small guide for using rowcol_range/elms_range :
+		// Every function that should be multithreaded should have 3 (!!!) functions:
+		//	.1 func_st() which does purely singlethreaded processing. If needed, it must be aware of other threads running and
+		//			process data in a multithreading-safe way. This function is mostly a thunk to _ifunc_st().
+		//	.2 _ifunc_st() actually implements single-threaded processing
+		//	.3 func_mt() spawns multithreaded processing by means of calls to _ifunc_st()
+		// _ifunc_st() must receive const rowcol_range/elms_range & rcr/er as a last parameter. This parameter
+		//		describes a range of data to process.
+		// func_st() SHOULD receive const rowcol_range/elms_range *const pRCR/pER as a last parameter. It should help other
+		// _st functions (called from _mt()) functions to call func_st() without knowing it's implementation details.
+
 
 		typedef iThreadsT ithreads_t;
 		typedef typename ithreads_t::range_t range_t;
@@ -508,10 +519,12 @@ namespace math {
 				return get_self().ewSumProd_st(A, B);
 			} else return get_self().ewSumProd_mt(A, B);
 		}
-		static real_t ewSumProd_st(const realmtx_t& A, const realmtx_t& B, const elms_range*const pER = nullptr)noexcept {
+		real_t ewSumProd_st(const realmtx_t& A, const realmtx_t& B, const elms_range*const pER = nullptr)noexcept {
+			return get_self()._iewSumProd_st(A, B, pER ? *pER : elms_range(A));
+		}
+		static real_t _iewSumProd_st(const realmtx_t& A, const realmtx_t& B, const elms_range& er)noexcept {
 			NNTL_ASSERT(!A.empty() && !B.empty() && B.size() == A.size());
 			const auto pA = A.data(), pB = B.data();
-			const elms_range& er = pER ? *pER : elms_range(A);
 			real_t ret(0.0);
 			for (numel_cnt_t i = er.elmBegin; i < er.elmEnd; ++i)  ret += pA[i]*pB[i];
 			return ret;
@@ -519,7 +532,7 @@ namespace math {
 		real_t ewSumProd_mt(const realmtx_t& A, const realmtx_t& B)noexcept {
 			NNTL_ASSERT(!A.empty() && !B.empty() && B.size() == A.size());
 			return m_threads.reduce([&A, &B, this](const par_range_t& pr)->real_t {
-				return get_self().ewSumProd_st(A, B, &elms_range(pr));
+				return get_self()._iewSumProd_st(A, B, elms_range(pr));
 			}, _reduce_final_sum, A.numel());
 		}
 

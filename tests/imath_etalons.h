@@ -78,6 +78,10 @@ void ModProp_ET(realmtx_t& dW, realmtx_t& rmsF, const real_t learningRate, const
 void RMSProp_Graves_ET(realmtx_t& dW, realmtx_t& rmsF, realmtx_t& rmsG, const real_t learningRate, const real_t emaDecay, const real_t numericStabilizer)noexcept;
 void RMSProp_Hinton_ET(realmtx_t& dW, realmtx_t& rmsF, const real_t learningRate, const real_t emaDecay, const real_t numericStabilizer)noexcept;
 void RProp_ET(realmtx_t& dW, const real_t learningRate)noexcept;
+void Adam_ET(realmtx_t& dW, realmtx_t& Mt, realmtx_t& Vt, real_t& beta1t, real_t& beta2t, const real_t learningRate,
+	const real_t beta1, const real_t beta2, const real_t numericStabilizer)noexcept;
+void AdaMax_ET(realmtx_t& dW, realmtx_t& Mt, realmtx_t& Ut, real_t& beta1t, const real_t learningRate,
+	const real_t beta1, const real_t beta2, const real_t numericStabilizer)noexcept;
 
 real_t vSumAbs_ET(const realmtx_t& A)noexcept;
 real_t vSumSquares_ET(const realmtx_t& A)noexcept;

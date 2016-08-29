@@ -478,7 +478,7 @@ TEST(TestIMathBasic, vSumAbs) {
 
 template<typename base_t> struct vSumSquares_EPS {};
 template<> struct vSumSquares_EPS<double> { static constexpr double eps = 1e-10; };
-template<> struct vSumSquares_EPS<float> { static constexpr float eps = .1f; };
+template<> struct vSumSquares_EPS<float> { static constexpr float eps = .2f; };
 template<typename iMath>
 void test_vSumSquares(iMath& iM, vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 	const auto dataSize = realmtx_t::sNumel(rowsCnt, colsCnt);
@@ -1709,7 +1709,7 @@ void test_rmspropgraves_perf(iMath& iM, vec_len_t rowsCnt, vec_len_t colsCnt = 1
 	STDCOUTL("best:\t" << utils::duration_readable(diff, maxReps, &tBest));
 }
 
-TEST(TestIMathBasic, RMSPropGravesPerf) {
+TEST(TestIMathBasic, RMSProp_Graves) {
 	typedef nntl::nnet_def_interfaces::iThreads_t def_threads_t;
 	typedef math::iMath_basic<real_t, def_threads_t> iMB;
 	iMB iM;
@@ -1799,12 +1799,133 @@ void test_rmsprophinton_perf(iMath& iM, vec_len_t rowsCnt, vec_len_t colsCnt = 1
 	STDCOUTL("best:\t" << utils::duration_readable(diff, maxReps, &tBest));
 }
 
-TEST(TestIMathBasic, RMSPropHintonPerf) {
+TEST(TestIMathBasic, RMSProp_Hinton) {
 	typedef nntl::nnet_def_interfaces::iThreads_t def_threads_t;
 	typedef math::iMath_basic<real_t, def_threads_t> iMB;
 	iMB iM;
 	NNTL_RUN_TEST2(iMB::Thresholds_t::RMSProp_Hinton, 10) test_rmsprophinton_perf(iM, i,10);
 }
+
+//////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////
+void test_Adam_corr(const size_t epochs, const vec_len_t maxRowsCnt, const vec_len_t maxColsCnt = 10) {
+	const real_t beta1 = real_t(.9), beta2=real_t(.999), learningRate=real_t(.001), numStab=real_t(1e-8);
+	nnet_def_interfaces::iRng_t rg;
+	rg.set_ithreads(iM.ithreads());
+
+	for (vec_len_t r = 1; r < maxRowsCnt; ++r)	{
+		for (vec_len_t c = 1; c < maxColsCnt; ++c) {
+			MTXSIZE_SCOPED_TRACE(r, c, "test_Adam_corr");
+
+			realmtx_t dW_ET(r, c), Mt_ET(r, c), Vt_ET(r, c);
+			ASSERT_TRUE(!dW_ET.isAllocationFailed() && !Mt_ET.isAllocationFailed() && !Vt_ET.isAllocationFailed());
+			realmtx_t dW_st(r, c), Mt_st(r, c), Vt_st(r, c);
+			ASSERT_TRUE(!dW_st.isAllocationFailed() && !Mt_st.isAllocationFailed() && !Vt_st.isAllocationFailed());
+			realmtx_t dW_mt(r, c), Mt_mt(r, c), Vt_mt(r, c);
+			ASSERT_TRUE(!dW_mt.isAllocationFailed() && !Mt_mt.isAllocationFailed() && !Vt_mt.isAllocationFailed());
+			realmtx_t dW_(r, c), Mt_(r, c), Vt_(r, c);
+			ASSERT_TRUE(!dW_.isAllocationFailed() && !Mt_.isAllocationFailed() && !Vt_.isAllocationFailed());
+
+			Mt_ET.zeros(); Mt_st.zeros(); Mt_mt.zeros(); Mt_.zeros();
+			Vt_ET.zeros(); Vt_st.zeros(); Vt_mt.zeros(); Vt_.zeros();
+
+			real_t beta1t_ET = real_t(1.), beta2t_ET = real_t(1.);
+			real_t beta1t_st = real_t(1.), beta2t_st = real_t(1.);
+			real_t beta1t_mt = real_t(1.), beta2t_mt = real_t(1.);
+			real_t beta1t_ = real_t(1.), beta2t_ = real_t(1.);
+			
+			for (size_t e = 0; e < epochs; ++e) {
+				rg.gen_matrix(dW_ET, real_t(3.0));
+				ASSERT_TRUE(dW_ET.cloneTo(dW_st)); ASSERT_TRUE(dW_ET.cloneTo(dW_mt)); ASSERT_TRUE(dW_ET.cloneTo(dW_));
+				
+				Adam_ET(dW_ET, Mt_ET, Vt_ET, beta1t_ET, beta2t_ET, learningRate, beta1, beta2, numStab);
+
+				iM.Adam_st(dW_st, Mt_st, Vt_st, beta1t_st, beta2t_st, learningRate, beta1, beta2, numStab);
+				ASSERT_MTX_EQ(dW_ET, dW_st, "dW @ _st");
+				ASSERT_MTX_EQ(Mt_ET, Mt_st, "Mt @ _st");
+				ASSERT_MTX_EQ(Vt_ET, Vt_st, "Vt @ _st");
+				ASSERT_EQ(beta1t_ET, beta1t_st) << "_st";
+				ASSERT_EQ(beta2t_ET, beta2t_st) << "_st";
+
+				iM.Adam_mt(dW_mt, Mt_mt, Vt_mt, beta1t_mt, beta2t_mt, learningRate, beta1, beta2, numStab);
+				ASSERT_MTX_EQ(dW_ET, dW_mt, "dW @ _mt");
+				ASSERT_MTX_EQ(Mt_ET, Mt_mt, "Mt @ _mt");
+				ASSERT_MTX_EQ(Vt_ET, Vt_mt, "Vt @ _mt");
+				ASSERT_EQ(beta1t_ET, beta1t_mt) << "_mt";
+				ASSERT_EQ(beta2t_ET, beta2t_mt) << "_mt";
+
+				iM.Adam(dW_, Mt_, Vt_, beta1t_, beta2t_, learningRate, beta1, beta2, numStab);
+				ASSERT_MTX_EQ(dW_ET, dW_, "dW @ _");
+				ASSERT_MTX_EQ(Mt_ET, Mt_, "Mt @ _");
+				ASSERT_MTX_EQ(Vt_ET, Vt_, "Vt @ _");
+				ASSERT_EQ(beta1t_ET, beta1t_) << "_";
+				ASSERT_EQ(beta2t_ET, beta2t_) << "_";
+			}
+		}
+	}
+}
+
+TEST(TestIMathBasic, Adam) {
+	test_Adam_corr(10, g_MinDataSizeDelta * 2, g_MinDataSizeDelta * 2);
+}
+
+//////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////
+void test_AdaMax_corr(const size_t epochs, const vec_len_t maxRowsCnt, const vec_len_t maxColsCnt = 10) {
+	const real_t beta1 = real_t(.9), beta2 = real_t(.999), learningRate = real_t(.001), numStab = real_t(1e-8);
+	nnet_def_interfaces::iRng_t rg;
+	rg.set_ithreads(iM.ithreads());
+
+	for (vec_len_t r = 1; r < maxRowsCnt; ++r) {
+		for (vec_len_t c = 1; c < maxColsCnt; ++c) {
+			MTXSIZE_SCOPED_TRACE(r, c, "test_AdaMax_corr");
+
+			realmtx_t dW_ET(r, c), Mt_ET(r, c), Vt_ET(r, c);
+			ASSERT_TRUE(!dW_ET.isAllocationFailed() && !Mt_ET.isAllocationFailed() && !Vt_ET.isAllocationFailed());
+			realmtx_t dW_st(r, c), Mt_st(r, c), Vt_st(r, c);
+			ASSERT_TRUE(!dW_st.isAllocationFailed() && !Mt_st.isAllocationFailed() && !Vt_st.isAllocationFailed());
+			realmtx_t dW_mt(r, c), Mt_mt(r, c), Vt_mt(r, c);
+			ASSERT_TRUE(!dW_mt.isAllocationFailed() && !Mt_mt.isAllocationFailed() && !Vt_mt.isAllocationFailed());
+			realmtx_t dW_(r, c), Mt_(r, c), Vt_(r, c);
+			ASSERT_TRUE(!dW_.isAllocationFailed() && !Mt_.isAllocationFailed() && !Vt_.isAllocationFailed());
+
+			Mt_ET.zeros(); Mt_st.zeros(); Mt_mt.zeros(); Mt_.zeros();
+			Vt_ET.zeros(); Vt_st.zeros(); Vt_mt.zeros(); Vt_.zeros();
+
+			real_t beta1t_ET = real_t(1.), beta1t_st = real_t(1.), beta1t_mt = real_t(1.), beta1t_ = real_t(1.);
+
+			for (size_t e = 0; e < epochs; ++e) {
+				rg.gen_matrix(dW_ET, real_t(3.0));
+				ASSERT_TRUE(dW_ET.cloneTo(dW_st)); ASSERT_TRUE(dW_ET.cloneTo(dW_mt)); ASSERT_TRUE(dW_ET.cloneTo(dW_));
+
+				AdaMax_ET(dW_ET, Mt_ET, Vt_ET, beta1t_ET, learningRate, beta1, beta2, numStab);
+
+				iM.AdaMax_st(dW_st, Mt_st, Vt_st, beta1t_st, learningRate, beta1, beta2, numStab);
+				ASSERT_MTX_EQ(dW_ET, dW_st, "dW @ _st");
+				ASSERT_MTX_EQ(Mt_ET, Mt_st, "Mt @ _st");
+				ASSERT_MTX_EQ(Vt_ET, Vt_st, "Vt @ _st");
+				ASSERT_EQ(beta1t_ET, beta1t_st) << "_st";
+
+				iM.AdaMax_mt(dW_mt, Mt_mt, Vt_mt, beta1t_mt, learningRate, beta1, beta2, numStab);
+				ASSERT_MTX_EQ(dW_ET, dW_mt, "dW @ _mt");
+				ASSERT_MTX_EQ(Mt_ET, Mt_mt, "Mt @ _mt");
+				ASSERT_MTX_EQ(Vt_ET, Vt_mt, "Vt @ _mt");
+				ASSERT_EQ(beta1t_ET, beta1t_mt) << "_mt";
+
+				iM.AdaMax(dW_, Mt_, Vt_, beta1t_, learningRate, beta1, beta2, numStab);
+				ASSERT_MTX_EQ(dW_ET, dW_, "dW @ _");
+				ASSERT_MTX_EQ(Mt_ET, Mt_, "Mt @ _");
+				ASSERT_MTX_EQ(Vt_ET, Vt_, "Vt @ _");
+				ASSERT_EQ(beta1t_ET, beta1t_) << "_";
+			}
+		}
+	}
+}
+
+TEST(TestIMathBasic, AdaMax) {
+	test_AdaMax_corr(10, g_MinDataSizeDelta * 2, g_MinDataSizeDelta * 2);
+}
+
 //////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////
 template<typename iMath>

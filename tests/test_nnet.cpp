@@ -312,13 +312,13 @@ void testL2L1(const bool bL2, train_data<real_t>& td, const real_t coeff, uint64
 	layer_output<activation::sigm_xentropy_loss<w_init_scheme>> outp(td.train_y().cols(), learningRate);
 
 	if (bL2) {
-		fcl.m_gradientWorks.set_L2(coeff);
-		fcl2.m_gradientWorks.set_L2(coeff);
-		outp.m_gradientWorks.set_L2(coeff);
+		fcl.m_gradientWorks.L2(coeff);
+		fcl2.m_gradientWorks.L2(coeff);
+		outp.m_gradientWorks.L2(coeff);
 	} else {
-		fcl.m_gradientWorks.set_L1(coeff);
-		fcl2.m_gradientWorks.set_L1(coeff);
-		outp.m_gradientWorks.set_L1(coeff);
+		fcl.m_gradientWorks.L1(coeff);
+		fcl2.m_gradientWorks.L1(coeff);
+		outp.m_gradientWorks.L1(coeff);
 	}
 
 	auto lp = make_layers(inp, fcl, fcl2, outp);
@@ -393,65 +393,3 @@ TEST(TestNnet, L2Weights) {
 	testL2L1(true,td, real_t(.1), 0, 5, real_t(.02));
 	testL2L1(false,td, real_t(.1), 0, 5, real_t(.02));
 }
-
-//////////////////////////////////////////////////////////////////////////
-//////////////////////////////////////////////////////////////////////////
-
-//There's no need in this "test". It's more like an example than a test.
-/*
-TEST(TestNnet, Training) {
-	train_data<real_t> td;
-	reader_t reader;
-
-	STDCOUTL("Reading datafile '" << MNIST_FILE << "'...");
-	reader_t::ErrorCode rec = reader.read(NNTL_STRING(MNIST_FILE), td);
-	ASSERT_EQ(reader_t::ErrorCode::Success, rec) << "Error code description: " << reader.get_last_error_str();
-	ASSERT_TRUE(td.train_x().emulatesBiases());
-	ASSERT_TRUE(td.test_x().emulatesBiases());
-
-	const real_t dropoutFrac = 0, momentum = 0;
-
-	layer_input<> inp(td.train_x().cols_no_bias());
-
-	typedef weights_init::Martens_SI_sigm<> w_init_scheme;
-	typedef activation::sigm<w_init_scheme> activ_func;
-
-#ifdef TESTS_SKIP_NNET_LONGRUNNING
-	size_t epochs = 5;
-	const real_t learningRate = .002;
-
-	layer_fully_connected<activ_func> fcl(60, learningRate, dropoutFrac);
-	layer_fully_connected<activ_func> fcl2(50, learningRate, dropoutFrac);
-	//layer_fully_connected<activ_func> fcl3(15,learningRate,	 dropoutFrac);	
-
-#else
-	size_t epochs = 20;
-	const real_t learningRate = 0.0005;
-
-	layer_fully_connected<activ_func> fcl(500, learningRate, dropoutFrac);
-	layer_fully_connected<activ_func> fcl2(300, learningRate, dropoutFrac);
-#endif // TESTS_SKIP_LONGRUNNING
-
-	auto optType = decltype(fcl)::grad_works_t::ClassicalConstant;
-
-	fcl.m_gradientWorks.set_nesterov_momentum(momentum, false).set_type(optType);
-	fcl2.m_gradientWorks.set_nesterov_momentum(momentum, false).set_type(optType);
-
-	layer_output<activation::softmax_xentropy_loss<w_init_scheme>> outp(td.train_y().cols(), learningRate);
-	outp.m_gradientWorks.set_nesterov_momentum(momentum, false).set_type(optType);
-
-
-	auto lp = make_layers(inp, fcl, fcl2, outp);
-
-	nnet_cond_epoch_eval cee(epochs);
-	nnet_train_opts<decltype(cee)> opts(std::move(cee));
-
-	opts.batchSize(100);
-
-	auto nn = make_nnet(lp);
-
-	auto ec = nn.train(td, opts);
-
-	ASSERT_EQ(decltype(nn)::ErrorCode::Success, ec) << "Error code description: " << nn.get_last_error_string();
-}
-*/
