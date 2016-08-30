@@ -12,7 +12,7 @@ base + momentum + dropout|332s|**166s**|**x2.0**
 
 So, it's about a two times faster (and has a room for further improvements, btw). Not so much, but I'm not aware of anything better (please, contact me if you know). I also tried [tiny-cnn](https://github.com/nyanp/tiny-cnn), but failed to achive even Matlab-comparable performance (not counting that there is only x32 version available out-of-the-box).
 
-Also, one may switch computations to use a float data type instead of double to run the code even more faster.
+Also, one may switch computations to use a float data type instead of double to run the code even more faster (roughly at about +/- 2/3 of time required to run with double precision). Also it's possible to tune loss evaluation strategy to skip evaluation at some/all epochs, which will allow to train NN even more faster.
 
 I wouldn't state the NNTL is the fastest CPU implementation of feedforward neural networks, but nonetheless it's pretty fast and BSD-licensed (except for [random number generators](https://github.com/Arech/AF_randomc_h), which is GPL licensed, - but you can easily substitute RNG for your own implementation if you want). It's intended to be as fast as possible, provided that the code is easy to understand and maintain.
 
