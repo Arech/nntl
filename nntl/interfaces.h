@@ -31,17 +31,9 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 #pragma once
 
-// #include "interface/threads/winqdu.h"
-// #ifndef NNTL_THREADS_WINQDU_AVAILABLE
 #include "interface/threads/std.h"
-//#endif
-
-//#include "interface/math/imath_basic.h"
 #include "interface/math/mathn_mt.h"
-
-//#include "interface/rng/std.h"
-//#include "interface/rng/AFRand.h"
-#include "interface/rng/AFRand_mt.h"
+#include "interface/rng/afrand_mt.h"
 
 namespace nntl {
 

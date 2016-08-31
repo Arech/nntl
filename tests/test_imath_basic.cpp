@@ -3086,7 +3086,7 @@ TEST(TestMathN, DELU) {
 //////////////////////////////////////////////////////////////////////////
 template<typename base_t> struct loss_quadratic_EPS {};
 template<> struct loss_quadratic_EPS<double> { static constexpr double eps = 1e-10; };
-template<> struct loss_quadratic_EPS<float> { static constexpr float eps = 1e-2f; };
+template<> struct loss_quadratic_EPS<float> { static constexpr float eps = 2e-2f; };
 template<typename iMath>
 void test_loss_quadratic(iMath& iM, vec_len_t rowsCnt, vec_len_t colsCnt=10) {
 	const auto dataSize = realmtx_t::sNumel(rowsCnt, colsCnt);

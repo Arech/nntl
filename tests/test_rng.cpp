@@ -35,8 +35,8 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "../nntl/common.h"
 
 #include "../nntl/interface/rng/std.h"
-#include "../nntl/interface/rng/AFRand.h"
-#include "../nntl/interface/rng/AFRand_mt.h"
+#include "../nntl/interface/rng/afrand.h"
+#include "../nntl/interface/rng/afrand_mt.h"
 
 #include "../nntl/interfaces.h"
 
