@@ -34,7 +34,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "../nntl/math.h"
 #include "../nntl/common.h"
 
-#include "../nntl/interface/math/simple_math.h"
+#include "../nntl/interface/math/smath.h"
 #include "../nntl/interfaces.h"
 
 #include "../nntl/utils/prioritize_workers.h"

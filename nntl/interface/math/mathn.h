@@ -40,9 +40,9 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <boost/algorithm/clamp.hpp>
 
 #include <limits>
-#include "imath_basic_thr.h"
+#include "mathn_thr.h"
 
-#include "simple_math.h"
+#include "smath.h"
 
 namespace nntl {
 namespace math {

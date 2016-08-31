@@ -35,7 +35,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 // imath_basic version with multithreaded only functions (no mt/st branching code)
 // It's at max about 0.5-1.0% slower, than tuned version on a sufficiently large data sizes with double
 
-#include "imath_basic.h"
+#include "mathn.h"
 
 namespace nntl {
 namespace math {

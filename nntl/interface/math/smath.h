@@ -35,8 +35,8 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 // inside simple_matrix class object
 
 #include "../_i_threads.h"
-#include "simple_matrix.h"
-#include "simple_math_thr.h"
+#include "matrix.h"
+#include "smath_thr.h"
 #include <algorithm>
 #include <numeric>
 

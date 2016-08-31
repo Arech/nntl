@@ -36,7 +36,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //Substitute for your own if you want to utilize mt/st branching code of imath_basic
 // Or just use imath_basic_mt for reasonably large data sizes
 
-#include "simple_math_thr.h"
+#include "smath_thr.h"
 
 namespace nntl {
 namespace math {

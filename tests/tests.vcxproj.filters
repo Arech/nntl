@@ -99,9 +99,6 @@
     <ClInclude Include="..\nntl\errors.h">
       <Filter>nntl</Filter>
     </ClInclude>
-    <ClInclude Include="..\nntl\interface\math\simple_matrix.h">
-      <Filter>nntl\interface\math</Filter>
-    </ClInclude>
     <ClInclude Include="..\nntl\_defs.h">
       <Filter>nntl</Filter>
     </ClInclude>
@@ -165,9 +162,6 @@
     <ClInclude Include="..\_extern\agner.org\AF_randomc_h\random.h">
       <Filter>_extern\agner.org</Filter>
     </ClInclude>
-    <ClInclude Include="..\nntl\interface\math\imath_basic.h">
-      <Filter>nntl\interface\math</Filter>
-    </ClInclude>
     <ClInclude Include="..\nntl\weights_init.h">
       <Filter>nntl</Filter>
     </ClInclude>
@@ -186,26 +180,14 @@
     <ClInclude Include="..\nntl\interface\mt_dispatcher\profiler.h">
       <Filter>nntl\interface\mt_dispatcher</Filter>
     </ClInclude>
-    <ClInclude Include="..\nntl\interface\math\imath_basic_mt.h">
-      <Filter>nntl\interface\math</Filter>
-    </ClInclude>
     <ClInclude Include="imath_etalons.h">
       <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="..\nntl\interface\math\simple_math.h">
-      <Filter>nntl\interface\math</Filter>
     </ClInclude>
     <ClInclude Include="simple_math_etalons.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="asserts.h">
       <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="..\nntl\interface\math\imath_basic_thr.h">
-      <Filter>nntl\interface\math</Filter>
-    </ClInclude>
-    <ClInclude Include="..\nntl\interface\math\simple_math_thr.h">
-      <Filter>nntl\interface\math</Filter>
     </ClInclude>
     <ClInclude Include="..\nntl\nnet_evaluator.h">
       <Filter>nntl</Filter>
@@ -308,6 +290,24 @@
     </ClInclude>
     <ClInclude Include="..\nntl\interfaces.h">
       <Filter>nntl</Filter>
+    </ClInclude>
+    <ClInclude Include="..\nntl\interface\math\mathn.h">
+      <Filter>nntl\interface\math</Filter>
+    </ClInclude>
+    <ClInclude Include="..\nntl\interface\math\mathn_mt.h">
+      <Filter>nntl\interface\math</Filter>
+    </ClInclude>
+    <ClInclude Include="..\nntl\interface\math\mathn_thr.h">
+      <Filter>nntl\interface\math</Filter>
+    </ClInclude>
+    <ClInclude Include="..\nntl\interface\math\smath.h">
+      <Filter>nntl\interface\math</Filter>
+    </ClInclude>
+    <ClInclude Include="..\nntl\interface\math\smath_thr.h">
+      <Filter>nntl\interface\math</Filter>
+    </ClInclude>
+    <ClInclude Include="..\nntl\interface\math\matrix.h">
+      <Filter>nntl\interface\math</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

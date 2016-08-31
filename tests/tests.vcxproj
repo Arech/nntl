@@ -183,10 +183,10 @@
     <ClInclude Include="..\nntl\common_nn_data.h" />
     <ClInclude Include="..\nntl\errors.h" />
     <ClInclude Include="..\nntl\grad_works.h" />
-    <ClInclude Include="..\nntl\interface\math\imath_basic_mt.h" />
-    <ClInclude Include="..\nntl\interface\math\imath_basic_thr.h" />
-    <ClInclude Include="..\nntl\interface\math\simple_math.h" />
-    <ClInclude Include="..\nntl\interface\math\simple_math_thr.h" />
+    <ClInclude Include="..\nntl\interface\math\mathn_mt.h" />
+    <ClInclude Include="..\nntl\interface\math\mathn_thr.h" />
+    <ClInclude Include="..\nntl\interface\math\smath.h" />
+    <ClInclude Include="..\nntl\interface\math\smath_thr.h" />
     <ClInclude Include="..\nntl\interface\mt_dispatcher\mt_dispatcher.h" />
     <ClInclude Include="..\nntl\interface\mt_dispatcher\profiler.h" />
     <ClInclude Include="..\nntl\interface\rng\AFRand.h" />
@@ -208,9 +208,9 @@
     <ClInclude Include="..\nntl\interface\math\bindings\b_acml.h" />
     <ClInclude Include="..\nntl\interface\math\bindings\b_open_blas.h" />
     <ClInclude Include="..\nntl\interface\math\bindings\b_yeppp.h" />
-    <ClInclude Include="..\nntl\interface\math\imath_basic.h" />
+    <ClInclude Include="..\nntl\interface\math\mathn.h" />
     <ClInclude Include="..\nntl\interface\_i_math.h" />
-    <ClInclude Include="..\nntl\interface\math\simple_matrix.h" />
+    <ClInclude Include="..\nntl\interface\math\matrix.h" />
     <ClInclude Include="..\nntl\interface\rng\std.h" />
     <ClInclude Include="..\nntl\interface\_i_threads.h" />
     <ClInclude Include="..\nntl\interface\threads\intel_tbb.h" />

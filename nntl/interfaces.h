@@ -37,7 +37,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //#endif
 
 //#include "interface/math/imath_basic.h"
-#include "interface/math/imath_basic_mt.h"
+#include "interface/math/mathn_mt.h"
 
 //#include "interface/rng/std.h"
 //#include "interface/rng/AFRand.h"

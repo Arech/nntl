@@ -36,7 +36,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "../nntl/math.h"
 #include "../nntl/common.h"
 
-#include "../nntl/interface/math/imath_basic.h"
+#include "../nntl/interface/math/mathn.h"
 #include "../nntl/interfaces.h"
 
 #include "../nntl/_supp/io/jsonreader.h"
