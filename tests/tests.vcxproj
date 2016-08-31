@@ -189,9 +189,9 @@
     <ClInclude Include="..\nntl\interface\math\smath_thr.h" />
     <ClInclude Include="..\nntl\interface\mt_dispatcher\mt_dispatcher.h" />
     <ClInclude Include="..\nntl\interface\mt_dispatcher\profiler.h" />
-    <ClInclude Include="..\nntl\interface\rng\AFRand.h" />
-    <ClInclude Include="..\nntl\interface\rng\AFRand_mt.h" />
-    <ClInclude Include="..\nntl\interface\rng\AFRand_mt_thr.h" />
+    <ClInclude Include="..\nntl\interface\rng\afrand.h" />
+    <ClInclude Include="..\nntl\interface\rng\afrand_mt.h" />
+    <ClInclude Include="..\nntl\interface\rng\afrand_mt_thr.h" />
     <ClInclude Include="..\nntl\interface\rng\distr_normal_naive.h" />
     <ClInclude Include="..\nntl\interface\i_inspector.h" />
     <ClInclude Include="..\nntl\interface\_i_rng.h" />

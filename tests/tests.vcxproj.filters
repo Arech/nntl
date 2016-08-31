@@ -279,15 +279,6 @@
     <ClInclude Include="..\nntl\common_nn_data.h">
       <Filter>nntl</Filter>
     </ClInclude>
-    <ClInclude Include="..\nntl\interface\rng\AFRand.h">
-      <Filter>nntl\interface\rng</Filter>
-    </ClInclude>
-    <ClInclude Include="..\nntl\interface\rng\AFRand_mt.h">
-      <Filter>nntl\interface\rng</Filter>
-    </ClInclude>
-    <ClInclude Include="..\nntl\interface\rng\AFRand_mt_thr.h">
-      <Filter>nntl\interface\rng</Filter>
-    </ClInclude>
     <ClInclude Include="..\nntl\interfaces.h">
       <Filter>nntl</Filter>
     </ClInclude>
@@ -308,6 +299,15 @@
     </ClInclude>
     <ClInclude Include="..\nntl\interface\math\smatrix.h">
       <Filter>nntl\interface\math</Filter>
+    </ClInclude>
+    <ClInclude Include="..\nntl\interface\rng\afrand.h">
+      <Filter>nntl\interface\rng</Filter>
+    </ClInclude>
+    <ClInclude Include="..\nntl\interface\rng\afrand_mt.h">
+      <Filter>nntl\interface\rng</Filter>
+    </ClInclude>
+    <ClInclude Include="..\nntl\interface\rng\afrand_mt_thr.h">
+      <Filter>nntl\interface\rng</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
