@@ -47,9 +47,9 @@ using namespace nntl;
 using namespace nntl::utils;
 
 typedef d_interfaces::iThreads_t iThreads_t;
-typedef math::simple_math < real_t, iThreads_t> simple_math_t;
+typedef math::SMath < real_t, iThreads_t> SMath_t;
 
-static simple_math_t iM;
+static SMath_t iM;
 
 #ifdef TESTS_SKIP_LONGRUNNING
 constexpr unsigned TEST_PERF_REPEATS_COUNT = 10;
@@ -71,7 +71,7 @@ void test_mTilingRoll(vec_len_t rowsCnt, vec_len_t colsCnt, vec_len_t k) {
 	ASSERT_TRUE(!src.isAllocationFailed() && !dest.isAllocationFailed() && !destET.isAllocationFailed());
 
 	tictoc tSt, tMt, tB, tStSR, tMtSR, tStSW, tMtSW;
-	utils::prioritize_workers<utils::PriorityClass::PerfTesting, simple_math_t::ithreads_t> pw(iM.ithreads());
+	utils::prioritize_workers<utils::PriorityClass::PerfTesting, SMath_t::ithreads_t> pw(iM.ithreads());
 
 	seqFillMtx(src);
 	for (unsigned r = 0; r < maxReps; ++r) {
@@ -146,7 +146,7 @@ void test_mTilingRoll(vec_len_t rowsCnt, vec_len_t colsCnt, vec_len_t k) {
 }
 TEST(TestSimpleMathThr, mTilingRoll) {
 	for (unsigned k = 2; k < 10; ++k) {
-		NNTL_RUN_TEST2(simple_math_t::Thresholds_t::mTilingRoll, k*100) test_mTilingRoll(100, i, k);
+		NNTL_RUN_TEST2(SMath_t::Thresholds_t::mTilingRoll, k*100) test_mTilingRoll(100, i, k);
 	}
 
 // 	test_mTilingRoll(70000, 8, 6);
@@ -171,7 +171,7 @@ void test_ewSumProd(vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 	rg.set_ithreads(iM.ithreads());
 
 	tictoc tSt, tMt, tB;
-	utils::prioritize_workers<utils::PriorityClass::PerfTesting, simple_math_t::ithreads_t> pw(iM.ithreads());
+	utils::prioritize_workers<utils::PriorityClass::PerfTesting, SMath_t::ithreads_t> pw(iM.ithreads());
 	for (unsigned r = 0; r < maxReps; ++r) {
 		rg.gen_matrix(A, 2);		rg.gen_matrix(B, 2);
 		tSt.tic();
@@ -194,7 +194,7 @@ void test_ewSumProd(vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 	STDCOUTL(s);
 }
 TEST(TestSimpleMathThr, ewSumProd) {
-	NNTL_RUN_TEST2(simple_math_t::Thresholds_t::ewSumProd, 10) test_ewSumProd(i, 10);
+	NNTL_RUN_TEST2(SMath_t::Thresholds_t::ewSumProd, 10) test_ewSumProd(i, 10);
 }
 
 //////////////////////////////////////////////////////////////////////////
@@ -214,7 +214,7 @@ void test_mrwDivideByVec(vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 	rg.set_ithreads(iM.ithreads());
 
 	tictoc tStCw, tStRw, tSt, tMtCw, tMtRw, tMt, tB;
-	utils::prioritize_workers<utils::PriorityClass::PerfTesting, simple_math_t::ithreads_t> pw(iM.ithreads());
+	utils::prioritize_workers<utils::PriorityClass::PerfTesting, SMath_t::ithreads_t> pw(iM.ithreads());
 	for (unsigned r = 0; r < maxReps; ++r) {
 		rg.gen_matrix(A, 10);		rg.gen_vector(&vDiv[0], rowsCnt, 5);
 		tStCw.tic();
@@ -300,7 +300,7 @@ void test_mrwMulByVec(vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 	rg.set_ithreads(iM.ithreads());
 
 	tictoc tStCw, tStRw, tSt, tMtCw, tMtRw, tMt, tB;
-	utils::prioritize_workers<utils::PriorityClass::PerfTesting, simple_math_t::ithreads_t> pw(iM.ithreads());
+	utils::prioritize_workers<utils::PriorityClass::PerfTesting, SMath_t::ithreads_t> pw(iM.ithreads());
 	for (unsigned r = 0; r < maxReps; ++r) {
 		rg.gen_matrix(A, 10);		rg.gen_vector(&vMul[0], rowsCnt, 5);
 		tStCw.tic();
@@ -351,13 +351,13 @@ TEST(TestSimpleMathThr, mrwMulByVec) {
 	for (unsigned i = 2; i <= maxCols; ++i) test_mrwMulByVec(400, i);
 
 #ifndef TESTS_SKIP_LONGRUNNING
-	test_mrwMulByVec(simple_math_t::Thresholds_t::mrwMulByVec_st_rows - 1, 6);
-	test_mrwMulByVec(simple_math_t::Thresholds_t::mrwMulByVec_st_rows - 1, 10);
-	//test_mrwMulByVec(simple_math_t::Thresholds_t::mrwMulByVec_st_rows - 1, 64);
+	test_mrwMulByVec(SMath_t::Thresholds_t::mrwMulByVec_st_rows - 1, 6);
+	test_mrwMulByVec(SMath_t::Thresholds_t::mrwMulByVec_st_rows - 1, 10);
+	//test_mrwMulByVec(SMath_t::Thresholds_t::mrwMulByVec_st_rows - 1, 64);
 
-	test_mrwMulByVec(simple_math_t::Thresholds_t::mrwMulByVec_st_rows, 6);
-	test_mrwMulByVec(simple_math_t::Thresholds_t::mrwMulByVec_st_rows, 10);
-	//test_mrwMulByVec(simple_math_t::Thresholds_t::mrwMulByVec_st_rows, 64);
+	test_mrwMulByVec(SMath_t::Thresholds_t::mrwMulByVec_st_rows, 6);
+	test_mrwMulByVec(SMath_t::Thresholds_t::mrwMulByVec_st_rows, 10);
+	//test_mrwMulByVec(SMath_t::Thresholds_t::mrwMulByVec_st_rows, 64);
 
 // 	for (unsigned i = 2; i <= maxCols; ++i) test_mrwMulByVec(100000, i);
 // 	test_mrwMulByVec(3000, 300);
@@ -406,7 +406,7 @@ void test_mrwIdxsOfMax_perf(vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 		iM.mrwIdxsOfMax_st(A, &idxs[0]);
 		tSt.toc();
 
-		if (colsCnt > simple_math_t::Thresholds_t::mrwIdxsOfMax_ColsPerThread) {
+		if (colsCnt > SMath_t::Thresholds_t::mrwIdxsOfMax_ColsPerThread) {
 			std::fill(idxs.begin(), idxs.end(), vec_len_t(0));			rg.gen_matrix(A, 10);
 			tMtCw.tic();
 			iM.mrwIdxsOfMax_mt_cw(A, &idxs[0]);
@@ -444,10 +444,10 @@ void test_mrwIdxsOfMax_perf(vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 	tB.say("best");
 }
 TEST(TestSimpleMathThr, mrwIdxsOfMax) {
-	NNTL_RUN_TEST4(simple_math_t::Thresholds_t::mrwIdxsOfMax, 5, 2.5, simple_math_t::Thresholds_t::mrwIdxsOfMax_ColsPerThread * 6)
-		test_mrwIdxsOfMax_perf(i, simple_math_t::Thresholds_t::mrwIdxsOfMax_ColsPerThread * 6);
-	NNTL_RUN_TEST4(simple_math_t::Thresholds_t::mrwIdxsOfMax, 5, 2.5, 10) test_mrwIdxsOfMax_perf(i, 10);
-	NNTL_RUN_TEST4(simple_math_t::Thresholds_t::mrwIdxsOfMax, 5, 2.5, 2) test_mrwIdxsOfMax_perf(i, 2);
+	NNTL_RUN_TEST4(SMath_t::Thresholds_t::mrwIdxsOfMax, 5, 2.5, SMath_t::Thresholds_t::mrwIdxsOfMax_ColsPerThread * 6)
+		test_mrwIdxsOfMax_perf(i, SMath_t::Thresholds_t::mrwIdxsOfMax_ColsPerThread * 6);
+	NNTL_RUN_TEST4(SMath_t::Thresholds_t::mrwIdxsOfMax, 5, 2.5, 10) test_mrwIdxsOfMax_perf(i, 10);
+	NNTL_RUN_TEST4(SMath_t::Thresholds_t::mrwIdxsOfMax, 5, 2.5, 2) test_mrwIdxsOfMax_perf(i, 2);
 #ifndef TESTS_SKIP_LONGRUNNING
 // 	test_mrwIdxsOfMax_perf(300, 3000);
 // 	test_mrwIdxsOfMax_perf(3000, 300);
@@ -499,7 +499,7 @@ void test_mrwMax_perf(vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 		iM.mrwMax_st(m, &vmax[0]);
 		tSt.toc();
 
-		if (colsCnt > simple_math_t::Thresholds_t::mrwMax_mt_cw_ColsPerThread) {
+		if (colsCnt > SMath_t::Thresholds_t::mrwMax_mt_cw_ColsPerThread) {
 			std::fill(vmax.begin(), vmax.end(), std::numeric_limits<real_t>::lowest());			rg.gen_matrix(m, 10);
 			tMtCw.tic();
 			iM.mrwMax_mt_cw(m, &vmax[0]);
@@ -531,10 +531,10 @@ void test_mrwMax_perf(vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 	tB.say("best");
 }
 TEST(TestSimpleMathThr, mrwMax) {
-	NNTL_RUN_TEST4(simple_math_t::Thresholds_t::mrwMax, 5, 2.5, simple_math_t::Thresholds_t::mrwMax_mt_cw_ColsPerThread * 6)
-		test_mrwMax_perf(i, simple_math_t::Thresholds_t::mrwMax_mt_cw_ColsPerThread * 6);
-	NNTL_RUN_TEST4(simple_math_t::Thresholds_t::mrwMax, 5, 2.5, 10) test_mrwMax_perf(i, 10);
-	NNTL_RUN_TEST4(simple_math_t::Thresholds_t::mrwMax, 5, 2.5, 2) test_mrwMax_perf(i, 2);
+	NNTL_RUN_TEST4(SMath_t::Thresholds_t::mrwMax, 5, 2.5, SMath_t::Thresholds_t::mrwMax_mt_cw_ColsPerThread * 6)
+		test_mrwMax_perf(i, SMath_t::Thresholds_t::mrwMax_mt_cw_ColsPerThread * 6);
+	NNTL_RUN_TEST4(SMath_t::Thresholds_t::mrwMax, 5, 2.5, 10) test_mrwMax_perf(i, 10);
+	NNTL_RUN_TEST4(SMath_t::Thresholds_t::mrwMax, 5, 2.5, 2) test_mrwMax_perf(i, 2);
 #ifndef TESTS_SKIP_LONGRUNNING
 	test_mrwMax_perf(100, 10000);
 	test_mrwMax_perf(10000, 100);
@@ -580,7 +580,7 @@ void test_mrwSumIp_perf(vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 		iM.mrwSum_ip_st(A);
 		tSt.toc();
 
-		if (colsCnt > simple_math_t::Thresholds_t::mrwSum_mt_cw_colsPerThread) {//mrwSum, not _ip_! because it's just a thunk to mrwSum_mt_cw
+		if (colsCnt > SMath_t::Thresholds_t::mrwSum_mt_cw_colsPerThread) {//mrwSum, not _ip_! because it's just a thunk to mrwSum_mt_cw
 			rg.gen_matrix(A, 10);
 			tMtCw.tic();
 			iM.mrwSum_ip_mt_cw(A);
@@ -652,7 +652,7 @@ void test_mrwSum_perf(vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 		iM.mrwSum_st(A, &vec_test[0]);
 		tSt.toc();
 
-		if (colsCnt > simple_math_t::Thresholds_t::mrwSum_mt_cw_colsPerThread) {
+		if (colsCnt > SMath_t::Thresholds_t::mrwSum_mt_cw_colsPerThread) {
 			rg.gen_matrix(A, 10);
 			tMtCw.tic();
 			iM.mrwSum_mt_cw(A, &vec_test[0]);

@@ -46,7 +46,7 @@ namespace rng {
 		//typedef math_types::realmtx_ty realmtx_t;
 		//typedef realmtx_t::value_type real_t;
 		typedef RealT real_t;
-		typedef math::simple_matrix<real_t> realmtx_t;
+		typedef math::smatrix<real_t> realmtx_t;
 
 		// ptrdiff_t is either int on 32bits or int64 on 64bits. Type required by random_shuffle()
 		typedef ptrdiff_t generated_scalar_t;

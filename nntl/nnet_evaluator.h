@@ -40,7 +40,7 @@ namespace nntl {
 
 	struct i_nnet_evaluator {
 		typedef math_types::real_ty real_t;
-		typedef math::simple_matrix<real_t> realmtx_t;
+		typedef math::smatrix<real_t> realmtx_t;
 		typedef realmtx_t::vec_len_t vec_len_t;
 		typedef realmtx_t::numel_cnt_t numel_cnt_t;
 
@@ -63,7 +63,7 @@ namespace nntl {
 	// refactored
 	struct eval_classification_binary : public i_nnet_evaluator {
 	protected:
-		//typedef math::simple_matrix<char> binmtx_t;
+		//typedef math::smatrix<char> binmtx_t;
 		typedef std::vector<char> binvec_t;
 
 		//for each element of Y data (training/testing) contains binary flag if it's turned on or off

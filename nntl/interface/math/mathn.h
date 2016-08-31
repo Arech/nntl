@@ -51,9 +51,9 @@ namespace math {
 
 	// this class uses some routines from OpenBLAS to implement _i_math
 	template <typename RealT, typename iThreadsT, typename ThresholdsT, typename FinalPolymorphChild>
-	class _iMath_basic : public _simple_math<RealT, iThreadsT, ThresholdsT, FinalPolymorphChild>, public _i_math<RealT> {
+	class _MathN : public _SMath<RealT, iThreadsT, ThresholdsT, FinalPolymorphChild>, public _i_math<RealT> {
 	public:
-		typedef _simple_math<RealT, iThreadsT, ThresholdsT, FinalPolymorphChild> base_class_t;
+		typedef _SMath<RealT, iThreadsT, ThresholdsT, FinalPolymorphChild> base_class_t;
 		using base_class_t::real_t;
 		using base_class_t::realmtx_t;
 		using base_class_t::realmtxdef_t;
@@ -61,7 +61,7 @@ namespace math {
 		using base_class_t::vec_len_t;
 
 		//TODO: probably don't need this assert
-		static_assert(std::is_base_of<_impl::IMATH_BASIC_THR<real_t>, Thresholds_t>::value, "Thresholds_t must be derived from _impl::IMATH_BASIC_THR<real_t>");
+		static_assert(std::is_base_of<_impl::MATHN_THR<real_t>, Thresholds_t>::value, "Thresholds_t must be derived from _impl::MATHN_THR<real_t>");
 				
 		//////////////////////////////////////////////////////////////////////////
 		// members
@@ -115,8 +115,8 @@ namespace math {
 		//methods
 	public:
 
-		~_iMath_basic()noexcept {};
-		_iMath_basic() noexcept : base_class_t() {}
+		~_MathN()noexcept {};
+		_MathN() noexcept : base_class_t() {}
 
 		//////////////////////////////////////////////////////////////////////////
 		// i_math interface implementation
@@ -263,7 +263,7 @@ namespace math {
 				*pA++ = v > frac ? real_t(1.0) : real_t(0.0);
 			}
 		}
-		//#TODO finish refactoring; find out which algo is better; move to base simple_math class
+		//#TODO finish refactoring; find out which algo is better; move to base SMath class
 		struct _ew_BINARIZE_IP {
 			const real_t frac;
 			_ew_BINARIZE_IP(const real_t f)noexcept:frac(f) {}
@@ -2018,11 +2018,11 @@ namespace math {
 		}
 	};
 
-	template <typename RealT, typename iThreadsT, typename ThresholdsT = _impl::IMATH_BASIC_THR<RealT>>
-	class iMath_basic final : public _iMath_basic<RealT, iThreadsT, ThresholdsT, iMath_basic<RealT, iThreadsT, ThresholdsT>> {
+	template <typename RealT, typename iThreadsT, typename ThresholdsT = _impl::MATHN_THR<RealT>>
+	class MathN final : public _MathN<RealT, iThreadsT, ThresholdsT, MathN<RealT, iThreadsT, ThresholdsT>> {
 	public:
-		~iMath_basic()noexcept {}
-		iMath_basic()noexcept : _iMath_basic<RealT, iThreadsT, ThresholdsT, iMath_basic<RealT, iThreadsT, ThresholdsT>>() {}
+		~MathN()noexcept {}
+		MathN()noexcept : _MathN<RealT, iThreadsT, ThresholdsT, MathN<RealT, iThreadsT, ThresholdsT>>() {}
 	};
 
 }

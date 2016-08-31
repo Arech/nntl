@@ -38,7 +38,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "../_i_rng.h"
 #include "../_i_threads.h"
 
-#include "AFRand_mt_thr.h"
+#include "AFRAND_MT_THR.h"
 
 namespace nntl {
 	namespace rng {
@@ -54,7 +54,7 @@ namespace nntl {
 			typedef typename ithreads_t::par_range_t par_range_t;
 			typedef typename ithreads_t::thread_id_t thread_id_t;
 
-			typedef _impl::AFRand_mt_thr<base_rng_t,real_t> Thresholds_t;
+			typedef _impl::AFRAND_MT_THR<base_rng_t,real_t> Thresholds_t;
 
 		protected:
 			typedef std::vector<base_rng_t> rng_vector_t;

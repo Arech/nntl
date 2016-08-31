@@ -46,9 +46,9 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 using namespace nntl;
 
 typedef d_interfaces::iThreads_t iThreads_t;
-typedef math::simple_math < real_t, iThreads_t> simple_math_t;
+typedef math::SMath < real_t, iThreads_t> SMath_t;
 
-static simple_math_t iM;
+static SMath_t iM;
 const vec_len_t g_MinDataSizeDelta = 2 * iM.ithreads().workers_count() + 2;
 
 #ifdef TESTS_SKIP_LONGRUNNING
@@ -550,7 +550,7 @@ void test_mrwIdxsOfMaxCorrectness(vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 		iM.mrwIdxsOfMax_st(A, &vec_test[0]);
 		ASSERT_EQ(vec_et, vec_test) << "st";
 
-		if (colsCnt > simple_math_t::Thresholds_t::mrwIdxsOfMax_ColsPerThread) {
+		if (colsCnt > SMath_t::Thresholds_t::mrwIdxsOfMax_ColsPerThread) {
 			std::fill(vec_test.begin(), vec_test.end(), vec_t::value_type(-1));
 			iM.mrwIdxsOfMax_mt_cw(A, &vec_test[0]);
 			ASSERT_EQ(vec_et, vec_test) << "mt_cw";
@@ -618,7 +618,7 @@ void test_mrwMax_corr(vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 		iM.mrwMax_st(A, &vec_test[0]);
 		ASSERT_EQ(vec_et, vec_test) << "st";
 
-		if (colsCnt > simple_math_t::Thresholds_t::mrwMax_mt_cw_ColsPerThread) {
+		if (colsCnt > SMath_t::Thresholds_t::mrwMax_mt_cw_ColsPerThread) {
 			std::fill(vec_test.begin(), vec_test.end(), std::numeric_limits<real_t>::lowest());
 			iM.mrwMax_mt_cw(A, &vec_test[0]);
 			ASSERT_EQ(vec_et, vec_test) <<"mt_cw";
@@ -640,7 +640,7 @@ void test_mrwMax_corr(vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 
 TEST(TestSimpleMath, mrwMax) {
 	constexpr unsigned rowsCnt = _baseRowsCnt;
-	const vec_len_t maxCols = g_MinDataSizeDelta*simple_math_t::Thresholds_t::mrwMax_mt_cw_ColsPerThread, maxRows = rowsCnt + g_MinDataSizeDelta;
+	const vec_len_t maxCols = g_MinDataSizeDelta*SMath_t::Thresholds_t::mrwMax_mt_cw_ColsPerThread, maxRows = rowsCnt + g_MinDataSizeDelta;
 	for (vec_len_t r = rowsCnt; r < maxRows; ++r) {
 		for (vec_len_t c = 1; c < maxCols; ++c) ASSERT_NO_FATAL_FAILURE(test_mrwMax_corr(r, c));
 	}
@@ -685,7 +685,7 @@ void test_mrwSumIp_corr(vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 		iM.mrwSum_ip_st(A2);
 		ASSERT_REALMTX_NEAR(A, A2, "st() failed", mrwSumIp_EPS<real_t>::eps);
 
-		if (colsCnt > simple_math_t::Thresholds_t::mrwSum_mt_cw_colsPerThread) {//mrwSum, not _ip_! because it's just a thunk to mrwSum_mt_cw
+		if (colsCnt > SMath_t::Thresholds_t::mrwSum_mt_cw_colsPerThread) {//mrwSum, not _ip_! because it's just a thunk to mrwSum_mt_cw
 			A3.cloneTo(A2);
 			iM.mrwSum_ip_mt_cw(A2);
 			ASSERT_REALMTX_NEAR(A, A2, "mt_cw() failed", mrwSumIp_EPS<real_t>::eps);
@@ -746,7 +746,7 @@ void test_mrwSum_corr(vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 		iM.mrwSum_st(A, &vec_test[0]);
 		ASSERT_VECTOR_NEAR(vec_et, vec_test, "st() failed", mrwSum_EPS<real_t>::eps);
 
-		if (colsCnt > simple_math_t::Thresholds_t::mrwSum_mt_cw_colsPerThread) {
+		if (colsCnt > SMath_t::Thresholds_t::mrwSum_mt_cw_colsPerThread) {
 			std::fill(vec_test.begin(), vec_test.end(), std::numeric_limits<real_t>::infinity());
 			iM.mrwSum_mt_cw(A, &vec_test[0]);
 			ASSERT_VECTOR_NEAR(vec_et, vec_test, "mt_cw() failed", mrwSum_EPS<real_t>::eps);
@@ -769,7 +769,7 @@ void test_mrwSum_corr(vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 }
 TEST(TestSimpleMath, mrwSum) {
 	constexpr unsigned rowsCnt = _baseRowsCnt;
-	const vec_len_t maxCols = g_MinDataSizeDelta*simple_math_t::Thresholds_t::mrwSum_mt_cw_colsPerThread
+	const vec_len_t maxCols = g_MinDataSizeDelta*SMath_t::Thresholds_t::mrwSum_mt_cw_colsPerThread
 		, maxRows = rowsCnt + g_MinDataSizeDelta;
 	for (vec_len_t r = rowsCnt; r < maxRows; ++r) {
 		for (vec_len_t c = 1; c < maxCols; ++c) ASSERT_NO_FATAL_FAILURE(test_mrwSum_corr(r, c));

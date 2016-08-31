@@ -59,9 +59,9 @@ bool get_td(train_data<T_>& td)noexcept {
 }
 
 TEST(TestMatfile, ReadWriteMat) {
-	math::simple_matrix<float> float_mtx(3, 2), float_mtx2;
+	math::smatrix<float> float_mtx(3, 2), float_mtx2;
 	for (unsigned i = 0; i < float_mtx.numel(); ++i) float_mtx.data()[i] = float(1.1) * i;
-	math::simple_matrix<double> double_mtx(3, 2), double_mtx2;
+	math::smatrix<double> double_mtx(3, 2), double_mtx2;
 	for (unsigned i = 0; i < double_mtx.numel(); ++i) double_mtx.data()[i] = double(2.1) * i;
 
 	double dET = 3.3, d;

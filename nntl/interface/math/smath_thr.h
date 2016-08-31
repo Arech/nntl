@@ -32,21 +32,20 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #pragma once
 
-//This file define a single/multi-threading code thresholds for iMath_basic class
-//Substitute for your own if you want to utilize mt/st branching code of imath_basic
-// Or just use imath_basic_mt for reasonably large data sizes
+//This file define a single/multi-threading code thresholds for SMath class
+//Substitute for your own if you want to utilize mt/st branching code of SMath
 
 namespace nntl {
 namespace math {
 
 	namespace _impl {
-		using vec_len_t = simple_matrix<math_types::real_ty>::vec_len_t;
+		using vec_len_t = smatrix<math_types::real_ty>::vec_len_t;
 
-		template <typename real_t> struct SIMPLE_MATH_THR {};
+		template <typename real_t> struct SMATH_THR {};
 
 		//It is better, than nothing. But in future this pron should be substituted by a run-time function profiling over real-task data
 
-		template <> struct SIMPLE_MATH_THR<double> {
+		template <> struct SMATH_THR<double> {
 			static constexpr size_t ewSumProd = 8800;
 
 			static constexpr size_t mrwDivideByVec_rw = 10000;
@@ -82,7 +81,7 @@ namespace math {
 			static constexpr vec_len_t mTilingUnroll_mt_cols = 3;
 		};
 
-		template <> struct SIMPLE_MATH_THR<float> {
+		template <> struct SMATH_THR<float> {
 			static constexpr size_t ewSumProd = 880*19;
 
 			static constexpr size_t mrwDivideByVec_rw = 20000;

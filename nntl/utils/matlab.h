@@ -71,9 +71,9 @@ namespace matlab {
 	template<> struct type2id<float> { static constexpr mxClassID id = mxSINGLE_CLASS; };
 	template<> struct type2id<double> { static constexpr  mxClassID id = mxDOUBLE_CLASS; };
 
-	//converts matlab data to simple_matrix<DestT>
+	//converts matlab data to smatrix<DestT>
 	template<typename DestT>
-	inline bool fill_data_no_bias(math::simple_matrix<DestT>& d, mxArray*const pVar)noexcept {
+	inline bool fill_data_no_bias(math::smatrix<DestT>& d, mxArray*const pVar)noexcept {
 		const auto matlabType = mxGetClassID(pVar);
 		bool ret = true;
 		const void*const pSrc = mxGetData(pVar);

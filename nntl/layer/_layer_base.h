@@ -80,7 +80,7 @@ namespace nntl {
 	//////////////////////////////////////////////////////////////////////////
 	//////////////////////////////////////////////////////////////////////////
 	template <typename RealT>
-	class _i_layer_typedefs : public math::simple_matrix_td {
+	class _i_layer_typedefs : public math::smatrix_td {
 	protected:
 		_i_layer_typedefs()noexcept {}
 		~_i_layer_typedefs()noexcept {}
@@ -92,9 +92,9 @@ namespace nntl {
 
 	public:
 		typedef RealT real_t;
-		typedef math::simple_matrix<real_t> realmtx_t;
-		typedef math::simple_matrix_deformable<real_t> realmtxdef_t;
-		static_assert(std::is_base_of<realmtx_t, realmtxdef_t>::value, "simple_matrix_deformable must be derived from simple_matrix!");
+		typedef math::smatrix<real_t> realmtx_t;
+		typedef math::smatrix_deform<real_t> realmtxdef_t;
+		static_assert(std::is_base_of<realmtx_t, realmtxdef_t>::value, "smatrix_deform must be derived from smatrix!");
 	};
 
 	////////////////////////////////////////////////////////////////////////// 

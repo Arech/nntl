@@ -47,7 +47,7 @@ void evCMulSub_ET(iMath& iM, realmtx_t& vW, const real_t momentum, realmtx_t& W)
 
 void ewBinarize_ip_ET(realmtx_t& A, const real_t frac)noexcept;
 template<typename BaseDestT>
-void ewBinarize_ET(nntl::math::simple_matrix<BaseDestT>& Dest, const realmtx_t& A, const real_t frac)noexcept {
+void ewBinarize_ET(nntl::math::smatrix<BaseDestT>& Dest, const realmtx_t& A, const real_t frac)noexcept {
 	auto pA = A.data();
 	auto pD = Dest.data();
 	const auto pAE = pA + A.numel();

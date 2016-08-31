@@ -40,13 +40,13 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 namespace nntl {
 namespace math {
 
-	template <typename RealT, typename iThreadsT, typename ThresholdsT = _impl::IMATH_BASIC_THR<RealT>>
-	class iMath_basic_mt final : public _iMath_basic<RealT, iThreadsT, ThresholdsT, iMath_basic_mt<RealT, iThreadsT, ThresholdsT>> {
+	template <typename RealT, typename iThreadsT, typename ThresholdsT = _impl::MATHN_THR<RealT>>
+	class MathN_mt final : public _MathN<RealT, iThreadsT, ThresholdsT, MathN_mt<RealT, iThreadsT, ThresholdsT>> {
 	public:
-		typedef _iMath_basic<RealT, iThreadsT, ThresholdsT, iMath_basic_mt<RealT, iThreadsT, ThresholdsT>> base_class_t;
+		typedef _MathN<RealT, iThreadsT, ThresholdsT, MathN_mt<RealT, iThreadsT, ThresholdsT>> base_class_t;
 
-		~iMath_basic_mt()noexcept {};
-		iMath_basic_mt() noexcept : base_class_t(){}
+		~MathN_mt()noexcept {};
+		MathN_mt() noexcept : base_class_t(){}
 
 		//////////////////////////////////////////////////////////////////////////
 		// i_math interface implementation

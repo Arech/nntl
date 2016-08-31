@@ -32,9 +32,9 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #pragma once
 
-//This file define a single/multi-threading code thresholds for iMath_basic class
-//Substitute for your own if you want to utilize mt/st branching code of imath_basic
-// Or just use imath_basic_mt for reasonably large data sizes
+//This file define a single/multi-threading code thresholds for MathN class
+//Substitute for your own if you want to utilize mt/st branching code of MathN
+// Or just use MathN_mt for reasonably large data sizes
 
 #include "smath_thr.h"
 
@@ -43,11 +43,11 @@ namespace math {
 
 namespace _impl {
 
-	template <typename real_t> struct IMATH_BASIC_THR : public SIMPLE_MATH_THR<real_t> {};
+	template <typename real_t> struct MATHN_THR : public SMATH_THR<real_t> {};
 
 	//It is better, than nothing. But in future this pron should be substituted by a run-time function profiling over real-task data
 
-	template <> struct IMATH_BASIC_THR<double> : public SIMPLE_MATH_THR<double> {
+	template <> struct MATHN_THR<double> : public SMATH_THR<double> {
 		static constexpr size_t ewBinarize_ip = 132000;
 		static constexpr size_t ewBinarize = 11000;
 
@@ -110,7 +110,7 @@ namespace _impl {
 		static constexpr size_t AdaMax = 1200;
 	};
 
-	template <> struct IMATH_BASIC_THR<float> : public SIMPLE_MATH_THR<float> {
+	template <> struct MATHN_THR<float> : public SMATH_THR<float> {
 		static constexpr size_t ewBinarize_ip = 500000;
 		static constexpr size_t ewBinarize = 1100*19;
 

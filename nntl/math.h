@@ -64,11 +64,11 @@ namespace math {
 
 		//matrix of real_ty, colMajor order, because many math libs uses it by default
 		//TODO: specialization for the case of 1D data (such as binary classification results) may provide some performance gain
-		//DEPRECATED typedef. Use simple_matrix class directly
-		typedef simple_matrix<real_ty> realmtx_ty;
+		//DEPRECATED typedef. Use smatrix class directly
+		typedef smatrix<real_ty> realmtx_ty;
 
-		//DEPRECATED typedef. Use simple_matrix_deformable class directly
-		typedef simple_matrix_deformable<real_ty> realmtxdef_ty;
+		//DEPRECATED typedef. Use smatrix_deform class directly
+		typedef smatrix_deform<real_ty> realmtxdef_ty;
 		static_assert(std::is_base_of<realmtx_ty, realmtxdef_ty>::value, "realmtxdef_ty must be derived from realmtx_ty!");
 		
 		
@@ -77,7 +77,7 @@ namespace math {
 		//definitions below is to be corrected
 
 		//generic type for matrices with model data (train-test samples)
-		//typedef simple_matrix<real_ty> rawdata_mtx_ty;
+		//typedef smatrix<real_ty> rawdata_mtx_ty;
 
 		
 	};

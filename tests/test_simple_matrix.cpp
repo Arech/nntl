@@ -40,8 +40,8 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 using namespace nntl;
 
 TEST(TestSimpleMatrix, Basics) {
-	math::simple_matrix<float> m(1, 2);
-	math::simple_matrix<float> t(std::move(m));
+	math::smatrix<float> m(1, 2);
+	math::smatrix<float> t(std::move(m));
 
 	EXPECT_TRUE(m.empty());
 
@@ -49,7 +49,7 @@ TEST(TestSimpleMatrix, Basics) {
 	EXPECT_EQ(t.cols(), 2);
 	EXPECT_TRUE(!t.empty());
 
-	math::simple_matrix<float> k = std::move(t);
+	math::smatrix<float> k = std::move(t);
 
 	EXPECT_TRUE(t.empty());
 
@@ -59,7 +59,7 @@ TEST(TestSimpleMatrix, Basics) {
 }
 
 TEST(TestSimpleMatrix, ColMajorOrder) {
-	typedef math::simple_matrix<int> mtx;
+	typedef math::smatrix<int> mtx;
 
 	mtx m(2, 3);
 	ASSERT_FALSE(m.isAllocationFailed());
@@ -80,7 +80,7 @@ TEST(TestSimpleMatrix, ColMajorOrder) {
 
 /*
 TEST(TestSimpleMatrix, ExtractRowsFromColMajor) {
-	typedef math::simple_matrix<int> mtx;
+	typedef math::smatrix<int> mtx;
 
 	mtx src(5, 2),destCM(3,2),destRM(3,2);
 	for (mtx::numel_cnt_t i = 0, im = src.numel(); i < im; ++i) src.data()[i] = static_cast<int>(i);
@@ -107,7 +107,7 @@ TEST(TestSimpleMatrix, ExtractRowsFromColMajor) {
 }*/
 
 TEST(TestSimpleMatrix, ColMajorWithBiases) {
-	typedef math::simple_matrix<int> mtx;
+	typedef math::smatrix<int> mtx;
 
 	mtx m(2, 3,true);
 	ASSERT_FALSE(m.isAllocationFailed());

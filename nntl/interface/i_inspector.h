@@ -50,7 +50,7 @@ namespace nntl {
 //Derive from this class to have default function implementations
 // 
 template<typename RealT>
-class i_inspector : public math::simple_matrix_td {
+class i_inspector : public math::smatrix_td {
 	//!! copy constructor not needed
 	i_inspector(const i_inspector& other)noexcept = delete;
 	//!!assignment is not needed
@@ -59,8 +59,8 @@ class i_inspector : public math::simple_matrix_td {
 	//////////////////////////////////////////////////////////////////////////
 public:
 	typedef RealT real_t;
-	typedef math::simple_matrix<real_t> realmtx_t;
-	typedef math::simple_matrix_deformable<real_t> realmtxdef_t;
+	typedef math::smatrix<real_t> realmtx_t;
+	typedef math::smatrix_deform<real_t> realmtxdef_t;
 
 public:
 	~i_inspector()noexcept {}

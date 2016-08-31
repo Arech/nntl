@@ -46,7 +46,7 @@ namespace _impl {
 	// Also the same instance serves as a constainer/handler of objects of math&rng interfaces within a NNet object, therefore
 	// make sure that non-const reference/pointer to the instance would have extremely restricted usage.
 	template<typename InterfacesT>
-	struct common_nn_data : public math::simple_matrix_td, public interfaces_td<InterfacesT> {
+	struct common_nn_data : public math::smatrix_td, public interfaces_td<InterfacesT> {
 		//////////////////////////////////////////////////////////////////////////
 		//members
 	protected:

@@ -178,7 +178,7 @@ void check_softmax_parts(iMath& iM, vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 }
 TEST(TestPerfDecisions, softmaxParts) {
 	typedef nntl::d_interfaces::iThreads_t def_threads_t;
-	typedef math::iMath_basic<real_t, def_threads_t> iMB;
+	typedef math::MathN<real_t, def_threads_t> iMB;
 	iMB iM;
 	check_softmax_parts(iM, 100, 100);
 
@@ -336,7 +336,7 @@ void check_maxRowwise(iMath& iM, vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 }
 TEST(TestPerfDecisions, MaxRowwise) {
 	typedef nntl::d_interfaces::iThreads_t def_threads_t;
-	typedef math::iMath_basic<real_t, def_threads_t> iMB;
+	typedef math::MathN<real_t, def_threads_t> iMB;
 	iMB iM;
 	NNTL_RUN_TEST2(100*100, 100) check_maxRowwise(iM, i, 100);
 #ifndef TESTS_SKIP_LONGRUNNING
@@ -406,7 +406,7 @@ void check_evCMulSub(iMath& iM, vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 }
 TEST(TestPerfDecisions, CMulSub) {
 	typedef nntl::d_interfaces::iThreads_t def_threads_t;
-	typedef math::iMath_basic<real_t, def_threads_t> iMB;
+	typedef math::MathN<real_t, def_threads_t> iMB;
 	iMB iM;
 
 	//for (unsigned i = 50; i <= 10000; i*=2) check_evCMulSub(iM, i,100);
@@ -550,7 +550,7 @@ And by the way - it's a way slower (x4-x5), than whole rowwise_renorm operation 
 }
 TEST(TestPerfDecisions, mTranspose) {
 	typedef nntl::d_interfaces::iThreads_t def_threads_t;
-	typedef math::iMath_basic<real_t, def_threads_t> iMB;
+	typedef math::MathN<real_t, def_threads_t> iMB;
 	iMB iM;
 
 	//for (unsigned i = 100; i <= 10000; i*=10) check_mTranspose(iM, i,i/10);
@@ -833,7 +833,7 @@ void check_rowvecs_renorm(iMath& iM, vec_len_t rowsCnt, vec_len_t colsCnt = 10) 
 }
 TEST(TestPerfDecisions, rowvecsRenorm) {
 	typedef nntl::d_interfaces::iThreads_t def_threads_t;
-	typedef math::iMath_basic<real_t, def_threads_t> iMB;
+	typedef math::MathN<real_t, def_threads_t> iMB;
 	iMB iM;
 
 //   	for (unsigned i = 10; i <= 1000; i*=10) check_rowvecs_renorm(iM, i,i);
@@ -945,7 +945,7 @@ void check_rowwiseNormsq(iMath& iM, vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 }
 TEST(TestPerfDecisions, rowwiseNormsq) {
 	typedef nntl::d_interfaces::iThreads_t def_threads_t;
-	typedef math::iMath_basic<real_t, def_threads_t> iMB;
+	typedef math::MathN<real_t, def_threads_t> iMB;
 	iMB iM;
 
 	//for (unsigned i = 10; i <= 10000; i*=10) check_rowwiseNormsq(iM, i,i);
@@ -1086,7 +1086,7 @@ void check_sigm_loss_xentropy(iMath& iM, vec_len_t rowsCnt, vec_len_t colsCnt = 
 }
 TEST(TestPerfDecisions, sigmLossXentropy) {
 	typedef nntl::d_interfaces::iThreads_t def_threads_t;
-	typedef math::iMath_basic<real_t, def_threads_t> iMB;
+	typedef math::MathN<real_t, def_threads_t> iMB;
 	iMB iM;
 
 	//for (unsigned i = 50; i <= 20000; i*=1.5) check_sigm_loss_xentropy(iM, i,100);
@@ -1173,7 +1173,7 @@ void check_apply_momentum_perf(iMath& iM, vec_len_t rowsCnt, vec_len_t colsCnt =
 }
 TEST(TestPerfDecisions, applyMomentum) {
 	typedef nntl::d_interfaces::iThreads_t def_threads_t;
-	typedef math::iMath_basic<real_t, def_threads_t> iMB;
+	typedef math::MathN<real_t, def_threads_t> iMB;
 	iMB iM;
 
 	//for (unsigned i = 50; i <= 20000; i*=2) check_apply_momentum_perf(iM, i,100);
@@ -1284,7 +1284,7 @@ void test_sign_perf(iMath& iM, vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 
 TEST(TestPerfDecisions, Sign) {
 	typedef nntl::d_interfaces::iThreads_t def_threads_t;
-	typedef math::iMath_basic<real_t, def_threads_t> iMB;
+	typedef math::MathN<real_t, def_threads_t> iMB;
 
 	iMB iM;
 
@@ -1401,7 +1401,7 @@ void test_rmsproph_perf(iMath& iM, vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 
 TEST(TestPerfDecisions, RmsPropH) {
 	typedef nntl::d_interfaces::iThreads_t def_threads_t;
-	typedef math::iMath_basic<real_t, def_threads_t> iMB;
+	typedef math::MathN<real_t, def_threads_t> iMB;
 
 	iMB iM;
 
@@ -1503,7 +1503,7 @@ void test_dropout_perf(iMath& iM, vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
  * this is BS
 TEST(TestPerfDecisions, Dropout) {
 	typedef nntl::d_interfaces::iThreads_t def_threads_t;
-	typedef math::iMath_basic<real_t, def_threads_t> iMB;
+	typedef math::MathN<real_t, def_threads_t> iMB;
 
 	iMB iM;
 

@@ -45,12 +45,12 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 namespace nntl {
 
-	typedef threads::Std<math::simple_matrix_td::numel_cnt_t> d_threads_t;
+	typedef threads::Std<math::smatrix_td::numel_cnt_t> d_threads_t;
 
 	template<
 		typename RealT = math_types::real_ty
 		, typename iThreadsT = d_threads_t
-		, typename iMathT = math::iMath_basic_mt<RealT, iThreadsT>
+		, typename iMathT = math::MathN_mt<RealT, iThreadsT>
 		, typename iRngT = rng::AFRand_mt<RealT, AFog::CRandomSFMT0, iThreadsT>
 	>
 	struct interfaces {
@@ -64,9 +64,9 @@ namespace nntl {
 	struct d_interfaces {
 		typedef math_types::real_ty real_t;
 
-		typedef threads::Std<math::simple_matrix_td::numel_cnt_t> iThreads_t;
+		typedef threads::Std<math::smatrix_td::numel_cnt_t> iThreads_t;
 
-		typedef math::iMath_basic_mt<real_t, iThreads_t> iMath_t;
+		typedef math::MathN_mt<real_t, iThreads_t> iMath_t;
 
 		typedef rng::AFRand_mt<real_t, AFog::CRandomSFMT0, iThreads_t> iRng_t;
 	};

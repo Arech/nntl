@@ -58,7 +58,7 @@ namespace nntl {
 	// and then move layers into nnet. But now there's no real need in this (I think)
 	template <typename ...Layrs>
 	class layers 
-		: public math::simple_matrix_td
+		: public math::smatrix_td
 		, public interfaces_td<typename std::remove_reference<typename std::tuple_element<0, std::tuple<Layrs&...>>::type>::type::interfaces_t> {
 	public:
 		typedef const std::tuple<Layrs&...> _layers;

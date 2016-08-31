@@ -43,7 +43,7 @@ namespace nntl {
 namespace math {
 
 	// types that don't rely on matrix value_type
-	struct simple_matrix_td {
+	struct smatrix_td {
 		//rows/cols type. int should be enought. If not, redifine to smth bigger
 		typedef uint32_t vec_len_t;
 		//#todo: size_t should be here!
@@ -57,7 +57,7 @@ namespace math {
 	// better implementations, therefore it might be faster to write the class myself than to try to find an
 	// alternative an apply it to my needs.
 	template <typename T_>
-	class simple_matrix : public simple_matrix_td {
+	class smatrix : public smatrix_td {
 	public:
 		typedef T_ value_type;
 		typedef value_type* value_ptr_t;
@@ -109,13 +109,13 @@ namespace math {
 		}
 
 	public:
-		~simple_matrix()noexcept {
+		~smatrix()noexcept {
 			_free();
 		}
 
-		simple_matrix() noexcept : m_pData(nullptr), m_rows(0), m_cols(0), m_bEmulateBiases(false), m_bDontManageStorage(false){};
+		smatrix() noexcept : m_pData(nullptr), m_rows(0), m_cols(0), m_bEmulateBiases(false), m_bDontManageStorage(false){};
 		
-		simple_matrix(const vec_len_t _rows, const vec_len_t _cols, const bool _bEmulBias=false) noexcept : m_pData(nullptr),
+		smatrix(const vec_len_t _rows, const vec_len_t _cols, const bool _bEmulBias=false) noexcept : m_pData(nullptr),
 			m_rows(_rows), m_cols(_cols), m_bEmulateBiases(_bEmulBias), m_bDontManageStorage(false)
 		{
 			NNTL_ASSERT(_rows > 0 && _cols > 0);
@@ -123,7 +123,7 @@ namespace math {
 			_realloc();
 			if (m_bEmulateBiases) set_biases();
 		}
-		simple_matrix(const mtx_size_t& msize, const bool _bEmulBias = false) noexcept : m_pData(nullptr),
+		smatrix(const mtx_size_t& msize, const bool _bEmulBias = false) noexcept : m_pData(nullptr),
 			m_rows(msize.first), m_cols(msize.second), m_bEmulateBiases(_bEmulBias), m_bDontManageStorage(false)
 		{
 			NNTL_ASSERT(m_rows > 0 && m_cols > 0);
@@ -132,12 +132,12 @@ namespace math {
 			if (m_bEmulateBiases) set_biases();
 		}
 
-		//useExternalStorage(value_ptr_t ptr, const simple_matrix& sizeLikeThis) variation
-		simple_matrix(value_ptr_t ptr, const simple_matrix& sizeLikeThis)noexcept : m_pData(nullptr), m_bDontManageStorage(false) {
+		//useExternalStorage(value_ptr_t ptr, const smatrix& sizeLikeThis) variation
+		smatrix(value_ptr_t ptr, const smatrix& sizeLikeThis)noexcept : m_pData(nullptr), m_bDontManageStorage(false) {
 			useExternalStorage(ptr, sizeLikeThis);
 		}
 
-		simple_matrix(simple_matrix&& src)noexcept : m_pData(nullptr), m_rows(src.m_rows), m_cols(src.m_cols),
+		smatrix(smatrix&& src)noexcept : m_pData(nullptr), m_rows(src.m_rows), m_cols(src.m_cols),
 			m_bEmulateBiases(src.m_bEmulateBiases), m_bDontManageStorage(src.m_bDontManageStorage)
 		{
 			m_pData = src.m_pData;
@@ -146,7 +146,7 @@ namespace math {
 			src.m_cols = 0;
 		}
 
-		simple_matrix& operator=(simple_matrix&& rhs) noexcept {
+		smatrix& operator=(smatrix&& rhs) noexcept {
 			if (this!=&rhs) {
 				_free();
 				m_pData = rhs.m_pData;
@@ -165,12 +165,12 @@ namespace math {
 		
 
 		//!! copy constructor not needed
-		simple_matrix(const simple_matrix& other)noexcept; // = delete; //-it should be `delete`d, but factory function won't work if it is
+		smatrix(const smatrix& other)noexcept; // = delete; //-it should be `delete`d, but factory function won't work if it is
 		//!!assignment is not needed
-		simple_matrix& operator=(const simple_matrix& rhs) noexcept; // = delete; //-it should be `delete`d, but factory function won't work if it is
+		smatrix& operator=(const smatrix& rhs) noexcept; // = delete; //-it should be `delete`d, but factory function won't work if it is
 
 		//class object copying is a costly procedure, therefore making a special member function for it and will use only in special cases
-		const bool cloneTo(simple_matrix& dest)const noexcept {
+		const bool cloneTo(smatrix& dest)const noexcept {
 			if (dest.m_bDontManageStorage) {
 				if (dest.m_rows != m_rows || dest.m_cols != m_cols) return false;
 			} else {
@@ -182,12 +182,12 @@ namespace math {
 			NNTL_ASSERT(*this == dest);
 			return true;
 		}
-		const bool operator==(const simple_matrix& rhs)const noexcept {
+		const bool operator==(const smatrix& rhs)const noexcept {
 			//TODO: this is bad implementation, but it's enough cause we're gonna use it for testing only.
 			return m_bEmulateBiases==rhs.m_bEmulateBiases && size() == rhs.size()
 				&& 0 == memcmp(m_pData, rhs.m_pData, byte_size());
 		}
-		const bool operator!=(const simple_matrix& rhs)const noexcept {
+		const bool operator!=(const smatrix& rhs)const noexcept {
 			return !operator==(rhs);
 		}
 
@@ -326,7 +326,7 @@ namespace math {
 			_free();
 			m_bDontManageStorage = false;
 		}
-		const bool resize(const simple_matrix& m)noexcept {
+		const bool resize(const smatrix& m)noexcept {
 			NNTL_ASSERT(!m.empty() && m.rows() > 0 && m.cols() > 0);
 			NNTL_ASSERT(emulatesBiases() == m.emulatesBiases());
 			return resize(m.rows(), m.cols());
@@ -379,7 +379,7 @@ namespace math {
 		//ATTN: _i_math implementation should have a faster variants of this function.
 		//extract number=cnt rows by their indexes, specified by sequential iterator begin, into allocated dest matrix
 		/*template<typename SeqIt>
-		void extractRows(SeqIt begin, const numel_cnt_t cnt, simple_matrix<value_type>& dest)const noexcept {
+		void extractRows(SeqIt begin, const numel_cnt_t cnt, smatrix<value_type>& dest)const noexcept {
 			NNTL_ASSERT(!dest.empty());
 			static_assert(std::is_same<vec_len_t, SeqIt::value_type>::value, "Iterator should point to vec_len_t data");
 
@@ -407,7 +407,7 @@ namespace math {
 
 		//extract number=cnt rows by their indexes, specified by sequential iterator begin, into allocated dest matrix
 		/*template<typename SeqIt>
-		void extractRows_slow(SeqIt begin, const numel_cnt_t cnt, simple_matrix<value_type>& dest)const noexcept {
+		void extractRows_slow(SeqIt begin, const numel_cnt_t cnt, smatrix<value_type>& dest)const noexcept {
 			NNTL_ASSERT(!dest.empty());
 			static_assert(std::is_same<vec_len_t, SeqIt::value_type>::value, "Iterator should point to vec_len_t data");
 
@@ -432,7 +432,7 @@ namespace math {
 		}*/
 
 
-		void useExternalStorage(value_ptr_t ptr, const simple_matrix& sizeLikeThis)noexcept {
+		void useExternalStorage(value_ptr_t ptr, const smatrix& sizeLikeThis)noexcept {
 			useExternalStorage(ptr, sizeLikeThis.rows(), sizeLikeThis.cols(), sizeLikeThis.emulatesBiases());
 		}
 		//note that bEmulateBiases doesn't increment _cols count and doesn't fill biases if specified! This is done to make
@@ -462,7 +462,7 @@ namespace math {
 			} else return true;
 		}
 
-		void assert_storage_does_not_intersect(const simple_matrix& m)const noexcept {
+		void assert_storage_does_not_intersect(const smatrix& m)const noexcept {
 			NNTL_ASSERT(this != &m);
 			NNTL_ASSERT(!empty() && !m.empty());
 			//nonstrict nonequality it necessary here, because &[numel()] references element past the end of the allocated array
@@ -475,9 +475,9 @@ namespace math {
 	//this class will allow to reuse the same storage for matrix of smaller size
 	//////////////////////////////////////////////////////////////////////////
 	template <typename T_>
-	class simple_matrix_deformable : public simple_matrix<T_> {
+	class smatrix_deform : public smatrix<T_> {
 	private:
-		typedef simple_matrix<T_> _base_class;
+		typedef smatrix<T_> _base_class;
 
 	protected:
 #ifdef NNTL_DEBUG
@@ -485,21 +485,21 @@ namespace math {
 #endif // NNTL_DEBUG
 
 	public:
-		~simple_matrix_deformable()noexcept {}
-		simple_matrix_deformable()noexcept : _base_class() {}
-		simple_matrix_deformable(const vec_len_t _rows, const vec_len_t _cols, const bool _bEmulBias = false)noexcept : _base_class(_rows, _cols, _bEmulBias) {
+		~smatrix_deform()noexcept {}
+		smatrix_deform()noexcept : _base_class() {}
+		smatrix_deform(const vec_len_t _rows, const vec_len_t _cols, const bool _bEmulBias = false)noexcept : _base_class(_rows, _cols, _bEmulBias) {
 #ifdef NNTL_DEBUG
 			m_maxSize = numel();
 #endif // NNTL_DEBUG
 		}
 
-		simple_matrix_deformable(simple_matrix&& src)noexcept : _base_class(std::move(src)) {
+		smatrix_deform(smatrix&& src)noexcept : _base_class(std::move(src)) {
 #ifdef NNTL_DEBUG
 			m_maxSize = numel();
 #endif // NNTL_DEBUG
 		}
 
-		simple_matrix_deformable& operator=(simple_matrix&& rhs) noexcept {
+		smatrix_deform& operator=(smatrix&& rhs) noexcept {
 			if (this != &rhs) {
 				_base_class::operator =(std::move(rhs));
 #ifdef NNTL_DEBUG
@@ -517,7 +517,7 @@ namespace math {
 			_base_class::clear();
 		}
 
-		const bool cloneFrom(const simple_matrix& src)noexcept {
+		const bool cloneFrom(const smatrix& src)noexcept {
 			_free();
 			auto r = src.cloneTo(*this);
 #ifdef NNTL_DEBUG
@@ -541,7 +541,7 @@ namespace math {
 			return r;
 		}
 
-		const bool resize(const simple_matrix& m)noexcept {
+		const bool resize(const smatrix& m)noexcept {
 			_free();
 			const auto r = _base_class::resize(m);
 #ifdef NNTL_DEBUG
@@ -566,7 +566,7 @@ namespace math {
 			m_maxSize = numel();
 #endif // NNTL_DEBUG
 		}
-		void useExternalStorage(value_ptr_t ptr, const simple_matrix& sizeLikeThis)noexcept {
+		void useExternalStorage(value_ptr_t ptr, const smatrix& sizeLikeThis)noexcept {
 			useExternalStorage(ptr, sizeLikeThis.rows(), sizeLikeThis.cols(), sizeLikeThis.emulatesBiases());
 		}
 		void useExternalStorage(value_ptr_t ptr, numel_cnt_t cnt, bool bEmulateBiases = false)noexcept {
@@ -625,18 +625,18 @@ namespace math {
 			m_cols = c;
 		}
 
-		void deform_like(const simple_matrix& m)noexcept { deform(m.rows(), m.cols()); }
-		void deform_like_no_bias(const simple_matrix& m)noexcept { deform(m.rows(), m.cols_no_bias()); }
+		void deform_like(const smatrix& m)noexcept { deform(m.rows(), m.cols()); }
+		void deform_like_no_bias(const smatrix& m)noexcept { deform(m.rows(), m.cols_no_bias()); }
 	};
 
 	//////////////////////////////////////////////////////////////////////////
 	// helper class to define matrix elements range
 	//////////////////////////////////////////////////////////////////////////
 	template<typename T_>
-	class simple_elements_range {
+	class s_elems_range {
 	public:
 		typedef T_ value_type;
-		typedef simple_matrix<value_type> simplemtx_t;
+		typedef smatrix<value_type> simplemtx_t;
 		typedef typename simplemtx_t::numel_cnt_t numel_cnt_t;
 
 		typedef threads::parallel_range<numel_cnt_t> par_range_t;
@@ -647,12 +647,12 @@ namespace math {
 		//const bool bInsideMT;
 
 	public:
-		~simple_elements_range()noexcept {}
-		simple_elements_range(const simplemtx_t& A)noexcept : elmEnd(A.numel()), elmBegin(0){}
+		~s_elems_range()noexcept {}
+		s_elems_range(const simplemtx_t& A)noexcept : elmEnd(A.numel()), elmBegin(0){}
 
-		simple_elements_range(const par_range_t& pr)noexcept : elmEnd(pr.offset() + pr.cnt()), elmBegin(pr.offset()) {}
+		s_elems_range(const par_range_t& pr)noexcept : elmEnd(pr.offset() + pr.cnt()), elmBegin(pr.offset()) {}
 
-		simple_elements_range(const numel_cnt_t eb, const numel_cnt_t ee)noexcept : elmEnd(ee), elmBegin(eb) {
+		s_elems_range(const numel_cnt_t eb, const numel_cnt_t ee)noexcept : elmEnd(ee), elmBegin(eb) {
 			NNTL_ASSERT(elmEnd >= elmBegin);
 		}
 
@@ -665,10 +665,10 @@ namespace math {
 	// in general, it depends on how to use it, but usually the class doesn't specify a rectangular sub-block of a matrix,
 	// but defines a range that starts and ends on the specified elements.
 	template<typename T_>
-	class simple_rowcol_range {
+	class s_rowcol_range {
 	public:
 		typedef T_ value_type;
-		typedef simple_matrix<value_type> simplemtx_t;
+		typedef smatrix<value_type> simplemtx_t;
 		typedef typename simplemtx_t::vec_len_t vec_len_t;
 
 	public:
@@ -678,14 +678,14 @@ namespace math {
 		const vec_len_t colBegin;
 
 	public:
-		~simple_rowcol_range()noexcept {}
-		simple_rowcol_range(const vec_len_t rb, const vec_len_t re, const simplemtx_t& A)noexcept : rowEnd(re), rowBegin(rb), colEnd(A.cols()), colBegin(0) {
+		~s_rowcol_range()noexcept {}
+		s_rowcol_range(const vec_len_t rb, const vec_len_t re, const simplemtx_t& A)noexcept : rowEnd(re), rowBegin(rb), colEnd(A.cols()), colBegin(0) {
 			NNTL_ASSERT(rowEnd >= rowBegin);
 		}
-		simple_rowcol_range(const simplemtx_t& A, const vec_len_t cb, const vec_len_t ce)noexcept : rowEnd(A.rows()), rowBegin(0), colEnd(ce), colBegin(cb) {
+		s_rowcol_range(const simplemtx_t& A, const vec_len_t cb, const vec_len_t ce)noexcept : rowEnd(A.rows()), rowBegin(0), colEnd(ce), colBegin(cb) {
 			NNTL_ASSERT(colEnd >= colBegin);
 		}
-		simple_rowcol_range(const simplemtx_t& A)noexcept : rowEnd(A.rows()), rowBegin(0), colEnd(A.cols()), colBegin(0) {}
+		s_rowcol_range(const simplemtx_t& A)noexcept : rowEnd(A.rows()), rowBegin(0), colEnd(A.cols()), colBegin(0) {}
 
 		const vec_len_t totalRows()const noexcept { return rowEnd - rowBegin; }
 		const vec_len_t totalCols()const noexcept { return colEnd - colBegin; }

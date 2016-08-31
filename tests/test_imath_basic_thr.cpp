@@ -46,7 +46,7 @@ using namespace nntl;
 using namespace nntl::utils;
 
 typedef d_interfaces::iThreads_t iThreads_t;
-typedef math::iMath_basic<real_t, iThreads_t> imath_basic_t;
+typedef math::MathN<real_t, iThreads_t> imath_basic_t;
 
 static imath_basic_t iM;
 
@@ -636,7 +636,7 @@ void test_ewBinarize_perf(vec_len_t rowsCnt, vec_len_t colsCnt = 10, const real_
 	const auto dataSize = realmtx_t::sNumel(rowsCnt, colsCnt);
 	STDCOUTL("**** testing ewBinarize() over " << rowsCnt << "x" << colsCnt << " matrix (" << dataSize << " elements) with frac=" << frac << " ****");
 
-	typedef math::simple_matrix<char> binmtx_t;
+	typedef math::smatrix<char> binmtx_t;
 
 	constexpr unsigned maxReps = TEST_PERF_REPEATS_COUNT;
 	realmtx_t A(rowsCnt, colsCnt);

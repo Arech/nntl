@@ -41,8 +41,8 @@ namespace nntl {
 	class train_data {
 	public:
 		typedef BaseT value_type;
-		typedef math::simple_matrix<value_type> mtx_t;
-		typedef math::simple_matrix_deformable<value_type> mtxdef_t;
+		typedef math::smatrix<value_type> mtx_t;
+		typedef math::smatrix_deform<value_type> mtxdef_t;
 
 		//////////////////////////////////////////////////////////////////////////
 		//members

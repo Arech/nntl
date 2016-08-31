@@ -191,10 +191,10 @@ TEST(TestRNG, RngMtPerf) {
 	typedef nntl::d_interfaces::iThreads_t def_threads_t;
 	def_threads_t Thr;
 
-	NNTL_RUN_TEST2( (rng::_impl::AFRand_mt_thr<AFog::CRandomMersenne, real_t>::bnd_gen_vector_norm), 10)
+	NNTL_RUN_TEST2( (rng::_impl::AFRAND_MT_THR<AFog::CRandomMersenne, real_t>::bnd_gen_vector_norm), 10)
 		test_rng_mt_perf<AFog::CRandomMersenne>(Thr, "AFMersenne", i, 10);
-	NNTL_RUN_TEST2( (rng::_impl::AFRand_mt_thr<AFog::CRandomSFMT0, real_t>::bnd_gen_vector_norm), 10)
+	NNTL_RUN_TEST2( (rng::_impl::AFRAND_MT_THR<AFog::CRandomSFMT0, real_t>::bnd_gen_vector_norm), 10)
 		test_rng_mt_perf<AFog::CRandomSFMT0>(Thr, "AFSFMT0", i, 10);
-	NNTL_RUN_TEST2( (rng::_impl::AFRand_mt_thr<AFog::CRandomSFMT1, real_t>::bnd_gen_vector_norm), 10)
+	NNTL_RUN_TEST2( (rng::_impl::AFRAND_MT_THR<AFog::CRandomSFMT1, real_t>::bnd_gen_vector_norm), 10)
 		test_rng_mt_perf<AFog::CRandomSFMT1>(Thr, "AFSFMT1", i, 10);
 }

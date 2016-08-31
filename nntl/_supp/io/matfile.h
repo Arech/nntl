@@ -106,7 +106,7 @@ namespace nntl_supp {
 	};
 
 	template<typename ErrorsClassT = _matfile_errs>
-	class _matfile_base : public nntl::_has_last_error<ErrorsClassT>, protected nntl::math::simple_matrix_td {
+	class _matfile_base : public nntl::_has_last_error<ErrorsClassT>, protected nntl::math::smatrix_td {
 	protected:
 		typedef stack_presized<mxArray*, 4> structure_stack_t;		
 
@@ -359,16 +359,16 @@ namespace nntl_supp {
 		// We will update last_error only if an error occured!
 
 		template<typename BaseT>
-		self_ref_t operator<<(const nntl::math::simple_matrix<BaseT>& t) {
+		self_ref_t operator<<(const nntl::math::smatrix<BaseT>& t) {
 			NNTL_ASSERT(!t.empty() && t.numel() > 0 );
 			NNTL_ASSERT((m_matFile && m_curVarName) || !"Open file with openForSave() and use nvp/named_struct to pass data for saving!");
 			_save_var(t.rows(), t.cols(), t.data(), t.byte_size(), type2id<BaseT>::id);
 			return get_self();
 		}
-		//simple_matrix_deformable is expected to be in it's greatest possible size (or hidden data will be lost)
+		//smatrix_deform is expected to be in it's greatest possible size (or hidden data will be lost)
 		template<typename BaseT>
-		self_ref_t operator<<(const nntl::math::simple_matrix_deformable<BaseT>& t) {
-			return get_self().operator<<(static_cast<const nntl::math::simple_matrix<BaseT>&>(t));
+		self_ref_t operator<<(const nntl::math::smatrix_deform<BaseT>& t) {
+			return get_self().operator<<(static_cast<const nntl::math::smatrix<BaseT>&>(t));
 		}
 
 		template<size_t _Bits> self_ref_t operator<<(const std::bitset<_Bits>& t) {
@@ -404,7 +404,7 @@ namespace nntl_supp {
 		// Loading functions
 		// We will update last_error only if an error occurred!
 		template<typename BaseT>
-		self_ref_t operator>>(nntl::math::simple_matrix<BaseT>& t) {
+		self_ref_t operator>>(nntl::math::smatrix<BaseT>& t) {
 			NNTL_ASSERT((m_matFile && m_curVarName) || !"Open file with openForLoad() and use nvp/named_struct to address data to read!");
 			vec_len_t r, c;
 			auto pVar = _load_var(r, c);
@@ -429,10 +429,10 @@ namespace nntl_supp {
 			return get_self();
 		}
 
-		//greatest size of simple_matrix_deformable will correspond to the size read.
+		//greatest size of smatrix_deform will correspond to the size read.
 		template<typename BaseT>
-		self_ref_t operator>>(nntl::math::simple_matrix_deformable<BaseT>& t) {
-			get_self().operator>>(static_cast<nntl::math::simple_matrix<BaseT>&>(t));
+		self_ref_t operator>>(nntl::math::smatrix_deform<BaseT>& t) {
+			get_self().operator>>(static_cast<nntl::math::smatrix<BaseT>&>(t));
 			if (ErrorCode::Success == get_last_error()) t.update_on_hidden_resize();
 			return get_self();
 		}

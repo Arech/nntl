@@ -42,7 +42,7 @@ namespace nntl {
 	struct nnet_eval_results {
 		typedef RealT real_t;
 
-		math::simple_matrix<real_t> output_activations;
+		math::smatrix<real_t> output_activations;
 		real_t lossValue;
 
 		nnet_eval_results()noexcept:lossValue(0) {}

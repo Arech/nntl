@@ -43,7 +43,7 @@ namespace nntl {
 	// i_training_observer and derived classes must be default constructible
 	struct i_training_observer {
 		typedef math_types::real_ty real_t;
-		typedef math::simple_matrix<real_t> realmtx_t;
+		typedef math::smatrix<real_t> realmtx_t;
 		typedef realmtx_t::vec_len_t vec_len_t;
 		typedef realmtx_t::numel_cnt_t numel_cnt_t;
 		

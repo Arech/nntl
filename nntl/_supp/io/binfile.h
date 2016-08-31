@@ -124,13 +124,13 @@ namespace nntl_supp {
 	};
 
 
-	class binfile : public nntl::_has_last_error<_binfile_errs>, protected nntl::math::simple_matrix_td {
+	class binfile : public nntl::_has_last_error<_binfile_errs>, protected nntl::math::smatrix_td {
  	protected:
 // 		typedef nntl::train_data::realmtx_t realmtx_t;
 // 		typedef realmtx_t::value_type mtx_value_t;
 // 		typedef realmtx_t::vec_len_t vec_len_t;
 
-		template<typename T_> using simple_matrix = nntl::math::simple_matrix<T_>;
+		template<typename T_> using smatrix = nntl::math::smatrix<T_>;
 		template<typename T_> using train_data = nntl::train_data<T_>;
 
 	public:
@@ -142,7 +142,7 @@ namespace nntl_supp {
 		template <typename readInto_t>
 		const ErrorCode read(const char* fname, readInto_t& dest) {
 			static_assert(std::is_same<train_data<typename readInto_t::value_type>, readInto_t>::value
-				|| std::is_same<simple_matrix<typename readInto_t::value_type>, readInto_t>::value,
+				|| std::is_same<smatrix<typename readInto_t::value_type>, readInto_t>::value,
 				"Only nntl::train_data or nntl::train_data::mtx_t is supported as readInto_t template parameter");
 
 			FILE* fp=nullptr;
@@ -192,7 +192,7 @@ namespace nntl_supp {
 
 		template<typename T_>
 		const ErrorCode _read_into(FILE* fp, train_data<T_>& dest)noexcept {
-			typedef simple_matrix<T_> mtx_t;
+			typedef smatrix<T_> mtx_t;
 			mtx_t mtxs[total_members];
 
 			for (unsigned nel = 0; nel < _root_members::total_members; ++nel) {
@@ -213,7 +213,7 @@ namespace nntl_supp {
 			return ErrorCode::Success;
 		}
 		template<typename T_>
-		const ErrorCode _read_into(FILE* fp, simple_matrix<T_>& dest)noexcept {
+		const ErrorCode _read_into(FILE* fp, smatrix<T_>& dest)noexcept {
 			NNTL_ASSERT(!dest.bDontManageStorage());
 			NNTL_ASSERT(dest.empty());
 
@@ -222,7 +222,7 @@ namespace nntl_supp {
 		}
 
 		template<typename T_>
-		const ErrorCode _read_field_entry(FILE* fp, simple_matrix<T_>& m, _root_members& fieldId, const bool bReadTD=true)noexcept{
+		const ErrorCode _read_field_entry(FILE* fp, smatrix<T_>& m, _root_members& fieldId, const bool bReadTD=true)noexcept{
 			if (!m.empty()) return _set_last_error(ErrorCode::FieldHasBeenRead);
 
 			bin_file::FIELD_ENTRY fe;
@@ -294,14 +294,14 @@ namespace nntl_supp {
 		}
 
 		/*template <typename dest_value_type, typename src_value_type>
-		static void _convert_data(simple_matrix<dest_value_type>& dest, src_value_type* pSrc) noexcept {
+		static void _convert_data(smatrix<dest_value_type>& dest, src_value_type* pSrc) noexcept {
 			const auto pSrcE = pSrc + dest.numel_no_bias();
 			auto pD = dest.data();
 			while (pSrc != pSrcE) *pD++ = static_cast<dest_value_type>(*pSrc++);
 		}*/
 
 		template <typename readInto_t>
-		typename std::enable_if_t< std::is_same<simple_matrix<typename readInto_t::value_type>, readInto_t>::value, bool> elements_count_correct(decltype(bin_file::HEADER::wFieldsCount) cnt)const noexcept {
+		typename std::enable_if_t< std::is_same<smatrix<typename readInto_t::value_type>, readInto_t>::value, bool> elements_count_correct(decltype(bin_file::HEADER::wFieldsCount) cnt)const noexcept {
 			return 1 == cnt;
 		}
 		template <typename readInto_t>

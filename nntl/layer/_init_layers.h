@@ -163,7 +163,7 @@ namespace nntl {
 		// find out how many shared memory real_t's should be allocated by a nnet object during initialization phase
 		// and passed to the layer.initMem().
 		template<typename CommonNnData>
-		struct _layer_init_data : public math::simple_matrix_td {
+		struct _layer_init_data : public math::smatrix_td {
 			typedef CommonNnData common_data_t;
 
 			// "IN" marks variables that are passed to init() function, "OUT" marks output from init()
@@ -213,7 +213,7 @@ namespace nntl {
 
 		//////////////////////////////////////////////////////////////////////////
 		// structure to be filled during layers.init() to return necessary data back to nnet object
-		struct layers_mem_requirements : public math::simple_matrix_td {
+		struct layers_mem_requirements : public math::smatrix_td {
 			numel_cnt_t maxMemLayerTrainingRequire,//for nnet.train()
 				maxMemLayersFPropRequire,//#todo for nnet.eval()
 				maxSingledLdANumel,//the biggest dLdA matrix required for bprop()

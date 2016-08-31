@@ -32,7 +32,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #pragma once
 
 //This file contains implementation of some simplest generic-purpose(!) math algorithms over the data
-// inside simple_matrix class object
+// inside smatrix class object
 
 #include "../_i_threads.h"
 #include "smatrix.h"
@@ -51,7 +51,7 @@ namespace math {
 	//		such as _mt_cw MAY put restrictions on acceptable data sizes.
 
 	template<typename RealT, typename iThreadsT, typename ThresholdsT, typename FinalPolymorphChild>
-	class _simple_math {
+	class _SMath {
 		static_assert(std::is_base_of<threads::_i_threads<typename iThreadsT::range_t>, iThreadsT>::value, "iThreads must implement threads::_i_threads");
 
 	public:
@@ -61,16 +61,16 @@ namespace math {
 		typedef FinalPolymorphChild* self_ptr_t;
 
 		typedef RealT real_t;
-		typedef simple_matrix<real_t> realmtx_t;
+		typedef smatrix<real_t> realmtx_t;
 		typedef typename realmtx_t::vec_len_t vec_len_t;
 		typedef typename realmtx_t::numel_cnt_t numel_cnt_t;
 
-		typedef simple_matrix_deformable<real_t> realmtxdef_t;
+		typedef smatrix_deform<real_t> realmtxdef_t;
 
 		//typedef std::vector<vec_len_t> vector_of_vec_len_t;
 
-		typedef simple_rowcol_range<real_t> rowcol_range;
-		typedef simple_elements_range<real_t> elms_range;
+		typedef s_rowcol_range<real_t> rowcol_range;
+		typedef s_elems_range<real_t> elms_range;
 		// here's small guide for using rowcol_range/elms_range :
 		// Every function that should be multithreaded should have 3 (!!!) functions:
 		//	.1 func_st() which does purely singlethreaded processing. If needed, it must be aware of other threads running and
@@ -94,7 +94,7 @@ namespace math {
 		typedef ThresholdsT Thresholds_t;
 
 		//TODO: probably don't need this assert
-		static_assert(std::is_base_of<_impl::SIMPLE_MATH_THR<real_t>, Thresholds_t>::value, "Thresholds_t must be derived from _impl::SIMPLE_MATH_THR<real_t>");
+		static_assert(std::is_base_of<_impl::SMATH_THR<real_t>, Thresholds_t>::value, "Thresholds_t must be derived from _impl::SMATH_THR<real_t>");
 
 	protected:
 		typedef std::vector<real_t> thread_temp_storage_t;
@@ -126,17 +126,17 @@ namespace math {
 		}
 
 	public:
-		~_simple_math()noexcept {}
-		_simple_math()noexcept : m_minTempStorageSize(0) {}
+		~_SMath()noexcept {}
+		_SMath()noexcept : m_minTempStorageSize(0) {}
 
 		self_ref_t get_self() noexcept {
-			static_assert(std::is_base_of<_simple_math<RealT, iThreadsT, ThresholdsT, FinalPolymorphChild>, FinalPolymorphChild>::value
-				, "FinalPolymorphChild must derive from _simple_math<RealT, iThreadsT, FinalPolymorphChild>");
+			static_assert(std::is_base_of<_SMath<RealT, iThreadsT, ThresholdsT, FinalPolymorphChild>, FinalPolymorphChild>::value
+				, "FinalPolymorphChild must derive from _SMath<RealT, iThreadsT, FinalPolymorphChild>");
 			return static_cast<self_ref_t>(*this);
 		}
 		self_cref_t get_self() const noexcept {
-			static_assert(std::is_base_of<_simple_math<RealT, iThreadsT, ThresholdsT, FinalPolymorphChild>, FinalPolymorphChild>::value
-				, "FinalPolymorphChild must derive from _simple_math<RealT, iThreadsT, FinalPolymorphChild>");
+			static_assert(std::is_base_of<_SMath<RealT, iThreadsT, ThresholdsT, FinalPolymorphChild>, FinalPolymorphChild>::value
+				, "FinalPolymorphChild must derive from _SMath<RealT, iThreadsT, FinalPolymorphChild>");
 			return static_cast<self_cref_t>(*this);
 		}
 
@@ -173,7 +173,7 @@ namespace math {
 		// Math Methods
 	protected:
 		template<typename T_>
-		nntl_force_inline static void _memcpy_rowcol_range(T_* dest, const simple_matrix<T_>& A, const rowcol_range*const pRCR)noexcept {
+		nntl_force_inline static void _memcpy_rowcol_range(T_* dest, const smatrix<T_>& A, const rowcol_range*const pRCR)noexcept {
 			const T_* src;
 			size_t rm;
 			if (pRCR) {
@@ -352,7 +352,7 @@ namespace math {
 		nntl_force_inline static void _mrwVecOperation_st_cw(MtxT& A, VecValueT*const pVec, vec_len_t colBegin
 			, const rowcol_range& RCR, mrwOperationT&& F)noexcept
 		{
-			static_assert(std::is_same< simple_matrix<std::remove_const_t<VecValueT>>, std::remove_const_t<MtxT> >::value, "Types mismatch");
+			static_assert(std::is_same< smatrix<std::remove_const_t<VecValueT>>, std::remove_const_t<MtxT> >::value, "Types mismatch");
 			NNTL_ASSERT(!A.empty() && A.numel() > 0 && pVec);
 			NNTL_ASSERT(colBegin == 0 || colBegin == 1);
 			const size_t rm = A.rows(); // , cm = A.cols();
@@ -383,7 +383,7 @@ namespace math {
 		//Rowwise
 		template<typename MtxT, typename VecValueT, typename mrwOperationT>
 		nntl_force_inline static void _mrwVecOperation_st_rw(MtxT& A, VecValueT*const pVec, const rowcol_range& RCR, mrwOperationT&& F)noexcept {
-			static_assert(std::is_same< simple_matrix<std::remove_const_t<VecValueT>>, std::remove_const_t<MtxT> >::value, "Types mismatch");
+			static_assert(std::is_same< smatrix<std::remove_const_t<VecValueT>>, std::remove_const_t<MtxT> >::value, "Types mismatch");
 			NNTL_ASSERT(!A.empty() && A.numel() > 0 && pVec);
 			const auto pA = A.colDataAsVec(RCR.colBegin); //A.data();
 			const size_t rm = A.rows();
@@ -1416,11 +1416,11 @@ namespace math {
 	};
 
 
-	template<typename RealT, typename iThreadsT, typename ThresholdsT = _impl::SIMPLE_MATH_THR<RealT>>
-	class simple_math final : public _simple_math<RealT, iThreadsT, ThresholdsT, simple_math<RealT, iThreadsT, ThresholdsT>> {
+	template<typename RealT, typename iThreadsT, typename ThresholdsT = _impl::SMATH_THR<RealT>>
+	class SMath final : public _SMath<RealT, iThreadsT, ThresholdsT, SMath<RealT, iThreadsT, ThresholdsT>> {
 	public:
-		~simple_math()noexcept {}
-		simple_math()noexcept : _simple_math<RealT, iThreadsT, ThresholdsT, simple_math<RealT, iThreadsT, ThresholdsT>>() {}
+		~SMath()noexcept {}
+		SMath()noexcept : _SMath<RealT, iThreadsT, ThresholdsT, SMath<RealT, iThreadsT, ThresholdsT>>() {}
 
 	};
 }
