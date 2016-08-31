@@ -45,7 +45,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //#include <vector>
 
 #include "_defs.h"
-#include "interface/math/matrix.h"
+#include "interface/math/smatrix.h"
 
 namespace nntl {
 namespace math {

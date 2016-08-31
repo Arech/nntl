@@ -306,7 +306,7 @@
     <ClInclude Include="..\nntl\interface\math\smath_thr.h">
       <Filter>nntl\interface\math</Filter>
     </ClInclude>
-    <ClInclude Include="..\nntl\interface\math\matrix.h">
+    <ClInclude Include="..\nntl\interface\math\smatrix.h">
       <Filter>nntl\interface\math</Filter>
     </ClInclude>
   </ItemGroup>

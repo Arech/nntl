@@ -44,7 +44,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "../../serialization/serialization.h"
 
 #include "../../errors.h"
-#include "../../interface/math/matrix.h"
+#include "../../interface/math/smatrix.h"
 
 //#pragma warning(push)
 //#pragma warning( disable : 4503 )
