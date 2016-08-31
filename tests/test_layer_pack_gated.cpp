@@ -136,7 +136,7 @@ void simple_gatedNN(train_data<real_t>& td, const vec_len_t gateIdx, const uint6
 
 }
 
-struct simple_case_common_info {
+struct TLPG_simple_td {
 	//typedef activation::sigm<> simple_act_hid;
 	//weights_init::XavierFour is suitable for very small layers
 	typedef activation::sigm<weights_init::XavierFour> simple_act_hid;
@@ -158,7 +158,7 @@ struct simple_case_common_info {
 	static constexpr size_t simple_lFd1nc = 15;
 	static constexpr size_t simple_lFd2nc = 10;
 
-	static constexpr size_t epochs = 20;
+	static constexpr size_t epochs = 10;
 #endif
 
 	static constexpr real_t learningRate = real_t(.001);
@@ -173,24 +173,24 @@ TEST(TestLayerPackGated, Simple) {
 	train_data<real_t> td, gatedTd;
 	readTd(td);
 
-	simple_BaselineNN<simple_case_common_info>(td, seedV);
+	simple_BaselineNN<TLPG_simple_td>(td, seedV);
 
 	const auto gateIdx = td.train_x().cols_no_bias()/2;
 	makeTdForGatedSetup(td, gatedTd, seedV, true);
 
 	STDCOUTL("With partially opened gate - should be worse than the baseline");
-	//simple_gatedNN<simple_case_common_info,true>(gatedTd, gateIdx, seedV);
-	simple_gatedNN<simple_case_common_info, false>(gatedTd, gateIdx, seedV);
+	//simple_gatedNN<TLPG_simple_td,true>(gatedTd, gateIdx, seedV);
+	simple_gatedNN<TLPG_simple_td, false>(gatedTd, gateIdx, seedV);
 
 	STDCOUTL("Gate completely closed - should demonstrate poor results");
 	gatedTd.train_x().fill_column_with(gateIdx, real_t(0.));
 	gatedTd.test_x().fill_column_with(gateIdx, real_t(0.));
-	//simple_gatedNN<simple_case_common_info, true>(gatedTd, gateIdx, seedV);
-	simple_gatedNN<simple_case_common_info, false>(gatedTd, gateIdx, seedV);
+	//simple_gatedNN<TLPG_simple_td, true>(gatedTd, gateIdx, seedV);
+	simple_gatedNN<TLPG_simple_td, false>(gatedTd, gateIdx, seedV);
 
 	STDCOUTL("Gate completely opened - should demonstrate similar to the baseline results");
 	gatedTd.train_x().fill_column_with(gateIdx, real_t(1.));
 	gatedTd.test_x().fill_column_with(gateIdx, real_t(1.));
-	//simple_gatedNN<simple_case_common_info, true>(gatedTd, gateIdx, seedV);
-	simple_gatedNN<simple_case_common_info, false>(gatedTd, gateIdx, seedV);
+	//simple_gatedNN<TLPG_simple_td, true>(gatedTd, gateIdx, seedV);
+	simple_gatedNN<TLPG_simple_td, false>(gatedTd, gateIdx, seedV);
 }

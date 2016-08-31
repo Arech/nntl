@@ -55,13 +55,11 @@ namespace nntl {
 
 	public:
 		~_layer_identity()noexcept {}
-		_layer_identity()noexcept : _base_class(0) {
+		_layer_identity(const char* pCustomName = nullptr)noexcept : _base_class(0, pCustomName) {
 			m_activations.will_emulate_biases();
 		}
 
-		void get_layer_name(char* pName, const size_t cnt)const noexcept {
-			sprintf_s(pName, cnt, "id%d", static_cast<unsigned>(get_self().get_layer_idx()));
-		}
+		static constexpr const char* _defName = "id";
 
 		//////////////////////////////////////////////////////////////////////////
 		const realmtxdef_t& get_activations()const noexcept { return m_activations; }
@@ -98,6 +96,7 @@ namespace nntl {
 			//should not restore biases here, because for compound layers its a job for their fprop() implementation
 		}
 	protected:
+
 		void _fprop(const realmtx_t& prevActivations)noexcept {
 			NNTL_ASSERT(prevActivations.size() == m_activations.size());
 			NNTL_ASSERT(m_activations.bDontManageStorage());
@@ -112,7 +111,8 @@ namespace nntl {
 	public:
 		//we're restricting the use of layer_identity to layer_pack_horizontal only
 		template <typename LowerLayerWrapper>
-		std::enable_if_t<_impl::is_layer_wrapper<LowerLayerWrapper>::value> fprop(const LowerLayerWrapper& lowerLayer)noexcept{
+		std::enable_if_t<_impl::is_layer_wrapper<LowerLayerWrapper>::value> fprop(const LowerLayerWrapper& lowerLayer)noexcept
+		{
 			static_assert(std::is_base_of<_i_layer_fprop, LowerLayerWrapper>::value, "Template parameter LowerLayerWrapper must implement _i_layer_fprop");
 			NNTL_ASSERT(lowerLayer.get_activations().test_biases_ok());
 			get_self()._fprop(lowerLayer.get_activations());
@@ -159,6 +159,9 @@ namespace nntl {
 	private:
 		typedef _layer_identity<Interfaces, FinalPolymorphChild> _base_class;
 
+	public:
+		using _base_class::real_t;
+
 		//////////////////////////////////////////////////////////////////////////
 		//members section (in "biggest first" order)
 	protected:
@@ -166,13 +169,10 @@ namespace nntl {
 
 	public:
 		~_layer_identity_gate()noexcept {}
-		_layer_identity_gate()noexcept : _base_class() {
+		_layer_identity_gate(const char* pCustomName = nullptr)noexcept : _base_class(pCustomName) {
 			m_gate.dont_emulate_biases();
 		}
-
-		void get_layer_name(char* pName, const size_t cnt)const noexcept {
-			sprintf_s(pName, cnt, "idg%d", static_cast<unsigned>(get_self().get_layer_idx()));
-		}
+		static constexpr const char* _defName = "idg";
 
 		//////////////////////////////////////////////////////////////////////////
 		const realmtx_t& get_gate()const noexcept { return m_gate; }
@@ -220,20 +220,22 @@ namespace nntl {
 	//////////////////////////////////////////////////////////////////////////
 	//
 	// 
-	template <typename Interfaces = nnet_def_interfaces>
+	template <typename Interfaces = d_interfaces>
 	class layer_identity final : public _layer_identity<Interfaces, layer_identity<Interfaces>>
 	{
 	public:
 		~layer_identity() noexcept {};
-		layer_identity() noexcept : _layer_identity<Interfaces, layer_identity<Interfaces>> () {};
+		layer_identity(const char* pCustomName = nullptr) noexcept 
+			: _layer_identity<Interfaces, layer_identity<Interfaces>> (pCustomName) {};
 	};
 
-	template <typename Interfaces = nnet_def_interfaces>
+	template <typename Interfaces = d_interfaces>
 	class layer_identity_gate final : public _layer_identity_gate<Interfaces, layer_identity_gate<Interfaces>>
 	{
 	public:
 		~layer_identity_gate() noexcept {};
-		layer_identity_gate() noexcept : _layer_identity_gate<Interfaces, layer_identity_gate<Interfaces>>() {};
+		layer_identity_gate(const char* pCustomName = nullptr) noexcept 
+			: _layer_identity_gate<Interfaces, layer_identity_gate<Interfaces>>(pCustomName) {};
 	};
 
 }

@@ -35,10 +35,10 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 namespace nntl {
 
-	template<typename ActivFunc, typename Interfaces, typename GradWorks, typename FinalPolymorphChild>
-	class _layer_output : public m_layer_output, public _layer_base<Interfaces, FinalPolymorphChild> {
+	template<typename ActivFunc, typename GradWorks, typename FinalPolymorphChild>
+	class _layer_output : public m_layer_output, public _layer_base<typename GradWorks::interfaces_t, FinalPolymorphChild> {
 	private:
-		typedef _layer_base<Interfaces, FinalPolymorphChild> _base_class;
+		typedef _layer_base<typename GradWorks::interfaces_t, FinalPolymorphChild> _base_class;
 
 	public:
 		typedef ActivFunc activation_f_t;
@@ -48,7 +48,7 @@ namespace nntl {
 		static_assert(std::is_base_of<activation::_i_activation_loss, activation_f_t>::value, "ActivFunc template parameter should be derived from activation::_i_activation_loss");
 
 		typedef GradWorks grad_works_t;
-		static_assert(std::is_base_of<_i_grad_works, grad_works_t>::value, "GradWorks template parameter should be derived from _i_grad_works");
+		static_assert(std::is_base_of<_i_grad_works<real_t>, grad_works_t>::value, "GradWorks template parameter should be derived from _i_grad_works");
 
 		//////////////////////////////////////////////////////////////////////////
 		//members
@@ -104,18 +104,15 @@ namespace nntl {
 	public:
 		~_layer_output() noexcept {};
 
-		_layer_output(const neurons_count_t _neurons_cnt, real_t learningRate = 0.01) noexcept
-			: _base_class(_neurons_cnt), m_activations(), m_weights(), m_dLdZ(), m_dLdW(), m_bWeightsInitialized(false)
+		_layer_output(const neurons_count_t _neurons_cnt, real_t learningRate = 0.01, const char* pCustomName = nullptr) noexcept
+			: _base_class(_neurons_cnt, pCustomName), m_activations(), m_weights(), m_dLdZ(), m_dLdW(), m_bWeightsInitialized(false)
 			, m_gradientWorks(learningRate)
 			, m_bRestrictdLdZ(false), m_dLdZRestrictLowerBnd(.0), m_dLdZRestrictUpperBnd(.0)
 		{
 			//dont need biases in last layer!  --- it is OFF by default
 			//m_activations.dont_emulate_biases();
 		};
-
-		void get_layer_name(char* pName, const size_t cnt)const noexcept {
-			sprintf_s(pName, cnt, "outp%d", static_cast<unsigned>(get_self().get_layer_idx()));
-		}
+		static constexpr const char* _defName = "outp";
 
 		//constexpr const bool is_output_layer()const noexcept { return true; }
 		const realmtxdef_t& get_activations()const noexcept { return m_activations; }
@@ -139,7 +136,6 @@ namespace nntl {
 			m_bWeightsInitialized = true;
 			return true;
 		}
-
 
 		ErrorCode init(_layer_init_data_t& lid)noexcept {
 			auto ec = _base_class::init(lid);
@@ -192,7 +188,7 @@ namespace nntl {
 					+ m_weights.numel();
 			}
 
-			if (!m_gradientWorks.init(grad_works_t::init_struct_t(& get_self().get_iMath(), m_weights.size())))return ErrorCode::CantInitializeGradWorks;
+			if (!m_gradientWorks.init(get_self().get_common_data(), m_weights.size()))return ErrorCode::CantInitializeGradWorks;
 
 			lid.bHasLossAddendum = hasLossAddendum();
 
@@ -240,6 +236,7 @@ namespace nntl {
 			_Math.mMulABt_Cnb(prevActivations, m_weights, m_activations);
 			activation_f_t::f(m_activations, _Math);
 		}
+
 		void _bprop(const realmtx_t& data_y, const realmtx_t& prevActivations, const bool bPrevLayerIsInput, realmtx_t& dLdAPrev)noexcept {
 			data_y.assert_storage_does_not_intersect(dLdAPrev);
 			dLdAPrev.assert_storage_does_not_intersect(m_dLdW);
@@ -284,7 +281,6 @@ namespace nntl {
 		template <typename LowerLayer>
 		const unsigned bprop(const realmtx_t& data_y, const LowerLayer& lowerLayer, realmtx_t& dLdAPrev)noexcept {
 			static_assert(std::is_base_of<_i_layer_trainable, LowerLayer>::value, "Template parameter LowerLayer must implement _i_layer_trainable");
-			//STDCOUTL("bprop " << get_layer_name_str());
 			NNTL_ASSERT(lowerLayer.get_activations().test_biases_ok());
 			get_self()._bprop(data_y, lowerLayer.get_activations(), std::is_base_of<m_layer_input, LowerLayer>::value, dLdAPrev);
 			NNTL_ASSERT(lowerLayer.get_activations().test_biases_ok());
@@ -334,15 +330,16 @@ namespace nntl {
 	// final implementation of layer with all functionality of _layer_output
 	// If you need to derive a new class, derive it from _layer_output (to make static polymorphism work)
 	template <typename ActivFunc = activation::sigm_quad_loss<>,
-		typename Interfaces = nnet_def_interfaces,
-		typename GradWorks = grad_works<typename Interfaces::iMath_t>
+		typename GradWorks = grad_works<d_interfaces>
 	> class layer_output final 
-		: public _layer_output<ActivFunc, Interfaces, GradWorks, layer_output<ActivFunc, Interfaces, GradWorks>>
+		: public _layer_output<ActivFunc, GradWorks, layer_output<ActivFunc, GradWorks>>
 	{
 	public:
 		~layer_output() noexcept {};
-		layer_output(const neurons_count_t _neurons_cnt, const real_t learningRate=0.01) noexcept :
-			_layer_output<ActivFunc, Interfaces, GradWorks, layer_output<ActivFunc, Interfaces, GradWorks>>(_neurons_cnt, learningRate) {};
+		layer_output(const neurons_count_t _neurons_cnt, const real_t learningRate=real_t(0.01)
+			, const char* pCustomName = nullptr) noexcept 
+			: _layer_output<ActivFunc, GradWorks, layer_output<ActivFunc, GradWorks>>(_neurons_cnt, learningRate, pCustomName)
+		{};
 	};
 }
 

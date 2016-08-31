@@ -46,6 +46,8 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "errors.h"
 #include "train_data.h"
 
+#include "interface/i_inspector.h"
+
 #include "weights_init.h"
 
 #include "activation.h"

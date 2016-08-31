@@ -57,7 +57,9 @@ namespace nntl {
 	// May be will provide a move semantic later that will allow to instantiate layers in one place, then move them into layers
 	// and then move layers into nnet. But now there's no real need in this (I think)
 	template <typename ...Layrs>
-	class layers : public math::simple_matrix_typedefs {
+	class layers 
+		: public math::simple_matrix_td
+		, public interfaces_td<typename std::remove_reference<typename std::tuple_element<0, std::tuple<Layrs&...>>::type>::type::interfaces_t> {
 	public:
 		typedef const std::tuple<Layrs&...> _layers;
 
@@ -68,10 +70,12 @@ namespace nntl {
 		typedef typename std::remove_reference<typename std::tuple_element<layers_count - 2, _layers>::type>::type preoutput_layer_t;
 
 		//matrix type to feed into forward propagation
-		typedef typename output_layer_t::real_t real_t;
-		typedef _i_layer<real_t> _i_layer_t;
-		typedef typename _i_layer_t::realmtx_t realmtx_t;
-		typedef typename _i_layer_t::realmtxdef_t realmtxdef_t;
+
+		typedef typename output_layer_t::common_data_t common_data_t;
+		typedef typename output_layer_t::_layer_init_data_t _layer_init_data_t;
+
+		typedef typename iMath_t::realmtx_t realmtx_t;
+		typedef typename iMath_t::realmtxdef_t realmtxdef_t;
 
 		typedef _nnet_errs::ErrorCode ErrorCode;
 		typedef std::pair<ErrorCode, layer_index_t> layer_error_t;
@@ -99,10 +103,7 @@ namespace nntl {
 		template<class Archive>
 		void serialize(Archive & ar, const unsigned int version) {
 			for_each_packed_layer([&ar](auto& l) {
-				constexpr size_t maxStrlen = 16;
-				char lName[maxStrlen];
-				l.get_layer_name(lName, maxStrlen);
-				ar & serialization::make_named_struct(lName, l);
+				ar & serialization::make_named_struct(l.get_layer_name_str().c_str(), l);
 			});
 		}
 
@@ -155,13 +156,12 @@ namespace nntl {
 		preoutput_layer_t& preoutput_layer()const noexcept { return std::get<layers_count - 2>(m_layers); }
 
 		//perform layers initialization before training begins.
-		template <typename CommonData>
-		layer_error_t init(const CommonData& cd, _impl::layers_mem_requirements& LMR)const noexcept
+		layer_error_t init(const common_data_t& cd, _impl::layers_mem_requirements& LMR)const noexcept
 		{
 			ErrorCode ec = ErrorCode::Success;
 			layer_index_t failedLayerIdx = 0;
 
-			_impl::_layer_init_data<CommonData> lid(cd);
+			_layer_init_data_t lid(cd);
 
 			utils::for_each_up(m_layers, [&](auto& lyr)noexcept {
 				if (ErrorCode::Success == ec) {
@@ -221,7 +221,9 @@ namespace nntl {
 
 		void fprop(const realmtx_t& data_x)const noexcept {
 			NNTL_ASSERT(data_x.test_biases_ok());
+
 			input_layer().fprop(data_x);
+
 			utils::for_eachwp_up(m_layers, [](auto& lcur, auto& lprev, const bool)noexcept {
 				NNTL_ASSERT(lprev.get_activations().test_biases_ok());
 				lcur.fprop(lprev);

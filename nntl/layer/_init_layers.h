@@ -35,6 +35,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <type_traits>
 #include <algorithm>
 #include "_pack_traits.h"
+#include "../common_nn_data.h"
 
 namespace nntl {
 
@@ -155,80 +156,6 @@ namespace nntl {
 			}
 		};
 
-		//////////////////////////////////////////////////////////////////////////
-		// this structure will contain all common data shared between nn object and layers including
-		// pointers to math&rng interfaces and some data related to current nn.train() call only.
-		// This structure is expected to live within nn object (and share it lifetime) and can be reinitialized
-		// to work with another train() session. Reference to this structure is passed to each layer
-		// during layer.init() call and should be stored in it to provide access to its data.
-		template<typename i_math_t_, typename i_rng_t_>
-		struct common_nn_data : public math::simple_matrix_typedefs {
-			typedef i_math_t_ i_math_t;
-			typedef i_rng_t_ i_rng_t;
-			typedef typename i_math_t::real_t real_t;
-			static_assert(std::is_base_of<math::_i_math<real_t>, i_math_t>::value, "i_math_t type should be derived from _i_math");
-			static_assert(std::is_base_of<rng::_i_rng, i_rng_t>::value, "i_rng_t type should be derived from _i_rng");
-
-			typedef common_nn_data<i_math_t_, i_rng_t_> self_t;
-
-			//////////////////////////////////////////////////////////////////////////
-			//members
-		protected:
-			//same for every train() session
-			i_math_t* m_iMath;
-			i_rng_t* m_iRng;
-
-			//could be different in different train() sessions.
-			vec_len_t m_max_fprop_batch_size;//The biggest samples count for fprop(), usually this is data_x.rows()
-			vec_len_t m_training_batch_size;//Fixed samples count for bprop(), usually it is a batchSize
-
-			//////////////////////////////////////////////////////////////////////////
-			// methods
-		public:
-			~common_nn_data()noexcept { deinit(); }
-			common_nn_data()noexcept : m_iMath(nullptr), m_iRng(nullptr)
-				, m_max_fprop_batch_size(0), m_training_batch_size(0)
-			{}
-			common_nn_data(i_math_t& im, i_rng_t& ir)noexcept : m_iMath(&im), m_iRng(&ir)
-				, m_max_fprop_batch_size(0), m_training_batch_size(0)
-			{}
-
-			//call before the object use if the default constructor have been used
-			void setInterfaces(i_math_t& im, i_rng_t& ir)noexcept {
-				m_iMath = &im;
-				m_iRng = &ir;
-			}
-
-			void deinit()noexcept {
-				m_max_fprop_batch_size = 0;
-				m_training_batch_size = 0;
-			}
-			void init(vec_len_t fbs, vec_len_t bbs)noexcept {
-				NNTL_ASSERT(m_iMath && m_iRng);//must be preinitialized!
-				NNTL_ASSERT(m_max_fprop_batch_size == 0 && m_training_batch_size == 0);
-				NNTL_ASSERT(fbs >= bbs);//essential assumption
-				m_max_fprop_batch_size = fbs;
-				m_training_batch_size = bbs;
-			}
-
-			i_math_t& iMath()const noexcept { NNTL_ASSERT(m_iMath); return *m_iMath; }
-			i_rng_t& iRng()const noexcept { NNTL_ASSERT(m_iRng); return *m_iRng; }
-			const vec_len_t max_fprop_batch_size()const noexcept {
-				NNTL_ASSERT(m_iMath && m_iRng);//must be preinitialized!
-				NNTL_ASSERT(m_max_fprop_batch_size > 0);
-				return m_max_fprop_batch_size;
-			}
-			const vec_len_t training_batch_size()const noexcept {
-				//NNTL_ASSERT(m_training_batch_size >= 0);//batch size could be 0 to run fprop() only
-				NNTL_ASSERT(m_iMath && m_iRng);//must be preinitialized!
-				return m_training_batch_size;
-			}
-
-			const bool is_initialized()const noexcept {
-				NNTL_ASSERT(m_iMath && m_iRng);//must be preinitialized!
-				return m_max_fprop_batch_size > 0;
-			}
-		};
 
 		//////////////////////////////////////////////////////////////////////////
 		// This structure is passed to a _i_layer.init() during initialization phase.
@@ -236,7 +163,7 @@ namespace nntl {
 		// find out how many shared memory real_t's should be allocated by a nnet object during initialization phase
 		// and passed to the layer.initMem().
 		template<typename CommonNnData>
-		struct _layer_init_data : public math::simple_matrix_typedefs {
+		struct _layer_init_data : public math::simple_matrix_td {
 			typedef CommonNnData common_data_t;
 
 			// "IN" marks variables that are passed to init() function, "OUT" marks output from init()
@@ -286,7 +213,7 @@ namespace nntl {
 
 		//////////////////////////////////////////////////////////////////////////
 		// structure to be filled during layers.init() to return necessary data back to nnet object
-		struct layers_mem_requirements : public math::simple_matrix_typedefs {
+		struct layers_mem_requirements : public math::simple_matrix_td {
 			numel_cnt_t maxMemLayerTrainingRequire,//for nnet.train()
 				maxMemLayersFPropRequire,//#todo for nnet.eval()
 				maxSingledLdANumel,//the biggest dLdA matrix required for bprop()

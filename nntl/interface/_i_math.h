@@ -55,9 +55,6 @@ namespace math {
 
 	public:
 		typedef RealT real_t;
-		//typedef math_types::realmtx_ty realmtx_t;
-		//typedef math_types::realmtxdef_ty realmtxdef_t;
-		//typedef realmtx_t::value_type real_t;
 		typedef simple_matrix<real_t> realmtx_t;
 		typedef simple_matrix_deformable<real_t> realmtxdef_t;
 		typedef typename realmtx_t::vec_len_t vec_len_t;

@@ -124,7 +124,7 @@ namespace nntl_supp {
 	};
 
 
-	class binfile : public nntl::_has_last_error<_binfile_errs>, protected nntl::math::simple_matrix_typedefs {
+	class binfile : public nntl::_has_last_error<_binfile_errs>, protected nntl::math::simple_matrix_td {
  	protected:
 // 		typedef nntl::train_data::realmtx_t realmtx_t;
 // 		typedef realmtx_t::value_type mtx_value_t;

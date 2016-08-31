@@ -40,7 +40,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "../nntl/common.h"
 
 #include "../nntl/interface/math/imath_basic.h"
-#include "../nntl/nnet_def_interfaces.h"
+#include "../nntl/interfaces.h"
 
 #include <array>
 #include <numeric>
@@ -124,7 +124,7 @@ void check_softmax_parts(iMath& iM, vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 
 	iM.preinit(dataSize);
 	ASSERT_TRUE(iM.init());
-	nnet_def_interfaces::iRng_t rg;
+	d_interfaces::iRng_t rg;
 	rg.set_ithreads(iM.ithreads());
 
 	{
@@ -177,7 +177,7 @@ void check_softmax_parts(iMath& iM, vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 	tStRw.say("st_rw");
 }
 TEST(TestPerfDecisions, softmaxParts) {
-	typedef nntl::nnet_def_interfaces::iThreads_t def_threads_t;
+	typedef nntl::d_interfaces::iThreads_t def_threads_t;
 	typedef math::iMath_basic<real_t, def_threads_t> iMB;
 	iMB iM;
 	check_softmax_parts(iM, 100, 100);
@@ -282,7 +282,7 @@ void check_maxRowwise(iMath& iM, vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 	std::vector<vec_len_t> idxs_st_naive(rowsCnt), idxs_st_memf(rowsCnt);
 	std::vector<real_t> max_st_memf(rowsCnt);
 
-	nnet_def_interfaces::iRng_t rg;
+	d_interfaces::iRng_t rg;
 	rg.set_ithreads(iM.ithreads());
 
 	//vec_len_t* pDummy = nullptr;
@@ -335,7 +335,7 @@ void check_maxRowwise(iMath& iM, vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 	//tStMemfOpt.say("st_memfopt");
 }
 TEST(TestPerfDecisions, MaxRowwise) {
-	typedef nntl::nnet_def_interfaces::iThreads_t def_threads_t;
+	typedef nntl::d_interfaces::iThreads_t def_threads_t;
 	typedef math::iMath_basic<real_t, def_threads_t> iMB;
 	iMB iM;
 	NNTL_RUN_TEST2(100*100, 100) check_maxRowwise(iM, i, 100);
@@ -378,7 +378,7 @@ void check_evCMulSub(iMath& iM, vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 	realmtx_t vW(rowsCnt, colsCnt), W(colsCnt, rowsCnt), vW2(colsCnt, rowsCnt), W2(colsCnt, rowsCnt);
 	ASSERT_TRUE(!vW.isAllocationFailed() && !W.isAllocationFailed() && !vW2.isAllocationFailed() && !W2.isAllocationFailed());
 
-	nnet_def_interfaces::iRng_t rg;
+	d_interfaces::iRng_t rg;
 	rg.set_ithreads(iM.ithreads());
 	rg.gen_matrix(vW2, 2);
 	rg.gen_matrix(W2, 2);
@@ -405,7 +405,7 @@ void check_evCMulSub(iMath& iM, vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 	STDCOUTL("comb:\t" << utils::duration_readable(diffComb, maxReps));
 }
 TEST(TestPerfDecisions, CMulSub) {
-	typedef nntl::nnet_def_interfaces::iThreads_t def_threads_t;
+	typedef nntl::d_interfaces::iThreads_t def_threads_t;
 	typedef math::iMath_basic<real_t, def_threads_t> iMB;
 	iMB iM;
 
@@ -483,7 +483,7 @@ void check_mTranspose(iMath& iM, vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 	realmtx_t src(rowsCnt, colsCnt), dest(colsCnt, rowsCnt), destEt(colsCnt, rowsCnt);
 	ASSERT_TRUE(!src.isAllocationFailed() && !dest.isAllocationFailed() && !destEt.isAllocationFailed());
 	
-	nnet_def_interfaces::iRng_t rg;
+	d_interfaces::iRng_t rg;
 	rg.set_ithreads(iM.ithreads());
 	rg.gen_matrix(src, 10);
 
@@ -549,7 +549,7 @@ And by the way - it's a way slower (x4-x5), than whole rowwise_renorm operation 
 	 **/
 }
 TEST(TestPerfDecisions, mTranspose) {
-	typedef nntl::nnet_def_interfaces::iThreads_t def_threads_t;
+	typedef nntl::d_interfaces::iThreads_t def_threads_t;
 	typedef math::iMath_basic<real_t, def_threads_t> iMB;
 	iMB iM;
 
@@ -784,7 +784,7 @@ void check_rowvecs_renorm(iMath& iM, vec_len_t rowsCnt, vec_len_t colsCnt = 10) 
 	std::vector<real_t> tmp(rowsCnt);
 	std::vector<size_t> ofs(rowsCnt);
 
-	nnet_def_interfaces::iRng_t rg;
+	d_interfaces::iRng_t rg;
 	rg.set_ithreads(iM.ithreads());
 
 	steady_clock::time_point bt;
@@ -832,7 +832,7 @@ void check_rowvecs_renorm(iMath& iM, vec_len_t rowsCnt, vec_len_t colsCnt = 10) 
 
 }
 TEST(TestPerfDecisions, rowvecsRenorm) {
-	typedef nntl::nnet_def_interfaces::iThreads_t def_threads_t;
+	typedef nntl::d_interfaces::iThreads_t def_threads_t;
 	typedef math::iMath_basic<real_t, def_threads_t> iMB;
 	iMB iM;
 
@@ -909,7 +909,7 @@ void check_rowwiseNormsq(iMath& iM, vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 	ASSERT_TRUE(!W.isAllocationFailed());
 	std::vector<real_t> normvecEt(rowsCnt), normvec(rowsCnt);
 	
-	nnet_def_interfaces::iRng_t rg;
+	d_interfaces::iRng_t rg;
 	rg.set_ithreads(iM.ithreads());
 
 	rg.gen_matrix(W, scale);
@@ -944,7 +944,7 @@ void check_rowwiseNormsq(iMath& iM, vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 	STDCOUTL("clmnw:\t" << utils::duration_readable(diffClmnw, maxReps));
 }
 TEST(TestPerfDecisions, rowwiseNormsq) {
-	typedef nntl::nnet_def_interfaces::iThreads_t def_threads_t;
+	typedef nntl::d_interfaces::iThreads_t def_threads_t;
 	typedef math::iMath_basic<real_t, def_threads_t> iMB;
 	iMB iM;
 
@@ -1075,7 +1075,7 @@ void check_sigm_loss_xentropy(iMath& iM, vec_len_t rowsCnt, vec_len_t colsCnt = 
 	realmtx_t act(rowsCnt, colsCnt), data_y(rowsCnt, colsCnt), t1(rowsCnt, colsCnt), t2(rowsCnt, colsCnt);
 	ASSERT_TRUE(!act.isAllocationFailed() && !data_y.isAllocationFailed() && !t1.isAllocationFailed() && !t2.isAllocationFailed());
 
-	nnet_def_interfaces::iRng_t rg;
+	d_interfaces::iRng_t rg;
 	rg.set_ithreads(iM.ithreads());
 
 	utils::prioritize_workers<utils::PriorityClass::PerfTesting, iMath::ithreads_t> pw(iM.ithreads());
@@ -1085,7 +1085,7 @@ void check_sigm_loss_xentropy(iMath& iM, vec_len_t rowsCnt, vec_len_t colsCnt = 
 	run_sigm_loss_xentropy(rg, iM, act, data_y, t1, t2, maxReps, real_t(.9));
 }
 TEST(TestPerfDecisions, sigmLossXentropy) {
-	typedef nntl::nnet_def_interfaces::iThreads_t def_threads_t;
+	typedef nntl::d_interfaces::iThreads_t def_threads_t;
 	typedef math::iMath_basic<real_t, def_threads_t> iMB;
 	iMB iM;
 
@@ -1141,7 +1141,7 @@ void check_apply_momentum_perf(iMath& iM, vec_len_t rowsCnt, vec_len_t colsCnt =
 	iM.preinit(dataSize);
 	ASSERT_TRUE(iM.init());
 
-	nnet_def_interfaces::iRng_t rg;
+	d_interfaces::iRng_t rg;
 	rg.set_ithreads(iM.ithreads());
 	rg.gen_matrix(dW, 2);
 	rg.gen_matrix(vW, 2);
@@ -1172,7 +1172,7 @@ void check_apply_momentum_perf(iMath& iM, vec_len_t rowsCnt, vec_len_t colsCnt =
 	STDCOUTL("while2:\t" << utils::duration_readable(diff, maxReps, &tWHILE));
 }
 TEST(TestPerfDecisions, applyMomentum) {
-	typedef nntl::nnet_def_interfaces::iThreads_t def_threads_t;
+	typedef nntl::d_interfaces::iThreads_t def_threads_t;
 	typedef math::iMath_basic<real_t, def_threads_t> iMB;
 	iMB iM;
 
@@ -1202,7 +1202,7 @@ void test_sign_perf(iMath& iM, vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 	realmtx_t dW(rowsCnt, colsCnt);
 	ASSERT_TRUE(!dW.isAllocationFailed());
 
-	nnet_def_interfaces::iRng_t rg;
+	d_interfaces::iRng_t rg;
 	rg.set_ithreads(iM.ithreads());
 
 	//testing performance
@@ -1283,7 +1283,7 @@ void test_sign_perf(iMath& iM, vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 }
 
 TEST(TestPerfDecisions, Sign) {
-	typedef nntl::nnet_def_interfaces::iThreads_t def_threads_t;
+	typedef nntl::d_interfaces::iThreads_t def_threads_t;
 	typedef math::iMath_basic<real_t, def_threads_t> iMB;
 
 	iMB iM;
@@ -1377,7 +1377,7 @@ void test_rmsproph_perf(iMath& iM, vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 	
 	rms.zeros();
 
-	nnet_def_interfaces::iRng_t rg;
+	d_interfaces::iRng_t rg;
 	rg.set_ithreads(iM.ithreads());
 
 	diff = nanoseconds(0);
@@ -1400,7 +1400,7 @@ void test_rmsproph_perf(iMath& iM, vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 }
 
 TEST(TestPerfDecisions, RmsPropH) {
-	typedef nntl::nnet_def_interfaces::iThreads_t def_threads_t;
+	typedef nntl::d_interfaces::iThreads_t def_threads_t;
 	typedef math::iMath_basic<real_t, def_threads_t> iMB;
 
 	iMB iM;
@@ -1477,7 +1477,7 @@ void test_dropout_perf(iMath& iM, vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 	ASSERT_TRUE(!act.isAllocationFailed() && !dm.isAllocationFailed());
 
 
-	nnet_def_interfaces::iRng_t rg;
+	d_interfaces::iRng_t rg;
 	rg.set_ithreads(iM.ithreads());
 	rg.gen_matrix_no_bias(act, 100);
 
@@ -1502,7 +1502,7 @@ void test_dropout_perf(iMath& iM, vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 /*
  * this is BS
 TEST(TestPerfDecisions, Dropout) {
-	typedef nntl::nnet_def_interfaces::iThreads_t def_threads_t;
+	typedef nntl::d_interfaces::iThreads_t def_threads_t;
 	typedef math::iMath_basic<real_t, def_threads_t> iMB;
 
 	iMB iM;

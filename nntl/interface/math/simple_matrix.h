@@ -43,7 +43,7 @@ namespace nntl {
 namespace math {
 
 	// types that don't rely on matrix value_type
-	struct simple_matrix_typedefs {
+	struct simple_matrix_td {
 		//rows/cols type. int should be enought. If not, redifine to smth bigger
 		typedef uint32_t vec_len_t;
 		//#todo: size_t should be here!
@@ -57,7 +57,7 @@ namespace math {
 	// better implementations, therefore it might be faster to write the class myself than to try to find an
 	// alternative an apply it to my needs.
 	template <typename T_>
-	class simple_matrix : public simple_matrix_typedefs {
+	class simple_matrix : public simple_matrix_td {
 	public:
 		typedef T_ value_type;
 		typedef value_type* value_ptr_t;

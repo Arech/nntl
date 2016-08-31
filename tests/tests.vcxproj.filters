@@ -61,11 +61,17 @@
     <Filter Include="nntl\serialization">
       <UniqueIdentifier>{290b233c-aeaa-449e-af80-22751cbfedc6}</UniqueIdentifier>
     </Filter>
+    <Filter Include="nntl\interface\inspectors">
+      <UniqueIdentifier>{5524ca42-1709-4474-bddb-1124a4a6ba9b}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <Text Include="ReadMe.txt" />
     <Text Include="..\nntl\_supp\_about.txt">
       <Filter>nntl\_supp</Filter>
+    </Text>
+    <Text Include="..\nntl\interface\inspectors\_about.txt">
+      <Filter>nntl\interface\inspectors</Filter>
     </Text>
   </ItemGroup>
   <ItemGroup>
@@ -126,9 +132,6 @@
     <ClInclude Include="..\nntl\interface\math\bindings\b_open_blas.h">
       <Filter>nntl\interface\math\bindings</Filter>
     </ClInclude>
-    <ClInclude Include="..\nntl\nnet_def_interfaces.h">
-      <Filter>nntl</Filter>
-    </ClInclude>
     <ClInclude Include="..\nntl\interface\threads\winqdu.h">
       <Filter>nntl\interface\threads</Filter>
     </ClInclude>
@@ -153,12 +156,6 @@
     <ClInclude Include="..\nntl\training_observer.h">
       <Filter>nntl</Filter>
     </ClInclude>
-    <ClInclude Include="..\nntl\interface\rng\AFRandom.h">
-      <Filter>nntl\interface\rng</Filter>
-    </ClInclude>
-    <ClInclude Include="..\nntl\interface\rng\AFRandom_mt.h">
-      <Filter>nntl\interface\rng</Filter>
-    </ClInclude>
     <ClInclude Include="..\nntl\grad_works.h">
       <Filter>nntl</Filter>
     </ClInclude>
@@ -175,9 +172,6 @@
       <Filter>nntl</Filter>
     </ClInclude>
     <ClInclude Include="..\nntl\interface\rng\distr_normal_naive.h">
-      <Filter>nntl\interface\rng</Filter>
-    </ClInclude>
-    <ClInclude Include="..\nntl\interface\rng\AFRandom_mt_thresholds.h">
       <Filter>nntl\interface\rng</Filter>
     </ClInclude>
     <ClInclude Include="..\nntl\_test\test.h">
@@ -296,6 +290,24 @@
     </ClInclude>
     <ClInclude Include="..\nntl\layer\pack_tile.h">
       <Filter>nntl\layer</Filter>
+    </ClInclude>
+    <ClInclude Include="..\nntl\interface\i_inspector.h">
+      <Filter>nntl\interface</Filter>
+    </ClInclude>
+    <ClInclude Include="..\nntl\common_nn_data.h">
+      <Filter>nntl</Filter>
+    </ClInclude>
+    <ClInclude Include="..\nntl\interface\rng\AFRand.h">
+      <Filter>nntl\interface\rng</Filter>
+    </ClInclude>
+    <ClInclude Include="..\nntl\interface\rng\AFRand_mt.h">
+      <Filter>nntl\interface\rng</Filter>
+    </ClInclude>
+    <ClInclude Include="..\nntl\interface\rng\AFRand_mt_thr.h">
+      <Filter>nntl\interface\rng</Filter>
+    </ClInclude>
+    <ClInclude Include="..\nntl\interfaces.h">
+      <Filter>nntl</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

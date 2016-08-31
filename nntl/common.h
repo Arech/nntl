@@ -40,7 +40,7 @@ namespace nntl {
 	//Damn, I've never thought, it'll not be enought so soon!
 	typedef std::uint16_t layer_index_t;
 
-	//#todo this definition must be coherent with  simple_matrix_typedefs::vec_len_t
+	//#todo this definition must be coherent with  simple_matrix_td::vec_len_t
 	typedef std::uint32_t neurons_count_t;
 
 	//see also NNTL_STRING macro

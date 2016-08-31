@@ -68,8 +68,16 @@ namespace nntl {
 	//to relation to value of real_t(nBinarize1e6/1e6)
 
 	template<typename FinalPolymorphChild, typename UnderlyingLayer, typename GatingLayer, int32_t nBinarize1e6=500000>
-	class _layer_pack_gated : public _cpolym_layer_base<FinalPolymorphChild, typename UnderlyingLayer::real_t> {
+	class _layer_pack_gated 
+		: public _cpolym_layer_base<FinalPolymorphChild, typename UnderlyingLayer::real_t>
+		, public interfaces_td<typename UnderlyingLayer::interfaces_t>
+	{
+	private:
+		typedef _cpolym_layer_base<FinalPolymorphChild, typename UnderlyingLayer::real_t> _base_class;
+
 	public:
+		using _base_class::real_t;
+
 		//LayerPack_t is used to distinguish ordinary layers from layer packs (for example, to implement call_F_for_each_layer())
 		typedef self_t LayerPack_t;
 
@@ -88,8 +96,6 @@ namespace nntl {
 		static_assert(std::is_base_of<_i_layer_trainable, GatingLayer>::value,
 			"Template parameter GatingLayer must implement _i_layer_trainable");
 
-		typedef typename underlying_layer_t::iMath_t iMath_t;
-		typedef typename underlying_layer_t::iRng_t iRng_t;
 		typedef typename underlying_layer_t::_layer_init_data_t _layer_init_data_t;
 		typedef typename underlying_layer_t::common_data_t common_data_t;
 
@@ -120,6 +126,7 @@ namespace nntl {
 
 			if (m_layerIdx) abort();
 			m_layerIdx = idx;
+			//if it asserts, then m_gatingLayer resides later in layers stack which is wrong.
 			NNTL_ASSERT(m_layerIdx > m_gatingLayer.get_layer_idx());
 
 			_impl::_preinit_layers initializer(idx + 1, inc_neurons_cnt);
@@ -129,12 +136,13 @@ namespace nntl {
 
 	public:
 		~_layer_pack_gated()noexcept {}
-		_layer_pack_gated(UnderlyingLayer& ulayer, const GatingLayer& glayer)noexcept :
-			m_undLayer(ulayer), m_gatingLayer(glayer), m_layerIdx(0)
+		_layer_pack_gated(UnderlyingLayer& ulayer, const GatingLayer& glayer, const char* pCustomName = nullptr)noexcept 
+			: _base_class(pCustomName), m_undLayer(ulayer), m_gatingLayer(glayer), m_layerIdx(0)
 		{
 			//gating mask works on biases also, but we shouldn't emulate them (causes unnecessary calls to fill_biases())
 			m_gatingMask.dont_emulate_biases();
 		}
+		static constexpr const char* _defName = sbBinarizeGate ? "lpg" : "lpgfi";
 
 		//and apply function _Func(auto& layer) to underlying layer
 		template<typename _Func>
@@ -150,10 +158,6 @@ namespace nntl {
 		const neurons_count_t get_incoming_neurons_cnt()const noexcept { return  m_undLayer.get_incoming_neurons_cnt(); }
 
 		const realmtxdef_t& get_activations()const noexcept { return m_undLayer.get_activations(); }
-
-		void get_layer_name(char* pName, const size_t cnt)const noexcept {
-			sprintf_s(pName, cnt, sbBinarizeGate ? "lpg%d" : "lpgfi%d", static_cast<unsigned>(get_self().get_layer_idx()));
-		}
 
 		//////////////////////////////////////////////////////////////////////////
 		// helpers to access common data 
@@ -182,6 +186,8 @@ namespace nntl {
 
 		//////////////////////////////////////////////////////////////////////////
 		ErrorCode init(_layer_init_data_t& lid, real_t* pNewActivationStorage = nullptr)noexcept {
+			//inspector.init_layer(get_self().get_layer_idx(), get_self().get_layer_name_str());
+
 			NNTL_ASSERT(1 == m_gatingLayer.get_gate_width());
 			auto ec = m_undLayer.init(lid, pNewActivationStorage);
 			if (ErrorCode::Success != ec) return ec;
@@ -283,6 +289,11 @@ namespace nntl {
 			if (bHideBiases) A.restore_last_col();
 		}
 
+		void finish_fprop()noexcept {
+			get_self()
+				.make_gating_mask<>()
+				.apply_gating_mask(*const_cast<realmtxdef_t*>(&m_undLayer.get_activations()));
+		}
 
 	public:
 		template <typename LowerLayer>
@@ -291,14 +302,13 @@ namespace nntl {
 			NNTL_ASSERT(m_gatingMask.size() == m_undLayer.get_activations().size_no_bias());
 			NNTL_ASSERT(lowerLayer.get_activations().test_biases_ok());
 			m_undLayer.fprop(lowerLayer);
-			get_self().make_gating_mask<>().apply_gating_mask( *const_cast<realmtxdef_t*>(&m_undLayer.get_activations()) );
+			get_self().finish_fprop();
 			NNTL_ASSERT(lowerLayer.get_activations().test_biases_ok());
 		}
 
 		template <typename LowerLayer>
 		const unsigned bprop(realmtxdef_t& dLdA, const LowerLayer& lowerLayer, realmtxdef_t& dLdAPrev)noexcept {
 			static_assert(std::is_base_of<_i_layer_trainable, LowerLayer>::value, "Template parameter LowerLayer must implement _i_layer_trainable");
-
 			NNTL_ASSERT(lowerLayer.get_activations().test_biases_ok());
 			NNTL_ASSERT(m_gatingMask.size() == m_undLayer.get_activations().size_no_bias());
 			NNTL_ASSERT(m_undLayer.get_activations().size_no_bias() == dLdA.size());
@@ -318,7 +328,7 @@ namespace nntl {
 			if (utils::binary_option<true>(ar, serialization::serialize_training_parameters)) {
 				ar & serialization::make_nvp("gating_layer_id", m_gatingLayer.get_layer_name_str());
 			}
-			ar & serialization::make_named_struct(m_undLayer.get_layer_name_str(), m_undLayer);
+			ar & serialization::make_named_struct(m_undLayer.get_layer_name_str().c_str(), m_undLayer);
 		}
 	};
 
@@ -333,17 +343,17 @@ namespace nntl {
 	{
 	public:
 		~LPG() noexcept {};
-		LPG(UnderlyingLayer& u, const GatingLayer& g) noexcept
-			: _layer_pack_gated<LPG<UnderlyingLayer, GatingLayer>, UnderlyingLayer, GatingLayer>(u,g){};
+		LPG(UnderlyingLayer& u, const GatingLayer& g, const char* pCustomName = nullptr) noexcept
+			: _layer_pack_gated<LPG<UnderlyingLayer, GatingLayer>, UnderlyingLayer, GatingLayer>(u,g,pCustomName){};
 	};
 
 	template<typename UnderlyingLayer, typename GatingLayer>
 	using layer_pack_gated = typename LPG<UnderlyingLayer, GatingLayer>;
 
 	template <typename UnderlyingLayer, typename GatingLayer> inline
-		LPG <UnderlyingLayer, GatingLayer> make_layer_pack_gated(UnderlyingLayer& u, const GatingLayer& g) noexcept
+		LPG <UnderlyingLayer, GatingLayer> make_layer_pack_gated(UnderlyingLayer& u, const GatingLayer& g, const char* pCustomName = nullptr) noexcept
 	{
-		return LPG <UnderlyingLayer, GatingLayer>(u,g);
+		return LPG <UnderlyingLayer, GatingLayer>(u, g, pCustomName);
 	}
 
 	//////////////////////////////////////////////////////////////////////////
@@ -355,16 +365,16 @@ namespace nntl {
 	{
 	public:
 		~LPGFI() noexcept {};
-		LPGFI(UnderlyingLayer& u, const GatingLayer& g) noexcept
-			: _layer_pack_gated<LPGFI<UnderlyingLayer, GatingLayer>, UnderlyingLayer, GatingLayer, 0>(u,g){};
+		LPGFI(UnderlyingLayer& u, const GatingLayer& g, const char* pCustomName = nullptr) noexcept
+			: _layer_pack_gated<LPGFI<UnderlyingLayer, GatingLayer>, UnderlyingLayer, GatingLayer, 0>(u,g,pCustomName){};
 	};
 
 	template<typename UnderlyingLayer, typename GatingLayer>
 	using layer_pack_gated_from_input = typename LPGFI<UnderlyingLayer, GatingLayer>;
 
 	template <typename UnderlyingLayer, typename GatingLayer> inline
-		LPGFI <UnderlyingLayer, GatingLayer> make_layer_pack_gated_from_input(UnderlyingLayer& u, const GatingLayer& g) noexcept
+		LPGFI <UnderlyingLayer, GatingLayer> make_layer_pack_gated_from_input(UnderlyingLayer& u, const GatingLayer& g, const char* pCustomName = nullptr) noexcept
 	{
-		return LPGFI <UnderlyingLayer, GatingLayer>(u, g);
+		return LPGFI <UnderlyingLayer, GatingLayer>(u, g,pCustomName);
 	}
 }

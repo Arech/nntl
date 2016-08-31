@@ -40,13 +40,13 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 namespace nntl {
 namespace rng {
 
-	template<typename AgnerFogRNG>
-	class AFRandom final : public rng_helper<AFRandom<AgnerFogRNG>> {
+	template<typename RealT, typename AgnerFogRNG>
+	class AFRand final : public rng_helper<RealT, AFRand<RealT, AgnerFogRNG>> {
 	public:
 		typedef AgnerFogRNG base_rng_t;
 
-		AFRandom()noexcept : m_rng(static_cast<int>(s64to32(std::time(0)))) {}
-		AFRandom(seed_t s)noexcept : m_rng(static_cast<int>(s)) {}
+		AFRand()noexcept : m_rng(static_cast<int>(s64to32(std::time(0)))) {}
+		AFRand(seed_t s)noexcept : m_rng(static_cast<int>(s)) {}
 
 		void seed(seed_t s) noexcept { m_rng.RandomInit(static_cast<int>(s)); }
 // 		void seed_array(const seed_t s[], unsigned seedsCnt) noexcept { 
@@ -60,7 +60,7 @@ namespace rng {
 			//TODO: pray we'll never need it bigger (because we'll possible do need and this may break everything)
 			NNTL_ASSERT(lessThan <= INT32_MAX);
 			int v = m_rng.IRandom(0, static_cast<int>(lessThan-1));
-			NNTL_ASSERT(v != Agner_Fog::GEN_ERROR);
+			NNTL_ASSERT(v != AFog::GEN_ERROR);
 			return static_cast<generated_scalar_t>(v);
 		}
 
@@ -98,7 +98,7 @@ namespace rng {
 		}
 
 	protected:
-		//Agner_Fog::CRandomMersenne m_rng;
+		//AFog::CRandomMersenne m_rng;
 		base_rng_t m_rng;
 	};
 

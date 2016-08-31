@@ -141,11 +141,13 @@ namespace nntl {
 
 	public:
 		~_layer_pack_horizontal()noexcept {}
-		_layer_pack_horizontal(PHLsT&... phls)noexcept : _base_class(_calcNeuronsCnt(_phl_tuple(phls...)))
+		_layer_pack_horizontal(const char* pCustomName, PHLsT&... phls)noexcept 
+			: _base_class(_calcNeuronsCnt(_phl_tuple(phls...)),pCustomName)
 			, m_phl_tuple(phls...), m_pTmpBiasStorage(nullptr), m_layers_max_dLdA_numel(0)
 		{
 			m_activations.will_emulate_biases();
 		}
+		static constexpr const char* _defName = "lph";
 
 		const realmtxdef_t& get_activations()const noexcept { return m_activations; }
 		
@@ -163,12 +165,7 @@ namespace nntl {
 			utils::for_each_up(m_phl_tuple, [&func{ std::forward<_Func>(f) }](auto& phl)noexcept {
 				std::forward<_Func>(func)(phl.l);
 			});
-		}
-
-		void get_layer_name(char* pName, const size_t cnt)const noexcept {
-			sprintf_s(pName, cnt, "lph%d", static_cast<unsigned>(get_self().get_layer_idx()));
-		}
-		
+		}		
 
 		//should return true, if the layer has a value to add to Loss function value (there's some regularizer attached)
 		bool hasLossAddendum()const noexcept {
@@ -334,13 +331,14 @@ namespace nntl {
 		}
 
 		template <typename LowerLayer>
-		void fprop(const LowerLayer& lowerLayer)noexcept{
+		void fprop(const LowerLayer& lowerLayer)noexcept {
 			static_assert(std::is_base_of<_i_layer_fprop, LowerLayer>::value, "Template parameter LowerLayer must implement _i_layer_fprop");
 			NNTL_ASSERT(lowerLayer.get_activations().test_biases_ok());
 
 			const auto pTmpBiasStorage = m_pTmpBiasStorage;
-			utils::for_each_up(m_phl_tuple, [&lowerLayer, pTmpBiasStorage](const auto& phl) {
-				phl.l.fprop(_impl::trainable_partial_layer_wrapper<LowerLayer>(lowerLayer.get_activations(), pTmpBiasStorage, phl));
+			const auto& act = lowerLayer.get_activations();
+			utils::for_each_up(m_phl_tuple, [&act, pTmpBiasStorage](const auto& phl) {
+				phl.l.fprop(_impl::trainable_partial_layer_wrapper<LowerLayer>(act, pTmpBiasStorage, phl));
 			});
 			
 			NNTL_ASSERT(lowerLayer.get_activations().test_biases_ok());
@@ -425,10 +423,7 @@ namespace nntl {
 		friend class boost::serialization::access;
 		template<class Archive> void serialize(Archive & ar, const unsigned int version) {
 			get_self().for_each_packed_layer([&ar](auto& l) {
-				constexpr size_t maxStrlen = 16;
-				char lName[maxStrlen];
-				l.get_layer_name(lName, maxStrlen);
-				ar & serialization::make_named_struct(lName, l);
+				ar & serialization::make_named_struct(l.get_layer_name_str().c_str(), l);
 			});
 		}
 	};
@@ -446,15 +441,21 @@ namespace nntl {
 	public:
 		~LPH() noexcept {};
 		LPH(PHLsT&... phls) noexcept
-			: _layer_pack_horizontal<LPH<PHLsT...>, PHLsT...>(phls...) {};
+			: _layer_pack_horizontal<LPH<PHLsT...>, PHLsT...>(nullptr, phls...) {};
+
+		LPH(const char* pCustomName, PHLsT&... phls) noexcept
+			: _layer_pack_horizontal<LPH<PHLsT...>, PHLsT...>(pCustomName, phls...) {};
 	};
 
 	template <typename ..._T>
 	using layer_pack_horizontal = typename LPH<_T...>;
 
 	template <typename ...PHLsT> inline
-		LPH <PHLsT...> make_layer_pack_horizontal(PHLsT&... phls) noexcept {
+	LPH <PHLsT...> make_layer_pack_horizontal(PHLsT&... phls) noexcept {
 		return LPH<PHLsT...>(phls...);
 	}
-
+	template <typename ...PHLsT> inline
+		LPH <PHLsT...> make_layer_pack_horizontal(const char* pCustomName, PHLsT&... phls) noexcept {
+		return LPH<PHLsT...>(pCustomName, phls...);
+	}
 }

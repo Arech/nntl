@@ -36,7 +36,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "../nntl/interface/rng/std.h"
 #include "../nntl/interface/threads/winqdu.h"
 #include "../nntl/interface/threads/std.h"
-#include "../nntl/nnet_def_interfaces.h"
+#include "../nntl/interfaces.h"
 #include "../nntl/utils/chrono.h"
 
 //#define BOOST_USE_WINDOWS_H

@@ -91,7 +91,7 @@ namespace nntl {
 
 	public:
 		~_layer_pack_horizontal_gated()noexcept {}
-		_layer_pack_horizontal_gated(PHLsT&... phls)noexcept : _base_class(phls...){
+		_layer_pack_horizontal_gated(const char* pCustomName, PHLsT&... phls)noexcept : _base_class(pCustomName, phls...) {
 			//at this point all neuron counts in gating layers must be initialized and therefore we can check whether
 			//the whole m_phl_tuple pack has correct number of layers
 			NNTL_ASSERT(get_self().gating_layer().get_gate_width() == gated_layers_count);
@@ -101,17 +101,14 @@ namespace nntl {
 			m_colSpec.fill(vec_len_t(-1));
 			vec_len_t* pA = &m_colSpec[0];
 			NNTL_DEBUG_DECLARE(size_t s = 0);
-			utils::for_each_exc_first_up(m_phl_tuple, [&pA NNTL_DEBUG_ARG(&s) ](auto& phl)noexcept {
+			utils::for_each_exc_first_up(m_phl_tuple, [&pA NNTL_DEBUG_ARG(&s)](auto& phl)noexcept {
 				NNTL_ASSERT(++s <= gated_layers_count);
 				*pA++ = phl.l.get_neurons_cnt();
 			});
 			NNTL_ASSERT(s == gated_layers_count);
 			NNTL_ASSERT(std::accumulate(m_colSpec.begin(), m_colSpec.end(), vec_len_t(0)) == get_self().get_neurons_cnt() - get_self().gating_layer().get_neurons_cnt());
 		}
-
-		void get_layer_name(char* pName, const size_t cnt)const noexcept {
-			sprintf_s(pName, cnt, sbBinarizeGate ? "lphg%d" : "lphgfi%d", static_cast<unsigned>(get_self().get_layer_idx()));
-		}
+		static constexpr const char* _defName = sbBinarizeGate ? "lphg" : "lphgfi";
 
 		const gating_layer_t& gating_layer()const noexcept { return get_self().first_layer(); }
 
@@ -255,7 +252,11 @@ namespace nntl {
 
 			//if (bHideBiases) A.restore_last_col();
 		}
-
+		void finish_fprop()noexcept {
+			get_self()
+				.make_gating_mask<>()
+				.apply_gating_mask(*const_cast<realmtxdef_t*>(&get_self().get_activations()));
+		}
 
 	public:
 		template <typename LowerLayer>
@@ -267,14 +268,13 @@ namespace nntl {
 			NNTL_ASSERT(m_gatingMask.cols() == get_self().get_neurons_cnt() - get_self().gating_layer().get_neurons_cnt());
 
 			_base_class::fprop(lowerLayer);
-			get_self().make_gating_mask<>().apply_gating_mask(*const_cast<realmtxdef_t*>(&get_self().get_activations()));
+			get_self().finish_fprop();
 			NNTL_ASSERT(lowerLayer.get_activations().test_biases_ok());
 		}
 
 		template <typename LowerLayer>
 		const unsigned bprop(realmtxdef_t& dLdA, const LowerLayer& lowerLayer, realmtxdef_t& dLdAPrev)noexcept {
 			static_assert(std::is_base_of<_i_layer_trainable, LowerLayer>::value, "Template parameter LowerLayer must implement _i_layer_trainable");
-
 			NNTL_ASSERT(m_gatingMask.rows() == get_self().get_activations().rows());
 			NNTL_ASSERT(m_gatingMask.rows() == lowerLayer.get_activations().rows());
 			NNTL_ASSERT(m_gatingMask.cols() == get_self().get_neurons_cnt() - get_self().gating_layer().get_neurons_cnt());
@@ -316,15 +316,21 @@ namespace nntl {
 	public:
 		~LPHG() noexcept {};
 		LPHG(PHLsT&... phls) noexcept
-			: _layer_pack_horizontal_gated<LPHG<PHLsT...>, 500000, PHLsT...>(phls...) {};
+			: _layer_pack_horizontal_gated<LPHG<PHLsT...>, 500000, PHLsT...>(nullptr, phls...) {};
+		LPHG(const char* pCustomName, PHLsT&... phls) noexcept
+			: _layer_pack_horizontal_gated<LPHG<PHLsT...>, 500000, PHLsT...>(pCustomName, phls...) {};
 	};
 
 	template <typename ..._T>
 	using layer_pack_horizontal_gated = typename LPHG<_T...>;
 
 	template <typename ...PHLsT> inline
-		LPHG <PHLsT...> make_layer_pack_horizontal_gated(PHLsT&... phls) noexcept {
+	LPHG <PHLsT...> make_layer_pack_horizontal_gated(PHLsT&... phls) noexcept {
 		return LPHG<PHLsT...>(phls...);
+	}
+	template <typename ...PHLsT> inline
+	LPHG <PHLsT...> make_layer_pack_horizontal_gated(const char* pCustomName, PHLsT&... phls) noexcept {
+		return LPHG<PHLsT...>(pCustomName, phls...);
 	}
 	//////////////////////////////////////////////////////////////////////////
 
@@ -335,16 +341,21 @@ namespace nntl {
 	public:
 		~LPHGFI() noexcept {};
 		LPHGFI(PHLsT&... phls) noexcept
-			: _layer_pack_horizontal_gated<LPHGFI<PHLsT...>, 0, PHLsT...>(phls...) {};
+			: _layer_pack_horizontal_gated<LPHGFI<PHLsT...>, 0, PHLsT...>(nullptr, phls...) {};
+		LPHGFI(const char* pCustomName, PHLsT&... phls) noexcept
+			: _layer_pack_horizontal_gated<LPHGFI<PHLsT...>, 0, PHLsT...>(pCustomName, phls...) {};
 	};
 
 	template <typename ..._T>
 	using layer_pack_horizontal_gated_from_input = typename LPHGFI<_T...>;
 
 	template <typename ...PHLsT> inline
-		LPHGFI <PHLsT...> make_layer_pack_horizontal_gated_from_input(PHLsT&... phls) noexcept {
+	LPHGFI <PHLsT...> make_layer_pack_horizontal_gated_from_input(PHLsT&... phls) noexcept {
 		return LPHGFI<PHLsT...>(phls...);
 	}
-
+	template <typename ...PHLsT> inline
+	LPHGFI <PHLsT...> make_layer_pack_horizontal_gated_from_input(const char* pCustomName, PHLsT&... phls) noexcept {
+		return LPHGFI<PHLsT...>(pCustomName, phls...);
+	}
 
 }

@@ -40,6 +40,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "../nntl/_supp/io/matfile.h"
 
 #include "asserts.h"
+#include "common_routines.h"
 
 using namespace nntl;
 typedef nntl_supp::binfile reader_t;
@@ -61,12 +62,37 @@ typedef nntl_supp::binfile reader_t;
 //////////////////////////////////////////////////////////////////////////
 
 
-/*
-TEST(TestNnet, ) {
+TEST(TestNnet, Inspectors) {
+	train_data<real_t> td;
+	readTd(td, MNIST_FILE_DEBUG);
+
+	size_t epochs = 5, seedVal=0;
+	const real_t learningRate = real_t(.01), dropoutRate= real_t(1.);
+
+	layer_input<> Ainp(td.train_x().cols_no_bias(),"Source");
+
+	layer_fully_connected<> Aifcl1(20, learningRate, dropoutRate, "First");
+	layer_fully_connected<> Aifcl2(15, learningRate, dropoutRate, "Second");
+
+	layer_output<> Aoutp(td.train_y().cols(), learningRate, "Predictor");
+
+	auto Alp = make_layers(Ainp, Aifcl1, Aifcl2, Aoutp);
+
+	nnet_cond_epoch_eval Acee(epochs);
+	nnet_train_opts<decltype(Acee)> Aopts(std::move(Acee));
+	Aopts.calcFullLossValue(false).batchSize(100);
+
+	auto Ann = make_nnet(Alp);
+	Ann.get_iRng().seed64(seedVal);
+
+	inspector_stdcout<real_t> Insp;
 	
+	//auto ec = Ann.train(td, Aopts, NNetCB_OnEpochEnd_Dummy(), Insp);
+	auto ec = Ann.train(td, Aopts);
 
-}*/
+	ASSERT_EQ(decltype(Ann)::ErrorCode::Success, ec) << "Error code description: " << Ann.get_last_error_string();
 
+}
 
 //////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////

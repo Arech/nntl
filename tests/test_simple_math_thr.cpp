@@ -35,7 +35,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "../nntl/common.h"
 
 #include "../nntl/interface/math/simple_math.h"
-#include "../nntl/nnet_def_interfaces.h"
+#include "../nntl/interfaces.h"
 
 #include "../nntl/utils/prioritize_workers.h"
 #include "../nntl/utils/tictoc.h"
@@ -46,7 +46,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 using namespace nntl;
 using namespace nntl::utils;
 
-typedef nnet_def_interfaces::iThreads_t iThreads_t;
+typedef d_interfaces::iThreads_t iThreads_t;
 typedef math::simple_math < real_t, iThreads_t> simple_math_t;
 
 static simple_math_t iM;
@@ -167,7 +167,7 @@ void test_ewSumProd(vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 	ASSERT_TRUE(!A.isAllocationFailed());
 	real_t s = 0;
 
-	nnet_def_interfaces::iRng_t rg;
+	d_interfaces::iRng_t rg;
 	rg.set_ithreads(iM.ithreads());
 
 	tictoc tSt, tMt, tB;
@@ -210,7 +210,7 @@ void test_mrwDivideByVec(vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 	ASSERT_TRUE(!A.isAllocationFailed());
 	std::vector<real_t> vDiv(rowsCnt);
 
-	nnet_def_interfaces::iRng_t rg;
+	d_interfaces::iRng_t rg;
 	rg.set_ithreads(iM.ithreads());
 
 	tictoc tStCw, tStRw, tSt, tMtCw, tMtRw, tMt, tB;
@@ -296,7 +296,7 @@ void test_mrwMulByVec(vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 	ASSERT_TRUE(!A.isAllocationFailed());
 	std::vector<real_t> vMul(rowsCnt);
 
-	nnet_def_interfaces::iRng_t rg;
+	d_interfaces::iRng_t rg;
 	rg.set_ithreads(iM.ithreads());
 
 	tictoc tStCw, tStRw, tSt, tMtCw, tMtRw, tMt, tB;
@@ -378,7 +378,7 @@ void test_mrwIdxsOfMax_perf(vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 
 	iM.preinit(A.numel());
 	ASSERT_TRUE(iM.init());
-	nnet_def_interfaces::iRng_t rg;
+	d_interfaces::iRng_t rg;
 	rg.set_ithreads(iM.ithreads());
 
 	tictoc tStCw, tMtCw, tB, tMtRw, tStRw, tMt, tSt, tStRwSmall, tMtCwSmall;
@@ -472,7 +472,7 @@ void test_mrwMax_perf(vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 
 	iM.preinit(m.numel());
 	ASSERT_TRUE(iM.init());
-	nnet_def_interfaces::iRng_t rg;
+	d_interfaces::iRng_t rg;
 	rg.set_ithreads(iM.ithreads());
 
 	tictoc tSt, tMt, tB, tMtRw, tMtCw, tStRwSmall, tStCw, tStRw;
@@ -552,7 +552,7 @@ void test_mrwSumIp_perf(vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 	ASSERT_TRUE(!A.isAllocationFailed());
 	iM.preinit(A.numel());
 	ASSERT_TRUE(iM.init());
-	nnet_def_interfaces::iRng_t rg;
+	d_interfaces::iRng_t rg;
 	rg.set_ithreads(iM.ithreads());
 
 	tictoc tStCw, tStRw, tSt, tMtCw, tMtRw, tMt, tB, tStRwSmall;
@@ -630,7 +630,7 @@ void test_mrwSum_perf(vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 	ASSERT_TRUE(!A.isAllocationFailed());
 	iM.preinit(A.numel());
 	ASSERT_TRUE(iM.init());
-	nnet_def_interfaces::iRng_t rg;
+	d_interfaces::iRng_t rg;
 	rg.set_ithreads(iM.ithreads());
 	tictoc tStCw, tStRw, tSt, tMtCw, tMtRw, tMt, tB;
 	utils::prioritize_workers<utils::PriorityClass::PerfTesting, iThreads_t> pw(iM.ithreads());

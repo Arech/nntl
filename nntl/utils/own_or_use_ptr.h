@@ -44,16 +44,29 @@ namespace utils {
 		static_assert(_bOwning != std::is_pointer<_T>::value, "WTF?");
 
 	public:
-		_own_or_use_ptr()noexcept : m_ptr(nullptr) {}
+		static constexpr bool bOwning = _bOwning;
+
+	protected:
+		value_ptr_t m_ptr;
+
+	public:
 		~_own_or_use_ptr()noexcept { release(); }
+		_own_or_use_ptr()noexcept : m_ptr(nullptr) {}
 
 		//!! copy constructor not needed
 		_own_or_use_ptr(const _own_or_use_ptr& other)noexcept; // = delete; //-it should be `delete`d, but factory function won't work if it is
 		//!!assignment is not needed
 		_own_or_use_ptr& operator=(const _own_or_use_ptr& rhs) noexcept; // = delete; //-it should be `delete`d, but factory function won't work if it is
 
-		/*constexpr bool isOwning()const noexcept { return _bOwning; }
-		constexpr bool isUsing()const noexcept { return !_bOwning; }*/
+// 		_own_or_use_ptr(_own_or_use_ptr&& other)noexcept {
+// 			m_ptr = other.m_ptr;
+// 			other.m_ptr = nullptr;
+// 		}
+// 		_own_or_use_ptr& operator=(_own_or_use_ptr&& other) noexcept {
+// 			m_ptr = other.m_ptr;
+// 			other.m_ptr = nullptr;
+// 		}
+
 		const bool empty()const noexcept { return m_ptr == nullptr; }
 
 		operator value_ptr_t()const noexcept { NNTL_ASSERT(!empty()); return m_ptr; }
@@ -66,46 +79,43 @@ namespace utils {
 
 		void release()noexcept {
 			if (m_ptr) {
-				/*if (isOwning()) {
-				STDCOUTL("**Deleting ptr");
-				delete m_ptr;
-				}else STDCOUTL("* nulling ptr");*/
 				if (bOwning) delete m_ptr;
 				m_ptr = nullptr;
 			}
 		}
-
-	public:
-		static constexpr bool bOwning = _bOwning;
-
-	protected:
-		value_ptr_t m_ptr;
 	};
 
 	template<typename _T>
 	class own_or_use_ptr : public _own_or_use_ptr<_T, true> {
+	private:
+		typedef _own_or_use_ptr<_T, true> _base_class;
 	public:
 		typedef own_or_use_ptr<_T> type;
 		static_assert(!std::is_pointer<_T>::value, "WTF?");
 
-		own_or_use_ptr()noexcept {
-			m_ptr = new(std::nothrow) value_t();
-		}
 		~own_or_use_ptr()noexcept {}
+		own_or_use_ptr()noexcept {
+			m_ptr = new(std::nothrow) value_t;
+		}
+// 		own_or_use_ptr(own_or_use_ptr&& other)noexcept : _base_class(std::move(other)) {}
+// 		_own_or_use_ptr& operator=(_own_or_use_ptr&& other) noexcept;
 	};
 
 	template<typename _T>
 	class own_or_use_ptr<_T*> : public _own_or_use_ptr<_T*, false> {
+	private:
+		typedef _own_or_use_ptr<_T*, false> _base_class;
 	public:
 		static_assert(!std::is_pointer<_T>::value, "WTF?");
 		typedef own_or_use_ptr<_T*> type;
 
-		own_or_use_ptr()noexcept;
+		~own_or_use_ptr()noexcept {}
+		own_or_use_ptr()noexcept;//no {} by intent
 
 		own_or_use_ptr(_T* ptr)noexcept {
 			m_ptr = ptr;
 		}
-		~own_or_use_ptr()noexcept {}
+		//own_or_use_ptr(own_or_use_ptr&& other)noexcept : _base_class(std::move(other)) {}
 	};
 
 

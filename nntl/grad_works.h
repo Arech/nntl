@@ -32,26 +32,11 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #pragma once
 
 #include <bitset>
+#include "common_nn_data.h"
 
 namespace nntl {
 
 	namespace _impl {
-
-		template<typename i_math_t_>
-		struct grad_works_init {
-			typedef i_math_t_ i_math_t;
-			//typedef math_types::real_ty real_t;
-			typedef typename i_math_t::real_t real_t;
-			typedef math::simple_matrix<real_t> realmtx_t;
-			typedef typename realmtx_t::mtx_size_t mtx_size_t;
-
-			static_assert(std::is_base_of<math::_i_math<real_t>, i_math_t>::value, "i_math_t type should be derived from _i_math");
-			
-			i_math_t* pMath;
-			mtx_size_t weightsSize;
-
-			grad_works_init(i_math_t* pM, const mtx_size_t& ws)noexcept:pMath(pM), weightsSize(ws) {}
-		};
 
 		//////////////////////////////////////////////////////////////////////////
 		// numeric stabilizer eps value for double and float calculations
@@ -61,11 +46,11 @@ namespace nntl {
 
 	}
 
+	template<typename RealT>
 	struct _i_grad_works {
-		typedef math_types::real_ty real_t;
+		typedef RealT real_t;
 		typedef math::simple_matrix<real_t> realmtx_t;
 		typedef math::simple_matrix_deformable<real_t> realmtxdef_t;
-		typedef typename realmtx_t::value_type real_t;
 		typedef typename realmtx_t::vec_len_t vec_len_t;
 		typedef typename realmtx_t::numel_cnt_t numel_cnt_t;
 		typedef typename realmtx_t::mtx_size_t mtx_size_t;
@@ -90,8 +75,9 @@ namespace nntl {
 		nntl_interface bool hasLossAddendum()const noexcept;
 	};
 
+	template<typename RealT>
 	struct ILR {
-		typedef math_types::real_ty real_t;
+		typedef RealT real_t;
 
 		real_t mulDecr, mulIncr, capLow, capHigh;
 
@@ -124,13 +110,19 @@ namespace nntl {
 
 
 	// this class gathers all code about gradient application
-	template<typename i_math_t>
-	class grad_works : public _i_grad_works {
+	template<typename InterfacesT>
+	class grad_works 
+		: public _i_grad_works<typename InterfacesT::iMath_t::real_t>
+		, public _impl::_common_data_consumer<InterfacesT>
+	{
 	public:
 		typedef grad_works self_t;
-		typedef i_math_t iMath_t;
-		typedef _impl::grad_works_init<iMath_t> init_struct_t;
+		typedef _impl::common_nn_data<interfaces_t> common_data_t;
 
+		using _impl::_common_data_consumer<InterfacesT>::real_t;
+
+		//this definition should be local to a grad_works class definition. Other derivations of _i_grad_works could
+		//have other optimizers implemented.
 		enum GradType {
 			ClassicalConstant,//classical method, just applying learning rate (done during bprop earlier) to dLdW to update weights
 			RMSProp_Hinton,//RMSProp as described by prof.Hinton in his lecture #6
@@ -147,8 +139,13 @@ namespace nntl {
 			AdaMax,// see Adam - A Method for Stochastic Optimization.1412.6980v8
 		};
 
-#define _NNTL_GRAD_WORKS_OPTIM_REQUIRE_MTX_A (m_type == RMSProp_Hinton || m_type == RMSProp_Graves || m_type == ModProp || m_type == Adam || m_type==AdaMax)
-#define _NNTL_GRAD_WORKS_OPTIM_REQUIRE_MTX_B (m_type == RMSProp_Graves || m_type == Adam || m_type == AdaMax)
+	protected:
+		const bool _optimizerRequiresMatrixA()const noexcept {
+			return m_type == RMSProp_Hinton || m_type == RMSProp_Graves || m_type == ModProp || m_type == Adam || m_type == AdaMax;
+		}
+		const bool _optimizerRequiresMatrixB()const noexcept {
+			return m_type == RMSProp_Graves || m_type == Adam || m_type == AdaMax;
+		}
 
 	protected:
 		enum AlgFlags {
@@ -190,9 +187,7 @@ namespace nntl {
 
 			f_LAST_Total
 		};
-
-		iMath_t* m_pMath;
-
+		
 		real_t m_learningRate;
 
 		real_t m_momentum;
@@ -209,7 +204,7 @@ namespace nntl {
 		
 		std::bitset<f_LAST_Total> m_flags;
 
-		ILR m_ILR;
+		ILR<real_t> m_ILR;
 
 		realmtx_t m_Vw, m_ILRGain, m_prevdLdW;
 		realmtx_t m_optMtxA, m_optMtxB;//some optimizers require additional memory.
@@ -254,8 +249,8 @@ namespace nntl {
 			}
 
 			if (utils::binary_option<true>(ar, serialization::serialize_grad_works_state)) {
-				if (_NNTL_GRAD_WORKS_OPTIM_REQUIRE_MTX_A) ar & NNTL_SERIALIZATION_NVP(m_optMtxA);
-				if (_NNTL_GRAD_WORKS_OPTIM_REQUIRE_MTX_B) ar & NNTL_SERIALIZATION_NVP(m_optMtxB);
+				if (_optimizerRequiresMatrixA()) ar & NNTL_SERIALIZATION_NVP(m_optMtxA);
+				if (_optimizerRequiresMatrixB()) ar & NNTL_SERIALIZATION_NVP(m_optMtxB);
 
 				if (use_momentums()) ar & NNTL_SERIALIZATION_NVP(m_Vw);
 				if (use_individual_learning_rates()) {
@@ -278,7 +273,7 @@ namespace nntl {
 		//!!assignment is not needed
 		grad_works& operator=(const grad_works& rhs) noexcept = delete;
 
-		grad_works(const real_t lr) noexcept : m_pMath(nullptr), m_momentum(real_t(0.0))
+		grad_works(const real_t lr) noexcept : m_momentum(real_t(0.0))
 			, m_optBeta1(real_t(0.9)), m_optBeta2(real_t(0.999))
 			, m_numericStabilizerEps(_impl::NUM_STAB_EPS<real_t>::value), m_maxWeightVecNorm(real_t(0.0))
 			, m_L1(real_t(0.0)), m_L2(real_t(0.0)), m_actualL1(real_t(0.0)), m_actualL2(real_t(0.0))
@@ -290,44 +285,45 @@ namespace nntl {
 		}
 
 		//template<typename grad_init_t>
-		bool init(const init_struct_t& ind)noexcept {
+		bool init(const common_data_t& cd, const typename realmtx_t::mtx_size_t& weightsSize)noexcept {
 			//TODO: there must be some flag that prevents resetting of the data state between distinct calls to nnet.train()
 			//(which causes init/deinit cycle)
 
 			if (use_momentums()) {
-				if (!m_Vw.resize(ind.weightsSize)) return false;
+				if (!m_Vw.resize(weightsSize)) return false;
 				m_Vw.zeros();
 			}
 
-			if (_NNTL_GRAD_WORKS_OPTIM_REQUIRE_MTX_A) {
-				if (!m_optMtxA.resize(ind.weightsSize))return false;
+			if (_optimizerRequiresMatrixA()) {
+				if (!m_optMtxA.resize(weightsSize))return false;
 			}
 
-			if (_NNTL_GRAD_WORKS_OPTIM_REQUIRE_MTX_B) {
-				if (!m_optMtxB.resize(ind.weightsSize))return false;
+			if (_optimizerRequiresMatrixB()) {
+				if (!m_optMtxB.resize(weightsSize))return false;
 			}
 
 			if (use_individual_learning_rates()) {
-				if (!m_ILRGain.resize(ind.weightsSize))return false;
-				if ((!use_momentums() | !m_flags[f_ApplyILRToMomentumVelocity]) && !m_prevdLdW.resize(ind.weightsSize))return false;
+				if (!m_ILRGain.resize(weightsSize))return false;
+				if ((!use_momentums() | !m_flags[f_ApplyILRToMomentumVelocity]) && !m_prevdLdW.resize(weightsSize))return false;
 				m_ILRGain.ones();
 			}
 
-			m_pMath = ind.pMath;
+			set_common_data(cd);
 			m_flags.set(f_FirstRun);
 			return true;
 		}
 
 		void deinit() noexcept {
-			m_pMath = nullptr;
+			clean_common_data();
 			
-			//TODO: current cleanup code is not compatible with multiple nnet::train() calls
+			//#TODO: current cleanup code is not compatible with multiple nnet::train() calls
 
 			m_Vw.clear();
 			m_optMtxA.clear();
 			m_optMtxB.clear();
 			m_ILRGain.clear();
 			m_prevdLdW.clear();
+
 			//m_ILR.clear();//we shouldn't clear this variable, as it contains only settings but not a run-time data
 			//_flags_default();//same for flags
 		}
@@ -337,16 +333,17 @@ namespace nntl {
 				// (1)  vW`(t+1)= momentum*vW(t)
 				// (2)  W`(t+1) = W(t) - momentum*vW(t)
 				//				= W(t) - vW`(t+1)
-				m_pMath->evMulC_ip_Sub_ip(m_Vw, m_momentum, weights);
+				get_iMath().evMulC_ip_Sub_ip(m_Vw, m_momentum, weights);
 			}
 		}
 
 		void apply_grad(realmtxdef_t& weights, realmtxdef_t& dLdW) noexcept {
-			NNTL_ASSERT(m_pMath);
 			NNTL_ASSERT(dLdW.size() == weights.size());
 
 			const bool bFirstRun = m_flags[f_FirstRun];
 			m_flags.reset(f_FirstRun);
+
+			auto& iM = get_iMath();
 
 			//applying L1-L2 penalties
 			// BTW: because we're working with batches that averages dL/dW over many data samples and, possibly, over many 
@@ -359,46 +356,46 @@ namespace nntl {
 			if (use_L1_regularization()) {
 				const bool bIgnoreBiases = m_flags[f_L1RegIgnoreBias];
 				if (bIgnoreBiases) { dLdW.hide_last_col(); weights.hide_last_col(); }
-				m_pMath->evAddScaledSign_ip(dLdW, m_actualL1, weights);
+				iM.evAddScaledSign_ip(dLdW, m_actualL1, weights);
 				if (bIgnoreBiases) { dLdW.restore_last_col(); weights.restore_last_col(); }
 			}
 
 			if (use_L2_regularization()) {
 				const bool bIgnoreBiases = m_flags[f_L2RegIgnoreBias];
 				if (bIgnoreBiases) { dLdW.hide_last_col(); weights.hide_last_col(); }
-				m_pMath->evAddScaled_ip(dLdW, m_actualL2, weights);
+				iM.evAddScaled_ip(dLdW, m_actualL2, weights);
 				if (bIgnoreBiases) { dLdW.restore_last_col(); weights.restore_last_col(); }
 			}
 			
 			switch (m_type) {
 			case ClassicalConstant:
-				m_pMath->evMulC_ip(dLdW, m_learningRate);
+				iM.evMulC_ip(dLdW, m_learningRate);
 				break;
 
 			case RMSProp_Hinton:
 				if (bFirstRun) {
-					m_pMath->evSquare(m_optMtxA, dLdW);
-					m_pMath->evMulC_ip(dLdW, m_learningRate);
-				} else m_pMath->RMSProp_Hinton(dLdW, m_optMtxA, m_learningRate, m_optBeta1, m_numericStabilizerEps);
+					iM.evSquare(m_optMtxA, dLdW);
+					iM.evMulC_ip(dLdW, m_learningRate);
+				} else iM.RMSProp_Hinton(dLdW, m_optMtxA, m_learningRate, m_optBeta1, m_numericStabilizerEps);
 				break;
 
 			case RMSProp_Graves:
 				if (bFirstRun) {
-					m_pMath->evSquare(m_optMtxA, dLdW);
+					iM.evSquare(m_optMtxA, dLdW);
 					dLdW.cloneTo(m_optMtxB);
-					m_pMath->evMulC_ip(dLdW, m_learningRate);
-				} else m_pMath->RMSProp_Graves(dLdW, m_optMtxA, m_optMtxB, m_learningRate, m_optBeta1, m_numericStabilizerEps);
+					iM.evMulC_ip(dLdW, m_learningRate);
+				} else iM.RMSProp_Graves(dLdW, m_optMtxA, m_optMtxB, m_learningRate, m_optBeta1, m_numericStabilizerEps);
 				break;
 
 			case RProp:
-				m_pMath->RProp(dLdW, m_learningRate);
+				iM.RProp(dLdW, m_learningRate);
 				break;
 
 			case ModProp:
 				if (bFirstRun) {
-					m_pMath->evAbs(m_optMtxA, dLdW);
-					m_pMath->evMulC_ip(dLdW, m_learningRate);
-				} else m_pMath->ModProp(dLdW, m_optMtxA, m_learningRate, m_optBeta1, m_numericStabilizerEps);
+					iM.evAbs(m_optMtxA, dLdW);
+					iM.evMulC_ip(dLdW, m_learningRate);
+				} else iM.ModProp(dLdW, m_optMtxA, m_learningRate, m_optBeta1, m_numericStabilizerEps);
 				break;
 
 			case Adam:
@@ -408,7 +405,7 @@ namespace nntl {
 					m_optMtxA.zeros();
 					m_optMtxB.zeros();
 				};
-				m_pMath->Adam(dLdW, m_optMtxA, m_optMtxB, m_optBeta1t, m_optBeta2t, m_learningRate, m_optBeta1, m_optBeta2, m_numericStabilizerEps);
+				iM.Adam(dLdW, m_optMtxA, m_optMtxB, m_optBeta1t, m_optBeta2t, m_learningRate, m_optBeta1, m_optBeta2, m_numericStabilizerEps);
 				break;
 
 			case AdaMax:
@@ -417,7 +414,7 @@ namespace nntl {
 					m_optMtxA.zeros();
 					m_optMtxB.zeros();
 				};
-				m_pMath->AdaMax(dLdW, m_optMtxA, m_optMtxB, m_optBeta1t, m_learningRate, m_optBeta1, m_optBeta2, m_numericStabilizerEps);
+				iM.AdaMax(dLdW, m_optMtxA, m_optMtxB, m_optBeta1t, m_learningRate, m_optBeta1, m_optBeta2, m_numericStabilizerEps);
 				break;
 
 			default:
@@ -430,7 +427,7 @@ namespace nntl {
 			if (use_individual_learning_rates()) {
 				const auto bUseVelocity = bUseMomentums & m_flags[f_ApplyILRToMomentumVelocity];
 				if (!bFirstRun) {
-					m_pMath->apply_ILR(dLdW, bUseVelocity ? m_Vw : m_prevdLdW, m_ILRGain, m_ILR.mulDecr, m_ILR.mulIncr, m_ILR.capLow, m_ILR.capHigh);
+					iM.apply_ILR(dLdW, bUseVelocity ? m_Vw : m_prevdLdW, m_ILRGain, m_ILR.mulDecr, m_ILR.mulIncr, m_ILR.capLow, m_ILR.capHigh);
 				}
 				if (!bUseVelocity) {
 					NNTL_ASSERT(dLdW.size() == m_prevdLdW.size());
@@ -444,25 +441,25 @@ namespace nntl {
 				if (m_flags[f_UseNesterovMomentum]) {
 					// (3)  vW(t+1) = momentum*vW(t) + scaling*grad_Loss( W(t)-momentum*vW(t))
 					//				= vW`(t+1) + scaling*grad_Loss( W`(t+1) )
-					m_pMath->evAdd_ip(m_Vw, dLdW);
+					iM.evAdd_ip(m_Vw, dLdW);
 					// (4)  W(t+1)  = W(t) - vW(t+1) 
 					//				= W(t) - vW`(t+1) - scaling*grad_Loss( W`(t+1) )
 					//				= W`(t+1) - scaling * grad_Loss( W`(t+1) )
 					//bApplydLdW2Weights=true;
 				} else {
 					//Vw = momentum.*Vw + dW
-					m_pMath->apply_momentum(m_Vw, m_momentum, dLdW);
-					m_pMath->evSub_ip(weights, m_Vw);
+					iM.apply_momentum(m_Vw, m_momentum, dLdW);
+					iM.evSub_ip(weights, m_Vw);
 					bApplydLdW2Weights = false;
 				}
 			}
 
-			if (bApplydLdW2Weights) m_pMath->evSub_ip(weights, dLdW);
+			if (bApplydLdW2Weights) iM.evSub_ip(weights, dLdW);
 
 			if (use_max_norm_regularization()) {
 				const bool bIgnoreBiases = m_flags[f_MaxNormRegIgnoreBias];
 				if (bIgnoreBiases) weights.hide_last_col();
-				m_pMath->mCheck_normalize_rows(weights, m_maxWeightVecNorm);
+				iM.mCheck_normalize_rows(weights, m_maxWeightVecNorm);
 				if (bIgnoreBiases) weights.restore_last_col();
 			}
 		}
@@ -481,14 +478,14 @@ namespace nntl {
 			if (use_L1_regularization()) {
 				const bool bIgnoreBiases = m_flags[f_L1RegIgnoreBias];
 				if (bIgnoreBiases) _W.hide_last_col();
-				ret += m_actualL1 * m_pMath->vSumAbs(_W);
+				ret += m_actualL1 * get_iMath().vSumAbs(_W);
 				if (bIgnoreBiases) _W.restore_last_col();
 			}
 
 			if (use_L2_regularization()) {
 				const bool bIgnoreBiases = m_flags[f_L2RegIgnoreBias];
 				if (bIgnoreBiases) _W.hide_last_col();
-				ret += m_actualL2*real_t(.5) * m_pMath->vSumSquares(_W);
+				ret += m_actualL2*real_t(.5) * get_iMath().vSumSquares(_W);
 				if (bIgnoreBiases) _W.restore_last_col();
 			}
 
@@ -512,7 +509,7 @@ namespace nntl {
 			m_flags[f_UseILR] = m_ILR.bUseMe();
 			return *this;
 		}
-		self_t& set_ILR(const ILR& ilr) noexcept {
+		self_t& set_ILR(const ILR<real_t>& ilr) noexcept {
 			m_ILR = ilr;
 			m_flags[f_UseILR] = m_ILR.bUseMe();
 			return *this;

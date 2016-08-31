@@ -35,7 +35,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "../nntl/common.h"
 
 #include "../nntl/interface/math/imath_basic.h"
-#include "../nntl/nnet_def_interfaces.h"
+#include "../nntl/interfaces.h"
 
 #include "../nntl/utils/prioritize_workers.h"
 #include "../nntl/utils/tictoc.h"
@@ -45,7 +45,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 using namespace nntl;
 using namespace nntl::utils;
 
-typedef nnet_def_interfaces::iThreads_t iThreads_t;
+typedef d_interfaces::iThreads_t iThreads_t;
 typedef math::iMath_basic<real_t, iThreads_t> imath_basic_t;
 
 static imath_basic_t iM;
@@ -64,7 +64,7 @@ void test_adam_perf(const size_t epochs, vec_len_t rowsCnt, vec_len_t colsCnt = 
 
 	constexpr unsigned maxReps = TEST_PERF_REPEATS_COUNT;
 
-	nnet_def_interfaces::iRng_t rg;
+	d_interfaces::iRng_t rg;
 	rg.set_ithreads(iM.ithreads());
 	
 	realmtx_t dW_st(rowsCnt, colsCnt), Mt_st(rowsCnt, colsCnt), Vt_st(rowsCnt, colsCnt);
@@ -138,7 +138,7 @@ void test_adamax_perf(const size_t epochs, vec_len_t rowsCnt, vec_len_t colsCnt 
 
 	constexpr unsigned maxReps = TEST_PERF_REPEATS_COUNT;
 
-	nnet_def_interfaces::iRng_t rg;
+	d_interfaces::iRng_t rg;
 	rg.set_ithreads(iM.ithreads());
 
 	realmtx_t dW_st(rowsCnt, colsCnt), Mt_st(rowsCnt, colsCnt), Vt_st(rowsCnt, colsCnt);
@@ -214,7 +214,7 @@ void test_elu_perf(vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 
 	const auto alpha = real_t(.5);
 
-	nnet_def_interfaces::iRng_t rg;
+	d_interfaces::iRng_t rg;
 	rg.set_ithreads(iM.ithreads());
 	tictoc tSt, tMt, tB, tSt2, tMt2;
 	utils::prioritize_workers<utils::PriorityClass::PerfTesting, imath_basic_t::ithreads_t> pw(iM.ithreads());
@@ -272,7 +272,7 @@ void test_elu_unitalpha_perf(vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 	realmtx_t A(rowsCnt, colsCnt), Asrc(rowsCnt, colsCnt);
 	ASSERT_TRUE(!A.isAllocationFailed() && !Asrc.isAllocationFailed());
 
-	nnet_def_interfaces::iRng_t rg;
+	d_interfaces::iRng_t rg;
 	rg.set_ithreads(iM.ithreads());
 	tictoc tSt, tMt, tB, tSt2, tMt2;
 	utils::prioritize_workers<utils::PriorityClass::PerfTesting, imath_basic_t::ithreads_t> pw(iM.ithreads());
@@ -333,7 +333,7 @@ void test_delu_perf(vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 
 	const auto alpha = real_t(5.);
 
-	nnet_def_interfaces::iRng_t rg;
+	d_interfaces::iRng_t rg;
 	rg.set_ithreads(iM.ithreads());
 	tictoc tSt, tMt, tB, tSt2, tMt2;
 	utils::prioritize_workers<utils::PriorityClass::PerfTesting, imath_basic_t::ithreads_t> pw(iM.ithreads());
@@ -386,7 +386,7 @@ void test_delu_unitalpha_perf(vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 	realmtx_t F(rowsCnt, colsCnt), DF(rowsCnt, colsCnt);
 	ASSERT_TRUE(!F.isAllocationFailed() && !DF.isAllocationFailed());
 	
-	nnet_def_interfaces::iRng_t rg;
+	d_interfaces::iRng_t rg;
 	rg.set_ithreads(iM.ithreads());
 	tictoc tSt, tMt, tB, tSt2, tMt2;
 	utils::prioritize_workers<utils::PriorityClass::PerfTesting, imath_basic_t::ithreads_t> pw(iM.ithreads());
@@ -443,7 +443,7 @@ void test_LeakyRelu_perf(vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 
 	const auto leak = real_t(.01);
 
-	nnet_def_interfaces::iRng_t rg;
+	d_interfaces::iRng_t rg;
 	rg.set_ithreads(iM.ithreads());
 	tictoc tSt, tMt, tB, tSt2, tMt2;
 	utils::prioritize_workers<utils::PriorityClass::PerfTesting, imath_basic_t::ithreads_t> pw(iM.ithreads());
@@ -502,7 +502,7 @@ void test_dleakyrelu_perf(vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 
 	const auto leak = real_t(5.);
 
-	nnet_def_interfaces::iRng_t rg;
+	d_interfaces::iRng_t rg;
 	rg.set_ithreads(iM.ithreads());
 	tictoc tSt, tMt, tB, tSt2, tMt2;
 	utils::prioritize_workers<utils::PriorityClass::PerfTesting, imath_basic_t::ithreads_t> pw(iM.ithreads());
@@ -559,7 +559,7 @@ void test_ewBinarize_ip_perf(vec_len_t rowsCnt, vec_len_t colsCnt = 10, const re
 	realmtx_t A(rowsCnt, colsCnt);
 	ASSERT_TRUE(!A.isAllocationFailed());
 
-	nnet_def_interfaces::iRng_t rg;
+	d_interfaces::iRng_t rg;
 	rg.set_ithreads(iM.ithreads());
 	tictoc tSt, tMt, tB, dt, t1, t2, dt1, dt2;
 	utils::prioritize_workers<utils::PriorityClass::PerfTesting, imath_basic_t::ithreads_t> pw(iM.ithreads());
@@ -643,7 +643,7 @@ void test_ewBinarize_perf(vec_len_t rowsCnt, vec_len_t colsCnt = 10, const real_
 	binmtx_t Dest(rowsCnt, colsCnt);
 	ASSERT_TRUE(!A.isAllocationFailed() && !Dest.isAllocationFailed());
 
-	nnet_def_interfaces::iRng_t rg;
+	d_interfaces::iRng_t rg;
 	rg.set_ithreads(iM.ithreads());
 	tictoc tSt, tMt, tB;
 	utils::prioritize_workers<utils::PriorityClass::PerfTesting, imath_basic_t::ithreads_t> pw(iM.ithreads());
@@ -697,7 +697,7 @@ void test_softmax_parts_perf(vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 
 	iM.preinit(dataSize);
 	ASSERT_TRUE(iM.init());
-	nnet_def_interfaces::iRng_t rg;
+	d_interfaces::iRng_t rg;
 	rg.set_ithreads(iM.ithreads());
 
 	tictoc tStRw, tStCw, tSt, tMtCw, tMtRw, tMt, tB;
@@ -805,7 +805,7 @@ void test_softmax_perf(vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 	
 	iM.preinit(iM.softmax_needTempMem(A));
 	ASSERT_TRUE(iM.init());
-	nnet_def_interfaces::iRng_t rg;
+	d_interfaces::iRng_t rg;
 	rg.set_ithreads(iM.ithreads());
 
 	tictoc tSt, tMt, tB;
@@ -857,7 +857,7 @@ void test_loss_softmax_xentropy_perf(vec_len_t rowsCnt, vec_len_t colsCnt = 10) 
 	constexpr numel_cnt_t maxDataSizeForSt = 50000;
 	realmtx_t A(rowsCnt, colsCnt), Y(rowsCnt, colsCnt);
 	ASSERT_TRUE(!A.isAllocationFailed() && !Y.isAllocationFailed());
-	nnet_def_interfaces::iRng_t rg;
+	d_interfaces::iRng_t rg;
 	rg.set_ithreads(iM.ithreads());
 
 	real_t lst(0), lmt, lb;
@@ -913,7 +913,7 @@ void test_loss_sigm_xentropy_perf(vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 	iM.preinit(dataSize);
 	ASSERT_TRUE(iM.init());
 
-	nnet_def_interfaces::iRng_t rg;
+	d_interfaces::iRng_t rg;
 	rg.set_ithreads(iM.ithreads());
 
 	tictoc tSt, tMt, tB;

@@ -114,7 +114,7 @@ namespace nntl_supp {
 		}
 	};
 
-	class jsonreader : public nntl::_has_last_error<_jsonreader_errs>, protected nntl::math::simple_matrix_typedefs {
+	class jsonreader : public nntl::_has_last_error<_jsonreader_errs>, protected nntl::math::simple_matrix_td {
 	protected:
 // 		typedef nntl::train_data::realmtx_t realmtx_t;
 // 		typedef realmtx_t::value_type mtx_value_t;

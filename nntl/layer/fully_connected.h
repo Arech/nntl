@@ -37,19 +37,20 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 namespace nntl {
 
-	template<typename ActivFunc, typename Interfaces, typename GradWorks, typename FinalPolymorphChild>
-	class _layer_fully_connected : public _layer_base<Interfaces, FinalPolymorphChild>
-		//, public _i_layer_gate<typename Interfaces::iMath_t::real_t>
+	template<typename ActivFunc, typename GradWorks, typename FinalPolymorphChild>
+	class _layer_fully_connected : public _layer_base<typename GradWorks::interfaces_t, FinalPolymorphChild>
 	{
 	private:
-		typedef _layer_base<Interfaces, FinalPolymorphChild> _base_class;
+		typedef _layer_base<typename GradWorks::interfaces_t, FinalPolymorphChild> _base_class;
 
 	public:
 		typedef ActivFunc activation_f_t;
 		static_assert(std::is_base_of<activation::_i_activation, activation_f_t>::value, "ActivFunc template parameter should be derived from activation::_i_function");
 
 		typedef GradWorks grad_works_t;
-		static_assert(std::is_base_of<_i_grad_works, grad_works_t>::value, "GradWorks template parameter should be derived from _i_grad_works");
+		static_assert(std::is_base_of<_i_grad_works<real_t>, grad_works_t>::value, "GradWorks template parameter should be derived from _i_grad_works");
+
+		static constexpr const char* _defName = "fcl";
 
 		//////////////////////////////////////////////////////////////////////////
 		//members
@@ -107,18 +108,18 @@ namespace nntl {
 		// functions
 	public:
 		~_layer_fully_connected() noexcept {};
-		_layer_fully_connected(const neurons_count_t _neurons_cnt, const real_t learningRate = real_t(.01), const real_t dpa = real_t(1.0))noexcept
-			: _base_class(_neurons_cnt), m_activations(), m_weights(), m_bWeightsInitialized(false)
+		_layer_fully_connected(const neurons_count_t _neurons_cnt
+			, const real_t learningRate = real_t(.01)
+			, const real_t dpa = real_t(1.0)
+			, const char* pCustomName=nullptr
+		)noexcept
+			: _base_class(_neurons_cnt, pCustomName), m_activations(), m_weights(), m_bWeightsInitialized(false)
 				, m_gradientWorks(learningRate)
 				, m_dropoutMask(), m_dropoutPercentActive(dpa)
 		{
 			if (m_dropoutPercentActive <= real_t(+0.) || m_dropoutPercentActive > real_t(1.)) m_dropoutPercentActive = real_t(1.);
 			m_activations.will_emulate_biases();
 		};
-
-		void get_layer_name(char* pName, const size_t cnt)const noexcept {
-			sprintf_s(pName, cnt, "fcl%d", static_cast<unsigned>(get_self().get_layer_idx()));
-		}
 		
 		const realmtxdef_t& get_activations()const noexcept { return m_activations; }
 
@@ -200,7 +201,7 @@ namespace nntl {
 				lid.maxMemBPropRequire = lid.max_dLdA_numel + m_weights.numel();
 			}
 
-			if (!m_gradientWorks.init(grad_works_t::init_struct_t(& get_self().get_iMath(), m_weights.size())))return ErrorCode::CantInitializeGradWorks;
+			if (!m_gradientWorks.init(get_self().get_common_data(), m_weights.size()))return ErrorCode::CantInitializeGradWorks;
 
 			lid.bHasLossAddendum = hasLossAddendum();
 
@@ -361,20 +362,16 @@ namespace nntl {
 
 	public:
 		template <typename LowerLayer>
-		void fprop(const LowerLayer& lowerLayer)noexcept{
+		void fprop(const LowerLayer& lowerLayer)noexcept {
 			static_assert(std::is_base_of<_i_layer_fprop, LowerLayer>::value, "Template parameter LowerLayer must implement _i_layer_fprop");
-			//STDCOUTL("In " << get_layer_name_str());
 			NNTL_ASSERT(lowerLayer.get_activations().test_biases_ok());
 			get_self()._fprop(lowerLayer.get_activations());
 			NNTL_ASSERT(lowerLayer.get_activations().test_biases_ok());
 		}
 
-
-		
 		template <typename LowerLayer>
-		const unsigned bprop(realmtx_t& dLdA, const LowerLayer& lowerLayer, realmtx_t& dLdAPrev)noexcept{
+		const unsigned bprop(realmtx_t& dLdA, const LowerLayer& lowerLayer, realmtx_t& dLdAPrev)noexcept {
 			static_assert(std::is_base_of<_i_layer_trainable, LowerLayer>::value, "Template parameter LowerLayer must implement _i_layer_trainable");
-			//STDCOUTL("bprop " << get_layer_name_str());
 			NNTL_ASSERT(lowerLayer.get_activations().test_biases_ok());
 			get_self()._bprop(dLdA, lowerLayer.get_activations(), std::is_base_of<m_layer_input, LowerLayer>::value, dLdAPrev);
 			NNTL_ASSERT(lowerLayer.get_activations().test_biases_ok());
@@ -425,22 +422,21 @@ namespace nntl {
 	// final implementation of layer with all functionality of _layer_fully_connected
 	// If you need to derive a new class, derive it from _layer_fully_connected (to make static polymorphism work)
 	template <typename ActivFunc = activation::sigm<>,
-		typename Interfaces=nnet_def_interfaces,
-		typename GradWorks = grad_works<typename Interfaces::iMath_t>
+		typename GradWorks = grad_works<d_interfaces>
 	> class LFC final 
-		: public _layer_fully_connected<ActivFunc, Interfaces, GradWorks, LFC<ActivFunc, Interfaces, GradWorks>>
+		: public _layer_fully_connected<ActivFunc, GradWorks, LFC<ActivFunc, GradWorks>>
 	{
 	public:
 		~LFC() noexcept {};
-		LFC(const neurons_count_t _neurons_cnt,
-			const real_t learningRate=.01, const real_t dropoutFrac = 0.0) noexcept 
-			: _layer_fully_connected<ActivFunc, Interfaces, GradWorks, LFC<ActivFunc, Interfaces, GradWorks>>
-			(_neurons_cnt, learningRate, dropoutFrac) {};
+		LFC(const neurons_count_t _neurons_cnt, const real_t learningRate = real_t(.01)
+			, const real_t dropoutFrac = real_t(0.0), const char* pCustomName = nullptr
+		)noexcept
+			: _layer_fully_connected<ActivFunc, GradWorks, LFC<ActivFunc, GradWorks>>
+			(_neurons_cnt, learningRate, dropoutFrac, pCustomName) {};
 	};
 
 	template <typename ActivFunc = activation::sigm<>,
-		typename Interfaces = nnet_def_interfaces,
-		typename GradWorks = grad_works<typename Interfaces::iMath_t>
-	> using layer_fully_connected = typename LFC<ActivFunc, Interfaces, GradWorks>;
+		typename GradWorks = grad_works<d_interfaces>
+	> using layer_fully_connected = typename LFC<ActivFunc, GradWorks>;
 }
 

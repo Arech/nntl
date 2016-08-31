@@ -162,9 +162,9 @@ void test_same_layers(train_data<real_t>& td, uint64_t rngSeed) {
 
 	constexpr unsigned undNeuronsCnt = 100, inrNeuronsCnt = 150;
 
-	nnet_def_interfaces::iMath_t iMath;
-	nnet_def_interfaces::iRng_t iRng;
-	if (nnet_def_interfaces::iRng_t::is_multithreaded) {
+	d_interfaces::iMath_t iMath;
+	d_interfaces::iRng_t iRng;
+	if (d_interfaces::iRng_t::is_multithreaded) {
 		iRng.set_ithreads(iMath.ithreads());
 	}
 
@@ -180,12 +180,12 @@ void test_same_layers(train_data<real_t>& td, uint64_t rngSeed) {
 	auto AlayersTuple = std::make_tuple(std::ref(Ainp), std::ref(Aund), std::ref(Aint));
 	utils::for_eachwp_up(AlayersTuple, _impl::_preinit_layers{});
 
-	typedef _impl::common_nn_data<nnet_def_interfaces::iMath_t, nnet_def_interfaces::iRng_t> common_data_t;
+	typedef _impl::common_nn_data<d_interfaces> common_data_t;
 	common_data_t CD(iMath, iRng);
 	CD.init(evalSamplesCnt, trainSamplesCnt);
 	_impl::_layer_init_data<common_data_t> lid(CD);
 	_impl::layers_mem_requirements lmr;
-
+	
 	iRng.seed64(rngSeed);
 	lid.clean();
 	_nnet_errs::ErrorCode ec = Aund.init(lid);

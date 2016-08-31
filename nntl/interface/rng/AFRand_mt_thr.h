@@ -42,22 +42,22 @@ namespace rng {
 	namespace _impl {
 
 		template<typename AgnerFogRNG, typename real_t>
-		struct AFRandom_mt_thresholds {};
+		struct AFRand_mt_thr {};
 
-		template<> struct AFRandom_mt_thresholds<Agner_Fog::CRandomMersenne, double> {
+		template<> struct AFRand_mt_thr<AFog::CRandomMersenne, double> {
 			static constexpr size_t bnd_gen_vector = 1650;
 			static constexpr size_t bnd_gen_vector_gtz = 1645;
 			static constexpr size_t bnd_gen_vector_norm = 1640;
 		};
 
-		template<> struct AFRandom_mt_thresholds<Agner_Fog::CRandomSFMT0, double> {
+		template<> struct AFRand_mt_thr<AFog::CRandomSFMT0, double> {
 			static constexpr size_t bnd_gen_vector = 2640;
 			static constexpr size_t bnd_gen_vector_gtz = 2630;
 			static constexpr size_t bnd_gen_vector_norm = 2620;
 		};
 
 		//insanely strange RNG
-		template<> struct AFRandom_mt_thresholds<Agner_Fog::CRandomSFMT1, double> {
+		template<> struct AFRand_mt_thr<AFog::CRandomSFMT1, double> {
 			static constexpr size_t bnd_gen_vector = 3000;
 			static constexpr size_t bnd_gen_vector_gtz = 3000;
 			static constexpr size_t bnd_gen_vector_norm = 3000;
@@ -65,19 +65,19 @@ namespace rng {
 
 		//////////////////////////////////////////////////////////////////////////
 		//////////////////////////////////////////////////////////////////////////
-		template<> struct AFRandom_mt_thresholds<Agner_Fog::CRandomMersenne, float> {
+		template<> struct AFRand_mt_thr<AFog::CRandomMersenne, float> {
 			static constexpr size_t bnd_gen_vector = 1650;
 			static constexpr size_t bnd_gen_vector_gtz = 1645;
 			static constexpr size_t bnd_gen_vector_norm = 1640;
 		};
 
-		template<> struct AFRandom_mt_thresholds<Agner_Fog::CRandomSFMT0, float> {
+		template<> struct AFRand_mt_thr<AFog::CRandomSFMT0, float> {
 			static constexpr size_t bnd_gen_vector = 2640;
 			static constexpr size_t bnd_gen_vector_gtz = 2630;
 			static constexpr size_t bnd_gen_vector_norm = 2620;
 		};
 
-		template<> struct AFRandom_mt_thresholds<Agner_Fog::CRandomSFMT1, float> {
+		template<> struct AFRand_mt_thr<AFog::CRandomSFMT1, float> {
 			static constexpr size_t bnd_gen_vector = 3000;
 			static constexpr size_t bnd_gen_vector_gtz = 3000;
 			static constexpr size_t bnd_gen_vector_norm = 3000;

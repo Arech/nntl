@@ -32,7 +32,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #pragma once
 
 #include "../_nnet_errs.h"
-#include "../nnet_def_interfaces.h"
+#include "../interfaces.h"
 #include "../serialization/serialization.h"
 
 #include "../grad_works.h"
@@ -80,7 +80,7 @@ namespace nntl {
 	//////////////////////////////////////////////////////////////////////////
 	//////////////////////////////////////////////////////////////////////////
 	template <typename RealT>
-	class _i_layer_typedefs : public math::simple_matrix_typedefs {
+	class _i_layer_typedefs : public math::simple_matrix_td {
 	protected:
 		_i_layer_typedefs()noexcept {}
 		~_i_layer_typedefs()noexcept {}
@@ -181,6 +181,8 @@ namespace nntl {
 		nntl_interface const neurons_count_t get_incoming_neurons_cnt()const noexcept;
 		
 		//must obey to matlab variables naming convention
+		nntl_interface auto set_custom_name(const char* pCustName)noexcept;
+		nntl_interface const char* get_custom_name()const noexcept;
 		nntl_interface void get_layer_name(char* pName, const size_t cnt)const noexcept;
 		nntl_interface std::string get_layer_name_str()const noexcept;
 
@@ -283,9 +285,26 @@ namespace nntl {
 		typedef const FinalPolymorphChild& self_cref_t;
 		typedef FinalPolymorphChild* self_ptr_t;
 
+		//layer name could be used for example to name Matlab's variables,
+		//so there must be some reasonable limit. Don't overcome this limit!
+		static constexpr size_t layerNameMaxChars = 50;
+		//limit for custom name length
+		static constexpr size_t customNameMaxChars = layerNameMaxChars - 10;
+	private:
+		//redefine in derived class in public
+		static constexpr const char* _defName = "_cpoly";
+
+	protected:
+		//just a pointer as passed, because don't want to care about memory allocation and leave a footprint as small as possible,
+		//because it's just a matter of convenience.
+		const char* m_customName;
+
+	public:
 		//////////////////////////////////////////////////////////////////////////
 		~_cpolym_layer_base()noexcept {}
-		_cpolym_layer_base()noexcept {}
+		_cpolym_layer_base(const char* pCustName=nullptr)noexcept {
+			set_custom_name(pCustName);
+		}
 
 		self_ref_t get_self() noexcept {
 			static_assert(std::is_base_of<_cpolym_layer_base, FinalPolymorphChild>::value
@@ -298,12 +317,18 @@ namespace nntl {
 			return static_cast<self_cref_t>(*this);
 		}
 
+		self_ref_t set_custom_name(const char* pCustName)noexcept {
+			NNTL_ASSERT(!pCustName || strlen(pCustName) < customNameMaxChars);
+			m_customName = pCustName;
+			return get_self();
+		}
+		const char* get_custom_name()const noexcept { return m_customName ? m_customName : get_self()._defName; }
+
 		void get_layer_name(char* pName, const size_t cnt)const noexcept {
-			NNTL_ASSERT(!"WTF? Derived class didn't override get_layer_name()!");
-			sprintf_s(pName, cnt, "unk%d", static_cast<unsigned>(get_self().get_layer_idx()));
+			sprintf_s(pName, cnt, "%s%d", get_self().get_custom_name(),static_cast<unsigned>(get_self().get_layer_idx()));
 		}
 		std::string get_layer_name_str()const noexcept {
-			constexpr size_t ml = 16;
+			constexpr size_t ml = layerNameMaxChars;
 			char n[ml];
 			get_self().get_layer_name(n, ml);
 			return std::string(n);
@@ -315,31 +340,28 @@ namespace nntl {
 	// Implements compile time polymorphism (to get rid of virtual functions),
 	// default _layer_name_ machinery, some default basic typedefs and basic support machinery
 	// (init() function with common_data_t, layer index number, neurons count)
-	template<typename Interfaces, typename FinalPolymorphChild>
-	class _layer_base : public _cpolym_layer_base<FinalPolymorphChild, typename Interfaces::iMath_t::real_t> {
+	template<typename InterfacesT, typename FinalPolymorphChild>
+	class _layer_base 
+		: public _cpolym_layer_base<FinalPolymorphChild, typename InterfacesT::iMath_t::real_t>
+		, public _impl::_common_data_consumer<InterfacesT>
+	{
+	private:
+		typedef _cpolym_layer_base<FinalPolymorphChild, typename InterfacesT::iMath_t::real_t> _base_class;
 	public:
 		//////////////////////////////////////////////////////////////////////////
-		//typedefs
-		typedef Interfaces interfaces_t;
-
-		//#TODO Interfaces and its derived typedefs probably should be defined earlier in _i_layer_typedefs?
-		typedef typename Interfaces::iMath_t iMath_t;
-		static_assert(std::is_base_of<math::_i_math<real_t>, iMath_t>::value, "Interfaces::iMath type should be derived from _i_math");
-
-		typedef typename Interfaces::iRng_t iRng_t;
-		static_assert(std::is_base_of<rng::_i_rng, iRng_t>::value, "Interfaces::iRng type should be derived from _i_rng");
-
-		typedef _impl::common_nn_data<iMath_t, iRng_t> common_data_t;
+		//typedefs		
 		typedef _impl::_layer_init_data<common_data_t> _layer_init_data_t;
+
+		using _base_class::real_t;
 
 		//////////////////////////////////////////////////////////////////////////
 		//members section (in "biggest first" order)
-	protected:
-		const common_data_t* m_pCommonData;
 
 	private:
 		neurons_count_t m_neurons_cnt, m_incoming_neurons_cnt;
 		layer_index_t m_layerIdx;
+
+		static constexpr const char* _defName = "_base";
 
 	protected:
 		bool m_bTraining;
@@ -348,40 +370,21 @@ namespace nntl {
 		//////////////////////////////////////////////////////////////////////////
 		//constructors-destructor
 		~_layer_base()noexcept {};
-		_layer_base(const neurons_count_t _neurons_cnt) noexcept : m_pCommonData(nullptr)
+		_layer_base(const neurons_count_t _neurons_cnt, const char* pCustomName=nullptr) noexcept 
+			: _base_class(pCustomName)
 			, m_layerIdx(0), m_neurons_cnt(_neurons_cnt), m_incoming_neurons_cnt(0), m_bTraining(false)
 		{};
 		
 		//////////////////////////////////////////////////////////////////////////
-		// helpers to access common data 
-		const common_data_t& get_common_data()const noexcept {
-			NNTL_ASSERT(m_pCommonData);
-			return *m_pCommonData;
-		}
-		iMath_t& get_iMath()const noexcept {
-			NNTL_ASSERT(m_pCommonData);
-			return m_pCommonData->iMath();
-		}
-		iRng_t& get_iRng()const noexcept {
-			NNTL_ASSERT(m_pCommonData);
-			return m_pCommonData->iRng();
-		}
-		const vec_len_t get_max_fprop_batch_size()const noexcept {
-			NNTL_ASSERT(m_pCommonData);
-			return m_pCommonData->max_fprop_batch_size();
-		}
-		const vec_len_t get_training_batch_size()const noexcept {
-			NNTL_ASSERT(m_pCommonData);
-			return m_pCommonData->training_batch_size();
-		}
-		//////////////////////////////////////////////////////////////////////////
 		//nntl_interface overridings
 		ErrorCode init(_layer_init_data_t& lid, real_t* pNewActivationStorage = nullptr)noexcept {
-			NNTL_ASSERT(!m_pCommonData);
-			m_pCommonData = &lid.commonData;
+			set_common_data(lid.commonData);
+
+			//inspector.init_layer(get_self().get_layer_idx(), get_self().get_layer_name_str());
+
 			return ErrorCode::Success;
 		}
-		void deinit() noexcept { m_pCommonData = nullptr; }
+		void deinit() noexcept { clean_common_data(); }
 
 		const layer_index_t get_layer_idx() const noexcept { return m_layerIdx; }
 		const neurons_count_t get_neurons_cnt() const noexcept { 

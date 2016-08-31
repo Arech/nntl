@@ -38,13 +38,13 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "../_i_rng.h"
 #include "../_i_threads.h"
 
-#include "AFRandom_mt_thresholds.h"
+#include "AFRand_mt_thr.h"
 
 namespace nntl {
 	namespace rng {
 
-		template<typename AgnerFogRNG, typename iThreadsT>
-		class AFRandom_mt final : public rng_helper<AFRandom_mt<AgnerFogRNG, iThreadsT>> {
+		template<typename RealT, typename AgnerFogRNG, typename iThreadsT>
+		class AFRand_mt final : public rng_helper<RealT, AFRand_mt<RealT, AgnerFogRNG, iThreadsT>> {
 			static_assert(std::is_base_of<threads::_i_threads<typename iThreadsT::range_t>, iThreadsT>::value, "iThreads must implement threads::_i_threads");
 
 		public:
@@ -54,7 +54,7 @@ namespace nntl {
 			typedef typename ithreads_t::par_range_t par_range_t;
 			typedef typename ithreads_t::thread_id_t thread_id_t;
 
-			typedef _impl::AFRandom_mt_thresholds<base_rng_t,real_t> Thresholds_t;
+			typedef _impl::AFRand_mt_thr<base_rng_t,real_t> Thresholds_t;
 
 		protected:
 			typedef std::vector<base_rng_t> rng_vector_t;
@@ -63,7 +63,7 @@ namespace nntl {
 			ithreads_t* m_pThreads;
 			rng_vector_t m_Rngs;
 
-			//Agner_Fog::CRandomMersenne m_rng;
+			//AFog::CRandomMersenne m_rng;
 			//base_rng_t m_rng;
 		
 		protected:
@@ -80,7 +80,7 @@ namespace nntl {
 		public:
 			static constexpr bool is_multithreaded = true;
 
-			AFRandom_mt()noexcept:m_pThreads(nullptr) {}
+			AFRand_mt()noexcept:m_pThreads(nullptr) {}
 			bool set_ithreads(ithreads_t& t)noexcept {
 				if (m_pThreads) return false;
 				m_pThreads = &t;
@@ -94,10 +94,10 @@ namespace nntl {
 				return true;
 			}
 
-			AFRandom_mt(ithreads_t& t)noexcept : m_pThreads(&t) {
+			AFRand_mt(ithreads_t& t)noexcept : m_pThreads(&t) {
 				_construct_rngs(static_cast<int>(s64to32(std::time(0))));
 			}
-			AFRandom_mt(ithreads_t& t, seed_t s)noexcept : m_pThreads(&t) {
+			AFRand_mt(ithreads_t& t, seed_t s)noexcept : m_pThreads(&t) {
 				_construct_rngs(static_cast<int>(s));
 			}
 
@@ -123,7 +123,7 @@ namespace nntl {
 				//TODO: pray we'll never need it bigger (because we'll possible do need and this may break everything)
 				NNTL_ASSERT(lessThan <= INT32_MAX);
 				int v = m_Rngs[0].IRandom(0, static_cast<int>(lessThan - 1));
-				NNTL_ASSERT(v != Agner_Fog::GEN_ERROR);
+				NNTL_ASSERT(v != AFog::GEN_ERROR);
 				return static_cast<generated_scalar_t>(v);
 			}
 

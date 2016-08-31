@@ -37,12 +37,17 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 namespace nntl {
 namespace rng {
 
+	template<typename RealT>
 	struct _i_rng {
 
 		//typedef uint64_t seed_t;
 		typedef int seed_t;
-		typedef math_types::realmtx_ty realmtx_t;
-		typedef realmtx_t::value_type real_t;
+		
+		//typedef math_types::realmtx_ty realmtx_t;
+		//typedef realmtx_t::value_type real_t;
+		typedef RealT real_t;
+		typedef math::simple_matrix<real_t> realmtx_t;
+
 		// ptrdiff_t is either int on 32bits or int64 on 64bits. Type required by random_shuffle()
 		typedef ptrdiff_t generated_scalar_t;
 
@@ -112,8 +117,8 @@ namespace rng {
 		nntl_interface void gen_matrix_no_bias_gtz(realmtx_t& mtx, const real_t a)noexcept;
 	};
 
-	template<typename FinalPolymorphChild>
-	struct rng_helper : public _i_rng {
+	template<typename RealT, typename FinalPolymorphChild>
+	struct rng_helper : public _i_rng<RealT> {
 	protected:
 		typedef FinalPolymorphChild self_t;
 		typedef FinalPolymorphChild& self_ref_t;
@@ -121,13 +126,13 @@ namespace rng {
 		typedef FinalPolymorphChild* self_ptr_t;
 
 		self_ref_t get_self() noexcept {
-			static_assert(std::is_base_of<rng_helper<FinalPolymorphChild>, FinalPolymorphChild>::value
-				, "FinalPolymorphChild must derive from _i_rng_helper<FinalPolymorphChild>");
+			static_assert(std::is_base_of<rng_helper<real_t, FinalPolymorphChild>, FinalPolymorphChild>::value
+				, "FinalPolymorphChild must derive from _i_rng_helper<RealT,FinalPolymorphChild>");
 			return static_cast<self_ref_t>(*this);
 		}
 		self_cref_t get_self() const noexcept {
-			static_assert(std::is_base_of<rng_helper<FinalPolymorphChild>, FinalPolymorphChild>::value
-				, "FinalPolymorphChild must derive from _i_rng_helper<FinalPolymorphChild>");
+			static_assert(std::is_base_of<rng_helper<real_t, FinalPolymorphChild>, FinalPolymorphChild>::value
+				, "FinalPolymorphChild must derive from _i_rng_helper<RealT,FinalPolymorphChild>");
 			return static_cast<self_cref_t>(*this);
 		}
 

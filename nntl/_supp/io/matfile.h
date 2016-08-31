@@ -106,7 +106,7 @@ namespace nntl_supp {
 	};
 
 	template<typename ErrorsClassT = _matfile_errs>
-	class _matfile_base : public nntl::_has_last_error<ErrorsClassT>, protected nntl::math::simple_matrix_typedefs {
+	class _matfile_base : public nntl::_has_last_error<ErrorsClassT>, protected nntl::math::simple_matrix_td {
 	protected:
 		typedef stack_presized<mxArray*, 4> structure_stack_t;		
 

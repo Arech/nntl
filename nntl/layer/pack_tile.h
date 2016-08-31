@@ -185,13 +185,15 @@ namespace nntl {
 		
 	public:
 		~_layer_pack_tile()noexcept {}
-		_layer_pack_tile(tiled_layer_t& tl)noexcept : _base_class(tiles_count*tl.get_neurons_cnt())
+		_layer_pack_tile(tiled_layer_t& tl, const char* pCustomName = nullptr)noexcept 
+			: _base_class(tiles_count*tl.get_neurons_cnt(), pCustomName)
 			, m_tiledLayer(tl), m_innerCD()//initialize m_innerCD by default
 		{
 			m_activations.will_emulate_biases();
 			m_innerActivations.will_emulate_biases();
 			m_innerLowerLayerActivations.will_emulate_biases();
 		}
+		static constexpr const char* _defName = "lpt";
 
 		const realmtxdef_t& get_activations()const noexcept { return m_activations; }
 
@@ -199,10 +201,6 @@ namespace nntl {
 		template<typename _Func>
 		void for_each_layer(_Func&& f)const noexcept {
 			call_F_for_each_layer(std::forward<_Func>(f), m_tiledLayer);
-		}
-
-		void get_layer_name(char* pName, const size_t cnt)const noexcept {
-			sprintf_s(pName, cnt, "lpt%d", static_cast<unsigned>(get_self().get_layer_idx()));
 		}
 
 		//should return true, if the layer has a value to add to Loss function value (there's some regularizer attached)
@@ -221,7 +219,7 @@ namespace nntl {
 			});
 			
 			//initialize common data for the m_tiledLayer
-			m_innerCD.setInterfaces(get_self().get_iMath(), get_self().get_iRng());
+			m_innerCD.setInterfacesFrom(get_self().get_common_data());
 			const auto maxInnerFPropRowsCount = get_self().get_max_fprop_batch_size()*tiles_count;
 			const auto maxInnerBPropRowsCount = get_self().get_training_batch_size()*tiles_count;
 			m_innerCD.init(maxInnerFPropRowsCount, maxInnerBPropRowsCount);
@@ -330,10 +328,9 @@ namespace nntl {
 
 		////////////////////////////////////////////////////////////////////////////
 		// FProp for the incoming data that was properly transformed for use in a tiled layer
-		template <typename LowerLayer, bool _C= bExpectSpecialDataX>
+		template <typename LowerLayer, bool _C = bExpectSpecialDataX>
 		std::enable_if_t<_C> fprop(const LowerLayer& lowerLayer)noexcept {
 			static_assert(std::is_base_of<_i_layer_fprop, LowerLayer>::value, "Template parameter LowerLayer must implement _i_layer_fprop");
-			
 			static_assert(std::is_base_of<m_layer_input, LowerLayer>::value, "When bExpectSpecialDataX is set the lowerLayer must be layer_input!");
 			//and moreover, it must produce specially prepared data!
 						
@@ -455,8 +452,8 @@ namespace nntl {
 	{
 	public:
 		~LPT() noexcept {};
-		LPT(LayerT& tl) noexcept
-			: _layer_pack_tile<LPT<LayerT, K_tiles, bExpectSpecialDataX>, LayerT, K_tiles, bExpectSpecialDataX>(tl)
+		LPT(LayerT& tl, const char* pCustomName=nullptr) noexcept
+			: _layer_pack_tile<LPT<LayerT, K_tiles, bExpectSpecialDataX>, LayerT, K_tiles, bExpectSpecialDataX>(tl, pCustomName)
 		{};
 	};
 
@@ -464,8 +461,8 @@ namespace nntl {
 	using layer_pack_tile = typename LPT<LayerT, K_tiles, bExpectSpecialDataX>;
 
 	template <neurons_count_t K_tiles, bool bExpectSpecialDataX, typename LayerT> inline
-		LPT <LayerT, K_tiles, bExpectSpecialDataX> make_layer_pack_tile(LayerT& tl) noexcept
+	LPT <LayerT, K_tiles, bExpectSpecialDataX> make_layer_pack_tile(LayerT& tl, const char* pCustomName = nullptr) noexcept
 	{
-		return LPT<LayerT, K_tiles, bExpectSpecialDataX>(tl);
+		return LPT<LayerT, K_tiles, bExpectSpecialDataX>(tl, pCustomName);
 	}
 }

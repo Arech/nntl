@@ -35,10 +35,10 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "../nntl/common.h"
 
 #include "../nntl/interface/rng/std.h"
-#include "../nntl/interface/rng/AFRandom.h"
-#include "../nntl/interface/rng/AFRandom_mt.h"
+#include "../nntl/interface/rng/AFRand.h"
+#include "../nntl/interface/rng/AFRand_mt.h"
 
-#include "../nntl/nnet_def_interfaces.h"
+#include "../nntl/interfaces.h"
 
 #include "../nntl/utils/chrono.h"
 #include "../nntl/utils/prioritize_workers.h"
@@ -83,7 +83,7 @@ void test_rng_perf(math_types::realmtx_ty::vec_len_t rowsCnt, math_types::realmt
 	STDCOUTL("Std:\t" << utils::duration_readable(diff, maxReps, &tstStd));*/
 
 	{
-		rng::AFRandom<Agner_Fog::CRandomMersenne> rg;
+		rng::AFRand<math_types::real_ty, AFog::CRandomMersenne> rg;
 		bt = steady_clock::now();
 		for (unsigned r = 0; r < maxReps; ++r) {
 			rg.gen_matrix_norm(m);
@@ -93,7 +93,7 @@ void test_rng_perf(math_types::realmtx_ty::vec_len_t rowsCnt, math_types::realmt
 	STDCOUTL("AFMersenne:\t" << utils::duration_readable(diff, maxReps, &tstAFMersenne));
 
 	{
-		rng::AFRandom<Agner_Fog::CRandomSFMT0> rg;
+		rng::AFRand<math_types::real_ty, AFog::CRandomSFMT0> rg;
 		bt = steady_clock::now();
 		for (unsigned r = 0; r < maxReps; ++r) {
 			rg.gen_matrix_norm(m);
@@ -103,7 +103,7 @@ void test_rng_perf(math_types::realmtx_ty::vec_len_t rowsCnt, math_types::realmt
 	STDCOUTL("AFSFMT0:\t" << utils::duration_readable(diff, maxReps, &tstAFSFMT0));
 
 	{
-		rng::AFRandom<Agner_Fog::CRandomSFMT1> rg;
+		rng::AFRand<math_types::real_ty, AFog::CRandomSFMT1> rg;
 		bt = steady_clock::now();
 		for (unsigned r = 0; r < maxReps; ++r) {
 			rg.gen_matrix_norm(m);
@@ -135,7 +135,7 @@ void test_rngmt(iThreadsT&iT, math_types::realmtx_ty& m) {
 	auto ptr = m.data();
 	auto dataCnt = m.numel();
 
-	rng::AFRandom_mt<AFRng, iThreadsT> rg(iT);
+	rng::AFRand_mt<math_types::real_ty, AFRng, iThreadsT> rg(iT);
 
 	bt = steady_clock::now();
 	for (unsigned r = 0; r < maxReps; ++r) {
@@ -169,11 +169,11 @@ void test_rng_mt_perf(iThreads& iT, math_types::realmtx_ty::vec_len_t rowsCnt, m
 	ASSERT_TRUE(!m.isAllocationFailed());
 	utils::prioritize_workers<utils::PriorityClass::PerfTesting, iThreads> pw(iT);
 	STDCOUTL("AFMersenne:");
-	test_rngmt<Agner_Fog::CRandomMersenne, iThreads>(iT, m);
+	test_rngmt<AFog::CRandomMersenne, iThreads>(iT, m);
 	STDCOUTL("AFSFMT0:");
-	test_rngmt<Agner_Fog::CRandomSFMT0, iThreads>(iT, m);
+	test_rngmt<AFog::CRandomSFMT0, iThreads>(iT, m);
 	STDCOUTL("AFSFMT1:");
-	test_rngmt<Agner_Fog::CRandomSFMT1, iThreads>(iT, m);
+	test_rngmt<AFog::CRandomSFMT1, iThreads>(iT, m);
 }*/
 template<typename iRng, typename iThreadsT>
 void test_rng_mt_perf(iThreadsT& iT, char* pName, math_types::realmtx_ty::vec_len_t rowsCnt, math_types::realmtx_ty::vec_len_t colsCnt = 10) {
@@ -188,13 +188,13 @@ void test_rng_mt_perf(iThreadsT& iT, char* pName, math_types::realmtx_ty::vec_le
 
 TEST(TestRNG, RngMtPerf) {
 	typedef math_types::real_ty real_t;
-	typedef nntl::nnet_def_interfaces::iThreads_t def_threads_t;
+	typedef nntl::d_interfaces::iThreads_t def_threads_t;
 	def_threads_t Thr;
 
-	NNTL_RUN_TEST2( (rng::_impl::AFRandom_mt_thresholds<Agner_Fog::CRandomMersenne, real_t>::bnd_gen_vector_norm), 10)
-		test_rng_mt_perf<Agner_Fog::CRandomMersenne>(Thr, "AFMersenne", i, 10);
-	NNTL_RUN_TEST2( (rng::_impl::AFRandom_mt_thresholds<Agner_Fog::CRandomSFMT0, real_t>::bnd_gen_vector_norm), 10)
-		test_rng_mt_perf<Agner_Fog::CRandomSFMT0>(Thr, "AFSFMT0", i, 10);
-	NNTL_RUN_TEST2( (rng::_impl::AFRandom_mt_thresholds<Agner_Fog::CRandomSFMT1, real_t>::bnd_gen_vector_norm), 10)
-		test_rng_mt_perf<Agner_Fog::CRandomSFMT1>(Thr, "AFSFMT1", i, 10);
+	NNTL_RUN_TEST2( (rng::_impl::AFRand_mt_thr<AFog::CRandomMersenne, real_t>::bnd_gen_vector_norm), 10)
+		test_rng_mt_perf<AFog::CRandomMersenne>(Thr, "AFMersenne", i, 10);
+	NNTL_RUN_TEST2( (rng::_impl::AFRand_mt_thr<AFog::CRandomSFMT0, real_t>::bnd_gen_vector_norm), 10)
+		test_rng_mt_perf<AFog::CRandomSFMT0>(Thr, "AFSFMT0", i, 10);
+	NNTL_RUN_TEST2( (rng::_impl::AFRand_mt_thr<AFog::CRandomSFMT1, real_t>::bnd_gen_vector_norm), 10)
+		test_rng_mt_perf<AFog::CRandomSFMT1>(Thr, "AFSFMT1", i, 10);
 }

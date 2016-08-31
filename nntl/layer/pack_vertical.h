@@ -56,10 +56,19 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 namespace nntl {
 
 	template<typename FinalPolymorphChild, typename ...Layrs>
-	class _layer_pack_vertical : public _cpolym_layer_base<FinalPolymorphChild,
-		typename std::remove_reference<typename std::tuple_element<0, const std::tuple<Layrs&...>>::type>::type::iMath_t::real_t>
+	class _layer_pack_vertical 
+		: public _cpolym_layer_base<FinalPolymorphChild, typename std::remove_reference<typename 
+		    std::tuple_element<0, const std::tuple<Layrs&...>>::type>::type::iMath_t::real_t>
+		, public interfaces_td<typename std::remove_reference<typename
+		    std::tuple_element<0, const std::tuple<Layrs&...>>::type>::type::interfaces_t>
 	{
+	private:
+		typedef _cpolym_layer_base<FinalPolymorphChild,
+			typename std::remove_reference<typename std::tuple_element<0, const std::tuple<Layrs&...>>::type>::type::iMath_t::real_t> _base_class;
+
 	public:
+		using _base_class::real_t;
+
 		//LayerPack_t is used to distinguish ordinary layers from layer packs (for example, to implement call_F_for_each_layer())
 		typedef self_t LayerPack_t;
 
@@ -75,9 +84,6 @@ namespace nntl {
 		static_assert(!std::is_base_of<m_layer_input, first_layer_t>::value, "First layer can't be the input layer!");
 		static_assert(!std::is_base_of<m_layer_output, last_layer_t>::value, "Last layer can't be the output layer!");
 
-		typedef typename first_layer_t::interfaces_t interfaces_t;
-		typedef typename first_layer_t::iMath_t iMath_t;
-		typedef typename first_layer_t::iRng_t iRng_t;
 		typedef typename first_layer_t::_layer_init_data_t _layer_init_data_t;
 		typedef typename first_layer_t::common_data_t common_data_t;
 
@@ -115,13 +121,16 @@ namespace nntl {
 
 	public:
 		~_layer_pack_vertical()noexcept {}
-		_layer_pack_vertical(Layrs&... layrs)noexcept : m_layers(layrs...), m_layerIdx(0) {
+		_layer_pack_vertical(const char* pCustomName, Layrs&... layrs)noexcept 
+			: _base_class(pCustomName), m_layers(layrs...), m_layerIdx(0) 
+		{
 			//#todo this better be done with a single static_assert in the class scope
 			utils::for_each_up(m_layers, [](auto& l)noexcept {
 				static_assert(!std::is_base_of<m_layer_input, decltype(l)>::value && !std::is_base_of<m_layer_output, decltype(l)>::value,
 					"Inner layers of _layer_pack_vertical mustn't be input or output layers!");
 			});
 		}
+		static constexpr const char* _defName = "lpv";
 
 		//////////////////////////////////////////////////////////////////////////
 		// helpers to access common data 
@@ -152,10 +161,6 @@ namespace nntl {
 
 		const realmtxdef_t& get_activations()const noexcept { return get_self().last_layer().get_activations(); }
 
-		void get_layer_name(char* pName, const size_t cnt)const noexcept {
-			sprintf_s(pName, cnt, "lpv%d", static_cast<unsigned>(get_self().get_layer_idx()));
-		}
-
 		//should return true, if the layer has a value to add to Loss function value (there's some regularizer attached)
 		bool hasLossAddendum()const noexcept {
 			bool b = false;
@@ -177,6 +182,8 @@ namespace nntl {
 		}
 
 		ErrorCode init(_layer_init_data_t& lid, real_t* pNewActivationStorage = nullptr)noexcept {
+			//inspector.init_layer(get_self().get_layer_idx(), get_self().get_layer_name_str());
+
 			ErrorCode ec = ErrorCode::Success;
 			layer_index_t failedLayerIdx = 0;
 
@@ -226,14 +233,12 @@ namespace nntl {
 		std::enable_if_t<!_impl::is_layer_wrapper<LowerLayer>::value> fprop(const LowerLayer& lowerLayer)noexcept
 		{
 			static_assert(std::is_base_of<_i_layer_fprop, LowerLayer>::value, "Template parameter LowerLayer must implement _i_layer_fprop");
-			//STDCOUTL("In nonspecial "<<get_layer_name_str());
 			get_self().fprop(_impl::trainable_layer_wrapper<LowerLayer>(lowerLayer.get_activations()));
 		}
 		//variation of fprop for layerwrappers
 		template <typename LowerLayerWrapper>
 		std::enable_if_t<_impl::is_layer_wrapper<LowerLayerWrapper>::value> fprop(const LowerLayerWrapper& lowerLayer)noexcept
 		{
-			//STDCOUTL("In special " << get_layer_name_str());
 			NNTL_ASSERT(lowerLayer.get_activations().test_biases_ok());
 			get_self().first_layer().fprop(lowerLayer);
 			utils::for_eachwp_up(m_layers, [](auto& lcur, auto& lprev, const bool)noexcept {
@@ -247,7 +252,6 @@ namespace nntl {
 		template <typename LowerLayer>
 		const unsigned bprop(realmtxdef_t& dLdA, const LowerLayer& lowerLayer, realmtxdef_t& dLdAPrev)noexcept {
 			static_assert(std::is_base_of<_i_layer_trainable, LowerLayer>::value, "Template parameter LowerLayer must implement _i_layer_trainable");
-			//STDCOUTL("bprop begin " << get_layer_name_str());
 			NNTL_ASSERT(lowerLayer.get_activations().test_biases_ok());
 			NNTL_ASSERT(dLdA.size() == last_layer().get_activations().size_no_bias());
 			NNTL_ASSERT( (std::is_base_of<m_layer_input, LowerLayer>::value) || dLdAPrev.size() == lowerLayer.get_activations().size_no_bias());
@@ -277,7 +281,6 @@ namespace nntl {
 			mtxIdx ^= bAlternate;
 
 			NNTL_ASSERT(lowerLayer.get_activations().test_biases_ok());
-			//STDCOUTL("bprop end " << get_layer_name_str() << ", returns = " << mtxIdx);
 			return mtxIdx;
 		}
 
@@ -286,10 +289,7 @@ namespace nntl {
 		friend class boost::serialization::access;
 		template<class Archive> void serialize(Archive & ar, const unsigned int version) {
 			get_self().for_each_packed_layer([&ar](auto& l) {
-				constexpr size_t maxStrlen = 16;
-				char lName[maxStrlen];
-				l.get_layer_name(lName, maxStrlen);
-				ar & serialization::make_named_struct(lName, l);
+				ar & serialization::make_named_struct(l.get_layer_name_str().c_str(), l);
 			});
 		}
 	};
@@ -298,21 +298,6 @@ namespace nntl {
 	//////////////////////////////////////////////////////////////////////////
 	// final implementation of layer with all functionality of _layer_pack_vertical
 	// If you need to derive a new class, derive it from _layer_pack_vertical (to make static polymorphism work)
-	/*template <typename ...Layrs>
-	class layer_pack_vertical final
-		: public _layer_pack_vertical<layer_pack_vertical<Layrs...>, Layrs...>
-	{
-	public:
-		~layer_pack_vertical() noexcept {};
-		layer_pack_vertical(Layrs&... layrs) noexcept
-			: _layer_pack_vertical<layer_pack_vertical<Layrs...>, Layrs...>(layrs...){};
-	};
-
-	template <typename ...Layrs> inline
-		layer_pack_vertical <Layrs...> make_layer_pack_vertical(Layrs&... layrs) noexcept {
-		return layer_pack_vertical<Layrs...>(layrs...);
-	}*/
-
 	template <typename ...Layrs>
 	class LPV final
 		: public _layer_pack_vertical<LPV<Layrs...>, Layrs...>
@@ -320,14 +305,20 @@ namespace nntl {
 	public:
 		~LPV() noexcept {};
 		LPV(Layrs&... layrs) noexcept
-			: _layer_pack_vertical<LPV<Layrs...>, Layrs...>(layrs...) {};
+			: _layer_pack_vertical<LPV<Layrs...>, Layrs...>(nullptr, layrs...) {};
+		LPV(const char* pCustomName, Layrs&... layrs) noexcept
+			: _layer_pack_vertical<LPV<Layrs...>, Layrs...>(pCustomName, layrs...) {};
 	};
 
 	template <typename ..._T>
 	using layer_pack_vertical = typename LPV<_T...>;
 
 	template <typename ...Layrs> inline
-		LPV <Layrs...> make_layer_pack_vertical(Layrs&... layrs) noexcept {
+	LPV <Layrs...> make_layer_pack_vertical(Layrs&... layrs) noexcept {
 		return LPV<Layrs...>(layrs...);
+	}
+	template <typename ...Layrs> inline
+	LPV <Layrs...> make_layer_pack_vertical(const char* pCustomName, Layrs&... layrs) noexcept {
+		return LPV<Layrs...>(pCustomName, layrs...);
 	}
 }

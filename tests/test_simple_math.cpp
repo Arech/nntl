@@ -37,7 +37,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "../nntl/common.h"
 
 #include "../nntl/interface/math/simple_math.h"
-#include "../nntl/nnet_def_interfaces.h"
+#include "../nntl/interfaces.h"
 #include "../nntl/_supp/io/matfile.h"
 
 #include "simple_math_etalons.h"
@@ -45,7 +45,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 using namespace nntl;
 
-typedef nnet_def_interfaces::iThreads_t iThreads_t;
+typedef d_interfaces::iThreads_t iThreads_t;
 typedef math::simple_math < real_t, iThreads_t> simple_math_t;
 
 static simple_math_t iM;
@@ -265,7 +265,7 @@ void test_mCloneCol_corr(vec_len_t srcRowsCnt, vec_len_t maxCloneCnt = 1, vec_le
 	realmtx_t src(srcRowsCnt, 1);
 	ASSERT_TRUE(!src.isAllocationFailed());
 
-	nnet_def_interfaces::iRng_t rg;
+	d_interfaces::iRng_t rg;
 	rg.set_ithreads(iM.ithreads());
 	const vec_len_t ccSpan = maxCloneCnt - minCloneCnt;
 
@@ -313,7 +313,7 @@ void test_mCloneCols_corr(vec_len_t srcRowsCnt, vec_len_t srcColsCnt, vec_len_t 
 	ASSERT_TRUE(!src.isAllocationFailed());
 	std::vector<vec_len_t> colSpec(srcColsCnt);
 	
-	nnet_def_interfaces::iRng_t rg;
+	d_interfaces::iRng_t rg;
 	rg.set_ithreads(iM.ithreads());
 	const vec_len_t ccSpan = maxCloneCnt - minCloneCnt;
 
@@ -375,7 +375,7 @@ void test_ewSumProd_corr(vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 	ASSERT_TRUE(!A.isAllocationFailed() && !B.isAllocationFailed());
 	real_t s_et, s;
 
-	nnet_def_interfaces::iRng_t rg;
+	d_interfaces::iRng_t rg;
 	rg.set_ithreads(iM.ithreads());
 	for (unsigned rr = 0; rr < testCorrRepCnt; ++rr) {
 		rg.gen_matrix(A, 10);
@@ -412,7 +412,7 @@ void test_mrwDivideByVec_corr(vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 	ASSERT_TRUE(!A.isAllocationFailed() && !A2.isAllocationFailed() && !A3.isAllocationFailed());
 	std::vector<real_t> vDiv(rowsCnt);
 
-	nnet_def_interfaces::iRng_t rg;
+	d_interfaces::iRng_t rg;
 	rg.set_ithreads(iM.ithreads());
 	for (unsigned rr = 0; rr < testCorrRepCnt; ++rr) {
 		rg.gen_matrix(A, 10);
@@ -468,7 +468,7 @@ void test_mrwMulByVec_corr(vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 	ASSERT_TRUE(!A.isAllocationFailed() && !A2.isAllocationFailed() && !A3.isAllocationFailed());
 	std::vector<real_t> vMul(rowsCnt);
 
-	nnet_def_interfaces::iRng_t rg;
+	d_interfaces::iRng_t rg;
 	rg.set_ithreads(iM.ithreads());
 	for (unsigned rr = 0; rr < testCorrRepCnt; ++rr) {
 		rg.gen_matrix(A, 10);
@@ -526,7 +526,7 @@ void test_mrwIdxsOfMaxCorrectness(vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 
 	iM.preinit(A.numel());
 	ASSERT_TRUE(iM.init());
-	nnet_def_interfaces::iRng_t rg;
+	d_interfaces::iRng_t rg;
 	rg.set_ithreads(iM.ithreads());
 	vec_t vec_et(rowsCnt), vec_test(rowsCnt);
 
@@ -594,7 +594,7 @@ void test_mrwMax_corr(vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 
 	iM.preinit(A.numel());
 	ASSERT_TRUE(iM.init());
-	nnet_def_interfaces::iRng_t rg;
+	d_interfaces::iRng_t rg;
 	rg.set_ithreads(iM.ithreads());
 	vec_t vec_et(rowsCnt), vec_test(rowsCnt);
 
@@ -659,7 +659,7 @@ void test_mrwSumIp_corr(vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 	ASSERT_TRUE(!A.isAllocationFailed() && !A2.isAllocationFailed() && !A3.isAllocationFailed());
 	iM.preinit(A.numel());
 	ASSERT_TRUE(iM.init());
-	nnet_def_interfaces::iRng_t rg;
+	d_interfaces::iRng_t rg;
 	rg.set_ithreads(iM.ithreads());
 	for (unsigned rr = 0; rr < testCorrRepCnt; ++rr) {
 		rg.gen_matrix(A, 10);
@@ -726,7 +726,7 @@ void test_mrwSum_corr(vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 	iM.preinit(A.numel());
 	ASSERT_TRUE(iM.init());
 	std::vector<real_t> vec_et(rowsCnt), vec_test(rowsCnt);
-	nnet_def_interfaces::iRng_t rg;
+	d_interfaces::iRng_t rg;
 	rg.set_ithreads(iM.ithreads());
 	for (unsigned rr = 0; rr < testCorrRepCnt; ++rr) {
 		rg.gen_matrix(A, 10);

@@ -52,7 +52,7 @@ constexpr unsigned TEST_CORRECTN_REPEATS_COUNT = 50;
 #endif // NNTL_DEBUG
 
 TEST(TestUtils, PrioritizeWorkersPerf) {
-	typedef nntl::nnet_def_interfaces::iThreads_t def_threads_t;
+	typedef nntl::d_interfaces::iThreads_t def_threads_t;
 	using namespace std::chrono;
 
 	steady_clock::time_point bt;
@@ -97,6 +97,13 @@ TEST(TestUtils, OwnOrUsePtr) {
 	ASSERT_TRUE(!pu2.empty());
 	ASSERT_TRUE(2 == pu2);
 
+	//////////////////////////////////////////////////////////////////////////
+	// move-related stuff
+	/*utils::own_or_use_ptr<int*> pu3(std::move(pu2));
+	ASSERT_TRUE(!pu3.bOwning);
+	ASSERT_TRUE(!pu3.empty());
+	ASSERT_TRUE(2 == pu3);
+	ASSERT_TRUE(pu2.empty());*/
 }
 
 /*

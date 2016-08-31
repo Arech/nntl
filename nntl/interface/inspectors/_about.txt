@@ -1,0 +1,1 @@
+This folder should contain implementations of debugging inspectors - objects that are passed along a layer stack to each layer's fprop/bprop function and recieves all source/intermediate/final data for inspection (for example, for damping to a file).

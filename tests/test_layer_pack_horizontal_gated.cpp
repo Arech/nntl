@@ -70,14 +70,14 @@ void comparative_gated(train_data<real_t>& td, const vec_len_t gateIdx, nnet_td_
 
 	layer_input<> inp(td.train_x().cols_no_bias());
 
-	layer_fully_connected<commonInfoT::simple_act_hid> fcl(commonInfoT::simple_l1nc, commonInfoT::learningRate);
-	layer_fully_connected<commonInfoT::simple_act_hid> fcl2(commonInfoT::simple_l2nc, commonInfoT::learningRate);
+	layer_fully_connected<commonInfoT::act_hid> fcl(commonInfoT::simple_l1nc, commonInfoT::learningRate);
+	layer_fully_connected<commonInfoT::act_hid> fcl2(commonInfoT::simple_l2nc, commonInfoT::learningRate);
 	auto lBaseline = make_layer_pack_vertical(fcl, fcl2);
 
 	layer_identity_gate<> lid;
 
-	layer_fully_connected<commonInfoT::simple_act_hid> lFd1(commonInfoT::simple_lFd1nc, commonInfoT::learningRate);
-	layer_fully_connected<commonInfoT::simple_act_hid> lFd2(commonInfoT::simple_lFd2nc, commonInfoT::learningRate);
+	layer_fully_connected<commonInfoT::act_hid> lFd1(commonInfoT::simple_lFd1nc, commonInfoT::learningRate);
+	layer_fully_connected<commonInfoT::act_hid> lFd2(commonInfoT::simple_lFd2nc, commonInfoT::learningRate);
 	auto lFd = make_layer_pack_vertical(lFd1, lFd2);
 
 	gate_type_obj<bBinarize, decltype(lFd), decltype(lid)> lGatedO(lFd, lid);
@@ -88,7 +88,7 @@ void comparative_gated(train_data<real_t>& td, const vec_len_t gateIdx, nnet_td_
 		make_PHL(lGatedO.value, gateIdx + 1, td.train_x().cols_no_bias() - gateIdx - 1)
 	);
 
-	layer_output<commonInfoT::simple_act_outp> outp(td.train_y().cols(), commonInfoT::learningRate);
+	layer_output<commonInfoT::act_outp> outp(td.train_y().cols(), commonInfoT::learningRate);
 
 	auto lp = make_layers(inp, lFirst, outp);
 
@@ -141,14 +141,14 @@ void comparative_horzgated(train_data<real_t>& td, const vec_len_t gateIdx, nnet
 
 	layer_input<> inp(td.train_x().cols_no_bias());
 
-	layer_fully_connected<commonInfoT::simple_act_hid> fcl(commonInfoT::simple_l1nc, commonInfoT::learningRate);
-	layer_fully_connected<commonInfoT::simple_act_hid> fcl2(commonInfoT::simple_l2nc, commonInfoT::learningRate);
+	layer_fully_connected<commonInfoT::act_hid> fcl(commonInfoT::simple_l1nc, commonInfoT::learningRate);
+	layer_fully_connected<commonInfoT::act_hid> fcl2(commonInfoT::simple_l2nc, commonInfoT::learningRate);
 	auto lBaseline = make_layer_pack_vertical(fcl, fcl2);
 
 	layer_identity_gate<> lid;
 
-	layer_fully_connected<commonInfoT::simple_act_hid> lFd1(commonInfoT::simple_lFd1nc, commonInfoT::learningRate);
-	layer_fully_connected<commonInfoT::simple_act_hid> lFd2(commonInfoT::simple_lFd2nc, commonInfoT::learningRate);
+	layer_fully_connected<commonInfoT::act_hid> lFd1(commonInfoT::simple_lFd1nc, commonInfoT::learningRate);
+	layer_fully_connected<commonInfoT::act_hid> lFd2(commonInfoT::simple_lFd2nc, commonInfoT::learningRate);
 	auto lFd = make_layer_pack_vertical(lFd1, lFd2);
 
 	horzgate_type_obj<bBinarize, decltype(lFd), decltype(lid)> lGatedO(lFd, lid, td.train_x().cols_no_bias() - gateIdx - 1);
@@ -158,7 +158,7 @@ void comparative_horzgated(train_data<real_t>& td, const vec_len_t gateIdx, nnet
 		make_PHL(lGatedO.value, gateIdx, td.train_x().cols_no_bias() - gateIdx)
 	);
 
-	layer_output<commonInfoT::simple_act_outp> outp(td.train_y().cols(), commonInfoT::learningRate);
+	layer_output<commonInfoT::act_outp> outp(td.train_y().cols(), commonInfoT::learningRate);
 
 	auto lp = make_layers(inp, lFirst, outp);
 
@@ -180,12 +180,12 @@ void comparative_horzgated(train_data<real_t>& td, const vec_len_t gateIdx, nnet
 // 	ASSERT_EQ(decltype(nn)::ErrorCode::Success, ec) << "Evaluation failed. Error code description: " << nn.get_last_error_string();
 }
 
-struct simple_case_common_info {
-	//typedef activation::sigm<> simple_act_hid;
+struct TLPHG_simple {
+	//typedef activation::sigm<> act_hid;
 	//weights_init::XavierFour is suitable for very small layers
-	typedef activation::sigm<weights_init::XavierFour> simple_act_hid;
-	//typedef activation::sigm_quad_loss<> simple_act_outp;
-	typedef activation::sigm_xentropy_loss<weights_init::XavierFour> simple_act_outp;
+	typedef activation::sigm<weights_init::XavierFour> act_hid;
+	//typedef activation::sigm_quad_loss<> act_outp;
+	typedef activation::sigm_xentropy_loss<weights_init::XavierFour> act_outp;
 
 #ifdef TESTS_SKIP_NNET_LONGRUNNING
 	static constexpr size_t simple_l1nc = 40;
@@ -215,14 +215,14 @@ void run_comparativeSimple(train_data<real_t>& gatedTd, const vec_len_t gateIdx,
 	SCOPED_TRACE("run_comparativeSimple");
 
 	nnet_td_eval_results<real_t> gf, hf, gt, ht;
-	comparative_gated<simple_case_common_info, false>(gatedTd, gateIdx, gf, seedV);
-	comparative_horzgated<simple_case_common_info, false>(gatedTd, gateIdx, hf, seedV);
+	comparative_gated<TLPHG_simple, false>(gatedTd, gateIdx, gf, seedV);
+	comparative_horzgated<TLPHG_simple, false>(gatedTd, gateIdx, hf, seedV);
 	ASSERT_EQ(gf, hf) << "comparision between _gated and _horizontal_gated failed, binarization==false";
 
-	comparative_gated<simple_case_common_info, true>(gatedTd, gateIdx, gt, seedV);
+	comparative_gated<TLPHG_simple, true>(gatedTd, gateIdx, gt, seedV);
 	ASSERT_EQ(gf, gt) << "comparision between _gated with and without binarization failed";
 
-	comparative_horzgated<simple_case_common_info, true>(gatedTd, gateIdx, ht, seedV);
+	comparative_horzgated<TLPHG_simple, true>(gatedTd, gateIdx, ht, seedV);
 	ASSERT_EQ(gt, ht) << "comparision between _gated and _horizontal_gated failed, binarization==true";
 }
 
@@ -263,7 +263,7 @@ void comparative_multi_gated(train_data<real_t>& td, const vec_len_t gateIdx, co
 
 	layer_input<> inp(td.train_x().cols_no_bias());
 
-	typedef layer_fully_connected<commonInfoT::simple_act_hid> LH;
+	typedef layer_fully_connected<commonInfoT::act_hid> LH;
 	typedef layer_identity_gate<> LIG;
 
 	LH fcl(commonInfoT::simple_l1nc, commonInfoT::learningRate);
@@ -304,7 +304,7 @@ void comparative_multi_gated(train_data<real_t>& td, const vec_len_t gateIdx, co
 		make_PHL(lGated3.value, gateIdx + gatesCnt + 2 * usualWidth, totalXUnderGate - 2 * usualWidth)
 	);
 
-	layer_output<commonInfoT::simple_act_outp> outp(td.train_y().cols(), commonInfoT::learningRate);
+	layer_output<commonInfoT::act_outp> outp(td.train_y().cols(), commonInfoT::learningRate);
 
 	auto lp = make_layers(inp, lFirst, outp);
 
@@ -365,7 +365,7 @@ void comparative_multi_horzgated(train_data<real_t>& td, const vec_len_t gateIdx
 
 	layer_input<> inp(td.train_x().cols_no_bias());
 
-	typedef layer_fully_connected<commonInfoT::simple_act_hid> LH;
+	typedef layer_fully_connected<commonInfoT::act_hid> LH;
 	typedef layer_identity_gate<> LIG;
 
 	LH fcl(commonInfoT::simple_l1nc, commonInfoT::learningRate);
@@ -397,7 +397,7 @@ void comparative_multi_horzgated(train_data<real_t>& td, const vec_len_t gateIdx
 		make_PHL(lGatedO.value, gateIdx, td.train_x().cols_no_bias() - gateIdx)
 	);
 
-	layer_output<commonInfoT::simple_act_outp> outp(td.train_y().cols(), commonInfoT::learningRate);
+	layer_output<commonInfoT::act_outp> outp(td.train_y().cols(), commonInfoT::learningRate);
 
 	auto lp = make_layers(inp, lFirst, outp);
 
@@ -419,12 +419,12 @@ void comparative_multi_horzgated(train_data<real_t>& td, const vec_len_t gateIdx
 	// 	ASSERT_EQ(decltype(nn)::ErrorCode::Success, ec) << "Evaluation failed. Error code description: " << nn.get_last_error_string();
 }
 
-struct multi_case_common_info {
-	//typedef activation::sigm<> simple_act_hid;
+struct TLPHG_multi {
+	//typedef activation::sigm<> act_hid;
 	//weights_init::XavierFour is suitable for very small layers
-	typedef activation::sigm<weights_init::XavierFour> simple_act_hid;
-	//typedef activation::sigm_quad_loss<> simple_act_outp;
-	typedef activation::sigm_xentropy_loss<weights_init::XavierFour> simple_act_outp;
+	typedef activation::sigm<weights_init::XavierFour> act_hid;
+	//typedef activation::sigm_quad_loss<> act_outp;
+	typedef activation::sigm_xentropy_loss<weights_init::XavierFour> act_outp;
 
 #ifdef TESTS_SKIP_NNET_LONGRUNNING
 	static constexpr size_t simple_l1nc = 40;
@@ -454,14 +454,14 @@ void run_comparativeMulti(train_data<real_t>& gatedTd, const vec_len_t gateIdx, 
 	SCOPED_TRACE("run_comparativeMulti");
 
 	nnet_td_eval_results<real_t> gf, hf, gt, ht;
-	comparative_multi_gated<multi_case_common_info, false>(gatedTd, gateIdx, gatesCnt, gf, seedV);
-	comparative_multi_horzgated<multi_case_common_info, false>(gatedTd, gateIdx, gatesCnt, hf, seedV);
+	comparative_multi_gated<TLPHG_multi, false>(gatedTd, gateIdx, gatesCnt, gf, seedV);
+	comparative_multi_horzgated<TLPHG_multi, false>(gatedTd, gateIdx, gatesCnt, hf, seedV);
 	ASSERT_EQ(gf, hf) << "comparision between _gated and _horizontal_gated failed, binarization==false";
 
-	comparative_multi_gated<multi_case_common_info, true>(gatedTd, gateIdx, gatesCnt, gt, seedV);
+	comparative_multi_gated<TLPHG_multi, true>(gatedTd, gateIdx, gatesCnt, gt, seedV);
 	ASSERT_EQ(gf, gt) << "comparision between _gated with and without binarization failed";
 
-	comparative_multi_horzgated<multi_case_common_info, true>(gatedTd, gateIdx, gatesCnt, ht, seedV);
+	comparative_multi_horzgated<TLPHG_multi, true>(gatedTd, gateIdx, gatesCnt, ht, seedV);
 	ASSERT_EQ(gt, ht) << "comparision between _gated and _horizontal_gated failed, binarization==true";
 }
 

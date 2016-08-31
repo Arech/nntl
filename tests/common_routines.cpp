@@ -89,8 +89,8 @@ void makeTdForGatedSetup(const train_data<real_t>& td, train_data<real_t>& tdGat
 {
 	SCOPED_TRACE("makeTdForGatedSetup");
 
-	nnet_def_interfaces::iMath_t iM;
-	nnet_def_interfaces::iRng_t iR;
+	d_interfaces::iMath_t iM;
+	d_interfaces::iRng_t iR;
 	iR.set_ithreads(iM.ithreads());
 	iR.seed64(seedV);
 
