@@ -107,7 +107,7 @@ void test_loss_sigm_xentropy(vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 	}
 }
 
-TEST(TestIMathBasic, lossSigmXentropy) {
+TEST(TestMathN, lossSigmXentropy) {
 	const numel_cnt_t elmsMax = g_MinDataSizeDelta;
 	for (numel_cnt_t e = 1; e < elmsMax; ++e) {
 		ASSERT_NO_FATAL_FAILURE(test_loss_sigm_xentropy(static_cast<vec_len_t>(e), 1));
@@ -162,7 +162,7 @@ void test_ewBinarize_ip_corr(vec_len_t rowsCnt, vec_len_t colsCnt = 10, const re
 
 }
 
-TEST(TestIMathBasic, ewBinarizeIp) {
+TEST(TestMathN, ewBinarizeIp) {
 	const numel_cnt_t elmsMax = g_MinDataSizeDelta;
 	for (numel_cnt_t e = 1; e < elmsMax; ++e) {
 		ASSERT_NO_FATAL_FAILURE(test_ewBinarize_ip_corr(static_cast<vec_len_t>(e), 1, real_t(.5)));
@@ -209,7 +209,7 @@ void test_ewBinarize_corr(vec_len_t rowsCnt, vec_len_t colsCnt = 10, const real_
 	}
 }
 
-TEST(TestIMathBasic, ewBinarize) {
+TEST(TestMathN, ewBinarize) {
 	const numel_cnt_t elmsMax = g_MinDataSizeDelta;
 	for (numel_cnt_t e = 1; e < elmsMax; ++e) {
 		ASSERT_NO_FATAL_FAILURE(test_ewBinarize_corr(static_cast<vec_len_t>(e), 1, real_t(.5)));
@@ -306,7 +306,7 @@ void test_softmax_parts(vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 		ASSERT_VECTOR_NEAR(vec_num, vec_num2, "() failed numerator matrix comparision", softmax_parts_EPS<real_t>::eps);
 	}
 }
-TEST(TestIMathBasic, SoftmaxParts) {
+TEST(TestMathN, SoftmaxParts) {
 	constexpr unsigned rowsCnt = _baseRowsCnt;
 	const vec_len_t maxCols = g_MinDataSizeDelta, maxRows = rowsCnt + g_MinDataSizeDelta;
 	for (vec_len_t r = rowsCnt; r < maxRows; ++r) {
@@ -355,7 +355,7 @@ void test_softmax(vec_len_t rowsCnt, vec_len_t colsCnt) {
 		ASSERT_REALMTX_NEAR(A_ET, A, "() failed", softmax_EPS<real_t>::eps);
 	}
 }
-TEST(TestIMathBasic, Softmax) {
+TEST(TestMathN, Softmax) {
 	constexpr unsigned rowsCnt = _baseRowsCnt;
 	const vec_len_t maxCols = g_MinDataSizeDelta, maxRows = rowsCnt + g_MinDataSizeDelta;
 	for (vec_len_t r = rowsCnt; r < maxRows; ++r) {
@@ -396,7 +396,7 @@ void test_loss_softmax_xentropy(vec_len_t rowsCnt, vec_len_t colsCnt) {
 		ASSERT_NEAR(et, l, loss_softmax_xentropy_EPS<real_t>::eps) << "() failed";
 	}
 }
-TEST(TestIMathBasic, LossSoftmaxXentropy) {
+TEST(TestMathN, LossSoftmaxXentropy) {
 	constexpr unsigned rowsCnt = _baseRowsCnt;
 	const vec_len_t maxCols = g_MinDataSizeDelta, maxRows = rowsCnt + g_MinDataSizeDelta;
 	for (vec_len_t r = rowsCnt; r < maxRows; ++r) {
@@ -466,7 +466,7 @@ void test_vSumAbs(iMath& iM, vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 	tb.say("best");
 	STDCOUTL(vv);
 }
-TEST(TestIMathBasic, vSumAbs) {
+TEST(TestMathN, vSumAbs) {
 	typedef nntl::d_interfaces::iThreads_t def_threads_t;
 	typedef math::MathN<real_t, def_threads_t> iMB;
 	iMB iM;
@@ -529,7 +529,7 @@ void test_vSumSquares(iMath& iM, vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 	tb.say("best");
 	STDCOUTL(vv);
 }
-TEST(TestIMathBasic, vSumSquares) {
+TEST(TestMathN, vSumSquares) {
 	typedef nntl::d_interfaces::iThreads_t def_threads_t;
 	typedef math::MathN<real_t, def_threads_t> iMB;
 	iMB iM;
@@ -605,7 +605,7 @@ void test_evAddScaledSign_ip(iMath& iM, vec_len_t rowsCnt, vec_len_t colsCnt = 1
 	tmt.say("mt");
 	tb.say("best");
 }
-TEST(TestIMathBasic, evAddScaledSign_ip) {
+TEST(TestMathN, evAddScaledSign_ip) {
 	typedef nntl::d_interfaces::iThreads_t def_threads_t;
 	typedef math::MathN<real_t, def_threads_t> iMB;
 	iMB iM;
@@ -682,7 +682,7 @@ void test_evAddScaled_ip(iMath& iM, vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 	tmt.say("mt");
 	tb.say("best");
 }
-TEST(TestIMathBasic, evAddScaled_ip) {
+TEST(TestMathN, evAddScaled_ip) {
 	typedef nntl::d_interfaces::iThreads_t def_threads_t;
 	typedef math::MathN<real_t, def_threads_t> iMB;
 	iMB iM;
@@ -756,7 +756,7 @@ void test_evAdd_ip(iMath& iM, vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 	tmt.say("mt");
 	tb.say("best");
 }
-TEST(TestIMathBasic, evAddIp) {
+TEST(TestMathN, evAddIp) {
 	typedef nntl::d_interfaces::iThreads_t def_threads_t;
 	typedef math::MathN<real_t, def_threads_t> iMB;
 	iMB iM;
@@ -833,7 +833,7 @@ void test_evMulCipSubip(iMath& iM, vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 	tb.say("best");
 }
 
-TEST(TestIMathBasic, evMulCipSubip) {
+TEST(TestMathN, evMulCipSubip) {
 	typedef nntl::d_interfaces::iThreads_t def_threads_t;
 	typedef math::MathN<real_t, def_threads_t> iMB;
 	iMB iM;
@@ -916,7 +916,7 @@ void test_mCheck_normalize_rows(iMath& iM, vec_len_t rowsCnt, vec_len_t colsCnt 
 	tMt.say("mt");
 	tB.say("best");
 }
-TEST(TestIMathBasic, mCheckNormalizeRows) {
+TEST(TestMathN, mCheckNormalizeRows) {
 	typedef nntl::d_interfaces::iThreads_t def_threads_t;
 	typedef math::MathN<real_t, def_threads_t> iMB;
 	iMB iM;
@@ -990,7 +990,7 @@ void test_evSub(iMath& iM, vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 	STDCOUTL("best:\t\t" << utils::duration_readable(diff, maxReps, &tBest));
 }
 
-TEST(TestIMathBasic, evSub) {
+TEST(TestMathN, evSub) {
 	typedef nntl::d_interfaces::iThreads_t def_threads_t;
 	typedef math::MathN<real_t, def_threads_t> iMB;
 	iMB iM;
@@ -1084,7 +1084,7 @@ void test_evSub_ip(iMath& iM, vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 	STDCOUTL("best:\t\t" << utils::duration_readable(diff, maxReps, &tBest));
 }
 
-TEST(TestIMathBasic, evSubIp) {
+TEST(TestMathN, evSubIp) {
 	typedef nntl::d_interfaces::iThreads_t def_threads_t;
 	typedef math::MathN<real_t, def_threads_t> iMB;
 	iMB iM;
@@ -1157,7 +1157,7 @@ void test_apply_momentum(iMath& iM, vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 	STDCOUTL("best:\t" << utils::duration_readable(diff, maxReps, &tBest));
 }
 
-TEST(TestIMathBasic, applyMomentum) {
+TEST(TestMathN, applyMomentum) {
 	typedef nntl::d_interfaces::iThreads_t def_threads_t;
 	typedef math::MathN<real_t, def_threads_t> iMB;
 	iMB iM;
@@ -1293,7 +1293,7 @@ void test_applyILR_perf(iMath& iM, vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 	iM.deinit();
 }
 
-TEST(TestIMathBasic, ApplyILRPerf) {
+TEST(TestMathN, ApplyILRPerf) {
 	typedef nntl::d_interfaces::iThreads_t def_threads_t;
 	typedef math::MathN<real_t, def_threads_t> iMB;
 	iMB iM;
@@ -1364,7 +1364,7 @@ void test_evAbs_perf(iMath& iM, vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 	STDCOUTL("best:\t" << utils::duration_readable(diff, maxReps, &tBest));
 }
 
-TEST(TestIMathBasic, evAbsPerf) {
+TEST(TestMathN, evAbsPerf) {
 	typedef nntl::d_interfaces::iThreads_t def_threads_t;
 	typedef math::MathN<real_t, def_threads_t> iMB;
 	iMB iM;
@@ -1430,7 +1430,7 @@ void test_evSquare_perf(iMath& iM, vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 	STDCOUTL("best:\t" << utils::duration_readable(diff, maxReps, &tBest));
 }
 
-TEST(TestIMathBasic, evSquarePerf) {
+TEST(TestMathN, evSquarePerf) {
 	typedef nntl::d_interfaces::iThreads_t def_threads_t;
 	typedef math::MathN<real_t, def_threads_t> iMB;
 	iMB iM;
@@ -1526,7 +1526,7 @@ void test_modprop_perf(iMath& iM, vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 	STDCOUTL("best:\t" << utils::duration_readable(diff, maxReps, &tBest));
 }
 
-TEST(TestIMathBasic, ModPropPerf) {
+TEST(TestMathN, ModPropPerf) {
 	typedef nntl::d_interfaces::iThreads_t def_threads_t;
 	typedef math::MathN<real_t, def_threads_t> iMB;
 	iMB iM;
@@ -1608,7 +1608,7 @@ void test_rprop_perf(iMath& iM, vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 	STDCOUTL("best:\t" << utils::duration_readable(diff, maxReps, &tBest));
 }
 
-TEST(TestIMathBasic, RPropPerf) {
+TEST(TestMathN, RPropPerf) {
 	typedef nntl::d_interfaces::iThreads_t def_threads_t;
 	typedef math::MathN<real_t, def_threads_t> iMB;
 	iMB iM;
@@ -1709,7 +1709,7 @@ void test_rmspropgraves_perf(iMath& iM, vec_len_t rowsCnt, vec_len_t colsCnt = 1
 	STDCOUTL("best:\t" << utils::duration_readable(diff, maxReps, &tBest));
 }
 
-TEST(TestIMathBasic, RMSProp_Graves) {
+TEST(TestMathN, RMSProp_Graves) {
 	typedef nntl::d_interfaces::iThreads_t def_threads_t;
 	typedef math::MathN<real_t, def_threads_t> iMB;
 	iMB iM;
@@ -1799,7 +1799,7 @@ void test_rmsprophinton_perf(iMath& iM, vec_len_t rowsCnt, vec_len_t colsCnt = 1
 	STDCOUTL("best:\t" << utils::duration_readable(diff, maxReps, &tBest));
 }
 
-TEST(TestIMathBasic, RMSProp_Hinton) {
+TEST(TestMathN, RMSProp_Hinton) {
 	typedef nntl::d_interfaces::iThreads_t def_threads_t;
 	typedef math::MathN<real_t, def_threads_t> iMB;
 	iMB iM;
@@ -1865,7 +1865,7 @@ void test_Adam_corr(const size_t epochs, const vec_len_t maxRowsCnt, const vec_l
 	}
 }
 
-TEST(TestIMathBasic, Adam) {
+TEST(TestMathN, Adam) {
 	test_Adam_corr(10, g_MinDataSizeDelta * 2, g_MinDataSizeDelta * 2);
 }
 
@@ -1922,7 +1922,7 @@ void test_AdaMax_corr(const size_t epochs, const vec_len_t maxRowsCnt, const vec
 	}
 }
 
-TEST(TestIMathBasic, AdaMax) {
+TEST(TestMathN, AdaMax) {
 	test_AdaMax_corr(10, g_MinDataSizeDelta * 2, g_MinDataSizeDelta * 2);
 }
 
@@ -2018,7 +2018,7 @@ void test_make_dropout_perf(iMath& iM, vec_len_t rowsCnt, vec_len_t colsCnt = 10
 	STDCOUTL("best:\t\t" << utils::duration_readable(diff, maxReps, &tBest));
 }
 
-TEST(TestIMathBasic, MakeDropoutPerf) {
+TEST(TestMathN, MakeDropoutPerf) {
 	typedef nntl::d_interfaces::iThreads_t def_threads_t;
 	typedef math::MathN<real_t, def_threads_t> iMB;
 	iMB iM;
@@ -2027,7 +2027,7 @@ TEST(TestIMathBasic, MakeDropoutPerf) {
 
 //////////////////////////////////////////////////////////////////////////
 
-TEST(TestIMathBasic, vCountSameNaive) {
+TEST(TestMathN, vCountSameNaive) {
 	typedef nntl::d_interfaces::iThreads_t def_threads_t;
 	typedef math::MathN<real_t, def_threads_t> iMB;
 
@@ -2039,7 +2039,7 @@ TEST(TestIMathBasic, vCountSameNaive) {
 	ASSERT_EQ(iM.vCountSame_st_naive(src1, src2), dataCnt-2);
 }
 
-TEST(TestIMathBasic, vCountSameMtCorrectness) {
+TEST(TestMathN, vCountSameMtCorrectness) {
 	typedef nntl::d_interfaces::iThreads_t def_threads_t;
 	typedef math::MathN<real_t, def_threads_t> iMB;
 	typedef std::vector<realmtx_t::vec_len_t> vec_t;
@@ -2111,7 +2111,7 @@ void test_vCountSame_perf(iMath& iM, vec_len_t rowsCnt) {
 	STDCOUTL("best:\t\t" << utils::duration_readable(diff, maxReps, &tBest) << "\t\tvv=" << vv);
 }
 
-TEST(TestIMathBasic, vCountSamePerf) {
+TEST(TestMathN, vCountSamePerf) {
 	typedef nntl::d_interfaces::iThreads_t def_threads_t;
 	typedef math::MathN<real_t, def_threads_t> iMB;
 	iMB iM;
@@ -2170,7 +2170,7 @@ void test_evClamp_perf(iMath& iM, vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 	STDCOUTL("best:\t\t" << utils::duration_readable(diff, maxReps, &tBest));
 }
 
-TEST(TestIMathBasic, evClampPerf) {
+TEST(TestMathN, evClampPerf) {
 	typedef nntl::d_interfaces::iThreads_t def_threads_t;
 	typedef math::MathN<real_t, def_threads_t> iMB;
 	iMB iM;
@@ -2178,7 +2178,7 @@ TEST(TestIMathBasic, evClampPerf) {
 }
 
 //////////////////////////////////////////////////////////////////////////
-TEST(TestIMathBasic, mExtractRowsCorrectness) {
+TEST(TestMathN, mExtractRowsCorrectness) {
 	typedef nntl::d_interfaces::iThreads_t def_threads_t;
 	typedef math::MathN<real_t, def_threads_t> iMB;
 	
@@ -2258,7 +2258,7 @@ void test_mExtractRows_perf(iMath& iM, vec_len_t rowsCnt, vec_len_t extrCnt, vec
 	STDCOUTL("best:\t\t" << utils::duration_readable(diff, maxReps, &tBest));
 }
 
-TEST(TestIMathBasic, mExtractRowsPerf) {
+TEST(TestMathN, mExtractRowsPerf) {
 	typedef nntl::d_interfaces::iThreads_t def_threads_t;
 	typedef math::MathN<real_t, def_threads_t> iMB;
 	iMB iM;
@@ -2286,7 +2286,7 @@ TEST(TestIMathBasic, mExtractRowsPerf) {
 //////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////
 
-TEST(TestIMathBasic, mMulABt_Cnb) {
+TEST(TestMathN, mMulABt_Cnb) {
 	using namespace nntl_supp;
 
 	typedef nntl::d_interfaces::iThreads_t def_threads_t;
@@ -2326,7 +2326,7 @@ TEST(TestIMathBasic, mMulABt_Cnb) {
 	EXPECT_EQ(C, etC);
 }
 
-TEST(TestIMathBasic, mMulABt_Cnb_biased) {
+TEST(TestMathN, mMulABt_Cnb_biased) {
 	using namespace nntl_supp;
 
 	typedef nntl::d_interfaces::iThreads_t def_threads_t;
@@ -2481,7 +2481,7 @@ void test_evMul_ip(iMath& iM, vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 	STDCOUTL("best:\t\t" << utils::duration_readable(diff, maxReps, &tBest));
 }
 
-TEST(TestIMathBasic, evMulIp) {
+TEST(TestMathN, evMulIp) {
 	typedef nntl::d_interfaces::iThreads_t def_threads_t;
 	typedef math::MathN<real_t, def_threads_t> iMB;
 	iMB iM;
@@ -2575,7 +2575,7 @@ void test_evMulC_ip(iMath& iM, vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 	STDCOUTL("best:\t\t" << utils::duration_readable(diff, maxReps, &tBest));
 }
 
-TEST(TestIMathBasic, evMulC_ip) {
+TEST(TestMathN, evMulC_ip) {
 	typedef nntl::d_interfaces::iThreads_t def_threads_t;
 	typedef math::MathN<real_t, def_threads_t> iMB;
 	iMB iM;
@@ -2736,7 +2736,7 @@ void test_sigm(iMath& iM, vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 	STDCOUTL("best:\t\t" << utils::duration_readable(diff, maxReps*threadsCount, &tBest));
 }
 
-TEST(TestIMathBasic, Sigm) {
+TEST(TestMathN, Sigm) {
 	typedef nntl::d_interfaces::iThreads_t def_threads_t;
 	typedef math::MathN<real_t, def_threads_t> iMB;
 	iMB iM;
@@ -2837,7 +2837,7 @@ void test_dsigm(iMath& iM, vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 	STDCOUTL("best:\t\t" << utils::duration_readable(diff, maxReps, &tBest));
 }
 
-TEST(TestIMathBasic, dsigm) {
+TEST(TestMathN, dsigm) {
 	typedef nntl::d_interfaces::iThreads_t def_threads_t;
 	typedef math::MathN<real_t, def_threads_t> iMB;
 	iMB iM;
@@ -2875,7 +2875,7 @@ void test_relu_corr(vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 		ASSERT_MTX_EQ(F, F_ET, "() failed");
 	}
 }
-TEST(TestIMathBasic, Relu) {
+TEST(TestMathN, Relu) {
 	for (vec_len_t r = 1; r < g_MinDataSizeDelta; ++r) {
 		for (vec_len_t c = 1; c < g_MinDataSizeDelta; ++c) {
 			test_relu_corr(r, c);
@@ -2907,7 +2907,7 @@ void test_drelu_corr(vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 		ASSERT_MTX_EQ(df_ET, dfM, "() failed");
 	}
 }
-TEST(TestIMathBasic, DRelu) {
+TEST(TestMathN, DRelu) {
 	for (vec_len_t r = 1; r < g_MinDataSizeDelta; ++r) {
 		for (vec_len_t c = 1; c < g_MinDataSizeDelta; ++c) {
 			test_drelu_corr(r, c);
@@ -2945,7 +2945,7 @@ void test_leakyrelu_corr(vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 		ASSERT_MTX_EQ(F, F_ET, "() failed");
 	}
 }
-TEST(TestIMathBasic, LeakyRelu) {
+TEST(TestMathN, LeakyRelu) {
 	for (vec_len_t r = 1; r < g_MinDataSizeDelta; ++r) {
 		for (vec_len_t c = 1; c < g_MinDataSizeDelta; ++c) {
 			test_leakyrelu_corr(r, c);
@@ -2977,7 +2977,7 @@ void test_dleakyrelu_corr(vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 		ASSERT_MTX_EQ(df_ET, dfM, "() failed");
 	}
 }
-TEST(TestIMathBasic, DLeakyRelu) {
+TEST(TestMathN, DLeakyRelu) {
 	for (vec_len_t r = 1; r < g_MinDataSizeDelta; ++r) {
 		for (vec_len_t c = 1; c < g_MinDataSizeDelta; ++c) {
 			test_dleakyrelu_corr(r, c);
@@ -3030,7 +3030,7 @@ void test_elu_corr(vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 		ASSERT_MTX_EQ(F, FU_ET, "elu_unitalpha() failed");
 	}
 }
-TEST(TestIMathBasic, ELU) {
+TEST(TestMathN, ELU) {
 	for (vec_len_t r = 1; r < g_MinDataSizeDelta; ++r) {
 		for (vec_len_t c = 1; c < g_MinDataSizeDelta; ++c) {
 			test_elu_corr(r, c);
@@ -3073,7 +3073,7 @@ void test_delu_corr(vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 		ASSERT_MTX_EQ(dfU_ET, dfM, "delu_unitalpha() failed");
 	}
 }
-TEST(TestIMathBasic, DELU) {
+TEST(TestMathN, DELU) {
 	for (vec_len_t r = 1; r < g_MinDataSizeDelta; ++r) {
 		for (vec_len_t c = 1; c < g_MinDataSizeDelta; ++c) {
 			test_delu_corr(r, c);
@@ -3180,7 +3180,7 @@ void test_loss_quadratic(iMath& iM, vec_len_t rowsCnt, vec_len_t colsCnt=10) {
 	STDCOUTL("best:\t\t" << utils::duration_readable(diff, maxReps, &tBest));
 }
 
-TEST(TestIMathBasic, LossQuadratic) {
+TEST(TestMathN, LossQuadratic) {
 	typedef nntl::d_interfaces::iThreads_t def_threads_t;
 	typedef math::MathN<real_t, def_threads_t> iMB;
 	iMB iM;
@@ -3282,7 +3282,7 @@ void test_dSigmQuadLoss_dZ(iMath& iM, vec_len_t rowsCnt, vec_len_t colsCnt = 10)
 	STDCOUTL("best:\t\t" << utils::duration_readable(diff, maxReps, &tBest));
 }
 
-TEST(TestIMathBasic, dSigmQuadLoss_dZ) {
+TEST(TestMathN, dSigmQuadLoss_dZ) {
 	typedef nntl::d_interfaces::iThreads_t def_threads_t;
 	typedef math::MathN<real_t, def_threads_t> iMB;
 	iMB iM;

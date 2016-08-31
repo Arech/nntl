@@ -144,7 +144,7 @@ void test_mTilingRoll(vec_len_t rowsCnt, vec_len_t colsCnt, vec_len_t k) {
 	tMt.say("mt");
 	tB.say("best");
 }
-TEST(TestSimpleMathThr, mTilingRoll) {
+TEST(TestSMathThr, mTilingRoll) {
 	for (unsigned k = 2; k < 10; ++k) {
 		NNTL_RUN_TEST2(SMath_t::Thresholds_t::mTilingRoll, k*100) test_mTilingRoll(100, i, k);
 	}
@@ -193,7 +193,7 @@ void test_ewSumProd(vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 	tB.say("best");
 	STDCOUTL(s);
 }
-TEST(TestSimpleMathThr, ewSumProd) {
+TEST(TestSMathThr, ewSumProd) {
 	NNTL_RUN_TEST2(SMath_t::Thresholds_t::ewSumProd, 10) test_ewSumProd(i, 10);
 }
 
@@ -259,7 +259,7 @@ void test_mrwDivideByVec(vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 	tMt.say("mt");
 	tB.say("best");
 }
-TEST(TestSimpleMathThr, mrwDivideByVec) {
+TEST(TestSMathThr, mrwDivideByVec) {
 	test_mrwDivideByVec(100, 5);
 	test_mrwDivideByVec(100, 10);
 	test_mrwDivideByVec(200, 5);
@@ -345,7 +345,7 @@ void test_mrwMulByVec(vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 	tMt.say("mt");
 	tB.say("best");
 }
-TEST(TestSimpleMathThr, mrwMulByVec) {
+TEST(TestSMathThr, mrwMulByVec) {
 	constexpr unsigned maxCols = 10;
 	for (unsigned i = 1; i <= maxCols; ++i) test_mrwMulByVec(100, i);
 	for (unsigned i = 2; i <= maxCols; ++i) test_mrwMulByVec(400, i);
@@ -443,7 +443,7 @@ void test_mrwIdxsOfMax_perf(vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 	tMt.say("mt");
 	tB.say("best");
 }
-TEST(TestSimpleMathThr, mrwIdxsOfMax) {
+TEST(TestSMathThr, mrwIdxsOfMax) {
 	NNTL_RUN_TEST4(SMath_t::Thresholds_t::mrwIdxsOfMax, 5, 2.5, SMath_t::Thresholds_t::mrwIdxsOfMax_ColsPerThread * 6)
 		test_mrwIdxsOfMax_perf(i, SMath_t::Thresholds_t::mrwIdxsOfMax_ColsPerThread * 6);
 	NNTL_RUN_TEST4(SMath_t::Thresholds_t::mrwIdxsOfMax, 5, 2.5, 10) test_mrwIdxsOfMax_perf(i, 10);
@@ -530,7 +530,7 @@ void test_mrwMax_perf(vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 	tMt.say("mt");
 	tB.say("best");
 }
-TEST(TestSimpleMathThr, mrwMax) {
+TEST(TestSMathThr, mrwMax) {
 	NNTL_RUN_TEST4(SMath_t::Thresholds_t::mrwMax, 5, 2.5, SMath_t::Thresholds_t::mrwMax_mt_cw_ColsPerThread * 6)
 		test_mrwMax_perf(i, SMath_t::Thresholds_t::mrwMax_mt_cw_ColsPerThread * 6);
 	NNTL_RUN_TEST4(SMath_t::Thresholds_t::mrwMax, 5, 2.5, 10) test_mrwMax_perf(i, 10);
@@ -611,7 +611,7 @@ void test_mrwSumIp_perf(vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 	tMt.say("mt");
 	tB.say("best");
 }
-TEST(TestSimpleMathThr, mrwSumIp) {
+TEST(TestSMathThr, mrwSumIp) {
 	const unsigned maxCols = iM.ithreads().workers_count();
 	for (unsigned c = 2; c <= maxCols; ++c) test_mrwSumIp_perf(300, c);
 
@@ -684,7 +684,7 @@ void test_mrwSum_perf(vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 	tMt.say("mt");
 	tB.say("best");
 }
-TEST(TestSimpleMathThr, mrwSum) {
+TEST(TestSMathThr, mrwSum) {
 	const unsigned maxCols = iM.ithreads().workers_count();
 	for (unsigned c = 2; c <= maxCols; ++c) test_mrwSum_perf(300, c);
 

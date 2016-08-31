@@ -120,7 +120,7 @@ void test_adam_perf(const size_t epochs, vec_len_t rowsCnt, vec_len_t colsCnt = 
 	tB.say("best");
 }
 
-TEST(TestIMathBasicThr, Adam) {
+TEST(TestMathNThr, Adam) {
 	NNTL_RUN_TEST2(imath_basic_t::Thresholds_t::Adam, 100) {
 		test_adam_perf(10, i, 100);
 	}
@@ -192,7 +192,7 @@ void test_adamax_perf(const size_t epochs, vec_len_t rowsCnt, vec_len_t colsCnt 
 	tB.say("best");
 }
 
-TEST(TestIMathBasicThr, AdaMax) {
+TEST(TestMathNThr, AdaMax) {
 	NNTL_RUN_TEST2(imath_basic_t::Thresholds_t::AdaMax, 100) {
 		test_adamax_perf(10, i, 100);
 	}
@@ -254,7 +254,7 @@ void test_elu_perf(vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 	tB.say("best");
 }
 
-TEST(TestIMathBasicThr, ELU) {
+TEST(TestMathNThr, ELU) {
 	NNTL_RUN_TEST2(imath_basic_t::Thresholds_t::elu, 100) {
 		test_elu_perf(i, 100);
 	}
@@ -312,7 +312,7 @@ void test_elu_unitalpha_perf(vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 	tB.say("best");
 }
 
-TEST(TestIMathBasicThr, ELU_unitalpha) {
+TEST(TestMathNThr, ELU_unitalpha) {
 	NNTL_RUN_TEST2(imath_basic_t::Thresholds_t::elu_unitalpha, 100) {
 		test_elu_unitalpha_perf(i, 100);
 	}
@@ -368,7 +368,7 @@ void test_delu_perf(vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 	tB.say("best");
 }
 
-TEST(TestIMathBasicThr, DELU) {
+TEST(TestMathNThr, DELU) {
 	NNTL_RUN_TEST2(imath_basic_t::Thresholds_t::delu, 100) {
 		test_delu_perf(i, 100);
 	}
@@ -421,7 +421,7 @@ void test_delu_unitalpha_perf(vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 	tB.say("best");
 }
 
-TEST(TestIMathBasicThr, DELU_unitalpha) {
+TEST(TestMathNThr, DELU_unitalpha) {
 	NNTL_RUN_TEST2(imath_basic_t::Thresholds_t::delu_unitalpha, 100) {
 		test_delu_unitalpha_perf(i, 100);
 	}
@@ -482,7 +482,7 @@ void test_LeakyRelu_perf(vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 
 	tB.say("best");
 }
-TEST(TestIMathBasicThr, LeakyRelu) {
+TEST(TestMathNThr, LeakyRelu) {
 	NNTL_RUN_TEST2(imath_basic_t::Thresholds_t::leakyrelu, 100) {
 		test_LeakyRelu_perf(i, 100);
 	}
@@ -537,7 +537,7 @@ void test_dleakyrelu_perf(vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 	tB.say("best");
 }
 
-TEST(TestIMathBasicThr, DLeakyRelu) {
+TEST(TestMathNThr, DLeakyRelu) {
 	NNTL_RUN_TEST2(imath_basic_t::Thresholds_t::dleakyrelu, 100) {
 		test_dleakyrelu_perf(i, 100);
 	}
@@ -619,7 +619,7 @@ void test_ewBinarize_ip_perf(vec_len_t rowsCnt, vec_len_t colsCnt = 10, const re
 	tB.say("best");
 }
 
-TEST(TestIMathBasicThr, ewBinarizeIp) {
+TEST(TestMathNThr, ewBinarizeIp) {
 	NNTL_RUN_TEST2(imath_basic_t::Thresholds_t::ewBinarize_ip, 100) {
 		test_ewBinarize_ip_perf(i, 100, .5);
 		//test_ewBinarize_ip_perf(i, 100, .1);
@@ -668,7 +668,7 @@ void test_ewBinarize_perf(vec_len_t rowsCnt, vec_len_t colsCnt = 10, const real_
 	tB.say("best");
 }
 
-TEST(TestIMathBasicThr, ewBinarize) {
+TEST(TestMathNThr, ewBinarize) {
 	NNTL_RUN_TEST2(imath_basic_t::Thresholds_t::ewBinarize, 100) {
 		test_ewBinarize_perf(i, 100, .5);
 		//test_ewBinarize_perf(i, 100, .1);
@@ -761,7 +761,7 @@ void test_softmax_parts_perf(vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 	tMt.say("mt");
 	tB.say("best");
 }
-TEST(TestIMathBasicThr, SoftmaxParts) {
+TEST(TestMathNThr, SoftmaxParts) {
 	test_softmax_parts_perf(100, 50);
 	test_softmax_parts_perf(1000, 50);
 
@@ -833,7 +833,7 @@ void test_softmax_perf(vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 	tMt.say("mt");
 	tB.say("best");
 }
-TEST(TestIMathBasicThr, Softmax) {
+TEST(TestMathNThr, Softmax) {
 	test_softmax_perf(100, 10);
 	test_softmax_perf(100, 30);
 	test_softmax_perf(200, 10);
@@ -887,7 +887,7 @@ void test_loss_softmax_xentropy_perf(vec_len_t rowsCnt, vec_len_t colsCnt = 10) 
 	tB.say("best");
 	STDCOUTL("st=" << lst << " lmt=" << lmt << " lb=" << lb);
 }
-TEST(TestIMathBasicThr, LossSoftmaxXentropy) {
+TEST(TestMathNThr, LossSoftmaxXentropy) {
 	test_loss_softmax_xentropy_perf(100, 10);
 
 #ifndef TESTS_SKIP_LONGRUNNING
@@ -939,7 +939,7 @@ void test_loss_sigm_xentropy_perf(vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 	tB.say("best");
 	STDCOUTL("l=" << loss);
 }
-TEST(TestIMathBasicThr, lossSigmXentropy) {
+TEST(TestMathNThr, lossSigmXentropy) {
 	NNTL_RUN_TEST2(imath_basic_t::Thresholds_t::loss_sigm_xentropy, 1) test_loss_sigm_xentropy_perf(i, 1);
 }
 

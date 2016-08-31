@@ -61,7 +61,7 @@ constexpr unsigned TEST_CORRECTN_REPEATS_COUNT = 60, _baseRowsCnt = 300;
 //////////////////////////////////////////////////////////////////////////
 
 /*
-TEST(TestSimpleMath, DumpmTilingRoll) {
+TEST(TestSMath, DumpmTilingRoll) {
 	constexpr vec_len_t k = 5, r = 2, c = 3;
 	realmtx_t src(r, k*c, true), dest(k*r, c, true);
 	ASSERT_TRUE(!src.isAllocationFailed());
@@ -182,7 +182,7 @@ void test_mTilingEtalons(const vec_len_t maxSrcRows, const vec_len_t maxSrcCols,
 	}
 }
 
-TEST(TestSimpleMath, mTilingUnroll) {
+TEST(TestSMath, mTilingUnroll) {
 	ASSERT_NO_FATAL_FAILURE(test_mTilingEtalons(4, 4, 4));
 	ASSERT_NO_FATAL_FAILURE(test_mTilingUnroll_corr(2 * g_MinDataSizeDelta, 2 * g_MinDataSizeDelta, g_MinDataSizeDelta));
 }
@@ -254,7 +254,7 @@ void test_mTilingRoll_corr(const vec_len_t maxSrcRows,const vec_len_t maxSrcCols
 		}
 	}
 }
-TEST(TestSimpleMath, mTilingRoll) {
+TEST(TestSMath, mTilingRoll) {
 	ASSERT_NO_FATAL_FAILURE(test_mTilingRoll_corr(2 * g_MinDataSizeDelta, 2 * g_MinDataSizeDelta, g_MinDataSizeDelta));
 }
 
@@ -297,7 +297,7 @@ void test_mCloneCol_corr(vec_len_t srcRowsCnt, vec_len_t maxCloneCnt = 1, vec_le
 		ASSERT_MTX_EQ(destET, dest, "() failed");
 	}
 }
-TEST(TestSimpleMath, mCloneCol) {
+TEST(TestSMath, mCloneCol) {
 	constexpr unsigned rowsCnt = 10, maxCloneCnt = 15;
 	for (vec_len_t cc = 1; cc <= maxCloneCnt; ++cc) {
 		ASSERT_NO_FATAL_FAILURE(test_mCloneCol_corr(rowsCnt, cc));
@@ -351,7 +351,7 @@ void test_mCloneCols_corr(vec_len_t srcRowsCnt, vec_len_t srcColsCnt, vec_len_t 
 		ASSERT_MTX_EQ(destET, dest, "() failed");
 	}
 }
-TEST(TestSimpleMath, mCloneCols) {
+TEST(TestSMath, mCloneCols) {
 	constexpr unsigned rowsCnt = 10, maxCloneCnt=15;
 	const vec_len_t maxCols = g_MinDataSizeDelta;
 	for (vec_len_t c = 1; c < maxCols; ++c) {
@@ -393,7 +393,7 @@ void test_ewSumProd_corr(vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 		ASSERT_NEAR(s_et, s, ewSumProd_EPS<real_t>::eps) << "() failed";
 	}
 }
-TEST(TestSimpleMath, ewSumProd) {
+TEST(TestSMath, ewSumProd) {
 	constexpr unsigned rowsCnt = _baseRowsCnt;
 	const vec_len_t maxCols = g_MinDataSizeDelta, maxRows = rowsCnt + g_MinDataSizeDelta;
 	for (vec_len_t r = rowsCnt; r < maxRows; ++r) {
@@ -450,7 +450,7 @@ void test_mrwDivideByVec_corr(vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 		ASSERT_MTX_EQ(A, A2, "() failed");
 	}
 }
-TEST(TestSimpleMath, mrwDivideByVec) {
+TEST(TestSMath, mrwDivideByVec) {
 	constexpr unsigned rowsCnt = _baseRowsCnt;
 	const vec_len_t maxCols = g_MinDataSizeDelta, maxRows = rowsCnt + g_MinDataSizeDelta;
 	for (vec_len_t r = rowsCnt; r < maxRows; ++r) {
@@ -506,7 +506,7 @@ void test_mrwMulByVec_corr(vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 		ASSERT_MTX_EQ(A, A2, "() failed");
 	}
 }
-TEST(TestSimpleMath, mrwMulByVec) {
+TEST(TestSMath, mrwMulByVec) {
 	constexpr unsigned rowsCnt = _baseRowsCnt;
 	const vec_len_t maxCols = g_MinDataSizeDelta, maxRows = rowsCnt + g_MinDataSizeDelta;
 	for (vec_len_t r = rowsCnt; r < maxRows; ++r) {
@@ -574,7 +574,7 @@ void test_mrwIdxsOfMaxCorrectness(vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 	}
 }
 
-TEST(TestSimpleMath, mrwIdxsOfMax) {
+TEST(TestSMath, mrwIdxsOfMax) {
 	constexpr unsigned rowsCnt = _baseRowsCnt;
 	const vec_len_t maxCols = g_MinDataSizeDelta, maxRows = rowsCnt + g_MinDataSizeDelta;
 	for (vec_len_t r = rowsCnt; r < maxRows; ++r) {
@@ -638,7 +638,7 @@ void test_mrwMax_corr(vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 	}
 }
 
-TEST(TestSimpleMath, mrwMax) {
+TEST(TestSMath, mrwMax) {
 	constexpr unsigned rowsCnt = _baseRowsCnt;
 	const vec_len_t maxCols = g_MinDataSizeDelta*SMath_t::Thresholds_t::mrwMax_mt_cw_ColsPerThread, maxRows = rowsCnt + g_MinDataSizeDelta;
 	for (vec_len_t r = rowsCnt; r < maxRows; ++r) {
@@ -704,7 +704,7 @@ void test_mrwSumIp_corr(vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 		ASSERT_REALMTX_NEAR(A, A2, "() failed", mrwSumIp_EPS<real_t>::eps);
 	}
 }
-TEST(TestSimpleMath, mrwSumIp) {
+TEST(TestSMath, mrwSumIp) {
 	constexpr unsigned rowsCnt = _baseRowsCnt;
 	const vec_len_t maxCols = g_MinDataSizeDelta, maxRows = rowsCnt + g_MinDataSizeDelta;
 	for (vec_len_t r = rowsCnt; r < maxRows; ++r) {
@@ -767,7 +767,7 @@ void test_mrwSum_corr(vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 		ASSERT_VECTOR_NEAR(vec_et, vec_test, "() failed", mrwSum_EPS<real_t>::eps);
 	}
 }
-TEST(TestSimpleMath, mrwSum) {
+TEST(TestSMath, mrwSum) {
 	constexpr unsigned rowsCnt = _baseRowsCnt;
 	const vec_len_t maxCols = g_MinDataSizeDelta*SMath_t::Thresholds_t::mrwSum_mt_cw_colsPerThread
 		, maxRows = rowsCnt + g_MinDataSizeDelta;
