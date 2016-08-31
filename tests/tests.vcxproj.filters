@@ -273,9 +273,6 @@
     <ClInclude Include="..\nntl\layer\pack_tile.h">
       <Filter>nntl\layer</Filter>
     </ClInclude>
-    <ClInclude Include="..\nntl\interface\i_inspector.h">
-      <Filter>nntl\interface</Filter>
-    </ClInclude>
     <ClInclude Include="..\nntl\common_nn_data.h">
       <Filter>nntl</Filter>
     </ClInclude>
@@ -308,6 +305,12 @@
     </ClInclude>
     <ClInclude Include="..\nntl\interface\rng\afrand_mt_thr.h">
       <Filter>nntl\interface\rng</Filter>
+    </ClInclude>
+    <ClInclude Include="..\nntl\interface\inspectors\stdcout.h">
+      <Filter>nntl\interface\inspectors</Filter>
+    </ClInclude>
+    <ClInclude Include="..\nntl\interface\_i_inspector.h">
+      <Filter>nntl\interface</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

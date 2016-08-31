@@ -35,22 +35,9 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "interface/math/mathn_mt.h"
 #include "interface/rng/afrand_mt.h"
 
+#include "interface/_i_inspector.h"
+
 namespace nntl {
-
-	typedef threads::Std<math::smatrix_td::numel_cnt_t> d_threads_t;
-
-	template<
-		typename RealT = math_types::real_ty
-		, typename iThreadsT = d_threads_t
-		, typename iMathT = math::MathN_mt<RealT, iThreadsT>
-		, typename iRngT = rng::AFRand_mt<RealT, AFog::CRandomSFMT0, iThreadsT>
-	>
-	struct interfaces {
-		typedef RealT real_t;
-		typedef iMathT iMath_t;
-		typedef iThreadsT iThreads_t;
-		typedef iRngT iRng_t;
-	};
 
 	//default interfaces definition
 	struct d_interfaces {
@@ -61,10 +48,10 @@ namespace nntl {
 		typedef math::MathN_mt<real_t, iThreads_t> iMath_t;
 
 		typedef rng::AFRand_mt<real_t, AFog::CRandomSFMT0, iThreads_t> iRng_t;
+
+		typedef i_inspector<real_t> iInspect_t;
 	};
 
-	//typedef interfaces<> d_interfaces;
-	//That definition is OK, but provokes C4503 too early, so going to leave original definition
 
 	template<typename InterfacesT>
 	struct interfaces_td {
@@ -74,16 +61,39 @@ namespace nntl {
 		typedef typename interfaces_t::iMath_t iMath_t;
 		typedef typename interfaces_t::iRng_t iRng_t;
 		typedef typename interfaces_t::iThreads_t iThreads_t;
+		typedef typename interfaces_t::iInspect_t iInspect_t;
 
 		static_assert(std::is_base_of<math::_i_math<real_t>, iMath_t>::value, "iMath_t type should be derived from _i_math");
 		static_assert(std::is_base_of<rng::_i_rng<real_t>, iRng_t>::value, "iRng_t type should be derived from _i_rng");
 		static_assert(std::is_base_of<threads::_i_threads<typename iThreads_t::range_t>, iThreads_t>::value, "iThreads_t type should be derived from _i_threads");
+		static_assert(std::is_base_of<i_inspector<real_t>, iInspect_t>::value, "iInspect_t type should be derived from i_inspector");
 
-		static_assert(std::is_same<typename iMath_t::ithreads_t, iThreads_t>::value, "Math interface must use the same iThreadsT as specified in InterfacesT!");
-		static_assert(std::is_same<typename iRng_t::ithreads_t, iThreads_t>::value, "Math interface must use the same iThreadsT as specified in InterfacesT!");
-		static_assert(std::is_same<typename iMath_t::real_t, real_t>::value, "real_t must resolve to the same type!");
+		static_assert(std::is_same<iThreads_t, typename iMath_t::ithreads_t>::value, "Math interface must use the same iThreadsT as specified in InterfacesT!");
+		static_assert(std::is_same<iThreads_t, typename iRng_t::ithreads_t>::value, "Math interface must use the same iThreadsT as specified in InterfacesT!");
+		
+		static_assert(std::is_same<real_t, typename iMath_t::real_t>::value, "real_t must resolve to the same type!");
 		static_assert(std::is_same<real_t, typename iRng_t::real_t>::value, "real_t must resolve to the same type!");
+		static_assert(std::is_same<real_t, typename iInspect_t::real_t>::value, "real_t must resolve to the same type!");
+
 		static_assert(std::is_same<typename iMath_t::numel_cnt_t, typename iThreads_t::range_t>::value, "iThreads_t::range_t must be the same as iMath_t::numel_cnt_t!");
 	};
 
+
+	/*typedef threads::Std<math::smatrix_td::numel_cnt_t> d_threads_t;
+
+	template<
+	typename RealT = math_types::real_ty
+	, typename iThreadsT = d_threads_t
+	, typename iMathT = math::MathN_mt<RealT, iThreadsT>
+	, typename iRngT = rng::AFRand_mt<RealT, AFog::CRandomSFMT0, iThreadsT>
+	>
+	struct interfaces {
+	typedef RealT real_t;
+	typedef iMathT iMath_t;
+	typedef iThreadsT iThreads_t;
+	typedef iRngT iRng_t;
+	};
+	//typedef interfaces<> d_interfaces;
+	//That definition is OK, but provokes C4503 too early, so going to leave original definition
+	*/
 }

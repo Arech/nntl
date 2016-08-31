@@ -85,8 +85,7 @@ namespace nntl {
 					, std::remove_reference<LCur>::type>::value, "Each layer must derive from i_layer");
 				static_assert(std::is_base_of<_i_layer<typename std::remove_reference<LCur>::type::real_t >
 					, std::remove_reference<LPrev>::type>::value, "Each layer must derive from i_layer");
-				static_assert(std::is_same<LCur::iMath_t, LPrev::iMath_t>::value, "Math interface must be the same for all layers!");
-				static_assert(std::is_same<LCur::iRng_t, LPrev::iRng_t>::value, "RNG interface must be the same for all layers!");
+				static_assert(std::is_same<LCur::interfaces_t, LPrev::interfaces_t>::value, "interfaces_t must be the same for all layers!");
 
 #ifdef NNTL_DEBUG
 				layer_index_t curIdx = _idx;
@@ -242,14 +241,7 @@ namespace nntl {
 				totalParamsToLearn += nLP;
 				bHasLossAddendum |= _HasLossAddendum;
 			}
-			/*template<typename _layer_init_data_t>
-			void updateLayerReq(const _layer_init_data_t& lid)noexcept {
-				maxMemLayerTrainingRequire = std::max({ maxMemLayerTrainingRequire, lid.maxMemFPropRequire, lid.maxMemBPropRequire });
-				maxMemLayersFPropRequire = std::max(maxMemLayersFPropRequire, lid.maxMemFPropRequire);
-				maxSingledLdANumel = std::max(maxSingledLdANumel, lid.max_dLdA_numel);
-				totalParamsToLearn += lid.nParamsToLearn;
-				bHasLossAddendum |= lid.bHasLossAddendum;
-			}*/
+
 			template<typename _layer_init_data_t>
 			void updateLayerReq(const _layer_init_data_t& lid)noexcept {
 				return updateLayerReq(lid.maxMemFPropRequire, lid.maxMemBPropRequire, lid.max_dLdA_numel

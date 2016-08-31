@@ -53,6 +53,7 @@ namespace _impl {
 		//same for every train() session
 		iMath_t* m_pMath;
 		iRng_t* m_pRng;
+		iInspect_t* m_pInspect;
 
 		//could be different in different train() sessions.
 		vec_len_t m_max_fprop_batch_size;//The biggest samples count for fprop(), usually this is data_x.rows()
@@ -64,24 +65,21 @@ namespace _impl {
 		~common_nn_data()noexcept { 
 			m_pMath = nullptr;
 			m_pRng = nullptr;
+			m_pInspect = nullptr;
 			deinit();
 		}
-		common_nn_data()noexcept : m_pMath(nullptr), m_pRng(nullptr)
+		common_nn_data()noexcept : m_pMath(nullptr), m_pRng(nullptr), m_pInspect(nullptr)
 			, m_max_fprop_batch_size(0), m_training_batch_size(0)
 		{}
-		common_nn_data(iMath_t& im, iRng_t& ir)noexcept : m_pMath(&im), m_pRng(&ir)
+		common_nn_data(iMath_t& im, iRng_t& ir, iInspect_t& iI)noexcept : m_pMath(&im), m_pRng(&ir), m_pInspect(&iI)
 			, m_max_fprop_batch_size(0), m_training_batch_size(0)
 		{}
 
-		//call before the object use if the default constructor have been used
-		/*void setInterfaces(iMath_t& im, iRng_t& ir)noexcept {
-			m_pMath = &im;
-			m_pRng = &ir;
-		}*/
 		void setInterfacesFrom(const common_nn_data& other)noexcept {
-			NNTL_ASSERT(!m_pMath && !m_pRng);
+			NNTL_ASSERT(!m_pMath && !m_pRng && !m_pInspect);
 			m_pMath = &other.iMath();
 			m_pRng = &other.iRng();
+			m_pInspect = &other.iInspect();
 		}
 
 		void deinit()noexcept {
@@ -89,7 +87,7 @@ namespace _impl {
 			m_training_batch_size = 0;
 		}
 		void init(vec_len_t fbs, vec_len_t bbs)noexcept {
-			NNTL_ASSERT(m_pMath && m_pRng);//must be preinitialized!
+			NNTL_ASSERT(m_pMath && m_pRng && m_pInspect);//must be preinitialized!
 			NNTL_ASSERT(m_max_fprop_batch_size == 0 && m_training_batch_size == 0);
 			NNTL_ASSERT(fbs >= bbs);//essential assumption
 			m_max_fprop_batch_size = fbs;
@@ -98,19 +96,20 @@ namespace _impl {
 
 		iMath_t& iMath()const noexcept { NNTL_ASSERT(m_pMath); return *m_pMath; }
 		iRng_t& iRng()const noexcept { NNTL_ASSERT(m_pRng); return *m_pRng; }
+		iInspect_t& iInspect()const noexcept { NNTL_ASSERT(m_pInspect); return *m_pInspect; }
 		const vec_len_t max_fprop_batch_size()const noexcept {
-			NNTL_ASSERT(m_pMath && m_pRng);//must be preinitialized!
+			NNTL_ASSERT(m_pMath && m_pRng && m_pInspect);//must be preinitialized!
 			NNTL_ASSERT(m_max_fprop_batch_size > 0);
 			return m_max_fprop_batch_size;
 		}
 		const vec_len_t training_batch_size()const noexcept {
 			//NNTL_ASSERT(m_training_batch_size >= 0);//batch size could be 0 to run fprop() only
-			NNTL_ASSERT(m_pMath && m_pRng);//must be preinitialized!
+			NNTL_ASSERT(m_pMath && m_pRng && m_pInspect);//must be preinitialized!
 			return m_training_batch_size;
 		}
 
 		const bool is_initialized()const noexcept {
-			NNTL_ASSERT(m_pMath && m_pRng);//must be preinitialized!
+			NNTL_ASSERT(m_pMath && m_pRng && m_pInspect);//must be preinitialized!
 			return m_max_fprop_batch_size > 0;
 		}
 	};
@@ -149,6 +148,10 @@ namespace _impl {
 			NNTL_ASSERT(m_pCommonData);
 			return m_pCommonData->iRng();
 		}
+		iInspect_t& get_iInspect()const noexcept {
+			NNTL_ASSERT(m_pCommonData);
+			return m_pCommonData->iInspect();
+		}
 		const typename iMath_t::vec_len_t get_max_fprop_batch_size()const noexcept {
 			NNTL_ASSERT(m_pCommonData);
 			return m_pCommonData->max_fprop_batch_size();
@@ -176,6 +179,7 @@ namespace _impl {
 		using _base_class::iMath_t;
 		using _base_class::iRng_t;
 		using _base_class::iThreads_t;
+		using _base_class::iInspect_t;
 		using _base_class::real_t;
 
 		using _base_class::vec_len_t;
@@ -185,39 +189,34 @@ namespace _impl {
 		typedef common_nn_data<interfaces_t> common_data_t;
 
 	protected:
-		const bool bOwnMath, bOwnRng;
+		const bool bOwnMath, bOwnRng, bOwnInspect;
 
 	public:
 		~interfaces_keeper()noexcept{
 			if (bOwnMath) delete m_pMath;
 			if (bOwnRng) delete m_pRng;
+			if (bOwnInspect) delete m_pInspect;
 		}
-		interfaces_keeper(iMath_t* pM=nullptr, iRng_t* pR=nullptr)noexcept
-			: bOwnMath(!pM), bOwnRng(!pR)
+		interfaces_keeper(iInspect_t* pI = nullptr, iMath_t* pM = nullptr, iRng_t* pR = nullptr)noexcept
+			: bOwnMath(!pM), bOwnRng(!pR), bOwnInspect(!pI)
 		{
 			m_pMath = (pM ? pM : new(std::nothrow) iMath_t);
 			NNTL_ASSERT(m_pMath);
 			m_pRng = (pR ? pR : new(std::nothrow) iRng_t);
 			NNTL_ASSERT(m_pRng);
+			m_pInspect = (pI ? pI : new(std::nothrow) iInspect_t);
+			NNTL_ASSERT(m_pInspect);
 		}
 
 	protected:
 		//only derived classes should be able to modify common_data_t
-		common_data_t& get_common_data()noexcept {
-			return *this;
-		}
+		common_data_t& get_common_data()noexcept { return *this; }
+
 	public:
-		const common_data_t& get_common_data()const noexcept {
-			return *this;
-		}
-		iMath_t& get_iMath()const noexcept {
-			NNTL_ASSERT(m_pMath);
-			return *m_pMath;
-		}
-		iRng_t& get_iRng()const noexcept {
-			NNTL_ASSERT(m_pRng);
-			return *m_pRng;
-		}
+		const common_data_t& get_common_data()const noexcept { return *this; }
+		iMath_t& get_iMath()const noexcept { NNTL_ASSERT(m_pMath); return *m_pMath; }
+		iRng_t& get_iRng()const noexcept { NNTL_ASSERT(m_pRng); return *m_pRng; }
+		iInspect_t& get_iInspect()const noexcept { NNTL_ASSERT(m_pInspect); return *m_pInspect; }
 	};
 }
 }

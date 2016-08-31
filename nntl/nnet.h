@@ -114,8 +114,8 @@ namespace nntl {
 	public:
 		~nnet()noexcept {}
 
-		nnet(layers_pack_t& lp, iMath_t* pM=nullptr, iRng_t* pR=nullptr) noexcept 
-			: _base_class(pM, pR), m_Layers(lp)
+		nnet(layers_pack_t& lp, iInspect_t* pI=nullptr, iMath_t* pM=nullptr, iRng_t* pR=nullptr) noexcept 
+			: _base_class(pI, pM, pR), m_Layers(lp)
 		{
 			m_bRequireReinit = false;
 			m_failedLayerIdx = 0;
@@ -505,15 +505,31 @@ namespace nntl {
 
 	template <typename LayersPack>
 	inline nnet<LayersPack> make_nnet(LayersPack& lp, typename LayersPack::iRng_t& iR)noexcept {
-		return nnet<LayersPack>(lp, nullptr, &iR);
+		return nnet<LayersPack>(lp, nullptr, nullptr, &iR);
 	}
 	template <typename LayersPack>
 	inline nnet<LayersPack> make_nnet(LayersPack& lp, typename LayersPack::iMath_t& iM)noexcept {
-		return nnet<LayersPack>(lp, &iM);
+		return nnet<LayersPack>(lp, nullptr, &iM);
 	}
 	template <typename LayersPack>
 	inline nnet<LayersPack> make_nnet(LayersPack& lp, typename LayersPack::iMath_t& iM, typename LayersPack::iRng_t& iR)noexcept {
-		return nnet<LayersPack>(lp, &iM, &iR);
+		return nnet<LayersPack>(lp, nullptr, &iM, &iR);
+	}
+
+	template <typename LayersPack>
+	inline nnet<LayersPack> make_nnet(LayersPack& lp, typename LayersPack::iInspect_t& iI)noexcept { return nnet<LayersPack>(lp, &iI); }
+
+	template <typename LayersPack>
+	inline nnet<LayersPack> make_nnet(LayersPack& lp, typename LayersPack::iInspect_t& iI, typename LayersPack::iRng_t& iR)noexcept {
+		return nnet<LayersPack>(lp, &iI, nullptr, &iR);
+	}
+	template <typename LayersPack>
+	inline nnet<LayersPack> make_nnet(LayersPack& lp, typename LayersPack::iInspect_t& iI, typename LayersPack::iMath_t& iM)noexcept {
+		return nnet<LayersPack>(lp, &iI, &iM);
+	}
+	template <typename LayersPack>
+	inline nnet<LayersPack> make_nnet(LayersPack& lp, typename LayersPack::iInspect_t& iI, typename LayersPack::iMath_t& iM, typename LayersPack::iRng_t& iR)noexcept {
+		return nnet<LayersPack>(lp, &iI, &iM, &iR);
 	}
 
 }

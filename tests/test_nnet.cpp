@@ -39,6 +39,8 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "../nntl/_supp/io/binfile.h"
 #include "../nntl/_supp/io/matfile.h"
 
+#include "../nntl/interface/inspectors/stdcout.h"
+
 #include "asserts.h"
 #include "common_routines.h"
 
@@ -82,12 +84,11 @@ TEST(TestNnet, Inspectors) {
 	nnet_train_opts<decltype(Acee)> Aopts(std::move(Acee));
 	Aopts.calcFullLossValue(false).batchSize(100);
 
-	auto Ann = make_nnet(Alp);
-	Ann.get_iRng().seed64(seedVal);
+	inspector::stdcout<real_t> Insp;
 
-	inspector_stdcout<real_t> Insp;
+	auto Ann = make_nnet(Alp, Insp);
+	Ann.get_iRng().seed64(seedVal);
 	
-	//auto ec = Ann.train(td, Aopts, NNetCB_OnEpochEnd_Dummy(), Insp);
 	auto ec = Ann.train(td, Aopts);
 
 	ASSERT_EQ(decltype(Ann)::ErrorCode::Success, ec) << "Error code description: " << Ann.get_last_error_string();

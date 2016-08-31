@@ -183,6 +183,7 @@
     <ClInclude Include="..\nntl\common_nn_data.h" />
     <ClInclude Include="..\nntl\errors.h" />
     <ClInclude Include="..\nntl\grad_works.h" />
+    <ClInclude Include="..\nntl\interface\inspectors\stdcout.h" />
     <ClInclude Include="..\nntl\interface\math\mathn_mt.h" />
     <ClInclude Include="..\nntl\interface\math\mathn_thr.h" />
     <ClInclude Include="..\nntl\interface\math\smath.h" />
@@ -193,7 +194,7 @@
     <ClInclude Include="..\nntl\interface\rng\afrand_mt.h" />
     <ClInclude Include="..\nntl\interface\rng\afrand_mt_thr.h" />
     <ClInclude Include="..\nntl\interface\rng\distr_normal_naive.h" />
-    <ClInclude Include="..\nntl\interface\i_inspector.h" />
+    <ClInclude Include="..\nntl\interface\_i_inspector.h" />
     <ClInclude Include="..\nntl\interface\_i_rng.h" />
     <ClInclude Include="..\nntl\layer\identity.h" />
     <ClInclude Include="..\nntl\layer\pack_gated.h" />

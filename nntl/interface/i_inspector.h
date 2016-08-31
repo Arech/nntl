@@ -46,119 +46,58 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 namespace nntl {
 	
-//BTW: each and every i_inspector's method must posses const function specifier to permit maximum optimizations
-//Derive from this class to have default function implementations
-// 
-template<typename RealT>
-class i_inspector : public math::smatrix_td {
-	//!! copy constructor not needed
-	i_inspector(const i_inspector& other)noexcept = delete;
-	//!!assignment is not needed
-	i_inspector& operator=(const i_inspector& rhs) noexcept = delete;
+	//BTW: each and every i_inspector's method must posses const function specifier to permit maximum optimizations
+	//Derive from this class to have default function implementations
+	// 
+	template<typename RealT>
+	class i_inspector : public math::smatrix_td {
+		//!! copy constructor not needed
+		i_inspector(const i_inspector& other)noexcept = delete;
+		//!!assignment is not needed
+		i_inspector& operator=(const i_inspector& rhs) noexcept = delete;
 
-	//////////////////////////////////////////////////////////////////////////
-public:
-	typedef RealT real_t;
-	typedef math::smatrix<real_t> realmtx_t;
-	typedef math::smatrix_deform<real_t> realmtxdef_t;
+		//////////////////////////////////////////////////////////////////////////
+	public:
+		typedef RealT real_t;
+		typedef math::smatrix<real_t> realmtx_t;
+		typedef math::smatrix_deform<real_t> realmtxdef_t;
 
-public:
-	~i_inspector()noexcept {}
-	i_inspector()noexcept {}
+	public:
+		~i_inspector()noexcept {}
+		i_inspector()noexcept {}
 
-	//////////////////////////////////////////////////////////////////////////
-	// generic functions
-	template<typename VarT>
-	void inspect(const VarT& v, const layer_index_t lIdx=0, const char*const pVarName=nullptr)const noexcept {}
+		//////////////////////////////////////////////////////////////////////////
+		// generic functions
+		template<typename VarT>
+		void inspect(const VarT& v, const layer_index_t lIdx=0, const char*const pVarName=nullptr)const noexcept {}
 
-	//////////////////////////////////////////////////////////////////////////
-	// specialized functions naming convention:
-	// <phase>_<prefix><A/actionCamelCased><Suffix>()
+		//////////////////////////////////////////////////////////////////////////
+		// specialized functions naming convention:
+		// <phase>_<prefix><A/actionCamelCased><Suffix>()
 
-	//to notify about total layer, epoch and batches count
-	void init_nnet(const size_t totalLayers, const size_t totalEpochs, const vec_len_t totalBatches)const noexcept {}
+		//to notify about total layer, epoch and batches count
+		void init_nnet(const size_t totalLayers, const size_t totalEpochs, const vec_len_t totalBatches)const noexcept {}
 
-	//to notify about layer and it's name (for example, inspector can use this info to filter out calls from non-relevant layers later)
-	//this call can cost something, but we don't care because it happens only during init phase
-	template<typename StrT>
-	void init_layer(const layer_index_t lIdx, StrT&& LayerName)const noexcept {};
+		//to notify about layer and it's name (for example, inspector can use this info to filter out calls from non-relevant layers later)
+		//this call can cost something, but we don't care because it happens only during init phase
+		template<typename StrT>
+		void init_layer(const layer_index_t lIdx, StrT&& LayerName)const noexcept {};
 
-	void train_epochBegin(const size_t epochIdx)const noexcept {}
-	void train_batchBegin(const vec_len_t batchIdx)const noexcept {}
+		void train_epochBegin(const size_t epochIdx)const noexcept {}
+		void train_batchBegin(const vec_len_t batchIdx)const noexcept {}
 
-	void fprop_SourceData(const realmtx_t& data_x)const noexcept {}
-
-
-
-	void train_batchEnd(const vec_len_t batchIdx)const noexcept {}
-	void train_epochEnd(const size_t epochIdx)const noexcept {}
-};
+		void fprop_SourceData(const realmtx_t& data_x)const noexcept {}
 
 
-template<typename RealT>
-class inspector_stdcout : public i_inspector<RealT> {
-public:
-	typedef std::vector<std::string> layer_names_t;
 
-public:
-	layer_names_t m_layerNames;
-	size_t m_epochCount, m_layersCount, m_epochIdx;
-	vec_len_t m_batchIdx, m_batchCount;
-
-public:
-	~inspector_stdcout()noexcept {}
-	inspector_stdcout()noexcept : m_epochIdx(-1), m_batchIdx(-1), m_epochCount(0), m_layersCount(0), m_batchCount(0) {}
-
-	//////////////////////////////////////////////////////////////////////////
-	//
-	template<typename VarT> std::enable_if_t<! std::is_base_of<realmtx_t, VarT>::value> 
-	inspect(const VarT& v, const layer_index_t lIdx=0, const char*const pVarName=nullptr)const noexcept
-	{
-		if (lIdx<m_layersCount) {
-			STDCOUT("[" << m_layerNames[lIdx]);
-		} else STDCOUT("[OutOfALayer");
-		STDCOUTL("] @ " << m_epochIdx << "\\" << m_batchIdx << " variable \'"<< (pVarName ? pVarName : "unk") << "\' = " << v);
-	}
-	template<typename VarT> std::enable_if_t<std::is_base_of<realmtx_t,VarT>::value>
-	inspect(const VarT& v, const layer_index_t lIdx=0, const char*const pVarName=nullptr)const noexcept
-	{
-		if (lIdx < m_layersCount) {
-			STDCOUT("[" << m_layerNames[lIdx]);
-		} else STDCOUT("[OutOfALayer");
-		STDCOUTL("] @ " << m_epochIdx << "\\" << m_batchIdx << " matrix \'"<< (pVarName ? pVarName : "unk") << "\' size = [" << v.rows() << "," << v.cols() << "]");
-	}
-
-	//////////////////////////////////////////////////////////////////////////
-	
-	//to notify about total layer, epoch and batches count
-	void init_nnet(const size_t totalLayers, const size_t totalEpochs, const vec_len_t totalBatches)noexcept {
-		m_layersCount = totalLayers;
-		m_epochCount = totalEpochs;
-		m_batchCount = totalBatches;
-
-		//#exceptions STL
-		m_layerNames.resize(m_layersCount);
-		m_layerNames.shrink_to_fit();
-	}
-
-	template<typename StrT>
-	void init_layer(const layer_index_t lIdx, StrT&& LayerName)noexcept {
-		NNTL_ASSERT(lIdx < m_layersCount);
-		//#exceptions STL
-		m_layerNames[lIdx].assign(std::forward<StrT>(LayerName));
-		STDCOUTL("Layer "<< m_layerNames[lIdx] <<" is being initialized");
+		void train_batchEnd(const vec_len_t batchIdx)const noexcept {}
+		void train_epochEnd(const size_t epochIdx)const noexcept {}
 	};
 
-	void train_epochBegin(const size_t epochIdx)noexcept {
-		m_epochIdx = epochIdx;
-	}
-	void train_batchBegin(const vec_len_t batchIdx) noexcept {
-		m_batchIdx = batchIdx;
-	}
+	template< class, class = std::void_t<> >
+	struct is_dummy_inspector : std::false_type { };
+	template< class T >
+	struct is_dummy_inspector<T, std::void_t<typename std::enable_if< std::is_same<i_inspector<typename T::real_t>, T>::value >::type > > : std::true_type {};
 
-	void fprop_SourceData(const realmtx_t& data_x)const noexcept {
-		inspect(data_x, -1, "source data_x");
-	}
-};
 
 }

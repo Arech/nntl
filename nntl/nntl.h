@@ -32,21 +32,12 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #pragma once
 
 //////////////////////////////////////////////////////////////////////////
-//necessary API includes
-//#include <assert.h>
-
-//////////////////////////////////////////////////////////////////////////
 #include "common.h"
-
-//include correct math interface in compilation unit (cpp) before this file
-//#include "math.h"
 
 #include "utils.h"
 
 #include "errors.h"
 #include "train_data.h"
-
-#include "interface/i_inspector.h"
 
 #include "weights_init.h"
 
@@ -63,5 +54,3 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "layer/pack_horizontal_gated.h"
 #include "layer/pack_tile.h"
 #include "nnet.h"
-
-//#include "interface/threads.h"

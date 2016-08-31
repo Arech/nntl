@@ -164,9 +164,8 @@ void test_same_layers(train_data<real_t>& td, uint64_t rngSeed) {
 
 	d_interfaces::iMath_t iMath;
 	d_interfaces::iRng_t iRng;
-	if (d_interfaces::iRng_t::is_multithreaded) {
-		iRng.set_ithreads(iMath.ithreads());
-	}
+	d_interfaces::iInspect_t iInsp;
+	if (d_interfaces::iRng_t::is_multithreaded) iRng.set_ithreads(iMath.ithreads());
 
 	//////////////////////////////////////////////////////////////////////////
 	//setting up etalon layers
@@ -181,7 +180,8 @@ void test_same_layers(train_data<real_t>& td, uint64_t rngSeed) {
 	utils::for_eachwp_up(AlayersTuple, _impl::_preinit_layers{});
 
 	typedef _impl::common_nn_data<d_interfaces> common_data_t;
-	common_data_t CD(iMath, iRng);
+	common_data_t CD(iMath, iRng, iInsp);
+
 	CD.init(evalSamplesCnt, trainSamplesCnt);
 	_impl::_layer_init_data<common_data_t> lid(CD);
 	_impl::layers_mem_requirements lmr;
