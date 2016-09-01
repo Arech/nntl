@@ -92,18 +92,21 @@ namespace nntl {
 		}
 
 		void fprop(const realmtx_t& data_x)noexcept {
+			auto& iI = get_self().get_iInspect();
+			iI.fprop_begin(get_self().get_layer_idx(),data_x, m_bTraining);
+
 			NNTL_ASSERT(data_x.test_biases_ok());
-
-			get_self().get_iInspect().fprop_onEntry(get_self().get_layer_idx(), data_x, m_bTraining);
-
 			m_pActivations = &data_x;
+
+			iI.fprop_end(*m_pActivations);
 		}
 
 		template <typename LowerLayer>
 		const unsigned bprop(realmtx_t& dLdA, const LowerLayer& lowerLayer, realmtx_t& dLdAPrev)noexcept {
-			//static_assert(false, "There is no bprop() for input_layer!");
-			// will be used in invariant backprop algo
-			//std::cout << "***** bprop in input layer " << (int)get_layer_idx() << std::endl;
+			auto& iI = get_self().get_iInspect();
+			iI.bprop_begin(get_self().get_layer_idx(), dLdA);
+
+			//iI.bprop_end(dLdAPrev);
 			return 1;
 		}
 		

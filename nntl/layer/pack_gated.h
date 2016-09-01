@@ -114,6 +114,9 @@ namespace nntl {
 	private:
 		layer_index_t m_layerIdx;
 
+	protected:
+		bool m_bTraining;
+
 		//////////////////////////////////////////////////////////////////////////
 		//
 	protected:
@@ -227,6 +230,7 @@ namespace nntl {
 		}
 
 		void set_mode(vec_len_t batchSize, real_t* pNewActivationStorage = nullptr)noexcept {
+			m_bTraining = 0==batchSize;
 			m_undLayer.set_mode(batchSize, pNewActivationStorage);
 
 			NNTL_ASSERT(m_undLayer.get_activations().emulatesBiases());
@@ -300,17 +304,25 @@ namespace nntl {
 	public:
 		template <typename LowerLayer>
 		void fprop(const LowerLayer& lowerLayer)noexcept {
-			static_assert(std::is_base_of<_i_layer_fprop, LowerLayer>::value, "Template parameter LowerLayer must implement _i_layer_fprop");
+			static_assert(std::is_base_of<_i_layer_fprop<real_t>, LowerLayer>::value, "Template parameter LowerLayer must implement _i_layer_fprop");
+			auto& iI = get_self().get_iInspect();
+			iI.fprop_begin(get_self().get_layer_idx(), lowerLayer.get_activations(), m_bTraining);
+
 			NNTL_ASSERT(m_gatingMask.size() == m_undLayer.get_activations().size_no_bias());
 			NNTL_ASSERT(lowerLayer.get_activations().test_biases_ok());
 			m_undLayer.fprop(lowerLayer);
 			get_self().finish_fprop();
 			NNTL_ASSERT(lowerLayer.get_activations().test_biases_ok());
+
+			iI.fprop_end(m_undLayer.get_activations());
 		}
 
 		template <typename LowerLayer>
 		const unsigned bprop(realmtxdef_t& dLdA, const LowerLayer& lowerLayer, realmtxdef_t& dLdAPrev)noexcept {
-			static_assert(std::is_base_of<_i_layer_trainable, LowerLayer>::value, "Template parameter LowerLayer must implement _i_layer_trainable");
+			static_assert(std::is_base_of<_i_layer_trainable<real_t>, LowerLayer>::value, "Template parameter LowerLayer must implement _i_layer_trainable");
+			auto& iI = get_self().get_iInspect();
+			iI.bprop_begin(get_self().get_layer_idx(), dLdA);
+
 			NNTL_ASSERT(lowerLayer.get_activations().test_biases_ok());
 			NNTL_ASSERT(m_gatingMask.size() == m_undLayer.get_activations().size_no_bias());
 			NNTL_ASSERT(m_undLayer.get_activations().size_no_bias() == dLdA.size());
@@ -319,6 +331,8 @@ namespace nntl {
 			get_self().apply_gating_mask(dLdA);
 			const unsigned ret = m_undLayer.bprop(dLdA, lowerLayer, dLdAPrev);
 			NNTL_ASSERT(lowerLayer.get_activations().test_biases_ok());
+
+			iI.bprop_end(ret ? dLdAPrev : dLdA);
 			return ret;
 		}
 

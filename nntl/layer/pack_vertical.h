@@ -97,6 +97,9 @@ namespace nntl {
 	private:
 		layer_index_t m_layerIdx;
 
+	protected:
+		bool m_bTraining;
+
 		//////////////////////////////////////////////////////////////////////////
 		//
 	protected:
@@ -176,6 +179,7 @@ namespace nntl {
 		}
 
 		void set_mode(vec_len_t batchSize, real_t* pNewActivationStorage = nullptr)noexcept {
+			m_bTraining = 0 == batchSize;
 			utils::for_each_exc_last_up(m_layers, [batchSize](auto& lyr)noexcept {
 				lyr.set_mode(batchSize);
 			});
@@ -242,6 +246,9 @@ namespace nntl {
 		template <typename LowerLayerWrapper>
 		std::enable_if_t<_impl::is_layer_wrapper<LowerLayerWrapper>::value> fprop(const LowerLayerWrapper& lowerLayer)noexcept
 		{
+			auto& iI = get_self().get_iInspect();
+			iI.fprop_begin(get_self().get_layer_idx(), lowerLayer.get_activations(), m_bTraining);
+
 			NNTL_ASSERT(lowerLayer.get_activations().test_biases_ok());
 			get_self().first_layer().fprop(lowerLayer);
 			utils::for_eachwp_up(m_layers, [](auto& lcur, auto& lprev, const bool)noexcept {
@@ -250,11 +257,16 @@ namespace nntl {
 				NNTL_ASSERT(lprev.get_activations().test_biases_ok());
 			});
 			NNTL_ASSERT(lowerLayer.get_activations().test_biases_ok());
+
+			iI.fprop_end(get_self().get_activations());
 		}
 
 		template <typename LowerLayer>
 		const unsigned bprop(realmtxdef_t& dLdA, const LowerLayer& lowerLayer, realmtxdef_t& dLdAPrev)noexcept {
 			static_assert(std::is_base_of<_i_layer_trainable, LowerLayer>::value, "Template parameter LowerLayer must implement _i_layer_trainable");
+			auto& iI = get_self().get_iInspect();
+			iI.bprop_begin(get_self().get_layer_idx(), dLdA);
+
 			NNTL_ASSERT(lowerLayer.get_activations().test_biases_ok());
 			NNTL_ASSERT(dLdA.size() == last_layer().get_activations().size_no_bias());
 			NNTL_ASSERT( (std::is_base_of<m_layer_input, LowerLayer>::value) || dLdAPrev.size() == lowerLayer.get_activations().size_no_bias());
@@ -284,6 +296,8 @@ namespace nntl {
 			mtxIdx ^= bAlternate;
 
 			NNTL_ASSERT(lowerLayer.get_activations().test_biases_ok());
+
+			iI.bprop_end(mtxIdx ? dLdAPrev : dLdA);
 			return mtxIdx;
 		}
 

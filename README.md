@@ -62,6 +62,7 @@ I wouldn't state the NNTL is the fastest CPU implementation of feedforward neura
 * Tasks supported out of the box (i.e. all you need to do to be able to work with this tasks is to assemble a proper architecture from components provided; other tasks, such as regression, however, may require some special components coding - please, submit your solutions):
   * one-hot vector classification via sigmoid or softmax activations
   * one dimensional binary classification via sigmoid activation
+* Debugging and baby-sitting a neural network learning process is implemented through _i_inspectors() interface which allows to monitor/dump any temporary variable or matrix you might want to examine during a training session (activation/preactivation values, weights, weigth updates and many more - and much more will be added as it'll be needed). The interface is easily extensible and incurs zero run-time cost if it isn't used and thrown away by a compiler (and it's off by default).
 
 ## The Pros and Cons
 ### Nuances

@@ -333,6 +333,8 @@ namespace nntl {
 			static_assert(std::is_base_of<_i_layer_fprop, LowerLayer>::value, "Template parameter LowerLayer must implement _i_layer_fprop");
 			static_assert(std::is_base_of<m_layer_input, LowerLayer>::value, "When bExpectSpecialDataX is set the lowerLayer must be layer_input!");
 			//and moreover, it must produce specially prepared data!
+			auto& iI = get_self().get_iInspect();
+			iI.fprop_begin(get_self().get_layer_idx(), lowerLayer.get_activations(), m_bTraining);
 						
 			auto& llAct = lowerLayer.get_activations();
 			NNTL_ASSERT(llAct.test_biases_ok());
@@ -348,11 +350,15 @@ namespace nntl {
 			get_self().get_iMath().mTilingUnroll(m_innerActivations, m_activations);
 
 			NNTL_ASSERT(m_innerLowerLayerActivations.test_biases_ok());
+			iI.fprop_end(m_activations);
 		}
 		// FProp for the incoming data that wasn't transformed for use in a tiled layer
 		template <typename LowerLayer, bool _C = bExpectSpecialDataX>
 		std::enable_if_t<!_C> fprop(const LowerLayer& lowerLayer)noexcept {
 			static_assert(std::is_base_of<_i_layer_fprop, LowerLayer>::value, "Template parameter LowerLayer must implement _i_layer_fprop");
+			auto& iI = get_self().get_iInspect();
+			iI.fprop_begin(get_self().get_layer_idx(), lowerLayer.get_activations(), m_bTraining);
+
 			auto& llAct = lowerLayer.get_activations();
 			NNTL_ASSERT(llAct.test_biases_ok());
 			NNTL_ASSERT(llAct.size() == realmtx_t::mtx_size_t(m_activations.rows()
@@ -370,12 +376,16 @@ namespace nntl {
 			iM.mTilingUnroll(m_innerActivations, m_activations);
 
 			NNTL_ASSERT(m_innerLowerLayerActivations.test_biases_ok());
+			iI.fprop_end(m_activations);
 		}
 
 		// in order to implement backprop for the m_tiledLayer, we must provide it with a correct dLdA and dLdAPrev
 		template <typename LowerLayer>
 		const unsigned bprop(realmtxdef_t& dLdA, const LowerLayer& lowerLayer, realmtxdef_t& dLdAPrev)noexcept {
 			static_assert(std::is_base_of<_i_layer_trainable, LowerLayer>::value, "Template parameter LowerLayer must implement _i_layer_trainable");
+			auto& iI = get_self().get_iInspect();
+			iI.bprop_begin(get_self().get_layer_idx(), dLdA);
+
 			NNTL_ASSERT(m_bTraining);
 			//we'd use m_innerLowerLayerActivations instead of lowerLayer.get_activations()
 			NNTL_ASSERT(m_innerLowerLayerActivations.test_biases_ok());
@@ -421,10 +431,11 @@ namespace nntl {
 				//we've switched dLdA matrices again. This adds another 1 to the function return value.
 				//We should return (1^1^switchMtxs)==(0^switchMtxs)==switchMtxs here
 			}
-
+			const unsigned ret = switchMtxs ^ static_cast<unsigned>(!bProducedLdAPrev);
 			NNTL_ASSERT(m_innerActivations.test_biases_ok());
 			NNTL_ASSERT(m_innerLowerLayerActivations.test_biases_ok());
-			return switchMtxs ^ static_cast<unsigned>(!bProducedLdAPrev);
+			iI.bprop_end(ret ? dLdAPrev : dLdA);
+			return ret;
 		}
 
 	private:

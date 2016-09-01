@@ -191,22 +191,50 @@ namespace _impl {
 	protected:
 		const bool bOwnMath, bOwnRng, bOwnInspect;
 
+	private:
+		void _make_Inspector(iInspect_t* pI)noexcept {
+			NNTL_ASSERT(pI);
+			m_pInspect = pI;
+		}
+		void _make_Inspector(std::nullptr_t pI)noexcept {
+			m_pInspect = new(std::nothrow) iInspect_t;
+		}
+		void _make_Math(iMath_t* pM)noexcept {
+			NNTL_ASSERT(pM);
+			m_pMath = pM;
+		}
+		void _make_Math(std::nullptr_t pM)noexcept {
+			m_pMath = new(std::nothrow) iMath_t;
+		}
+		void _make_Rng(iRng_t* pR)noexcept {
+			NNTL_ASSERT(pR);
+			m_pRng = pR;
+		}
+		void _make_Rng(std::nullptr_t pR)noexcept {
+			m_pRng = new(std::nothrow) iRng_t;
+		}
+
 	public:
 		~interfaces_keeper()noexcept{
 			if (bOwnMath) delete m_pMath;
 			if (bOwnRng) delete m_pRng;
 			if (bOwnInspect) delete m_pInspect;
 		}
-		interfaces_keeper(iInspect_t* pI = nullptr, iMath_t* pM = nullptr, iRng_t* pR = nullptr)noexcept
+
+		template<typename PInspT = std::nullptr_t, typename PMathT = std::nullptr_t, typename PRngT = std::nullptr_t>
+		interfaces_keeper(PInspT pI = nullptr, PMathT pM = nullptr, PRngT pR = nullptr)noexcept
 			: bOwnMath(!pM), bOwnRng(!pR), bOwnInspect(!pI)
 		{
-			m_pMath = (pM ? pM : new(std::nothrow) iMath_t);
+			_make_Math(pM);
 			NNTL_ASSERT(m_pMath);
-			m_pRng = (pR ? pR : new(std::nothrow) iRng_t);
+			_make_Rng(pR);
 			NNTL_ASSERT(m_pRng);
-			m_pInspect = (pI ? pI : new(std::nothrow) iInspect_t);
+			_make_Inspector(pI);
 			NNTL_ASSERT(m_pInspect);
+
 		}
+
+		
 
 	protected:
 		//only derived classes should be able to modify common_data_t

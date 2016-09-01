@@ -332,7 +332,10 @@ namespace nntl {
 
 		template <typename LowerLayer>
 		void fprop(const LowerLayer& lowerLayer)noexcept {
-			static_assert(std::is_base_of<_i_layer_fprop, LowerLayer>::value, "Template parameter LowerLayer must implement _i_layer_fprop");
+			static_assert(std::is_base_of<_i_layer_fprop<real_t>, LowerLayer>::value, "Template parameter LowerLayer must implement _i_layer_fprop");
+			auto& iI = get_self().get_iInspect();
+			iI.fprop_begin(get_self().get_layer_idx(), lowerLayer.get_activations(), m_bTraining);
+
 			NNTL_ASSERT(lowerLayer.get_activations().test_biases_ok());
 
 			const auto pTmpBiasStorage = m_pTmpBiasStorage;
@@ -342,6 +345,8 @@ namespace nntl {
 			});
 			
 			NNTL_ASSERT(lowerLayer.get_activations().test_biases_ok());
+
+			iI.fprop_end(m_activations);
 		}
 
 		// in order to implement backprop for the inner layers, we must provide them with a correct dLdA and dLdAPrev, each of which must
@@ -360,6 +365,9 @@ namespace nntl {
 		template <typename LowerLayer>
 		const unsigned bprop(realmtx_t& dLdA, const LowerLayer& lowerLayer, realmtx_t& dLdAPrev)noexcept {
 			static_assert(std::is_base_of<_i_layer_trainable, LowerLayer>::value, "Template parameter LowerLayer must implement _i_layer_trainable");
+			auto& iI = get_self().get_iInspect();
+			iI.bprop_begin(get_self().get_layer_idx(), dLdA);
+
 			NNTL_ASSERT(m_bTraining);
 			NNTL_ASSERT(lowerLayer.get_activations().test_biases_ok());
 			//NNTL_ASSERT(m_activations.test_biases_ok());
@@ -415,6 +423,8 @@ namespace nntl {
 			});
 			NNTL_ASSERT(firstNeuronOfs == m_activations.cols_no_bias());
 			NNTL_ASSERT(lowerLayer.get_activations().test_biases_ok());
+
+			iI.bprop_end(dLdAPrev);
 			return 1;
 		}
 

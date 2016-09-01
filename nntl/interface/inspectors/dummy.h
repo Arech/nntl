@@ -37,7 +37,7 @@ namespace nntl {
 namespace inspector {
 
 	template<typename RealT>
-	class dummy final : public _base<RealT> {
+	class dummy final : public _impl::_base<RealT> {
 	public:
 		~dummy() {}
 		dummy() {}

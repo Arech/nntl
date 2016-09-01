@@ -100,12 +100,18 @@ namespace nntl {
 		void _fprop(const realmtx_t& prevActivations)noexcept {
 			NNTL_ASSERT(prevActivations.size() == m_activations.size());
 			NNTL_ASSERT(m_activations.bDontManageStorage());
+
+			auto& iI = get_self().get_iInspect();
+			iI.fprop_begin(get_self().get_layer_idx(), prevActivations, m_bTraining);
+
 			// just copying the data from prevActivations to m_activations
 			// We must copy the data, because layer_pack_horizontal uses its own storage for activations, therefore
 			// we can't just use the m_activations as an alias to prevActivations - we have to physically copy the data
 			// to a new storage within layer_pack_horizontal activations
 			const bool r = prevActivations.cloneTo(m_activations);
 			NNTL_ASSERT(r);
+
+			iI.fprop_end(m_activations);
 		}
 
 	public:
@@ -123,8 +129,13 @@ namespace nntl {
 		std::enable_if_t<_impl::is_layer_wrapper<LowerLayerWrapper>::value, const unsigned>
 			bprop(realmtx_t& dLdA, const LowerLayerWrapper& lowerLayer, realmtx_t& dLdAPrev)noexcept
 		{
+			auto& iI = get_self().get_iInspect();
+			iI.bprop_begin(get_self().get_layer_idx(), dLdA);
+
 			//nothing to do here
 			NNTL_ASSERT(lowerLayer.get_activations().test_biases_ok());
+
+			iI.bprop_end(dLdA);
 			return 0;//indicating that dL/dA for previous layer is actually in dLdA parameter (not in dLdAPrev)
 		}
 

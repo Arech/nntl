@@ -225,23 +225,28 @@ namespace nntl {
 		}
 	protected:
 		void _fprop(const realmtx_t& prevActivations)noexcept {
+			auto& iI = get_self().get_iInspect();
+			iI.fprop_begin(get_self().get_layer_idx(), prevActivations, m_bTraining);
+
 			NNTL_ASSERT(m_activations.rows() == prevActivations.rows());
 			NNTL_ASSERT(prevActivations.cols() == m_weights.cols());
-
-			auto& iI = get_self().get_iInspect();
-			const auto layerIdx = get_self().get_layer_idx();
-			iI.fprop_onEntry(layerIdx, prevActivations, m_bTraining);
 
 			//might be necessary for Nesterov momentum application
 			if (m_bTraining) m_gradientWorks.pre_training_fprop(m_weights);
 
 			auto& _Math = get_self().get_iMath();
-
+			iI.fprop_makePreActivations(m_weights, prevActivations);
 			_Math.mMulABt_Cnb(prevActivations, m_weights, m_activations);
+			iI.fprop_preactivations(m_activations);
 			activation_f_t::f(m_activations, _Math);
+			iI.fprop_activations(m_activations);
+			iI.fprop_end(m_activations);
 		}
 
 		void _bprop(const realmtx_t& data_y, const realmtx_t& prevActivations, const bool bPrevLayerIsInput, realmtx_t& dLdAPrev)noexcept {
+			auto& iI = get_self().get_iInspect();
+			iI.bprop_begin(get_self().get_layer_idx(), data_y);
+
 			data_y.assert_storage_does_not_intersect(dLdAPrev);
 			dLdAPrev.assert_storage_does_not_intersect(m_dLdW);
 			dLdAPrev.assert_storage_does_not_intersect(m_dLdZ);
@@ -273,6 +278,8 @@ namespace nntl {
 
 			//now we can apply gradient to the weights
 			m_gradientWorks.apply_grad(m_weights, m_dLdW);
+
+			iI.bprop_end(dLdAPrev);
 		}
 	public:
 		template <typename LowerLayer>

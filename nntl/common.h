@@ -38,10 +38,11 @@ namespace nntl {
 	// OBSOLETTE
 
 	//typename for referring layer numbers, indexes, counts and so on. *640k* 256 layers should enough for everyone :-D
-	//Damn, I've never thought, it'll not be enought so soon!
+	//Damn, I've never thought, it'll not be enought so soon!)
+	// must be unsigned
 	typedef std::uint16_t layer_index_t;
 
-	//#todo this definition must be coherent with  smatrix_td::vec_len_t
+	// must be unsigned
 	typedef std::uint32_t neurons_count_t;
 
 	//see also NNTL_STRING macro

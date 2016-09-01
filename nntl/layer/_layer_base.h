@@ -80,17 +80,7 @@ namespace nntl {
 	//////////////////////////////////////////////////////////////////////////
 	//////////////////////////////////////////////////////////////////////////
 	template <typename RealT>
-	class _i_layer_typedefs : public math::smatrix_td {
-	protected:
-		_i_layer_typedefs()noexcept {}
-		~_i_layer_typedefs()noexcept {}
-
-		//!! copy constructor not needed
-		_i_layer_typedefs(const _i_layer_typedefs& other)noexcept; // = delete; //-it should be `delete`d, but factory function won't work if it is
-															 //!!assignment is not needed
-		_i_layer_typedefs& operator=(const _i_layer_typedefs& rhs) noexcept; // = delete; //-it should be `delete`d, but factory function won't work if it is
-
-	public:
+	struct _i_layer_td : public math::smatrix_td {
 		typedef RealT real_t;
 		typedef math::smatrix<real_t> realmtx_t;
 		typedef math::smatrix_deform<real_t> realmtxdef_t;
@@ -102,7 +92,7 @@ namespace nntl {
 	// Layer, passed to fprop as the PrevLayer parameter must obey this interface.
 	// (#TODO is it necessary? Can we just drop it?)
 	template <typename RealT>
-	class _i_layer_fprop : public _i_layer_typedefs<RealT> {
+	class _i_layer_fprop : public _i_layer_td<RealT> {
 	protected:
 		_i_layer_fprop()noexcept {};
 		~_i_layer_fprop()noexcept {};
@@ -117,7 +107,7 @@ namespace nntl {
 	};
 
 	template <typename RealT>
-	class _i_layer_gate : private _i_layer_typedefs<RealT> {
+	class _i_layer_gate : private _i_layer_td<RealT> {
 	protected:
 		_i_layer_gate()noexcept {};
 		~_i_layer_gate()noexcept {};

@@ -67,7 +67,7 @@ TEST(TestNnet, Inspectors) {
 	train_data<real_t> td;
 	readTd(td, MNIST_FILE_DEBUG);
 
-	size_t epochs = 5, seedVal=0;
+	size_t epochs = 2, seedVal=0;
 	const real_t learningRate = real_t(.01), dropoutRate= real_t(1.);
 
 	//redefining InterfacesT
@@ -94,7 +94,7 @@ TEST(TestNnet, Inspectors) {
 	Aopts.calcFullLossValue(false).batchSize(100);
 
 	//instantiating inspector (though, could let nnet spawn it by itself)
-	//myInspector Insp;
+	//myInspector Insp(1);
 	//auto Ann = make_nnet(Alp, Insp);
 	auto Ann = make_nnet(Alp);
 	Ann.get_iRng().seed64(seedVal);

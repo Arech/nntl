@@ -262,6 +262,9 @@ namespace nntl {
 		template <typename LowerLayer>
 		void fprop(const LowerLayer& lowerLayer)noexcept {
 			static_assert(std::is_base_of<_i_layer_fprop, LowerLayer>::value, "Template parameter LowerLayer must implement _i_layer_fprop");
+			auto& iI = get_self().get_iInspect();
+			iI.fprop_begin(get_self().get_layer_idx(), lowerLayer.get_activations(), m_bTraining);
+
 			NNTL_ASSERT(lowerLayer.get_activations().test_biases_ok());
 			NNTL_ASSERT(m_gatingMask.rows() == get_self().get_activations().rows());
 			NNTL_ASSERT(m_gatingMask.rows() == lowerLayer.get_activations().rows());
@@ -270,11 +273,16 @@ namespace nntl {
 			_base_class::fprop(lowerLayer);
 			get_self().finish_fprop();
 			NNTL_ASSERT(lowerLayer.get_activations().test_biases_ok());
+
+			iI.fprop_end(m_activations);
 		}
 
 		template <typename LowerLayer>
 		const unsigned bprop(realmtxdef_t& dLdA, const LowerLayer& lowerLayer, realmtxdef_t& dLdAPrev)noexcept {
 			static_assert(std::is_base_of<_i_layer_trainable, LowerLayer>::value, "Template parameter LowerLayer must implement _i_layer_trainable");
+			auto& iI = get_self().get_iInspect();
+			iI.bprop_begin(get_self().get_layer_idx(), dLdA);
+
 			NNTL_ASSERT(m_gatingMask.rows() == get_self().get_activations().rows());
 			NNTL_ASSERT(m_gatingMask.rows() == lowerLayer.get_activations().rows());
 			NNTL_ASSERT(m_gatingMask.cols() == get_self().get_neurons_cnt() - get_self().gating_layer().get_neurons_cnt());
@@ -285,6 +293,8 @@ namespace nntl {
 			get_self().apply_gating_mask(dLdA);
 			const unsigned ret = _base_class::bprop(dLdA, lowerLayer, dLdAPrev);
 			NNTL_ASSERT(lowerLayer.get_activations().test_biases_ok());
+
+			iI.bprop_end(ret ? dLdAPrev : dLdA);
 			return ret;
 		}
 

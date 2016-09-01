@@ -333,17 +333,23 @@ namespace nntl {
 				// (1)  vW`(t+1)= momentum*vW(t)
 				// (2)  W`(t+1) = W(t) - momentum*vW(t)
 				//				= W(t) - vW`(t+1)
+				auto& iI = get_iInspect();
+				iI.fprop_preNesterovMomentum(m_Vw, m_momentum, weights);
 				get_iMath().evMulC_ip_Sub_ip(m_Vw, m_momentum, weights);
+				iI.fprop_postNesterovMomentum(m_Vw, weights);
 			}
 		}
 
 		void apply_grad(realmtxdef_t& weights, realmtxdef_t& dLdW) noexcept {
+			auto& iM = get_iMath();
+			auto& iI = get_iInspect();
+
+			iI.apply_grad_raw(weights, dLdW);
+
 			NNTL_ASSERT(dLdW.size() == weights.size());
 
 			const bool bFirstRun = m_flags[f_FirstRun];
 			m_flags.reset(f_FirstRun);
-
-			auto& iM = get_iMath();
 
 			//applying L1-L2 penalties
 			// BTW: because we're working with batches that averages dL/dW over many data samples and, possibly, over many 
@@ -449,12 +455,16 @@ namespace nntl {
 				} else {
 					//Vw = momentum.*Vw + dW
 					iM.apply_momentum(m_Vw, m_momentum, dLdW);
+					iI.apply_grad_update(weights, m_Vw);
 					iM.evSub_ip(weights, m_Vw);
 					bApplydLdW2Weights = false;
 				}
 			}
 
-			if (bApplydLdW2Weights) iM.evSub_ip(weights, dLdW);
+			if (bApplydLdW2Weights) {
+				iI.apply_grad_update(weights, dLdW);
+				iM.evSub_ip(weights, dLdW);
+			}
 
 			if (use_max_norm_regularization()) {
 				const bool bIgnoreBiases = m_flags[f_MaxNormRegIgnoreBias];

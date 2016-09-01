@@ -263,22 +263,26 @@ namespace nntl {
 	protected:
 		//help compiler to isolate fprop functionality from the specific of previous layer
 		void _fprop(const realmtx_t& prevActivations)noexcept {
+			auto& iI = get_self().get_iInspect();
+			iI.fprop_begin(get_self().get_layer_idx(), prevActivations, m_bTraining);
+
 			NNTL_ASSERT(prevActivations.test_biases_ok());
 			NNTL_ASSERT(m_activations.rows() == prevActivations.rows());
 			NNTL_ASSERT(prevActivations.cols() == m_weights.cols());
-
-			auto& iI = get_self().get_iInspect();
-			const auto layerIdx = get_self().get_layer_idx();
-			iI.fprop_onEntry(layerIdx, prevActivations, m_bTraining);
 
 			//might be necessary for Nesterov momentum application
 			if (m_bTraining) m_gradientWorks.pre_training_fprop(m_weights);
 
 			auto& _Math = get_self().get_iMath();
 
+			iI.fprop_makePreActivations(m_weights, prevActivations);
 			_Math.mMulABt_Cnb(prevActivations, m_weights, m_activations);
-			NNTL_ASSERT(m_activations.bDontManageStorage() || m_activations.test_biases_ok());
+			iI.fprop_preactivations(m_activations);
+
+			NNTL_ASSERT(m_activations.bDontManageStorage() || m_activations.test_biases_ok());			
 			activation_f_t::f(m_activations, _Math);
+			iI.fprop_activations(m_activations);
+
 			NNTL_ASSERT(m_activations.bDontManageStorage() || m_activations.test_biases_ok());
 
 			if (bDropout()) {
@@ -286,7 +290,9 @@ namespace nntl {
 				if (m_bTraining) {
 					//must make dropoutMask and apply it
 					get_self().get_iRng().gen_matrix_norm(m_dropoutMask);
+					iI.fprop_preDropout(m_activations, m_dropoutPercentActive, m_dropoutMask);
 					_Math.make_dropout(m_activations, m_dropoutPercentActive, m_dropoutMask);
+					iI.fprop_postDropout(m_activations, m_dropoutMask);
 				} else {
 					//only applying dropoutPercentActive -- we don't need to do this since make_dropout() implements so called 
 					// "inverse dropout" that doesn't require this step
@@ -295,12 +301,16 @@ namespace nntl {
 				NNTL_ASSERT(m_activations.bDontManageStorage() || m_activations.test_biases_ok());
 			}
 
-			NNTL_ASSERT(prevActivations.test_biases_ok());
-
 			//TODO?: sparsity penalty here
+
+			NNTL_ASSERT(prevActivations.test_biases_ok());
+			iI.fprop_end(m_activations);
 		}
 
 		void _bprop(realmtx_t& dLdA, const realmtx_t& prevActivations, const bool bPrevLayerIsInput, realmtx_t& dLdAPrev)noexcept {
+			auto& iI = get_self().get_iInspect();
+			iI.bprop_begin(get_self().get_layer_idx(), dLdA);
+
 			dLdA.assert_storage_does_not_intersect(dLdAPrev);
 			dLdA.assert_storage_does_not_intersect(m_dLdW);
 			dLdA.assert_storage_does_not_intersect(m_dAdZ_dLdZ);
@@ -317,10 +327,7 @@ namespace nntl {
 
 			NNTL_ASSERT(bPrevLayerIsInput || prevActivations.emulatesBiases());//input layer in batch mode may have biases included, but no emulatesBiases() set
 			NNTL_ASSERT(mtx_size_t(get_self().get_training_batch_size(), get_incoming_neurons_cnt() + 1) == prevActivations.size());
-			NNTL_ASSERT(bPrevLayerIsInput || dLdAPrev.size() == prevActivations.size_no_bias());//in vanilla simple BP we shouldn't calculate dLdAPrev for the first layer
-
-			auto& iI = get_self().get_iInspect();
-			
+			NNTL_ASSERT(bPrevLayerIsInput || dLdAPrev.size() == prevActivations.size_no_bias());//in vanilla simple BP we shouldn't calculate dLdAPrev for the first layer			
 
 			auto& _Math = get_self().get_iMath();
 			const bool bUseDropout = bDropout();
@@ -365,6 +372,8 @@ namespace nntl {
 			m_gradientWorks.apply_grad(m_weights, m_dLdW);
 
 			NNTL_ASSERT(prevActivations.test_biases_ok());
+
+			iI.bprop_end(dLdAPrev);
 		}
 
 	public:

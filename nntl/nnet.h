@@ -114,7 +114,9 @@ namespace nntl {
 	public:
 		~nnet()noexcept {}
 
-		nnet(layers_pack_t& lp, iInspect_t* pI=nullptr, iMath_t* pM=nullptr, iRng_t* pR=nullptr) noexcept 
+		//don't instantiate directly, better use make_nnet() helper function
+		template<typename PInspT = std::nullptr_t, typename PMathT = std::nullptr_t, typename PRngT = std::nullptr_t>
+		nnet(layers_pack_t& lp, PInspT pI=nullptr, PMathT pM=nullptr, PRngT pR=nullptr) noexcept
 			: _base_class(pI, pM, pR), m_Layers(lp)
 		{
 			m_bRequireReinit = false;

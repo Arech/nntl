@@ -36,37 +36,46 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 namespace nntl {
 namespace inspector {
 
-	template<typename RealT>
-	class stdcout : public _base<RealT>{
+	template<typename RealT, size_t maxNnetDepth=10>
+	class stdcout : public _impl::_base<RealT>{
 	public:
 		typedef std::vector<std::string> layer_names_t;
+		typedef stdcout<real_t> self_t;
 
-	public:
+	protected:
+		typedef _impl::layer_idx_keeper<layer_index_t, _NoLayerIdxSpecified, maxNnetDepth> keeper_t;
+
+	protected:
 		layer_names_t m_layerNames;
 		size_t m_epochCount, m_layersCount, m_epochIdx;
 		vec_len_t m_batchIdx, m_batchCount;
 
+		//layer_index_t m_curLayer;
+		keeper_t m_curLayer;
+
 	public:
 		~stdcout()noexcept {}
-		stdcout()noexcept : m_epochIdx(-1), m_batchIdx(-1), m_epochCount(0), m_layersCount(0), m_batchCount(0) {}
+		stdcout()noexcept : m_epochIdx(-1), m_batchIdx(-1), m_epochCount(0), m_layersCount(0), m_batchCount(0){}
 
 		//////////////////////////////////////////////////////////////////////////
 		//
 		template<typename VarT> std::enable_if_t<!std::is_base_of<realmtx_t, VarT>::value>
-		inspect(const VarT& v, const layer_index_t lIdx = 0, const char*const pVarName = nullptr)const noexcept
+		inspect(const VarT& v, const char*const pVarName = nullptr, const layer_index_t lIdx = _NoLayerIdxSpecified)const noexcept
 		{
-			if (lIdx < m_layersCount) {
-				STDCOUT("[" << m_layerNames[lIdx]);
-			} else STDCOUT("[OutOfALayer");
-			STDCOUTL("] @ " << m_epochIdx << "\\" << m_batchIdx << " variable \'" << (pVarName ? pVarName : "unk") << "\' = " << v);
+			const auto _li = lIdx == _NoLayerIdxSpecified ? m_curLayer : lIdx;
+			if (_li < m_layersCount) {
+				STDCOUT(m_layerNames[_li]);
+			} else STDCOUT("[OutOfALayer]");
+			STDCOUTL("@" << m_epochIdx << "#" << m_batchIdx << " var \'" << (pVarName ? pVarName : "unk") << "\' = " << v);
 		}
 		template<typename VarT> std::enable_if_t<std::is_base_of<realmtx_t, VarT>::value>
-		inspect(const VarT& v, const layer_index_t lIdx = 0, const char*const pVarName = nullptr)const noexcept
+		inspect(const VarT& v, const char*const pVarName = nullptr, const layer_index_t lIdx = _NoLayerIdxSpecified)const noexcept
 		{
-			if (lIdx < m_layersCount) {
-				STDCOUT("[" << m_layerNames[lIdx]);
-			} else STDCOUT("[OutOfALayer");
-			STDCOUTL("] @ " << m_epochIdx << "\\" << m_batchIdx << " matrix \'" << (pVarName ? pVarName : "unk") << "\' size = [" << v.rows() << "," << v.cols() << "]");
+			const auto _li = lIdx == _NoLayerIdxSpecified ? m_curLayer : lIdx;
+			if (_li < m_layersCount) {
+				STDCOUT(m_layerNames[_li]);
+			} else STDCOUT("[OutOfALayer]");
+			STDCOUTL("@" << m_epochIdx << "#" << m_batchIdx << " mtx \'" << (pVarName ? pVarName : "unk") << "\' size = [" << v.rows() << "," << v.cols() << "]");
 		}
 
 		//////////////////////////////////////////////////////////////////////////
@@ -97,11 +106,36 @@ namespace inspector {
 			m_batchIdx = batchIdx;
 		}
 
-		void fprop_onEntry(const layer_index_t lIdx, const realmtx_t& prevAct, const bool bTrainingMode) const noexcept {
-			STDCOUT("fprop:" << (bTrainingMode?"training, ":"testing, "));
-			inspect(prevAct, lIdx, "previous activations");
+		//////////////////////////////////////////////////////////////////////////
+
+		void fprop_begin(const layer_index_t lIdx, const realmtx_t& prevAct, const bool bTrainingMode) noexcept {
+			m_curLayer.push(lIdx);
+			STDCOUT("fp:" << (bTrainingMode ? "tr, " : "t, "));
+			inspect(prevAct, "previous activations");
+		}
+		void fprop_end(const realmtx_t& act) noexcept {
+			inspect(act, "current activations");
+			m_curLayer.pop();
+		}
+		void bprop_begin(const layer_index_t lIdx, const realmtx_t& dLdA) noexcept {
+			m_curLayer.push(lIdx);
+			STDCOUT("bp: ");
+			inspect(dLdA, "dL/dA");
+		}
+		void bprop_end(const realmtx_t& dLdAPrev) noexcept {
+			inspect(dLdAPrev, "dL/dA for a layer down the stack");
+			m_curLayer.pop();
 		}
 
+
+		void fprop_makePreActivations(const realmtx_t& W, const realmtx_t& prevAct)const noexcept {
+			inspect(W, "Current weights");
+		}
+
+		void apply_grad_update(const realmtx_t& W, const realmtx_t& WUpd)const noexcept {
+			inspect(W, "weights@apply_grad");
+			inspect(WUpd, "Weights update@apply_grad");
+		}
 	};
 
 
