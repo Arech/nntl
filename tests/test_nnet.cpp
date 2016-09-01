@@ -46,7 +46,6 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 using namespace nntl;
 typedef nntl_supp::binfile reader_t;
-//using real_t = math_types::real_ty;
 
 #define MNIST_FILE_DEBUG "../data/mnist200_100.bin"
 #define MNIST_FILE_RELEASE  "../data/mnist60000.bin"
@@ -71,12 +70,22 @@ TEST(TestNnet, Inspectors) {
 	size_t epochs = 5, seedVal=0;
 	const real_t learningRate = real_t(.01), dropoutRate= real_t(1.);
 
-	layer_input<> Ainp(td.train_x().cols_no_bias(),"Source");
+	//redefining InterfacesT
+	typedef inspector::stdcout<real_t> myInspector;
+	//typedef inspector::dummy<real_t> myInspector;
+	struct myIntf : public d_int_nI {
+		typedef myInspector iInspect_t;
+	};
+	//and related layer's template params
+	typedef grad_works<myIntf> myGW;
+	typedef activation::sigm<real_t, weights_init::XavierFour> myAct;
+	typedef activation::sigm_quad_loss<real_t, weights_init::XavierFour> myActO;
 
-	layer_fully_connected<> Aifcl1(20, learningRate, dropoutRate, "First");
-	layer_fully_connected<> Aifcl2(15, learningRate, dropoutRate, "Second");
-
-	layer_output<> Aoutp(td.train_y().cols(), learningRate, "Predictor");
+	//instantiating layer objects
+	layer_input<myIntf> Ainp(td.train_x().cols_no_bias(),"Source");
+	layer_fully_connected<myAct, myGW> Aifcl1(20, learningRate, dropoutRate, "First");
+	layer_fully_connected<myAct, myGW> Aifcl2(15, learningRate, dropoutRate, "Second");
+	layer_output<myActO, myGW> Aoutp(td.train_y().cols(), learningRate, "Predictor");
 
 	auto Alp = make_layers(Ainp, Aifcl1, Aifcl2, Aoutp);
 
@@ -84,9 +93,10 @@ TEST(TestNnet, Inspectors) {
 	nnet_train_opts<decltype(Acee)> Aopts(std::move(Acee));
 	Aopts.calcFullLossValue(false).batchSize(100);
 
-	inspector::stdcout<real_t> Insp;
-
-	auto Ann = make_nnet(Alp, Insp);
+	//instantiating inspector (though, could let nnet spawn it by itself)
+	//myInspector Insp;
+	//auto Ann = make_nnet(Alp, Insp);
+	auto Ann = make_nnet(Alp);
 	Ann.get_iRng().seed64(seedVal);
 	
 	auto ec = Ann.train(td, Aopts);
@@ -327,7 +337,7 @@ void testL2L1(const bool bL2, train_data<real_t>& td, const real_t coeff, uint64
 
 	//typedef activation::relu<> activ_func;
 	typedef weights_init::XavierFour w_init_scheme;
-	typedef activation::sigm<w_init_scheme> activ_func;
+	typedef activation::sigm<real_t, w_init_scheme> activ_func;
 
 	layer_input<> inp(td.train_x().cols_no_bias());
 
@@ -336,7 +346,7 @@ void testL2L1(const bool bL2, train_data<real_t>& td, const real_t coeff, uint64
 
 	layer_fully_connected<activ_func> fcl(100, learningRate);
 	layer_fully_connected<activ_func> fcl2(100, learningRate);
-	layer_output<activation::sigm_xentropy_loss<w_init_scheme>> outp(td.train_y().cols(), learningRate);
+	layer_output<activation::sigm_xentropy_loss<real_t, w_init_scheme>> outp(td.train_y().cols(), learningRate);
 
 	if (bL2) {
 		fcl.m_gradientWorks.L2(coeff);
@@ -360,7 +370,7 @@ void testL2L1(const bool bL2, train_data<real_t>& td, const real_t coeff, uint64
 	auto ec = nn.train(td, opts);
 	ASSERT_EQ(decltype(nn)::ErrorCode::Success, ec) << "Error code description: " << nn.get_last_error_string();
 
-#ifdef NNTL_MATLAB_AVAILABLE
+#if NNTL_MATLAB_AVAILABLE
 	if (pDumpFileName) {
 		nntl_supp::omatfile<> mf;
 		mf.turn_on_all_options();
@@ -373,7 +383,7 @@ void testL2L1(const bool bL2, train_data<real_t>& td, const real_t coeff, uint64
 }
 
 TEST(TestNnet, L2L1) {
-	train_data<math_types::real_ty> td;
+	train_data<real_t> td;
 	reader_t reader;
 
 	const auto srcFile = MNIST_FILE_DEBUG;//intended to use small (debug) variation here
@@ -402,7 +412,7 @@ TEST(TestNnet, L2L1) {
 }
 
 TEST(TestNnet, L2Weights) {
-	train_data<math_types::real_ty> td;
+	train_data<real_t> td;
 	reader_t reader;
 
 	const auto srcFile = MNIST_FILE_DEBUG;//intended to use small (debug) variation here

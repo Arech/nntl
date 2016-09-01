@@ -106,50 +106,6 @@ TEST(TestUtils, OwnOrUsePtr) {
 	ASSERT_TRUE(pu2.empty());*/
 }
 
-/*
-TEST(TestUtils, Clamp) {
-	using real_t = math_types::real_ty;
-	math_types::realmtx_ty m(50, 50), d;
-
-	rng::Std r;
-
-	r.gen_matrix(m, 20);
-	m.cloneTo(d);
-
-	real_t lo = -10, hi = 10;
-
-	bool bGotBig = false;
-	auto p = m.data();
-	auto pd = d.data();
-	for (math_types::realmtx_ty::numel_cnt_t i = 0, im = m.numel(); i < im; ++i) {
-		auto v = p[i];
-		if (v > hi || v < lo) {
-			bGotBig = true;
-			if (v > hi) {
-				pd[i] = hi;
-			}else if (v<lo) {
-				pd[i] = lo;
-			}
-		}
-
-	}
-	ASSERT_TRUE(bGotBig);
-
-	utils::boost::algorithm::clamp_range(p, p + m.numel(), p, lo, hi);
-
-	bGotBig = false;
-	for (math_types::realmtx_ty::numel_cnt_t i = 0, im = m.numel(); i < im; ++i) {
-		if (p[i] > hi || p[i] < lo) {
-			bGotBig = true;
-			break;
-		}
-	}
-	ASSERT_TRUE(!bGotBig);
-
-	ASSERT_EQ(m, d);
-}*/
-
-
 TEST(TestMatfile, Options) {
 	struct NoOptions {};
 	struct HasOptions : public utils::options<HasOptions> {};

@@ -44,8 +44,8 @@ namespace nntl {
 		typedef ActivFunc activation_f_t;
 		//output layer uses only _i_function::f() (during forward propagation). During backward propagation _i_activation_loss::dLdZ()
 		//is used instead of _i_activation::df()
-		static_assert(std::is_base_of<activation::_i_function, activation_f_t>::value, "ActivFunc template parameter should be derived from activation::_i_function");
-		static_assert(std::is_base_of<activation::_i_activation_loss, activation_f_t>::value, "ActivFunc template parameter should be derived from activation::_i_activation_loss");
+		static_assert(std::is_base_of<activation::_i_function<real_t>, activation_f_t>::value, "ActivFunc template parameter should be derived from activation::_i_function");
+		static_assert(std::is_base_of<activation::_i_activation_loss<real_t>, activation_f_t>::value, "ActivFunc template parameter should be derived from activation::_i_activation_loss");
 
 		typedef GradWorks grad_works_t;
 		static_assert(std::is_base_of<_i_grad_works<real_t>, grad_works_t>::value, "GradWorks template parameter should be derived from _i_grad_works");
@@ -228,6 +228,10 @@ namespace nntl {
 			NNTL_ASSERT(m_activations.rows() == prevActivations.rows());
 			NNTL_ASSERT(prevActivations.cols() == m_weights.cols());
 
+			auto& iI = get_self().get_iInspect();
+			const auto layerIdx = get_self().get_layer_idx();
+			iI.fprop_onEntry(layerIdx, prevActivations, m_bTraining);
+
 			//might be necessary for Nesterov momentum application
 			if (m_bTraining) m_gradientWorks.pre_training_fprop(m_weights);
 
@@ -329,7 +333,7 @@ namespace nntl {
 	//////////////////////////////////////////////////////////////////////////
 	// final implementation of layer with all functionality of _layer_output
 	// If you need to derive a new class, derive it from _layer_output (to make static polymorphism work)
-	template <typename ActivFunc = activation::sigm_quad_loss<>,
+	template <typename ActivFunc = activation::sigm_quad_loss<d_interfaces::real_t>,
 		typename GradWorks = grad_works<d_interfaces>
 	> class layer_output final 
 		: public _layer_output<ActivFunc, GradWorks, layer_output<ActivFunc, GradWorks>>

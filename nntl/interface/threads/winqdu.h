@@ -51,8 +51,8 @@ namespace threads {
 
 	//TODO: error handling!!!
 
-	template <typename range_type>
-	class WinQDU : public _i_threads<range_type>{
+	template <typename RealT, typename RangeT>
+	class WinQDU : public _i_threads<RealT, RangeT> {
 		//!! copy constructor not needed
 		WinQDU(const WinQDU& other)noexcept = delete;
 		//!!assignment is not needed

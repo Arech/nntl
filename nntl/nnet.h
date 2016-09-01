@@ -180,7 +180,7 @@ namespace nntl {
 			NNTL_ASSERT(data_x.rows() == data_y.rows());
 			if (!bDropFProp) _fprop(data_x);
 
-			static_assert(std::is_base_of<activation::_i_activation_loss, layers_pack_t::output_layer_t::activation_f_t>::value,
+			static_assert(std::is_base_of<activation::_i_activation_loss<real_t>, layers_pack_t::output_layer_t::activation_f_t>::value,
 				"Activation function class of output layer must implement activation::_i_activation_loss interface");
 
 			auto lossValue = layers_pack_t::output_layer_t::activation_f_t::loss(m_Layers.output_layer().get_activations(), data_y, get_iMath());
@@ -303,6 +303,7 @@ namespace nntl {
 		{
 			if (td.empty()) return _set_last_error(ErrorCode::InvalidTD);
 
+			auto& iI = get_iInspect();
 			const auto& train_x = td.train_x();
 			const auto& train_y = td.train_y();
 			const vec_len_t samplesCount = train_x.rows();
@@ -327,7 +328,7 @@ namespace nntl {
 
 			if (!_batchSizeOk(td, batchSize)) return _set_last_error(ErrorCode::BatchSizeMustBeMultipleOfTrainDataLength);
 			
-			//inspector.init_nnet(m_Layers.layers_count, maxEpoch, numBatches);
+			iI.init_nnet(m_Layers.layers_count, maxEpoch, numBatches);
 
 			m_bCalcFullLossValue = opts.calcFullLossValue();
 			//////////////////////////////////////////////////////////////////////////
@@ -383,7 +384,7 @@ namespace nntl {
 				utils::prioritize_workers<utils::PriorityClass::Working, iThreads_t> pw(get_iMath().ithreads());
 
 				for (size_t epochIdx = 0; epochIdx < maxEpoch; ++epochIdx) {
-					//inspector.train_epochBegin(epochIdx);
+					iI.train_epochBegin(epochIdx);
 
 					auto vRowIdxIt = vRowIdxs.begin();
 					if (bMiniBatch) {
@@ -392,7 +393,7 @@ namespace nntl {
 					}
 
 					for (vec_len_t batchIdx = 0; batchIdx < numBatches; ++batchIdx) {
-						//inspector.train_batchBegin(batchIdx);
+						iI.train_batchBegin(batchIdx);
 						if (bMiniBatch) {
 							get_iMath().mExtractRows(train_x, vRowIdxIt, batchSize, batch_x);
 							get_iMath().mExtractRows(train_y, vRowIdxIt, batchSize, batch_y);
@@ -410,7 +411,7 @@ namespace nntl {
 						// fullbatch learning and absence of dropout/regularizer). Therefore don't bother here with error and leave it to bprop()
 						m_Layers.bprop(batch_y, ttd.a_dLdA);
 
-						//inspector.train_batchEnd(batchIdx);
+						iI.train_batchEnd(batchIdx);
 					}
 
 					const bool bInspectEpoch = cee(epochIdx);
@@ -440,7 +441,7 @@ namespace nntl {
 						m_Layers.set_mode(0);//restoring training mode after _calcLoss()
 					}
 
-					//inspector.train_epochEnd(epochIdx);
+					iI.train_epochEnd(epochIdx);
 					if (! std::forward<OnEpochEndCbT>(onEpochEndCB)(*this, opts, epochIdx)) break;
 				}
 			}

@@ -138,6 +138,7 @@ namespace nntl {
 		const common_data_t& get_common_data()const noexcept { return first_layer().get_common_data(); }
 		iMath_t& get_iMath()const noexcept { return first_layer().get_iMath(); }
 		iRng_t& get_iRng()const noexcept { return first_layer().get_iRng(); }
+		iInspect_t& get_iInspect()const noexcept { return first_layer().get_iInspect(); }
 		const vec_len_t get_max_fprop_batch_size()const noexcept { return first_layer().get_max_fprop_batch_size(); }
 		const vec_len_t get_training_batch_size()const noexcept { return first_layer().get_training_batch_size(); }
 		
@@ -182,8 +183,6 @@ namespace nntl {
 		}
 
 		ErrorCode init(_layer_init_data_t& lid, real_t* pNewActivationStorage = nullptr)noexcept {
-			//inspector.init_layer(get_self().get_layer_idx(), get_self().get_layer_name_str());
-
 			ErrorCode ec = ErrorCode::Success;
 			layer_index_t failedLayerIdx = 0;
 
@@ -214,6 +213,10 @@ namespace nntl {
 					lid.update(initD);
 				} else failedLayerIdx = get_self().last_layer().get_layer_idx();
 			}
+
+			//must be called after first inner layer initialization complete - see our get_iInspect() implementation
+			get_iInspect().init_layer(get_self().get_layer_idx(), get_self().get_layer_name_str());
+
 			//#TODO need some way to return failedLayerIdx
 			if (ErrorCode::Success == ec) bSuccessfullyInitialized = true;
 			return ec;

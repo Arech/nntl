@@ -2293,7 +2293,6 @@ TEST(TestMathN, mMulABt_Cnb) {
 	typedef math::MathN<real_t, def_threads_t> iMB;
 	
 	using ErrCode = jsonreader::ErrorCode;
-	typedef math_types::real_ty real_t;
 	typedef train_data<real_t> train_data_t;
 	typedef train_data_t::mtx_t realmtx_t;
 	using mtx_size_t = realmtx_t::mtx_size_t;
@@ -2333,7 +2332,7 @@ TEST(TestMathN, mMulABt_Cnb_biased) {
 	typedef math::MathN<real_t, def_threads_t> iMB;
 
 	using ErrCode = jsonreader::ErrorCode;
-	typedef math_types::real_ty real_t;
+
 	typedef train_data<real_t> train_data_t;
 	typedef train_data_t::mtx_t realmtx_t;
 	using mtx_size_t = realmtx_t::mtx_size_t;
@@ -2591,7 +2590,7 @@ template<> struct sigm_EPS<float> { static constexpr float eps = 1e-6f; };
 template<typename iMath>
 void test_sigm(iMath& iM, vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 	typedef typename iMath::ithreads_t threads_t;
-	typedef math_types::realmtxdef_ty realmtxdef_t;
+	typedef math::smatrix_deform<real_t> realmtxdef_t;
 
 	const auto dataSize = realmtx_t::sNumel(rowsCnt, colsCnt);
 	STDCOUTL("********* testing sigm() over ~" << dataSize << " elements) **************");

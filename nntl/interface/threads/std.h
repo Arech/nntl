@@ -44,8 +44,8 @@ namespace threads {
 
 	//TODO: error handling!!!
 	
-	template <typename range_type>
-	class Std : public _i_threads<range_type>{
+	template <typename RealT, typename RangeT>
+	class Std : public _i_threads<RealT, RangeT>{
 		//!! copy constructor not needed
 		Std(const Std& other)noexcept = delete;
 		//!!assignment is not needed

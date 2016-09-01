@@ -38,11 +38,12 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 namespace nntl {
 
+	template<typename RealT>
 	struct i_nnet_evaluator {
-		typedef math_types::real_ty real_t;
+		typedef RealT real_t;
 		typedef math::smatrix<real_t> realmtx_t;
-		typedef realmtx_t::vec_len_t vec_len_t;
-		typedef realmtx_t::numel_cnt_t numel_cnt_t;
+		typedef math::smatrix_td::vec_len_t vec_len_t;
+		typedef math::smatrix_td::numel_cnt_t numel_cnt_t;
 
 		//may preprocess train_y/test_y here
 		template<typename iMath>
@@ -61,7 +62,8 @@ namespace nntl {
 	//data_y is binarized according to threshold
 	// #TODO: it's not really suitable for more than 1D data (need correct metrics). So this code as well as observer's code will be heavily
 	// refactored
-	struct eval_classification_binary : public i_nnet_evaluator {
+	template<typename RealT>
+	struct eval_classification_binary : public i_nnet_evaluator<RealT> {
 	protected:
 		//typedef math::smatrix<char> binmtx_t;
 		typedef std::vector<char> binvec_t;
@@ -121,7 +123,8 @@ namespace nntl {
 	//////////////////////////////////////////////////////////////////////////
 	//evaluator to be used with classification tasks when data_y class is specified by a column with a greatest value
 	// (one-hot generalization)
-	struct eval_classification_one_hot : public i_nnet_evaluator {
+	template<typename RealT>
+	struct eval_classification_one_hot : public i_nnet_evaluator<RealT> {
 	protected:
 		//for each element of Y data (training/testing) contains index of true element class (column number of biggest element in a row)
 		typedef std::array<std::vector<vec_len_t>, 2> y_data_class_idx_t;

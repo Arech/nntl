@@ -43,8 +43,6 @@ namespace rng {
 		//typedef uint64_t seed_t;
 		typedef int seed_t;
 		
-		//typedef math_types::realmtx_ty realmtx_t;
-		//typedef realmtx_t::value_type real_t;
 		typedef RealT real_t;
 		typedef math::smatrix<real_t> realmtx_t;
 

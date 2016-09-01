@@ -380,7 +380,7 @@ namespace nntl {
 		ErrorCode init(_layer_init_data_t& lid, real_t* pNewActivationStorage = nullptr)noexcept {
 			set_common_data(lid.commonData);
 
-			//inspector.init_layer(get_self().get_layer_idx(), get_self().get_layer_name_str());
+			get_self().get_iInspect().init_layer(get_self().get_layer_idx(), get_self().get_layer_name_str());
 
 			return ErrorCode::Success;
 		}

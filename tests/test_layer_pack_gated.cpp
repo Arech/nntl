@@ -137,11 +137,11 @@ void simple_gatedNN(train_data<real_t>& td, const vec_len_t gateIdx, const uint6
 }
 
 struct TLPG_simple_td {
-	//typedef activation::sigm<> simple_act_hid;
+	//typedef activation::sigm<real_t> simple_act_hid;
 	//weights_init::XavierFour is suitable for very small layers
-	typedef activation::sigm<weights_init::XavierFour> simple_act_hid;
-	//typedef activation::sigm_quad_loss<> simple_act_outp;
-	typedef activation::sigm_xentropy_loss<weights_init::XavierFour> simple_act_outp;
+	typedef activation::sigm<real_t, weights_init::XavierFour> simple_act_hid;
+	//typedef activation::sigm_quad_loss<real_t> simple_act_outp;
+	typedef activation::sigm_xentropy_loss<real_t, weights_init::XavierFour> simple_act_outp;
 
 #ifdef TESTS_SKIP_NNET_LONGRUNNING
 	static constexpr size_t simple_l1nc = 40;

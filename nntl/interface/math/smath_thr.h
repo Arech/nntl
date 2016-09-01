@@ -39,7 +39,7 @@ namespace nntl {
 namespace math {
 
 	namespace _impl {
-		using vec_len_t = smatrix<math_types::real_ty>::vec_len_t;
+		using vec_len_t = smatrix_td::vec_len_t;
 
 		template <typename real_t> struct SMATH_THR {};
 

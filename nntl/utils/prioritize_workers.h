@@ -63,7 +63,7 @@ namespace utils {
 
 		template<PriorityClass _mode, typename iThreadsT>
 		class prioritize_workers_win {
-			static_assert(std::is_base_of<threads::_i_threads<typename iThreadsT::range_t>, iThreadsT>::value, "iThreads must implement threads::_i_threads");
+			static_assert(std::is_base_of<threads::_i_threads<typename iThreadsT::real_t,typename iThreadsT::range_t>, iThreadsT>::value, "iThreads must implement threads::_i_threads");
 		public:
 			typedef iThreadsT iThreads_t;
 

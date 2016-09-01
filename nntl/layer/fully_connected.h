@@ -45,7 +45,7 @@ namespace nntl {
 
 	public:
 		typedef ActivFunc activation_f_t;
-		static_assert(std::is_base_of<activation::_i_activation, activation_f_t>::value, "ActivFunc template parameter should be derived from activation::_i_function");
+		static_assert(std::is_base_of<activation::_i_activation<real_t>, activation_f_t>::value, "ActivFunc template parameter should be derived from activation::_i_function");
 
 		typedef GradWorks grad_works_t;
 		static_assert(std::is_base_of<_i_grad_works<real_t>, grad_works_t>::value, "GradWorks template parameter should be derived from _i_grad_works");
@@ -267,6 +267,10 @@ namespace nntl {
 			NNTL_ASSERT(m_activations.rows() == prevActivations.rows());
 			NNTL_ASSERT(prevActivations.cols() == m_weights.cols());
 
+			auto& iI = get_self().get_iInspect();
+			const auto layerIdx = get_self().get_layer_idx();
+			iI.fprop_onEntry(layerIdx, prevActivations, m_bTraining);
+
 			//might be necessary for Nesterov momentum application
 			if (m_bTraining) m_gradientWorks.pre_training_fprop(m_weights);
 
@@ -314,6 +318,9 @@ namespace nntl {
 			NNTL_ASSERT(bPrevLayerIsInput || prevActivations.emulatesBiases());//input layer in batch mode may have biases included, but no emulatesBiases() set
 			NNTL_ASSERT(mtx_size_t(get_self().get_training_batch_size(), get_incoming_neurons_cnt() + 1) == prevActivations.size());
 			NNTL_ASSERT(bPrevLayerIsInput || dLdAPrev.size() == prevActivations.size_no_bias());//in vanilla simple BP we shouldn't calculate dLdAPrev for the first layer
+
+			auto& iI = get_self().get_iInspect();
+			
 
 			auto& _Math = get_self().get_iMath();
 			const bool bUseDropout = bDropout();
@@ -421,7 +428,7 @@ namespace nntl {
 	//////////////////////////////////////////////////////////////////////////
 	// final implementation of layer with all functionality of _layer_fully_connected
 	// If you need to derive a new class, derive it from _layer_fully_connected (to make static polymorphism work)
-	template <typename ActivFunc = activation::sigm<>,
+	template <typename ActivFunc = activation::sigm<d_interfaces::real_t>,
 		typename GradWorks = grad_works<d_interfaces>
 	> class LFC final 
 		: public _layer_fully_connected<ActivFunc, GradWorks, LFC<ActivFunc, GradWorks>>
@@ -435,7 +442,7 @@ namespace nntl {
 			(_neurons_cnt, learningRate, dropoutFrac, pCustomName) {};
 	};
 
-	template <typename ActivFunc = activation::sigm<>,
+	template <typename ActivFunc = activation::sigm<d_interfaces::real_t>,
 		typename GradWorks = grad_works<d_interfaces>
 	> using layer_fully_connected = typename LFC<ActivFunc, GradWorks>;
 }

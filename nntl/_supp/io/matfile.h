@@ -37,9 +37,9 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 // It's intended to create a data link between nntl and Matlab, but not to use a mat file as a permanent storage medium.
 // Also it should be able to read train_data from .mat files
 
-#ifdef NNTL_MATLAB_AVAILABLE
-
 #include "../../utils/matlab.h"
+
+#if NNTL_MATLAB_AVAILABLE
 
 #include "../../serialization/serialization.h"
 

@@ -312,6 +312,9 @@
     <ClInclude Include="..\nntl\interface\_i_inspector.h">
       <Filter>nntl\interface</Filter>
     </ClInclude>
+    <ClInclude Include="..\nntl\interface\inspectors\dummy.h">
+      <Filter>nntl\interface\inspectors</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="stdafx.cpp">

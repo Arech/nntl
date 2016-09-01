@@ -33,17 +33,18 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include "_defs.h"
 #include "common.h"
+#include "interfaces.h"
 
 namespace nntl {
 namespace activation {
 
+	template<typename RealT>
 	class _i_function {
 		_i_function() = delete;
 		~_i_function() = delete;
 	public:
-		typedef nntl::math_types::real_ty real_t;
-		//typedef nntl::math_types::realmtx_ty realmtx_t;
-		//typedef realmtx_t::value_type real_t;
+		typedef RealT real_t;
+
 		typedef math::smatrix<real_t> realmtx_t;
 		typedef math::smatrix_deform<real_t> realmtxdef_t;
 		typedef typename realmtx_t::numel_cnt_t numel_cnt_t;
@@ -64,7 +65,8 @@ namespace activation {
 
 	//class defines interface for activation functions. It's intended to be used as a parent class only
 	//usually, _i_activation implementation class is nothing more than a thunk into iMath, which contains efficient code
-	class _i_activation : public _i_function {
+	template<typename RealT>
+	class _i_activation : public _i_function<RealT> {
 		_i_activation() = delete;
 		~_i_activation() = delete;
 	public:
@@ -76,18 +78,19 @@ namespace activation {
 
 
 	//for use in output layer activations
+	template<typename RealT>
 	class _i_activation_loss {
 		~_i_activation_loss() = delete;
 		_i_activation_loss() = delete;
 	public:
 		//loss function
 		template <typename iMath>
-		nntl_interface static _i_activation::real_t loss(const _i_activation::realmtx_t& activations, const _i_activation::realmtx_t& data_y, iMath& m)noexcept;
+		nntl_interface static typename _i_activation<RealT>::real_t loss(const typename _i_activation<RealT>::realmtx_t& activations, const typename _i_activation<RealT>::realmtx_t& data_y, iMath& m)noexcept;
 
 		//loss function derivative wrt total neuron input Z (=Aprev_layer*W), dL/dZ
 		template <typename iMath>
-		nntl_interface static void dLdZ(const _i_activation::realmtx_t& activations, const _i_activation::realmtx_t& data_y,
-			_i_activation::realmtx_t& dLdZ, iMath& m)noexcept;
+		nntl_interface static void dLdZ(const typename _i_activation<RealT>::realmtx_t& activations, const typename _i_activation<RealT>::realmtx_t& data_y,
+			typename _i_activation<RealT>::realmtx_t& dLdZ, iMath& m)noexcept;
 		//we glue into single function calculation of dL/dA and dA/dZ. The latter is in fact calculated by _i_activation::df(), but if
 		//we'll calculate dL/dZ in separate functions, then we can't make some optimizations
 	};
@@ -95,8 +98,8 @@ namespace activation {
 
 	//////////////////////////////////////////////////////////////////////////
 	//sigmoid
-	template<typename WeightsInitScheme = weights_init::Martens_SI_sigm<>>
-	class sigm : public _i_activation {
+	template<typename RealT=d_interfaces::real_t, typename WeightsInitScheme = weights_init::Martens_SI_sigm<>>
+	class sigm : public _i_activation<RealT> {
 		sigm() = delete;
 		~sigm() = delete;
 	public:
@@ -116,8 +119,8 @@ namespace activation {
 		}
 	};
 
-	template<typename WeightsInitScheme = weights_init::Martens_SI_sigm<>>
-	class sigm_quad_loss : public sigm<WeightsInitScheme>, public _i_activation_loss {
+	template<typename RealT, typename WeightsInitScheme = weights_init::Martens_SI_sigm<>>
+	class sigm_quad_loss : public sigm<RealT, WeightsInitScheme>, public _i_activation_loss<RealT> {
 		sigm_quad_loss() = delete;
 		~sigm_quad_loss() = delete;
 	public:
@@ -134,8 +137,8 @@ namespace activation {
 		}
 	};
 
-	template<typename WeightsInitScheme = weights_init::Martens_SI_sigm<>>
-	class sigm_xentropy_loss : public sigm<WeightsInitScheme>, public _i_activation_loss {
+	template<typename RealT, typename WeightsInitScheme = weights_init::Martens_SI_sigm<>>
+	class sigm_xentropy_loss : public sigm<RealT, WeightsInitScheme>, public _i_activation_loss<RealT> {
 		sigm_xentropy_loss() = delete;
 		~sigm_xentropy_loss() = delete;
 	public:
@@ -157,8 +160,8 @@ namespace activation {
 	// SoftMax (for output layer only - it's easier to get dL/dL than dA/dL for SoftMax)
 	// TODO: which weight initialization scheme is better for SoftMax?
 	// TODO: may be it's worth to implement SoftMax activation for hidden layers, i.e. make a dA/dZ implementation
-	template<typename WeightsInitScheme = weights_init::Martens_SI_sigm<>>
-	class softmax_xentropy_loss : public _i_function, public _i_activation_loss {
+	template<typename RealT, typename WeightsInitScheme = weights_init::Martens_SI_sigm<>>
+	class softmax_xentropy_loss : public _i_function<RealT>, public _i_activation_loss<RealT> {
 		softmax_xentropy_loss() = delete;
 		~softmax_xentropy_loss() = delete;
 	public:
@@ -196,8 +199,8 @@ namespace activation {
 
 	//////////////////////////////////////////////////////////////////////////
 	//ReLU
-	template<typename WeightsInitScheme = weights_init::He_Zhang<>>
-	class relu : public _i_activation {
+	template<typename RealT, typename WeightsInitScheme = weights_init::He_Zhang<>>
+	class relu : public _i_activation<RealT> {
 		relu() = delete;
 		~relu() = delete;
 	public:
@@ -220,8 +223,8 @@ namespace activation {
 
 	//////////////////////////////////////////////////////////////////////////
 	// Leaky Relu
-	template<size_t LeakKInv100=10000, typename WeightsInitScheme = weights_init::He_Zhang<>>
-	class leaky_relu : public _i_activation {
+	template<typename RealT, size_t LeakKInv100 = 10000, typename WeightsInitScheme = weights_init::He_Zhang<>>
+	class leaky_relu : public _i_activation<RealT> {
 		leaky_relu() = delete;
 		~leaky_relu() = delete;
 	public:
@@ -243,17 +246,17 @@ namespace activation {
 		}
 	};
 
-	template<typename WeightsInitScheme = weights_init::He_Zhang<>>
-	using leaky_relu_1000 = leaky_relu<100000, WeightsInitScheme>;
-	template<typename WeightsInitScheme = weights_init::He_Zhang<>>
-	using leaky_relu_100 = leaky_relu<10000, WeightsInitScheme>;
-	template<typename WeightsInitScheme = weights_init::He_Zhang<>>
-	using very_leaky_relu_5p5 = leaky_relu<550, WeightsInitScheme>;
+	template<typename RealT, typename WeightsInitScheme = weights_init::He_Zhang<>>
+	using leaky_relu_1000 = leaky_relu<RealT, 100000, WeightsInitScheme>;
+	template<typename RealT, typename WeightsInitScheme = weights_init::He_Zhang<>>
+	using leaky_relu_100 = leaky_relu<RealT, 10000, WeightsInitScheme>;
+	template<typename RealT, typename WeightsInitScheme = weights_init::He_Zhang<>>
+	using very_leaky_relu_5p5 = leaky_relu<RealT, 550, WeightsInitScheme>;
 
 	//////////////////////////////////////////////////////////////////////////
 	// ELU
-	template<size_t Alpha1e3 = 1000, typename WeightsInitScheme = weights_init::He_Zhang<>>
-	class elu : public _i_activation {
+	template<typename RealT, size_t Alpha1e3 = 1000, typename WeightsInitScheme = weights_init::He_Zhang<>>
+	class elu : public _i_activation<RealT> {
 		elu() = delete;
 		~elu() = delete;
 	public:
@@ -286,8 +289,8 @@ namespace activation {
 		}
 	};
 
-	template<typename WeightsInitScheme = weights_init::He_Zhang<>>
-	using elu_unitalpha = elu<1000, WeightsInitScheme>;
+	template<typename RealT, typename WeightsInitScheme = weights_init::He_Zhang<>>
+	using elu_unitalpha = elu<RealT, 1000, WeightsInitScheme>;
 
 }
 }

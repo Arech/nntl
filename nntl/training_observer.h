@@ -41,11 +41,12 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 namespace nntl {
 
 	// i_training_observer and derived classes must be default constructible
+	template<typename RealT>
 	struct i_training_observer {
-		typedef math_types::real_ty real_t;
+		typedef RealT real_t;
 		typedef math::smatrix<real_t> realmtx_t;
-		typedef realmtx_t::vec_len_t vec_len_t;
-		typedef realmtx_t::numel_cnt_t numel_cnt_t;
+		typedef math::smatrix_td::vec_len_t vec_len_t;
+		typedef math::smatrix_td::numel_cnt_t numel_cnt_t;
 		
 		typedef std::chrono::nanoseconds nanoseconds;
 
@@ -67,23 +68,25 @@ namespace nntl {
 		nntl_interface void on_training_end(const nanoseconds& trainTime)noexcept;
 	};
 
-	struct training_observer_silent : public i_training_observer {
+	template<typename RealT=d_interfaces::real_t>
+	struct training_observer_silent : public i_training_observer<RealT> {
 		template<typename iMath>
-		bool init(size_t epochs, const realmtx_t& train_y, const realmtx_t& test_y, iMath& iM)noexcept { return true; }
-		void deinit()noexcept {}
+		constexpr bool init(size_t epochs, const realmtx_t& train_y, const realmtx_t& test_y, iMath& iM)const noexcept { return true; }
+		void deinit()const noexcept {}
 
 		//always called before on_training_fragment_end() twice: on training and on testing/validation data
 		template<typename NnetT>
-		void inspect_results(const size_t epochEnded, const realmtx_t& data_y, const bool bOnTestData, const NnetT& nn)noexcept {}
+		void inspect_results(const size_t epochEnded, const realmtx_t& data_y, const bool bOnTestData, const NnetT& nn)const noexcept {}
 
-		void on_training_start(vec_len_t trainElements, vec_len_t testElements, vec_len_t inDim, vec_len_t outDim, vec_len_t batchSize, numel_cnt_t nL)noexcept {}
-		void on_training_fragment_end(const size_t epochEnded, const real_t trainLoss, const real_t testLoss, const nanoseconds& elapsedSincePrevFragment)noexcept{}
-		void on_training_end(const nanoseconds& trainTime)noexcept {}
+		void on_training_start(vec_len_t trainElements, vec_len_t testElements, vec_len_t inDim, vec_len_t outDim, vec_len_t batchSize, numel_cnt_t nL)const noexcept {}
+		void on_training_fragment_end(const size_t epochEnded, const real_t trainLoss, const real_t testLoss, const nanoseconds& elapsedSincePrevFragment)const noexcept{}
+		void on_training_end(const nanoseconds& trainTime)const noexcept {}
 	};
 
 	//////////////////////////////////////////////////////////////////////////
 	//simple observer, that outputs only loss function value to std::cout
-	class training_observer_simple_stdcout : public i_training_observer {
+	template<typename RealT = d_interfaces::real_t>
+	class training_observer_simple_stdcout : public i_training_observer<RealT> {
 	protected:
 		size_t m_epochs;
 
@@ -127,8 +130,8 @@ namespace nntl {
 
 	//////////////////////////////////////////////////////////////////////////
 	//training_observer, that output results to std::cout
-	template<typename Evaluator = eval_classification_one_hot>
-	class training_observer_stdcout : public i_training_observer {
+	template<typename Evaluator = eval_classification_one_hot<d_interfaces::real_t>>
+	class training_observer_stdcout : public i_training_observer<typename Evaluator::real_t> {
 	protected:
 		struct CLASSIFICATION_RESULTS {
 			size_t totalElements;
@@ -138,7 +141,7 @@ namespace nntl {
 		typedef std::array<CLASSIFICATION_RESULTS, 2> classif_results_t;
 	public:
 		typedef Evaluator evaluator_t;
-		static_assert(std::is_base_of<i_nnet_evaluator, Evaluator>::value, "Evaluator class must be derived from i_nnet_evaluator");
+		static_assert(std::is_base_of<i_nnet_evaluator<real_t>, Evaluator>::value, "Evaluator class must be derived from i_nnet_evaluator");
 		static_assert(std::is_default_constructible<evaluator_t>::value, "Evaluator class must be default constructible");
 
 	protected:

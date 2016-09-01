@@ -46,15 +46,16 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 using namespace nntl;
 using namespace nntl::utils;
 
+typedef d_interfaces::real_t real_t;
+typedef math::smatrix<real_t> realmtx_t;
+
 #ifdef NNTL_DEBUG
 constexpr unsigned TEST_PERF_REPEATS_COUNT = 10;
 #else
 constexpr unsigned TEST_PERF_REPEATS_COUNT = 400;
 #endif // NNTL_DEBUG
 
-void test_rng_perf(math_types::realmtx_ty::vec_len_t rowsCnt, math_types::realmtx_ty::vec_len_t colsCnt = 10) {
-	typedef math_types::realmtx_ty realmtx_t;
-	typedef realmtx_t::value_type real_t;
+void test_rng_perf(realmtx_t::vec_len_t rowsCnt, realmtx_t::vec_len_t colsCnt = 10) {
 	typedef realmtx_t::numel_cnt_t numel_cnt_t;
 	
 	using namespace std::chrono;
@@ -83,7 +84,7 @@ void test_rng_perf(math_types::realmtx_ty::vec_len_t rowsCnt, math_types::realmt
 	STDCOUTL("Std:\t" << utils::duration_readable(diff, maxReps, &tstStd));*/
 
 	{
-		rng::AFRand<math_types::real_ty, AFog::CRandomMersenne> rg;
+		rng::AFRand<real_t, AFog::CRandomMersenne> rg;
 		bt = steady_clock::now();
 		for (unsigned r = 0; r < maxReps; ++r) {
 			rg.gen_matrix_norm(m);
@@ -93,7 +94,7 @@ void test_rng_perf(math_types::realmtx_ty::vec_len_t rowsCnt, math_types::realmt
 	STDCOUTL("AFMersenne:\t" << utils::duration_readable(diff, maxReps, &tstAFMersenne));
 
 	{
-		rng::AFRand<math_types::real_ty, AFog::CRandomSFMT0> rg;
+		rng::AFRand<real_t, AFog::CRandomSFMT0> rg;
 		bt = steady_clock::now();
 		for (unsigned r = 0; r < maxReps; ++r) {
 			rg.gen_matrix_norm(m);
@@ -103,7 +104,7 @@ void test_rng_perf(math_types::realmtx_ty::vec_len_t rowsCnt, math_types::realmt
 	STDCOUTL("AFSFMT0:\t" << utils::duration_readable(diff, maxReps, &tstAFSFMT0));
 
 	{
-		rng::AFRand<math_types::real_ty, AFog::CRandomSFMT1> rg;
+		rng::AFRand<real_t, AFog::CRandomSFMT1> rg;
 		bt = steady_clock::now();
 		for (unsigned r = 0; r < maxReps; ++r) {
 			rg.gen_matrix_norm(m);
@@ -126,7 +127,7 @@ TEST(TestRNG, RngPerf) {
 
 //////////////////////////////////////////////////////////////////////////
 template<typename AFRng, typename iThreadsT>
-void test_rngmt(iThreadsT&iT, math_types::realmtx_ty& m) {
+void test_rngmt(iThreadsT&iT, realmtx_t& m) {
 	using namespace std::chrono;
 	steady_clock::time_point bt;
 	nanoseconds diff;
@@ -135,7 +136,7 @@ void test_rngmt(iThreadsT&iT, math_types::realmtx_ty& m) {
 	auto ptr = m.data();
 	auto dataCnt = m.numel();
 
-	rng::AFRand_mt<math_types::real_ty, AFRng, iThreadsT> rg(iT);
+	rng::AFRand_mt<real_t, AFRng, iThreadsT> rg(iT);
 
 	bt = steady_clock::now();
 	for (unsigned r = 0; r < maxReps; ++r) {
@@ -159,25 +160,8 @@ void test_rngmt(iThreadsT&iT, math_types::realmtx_ty& m) {
 	STDCOUTL("best\t" << utils::duration_readable(diff, maxReps));
 }
 
-/*
-template<typename iThreads>
-void test_rng_mt_perf(iThreads& iT, math_types::realmtx_ty::vec_len_t rowsCnt, math_types::realmtx_ty::vec_len_t colsCnt = 10) {
-	typedef math_types::realmtx_ty realmtx_t;
-	const auto dataSize = realmtx_t::sNumel(rowsCnt, colsCnt);
-	STDCOUTL("******* testing multithreaded rng performance over " << rowsCnt << "x" << colsCnt << " matrix (" << dataSize << " elements) **************");
-	realmtx_t m(rowsCnt, colsCnt);
-	ASSERT_TRUE(!m.isAllocationFailed());
-	utils::prioritize_workers<utils::PriorityClass::PerfTesting, iThreads> pw(iT);
-	STDCOUTL("AFMersenne:");
-	test_rngmt<AFog::CRandomMersenne, iThreads>(iT, m);
-	STDCOUTL("AFSFMT0:");
-	test_rngmt<AFog::CRandomSFMT0, iThreads>(iT, m);
-	STDCOUTL("AFSFMT1:");
-	test_rngmt<AFog::CRandomSFMT1, iThreads>(iT, m);
-}*/
 template<typename iRng, typename iThreadsT>
-void test_rng_mt_perf(iThreadsT& iT, char* pName, math_types::realmtx_ty::vec_len_t rowsCnt, math_types::realmtx_ty::vec_len_t colsCnt = 10) {
-	typedef math_types::realmtx_ty realmtx_t;
+void test_rng_mt_perf(iThreadsT& iT, char* pName, realmtx_t::vec_len_t rowsCnt, realmtx_t::vec_len_t colsCnt = 10) {
 	const auto dataSize = realmtx_t::sNumel(rowsCnt, colsCnt);
 	STDCOUTL("******* testing multithreaded "<< pName<<	" performance over " << rowsCnt << "x" << colsCnt << " matrix (" << dataSize << " elements) **************");
 	realmtx_t m(rowsCnt, colsCnt);
@@ -187,7 +171,6 @@ void test_rng_mt_perf(iThreadsT& iT, char* pName, math_types::realmtx_ty::vec_le
 }
 
 TEST(TestRNG, RngMtPerf) {
-	typedef math_types::real_ty real_t;
 	typedef nntl::d_interfaces::iThreads_t def_threads_t;
 	def_threads_t Thr;
 

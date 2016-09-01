@@ -37,16 +37,14 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 namespace nntl {
 namespace threads {
 
-	template <typename range_type>
+	template <typename RealT, typename RangeT>
 	class _i_threads {
 	public:
-		typedef range_type range_t;
+		typedef RangeT range_t;
 		typedef parallel_range<range_t> par_range_t;
 		typedef typename par_range_t::thread_id_t thread_id_t;
 
-		typedef math_types::real_ty real_t;
-
-		//typedef real_t(*fnFinalReduce_t)(const real_t* ptr, const range_t cnt);
+		typedef RealT real_t;
 
 		// useNThreads (if greater than 1 and less or equal to workers_count() specifies the number of threads to serve request.
 		// if pThreadsUsed is specified, it'll contain total number of threads (including the main thread),

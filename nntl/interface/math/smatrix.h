@@ -34,6 +34,8 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <utility>
 //#include <memory>
 #include "../../_defs.h"
+#include "../../common.h"
+
 #include "../threads/parallel_range.h"
 
 //#TODO: Consider replacing generic memcpy/memcmp/memset and others similar generic functions with
@@ -45,9 +47,12 @@ namespace math {
 	// types that don't rely on matrix value_type
 	struct smatrix_td {
 		//rows/cols type. int should be enought. If not, redifine to smth bigger
-		typedef uint32_t vec_len_t;
-		//#todo: size_t should be here!
+		//typedef uint32_t vec_len_t;
+		typedef neurons_count_t vec_len_t;
+		
+		//#todo: size_t should be here?
 		typedef uint64_t numel_cnt_t;
+		
 		typedef std::pair<const vec_len_t, const vec_len_t> mtx_size_t;
 	};
 

@@ -583,8 +583,8 @@ real_t rowvecs_renorm_ET(realmtx_t& m, real_t* pTmp)noexcept {
 	real_t meanNorm = std::accumulate(pTmp, pTmp+mRows, 0.0) / mRows;
 
 	//test and renormalize
-	//const real_t newNorm = meanNorm - sqrt(math::real_ty_limits<real_t>::eps_lower_n(meanNorm, rowvecs_renorm_MULT));
-	const real_t newNorm = meanNorm - 2*sqrt(math::real_ty_limits<real_t>::eps_lower(meanNorm));
+	//const real_t newNorm = meanNorm - sqrt(math::real_t_limits<real_t>::eps_lower_n(meanNorm, rowvecs_renorm_MULT));
+	const real_t newNorm = meanNorm - 2*sqrt(math::real_t_limits<real_t>::eps_lower(meanNorm));
 	for (vec_len_t r = 0; r < mRows; ++r) {
 		if (pTmp[r] > meanNorm) {
 			const real_t normCoeff = sqrt(newNorm / pTmp[r]);
@@ -619,8 +619,8 @@ void rowvecs_renorm_naive(realmtx_t& m, real_t maxLenSquared, real_t* pTmp)noexc
 	}
 
 	//test and renormalize
-	//const real_t newNorm = maxLenSquared - sqrt(math::real_ty_limits<real_t>::eps_lower_n(maxLenSquared, rowvecs_renorm_MULT));
-	const real_t newNorm = maxLenSquared - 2*sqrt(math::real_ty_limits<real_t>::eps_lower(maxLenSquared));
+	//const real_t newNorm = maxLenSquared - sqrt(math::real_t_limits<real_t>::eps_lower_n(maxLenSquared, rowvecs_renorm_MULT));
+	const real_t newNorm = maxLenSquared - 2*sqrt(math::real_t_limits<real_t>::eps_lower(maxLenSquared));
 	auto pRow = m.data();
 	const auto pRowE = pRow + mRows;
 	while (pRow!=pRowE) {
@@ -657,8 +657,8 @@ void rowvecs_renorm_clmnw(realmtx_t& A, real_t maxNormSquared, real_t* pTmp)noex
 	}
 
 	//Saving normalization coefficient into pTmp for those rows, that needs normalization, or ones for those, that doesn't need.
-	//const real_t newNorm = maxNormSquared - sqrt(math::real_ty_limits<real_t>::eps_lower_n(maxNormSquared, rowvecs_renorm_MULT));
-	const real_t newNorm = maxNormSquared - 2*sqrt(math::real_ty_limits<real_t>::eps_lower(maxNormSquared));
+	//const real_t newNorm = maxNormSquared - sqrt(math::real_t_limits<real_t>::eps_lower_n(maxNormSquared, rowvecs_renorm_MULT));
+	const real_t newNorm = maxNormSquared - 2*sqrt(math::real_t_limits<real_t>::eps_lower(maxNormSquared));
 	auto pCurNorm = pTmp;
 	const auto pTmpE = pTmp + mRows;
 	while (pCurNorm != pTmpE) {
@@ -698,8 +698,8 @@ void rowvecs_renorm_clmnw2(realmtx_t& m, real_t maxLenSquared, real_t* pTmp)noex
 	}
 
 	//Saving normalization coefficient into pTmp for those rows, that needs normalization, or ones for those, that doesn't need.
-	//const real_t newNorm = maxLenSquared - sqrt(math::real_ty_limits<real_t>::eps_lower_n(maxLenSquared, rowvecs_renorm_MULT));
-	const real_t newNorm = maxLenSquared - 2*sqrt(math::real_ty_limits<real_t>::eps_lower(maxLenSquared));
+	//const real_t newNorm = maxLenSquared - sqrt(math::real_t_limits<real_t>::eps_lower_n(maxLenSquared, rowvecs_renorm_MULT));
+	const real_t newNorm = maxLenSquared - 2*sqrt(math::real_t_limits<real_t>::eps_lower(maxLenSquared));
 	auto pCurNorm = pTmp;
 	const auto pTmpE = pTmp + mRows;
 	while (pCurNorm != pTmpE) {
@@ -741,8 +741,8 @@ void rowvecs_renorm_clmnw_part(realmtx_t& m, real_t maxLenSquared, real_t* pTmp,
 
 	//Saving normalization coefficient into pTmp for those rows, that needs normalization, or ones for those, that doesn't need.
 	//memset(pOffs, 0, sizeof(*pOffs)*mRows);
-	//const real_t newNorm = maxLenSquared - sqrt(math::real_ty_limits<real_t>::eps_lower_n(maxLenSquared, rowvecs_renorm_MULT));
-	const real_t newNorm = maxLenSquared - 2*sqrt(math::real_ty_limits<real_t>::eps_lower(maxLenSquared));
+	//const real_t newNorm = maxLenSquared - sqrt(math::real_t_limits<real_t>::eps_lower_n(maxLenSquared, rowvecs_renorm_MULT));
+	const real_t newNorm = maxLenSquared - 2*sqrt(math::real_t_limits<real_t>::eps_lower(maxLenSquared));
 	auto pT = pTmp, pCurNorm = pTmp, pPrevNorm = pTmp;
 	const auto pTmpE = pTmp + mRows;
 	auto pOE = pOffs;
@@ -972,7 +972,7 @@ real_t sigm_loss_xentropy_naive(const realmtx_t& activations, const realmtx_t& d
 	NNTL_ASSERT(activations.size() == data_y.size() && !activations.empty() && !data_y.empty());
 	const auto dataCnt = activations.numel();
 	const auto ptrA = activations.data(), ptrY = data_y.data();
-	constexpr auto log_zero = math::real_ty_limits<real_t>::log_almost_zero;
+	constexpr auto log_zero = math::real_t_limits<real_t>::log_almost_zero;
 	real_t ql = 0;
 	for (numel_cnt_t i = 0; i < dataCnt; ++i) {
 		const auto a = ptrA[i], y = ptrY[i], oma = real_t(1.0) - a;
@@ -989,7 +989,7 @@ real_t sigm_loss_xentropy_naive_part(const realmtx_t& activations, const realmtx
 	NNTL_ASSERT(activations.size() == data_y.size() && !activations.empty() && !data_y.empty());
 	const auto dataCnt = activations.numel();
 	const auto ptrA = activations.data(), ptrY = data_y.data();
-	constexpr auto log_zero = math::real_ty_limits<real_t>::log_almost_zero;
+	constexpr auto log_zero = math::real_t_limits<real_t>::log_almost_zero;
 	real_t ql = 0;
 	for (numel_cnt_t i = 0; i < dataCnt; ++i) {
 		const auto y = ptrY[i];
@@ -1421,7 +1421,7 @@ TEST(TestPerfDecisions, RmsPropH) {
 // perf test to find out which strategy better to performing dropout - processing elementwise, or 'vectorized'
 // dropout_batch is significantly faster
 template<typename iRng_t, typename iMath_t>
-void dropout_batch(math_types::realmtx_ty& activs, math_types::real_ty dropoutFraction, math_types::realmtx_ty& dropoutMask, iRng_t& iR, iMath_t& iM) {
+void dropout_batch(realmtx_t& activs, real_t dropoutFraction, realmtx_t& dropoutMask, iRng_t& iR, iMath_t& iM) {
 	NNTL_ASSERT(activs.size() == dropoutMask.size());
 	NNTL_ASSERT(activs.emulatesBiases() && dropoutMask.emulatesBiases());
 	NNTL_ASSERT(dropoutFraction > 0 && dropoutFraction < 1);
@@ -1431,13 +1431,13 @@ void dropout_batch(math_types::realmtx_ty& activs, math_types::real_ty dropoutFr
 	const auto pDME = pDM + dropoutMask.numel_no_bias();
 	while (pDM != pDME) {
 		auto v = *pDM;
-		*pDM++ = v > dropoutFraction ? math_types::real_ty(1.0) : math_types::real_ty(0.0);
+		*pDM++ = v > dropoutFraction ? real_t(1.0) : real_t(0.0);
 	}
 	iM.evMul_ip_st_naive(activs, dropoutMask);
 }
 
 template<typename iRng_t>
-void dropout_ew(math_types::realmtx_ty& activs, math_types::real_ty dropoutFraction, math_types::realmtx_ty& dropoutMask, iRng_t& iR) {
+void dropout_ew(realmtx_t& activs, real_t dropoutFraction, realmtx_t& dropoutMask, iRng_t& iR) {
 	NNTL_ASSERT(activs.size() == dropoutMask.size());
 	NNTL_ASSERT(activs.emulatesBiases() && dropoutMask.emulatesBiases());
 	NNTL_ASSERT(dropoutFraction > 0 && dropoutFraction < 1);
@@ -1445,7 +1445,7 @@ void dropout_ew(math_types::realmtx_ty& activs, math_types::real_ty dropoutFract
 	const auto dataCnt = activs.numel_no_bias();
 	auto pDM = dropoutMask.data();
 	auto pA = activs.data();
-	for (math_types::realmtx_ty::numel_cnt_t i = 0; i < dataCnt; ++i) {
+	for (numel_cnt_t i = 0; i < dataCnt; ++i) {
 		const auto rv = iR.gen_f_norm();
 		if (rv > dropoutFraction) {
 			pDM[i] = 1;

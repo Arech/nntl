@@ -34,7 +34,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 //this file includes necessary files to use matlab API from the app
 
-// You must have Matlab installed and NNTL_MATLAB_AVAILABLE defined to make this code work.
+// You must have Matlab installed and NNTL_MATLAB_AVAILABLE defined to nonzero value to make this code work.
 // In order to complile, update project VC++ Directories property page to point to correct 
 // Matlab's includes (something like C:\Program Files\MATLAB\R2014a\extern\include )
 // and libraries (C:\Program Files\MATLAB\R2014a\extern\lib\win64\microsoft)
@@ -42,7 +42,11 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 // (set this property to something like PATH=%PATH%;c:\Program Files\MATLAB\R2014a\bin\win64\ and 
 // be sure to turn on "Merge Environment" switch)
 
-#ifdef NNTL_MATLAB_AVAILABLE
+#ifndef NNTL_MATLAB_AVAILABLE
+#define NNTL_MATLAB_AVAILABLE 0
+#endif
+
+#if NNTL_MATLAB_AVAILABLE
 
 #include <mclmcrrt.h>//matlab rt proxy to eliminate platform specifics
 #include <mat.h>

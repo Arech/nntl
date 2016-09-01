@@ -92,7 +92,7 @@ real_t loss_softmax_xentropy_ET(const realmtx_t& activations, const realmtx_t& d
 		const auto y = pY[i];
 		NNTL_ASSERT(a >= real_t(0.0) && a <= real_t(1.0));
 		NNTL_ASSERT(y >= real_t(0.0) && y <= real_t(1.0));
-		a = a > real_t(0.0) ? std::log(a) : nntl::math::real_ty_limits<real_t>::log_almost_zero;
+		a = a > real_t(0.0) ? std::log(a) : nntl::math::real_t_limits<real_t>::log_almost_zero;
 		ret -= y*a;
 		NNTL_ASSERT(!isnan(ret));
 	}
@@ -210,7 +210,7 @@ real_t loss_sigm_xentropy_ET(const realmtx_t& activations, const realmtx_t& data
 	NNTL_ASSERT(activations.size() == data_y.size() && !activations.empty() && !data_y.empty());
 	const auto dataCnt = activations.numel();
 	const auto ptrA = activations.data(), ptrY = data_y.data();
-	constexpr auto log_zero = nntl::math::real_ty_limits<real_t>::log_almost_zero;
+	constexpr auto log_zero = nntl::math::real_t_limits<real_t>::log_almost_zero;
 	real_t ql = 0;
 	for (numel_cnt_t i = 0; i < dataCnt; ++i) {
 		const auto y = ptrY[i];
@@ -370,8 +370,8 @@ real_t rowvecs_renorm_ET(realmtx_t& m, real_t* pTmp)noexcept {
 	real_t meanNorm = static_cast<real_t>(std::accumulate(pTmp, pTmp + mRows, 0.0) / mRows);
 
 	//test and renormalize
-	//const real_t newNorm = meanNorm - sqrt(math::real_ty_limits<real_t>::eps_lower_n(meanNorm, rowvecs_renorm_MULT));
-	const real_t newNorm = meanNorm - 2*sqrt(nntl::math::real_ty_limits<real_t>::eps_lower(meanNorm));
+	//const real_t newNorm = meanNorm - sqrt(math::real_t_limits<real_t>::eps_lower_n(meanNorm, rowvecs_renorm_MULT));
+	const real_t newNorm = meanNorm - 2*sqrt(nntl::math::real_t_limits<real_t>::eps_lower(meanNorm));
 	for (vec_len_t r = 0; r < mRows; ++r) {
 		if (pTmp[r] > meanNorm) {
 			const real_t normCoeff = sqrt(newNorm / pTmp[r]);

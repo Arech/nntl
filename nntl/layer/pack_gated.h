@@ -165,6 +165,7 @@ namespace nntl {
 		const common_data_t& get_common_data()const noexcept { return m_undLayer.get_common_data(); }
 		iMath_t& get_iMath()const noexcept { return m_undLayer.get_iMath(); }
 		iRng_t& get_iRng()const noexcept { return m_undLayer.get_iRng();	}
+		iInspect_t& get_iInspect()const noexcept { return m_undLayer.get_iInspect(); }
 		const vec_len_t get_max_fprop_batch_size()const noexcept { return m_undLayer.get_max_fprop_batch_size(); }
 		const vec_len_t get_training_batch_size()const noexcept { return m_undLayer.get_training_batch_size(); }
 
@@ -186,11 +187,12 @@ namespace nntl {
 
 		//////////////////////////////////////////////////////////////////////////
 		ErrorCode init(_layer_init_data_t& lid, real_t* pNewActivationStorage = nullptr)noexcept {
-			//inspector.init_layer(get_self().get_layer_idx(), get_self().get_layer_name_str());
-
 			NNTL_ASSERT(1 == m_gatingLayer.get_gate_width());
 			auto ec = m_undLayer.init(lid, pNewActivationStorage);
 			if (ErrorCode::Success != ec) return ec;
+
+			//must be called after m_undLayer.init() because see get_iInspect() implementation
+			get_iInspect().init_layer(get_self().get_layer_idx(), get_self().get_layer_name_str());
 
 			bool bSuccessfullyInitialized = false;
 			utils::scope_exit onExit([&bSuccessfullyInitialized, this]() {

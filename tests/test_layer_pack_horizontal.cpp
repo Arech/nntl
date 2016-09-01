@@ -171,9 +171,9 @@ void test_same_layers(train_data<real_t>& td, uint64_t rngSeed) {
 	//setting up etalon layers
 	layer_input<> Ainp(train_x_dim);
 	//underlying layer to test the correctness of dLdA propagation
-	layer_fully_connected< activation::sigm<> > Aund(undNeuronsCnt, learningRate);
+	layer_fully_connected< activation::sigm<real_t> > Aund(undNeuronsCnt, learningRate);
 	//reference layer to test correctness of internal layer_pack_horizontal layers
-	layer_fully_connected< activation::sigm<> > Aint(inrNeuronsCnt, learningRate);
+	layer_fully_connected< activation::sigm<real_t> > Aint(inrNeuronsCnt, learningRate);
 	
 	//assembling into list of layers
 	auto AlayersTuple = std::make_tuple(std::ref(Ainp), std::ref(Aund), std::ref(Aint));
@@ -186,9 +186,15 @@ void test_same_layers(train_data<real_t>& td, uint64_t rngSeed) {
 	_impl::_layer_init_data<common_data_t> lid(CD);
 	_impl::layers_mem_requirements lmr;
 	
+	iRng.seed64(rngSeed-1);
+	lid.clean();
+	auto ec = Ainp.init(lid);
+	ASSERT_EQ(ec, _nnet_errs::ErrorCode::Success) << "Failed to initialize Ainp";
+	lmr.updateLayerReq(lid);
+	
 	iRng.seed64(rngSeed);
 	lid.clean();
-	_nnet_errs::ErrorCode ec = Aund.init(lid);
+	ec = Aund.init(lid);
 	ASSERT_EQ(ec, _nnet_errs::ErrorCode::Success) << "Failed to initialize Aund";
 	lmr.updateLayerReq(lid);
 
@@ -221,10 +227,10 @@ void test_same_layers(train_data<real_t>& td, uint64_t rngSeed) {
 
 	layer_input<> Binp(train_x_dim);
 	//underlying layer to test the correctness of dLdA propagation
-	layer_fully_connected< activation::sigm<> > Bund(undNeuronsCnt, learningRate);
+	layer_fully_connected< activation::sigm<real_t> > Bund(undNeuronsCnt, learningRate);
 	//layers to test correctness of internal layer_pack_horizontal layers
-	layer_fully_connected< activation::sigm<> > Bifcl1(inrNeuronsCnt, learningRate);
-	layer_fully_connected< activation::sigm<> > Bifcl2(inrNeuronsCnt, learningRate);
+	layer_fully_connected< activation::sigm<real_t> > Bifcl1(inrNeuronsCnt, learningRate);
+	layer_fully_connected< activation::sigm<real_t> > Bifcl2(inrNeuronsCnt, learningRate);
 	auto lpHor = make_layer_pack_horizontal(make_PHL(Bifcl1, 0, undNeuronsCnt), make_PHL(Bifcl2, 0, undNeuronsCnt));
 
 	//assembling into list of layers
@@ -232,6 +238,12 @@ void test_same_layers(train_data<real_t>& td, uint64_t rngSeed) {
 	utils::for_eachwp_up(BlayersTuple, _impl::_preinit_layers{});
 
 	lmr.zeros();
+
+	iRng.seed64(rngSeed-1);
+	lid.clean();
+	ec = Binp.init(lid);
+	ASSERT_EQ(ec, _nnet_errs::ErrorCode::Success) << "Failed to initialize Binp";
+	lmr.updateLayerReq(lid);
 
 	iRng.seed64(rngSeed);
 	lid.clean();

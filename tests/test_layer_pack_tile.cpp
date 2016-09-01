@@ -54,8 +54,8 @@ TEST(TestLayerPackTile, ComparativeNonSpecialX) {
 	constexpr neurons_count_t K = 3, tiledLayerNeurons = 37, tiledLayerIncomingNeurons = 43;
 	const real_t lr = 1*K;
 
-	typedef LFC<activation::sigm<weights_init::XavierFour>> FCL;
-	typedef layer_output<activation::sigm_quad_loss<weights_init::XavierFour>> LO;
+	typedef LFC<activation::sigm<real_t, weights_init::XavierFour>> FCL;
+	typedef layer_output<activation::sigm_quad_loss<real_t, weights_init::XavierFour>> LO;
 
 	//////////////////////////////////////////////////////////////////////////
 

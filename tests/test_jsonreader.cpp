@@ -40,15 +40,16 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "../nntl/math.h"
 #include "../nntl/common.h"
 #include "../nntl/_supp/io/jsonreader.h"
-
+#include "../nntl/interfaces.h"
 #include <array>
 
 using namespace nntl;
 
+typedef d_interfaces::real_t real_t;
+
 TEST(TestJsonreader, ReadingAndParsingMatrix) {
 	using namespace nntl_supp;
 	using ErrCode = jsonreader::ErrorCode;
-	typedef math_types::real_ty real_t;
 	typedef train_data<real_t> train_data_t;
 	typedef train_data_t::mtx_t realmtx_t;
 	using mtx_size_t = realmtx_t::mtx_size_t;
@@ -75,7 +76,6 @@ TEST(TestJsonreader, ReadingAndParsingMatrix) {
 TEST(TestJsonreader, ReadingAndParsingTrainData) {
 	using namespace nntl_supp;
 	using ErrCode = jsonreader::ErrorCode;
-	typedef math_types::real_ty real_t;
 	typedef train_data<real_t> train_data_t;
 	typedef train_data_t::mtx_t realmtx_t;
 	using mtx_size_t = realmtx_t::mtx_size_t;

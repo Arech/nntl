@@ -37,7 +37,7 @@ namespace nntl {
 namespace inspector {
 
 	template<typename RealT>
-	class stdcout : public i_inspector<RealT> {
+	class stdcout : public _base<RealT>{
 	public:
 		typedef std::vector<std::string> layer_names_t;
 
@@ -97,9 +97,11 @@ namespace inspector {
 			m_batchIdx = batchIdx;
 		}
 
-		void fprop_SourceData(const realmtx_t& data_x)const noexcept {
-			inspect(data_x, -1, "source data_x");
+		void fprop_onEntry(const layer_index_t lIdx, const realmtx_t& prevAct, const bool bTrainingMode) const noexcept {
+			STDCOUT("fprop:" << (bTrainingMode?"training, ":"testing, "));
+			inspect(prevAct, lIdx, "previous activations");
 		}
+
 	};
 
 

@@ -38,7 +38,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 using namespace nntl;
 typedef nntl_supp::binfile reader_t;
-using real_t = math_types::real_ty;
+using real_t = d_interfaces::real_t;
 
 #if defined(TESTS_SKIP_NNET_LONGRUNNING)
 //ALWAYS run debug build with similar relations of data sizes:
@@ -54,7 +54,7 @@ using real_t = math_types::real_ty;
 
 // make a simple NN without any fancy things, just simple 768->500->300->10 net without momentum and dropout
 TEST(Simple, PlainFFN) {
-	train_data<math_types::real_ty> td; //storage for MNIST train and test(validation) data
+	train_data<real_t> td; //storage for MNIST train and test(validation) data
 	reader_t reader; //.bin file reader object
 
 	//1. reading training data from file into train_data td storage
@@ -76,11 +76,11 @@ TEST(Simple, PlainFFN) {
 	layer_input<> inp(td.train_x().cols_no_bias());
 
 	//b. hidden layers - that's where the magic happening
-	layer_fully_connected<activation::sigm<>> fcl(500, learningRate);
-	layer_fully_connected<activation::sigm<>> fcl2(300, learningRate);
+	layer_fully_connected<activation::sigm<real_t>> fcl(500, learningRate);
+	layer_fully_connected<activation::sigm<real_t>> fcl2(300, learningRate);
 
 	//c. output layer - using quadratic loss function.
-	layer_output<activation::sigm_quad_loss<>> outp(td.train_y().cols(), learningRate);
+	layer_output<activation::sigm_quad_loss<real_t>> outp(td.train_y().cols(), learningRate);
 
 	//3. assemble layer references (!! - not layer objects, but references to them) into a single object - layer_pack. 
 	auto lp = make_layers(inp, fcl, fcl2, outp);
@@ -108,7 +108,7 @@ TEST(Simple, PlainFFN) {
 // to http://yann.lecun.com/exdb/mnist/index.html. There were no signs of overfitting, so longer learning could
 // lead to even better results.
 TEST(Simple, NotSoPlainFFN) {
-	train_data<math_types::real_ty> td;
+	train_data<real_t> td;
 	reader_t reader;
 
 	//1. reading training data from file into train_data td storage
@@ -126,14 +126,14 @@ TEST(Simple, NotSoPlainFFN) {
 
 	//preparing alias for weights initialization scheme type
 	typedef weights_init::XavierFour w_init_scheme;
-	typedef activation::sigm<w_init_scheme> activ_func;
+	typedef activation::sigm<real_t,w_init_scheme> activ_func;
 
 	//b. hidden layers
 	layer_fully_connected<activ_func> fcl(500, learningRate, dropoutRate);
 	layer_fully_connected<activ_func> fcl2(300, learningRate, dropoutRate);
 
 	//c. output layer
-	layer_output<activation::sigm_quad_loss<w_init_scheme>> outp(td.train_y().cols(), learningRate);
+	layer_output<activation::sigm_quad_loss<real_t,w_init_scheme>> outp(td.train_y().cols(), learningRate);
 
 	//d. setting layers properties
 	auto optimizerType = decltype(fcl)::grad_works_t::RMSProp_Hinton;
@@ -181,7 +181,7 @@ TEST(Simple, NotSoPlainFFN) {
 //This setup is slightly simplier than previous one - just Nesterov Momentum, RMSProp and just a better weight initialization algorithm.
 // It beats the previous reaching less than 1.6% in less than 20 epochs.
 TEST(Simple, NesterovMomentumAndRMSPropOnly) {
-	train_data<math_types::real_ty> td;
+	train_data<real_t> td;
 	reader_t reader;
 
 	STDCOUTL("Reading datafile '" << MNIST_FILE << "'...");
@@ -195,7 +195,7 @@ TEST(Simple, NesterovMomentumAndRMSPropOnly) {
 	layer_input<> inp(td.train_x().cols_no_bias());
 
 	typedef weights_init::Martens_SI_sigm<> w_init_scheme;
-	typedef activation::sigm<w_init_scheme> activ_func;
+	typedef activation::sigm<real_t,w_init_scheme> activ_func;
 
 	layer_fully_connected<activ_func> fcl(500, learningRate, dropoutFrac);
 	layer_fully_connected<activ_func> fcl2(300, learningRate, dropoutFrac);
@@ -204,7 +204,7 @@ TEST(Simple, NesterovMomentumAndRMSPropOnly) {
 	fcl.m_gradientWorks.nesterov_momentum(momentum).set_type(optType);
 	fcl2.m_gradientWorks.nesterov_momentum(momentum).set_type(optType);
 
-	layer_output<activation::sigm_quad_loss<w_init_scheme>> outp(td.train_y().cols(), learningRate);
+	layer_output<activation::sigm_quad_loss<real_t,w_init_scheme>> outp(td.train_y().cols(), learningRate);
 	outp.m_gradientWorks.nesterov_momentum(momentum).set_type(optType);
 
 	auto lp = make_layers(inp, fcl, fcl2, outp);

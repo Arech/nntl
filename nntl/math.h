@@ -56,7 +56,7 @@ namespace math {
 	//class to store various math type definitions. May need to be rewritten to support different math libs.
 	//NNTL basic types is defined with _ty suffix. Aliases (typedefs) to this types defines with _t or _t_ (if collision 
 	// with standard types possible) suffix
-	struct _basic_types {
+	/*struct _basic_types {
 		//basic data type for nn inputs, weights and so on.
 		//change to any suitable type
 		typedef NNTL_CFG_DEFAULT_TYPE real_ty;
@@ -70,25 +70,20 @@ namespace math {
 		//DEPRECATED typedef. Use smatrix_deform class directly
 		typedef smatrix_deform<real_ty> realmtxdef_ty;
 		static_assert(std::is_base_of<realmtx_ty, realmtxdef_ty>::value, "realmtxdef_ty must be derived from realmtx_ty!");
-		
-		
+				
+	};*/
 
-		//////////////////////////////////////////////////////////////////////////
-		//definitions below is to be corrected
+	typedef NNTL_CFG_DEFAULT_TYPE d_real_t;
+	static constexpr char* d_real_t_name = NNTL_STRINGIZE(NNTL_CFG_DEFAULT_TYPE);
 
-		//generic type for matrices with model data (train-test samples)
-		//typedef smatrix<real_ty> rawdata_mtx_ty;
-
-		
-	};
 
 	//thanks to http://stackoverflow.com/a/4609795
 	template <typename T> int sign(T val) {
 		return (T(+0.0) < val) - (val < T(-0.0));
 	}
 	
-	template <typename _T> struct real_ty_limits {};
-	template <> struct real_ty_limits<double> {
+	template <typename _T> struct real_t_limits {};
+	template <> struct real_t_limits<double> {
 		//natural log of closest to zero but non zero (realmin) value
 		static constexpr double log_almost_zero = double(-708.3964185322642);
 
@@ -108,7 +103,7 @@ namespace math {
 			return n*eps_lower(v);
 		}
 	};
-	template <> struct real_ty_limits<float> {
+	template <> struct real_t_limits<float> {
 		//natural log of closest to zero but non zero (realmin) value
 		static constexpr float log_almost_zero = float(-87.336544750402);
 

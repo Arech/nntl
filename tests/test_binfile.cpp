@@ -33,7 +33,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include "../nntl/math.h"
 #include "../nntl/common.h"
-
+#include "../nntl/interfaces.h"
 #include "../nntl/_supp/io/binfile.h"
 
 #include <memory>
@@ -41,8 +41,10 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 using namespace nntl;
 
+typedef d_interfaces::real_t real_t;
+
 TEST(TestBinFile, ReadMatrix) {
-	typedef math_types::realmtx_ty realmtx_t;
+	typedef math::smatrix<real_t> realmtx_t;
 	typedef realmtx_t::vec_len_t vec_len_t;
 	typedef nntl_supp::binfile binfile;
 	typedef binfile::ErrorCode ErrorCode;
@@ -64,7 +66,6 @@ TEST(TestBinFile, ReadMatrix) {
 }
 
 TEST(TestBinFile, ReadTrainData) {
-	typedef math_types::real_ty real_t;
 	typedef train_data<real_t> train_data_t;
 	typedef train_data_t::mtx_t realmtx_t;
 	typedef realmtx_t::vec_len_t vec_len_t;

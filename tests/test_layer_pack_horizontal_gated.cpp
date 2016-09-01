@@ -183,9 +183,9 @@ void comparative_horzgated(train_data<real_t>& td, const vec_len_t gateIdx, nnet
 struct TLPHG_simple {
 	//typedef activation::sigm<> act_hid;
 	//weights_init::XavierFour is suitable for very small layers
-	typedef activation::sigm<weights_init::XavierFour> act_hid;
+	typedef activation::sigm<real_t, weights_init::XavierFour> act_hid;
 	//typedef activation::sigm_quad_loss<> act_outp;
-	typedef activation::sigm_xentropy_loss<weights_init::XavierFour> act_outp;
+	typedef activation::sigm_xentropy_loss<real_t, weights_init::XavierFour> act_outp;
 
 #ifdef TESTS_SKIP_NNET_LONGRUNNING
 	static constexpr size_t simple_l1nc = 40;
@@ -422,9 +422,9 @@ void comparative_multi_horzgated(train_data<real_t>& td, const vec_len_t gateIdx
 struct TLPHG_multi {
 	//typedef activation::sigm<> act_hid;
 	//weights_init::XavierFour is suitable for very small layers
-	typedef activation::sigm<weights_init::XavierFour> act_hid;
+	typedef activation::sigm<real_t, weights_init::XavierFour> act_hid;
 	//typedef activation::sigm_quad_loss<> act_outp;
-	typedef activation::sigm_xentropy_loss<weights_init::XavierFour> act_outp;
+	typedef activation::sigm_xentropy_loss<real_t, weights_init::XavierFour> act_outp;
 
 #ifdef TESTS_SKIP_NNET_LONGRUNNING
 	static constexpr size_t simple_l1nc = 40;

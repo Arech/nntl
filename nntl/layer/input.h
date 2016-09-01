@@ -87,13 +87,15 @@ namespace nntl {
 
 
 		void initMem(real_t* ptr, numel_cnt_t cnt)noexcept {}
-		void set_mode(vec_len_t batchSize)noexcept {}
+		void set_mode(vec_len_t batchSize)noexcept {
+			m_bTraining = 0 == batchSize;
+		}
 
 		void fprop(const realmtx_t& data_x)noexcept {
-			//NNTL_ASSERT(data_x.emulatesBiases());
-			//cant check it here because in mini-batch version data_x will be a slice (including bias) from original train_x. Therefore
-			// just leave the check on nnet class
 			NNTL_ASSERT(data_x.test_biases_ok());
+
+			get_self().get_iInspect().fprop_onEntry(get_self().get_layer_idx(), data_x, m_bTraining);
+
 			m_pActivations = &data_x;
 		}
 

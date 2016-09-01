@@ -31,7 +31,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 #include "stdafx.h"
 
-#ifdef NNTL_MATLAB_AVAILABLE
+#if NNTL_MATLAB_AVAILABLE
 
 #include "../nntl/math.h"
 #include "../nntl/common.h"
@@ -45,6 +45,8 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 using namespace nntl;
 using namespace nntl_supp;
+
+typedef d_interfaces::real_t real_t;
 
 #define MNIST_FILE_DEBUG "../data/mnist200_100.bin"
 #define MNIST_SMALL_FILE MNIST_FILE_DEBUG
@@ -67,7 +69,7 @@ TEST(TestMatfile, ReadWriteMat) {
 	double dET = 3.3, d;
 	float fET = 2.1f, f;
 
-	train_data<math_types::real_ty> td_ET,td;
+	train_data<real_t> td_ET,td;
 	ASSERT_TRUE(get_td(td_ET));
 
 	{
@@ -122,7 +124,7 @@ TEST(TestMatfile, ReadWriteMat) {
 }
 
 TEST(TestMatfile, DumpNnet) {
-	train_data<math_types::real_ty> td;
+	train_data<real_t> td;
 	binfile reader;
 
 	binfile::ErrorCode rec = reader.read(NNTL_STRING(MNIST_SMALL_FILE), td);
@@ -155,6 +157,12 @@ TEST(TestMatfile, DumpNnet) {
 
 	mf & nn;
 	ASSERT_EQ(mf.ErrorCode::Success, mf.get_last_error()) << mf.get_last_error_str();
+}
+
+#else
+
+TEST(TestMatfile, Warning) {
+	STDCOUT("# Test set has been skipped. Define NNTL_MATLAB_AVAILABLE to nonzero value to enable the set.");
 }
 
 #endif

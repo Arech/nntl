@@ -52,7 +52,7 @@ namespace math {
 
 	template<typename RealT, typename iThreadsT, typename ThresholdsT, typename FinalPolymorphChild>
 	class _SMath {
-		static_assert(std::is_base_of<threads::_i_threads<typename iThreadsT::range_t>, iThreadsT>::value, "iThreads must implement threads::_i_threads");
+		static_assert(std::is_base_of<threads::_i_threads<RealT, typename iThreadsT::range_t>, iThreadsT>::value, "iThreads must implement threads::_i_threads");
 
 	public:
 		typedef FinalPolymorphChild self_t;

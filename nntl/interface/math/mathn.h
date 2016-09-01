@@ -438,8 +438,8 @@ namespace math {
 			//Saving normalization coefficient into pTmp for those rows, that needs normalization, or ones for those, 
 			// that doesn't need.
 			// Making newNorm slightly less, than maxNormSquared to make sure the result will be less than max norm.
-			//const real_t newNorm = maxNormSquared - math::real_ty_limits<real_t>::eps_lower_n(maxNormSquared, sCheck_normalize_rows_MULT);
-			const real_t newNorm = maxNormSquared - 2*sqrt(math::real_ty_limits<real_t>::eps_lower(maxNormSquared));
+			//const real_t newNorm = maxNormSquared - math::real_t_limits<real_t>::eps_lower_n(maxNormSquared, sCheck_normalize_rows_MULT);
+			const real_t newNorm = maxNormSquared - 2*sqrt(math::real_t_limits<real_t>::eps_lower(maxNormSquared));
 			auto pCurNorm = pTmp;
 			const auto pTmpE = pTmp + mRows;
 			while (pCurNorm != pTmpE) {
@@ -499,7 +499,7 @@ namespace math {
 
 			// calc scaling coefficients
 			const auto pRowNormE = pRowNorm + mRows;
-			const real_t newNorm = maxNormSquared - 2*sqrt(math::real_ty_limits<real_t>::eps_lower(maxNormSquared));
+			const real_t newNorm = maxNormSquared - 2*sqrt(math::real_t_limits<real_t>::eps_lower(maxNormSquared));
 			auto pCurNorm = pRowNorm;
 			while (pCurNorm != pRowNormE) {
 				const auto rowNorm = *pCurNorm;
@@ -1628,7 +1628,7 @@ namespace math {
 		static real_t _iloss_sigm_xentropy_st(const realmtx_t& activations, const realmtx_t& data_y, const elms_range& er)noexcept {
 			NNTL_ASSERT(activations.size() == data_y.size() && !activations.empty() && !data_y.empty());
 			const auto ptrA = activations.data(), ptrY = data_y.data();
-			constexpr auto log_zero = math::real_ty_limits<real_t>::log_almost_zero;
+			constexpr auto log_zero = math::real_t_limits<real_t>::log_almost_zero;
 			real_t ql = 0;
 			for (numel_cnt_t i = er.elmBegin; i < er.elmEnd; ++i) {
 				const auto y = ptrY[i];
@@ -1667,7 +1667,7 @@ namespace math {
 				const auto y = -pY[i];
 				NNTL_ASSERT(a >= real_t(0.0) && a <= real_t(1.0));
 				NNTL_ASSERT(y <= real_t(0.0) && y >= real_t(-1.0));
-				a = a > real_t(0.0) ? std::log(a) : math::real_ty_limits<real_t>::log_almost_zero;
+				a = a > real_t(0.0) ? std::log(a) : math::real_t_limits<real_t>::log_almost_zero;
 				ret += y*a;
 				NNTL_ASSERT(!isnan(ret));
 			}

@@ -45,7 +45,7 @@ namespace nntl {
 
 		template<typename RealT, typename AgnerFogRNG, typename iThreadsT>
 		class AFRand_mt final : public rng_helper<RealT, AFRand_mt<RealT, AgnerFogRNG, iThreadsT>> {
-			static_assert(std::is_base_of<threads::_i_threads<typename iThreadsT::range_t>, iThreadsT>::value, "iThreads must implement threads::_i_threads");
+			static_assert(std::is_base_of<threads::_i_threads<RealT, typename iThreadsT::range_t>, iThreadsT>::value, "iThreads must implement threads::_i_threads");
 
 		public:
 			typedef AgnerFogRNG base_rng_t;

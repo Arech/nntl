@@ -43,9 +43,13 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 using namespace nntl;
 
+typedef d_interfaces::real_t real_t;
+
 //#ifdef TESTS_SKIP_LONGRUNNING
+
 #define TESTS_SKIP_THREADING_PERFS
 #define TESTS_SKIP_THREADING_DELAYS
+
 //#endif
 
 // #ifndef TESTS_SKIP_THREADING_DELAYS
@@ -57,13 +61,12 @@ template<typename TT>
 void threads_basics_test(TT& t) {
 	typedef TT::range_t range_t;
 	typedef TT::par_range_t par_range_t;
-	typedef math_types::realmtx_ty::vec_len_t vec_len_t;
-	typedef math_types::realmtx_ty::value_type real_t;
+	typedef math::smatrix_td::vec_len_t vec_len_t;
 
 	const auto workersCnt = t.workers_count();
 
 	const vec_len_t maxCnt = 2 * workersCnt;
-	math_types::realmtx_ty m(1, maxCnt + 1);
+	math::smatrix<real_t> m(1, maxCnt + 1);
 	ASSERT_TRUE(!m.isAllocationFailed());
 	auto ptr = m.data();
 	
@@ -110,13 +113,13 @@ void threads_basics_test(TT& t) {
 }
 
 TEST(TestThreading, WinQDUBasics) {
-	threads::WinQDU<math_types::realmtx_ty::numel_cnt_t> t;
+	threads::WinQDU<real_t, math::smatrix_td::numel_cnt_t> t;
 	threads_basics_test(t);
 	threads_basics_test(t);
 }
 
 TEST(TestThreading, StdBasics) {
-	threads::Std<math_types::realmtx_ty::numel_cnt_t> t;
+	threads::Std<real_t, math::smatrix_td::numel_cnt_t> t;
 	threads_basics_test(t);
 	threads_basics_test(t);
 }
@@ -127,7 +130,7 @@ TEST(TestThreading, StdBasics) {
 TEST(TestThreading, PerfComparision) {
 	using namespace std::chrono;
 
-	typedef math_types::realmtx_ty::numel_cnt_t numel_cnt_t;
+	typedef math::smatrix_td::numel_cnt_t numel_cnt_t;
 	STDCOUTL("The test may require a few seconds to complete. Define TESTS_SKIP_THREADING_PERFS to skip.");
 	STDCOUTL("Probably, you shouldn't rely on this test results...");
 
@@ -136,7 +139,7 @@ TEST(TestThreading, PerfComparision) {
 	double tWinQDU, tStd, tWinQDUNE;
 
 	{
-		typedef threads::WinQDU<numel_cnt_t> thr;
+		typedef threads::WinQDU<real_t, numel_cnt_t> thr;
 		typedef thr::par_range_t par_range_t;
 
 		thr wint;
@@ -165,7 +168,7 @@ TEST(TestThreading, PerfComparision) {
 		STDCOUTL("noexcept/plain ratio: " << tWinQDUNE / tWinQDU);
 	}
 	{
-		typedef threads::Std<numel_cnt_t> thr;
+		typedef threads::Std<real_t, numel_cnt_t> thr;
 		typedef thr::par_range_t par_range_t;
 		thr stdt;
 		std::atomic_ptrdiff_t v = 0;
@@ -192,14 +195,14 @@ TEST(TestThreading, PerfComparision) {
 template <typename TT>
 void threading_delay_test(TT& t) {
 	//no need to make it significantly smaller because of resolution of Windows sleep timer
-	const rng::Std::generated_scalar_t max_mks = 5000;
+	const rng::Std<real_t>::generated_scalar_t max_mks = 5000;
 	//but this count should be large enough
 	const uint64_t maxreps = 10000;
 
 	STDCOUTL("The test would require a bit less than " << static_cast<uint64_t>(max_mks*maxreps / 1000000) << "s"
 		<<".\nIf it lasts significantly longer, then the app hangs and test failed. Define TESTS_SKIP_THREADING_DELAYS to skip.");
 	
-	rng::Std r;
+	rng::Std<real_t> r;
 	for (uint64_t i = 0; i < maxreps; ++i) {
 		t.run([=, &r](const TT::par_range_t&) {
 			std::this_thread::sleep_for(std::chrono::microseconds(r.gen_i(max_mks)));
@@ -208,13 +211,13 @@ void threading_delay_test(TT& t) {
 }
 
 TEST(TestThreading, WinQDUDelays) {
-	threads::WinQDU<math_types::realmtx_ty::numel_cnt_t> t;
+	threads::WinQDU<real_t, math::smatrix_td::numel_cnt_t> t;
 	threading_delay_test(t);
 	ASSERT_TRUE(true) << "This tests if the execution reaches here or binary hangs";
 }
 
 TEST(TestThreading, StdDelays) {
-	threads::Std<math_types::realmtx_ty::numel_cnt_t> t;
+	threads::Std<real_t, math::smatrix_td::numel_cnt_t> t;
 	threading_delay_test(t);
 	ASSERT_TRUE(true) << "This tests if the execution reaches here or binary hangs";
 }

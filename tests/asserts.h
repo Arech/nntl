@@ -34,11 +34,11 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include "../nntl/math.h"
 #include "../nntl/common.h"
+#include "../nntl/interfaces.h"
 
 #include <numeric>
 
-//using realmtx_t = nntl::math_types::realmtx_ty;
-using real_t = nntl::math_types::real_ty;
+typedef nntl::d_interfaces::real_t real_t;
 typedef nntl::math::smatrix<real_t> realmtx_t;
 typedef nntl::math::smatrix_deform<real_t> realmtxdef_t;
 typedef typename realmtx_t::vec_len_t vec_len_t;

@@ -85,7 +85,7 @@ namespace nntl {
 	// options of training algo
 	template <typename cond_epoch_eval = nnet_cond_epoch_eval, typename TrainingObserver = training_observer_stdcout<>>
 	class nnet_train_opts {
-		static_assert(std::is_base_of<i_training_observer, TrainingObserver>::value,
+		static_assert(std::is_base_of<i_training_observer<typename TrainingObserver::real_t>, TrainingObserver>::value,
 			"TrainingObserver template parameter must be derived from i_training_observer");
 
 	public:
@@ -93,7 +93,6 @@ namespace nntl {
 		typedef cond_epoch_eval cond_epoch_eval_t;
 		typedef nnet_train_opts<cond_epoch_eval_t, training_observer_t> self_t;
 		
-		//typedef math_types::real_ty real_t;
 		typedef typename training_observer_t::real_t real_t;
 		typedef typename training_observer_t::realmtx_t realmtx_t;
 		typedef typename realmtx_t::vec_len_t batch_size_t;

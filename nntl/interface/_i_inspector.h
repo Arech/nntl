@@ -45,16 +45,14 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "math/smatrix.h"
 
 namespace nntl {
-	
-	//BTW: each and every i_inspector's method must posses const function specifier to permit maximum optimizations
-	//Derive from this class to have default function implementations
-	// 
+namespace inspector {
+
 	template<typename RealT>
-	class i_inspector : public math::smatrix_td {
+	class _i_inspector : public math::smatrix_td {
 		//!! copy constructor not needed
-		i_inspector(const i_inspector& other)noexcept = delete;
+		_i_inspector(const _i_inspector& other)noexcept = delete;
 		//!!assignment is not needed
-		i_inspector& operator=(const i_inspector& rhs) noexcept = delete;
+		_i_inspector& operator=(const _i_inspector& rhs) noexcept = delete;
 
 		//////////////////////////////////////////////////////////////////////////
 	public:
@@ -62,14 +60,49 @@ namespace nntl {
 		typedef math::smatrix<real_t> realmtx_t;
 		typedef math::smatrix_deform<real_t> realmtxdef_t;
 
+	protected:
+		~_i_inspector()noexcept {}
+		_i_inspector()noexcept {}
+
 	public:
-		~i_inspector()noexcept {}
-		i_inspector()noexcept {}
+		//////////////////////////////////////////////////////////////////////////
+		// generic functions
+		template<typename VarT>
+		nntl_interface void inspect(const VarT& v, const layer_index_t lIdx = 0, const char*const pVarName = nullptr)const noexcept;
+
+		//////////////////////////////////////////////////////////////////////////
+		// specialized functions naming convention:
+		// <phase>_<prefix><A/actionCamelCased><Suffix>()
+
+		//to notify about total layer, epoch and batches count
+		nntl_interface void init_nnet(const size_t totalLayers, const size_t totalEpochs, const vec_len_t totalBatches)const noexcept;
+
+		//to notify about layer and it's name (for example, inspector can use this info to filter out calls from non-relevant layers later)
+		//this call can cost something, but we don't care because it happens only during init phase
+		template<typename StrT>
+		nntl_interface void init_layer(const layer_index_t lIdx, StrT&& LayerName)const noexcept;
+
+		nntl_interface void train_epochBegin(const size_t epochIdx)const noexcept;
+		nntl_interface void train_epochEnd(const size_t epochIdx)const noexcept;
+
+		nntl_interface void train_batchBegin(const vec_len_t batchIdx)const noexcept;
+		nntl_interface void train_batchEnd(const vec_len_t batchIdx)const noexcept;
+
+		nntl_interface void fprop_onEntry(const layer_index_t lIdx, const realmtx_t& prevAct, const bool bTrainingMode) const noexcept;
+	};
+
+	//BTW: each and every _base's method must posses const function specifier to permit maximum optimizations
+	//Derive from this class to have default function implementations
+	template<typename RealT>
+	class _base : public _i_inspector<RealT> {
+	public:
+		~_base()noexcept {}
+		_base()noexcept {}
 
 		//////////////////////////////////////////////////////////////////////////
 		// generic functions
 		template<typename VarT>
-		void inspect(const VarT& v, const layer_index_t lIdx=0, const char*const pVarName=nullptr)const noexcept {}
+		void inspect(const VarT& v, const layer_index_t lIdx = 0, const char*const pVarName = nullptr)const noexcept {}
 
 		//////////////////////////////////////////////////////////////////////////
 		// specialized functions naming convention:
@@ -84,20 +117,13 @@ namespace nntl {
 		void init_layer(const layer_index_t lIdx, StrT&& LayerName)const noexcept {};
 
 		void train_epochBegin(const size_t epochIdx)const noexcept {}
-		void train_batchBegin(const vec_len_t batchIdx)const noexcept {}
-
-		void fprop_SourceData(const realmtx_t& data_x)const noexcept {}
-
-
-
-		void train_batchEnd(const vec_len_t batchIdx)const noexcept {}
 		void train_epochEnd(const size_t epochIdx)const noexcept {}
+
+		void train_batchBegin(const vec_len_t batchIdx)const noexcept {}
+		void train_batchEnd(const vec_len_t batchIdx)const noexcept {}
+
+		void fprop_onEntry(const layer_index_t lIdx, const realmtx_t& prevAct, const bool bTrainingMode) const noexcept {}
 	};
 
-	template< class, class = std::void_t<> >
-	struct is_dummy_inspector : std::false_type { };
-	template< class T >
-	struct is_dummy_inspector<T, std::void_t<typename std::enable_if< std::is_same<i_inspector<typename T::real_t>, T>::value >::type > > : std::true_type {};
-
-
+}
 }

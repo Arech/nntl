@@ -183,6 +183,7 @@
     <ClInclude Include="..\nntl\common_nn_data.h" />
     <ClInclude Include="..\nntl\errors.h" />
     <ClInclude Include="..\nntl\grad_works.h" />
+    <ClInclude Include="..\nntl\interface\inspectors\dummy.h" />
     <ClInclude Include="..\nntl\interface\inspectors\stdcout.h" />
     <ClInclude Include="..\nntl\interface\math\mathn_mt.h" />
     <ClInclude Include="..\nntl\interface\math\mathn_thr.h" />

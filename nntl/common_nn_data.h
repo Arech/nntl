@@ -131,7 +131,7 @@ namespace _impl {
 		void clean_common_data()noexcept { m_pCommonData = nullptr; }
 
 	public:
-		~_common_data_consumer()noexcept {}
+		~_common_data_consumer()noexcept { clean_common_data(); }
 		_common_data_consumer()noexcept : m_pCommonData(nullptr) {}
 
 		//////////////////////////////////////////////////////////////////////////
