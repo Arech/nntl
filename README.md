@@ -62,7 +62,7 @@ I wouldn't state the NNTL is the fastest CPU implementation of feedforward neura
 * Tasks supported out of the box (i.e. all you need to do to be able to work with this tasks is to assemble a proper architecture from components provided; other tasks, such as regression, however, may require some special components coding - please, submit your solutions):
   * one-hot vector classification via sigmoid or softmax activations
   * one dimensional binary classification via sigmoid activation
-* Debugging and baby-sitting a neural network learning process is implemented through _i_inspectors() interface which allows to monitor/dump any temporary variable or matrix you might want to examine during a training session (activation/preactivation values, weights, weigth updates and many more - and much more will be added as it'll be needed). The interface is easily extensible and incurs zero run-time cost if it isn't used and thrown away by a compiler (and it's off by default).
+* Debugging and baby-sitting a neural network learning process is implemented through a special interface which allows to monitor/dump any temporary variable or matrix you might want to examine during a training session (activation/preactivation values, weights, weigth updates and many more - and much more will be added as it'll be needed). The interface is easily extensible and incurs zero run-time cost if it isn't used and thrown away by a compiler (and it's off by default).
 
 ## The Pros and Cons
 ### Nuances
@@ -80,10 +80,10 @@ Just want to stress again: NNTL is not a kind of Plug-n-Play system to solve typ
   * weights initialization schemes
   * ...
 * OpenBLAS (for matrix*matrix multiplications) is the only external code dependency (not counting the Boost, which is de facto industry standard). OpenBLAS could be easily replaced/substituted if needed.
-* Three data loaders already available (see `/nntl/_supp/io` folder):
-  * `jsonreader` reads input data from `.json` files (requires RapidJson, see below). It's the most crossplatform, but the slowest solution.
-  * `binfile` reads input data from nntl-custom binary file format. It's the fastest method to read data, however `.bin` files require the most disk space and are prone to cross-platform issues with data-sizes and endianness.
+* Three data loaders already available (see `/nntl/_supp/io` folder):  
   * `matfile` implements "Saving" and "Loading Archive" Concepts from boost::serialization, therefore allowing reading and writing data to and from Matlab's native `.mat` files (including dumping neural network object state into .mat file for inspection). Requires Matlab installed as well as `#define NNTL_MATLAB_AVAILABLE` to compile. `NNTL_MATLAB_AVAILABLE` is defined by default for all projects (see it in `stdafx.h`). See `nntl/utils/matlab.h` for details how to setup build environment to be able to compile NNTL with Matlab support (thanks to Mathworks, it's not harder than to plug in Boost support).
+  * `binfile` reads input data from nntl-custom binary file format. It's the fastest method to read data, however `.bin` files require the most disk space and are prone to cross-platform issues with data-sizes and endianness.
+  * `jsonreader` reads input data from `.json` files (requires RapidJson, see below). It's the most crossplatform, but the slowest solution.
 
 ### Cons
 * achieving the best possible performance with small data sizes (for example, when using very small minibatches and/or small number of neurons) may require some manual tuning of thresholds that define when to use single- or multi-threaded branch of code. At this moment this thresholds are hardcoded into `\nntl\interface\math\imath_basic_thresholds.h` and `\nntl\interface\rng\AFRandom_mt_thresholds.h` respectively. So, you'll need to fix them all to suit your own hardware needs in order to get the best possible performance. However, if you're not going to use too small nets/batches, you'll probably be absolutely fine with current multithreading-by-default implementation of imath interface.
