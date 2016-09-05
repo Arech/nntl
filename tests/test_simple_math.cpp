@@ -70,7 +70,7 @@ TEST(TestSMath, DumpmTilingRoll) {
 	mTilingRoll_ET(src, dest);
 
 	nntl_supp::omatfile<> mf;
-	ASSERT_EQ(mf.ErrorCode::Success, mf.openForSave("./test_data/test.mat"));
+	ASSERT_EQ(mf.ErrorCode::Success, mf.open("./test_data/test.mat"));
 
 	mf << NNTL_SERIALIZATION_NVP(src);
 	mf << NNTL_SERIALIZATION_NVP(dest);

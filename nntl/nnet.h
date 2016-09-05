@@ -413,7 +413,7 @@ namespace nntl {
 						// fullbatch learning and absence of dropout/regularizer). Therefore don't bother here with error and leave it to bprop()
 						m_Layers.bprop(batch_y, ttd.a_dLdA);
 
-						iI.train_batchEnd(batchIdx);
+						iI.train_batchEnd();
 					}
 
 					const bool bInspectEpoch = cee(epochIdx);
@@ -443,7 +443,7 @@ namespace nntl {
 						m_Layers.set_mode(0);//restoring training mode after _calcLoss()
 					}
 
-					iI.train_epochEnd(epochIdx);
+					iI.train_epochEnd();
 					if (! std::forward<OnEpochEndCbT>(onEpochEndCB)(*this, opts, epochIdx)) break;
 				}
 			}
@@ -504,34 +504,34 @@ namespace nntl {
 	};
 
 	template <typename LayersPack>
-	inline nnet<LayersPack> make_nnet(LayersPack& lp)noexcept { return nnet<LayersPack>(lp); }
+	inline constexpr nnet<LayersPack> make_nnet(LayersPack& lp)noexcept { return nnet<LayersPack>(lp); }
 
 	template <typename LayersPack>
-	inline nnet<LayersPack> make_nnet(LayersPack& lp, typename LayersPack::iRng_t& iR)noexcept {
+	inline constexpr nnet<LayersPack> make_nnet(LayersPack& lp, typename LayersPack::iRng_t& iR)noexcept {
 		return nnet<LayersPack>(lp, nullptr, nullptr, &iR);
 	}
 	template <typename LayersPack>
-	inline nnet<LayersPack> make_nnet(LayersPack& lp, typename LayersPack::iMath_t& iM)noexcept {
+	inline constexpr nnet<LayersPack> make_nnet(LayersPack& lp, typename LayersPack::iMath_t& iM)noexcept {
 		return nnet<LayersPack>(lp, nullptr, &iM);
 	}
 	template <typename LayersPack>
-	inline nnet<LayersPack> make_nnet(LayersPack& lp, typename LayersPack::iMath_t& iM, typename LayersPack::iRng_t& iR)noexcept {
+	inline constexpr nnet<LayersPack> make_nnet(LayersPack& lp, typename LayersPack::iMath_t& iM, typename LayersPack::iRng_t& iR)noexcept {
 		return nnet<LayersPack>(lp, nullptr, &iM, &iR);
 	}
 
 	template <typename LayersPack>
-	inline nnet<LayersPack> make_nnet(LayersPack& lp, typename LayersPack::iInspect_t& iI)noexcept { return nnet<LayersPack>(lp, &iI); }
+	inline constexpr nnet<LayersPack> make_nnet(LayersPack& lp, typename LayersPack::iInspect_t& iI)noexcept { return nnet<LayersPack>(lp, &iI); }
 
 	template <typename LayersPack>
-	inline nnet<LayersPack> make_nnet(LayersPack& lp, typename LayersPack::iInspect_t& iI, typename LayersPack::iRng_t& iR)noexcept {
+	inline constexpr nnet<LayersPack> make_nnet(LayersPack& lp, typename LayersPack::iInspect_t& iI, typename LayersPack::iRng_t& iR)noexcept {
 		return nnet<LayersPack>(lp, &iI, nullptr, &iR);
 	}
 	template <typename LayersPack>
-	inline nnet<LayersPack> make_nnet(LayersPack& lp, typename LayersPack::iInspect_t& iI, typename LayersPack::iMath_t& iM)noexcept {
+	inline constexpr nnet<LayersPack> make_nnet(LayersPack& lp, typename LayersPack::iInspect_t& iI, typename LayersPack::iMath_t& iM)noexcept {
 		return nnet<LayersPack>(lp, &iI, &iM);
 	}
 	template <typename LayersPack>
-	inline nnet<LayersPack> make_nnet(LayersPack& lp, typename LayersPack::iInspect_t& iI, typename LayersPack::iMath_t& iM, typename LayersPack::iRng_t& iR)noexcept {
+	inline constexpr nnet<LayersPack> make_nnet(LayersPack& lp, typename LayersPack::iInspect_t& iI, typename LayersPack::iMath_t& iM, typename LayersPack::iRng_t& iR)noexcept {
 		return nnet<LayersPack>(lp, &iI, &iM, &iR);
 	}
 

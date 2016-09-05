@@ -61,8 +61,7 @@ void simple_BaselineNN(train_data<real_t>& td, const uint64_t seedV=0) {
 		m(l);
 	});
 
-	nnet_cond_epoch_eval cee(commonInfoT::epochs);
-	nnet_train_opts<decltype(cee)> opts(std::move(cee));
+	nnet_train_opts<> opts(commonInfoT::epochs);
 	opts.batchSize(commonInfoT::batchSize);
 
 	auto nn = make_nnet(lp);
@@ -125,8 +124,7 @@ void simple_gatedNN(train_data<real_t>& td, const vec_len_t gateIdx, const uint6
 		m(l);
 	});
 
-	nnet_cond_epoch_eval cee(commonInfoT::epochs);
-	nnet_train_opts<decltype(cee)> opts(std::move(cee));
+	nnet_train_opts<> opts(commonInfoT::epochs);
 	opts.batchSize(commonInfoT::batchSize);
 
 	auto nn = make_nnet(lp);

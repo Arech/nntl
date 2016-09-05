@@ -191,12 +191,12 @@ namespace utils {
 	// see also https://msdn.microsoft.com/en-us/library/mt125500.aspx
 	
 	template <typename... T, std::size_t... I>
-	auto subtuple_(const std::tuple<T...>& t, std::index_sequence<I...>) {
+	constexpr auto subtuple_(const std::tuple<T...>& t, std::index_sequence<I...>) {
 		return std::make_tuple(std::get<I>(t)...);
 	}
 
 	template <int Trim, typename... T>
-	auto subtuple_trim_tail(const std::tuple<T...>& t) {
+	constexpr auto subtuple_trim_tail(const std::tuple<T...>& t) {
 		return subtuple_(t, std::make_index_sequence<sizeof...(T)-Trim>());
 	}
 

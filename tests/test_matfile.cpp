@@ -66,18 +66,19 @@ TEST(TestMatfile, ReadWriteMat) {
 	math::smatrix<double> double_mtx(3, 2), double_mtx2;
 	for (unsigned i = 0; i < double_mtx.numel(); ++i) double_mtx.data()[i] = double(2.1) * i;
 
-	double dET = 3.3, d;
-	float fET = 2.1f, f;
+	const double dET = 3.9;
+	const float fET = 2.6f;
 
 	train_data<real_t> td_ET,td;
 	ASSERT_TRUE(get_td(td_ET));
 
+	const char *const pFileName = "./test_data/test.mat";
+
 	{
 		SCOPED_TRACE("Testing omatfile");
 		omatfile<> mf;
-		mf.m_binary_options[serialization::serialize_training_parameters] = true;
 
-		ASSERT_EQ(mf.ErrorCode::Success, mf.openForSave("./test_data/test.mat"));
+		ASSERT_EQ(mf.ErrorCode::Success, mf.open(pFileName));
 		
 		mf << serialization::make_nvp("d", dET);
 		ASSERT_EQ(mf.ErrorCode::Success, mf.get_last_error()) << mf.get_last_error_str();
@@ -95,11 +96,13 @@ TEST(TestMatfile, ReadWriteMat) {
 		ASSERT_EQ(mf.ErrorCode::Success, mf.get_last_error()) << mf.get_last_error_str();
 	}
 	{
+		double d;
+		float f;
+
 		SCOPED_TRACE("Testing imatfile");
 		imatfile<> mf;
-		//mf.m_binary_options[serialization::serialize_training_parameters] = false;
 
-		ASSERT_EQ(mf.ErrorCode::Success, mf.openForLoad("./test_data/test.mat"));
+		ASSERT_EQ(mf.ErrorCode::Success, mf.open(pFileName));
 
 		mf & NNTL_SERIALIZATION_NVP(d);
 		ASSERT_EQ(mf.ErrorCode::Success, mf.get_last_error()) << mf.get_last_error_str();
@@ -123,6 +126,193 @@ TEST(TestMatfile, ReadWriteMat) {
 	}
 }
 
+#ifdef NNTL_DEBUG
+#define TESTS_MATFILE_ALLOW_NNTL_ASSERTION_FAILURE 0
+#else
+#define TESTS_MATFILE_ALLOW_NNTL_ASSERTION_FAILURE 1
+#endif
+
+TEST(TestMatfile, ManualStructsWriting) {
+	const double dET = 3.9, d2ET = 412.54;
+	const float fET = 2.6f, f2ET = 4.23f;
+	const char *const pFileName = "./test_data/test_structs.mat";
+
+	struct Struct1T {
+		double VarD;
+		//we can't use templates here, therefore had to make 2 function definitions.
+		void serialize(omatfileEx<> & ar, const unsigned int version) {
+			ar & NNTL_SERIALIZATION_NVP(VarD);
+			ASSERT_EQ(ar.ErrorCode::Success, ar.get_last_error()) << ar.get_last_error_str();
+		}
+		void serialize(imatfile<> & ar, const unsigned int version) {
+			ar & NNTL_SERIALIZATION_NVP(VarD);
+			ASSERT_EQ(ar.ErrorCode::Success, ar.get_last_error()) << ar.get_last_error_str();
+		}
+		const bool operator==(const Struct1T& rhs)const noexcept { return VarD == rhs.VarD; }
+	};
+	const Struct1T s1ET = { dET }, s1ET2 = { d2ET };
+
+	struct Struct2T {
+		float VarF;
+		void serialize(imatfile<> & ar, const unsigned int version) {
+			ar & NNTL_SERIALIZATION_NVP(VarF);
+			ASSERT_EQ(ar.ErrorCode::Success, ar.get_last_error()) << ar.get_last_error_str();
+		}
+		const bool operator==(const Struct2T& rhs)const noexcept { return VarF == rhs.VarF; }
+	};
+	const Struct2T s2ET = { fET }, s2ET2 = { f2ET };
+
+	struct StructOverwriteT {
+		float VarF;
+		void serialize(imatfile<> & ar, const unsigned int version) { 
+			ar & NNTL_SERIALIZATION_NVP(VarF);
+			ASSERT_EQ(ar.ErrorCode::Success, ar.get_last_error()) << ar.get_last_error_str();
+#if TESTS_MATFILE_ALLOW_NNTL_ASSERTION_FAILURE
+			//The following code would emit assertion inside of matfile during DEBUG build
+			double VarD = -1.;
+			ar & NNTL_SERIALIZATION_NVP(VarD);
+			ASSERT_EQ(-1., VarD) << "VarD mustn't change";
+			ASSERT_EQ(ar.ErrorCode::FailedToTransferVariable, ar.get_last_error()) << "Read a field that must not be existed";
+			ar._drop_last_error();
+#endif
+		}
+		const bool operator==(const StructOverwriteT& rhs)const noexcept { return VarF == rhs.VarF; }
+	};
+	const StructOverwriteT soET = { fET };
+
+	struct StructUpdateT {
+		double VarD;
+		float VarF;
+		void serialize(imatfile<> & ar, const unsigned int version) {
+			ar & NNTL_SERIALIZATION_NVP(VarF);
+			ASSERT_EQ(ar.ErrorCode::Success, ar.get_last_error()) << ar.get_last_error_str();
+			ar & NNTL_SERIALIZATION_NVP(VarD);
+			ASSERT_EQ(ar.ErrorCode::Success, ar.get_last_error()) << ar.get_last_error_str();			
+		}
+		const bool operator==(const StructUpdateT& rhs)const noexcept { return VarF == rhs.VarF && VarD==rhs.VarD; }
+	};
+	const StructUpdateT suET = { dET, fET };
+
+	{
+		SCOPED_TRACE("Testing omatfileEx with manual struct writing mode");
+		omatfileEx<> mf;
+		const char* pNS_normal = "Struct1", *pNS_overwrite = "StructOverwrite", *pNS_update = "StructUpdate";
+
+		ASSERT_EQ(mf.ErrorCode::Success, mf.open(pFileName, mf.FileOpenMode::UpdateDelete));
+
+		mf << serialization::make_nvp("d", dET);
+		ASSERT_EQ(mf.ErrorCode::Success, mf.get_last_error()) << mf.get_last_error_str();
+
+		//////////////////////////////////////////////////////////////////////////
+		// testing simple struct saving
+		ASSERT_EQ(mf.ErrorCode::Success, mf.save_struct_begin(std::string(pNS_normal), false, false)) << mf.get_last_error_str();
+		mf << serialization::make_nvp("VarD", dET);
+		ASSERT_EQ(mf.ErrorCode::Success, mf.save_struct_end()) << mf.get_last_error_str();
+
+		//////////////////////////////////////////////////////////////////////////
+		// testing overwriting
+		ASSERT_EQ(mf.ErrorCode::Success, mf.save_struct_begin(std::string(pNS_overwrite), false, false)) << mf.get_last_error_str();
+		mf << serialization::make_nvp("VarF", f2ET);
+		mf << serialization::make_nvp("VarD", dET);
+		ASSERT_EQ(mf.ErrorCode::Success, mf.save_struct_end()) << mf.get_last_error_str();
+
+		ASSERT_EQ(mf.ErrorCode::Success, mf.save_struct_begin(std::string(pNS_overwrite), false, false)) << mf.get_last_error_str();
+		mf << serialization::make_nvp("VarF", fET);
+		ASSERT_EQ(mf.ErrorCode::Success, mf.save_struct_end()) << mf.get_last_error_str();
+
+		//////////////////////////////////////////////////////////////////////////
+		// testing updating
+		ASSERT_EQ(mf.ErrorCode::Success, mf.save_struct_begin(std::string(pNS_update), false, false)) << mf.get_last_error_str();
+		mf << serialization::make_nvp("VarF", f2ET);
+		mf << serialization::make_nvp("VarD", dET);
+		ASSERT_EQ(mf.ErrorCode::Success, mf.save_struct_end()) << mf.get_last_error_str();
+
+		ASSERT_EQ(mf.ErrorCode::Success, mf.save_struct_begin(std::string(pNS_update), true, false)) << mf.get_last_error_str();
+		mf << serialization::make_nvp("VarF", fET);
+		ASSERT_EQ(mf.ErrorCode::Success, mf.save_struct_end()) << mf.get_last_error_str();
+
+		//////////////////////////////////////////////////////////////////////////
+		// testing nested calls
+		ASSERT_EQ(mf.ErrorCode::Success, mf.save_struct_begin(std::string("Sf_1"), false, false)) << mf.get_last_error_str();
+		ASSERT_EQ(mf.ErrorCode::Success, mf.save_struct_begin(std::string("Sd_1"), false, true)) << mf.get_last_error_str();
+		mf << serialization::make_nvp("VarD", dET);
+		ASSERT_EQ(mf.ErrorCode::Success, mf.save_struct_end()) << mf.get_last_error_str();
+		mf << serialization::make_nvp("VarF", fET);
+		ASSERT_EQ(mf.ErrorCode::Success, mf.save_struct_end()) << mf.get_last_error_str();
+
+		ASSERT_EQ(mf.ErrorCode::Success, mf.save_struct_begin(std::string("Sf_2"), false, false)) << mf.get_last_error_str();
+		mf << serialization::make_nvp("VarF", f2ET);
+		ASSERT_EQ(mf.ErrorCode::Success, mf.save_struct_begin(std::string("Sd_2"), false, true)) << mf.get_last_error_str();
+		mf << serialization::make_nvp("VarD", d2ET);
+		ASSERT_EQ(mf.ErrorCode::Success, mf.save_struct_end()) << mf.get_last_error_str();
+		ASSERT_EQ(mf.ErrorCode::Success, mf.save_struct_end()) << mf.get_last_error_str();
+
+
+		// finally writing another variable and a struct to test all is fine
+		Struct1T S1dupe = { dET };
+		mf << NNTL_SERIALIZATION_STRUCT(S1dupe);
+
+		mf << serialization::make_nvp("f", fET);
+		ASSERT_EQ(mf.ErrorCode::Success, mf.get_last_error()) << mf.get_last_error_str();
+
+	}
+	{
+		SCOPED_TRACE("Testing imatfile for manual struct writing mode");
+		imatfile<> mf;
+		double d;
+		float f;
+
+		ASSERT_EQ(mf.ErrorCode::Success, mf.open(pFileName));
+
+		mf & NNTL_SERIALIZATION_NVP(d);
+		ASSERT_EQ(mf.ErrorCode::Success, mf.get_last_error()) << mf.get_last_error_str();
+		ASSERT_DOUBLE_EQ(dET, d) << "double differs";
+
+		mf & NNTL_SERIALIZATION_NVP(f);
+		ASSERT_EQ(mf.ErrorCode::Success, mf.get_last_error()) << mf.get_last_error_str();
+		ASSERT_FLOAT_EQ(fET, f) << "float differs";
+
+		Struct1T S1dupe;
+		mf & NNTL_SERIALIZATION_STRUCT(S1dupe);
+		ASSERT_EQ(mf.ErrorCode::Success, mf.get_last_error()) << mf.get_last_error_str();
+		ASSERT_EQ(s1ET, S1dupe) << "Struct1T S1dupe differs";
+
+		//////////////////////////////////////////////////////////////////////////
+		//reading structs
+		Struct1T Struct1;
+		mf & NNTL_SERIALIZATION_STRUCT(Struct1);
+		ASSERT_EQ(mf.ErrorCode::Success, mf.get_last_error()) << mf.get_last_error_str();
+		ASSERT_EQ(s1ET, Struct1) << "Struct1T differs";
+
+		StructOverwriteT StructOverwrite;
+		mf & NNTL_SERIALIZATION_STRUCT(StructOverwrite);
+		ASSERT_EQ(mf.ErrorCode::Success, mf.get_last_error()) << mf.get_last_error_str();
+		ASSERT_EQ(soET, StructOverwrite) << "StructOverwrite differs";
+
+		StructUpdateT StructUpdate;
+		mf & NNTL_SERIALIZATION_STRUCT(StructUpdate);
+		ASSERT_EQ(mf.ErrorCode::Success, mf.get_last_error()) << mf.get_last_error_str();
+		ASSERT_EQ(suET, StructUpdate) << "StructUpdate differs";
+
+		Struct1T Sd_1, Sd_2;
+		mf & NNTL_SERIALIZATION_STRUCT(Sd_1);
+		ASSERT_EQ(mf.ErrorCode::Success, mf.get_last_error()) << mf.get_last_error_str();
+		ASSERT_EQ(s1ET, Sd_1) << "Sd_1 differs";
+		mf & NNTL_SERIALIZATION_STRUCT(Sd_2);
+		ASSERT_EQ(mf.ErrorCode::Success, mf.get_last_error()) << mf.get_last_error_str();
+		ASSERT_EQ(s1ET2, Sd_2) << "Sd_2 differs";
+
+		Struct2T Sf_1, Sf_2;
+		mf & NNTL_SERIALIZATION_STRUCT(Sf_1);
+		ASSERT_EQ(mf.ErrorCode::Success, mf.get_last_error()) << mf.get_last_error_str();
+		ASSERT_EQ(s2ET, Sf_1) << "Sf_1 differs";
+		mf & NNTL_SERIALIZATION_STRUCT(Sf_2);
+		ASSERT_EQ(mf.ErrorCode::Success, mf.get_last_error()) << mf.get_last_error_str();
+		ASSERT_EQ(s2ET2, Sf_2) << "Sf_2 differs";
+	}
+}
+
+
 TEST(TestMatfile, DumpNnet) {
 	train_data<real_t> td;
 	binfile reader;
@@ -142,8 +332,7 @@ TEST(TestMatfile, DumpNnet) {
 
 	auto lp = make_layers(inp, fcl, fcl2, outp);
 
-	nnet_cond_epoch_eval cee(epochs);
-	nnet_train_opts<decltype(cee)> opts(std::move(cee));
+	nnet_train_opts<> opts(epochs);
 
 	opts.batchSize(100).ImmediatelyDeinit(false);
 	auto nn = make_nnet(lp);
@@ -153,7 +342,7 @@ TEST(TestMatfile, DumpNnet) {
 	//doing actual work
 	omatfile<> mf;
 	mf.turn_on_all_options();
-	ASSERT_EQ(mf.ErrorCode::Success, mf.openForSave("./test_data/nn_dump.mat"));
+	ASSERT_EQ(mf.ErrorCode::Success, mf.open("./test_data/nn_dump.mat"));
 
 	mf & nn;
 	ASSERT_EQ(mf.ErrorCode::Success, mf.get_last_error()) << mf.get_last_error_str();

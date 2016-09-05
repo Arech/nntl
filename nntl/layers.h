@@ -261,7 +261,7 @@ namespace nntl {
 		}
 	};
 
-	template <typename ...Layrs> inline
+	template <typename ...Layrs> inline constexpr
 	layers<Layrs...> make_layers(Layrs&... layrs) noexcept {
 		return layers<Layrs...>(layrs...);
 	}

@@ -86,8 +86,7 @@ TEST(Simple, PlainFFN) {
 	auto lp = make_layers(inp, fcl, fcl2, outp);
 
 	//4. define NN training options (epochs count, conditions when to evaluate NN performance, etc)
-	nnet_cond_epoch_eval cee(epochs);
-	nnet_train_opts<decltype(cee)> opts(std::move(cee));
+	nnet_train_opts<> opts(epochs);
 
 	opts.batchSize(100);
 
@@ -151,8 +150,7 @@ TEST(Simple, NotSoPlainFFN) {
 	auto lp = make_layers(inp, fcl, fcl2, outp);
 
 	//4. define NN training options (epochs count, conditions when to evaluate NN performance, etc)
-	nnet_cond_epoch_eval cee(epochs);
-	nnet_train_opts<decltype(cee)> opts(std::move(cee));
+	nnet_train_opts<> opts(epochs);
 
 	opts.batchSize(100);
 
@@ -209,8 +207,7 @@ TEST(Simple, NesterovMomentumAndRMSPropOnly) {
 
 	auto lp = make_layers(inp, fcl, fcl2, outp);
 
-	nnet_cond_epoch_eval cee(epochs);
-	nnet_train_opts<decltype(cee)> opts(std::move(cee));
+	nnet_train_opts<> opts(epochs);
 
 	opts.batchSize(100);
 

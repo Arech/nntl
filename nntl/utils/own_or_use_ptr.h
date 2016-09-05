@@ -120,12 +120,12 @@ namespace utils {
 
 
 	template <typename ptr_t, typename = typename std::enable_if< std::is_pointer<ptr_t>::value, bool>::type>
-	inline own_or_use_ptr<ptr_t> make_own_or_use_ptr(ptr_t ptr)noexcept {
+	inline constexpr own_or_use_ptr<ptr_t> make_own_or_use_ptr(ptr_t ptr)noexcept {
 		return own_or_use_ptr<ptr_t>(ptr);
 	}
 
 	template <typename nonptr_t, typename = typename std::enable_if<!std::is_pointer<nonptr_t>::value, bool>::type>
-	inline own_or_use_ptr<nonptr_t> make_own_or_use_ptr()noexcept {
+	inline constexpr own_or_use_ptr<nonptr_t> make_own_or_use_ptr()noexcept {
 		return own_or_use_ptr<nonptr_t>();
 	}
 

@@ -32,7 +32,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #pragma once
 
 #include "training_observer.h"
-#include "nnet_cond_epoch_eval.h"
+#include "./utils/vector_conditions.h"
 
 namespace nntl {
 
@@ -83,15 +83,14 @@ namespace nntl {
 
 	//////////////////////////////////////////////////////////////////////////
 	// options of training algo
-	template <typename cond_epoch_eval = nnet_cond_epoch_eval, typename TrainingObserver = training_observer_stdcout<>>
+	template <typename TrainingObserver = training_observer_stdcout<>>
 	class nnet_train_opts {
 		static_assert(std::is_base_of<i_training_observer<typename TrainingObserver::real_t>, TrainingObserver>::value,
 			"TrainingObserver template parameter must be derived from i_training_observer");
 
 	public:
 		typedef TrainingObserver training_observer_t;
-		typedef cond_epoch_eval cond_epoch_eval_t;
-		typedef nnet_train_opts<cond_epoch_eval_t, training_observer_t> self_t;
+		typedef nnet_train_opts<training_observer_t> self_t;
 		
 		typedef typename training_observer_t::real_t real_t;
 		typedef typename training_observer_t::realmtx_t realmtx_t;
@@ -104,7 +103,7 @@ namespace nntl {
 
 		nnet_td_eval_results<real_t>* m_pNNEvalFinalRes;
 
-		cond_epoch_eval_t m_vbEpochEval;
+		vector_conditions m_vbEpochEval;
 
 		//DivergenceCheck* vars describes how to check for nn algo divergence
 		real_t m_DivergenceCheckThreshold;
@@ -126,18 +125,29 @@ namespace nntl {
 		// bring some speedup
 		bool m_bDropFProp4TrainingSetErrorCalculationWhileFullBatch;
 
+		void _ctor()noexcept {
+			m_BatchSize = 0;
+			m_DivergenceCheckLastEpoch = 5;
+			m_DivergenceCheckThreshold = real_t(1e6);
+			m_bCalcFullLossValue = true;
+			m_bImmediatelyDeinit = false;
+			m_pNNEvalFinalRes = nullptr;
+			m_bDropFProp4TrainingSetErrorCalculationWhileFullBatch = false;
+		}
+
 	public:
 		~nnet_train_opts()noexcept {}
-		nnet_train_opts(cond_epoch_eval_t&& cee)noexcept : m_vbEpochEval(std::move(cee)), m_BatchSize(0),
-			m_DivergenceCheckLastEpoch(5), m_DivergenceCheckThreshold(1e6f), m_bCalcFullLossValue(true),
-			m_bImmediatelyDeinit(false), m_pNNEvalFinalRes(nullptr),
-			m_bDropFProp4TrainingSetErrorCalculationWhileFullBatch(false)
-		{}
+		nnet_train_opts(size_t _maxEpoch, const bool& defVal = true)noexcept : m_vbEpochEval(_maxEpoch, defVal)
+		{_ctor();}
+		nnet_train_opts(size_t _maxEpoch, size_t stride)noexcept : m_vbEpochEval(_maxEpoch, stride)
+		{		_ctor();	}
+		nnet_train_opts(size_t _maxEpoch, size_t startsAt, size_t stride)noexcept : m_vbEpochEval(_maxEpoch, startsAt, stride)
+		{		_ctor();	}
 
-		self_t& setEpochEval(cond_epoch_eval_t&& cee)noexcept { m_vbEpochEval = std::forward(cee); return *this; }
 
 		size_t maxEpoch()const noexcept { return m_vbEpochEval.maxEpoch(); }
-		cond_epoch_eval_t& getCondEpochEval() noexcept { return m_vbEpochEval; }
+		vector_conditions& getCondEpochEval() noexcept { return m_vbEpochEval; }
+		const vector_conditions& getCondEpochEval()const noexcept { return m_vbEpochEval; }
 
 		real_t divergenceCheckThreshold() const noexcept { return m_DivergenceCheckThreshold; }
 		self_t& divergenceCheckThreshold(real_t val) noexcept { m_DivergenceCheckThreshold = val; return *this; }

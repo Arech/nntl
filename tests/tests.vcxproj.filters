@@ -117,9 +117,6 @@
     <ClInclude Include="..\nntl\utils\own_or_use_ptr.h">
       <Filter>nntl\utils</Filter>
     </ClInclude>
-    <ClInclude Include="..\nntl\nnet_cond_epoch_eval.h">
-      <Filter>nntl</Filter>
-    </ClInclude>
     <ClInclude Include="..\nntl\nnet_train_opts.h">
       <Filter>nntl</Filter>
     </ClInclude>
@@ -315,6 +312,12 @@
     <ClInclude Include="..\nntl\interface\inspectors\dummy.h">
       <Filter>nntl\interface\inspectors</Filter>
     </ClInclude>
+    <ClInclude Include="..\nntl\utils\vector_conditions.h">
+      <Filter>nntl\utils</Filter>
+    </ClInclude>
+    <ClInclude Include="..\nntl\interface\inspectors\dumper.h">
+      <Filter>nntl\interface\inspectors</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="stdafx.cpp">
@@ -384,6 +387,9 @@
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="test_layer_pack_tile.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="test_inspectors.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>

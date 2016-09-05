@@ -471,7 +471,7 @@ namespace nntl {
 	template <typename LayerT, neurons_count_t K_tiles, bool bExpectSpecialDataX>
 	using layer_pack_tile = typename LPT<LayerT, K_tiles, bExpectSpecialDataX>;
 
-	template <neurons_count_t K_tiles, bool bExpectSpecialDataX, typename LayerT> inline
+	template <neurons_count_t K_tiles, bool bExpectSpecialDataX, typename LayerT> inline constexpr
 	LPT <LayerT, K_tiles, bExpectSpecialDataX> make_layer_pack_tile(LayerT& tl, const char* pCustomName = nullptr) noexcept
 	{
 		return LPT<LayerT, K_tiles, bExpectSpecialDataX>(tl, pCustomName);

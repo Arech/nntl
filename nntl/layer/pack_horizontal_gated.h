@@ -334,11 +334,11 @@ namespace nntl {
 	template <typename ..._T>
 	using layer_pack_horizontal_gated = typename LPHG<_T...>;
 
-	template <typename ...PHLsT> inline
+	template <typename ...PHLsT> inline constexpr
 	LPHG <PHLsT...> make_layer_pack_horizontal_gated(PHLsT&... phls) noexcept {
 		return LPHG<PHLsT...>(phls...);
 	}
-	template <typename ...PHLsT> inline
+	template <typename ...PHLsT> inline constexpr
 	LPHG <PHLsT...> make_layer_pack_horizontal_gated(const char* pCustomName, PHLsT&... phls) noexcept {
 		return LPHG<PHLsT...>(pCustomName, phls...);
 	}
@@ -359,11 +359,11 @@ namespace nntl {
 	template <typename ..._T>
 	using layer_pack_horizontal_gated_from_input = typename LPHGFI<_T...>;
 
-	template <typename ...PHLsT> inline
+	template <typename ...PHLsT> inline constexpr
 	LPHGFI <PHLsT...> make_layer_pack_horizontal_gated_from_input(PHLsT&... phls) noexcept {
 		return LPHGFI<PHLsT...>(phls...);
 	}
-	template <typename ...PHLsT> inline
+	template <typename ...PHLsT> inline constexpr
 	LPHGFI <PHLsT...> make_layer_pack_horizontal_gated_from_input(const char* pCustomName, PHLsT&... phls) noexcept {
 		return LPHGFI<PHLsT...>(pCustomName, phls...);
 	}

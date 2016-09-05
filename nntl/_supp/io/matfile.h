@@ -52,6 +52,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <stack>
 #include <bitset>
 //#pragma warning(pop)
+#include <cstdio>
 
 namespace nntl_supp {
 
@@ -59,17 +60,23 @@ namespace nntl_supp {
 		enum ErrorCode {
 			Success = 0,
 			FailedToOpenFile,
+			FileAlreadyOpened,
+			InvalidOpenMode,
 			ErrorClosingFile,
 			NoFileOpened,
+			NoStructToSave,
 			WrongState_NameAlreadySet,
 			WrongState_NoName,
+			WrongState_NoStructAllocated,
 			FailedToAllocateMxData,
 			FailedToTransferVariable,
 			FailedToCreateStructVariable,
 			CantAddNewFieldToStruct,
 			WrongVariableTypeHasBeenRead,
 			EmptyVariableHasBeenRead,
-			NoMemoryToCreateReadVariable
+			NoMemoryToCreateReadVariable,
+			WrongStateStructUnsaved,
+			WrongStateManualStructUnsaved
 
 		};
 
@@ -78,10 +85,14 @@ namespace nntl_supp {
 			switch (ec) {
 			case Success: return NNTL_STRING("No error / success.");
 			case FailedToOpenFile: return NNTL_STRING("Failed to open file");
+			case FileAlreadyOpened: return NNTL_STRING("File has been already opened");
+			case InvalidOpenMode: return NNTL_STRING("Invalid file open mode specified");
 			case ErrorClosingFile: return NNTL_STRING("There was an error while closing file");
 			case NoFileOpened: return NNTL_STRING("No file opened");
+			case NoStructToSave: return NNTL_STRING("There's no struct to save. Probably the order of save_struct_begin/save_struct_end has been permutted.");
 			case WrongState_NameAlreadySet: return NNTL_STRING("Wrong archive state, variable name already set. Looks like another variable saving in process!");
 			case WrongState_NoName: return NNTL_STRING("No variable name available. Did you call archiver with nvp() or named_struct() object?");
+			case WrongState_NoStructAllocated: return NNTL_STRING("Wrong state while trying to finish struct creation - no struct actually exist");
 			case FailedToAllocateMxData: return NNTL_STRING("mx*() function failed to allocate data. Probably not enough memory");
 			case FailedToTransferVariable: return NNTL_STRING("Failed to store/read variable to/from file");
 			case FailedToCreateStructVariable: return NNTL_STRING("Failed to create struct variable");
@@ -89,6 +100,8 @@ namespace nntl_supp {
 			case WrongVariableTypeHasBeenRead: return NNTL_STRING("Wrong (structure instead of numeric matrix) or inconvertable (complex instead of real) variable has been read");
 			case EmptyVariableHasBeenRead: return NNTL_STRING("The variable been read is empty");
 			case NoMemoryToCreateReadVariable: return NNTL_STRING("Variable has been read, but can't be created because of lack memory");
+			case WrongStateStructUnsaved: return NNTL_STRING("Wrong state, structure stack is not empty");
+			case WrongStateManualStructUnsaved: return NNTL_STRING("Wrong state, manual structure saving stack is not empty");
 
 			default: NNTL_ASSERT(!"WTF?"); return NNTL_STRING("Unknown code.");
 			}
@@ -105,8 +118,14 @@ namespace nntl_supp {
 		}
 	};
 
+	//////////////////////////////////////////////////////////////////////////
+	//////////////////////////////////////////////////////////////////////////
 	template<typename ErrorsClassT = _matfile_errs>
-	class _matfile_base : public nntl::_has_last_error<ErrorsClassT>, protected nntl::math::smatrix_td {
+	class _matfile_base 
+		: public nntl::_has_last_error<ErrorsClassT>
+		//, public nntl::serialization::_i_nntl_archive
+		, protected nntl::math::smatrix_td 
+	{
 	protected:
 		typedef stack_presized<mxArray*, 4> structure_stack_t;		
 
@@ -114,6 +133,17 @@ namespace nntl_supp {
 		MATFile* m_matFile;
 		const char* m_curVarName;
 		structure_stack_t m_structureStack;
+
+	public:
+		enum FileOpenMode {
+			Read,//read only mode
+			WriteDelete,//write only, delete before opening
+			UpdateKeepOld,//read&write, keep old file
+			UpdateDelete//read&write, delete before opening
+		};
+
+		//#TODO probably should also check variable names lengths in a code
+		static constexpr size_t MaxVarNameLength = 63;
 
 	protected:
 
@@ -209,6 +239,39 @@ namespace nntl_supp {
 			//must free only top-level variables read from file. Others will be destroyed as parts of loaded top-level structures
 			if (m_structureStack.size() == 0 && pA) mxDestroyArray(pA);
 		}
+		
+		ErrorCode _open(const char* fname, FileOpenMode fom) {
+			NNTL_ASSERT(!m_matFile);
+			if (m_matFile) return _set_last_error(ErrorCode::FileAlreadyOpened);
+			const char* m;
+			switch (fom) {
+			case Read:
+				m = "r";
+				break;
+			case WriteDelete:
+				m = "w";
+				break;
+			case UpdateDelete:
+				std::remove(fname);
+				{
+					ErrorCode ec = ErrorCode::Success;
+					const auto pt = matOpen(fname, "w");
+					if (pt) {
+						if (matClose(pt)) ec = ErrorCode::ErrorClosingFile;
+					} else ec = ErrorCode::FailedToOpenFile;
+					if (ErrorCode::Success != ec) return _set_last_error(ec);
+				}
+				m = "u";
+				break;
+			case UpdateKeepOld:
+				m = "u";
+				break;
+			default:
+				return _set_last_error(ErrorCode::InvalidOpenMode);
+			}
+			m_matFile = matOpen(fname, m);
+			return _set_last_error(m_matFile ? ErrorCode::Success : ErrorCode::FailedToOpenFile);
+		}
 
 	public:
 		~_matfile_base()noexcept {
@@ -218,26 +281,40 @@ namespace nntl_supp {
 			mclmcrInitialize();//looks safe to call multiple times
 		}
 
-		ErrorCode openForSave(const char* fname)noexcept {
-			m_matFile = matOpen(fname, "w");
-			return _set_last_error(m_matFile ? ErrorCode::Success : ErrorCode::FailedToOpenFile);
-		}
-		ErrorCode openForLoad(const char* fname)noexcept {
-			m_matFile = matOpen(fname, "r");
-			return _set_last_error(m_matFile ? ErrorCode::Success : ErrorCode::FailedToOpenFile);
-		}
-		ErrorCode openForSave(const std::string& fname)noexcept { return openForSave(fname.c_str()); }
-		ErrorCode openForLoad(const std::string& fname)noexcept { return openForLoad(fname.c_str()); }
-
 		ErrorCode close()noexcept {
+			NNTL_ASSERT(!m_curVarName);
+			NNTL_ASSERT(!m_structureStack.size());
+
 			ErrorCode ec = ErrorCode::Success;
+
+			if (m_curVarName) ec = ErrorCode::WrongState_NameAlreadySet;
+			m_curVarName = nullptr;
+
+			//Trying to cleanup - however, this code doesn't guarantee a correct cleanup
+			if (m_structureStack.size()) {
+				ec = ErrorCode::WrongStateStructUnsaved;
+				for (size_t i = m_structureStack.size() - 1; i >= 1; --i) {
+					NNTL_ASSERT(m_structureStack.top());
+					m_structureStack.pop();
+				}
+				NNTL_ASSERT(m_structureStack.top());
+				mxDestroyArray(m_structureStack.top());
+				m_structureStack.pop();
+			}
+
 			if (m_matFile) {
 				if (matClose(m_matFile)) ec = ErrorCode::ErrorClosingFile;
 				m_matFile = nullptr;
-			}// else ec = ErrorCode::NoFileOpened;
-			 //if (ErrorCode::Success != ec) 
+			}
 			_set_last_error(ec);
 			return ec;
+		}
+
+		//////////////////////////////////////////////////////////////////////////
+		// use the following function for test purposes only
+		void _drop_last_error()noexcept {
+			m_curVarName = nullptr;
+			_set_last_error(ErrorCode::Success);
 		}
 	};
 
@@ -245,7 +322,8 @@ namespace nntl_supp {
 	template<typename FinalChildT, bool bSavingArchive, typename ErrorsClassT = _matfile_errs>
 	class _matfile : public _matfile_base<ErrorsClassT>, public nntl::serialization::simple_archive<FinalChildT, bSavingArchive> {
 	protected:
-		typedef nntl::serialization::simple_archive<FinalChildT, bSavingArchive> base_archive_t;		
+		typedef nntl::serialization::simple_archive<FinalChildT, bSavingArchive> base_archive_t;
+		//typedef _matfile_base<ErrorsClassT> base_matfile_t;
 
 		template<typename BaseT>
 		using type2id = nntl::utils::matlab::type2id<BaseT>;		
@@ -256,8 +334,28 @@ namespace nntl_supp {
 		~_matfile()noexcept {}
 		_matfile() {}
 
-		using base_archive_t::operator <<;
-		using base_archive_t::operator >>;
+		//using base_archive_t::operator <<;
+		//using base_archive_t::operator >>;
+
+		//////////////////////////////////////////////////////////////////////////
+		template<bool b = bSavingArchive>
+		std::enable_if_t<b, ErrorCode> open(const char* fname, FileOpenMode fom = FileOpenMode::WriteDelete)noexcept {
+			if (FileOpenMode::Read == fom) return _set_last_error(ErrorCode::InvalidOpenMode);
+			return _open(fname, fom);
+		}
+		template<bool b = bSavingArchive>
+		std::enable_if_t<b, ErrorCode> open(const std::string& fname, FileOpenMode fom = FileOpenMode::WriteDelete)noexcept {
+			return open(fname.c_str(), fom);
+		}
+		template<bool b = bSavingArchive>
+		std::enable_if_t<!b, ErrorCode> open(const char* fname, FileOpenMode fom = FileOpenMode::Read)noexcept {
+			if (FileOpenMode::WriteDelete == fom) return _set_last_error(ErrorCode::InvalidOpenMode);
+			return _open(fname, fom);
+		}
+		template<bool b = bSavingArchive>
+		std::enable_if_t<!b, ErrorCode> open(const std::string& fname, FileOpenMode fom = FileOpenMode::Read)noexcept {
+			return open(fname.c_str(), fom);
+		}
 
 		//////////////////////////////////////////////////////////////////////////
 		// common operators
@@ -347,7 +445,7 @@ namespace nntl_supp {
 							m_structureStack.pop();
 						} else  ec = ErrorCode::WrongVariableTypeHasBeenRead;
 						_free_loaded_var(pNewStruct);
-					}
+					}//else error has been set by _load_var
 				}
 			} else ec = ErrorCode::NoFileOpened;
 			if (ErrorCode::Success != ec) _set_last_error(ec);
@@ -459,25 +557,171 @@ namespace nntl_supp {
 		}
 	};
 
-	template<typename SerializationOptionsEnumT = serialization::CommonOptions>
-	class omatfile final : public _matfile<omatfile<SerializationOptionsEnumT>,true>, public nntl::utils::binary_options<SerializationOptionsEnumT>{
+	//////////////////////////////////////////////////////////////////////////
+	//extended API for saving archive. It is required for inspectors::dumper only at this moment
+	template<typename FinalChildT, typename ErrorsClassT = _matfile_errs>
+	class _matfile_savingEx : public _matfile<FinalChildT, true, ErrorsClassT> {
+	private:
+		typedef _matfile<FinalChildT, true, ErrorsClassT> _base_class;
+
+	protected:
+		//typedefs necessary for breaking nested calls to save_struct_begin()/save_struct_end() into parallel calls
+		typedef std::pair<const std::string, mxArray*const> nested_structs_info_t;
+		typedef stack_presized<nested_structs_info_t, 4> nested_structs_stack_t;
+
+	protected:
+		nested_structs_stack_t m_nestedStructs;
+
+
 	public:
-		typedef _matfile<omatfile<SerializationOptionsEnumT>, true> base_archive_t;
-		using base_archive_t::operator <<;
-		using base_archive_t::operator&;
+		~_matfile_savingEx()noexcept{
+			close();
+		}
+		_matfile_savingEx()noexcept{}
+
+		ErrorCode close()noexcept {
+			//The code doesn't guarantee a correct cleanup, because it depends on where an error occured
+			NNTL_ASSERT(!m_nestedStructs.size());
+			NNTL_ASSERT(!m_curVarName);
+			NNTL_ASSERT(!m_structureStack.size());
+
+			ErrorCode ec = ErrorCode::Success;
+			if (m_nestedStructs.size()) {
+				ec = ErrorCode::WrongStateManualStructUnsaved;
+				const auto s = m_nestedStructs.size();
+				if (m_structureStack.size()) {
+					for (size_t i = 0; i < s; ++i)  m_nestedStructs.pop();
+				} else {
+					for (size_t i = 0; i < s; ++i) {
+						const auto& t = m_nestedStructs.top();
+						if (t.second) mxDestroyArray(t.second);
+						m_nestedStructs.pop();
+					}
+				}
+			}
+			const auto ec2 = _base_class::close();
+			return ec == ErrorCode::Success ? ec2 : _set_last_error(ec);
+		}
+
+		//MUST be accompanied by save_struct_end(). Permits nested calls for a different structures
+		// If the bUpdateIfExist is specified, then tries to load the struct from file first
+		// If the bDontNest is specified, then the new struct will be created on the same level of nesting as the
+		//		parental struct (the one, that is already presents on the top of m_structureStack)
+		ErrorCode save_struct_begin(std::string&& structName, const bool bUpdateIfExist, const bool bDontNest)noexcept {
+			auto ec = ErrorCode::Success;
+			if (m_matFile) {
+				if (m_curVarName) {
+					ec = ErrorCode::WrongState_NameAlreadySet;
+				} else {
+					mxArray* pNewStruct = nullptr;
+					if (bUpdateIfExist) {
+						m_curVarName = structName.c_str();
+						NNTL_ASSERT(m_curVarName);
+						vec_len_t r, c;
+						pNewStruct = _load_var(r, c, true);
+						m_curVarName = nullptr;
+						if (pNewStruct) {
+							if (1 != r || 1 != c) {
+								// ec = ErrorCode::WrongVariableTypeHasBeenRead;
+								_free_loaded_var(pNewStruct);
+								pNewStruct = nullptr;
+							}
+						} else {
+							//error has been set by the _load_var(), therefore overwriting it
+							_set_last_error(ErrorCode::Success);
+						}
+					}
+					if (!pNewStruct) {
+						// create new struct variable and push it into the stack. After that all operations over t.const_value() must add new 
+						// fields to the struct (not add variables to the file). Once done - write the struct to the file and pop the stack.
+						pNewStruct = mxCreateStructMatrix(1, 1, 0, nullptr);
+					}
+					if (pNewStruct) {
+						if (bDontNest && m_structureStack.size()) {
+							//replacing the current top of the stack with the new
+							const auto pCurStruct = m_structureStack.top();
+							m_structureStack.pop();
+							m_nestedStructs.push(std::make_pair(std::forward<std::string>(structName), pCurStruct));
+						} else {
+							//putting the new struct on the top of the stack
+							m_nestedStructs.push(std::make_pair(std::forward<std::string>(structName), nullptr));
+						}
+						m_structureStack.push(pNewStruct);
+					} else ec = ErrorCode::FailedToCreateStructVariable;
+
+				}
+			} else ec = ErrorCode::NoFileOpened;
+			if (ErrorCode::Success != ec) _set_last_error(ec);
+			return ec;
+		}
+		ErrorCode save_struct_end()noexcept {
+			auto ec = ErrorCode::Success;
+			if (m_nestedStructs.size()) {
+				if (m_matFile) {
+					if (m_curVarName) {
+						ec = ErrorCode::WrongState_NameAlreadySet;
+					} else {
+						if (m_structureStack.size() > 0) {
+							//saving current struct
+							auto pNewStruct = m_structureStack.top();
+							NNTL_ASSERT(pNewStruct);
+							m_structureStack.pop();
+							const auto& curStructInfo = m_nestedStructs.top();
+							m_curVarName = curStructInfo.first.c_str();
+							ec = _save_to_file_or_struct(pNewStruct);
+							NNTL_ASSERT(m_curVarName == nullptr);
+
+							//if (bFree) _free_loaded_var(pNewStruct);
+							//memory is freed by _save_to_file_or_struct() (either directly by calling to mxDestroyArray()
+							// or indirectly by storing pNewStruct as a field of an enclosing struct)
+							
+							//restoring previously created struct
+							if (curStructInfo.second) {
+								m_structureStack.push(curStructInfo.second);
+							}
+							m_nestedStructs.pop();
+						} else ec = ErrorCode::WrongState_NoStructAllocated;
+					}
+				} else ec = ErrorCode::NoFileOpened;
+			} else ec = ErrorCode::NoStructToSave;
+			if (ErrorCode::Success != ec) _set_last_error(ec);
+			return ec;
+		}
+	};
+
+	template<typename SerializationOptionsEnumT = serialization::CommonOptions>
+	class omatfile final 
+		: public _matfile<omatfile<SerializationOptionsEnumT>,true, _matfile_errs>
+		, public nntl::utils::binary_options<SerializationOptionsEnumT>
+	{
+	public:
 		~omatfile()  {}
 		omatfile() {
 			turn_on_all_options();
 		}
-
 	};
 
 	template<typename SerializationOptionsEnumT = serialization::CommonOptions>
-	class imatfile final : public _matfile<imatfile<SerializationOptionsEnumT>, false>, public nntl::utils::binary_options<SerializationOptionsEnumT> {
+	class omatfileEx final
+		: public _matfile_savingEx<omatfileEx<SerializationOptionsEnumT>, _matfile_errs>
+		, public nntl::utils::binary_options<SerializationOptionsEnumT>
+	{
+	public:
+		~omatfileEx() {}
+		omatfileEx() {
+			turn_on_all_options();
+		}
+	};
+
+	template<typename SerializationOptionsEnumT = serialization::CommonOptions>
+	class imatfile final 
+		: public _matfile<imatfile<SerializationOptionsEnumT>, false, _matfile_errs>
+		, public nntl::utils::binary_options<SerializationOptionsEnumT>
+	{
 	public:
 		typedef _matfile<imatfile<SerializationOptionsEnumT>, false> base_archive_t;
-		using base_archive_t::operator >>;
-		using base_archive_t::operator&;
+		//using base_archive_t::operator >>;
+		//using base_archive_t::operator&;
 		~imatfile() {}
 		imatfile() {
 			turn_on_all_options();

@@ -40,7 +40,7 @@ namespace inspector {
 	class stdcout : public _impl::_base<RealT>{
 	public:
 		typedef std::vector<std::string> layer_names_t;
-		typedef stdcout<real_t> self_t;
+		typedef stdcout<real_t, maxNnetDepth> self_t;
 
 	protected:
 		typedef _impl::layer_idx_keeper<layer_index_t, _NoLayerIdxSpecified, maxNnetDepth> keeper_t;
@@ -53,6 +53,14 @@ namespace inspector {
 		//layer_index_t m_curLayer;
 		keeper_t m_curLayer;
 
+		static constexpr char* _noLayerName = "[NoName]";
+
+	protected:
+		const char*const _layer_name(const layer_index_t lIdx)const noexcept {
+			const auto _li = lIdx == _NoLayerIdxSpecified ? m_curLayer : lIdx;
+			return _li < m_layersCount ? m_layerNames[_li].c_str() : _noLayerName;
+		}
+
 	public:
 		~stdcout()noexcept {}
 		stdcout()noexcept : m_epochIdx(-1), m_batchIdx(-1), m_epochCount(0), m_layersCount(0), m_batchCount(0){}
@@ -62,19 +70,13 @@ namespace inspector {
 		template<typename VarT> std::enable_if_t<!std::is_base_of<realmtx_t, VarT>::value>
 		inspect(const VarT& v, const char*const pVarName = nullptr, const layer_index_t lIdx = _NoLayerIdxSpecified)const noexcept
 		{
-			const auto _li = lIdx == _NoLayerIdxSpecified ? m_curLayer : lIdx;
-			if (_li < m_layersCount) {
-				STDCOUT(m_layerNames[_li]);
-			} else STDCOUT("[OutOfALayer]");
+			STDCOUT(_layer_name(lIdx));
 			STDCOUTL("@" << m_epochIdx << "#" << m_batchIdx << " var \'" << (pVarName ? pVarName : "unk") << "\' = " << v);
 		}
 		template<typename VarT> std::enable_if_t<std::is_base_of<realmtx_t, VarT>::value>
 		inspect(const VarT& v, const char*const pVarName = nullptr, const layer_index_t lIdx = _NoLayerIdxSpecified)const noexcept
 		{
-			const auto _li = lIdx == _NoLayerIdxSpecified ? m_curLayer : lIdx;
-			if (_li < m_layersCount) {
-				STDCOUT(m_layerNames[_li]);
-			} else STDCOUT("[OutOfALayer]");
+			STDCOUT(_layer_name(lIdx));
 			STDCOUTL("@" << m_epochIdx << "#" << m_batchIdx << " mtx \'" << (pVarName ? pVarName : "unk") << "\' size = [" << v.rows() << "," << v.cols() << "]");
 		}
 

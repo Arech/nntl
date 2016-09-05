@@ -83,8 +83,7 @@ TEST(TestLayerPackHorizontal, Simple) {
 
 	auto Blp = make_layers(Binp, lpHor, Boutp);
 
-	nnet_cond_epoch_eval Bcee(epochs);
-	nnet_train_opts<decltype(Bcee)> Bopts(std::move(Bcee));
+	nnet_train_opts<> Bopts(epochs);
 	Bopts.calcFullLossValue(true).batchSize(100).ImmediatelyDeinit(false);
 
 
@@ -114,7 +113,7 @@ void __test_same_layers(train_data<real_t>& td, uint64_t rngSeed) {
 
 	auto Alp = make_layers(Ainp, Aund, Aint, Aout);
 
-	nnet_cond_epoch_eval Acee(epochs);
+	vector_conditions Acee(epochs);
 	nnet_train_opts<decltype(Acee)> Aopts(std::move(Acee));
 	Aopts.calcFullLossValue(true).batchSize(100).ImmediatelyDeinit(false);
 
@@ -140,7 +139,7 @@ void __test_same_layers(train_data<real_t>& td, uint64_t rngSeed) {
 	
 	auto Blp = make_layers(Binp, Bund, lpHor, Bout);
 
-	nnet_cond_epoch_eval Bcee(epochs);
+	vector_conditions Bcee(epochs);
 	nnet_train_opts<decltype(Bcee)> Bopts(std::move(Bcee));
 	Bopts.calcFullLossValue(true).batchSize(100).ImmediatelyDeinit(false);
 

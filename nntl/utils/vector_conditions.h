@@ -36,9 +36,9 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 namespace nntl {
 
 	//this is to define some flags for each epoch (currently it is whether to launch nn evaluation after an epoch or not)
-	class nnet_cond_epoch_eval {
+	class vector_conditions {
 	public:
-		typedef nnet_cond_epoch_eval self_t;
+		typedef vector_conditions self_t;
 
 		//////////////////////////////////////////////////////////////////////////
 		//members
@@ -47,27 +47,36 @@ namespace nntl {
 		std::vector<bool> m_flgEvalPerf;
 
 	public:
-		~nnet_cond_epoch_eval()noexcept {}
-		nnet_cond_epoch_eval(size_t maxEpoch)noexcept:m_flgEvalPerf(maxEpoch, true) {
+		~vector_conditions()noexcept {}
+		vector_conditions()noexcept {}
+		vector_conditions(size_t maxEpoch, const bool& defVal=true)noexcept:m_flgEvalPerf(maxEpoch, defVal) {
 			NNTL_ASSERT(maxEpoch > 0);
 		}
-		nnet_cond_epoch_eval(size_t maxEpoch,size_t stride)noexcept : m_flgEvalPerf(maxEpoch, false) {
+		vector_conditions(size_t maxEpoch,size_t stride)noexcept : m_flgEvalPerf(maxEpoch, false) {
 			NNTL_ASSERT(maxEpoch > 0);
 			verbose(stride+1, maxEpoch, stride);
 			verbose(maxEpoch - 1);
 		}
-		nnet_cond_epoch_eval(size_t maxEpoch, size_t startsAt, size_t stride)noexcept : m_flgEvalPerf(maxEpoch, false) {
+		vector_conditions(size_t maxEpoch, size_t startsAt, size_t stride)noexcept : m_flgEvalPerf(maxEpoch, false) {
 			NNTL_ASSERT(maxEpoch > 0 && startsAt<=maxEpoch);
 			verbose(startsAt, maxEpoch, stride);
 			verbose(maxEpoch - 1);
 		}
-		nnet_cond_epoch_eval(nnet_cond_epoch_eval&& src)noexcept : m_flgEvalPerf(std::move(src.m_flgEvalPerf)) {}
+		vector_conditions(vector_conditions&& src)noexcept : m_flgEvalPerf(std::move(src.m_flgEvalPerf)) {}
 
 		//!! copy constructor not needed
-		nnet_cond_epoch_eval(const nnet_cond_epoch_eval& other)noexcept = delete;
+		vector_conditions(const vector_conditions& other)noexcept = delete;
 		//!!assignment is not needed
-		nnet_cond_epoch_eval& operator=(const nnet_cond_epoch_eval& rhs) noexcept = delete;
+		vector_conditions& operator=(const vector_conditions& rhs) noexcept = delete;
 
+		self_t& resize(size_t maxEpoch, const bool& defVal = false)noexcept {
+			m_flgEvalPerf.resize(maxEpoch, defVal);
+			return *this;
+		}
+		self_t& clear()noexcept {
+			m_flgEvalPerf.clear();
+			return *this;
+		}
 
 		size_t maxEpoch()const noexcept { return m_flgEvalPerf.size(); }
 

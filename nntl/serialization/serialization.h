@@ -59,7 +59,7 @@ namespace serialization {
 	using nvp = ::boost::serialization::nvp<T>;
 
 	template<class T>
-	inline nvp< T > make_nvp(const char * name, T & t) {
+	inline constexpr nvp< T > make_nvp(const char * name, T & t) {
 		return nvp< T >(name, t);
 	}
 #define NNTL_SERIALIZATION_NVP(v) ::nntl::serialization::make_nvp( NNTL_STRINGIZE(v), v )
@@ -75,7 +75,7 @@ namespace serialization {
 	};
 
 	template<class T>
-	inline named_struct< T > make_named_struct(const char * name, T & t) {
+	inline constexpr named_struct< T > make_named_struct(const char * name, T & t) {
 		return named_struct< T >(name, t);
 	}
 #define NNTL_SERIALIZATION_STRUCT(v) ::nntl::serialization::make_named_struct( NNTL_STRINGIZE(v), v )
@@ -91,15 +91,21 @@ namespace serialization {
 	//using serialize_base_class = ::boost::serialization::template base_object<Base, Derived>; //??
 
 	//////////////////////////////////////////////////////////////////////////
-	// Saving Archive concept base class
+	// Saving/Loading Archive concept base class
 	template<typename FinalChildT, bool bSavingArchive>
 	class simple_archive {
 	public:
 		typedef FinalChildT self_t;
 		typedef self_t& self_ref_t;
 
-		self_ref_t get_self()noexcept { return static_cast<self_ref_t>(*this); }
-		const self_ref_t get_self()const noexcept { return static_cast<const self_ref_t>(*this); }
+		self_ref_t get_self()noexcept { 
+			static_assert(std::is_base_of<simple_archive, FinalChildT>::value, "FinalChildT must inherit from simple_archive");
+			return static_cast<self_ref_t>(*this);
+		}
+		const self_ref_t get_self()const noexcept { 
+			static_assert(std::is_base_of<simple_archive, FinalChildT>::value, "FinalChildT must inherit from simple_archive");
+			return static_cast<const self_ref_t>(*this);
+		}
 
 		~simple_archive()noexcept {}
 		simple_archive() noexcept {}
@@ -138,5 +144,18 @@ namespace serialization {
 			return get_self() >> t;
 		}
 	};
+
+	//////////////////////////////////////////////////////////////////////////
+	// additional interface that must be implemented by any nntl-friendly archive class
+	/*class _i_nntl_archive {
+	public:
+		nntl_interface auto open(const char* fname, unsigned mode)noexcept;
+		//nntl_interface auto openForLoad(const char* fname)noexcept;
+
+		nntl_interface auto close()noexcept;
+
+		nntl_interface auto save_struct_begin()noexcept;
+		nntl_interface auto save_struct_end(const char* pStructName)noexcept;
+	};*/
 }
 }

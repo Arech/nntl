@@ -48,6 +48,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 namespace nntl {
 namespace inspector {
 
+	// interface is nowhere near a stable state, so expect changes.
 	template<typename RealT>
 	class _i_inspector : public math::smatrix_td {
 		//!! copy constructor not needed
@@ -87,10 +88,11 @@ namespace inspector {
 		nntl_interface void init_layer(const layer_index_t lIdx, StrT&& LayerName)const noexcept;
 
 		nntl_interface void train_epochBegin(const size_t epochIdx)const noexcept;
-		nntl_interface void train_epochEnd(const size_t epochIdx)const noexcept;
+		nntl_interface void train_epochEnd()const noexcept;
 
+		//train_batch* functions are called during learning process only
 		nntl_interface void train_batchBegin(const vec_len_t batchIdx)const noexcept;
-		nntl_interface void train_batchEnd(const vec_len_t batchIdx)const noexcept;
+		nntl_interface void train_batchEnd()const noexcept;
 
 		//////////////////////////////////////////////////////////////////////////
 		// FPROP
@@ -114,6 +116,15 @@ namespace inspector {
 		//all calls between the following pair are guaranteed to be initiated be the same layer, however, nested calls are possible
 		nntl_interface void bprop_begin(const layer_index_t lIdx, const realmtx_t& dLdA) const noexcept;
 		nntl_interface void bprop_end(const realmtx_t& dLdAPrev) const noexcept;
+
+		nntl_interface void bprop_preCancelDropout(const realmtx_t& Act, const real_t dpa) const noexcept;
+		nntl_interface void bprop_postCancelDropout(const realmtx_t& Act) const noexcept;
+		
+		nntl_interface void bprop_predLdZOut(const realmtx_t& Act, const realmtx_t& data_y) const noexcept;
+
+		nntl_interface void bprop_predAdZ(const realmtx_t& Act) const noexcept;
+		nntl_interface void bprop_predLdZ(const realmtx_t& dLdA, const realmtx_t& dAdZ) const noexcept;
+		nntl_interface void bprop_postdLdZ(const realmtx_t& dLdZ) const noexcept;
 
 		nntl_interface void apply_grad_raw(const realmtx_t& W, const realmtx_t& dLdW)const noexcept;
 		nntl_interface void apply_grad_update(const realmtx_t& W, const realmtx_t& WUpd)const noexcept;
@@ -146,30 +157,38 @@ namespace inspector {
 			void init_layer(const layer_index_t lIdx, StrT&& LayerName)const noexcept {};
 
 			void train_epochBegin(const size_t epochIdx)const noexcept {}
-			void train_epochEnd(const size_t epochIdx)const noexcept {}
+			void train_epochEnd()const noexcept {}
 
 			void train_batchBegin(const vec_len_t batchIdx)const noexcept {}
-			void train_batchEnd(const vec_len_t batchIdx)const noexcept {}
+			void train_batchEnd()const noexcept {}
 
 			//////////////////////////////////////////////////////////////////////////
 			// FPROP
 			void fprop_begin(const layer_index_t lIdx, const realmtx_t& prevAct, const bool bTrainingMode) const noexcept {}
 			void fprop_end(const realmtx_t& Act) const noexcept {}
 
-			void fprop_preNesterovMomentum(const realmtx_t& vW, const real_t momentum, const realmtx_t& W)const noexcept{}
-			void fprop_postNesterovMomentum(const realmtx_t& vW, const realmtx_t& W)const noexcept{}
+			void fprop_preNesterovMomentum(const realmtx_t& vW, const real_t momentum, const realmtx_t& W)const noexcept {}
+			void fprop_postNesterovMomentum(const realmtx_t& vW, const realmtx_t& W)const noexcept {}
 
-			void fprop_makePreActivations(const realmtx_t& W, const realmtx_t& prevAct)const noexcept{}
-			void fprop_preactivations(const realmtx_t& Z)const noexcept{}
-			void fprop_activations(const realmtx_t& Act)const noexcept{}
+			void fprop_makePreActivations(const realmtx_t& W, const realmtx_t& prevAct)const noexcept {}
+			void fprop_preactivations(const realmtx_t& Z)const noexcept {}
+			void fprop_activations(const realmtx_t& Act)const noexcept {}
 
-			void fprop_preDropout(const realmtx_t& Act, const real_t dpa, const realmtx_t& dropoutMaskSrc)const noexcept{}
-			void fprop_postDropout(const realmtx_t& Act, const realmtx_t& dropoutMask)const noexcept{}
+			void fprop_preDropout(const realmtx_t& Act, const real_t dpa, const realmtx_t& dropoutMaskSrc)const noexcept {}
+			void fprop_postDropout(const realmtx_t& Act, const realmtx_t& dropoutMask)const noexcept {}
 
 			//////////////////////////////////////////////////////////////////////////
 			//BPROP
 			void bprop_begin(const layer_index_t lIdx, const realmtx_t& dLdA) const noexcept {}
 			void bprop_end(const realmtx_t& dLdAPrev) const noexcept {}
+
+			void bprop_preCancelDropout(const realmtx_t& Act, const real_t dpa) const noexcept {}
+			void bprop_postCancelDropout(const realmtx_t& Act) const noexcept {}
+
+			void bprop_predLdZOut(const realmtx_t& Act, const realmtx_t& data_y) const noexcept{}
+			void bprop_predAdZ(const realmtx_t& Act) const noexcept{}
+			void bprop_predLdZ(const realmtx_t& dLdA, const realmtx_t& dAdZ) const noexcept{}
+			void bprop_postdLdZ(const realmtx_t& dLdZ) const noexcept{}
 
 			void apply_grad_raw(const realmtx_t& W, const realmtx_t& dLdW)const noexcept {}
 			void apply_grad_update(const realmtx_t& W, const realmtx_t& WUpd)const noexcept{}

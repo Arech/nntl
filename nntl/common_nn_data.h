@@ -194,23 +194,29 @@ namespace _impl {
 	private:
 		void _make_Inspector(iInspect_t* pI)noexcept {
 			NNTL_ASSERT(pI);
+			NNTL_ASSERT(!bOwnInspect);
 			m_pInspect = pI;
 		}
 		void _make_Inspector(std::nullptr_t pI)noexcept {
+			NNTL_ASSERT(bOwnInspect);
 			m_pInspect = new(std::nothrow) iInspect_t;
 		}
 		void _make_Math(iMath_t* pM)noexcept {
+			NNTL_ASSERT(!bOwnMath);
 			NNTL_ASSERT(pM);
 			m_pMath = pM;
 		}
 		void _make_Math(std::nullptr_t pM)noexcept {
+			NNTL_ASSERT(bOwnMath);
 			m_pMath = new(std::nothrow) iMath_t;
 		}
 		void _make_Rng(iRng_t* pR)noexcept {
+			NNTL_ASSERT(!bOwnRng);
 			NNTL_ASSERT(pR);
 			m_pRng = pR;
 		}
 		void _make_Rng(std::nullptr_t pR)noexcept {
+			NNTL_ASSERT(bOwnRng);
 			m_pRng = new(std::nothrow) iRng_t;
 		}
 
@@ -219,6 +225,9 @@ namespace _impl {
 			if (bOwnMath) delete m_pMath;
 			if (bOwnRng) delete m_pRng;
 			if (bOwnInspect) delete m_pInspect;
+			m_pMath = nullptr;
+			m_pRng = nullptr;
+			m_pInspect = nullptr;
 		}
 
 		template<typename PInspT = std::nullptr_t, typename PMathT = std::nullptr_t, typename PRngT = std::nullptr_t>

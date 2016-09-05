@@ -460,11 +460,11 @@ namespace nntl {
 	template <typename ..._T>
 	using layer_pack_horizontal = typename LPH<_T...>;
 
-	template <typename ...PHLsT> inline
+	template <typename ...PHLsT> inline constexpr
 	LPH <PHLsT...> make_layer_pack_horizontal(PHLsT&... phls) noexcept {
 		return LPH<PHLsT...>(phls...);
 	}
-	template <typename ...PHLsT> inline
+	template <typename ...PHLsT> inline constexpr
 		LPH <PHLsT...> make_layer_pack_horizontal(const char* pCustomName, PHLsT&... phls) noexcept {
 		return LPH<PHLsT...>(pCustomName, phls...);
 	}

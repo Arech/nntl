@@ -34,12 +34,9 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include "stdafx.h"
 
-#include "../nntl/math.h"
 #include "../nntl/nntl.h"
 #include "../nntl/_supp/io/binfile.h"
 #include "../nntl/_supp/io/matfile.h"
-
-#include "../nntl/interface/inspectors/stdcout.h"
 
 #include "asserts.h"
 #include "common_routines.h"
@@ -63,47 +60,6 @@ typedef nntl_supp::binfile reader_t;
 //////////////////////////////////////////////////////////////////////////
 
 
-TEST(TestNnet, Inspectors) {
-	train_data<real_t> td;
-	readTd(td, MNIST_FILE_DEBUG);
-
-	size_t epochs = 2, seedVal=0;
-	const real_t learningRate = real_t(.01), dropoutRate= real_t(1.);
-
-	//redefining InterfacesT
-	typedef inspector::stdcout<real_t> myInspector;
-	//typedef inspector::dummy<real_t> myInspector;
-	struct myIntf : public d_int_nI {
-		typedef myInspector iInspect_t;
-	};
-	//and related layer's template params
-	typedef grad_works<myIntf> myGW;
-	typedef activation::sigm<real_t, weights_init::XavierFour> myAct;
-	typedef activation::sigm_quad_loss<real_t, weights_init::XavierFour> myActO;
-
-	//instantiating layer objects
-	layer_input<myIntf> Ainp(td.train_x().cols_no_bias(),"Source");
-	layer_fully_connected<myAct, myGW> Aifcl1(20, learningRate, dropoutRate, "First");
-	layer_fully_connected<myAct, myGW> Aifcl2(15, learningRate, dropoutRate, "Second");
-	layer_output<myActO, myGW> Aoutp(td.train_y().cols(), learningRate, "Predictor");
-
-	auto Alp = make_layers(Ainp, Aifcl1, Aifcl2, Aoutp);
-
-	nnet_cond_epoch_eval Acee(epochs);
-	nnet_train_opts<decltype(Acee)> Aopts(std::move(Acee));
-	Aopts.calcFullLossValue(false).batchSize(100);
-
-	//instantiating inspector (though, could let nnet spawn it by itself)
-	//myInspector Insp(1);
-	//auto Ann = make_nnet(Alp, Insp);
-	auto Ann = make_nnet(Alp);
-	Ann.get_iRng().seed64(seedVal);
-	
-	auto ec = Ann.train(td, Aopts);
-
-	ASSERT_EQ(decltype(Ann)::ErrorCode::Success, ec) << "Error code description: " << Ann.get_last_error_string();
-
-}
 
 //////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////
@@ -123,8 +79,7 @@ void test_LayerPackVertical1(train_data<real_t>& td, uint64_t rngSeed)noexcept {
 
 	auto Alp = make_layers(Ainp, Aifcl1, Aifcl2, Aoutp);
 
-	nnet_cond_epoch_eval Acee(epochs);
-	nnet_train_opts<decltype(Acee)> Aopts(std::move(Acee));
+	nnet_train_opts<> Aopts(epochs);
 	Aopts.calcFullLossValue(true).batchSize(100).ImmediatelyDeinit(false);
 
 	auto Ann = make_nnet(Alp);
@@ -143,8 +98,7 @@ void test_LayerPackVertical1(train_data<real_t>& td, uint64_t rngSeed)noexcept {
 
 	auto Blp = make_layers(Binp, BlpVert, Boutp);
 
-	nnet_cond_epoch_eval Bcee(epochs);
-	nnet_train_opts<decltype(Bcee)> Bopts(std::move(Bcee));
+	nnet_train_opts<> Bopts(epochs);
 	Bopts.calcFullLossValue(true).batchSize(100).ImmediatelyDeinit(false);
 
 	auto Bnn = make_nnet(Blp);
@@ -171,8 +125,7 @@ void test_LayerPackVertical2(train_data<real_t>& td, uint64_t rngSeed)noexcept {
 
 	auto Alp = make_layers(Ainp, Aifcl1, Aifcl2, Aifcl3, Aoutp);
 
-	nnet_cond_epoch_eval Acee(epochs);
-	nnet_train_opts<decltype(Acee)> Aopts(std::move(Acee));
+	nnet_train_opts<> Aopts(epochs);
 	Aopts.calcFullLossValue(true).batchSize(100).ImmediatelyDeinit(false);
 
 	auto Ann = make_nnet(Alp);
@@ -192,8 +145,7 @@ void test_LayerPackVertical2(train_data<real_t>& td, uint64_t rngSeed)noexcept {
 
 	auto Blp = make_layers(Binp, BlpVert, Boutp);
 
-	nnet_cond_epoch_eval Bcee(epochs);
-	nnet_train_opts<decltype(Bcee)> Bopts(std::move(Bcee));
+	nnet_train_opts<> Bopts(epochs);
 	Bopts.calcFullLossValue(true).batchSize(100).ImmediatelyDeinit(false);
 
 	auto Bnn = make_nnet(Blp);
@@ -221,8 +173,7 @@ void test_LayerPackVertical3(train_data<real_t>& td, uint64_t rngSeed)noexcept {
 
 	auto Alp = make_layers(Ainp, Afcl1, Aifcl2, Aifcl3, Aoutp);
 
-	nnet_cond_epoch_eval Acee(epochs);
-	nnet_train_opts<decltype(Acee)> Aopts(std::move(Acee));
+	nnet_train_opts<> Aopts(epochs);
 	Aopts.calcFullLossValue(true).batchSize(100).ImmediatelyDeinit(false);
 
 	auto Ann = make_nnet(Alp);
@@ -242,8 +193,7 @@ void test_LayerPackVertical3(train_data<real_t>& td, uint64_t rngSeed)noexcept {
 
 	auto Blp = make_layers(Binp, Bfcl1, BlpVert, Boutp);
 
-	nnet_cond_epoch_eval Bcee(epochs);
-	nnet_train_opts<decltype(Bcee)> Bopts(std::move(Bcee));
+	nnet_train_opts<> Bopts(epochs);
 	Bopts.calcFullLossValue(true).batchSize(100).ImmediatelyDeinit(false);
 
 	auto Bnn = make_nnet(Blp);
@@ -272,8 +222,7 @@ void test_LayerPackVertical4(train_data<real_t>& td, uint64_t rngSeed)noexcept {
 
 	auto Alp = make_layers(Ainp, Afcl1, Aifcl2, Aifcl3, Aifcl4, Aoutp);
 
-	nnet_cond_epoch_eval Acee(epochs);
-	nnet_train_opts<decltype(Acee)> Aopts(std::move(Acee));
+	nnet_train_opts<> Aopts(epochs);
 	Aopts.calcFullLossValue(true).batchSize(100).ImmediatelyDeinit(false);
 
 	auto Ann = make_nnet(Alp);
@@ -294,8 +243,7 @@ void test_LayerPackVertical4(train_data<real_t>& td, uint64_t rngSeed)noexcept {
 
 	auto Blp = make_layers(Binp, Bfcl1, BlpVert, Boutp);
 
-	nnet_cond_epoch_eval Bcee(epochs);
-	nnet_train_opts<decltype(Bcee)> Bopts(std::move(Bcee));
+	nnet_train_opts<> Bopts(epochs);
 	Bopts.calcFullLossValue(true).batchSize(100).ImmediatelyDeinit(false);
 
 	auto Bnn = make_nnet(Blp);
@@ -360,8 +308,7 @@ void testL2L1(const bool bL2, train_data<real_t>& td, const real_t coeff, uint64
 
 	auto lp = make_layers(inp, fcl, fcl2, outp);
 
-	nnet_cond_epoch_eval cee(epochs);
-	nnet_train_opts<decltype(cee)> opts(std::move(cee));
+	nnet_train_opts<> opts(epochs);
 	opts.calcFullLossValue(true).batchSize(100);
 
 	auto nn = make_nnet(lp);
@@ -374,7 +321,7 @@ void testL2L1(const bool bL2, train_data<real_t>& td, const real_t coeff, uint64
 	if (pDumpFileName) {
 		nntl_supp::omatfile<> mf;
 		mf.turn_on_all_options();
-		mf.openForSave(std::string(pDumpFileName));
+		mf.open(std::string(pDumpFileName));
 		mf << serialization::make_nvp("outpW", outp.get_weights());
 		mf << serialization::make_nvp("fcl2W", fcl2.get_weights());
 		mf << serialization::make_nvp("fclW", fcl.get_weights());

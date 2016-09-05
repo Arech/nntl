@@ -335,14 +335,18 @@ namespace nntl {
 			if (bUseDropout) {
 				//we must undo the scaling step from inverted dropout in order to obtain correct activation values
 				//That is must be done as a basis to obtain correct dL/dA
+				iI.bprop_preCancelDropout(m_activations, m_dropoutPercentActive);
 				_Math.evMulC_ip_Anb(m_activations, m_dropoutPercentActive);
+				iI.bprop_postCancelDropout(m_activations);
 			}
 			
 			//computing dA/dZ(no_bias)
+			iI.bprop_predAdZ(m_activations);
 			activation_f_t::df(m_activations, m_dAdZ_dLdZ, _Math);
-
+			iI.bprop_predLdZ(dLdA, m_dAdZ_dLdZ);
 			//compute dL/dZ=dL/dA.*dA/dZ into dA/dZ
 			_Math.evMul_ip(m_dAdZ_dLdZ, dLdA);
+			iI.bprop_postdLdZ(m_dAdZ_dLdZ);
 
 			if (bUseDropout) {
 				//we must cancel activations that was dropped out by the mask (should they've been restored by activation_f_t::df())

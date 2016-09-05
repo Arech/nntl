@@ -262,7 +262,10 @@ namespace nntl {
 			auto& _Math = get_self().get_iMath();
 
 			//compute dL/dZ
+			iI.bprop_predLdZOut(m_activations, data_y);
 			activation_f_t::dLdZ(m_activations, data_y, m_dLdZ, _Math);
+			iI.bprop_postdLdZ(m_dLdZ);
+
 			if (m_bRestrictdLdZ) _Math.evClamp(m_dLdZ, m_dLdZRestrictLowerBnd, m_dLdZRestrictUpperBnd);
 
 			//compute dL/dW = 1/batchsize * (dL/dZ)` * Aprev

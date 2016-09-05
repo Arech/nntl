@@ -184,6 +184,7 @@
     <ClInclude Include="..\nntl\errors.h" />
     <ClInclude Include="..\nntl\grad_works.h" />
     <ClInclude Include="..\nntl\interface\inspectors\dummy.h" />
+    <ClInclude Include="..\nntl\interface\inspectors\dumper.h" />
     <ClInclude Include="..\nntl\interface\inspectors\stdcout.h" />
     <ClInclude Include="..\nntl\interface\math\mathn_mt.h" />
     <ClInclude Include="..\nntl\interface\math\mathn_thr.h" />
@@ -228,7 +229,7 @@
     <ClInclude Include="..\nntl\interfaces.h" />
     <ClInclude Include="..\nntl\nnet_train_opts.h" />
     <ClInclude Include="..\nntl\train_data.h" />
-    <ClInclude Include="..\nntl\nnet_cond_epoch_eval.h" />
+    <ClInclude Include="..\nntl\utils\vector_conditions.h" />
     <ClInclude Include="..\nntl\utils\chrono.h" />
     <ClInclude Include="..\nntl\utils\matlab.h" />
     <ClInclude Include="..\nntl\utils\options.h" />
@@ -266,6 +267,7 @@
     <ClCompile Include="test_binfile.cpp" />
     <ClCompile Include="test_imath_basic.cpp" />
     <ClCompile Include="test_imath_basic_thr.cpp" />
+    <ClCompile Include="test_inspectors.cpp" />
     <ClCompile Include="test_layer_pack_gated.cpp" />
     <ClCompile Include="test_layer_pack_horizontal.cpp" />
     <ClCompile Include="test_layer_pack_horizontal_gated.cpp" />

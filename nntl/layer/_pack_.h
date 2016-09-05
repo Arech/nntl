@@ -64,7 +64,7 @@ namespace nntl {
 			:l(_l), m_offset(o), m_count(c)
 		{ }
 	};
-	template<typename LayerT> inline
+	template<typename LayerT> inline constexpr
 		PHL<LayerT> make_PHL(LayerT& l, const neurons_count_t o, const neurons_count_t c)noexcept
 	{
 		return PHL<LayerT>(l, o, c);

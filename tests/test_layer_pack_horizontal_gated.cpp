@@ -97,8 +97,7 @@ void comparative_gated(train_data<real_t>& td, const vec_len_t gateIdx, nnet_td_
 		m(l);
 	});
 
-	nnet_cond_epoch_eval cee(commonInfoT::epochs);
-	nnet_train_opts<decltype(cee)> opts(std::move(cee));
+	nnet_train_opts<> opts(commonInfoT::epochs);
 	opts.batchSize(commonInfoT::batchSize).NNEvalFinalResults(res); //ImmediatelyDeinit(false);
 
 	auto nn = make_nnet(lp);
@@ -167,8 +166,7 @@ void comparative_horzgated(train_data<real_t>& td, const vec_len_t gateIdx, nnet
 		m(l);
 	});
 
-	nnet_cond_epoch_eval cee(commonInfoT::epochs);
-	nnet_train_opts<decltype(cee)> opts(std::move(cee));
+	nnet_train_opts<> opts(commonInfoT::epochs);
 	opts.batchSize(commonInfoT::batchSize).NNEvalFinalResults(res); //.ImmediatelyDeinit(false);
 
 	auto nn = make_nnet(lp);
@@ -313,8 +311,7 @@ void comparative_multi_gated(train_data<real_t>& td, const vec_len_t gateIdx, co
 		m(l);
 	});
 
-	nnet_cond_epoch_eval cee(commonInfoT::epochs);
-	nnet_train_opts<decltype(cee)> opts(std::move(cee));
+	nnet_train_opts<> opts(commonInfoT::epochs);
 	opts.batchSize(commonInfoT::batchSize).NNEvalFinalResults(res); //ImmediatelyDeinit(false);
 
 	auto nn = make_nnet(lp);
@@ -406,8 +403,7 @@ void comparative_multi_horzgated(train_data<real_t>& td, const vec_len_t gateIdx
 		m(l);
 	});
 
-	nnet_cond_epoch_eval cee(commonInfoT::epochs);
-	nnet_train_opts<decltype(cee)> opts(std::move(cee));
+	nnet_train_opts<> opts(commonInfoT::epochs);
 	opts.batchSize(commonInfoT::batchSize).NNEvalFinalResults(res); //.ImmediatelyDeinit(false);
 
 	auto nn = make_nnet(lp);

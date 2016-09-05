@@ -330,11 +330,11 @@ namespace nntl {
 	template <typename ..._T>
 	using layer_pack_vertical = typename LPV<_T...>;
 
-	template <typename ...Layrs> inline
+	template <typename ...Layrs> inline constexpr
 	LPV <Layrs...> make_layer_pack_vertical(Layrs&... layrs) noexcept {
 		return LPV<Layrs...>(layrs...);
 	}
-	template <typename ...Layrs> inline
+	template <typename ...Layrs> inline constexpr
 	LPV <Layrs...> make_layer_pack_vertical(const char* pCustomName, Layrs&... layrs) noexcept {
 		return LPV<Layrs...>(pCustomName, layrs...);
 	}
