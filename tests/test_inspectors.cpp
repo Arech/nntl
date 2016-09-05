@@ -130,7 +130,7 @@ TEST(TestInspectors, DumperMat) {
 	nnet_train_opts<> opts(epochs);
 	opts.calcFullLossValue(false).batchSize(100);
 
-	myInspector Insp("./test_data", { epochs - 1 });
+	myInspector Insp("./test_data");
 	auto nn = make_nnet(lp, Insp);
 
 	nn.get_iRng().seed64(seedVal);

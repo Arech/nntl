@@ -38,7 +38,37 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 namespace nntl {
 	namespace inspector {
 
-		template<typename FinalChildT, typename RealT, typename ArchiveT, size_t maxNnetDepth = 10>
+		namespace conds {
+			struct EpochNum : public math::smatrix_td {
+				typedef std::vector<size_t> epochs_to_dump_t;
+
+				vector_conditions m_dumpEpochCond;
+				epochs_to_dump_t m_epochsToDump;
+
+				void on_init_nnet(const size_t totalEpochs, const vec_len_t totalBatches)noexcept {
+					NNTL_ASSERT(totalEpochs && totalBatches);
+					if (!m_epochsToDump.size()) m_epochsToDump.push_back(totalEpochs - 1);
+
+					m_dumpEpochCond.clear().resize(totalEpochs, false);
+					for (const auto etd : m_epochsToDump) {
+						if (etd < totalEpochs) m_dumpEpochCond.verbose(etd);
+					}
+				}
+
+				const bool on_train_epochBegin(const size_t epochIdx)const noexcept {
+					return m_dumpEpochCond(epochIdx);
+				}
+				static constexpr bool on_train_batchBegin(const bool _bDoDump, const vec_len_t batchIdx, const size_t epochIdx) noexcept {
+					return _bDoDump && 0 == batchIdx;
+				}
+			};
+
+		}
+
+		
+
+
+		template<typename FinalChildT, typename RealT, typename ArchiveT, typename CondDumpT, size_t maxNnetDepth = 10>
 		class _dumper_base : public _impl::_base<RealT> {
 		public:
 			typedef FinalChildT self_t;
@@ -46,22 +76,23 @@ namespace nntl {
 			typedef const FinalChildT& self_cref_t;
 			typedef FinalChildT* self_ptr_t;
 
-			typedef std::vector<std::string> layer_names_t;
-			typedef std::vector<size_t> vec_epoch_idxs_t;
 			typedef ArchiveT archive_t;
 			typedef typename archive_t::ErrorCode ArchiveError_t;
+
+			typedef CondDumpT cond_dump_t;
+
+			typedef std::vector<std::string> layer_names_t;
 
 		protected:
 			typedef _impl::layer_idx_keeper<layer_index_t, _NoLayerIdxSpecified, maxNnetDepth> keeper_t;
 
 		protected:
-			vector_conditions m_dumpEpochCond;
-
+			cond_dump_t m_condDump;
+			
 			layer_names_t m_layerNames;
-			size_t m_epochCount, m_layersCount, m_epochIdx;
-			vec_len_t m_batchIdx, m_batchCount;
+			size_t m_layersCount, m_epochIdx;
+			vec_len_t m_batchIdx;
 
-			//layer_index_t m_curLayer;
 			keeper_t m_curLayer;
 
 			const char* m_pDirToDump;
@@ -69,14 +100,12 @@ namespace nntl {
 			static constexpr size_t maxFileNameLength = MAX_PATH;
 			static constexpr size_t maxDirNameLength = maxFileNameLength - 10;
 
-			vec_epoch_idxs_t m_epochsToDump;
-
 		private:
 			archive_t* m_pArch;
 			const bool m_bOwnArch;		
 
 		protected:
-			bool m_bDoDump;
+			bool m_bDoDump;//it's 'protected' for some rare special unforeseen cases. Don't access in derived classes, use CondDumpT
 		
 		private:
 			void _make_archive(std::nullptr_t pA)noexcept{
@@ -89,27 +118,31 @@ namespace nntl {
 				m_pArch = pA;
 			}
 
+			void _ctor()noexcept {
+				m_epochIdx = -1;
+				m_batchIdx = -1;
+				m_layersCount = 0;
+				m_bDoDump = false;
+				m_pDirToDump = nullptr;
+			}
+
 		protected:
 			~_dumper_base()noexcept {
 				if (m_bOwnArch) delete m_pArch;
 				m_pArch = nullptr;
 			}
-
-			//This ctor is for type checks that requires DefaultConstructible types only
-			_dumper_base()noexcept {
-				_epic_fail("_dumper_base is not default constructible!");
+			_dumper_base()noexcept : m_bOwnArch(true){
+				_ctor();
+				_make_archive(nullptr);
+				NNTL_ASSERT(m_pArch);
 			}
 
 			template<typename PArchT = std::nullptr_t>
-			_dumper_base(const char* pDirToDump, std::initializer_list<size_t> epochsToDump, PArchT pA=nullptr)noexcept 
-				: m_epochIdx(-1), m_batchIdx(-1), m_epochCount(0), m_layersCount(0), m_batchCount(0)
-				, m_pDirToDump(pDirToDump), m_epochsToDump(epochsToDump), m_bDoDump(false)
-				, m_bOwnArch(!pA)
+			_dumper_base(const char* pDirToDump, PArchT pA=nullptr)noexcept 
+				: m_bOwnArch(!pA)
 			{
-				NNTL_ASSERT(m_pDirToDump);
-				if (strlen(m_pDirToDump) > maxDirNameLength) _epic_fail(NNTL_FUNCTION, ": Too long directory name");
-
-				NNTL_ASSERT(m_epochsToDump.size());
+				_ctor();
+				if (pDirToDump) set_dir_to_dump(pDirToDump);
 				_make_archive(pA);
 				NNTL_ASSERT(m_pArch);
 			}
@@ -162,39 +195,32 @@ namespace nntl {
 				return static_cast<self_cref_t>(*this);
 			}
 
+			self_ref_t set_dir_to_dump(const char* pDirName)noexcept {
+				NNTL_ASSERT(pDirName);
+				m_pDirToDump = pDirName;
+				if (strlen(m_pDirToDump) > maxDirNameLength) _epic_fail(NNTL_FUNCTION, ": Too long directory name");
+				return get_self();
+			}
+
 			const bool bDoDump()const noexcept { return m_bDoDump; }
 			archive_t& getArchive()const noexcept {
 				NNTL_ASSERT(m_pArch);
 				return *m_pArch;
 			}
 
-			void setEpochsToDump(vec_epoch_idxs_t&& epochsToDump)noexcept {
-				m_epochsToDump = std::forward<vec_epoch_idxs_t>(epochsToDump);
-				NNTL_ASSERT(m_epochsToDump.size());
-			}
-
-			void setEpochsToDump(std::initializer_list<size_t> epochsToDump)noexcept {
-				m_epochsToDump = epochsToDump;
-				NNTL_ASSERT(m_epochsToDump.size());
-			}
-
+			cond_dump_t& getCondDump()noexcept { return m_condDump; }
+			
 			//////////////////////////////////////////////////////////////////////////
 
 			//to notify about total layer, epoch and batches count
 			void init_nnet(const size_t totalLayers, const size_t totalEpochs, const vec_len_t totalBatches)noexcept {
 				m_layersCount = totalLayers;
-				m_epochCount = totalEpochs;
-				m_batchCount = totalBatches;
 
 				//#exceptions STL
 				m_layerNames.resize(m_layersCount);
 				m_layerNames.shrink_to_fit();
 
-				m_dumpEpochCond.clear()
-					.resize(totalEpochs, false);
-				for (const auto etd : m_epochsToDump) {
-					if (etd < totalEpochs) m_dumpEpochCond.verbose(etd);
-				}
+				m_condDump.on_init_nnet(totalEpochs, totalBatches);
 				m_bDoDump = false;
 			}
 
@@ -207,11 +233,11 @@ namespace nntl {
 
 			void train_epochBegin(const size_t epochIdx)noexcept {
 				m_epochIdx = epochIdx;
-				m_bDoDump = m_dumpEpochCond(epochIdx);
+				m_bDoDump = m_condDump.on_train_epochBegin(epochIdx);
 			}
 			void train_batchBegin(const vec_len_t batchIdx) noexcept {
 				m_batchIdx = batchIdx;
-				m_bDoDump = m_bDoDump && 0 == batchIdx;
+				m_bDoDump = m_condDump.on_train_batchBegin(m_bDoDump, batchIdx, m_epochIdx);
 				if (m_bDoDump) {
 					STDCOUTL("Going to dump the dataflow...");
 					get_self()._open_archive().on_train_batchBegin(batchIdx);
@@ -258,30 +284,27 @@ namespace nntl {
 			}
 		};
 
-		template<typename FinalChildT, typename RealT, typename ArchiveT, size_t maxNnetDepth = 10>
-		class _dumper : public _dumper_base<FinalChildT, RealT, ArchiveT, maxNnetDepth> {
+		template<typename FinalChildT, typename RealT, typename ArchiveT, typename CondDumpT, size_t maxNnetDepth = 10>
+		class _dumper : public _dumper_base<FinalChildT, RealT, ArchiveT, CondDumpT, maxNnetDepth> {
 		private:
-			typedef _dumper_base<FinalChildT, RealT, ArchiveT, maxNnetDepth> _base_class;
+			typedef _dumper_base<FinalChildT, RealT, ArchiveT, CondDumpT, maxNnetDepth> _base_class;
 
 		protected:
 			~_dumper()noexcept {}
-
-			//This ctor is for type checks that requires DefaultConstructible types only
 			_dumper()noexcept {}
-
-			_dumper(const char* pDirToDump, std::initializer_list<size_t> epochsToDump)noexcept
-				: _base_class(pDirToDump, epochsToDump, nullptr){}
-			_dumper(const char* pDirToDump, std::initializer_list<size_t> epochsToDump, archive_t* pA)noexcept
-				: _base_class(pDirToDump, epochsToDump, pA) {}
+			_dumper(const char* pDirToDump)noexcept : _base_class(pDirToDump, nullptr){}
+			_dumper(const char* pDirToDump, archive_t* pA)noexcept : _base_class(pDirToDump, pA) {}
 
 		public:
 			
-			void on_fprop_begin(const layer_index_t lIdx, const realmtx_t& prevAct, const bool bTrainingMode) noexcept {
-				_check_err(getArchive().save_struct_begin(get_self()._layer_name(), false, true), "on_fprop_begin: save_struct_begin");
-			}
+			void on_fprop_end(const realmtx_t& A) noexcept {
+				auto& ar = getArchive();
+				_check_err(ar.save_struct_begin(get_self()._layer_name(), false, true), "on_fprop_end: save_struct_begin");
+				
+				ar & NNTL_SERIALIZATION_NVP(A);
+				_check_err(ar.get_last_error(), "on_bprop_begin: saving activations");
 
-			void on_fprop_end(const realmtx_t& act) noexcept {
-				_check_err(getArchive().save_struct_end(), "on_fprop_end: save_struct_end");
+				_check_err(ar.save_struct_end(), "on_fprop_end: save_struct_end");
 			}
 			void on_bprop_begin(const layer_index_t lIdx, const realmtx_t& dLdA) noexcept {
 				auto& ar = getArchive();
@@ -296,14 +319,6 @@ namespace nntl {
 		public:
 			//////////////////////////////////////////////////////////////////////////
 			//NB: every _i_inspector's function implementation should check if (m_bDoDump) first
-			void fprop_activations(const realmtx_t& A)const noexcept {
-				if (bDoDump()) {
-					auto& ar = getArchive();
-					ar & NNTL_SERIALIZATION_NVP(A);
-					_check_err(ar.get_last_error(), "fprop_activations: saving activations");
-				}
-			}
-
 			void apply_grad_raw(const realmtx_t& W, const realmtx_t& dLdW)noexcept {
 				if (bDoDump()) {
 					auto& ar = getArchive();
@@ -323,21 +338,16 @@ namespace nntl {
 			}
 		};
 
-		template<typename RealT, typename ArchiveT, size_t maxNnetDepth = 10>
-		class dumper final: public _dumper< dumper<RealT, ArchiveT, maxNnetDepth>, RealT, ArchiveT, maxNnetDepth> {
+		template<typename RealT, typename ArchiveT, typename CondDumpT = conds::EpochNum, size_t maxNnetDepth = 10>
+		class dumper final : public _dumper< dumper<RealT, ArchiveT, CondDumpT, maxNnetDepth>, RealT, ArchiveT, CondDumpT, maxNnetDepth> {
 		private:
-			typedef _dumper< dumper<RealT, ArchiveT, maxNnetDepth>, RealT, ArchiveT, maxNnetDepth> _base_class;
+			typedef _dumper< dumper<RealT, ArchiveT, CondDumpT, maxNnetDepth>, RealT, ArchiveT, CondDumpT, maxNnetDepth> _base_class;
 
 		public:
 			~dumper()noexcept {}
-
-			//This ctor is for type checks that requires DefaultConstructible types only
 			dumper()noexcept {}
-
-			dumper(const char* pDirToDump, std::initializer_list<size_t> epochsToDump)noexcept
-				: _base_class(pDirToDump, epochsToDump) {}
-			dumper(const char* pDirToDump, std::initializer_list<size_t> epochsToDump, archive_t* pA)noexcept
-				: _base_class(pDirToDump, epochsToDump, pA) {}
+			dumper(const char* pDirToDump)noexcept : _base_class(pDirToDump) {}
+			dumper(const char* pDirToDump, archive_t* pA)noexcept : _base_class(pDirToDump, pA) {}
 		};
 	}
 }

@@ -32,7 +32,6 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include "stdafx.h"
 
-#include "../nntl/math.h"
 #include "../nntl/nntl.h"
 #include "../nntl/_supp/io/binfile.h"
 
@@ -117,7 +116,7 @@ TEST(Simple, NotSoPlainFFN) {
 
 	//2. define NN layers and their properties
 	size_t epochs = 30;
-	const real_t learningRate(real_t(.001)), dropoutRate(real_t(.5)), momentum(real_t(.9))
+	const real_t learningRate(real_t(.001)), dropoutRate(real_t(.5)), momntm(real_t(.9))
 		, learningRateDecayCoeff(real_t(.97)), numStab(real_t(1e-8));// _impl::NUM_STAB_EPS<real_t>::value);//real_t(1e-8));
 	
 	// a. input layer
@@ -142,9 +141,9 @@ TEST(Simple, NotSoPlainFFN) {
 	//auto optimizerType = decltype(fcl)::grad_works_t::Adam;
 	//auto optimizerType = decltype(fcl)::grad_works_t::AdaMax;
 	
-	fcl.m_gradientWorks.set_type(optimizerType).nesterov_momentum(momentum).numeric_stabilizer(numStab);
-	fcl2.m_gradientWorks.set_type(optimizerType).nesterov_momentum(momentum).numeric_stabilizer(numStab);
-	outp.m_gradientWorks.set_type(optimizerType).nesterov_momentum(momentum).numeric_stabilizer(numStab);
+	fcl.m_gradientWorks.set_type(optimizerType).nesterov_momentum(momntm).numeric_stabilizer(numStab);
+	fcl2.m_gradientWorks.set_type(optimizerType).nesterov_momentum(momntm).numeric_stabilizer(numStab);
+	outp.m_gradientWorks.set_type(optimizerType).nesterov_momentum(momntm).numeric_stabilizer(numStab);
 
 	//3. assemble layer references (!! - not layer objects, but references to them) into a single object - layer_pack. 
 	auto lp = make_layers(inp, fcl, fcl2, outp);
@@ -188,7 +187,7 @@ TEST(Simple, NesterovMomentumAndRMSPropOnly) {
 
 	size_t epochs = 20;
 	const real_t learningRate (real_t(0.0005));
-	const real_t dropoutFrac (real_t(0.)), momentum (real_t(0.9));
+	const real_t dropoutFrac (real_t(0.)), momntm (real_t(0.9));
 
 	layer_input<> inp(td.train_x().cols_no_bias());
 
@@ -199,11 +198,11 @@ TEST(Simple, NesterovMomentumAndRMSPropOnly) {
 	layer_fully_connected<activ_func> fcl2(300, learningRate, dropoutFrac);
 
 	auto optType = decltype(fcl)::grad_works_t::RMSProp_Hinton;
-	fcl.m_gradientWorks.nesterov_momentum(momentum).set_type(optType);
-	fcl2.m_gradientWorks.nesterov_momentum(momentum).set_type(optType);
+	fcl.m_gradientWorks.nesterov_momentum(momntm).set_type(optType);
+	fcl2.m_gradientWorks.nesterov_momentum(momntm).set_type(optType);
 
 	layer_output<activation::sigm_quad_loss<real_t,w_init_scheme>> outp(td.train_y().cols(), learningRate);
-	outp.m_gradientWorks.nesterov_momentum(momentum).set_type(optType);
+	outp.m_gradientWorks.nesterov_momentum(momntm).set_type(optType);
 
 	auto lp = make_layers(inp, fcl, fcl2, outp);
 
