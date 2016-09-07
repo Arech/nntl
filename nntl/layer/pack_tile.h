@@ -164,10 +164,10 @@ namespace nntl {
 	protected:
 		//this is how we going to initialize layer indexes.
 		friend class _impl::_preinit_layers;
-		void _preinit_layer(layer_index_t& idx, const neurons_count_t inc_neurons_cnt)noexcept {
+		void _preinit_layer(_impl::init_layer_index& ili, const neurons_count_t inc_neurons_cnt)noexcept {
 			//there should better be an exception, but we don't want exceptions at all.
 			//anyway, there is nothing to help to those who'll try to abuse this API...
-			NNTL_ASSERT(idx > 0 && inc_neurons_cnt > 0);
+			NNTL_ASSERT(inc_neurons_cnt > 0);
 
 			//for bExpectSpecialDataX inc_neurons_cnt must correspond to a number of columns of a matrix size [m, k*(n+1)],
 			//		i.e. it is (k*(n+1)-1) - excluding added by the engine bias column
@@ -175,12 +175,11 @@ namespace nntl {
 			NNTL_ASSERT((bExpectSpecialDataX && (inc_neurons_cnt % tiles_count == tiles_count-1))
 				|| (!bExpectSpecialDataX && (inc_neurons_cnt % tiles_count == 0)));
 
-			_base_class::_preinit_layer(idx, inc_neurons_cnt);
+			_base_class::_preinit_layer(ili, inc_neurons_cnt);
 
 			//by c++ design, integer division is rounded towards zero, i.e. floor()ed
-			_impl::_preinit_layers initializer(idx, inc_neurons_cnt / tiles_count);
+			_impl::_preinit_layers initializer(ili, inc_neurons_cnt / tiles_count);
 			initializer(m_tiledLayer);
-			idx = initializer._idx;
 		}
 		
 	public:

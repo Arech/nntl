@@ -330,7 +330,7 @@ namespace nntl {
 
 			if (!_batchSizeOk(td, batchSize)) return _set_last_error(ErrorCode::BatchSizeMustBeMultipleOfTrainDataLength);
 			
-			iI.init_nnet(m_Layers.layers_count, maxEpoch, numBatches);
+			iI.init_nnet(m_Layers.total_layers(), maxEpoch, numBatches);
 
 			m_bCalcFullLossValue = opts.calcFullLossValue();
 			//////////////////////////////////////////////////////////////////////////

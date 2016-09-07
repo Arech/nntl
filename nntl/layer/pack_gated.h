@@ -122,19 +122,18 @@ namespace nntl {
 	protected:
 		//this is how we going to initialize layer indexes.
 		friend class _impl::_preinit_layers;
-		void _preinit_layer(layer_index_t& idx, const neurons_count_t inc_neurons_cnt)noexcept {
+		void _preinit_layer(_impl::init_layer_index& ili, const neurons_count_t inc_neurons_cnt)noexcept {
 			//there should better be an exception, but we don't want exceptions at all.
 			//anyway, there is nothing to help to those who'll try to abuse this API...
-			NNTL_ASSERT(!m_layerIdx && idx > 0 && inc_neurons_cnt > 0);
+			NNTL_ASSERT(!m_layerIdx && inc_neurons_cnt > 0);
 
 			if (m_layerIdx) abort();
-			m_layerIdx = idx;
+			m_layerIdx = ili.newIndex();
 			//if it asserts, then m_gatingLayer resides later in layers stack which is wrong.
 			NNTL_ASSERT(m_layerIdx > m_gatingLayer.get_layer_idx());
 
-			_impl::_preinit_layers initializer(idx + 1, inc_neurons_cnt);
+			_impl::_preinit_layers initializer(ili, inc_neurons_cnt);
 			initializer(m_undLayer);
-			idx = initializer._idx;
 		}
 
 	public:

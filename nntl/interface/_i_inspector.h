@@ -126,8 +126,12 @@ namespace inspector {
 		nntl_interface void bprop_predLdZ(const realmtx_t& dLdA, const realmtx_t& dAdZ) const noexcept;
 		nntl_interface void bprop_postdLdZ(const realmtx_t& dLdZ) const noexcept;
 
-		nntl_interface void apply_grad_raw(const realmtx_t& W, const realmtx_t& dLdW)const noexcept;
+		nntl_interface void apply_grad_begin(const realmtx_t& W, const realmtx_t& dLdW)const noexcept;
+		nntl_interface void apply_grad_end(const realmtx_t& W)const noexcept;
 		nntl_interface void apply_grad_update(const realmtx_t& W, const realmtx_t& WUpd)const noexcept;
+
+		nntl_interface void apply_grad_preNesterovMomentum(const realmtx_t& vW, const realmtx_t& dLdW)const noexcept;
+		nntl_interface void apply_grad_postNesterovMomentum(const realmtx_t& vW)const noexcept;
 	};
 
 	namespace _impl {
@@ -190,8 +194,13 @@ namespace inspector {
 			void bprop_predLdZ(const realmtx_t& dLdA, const realmtx_t& dAdZ) const noexcept{}
 			void bprop_postdLdZ(const realmtx_t& dLdZ) const noexcept{}
 
-			void apply_grad_raw(const realmtx_t& W, const realmtx_t& dLdW)const noexcept {}
+			void apply_grad_begin(const realmtx_t& W, const realmtx_t& dLdW)const noexcept {}
+			void apply_grad_end(const realmtx_t& W)const noexcept {}
+
 			void apply_grad_update(const realmtx_t& W, const realmtx_t& WUpd)const noexcept{}
+
+			void apply_grad_preNesterovMomentum(const realmtx_t& vW, const realmtx_t& dLdW)const noexcept {}
+			void apply_grad_postNesterovMomentum(const realmtx_t& vW)const noexcept {}
 		};
 
 		//helper to store current layer index. Maximum depth is hardcoded into _maxDepth, but checked only during DEBUG builds

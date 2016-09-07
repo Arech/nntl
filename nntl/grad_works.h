@@ -344,7 +344,7 @@ namespace nntl {
 			auto& iM = get_iMath();
 			auto& iI = get_iInspect();
 
-			iI.apply_grad_raw(weights, dLdW);
+			iI.apply_grad_begin(weights, dLdW);
 
 			NNTL_ASSERT(dLdW.size() == weights.size());
 
@@ -447,7 +447,9 @@ namespace nntl {
 				if (m_flags[f_UseNesterovMomentum]) {
 					// (3)  vW(t+1) = momentum*vW(t) + scaling*grad_Loss( W(t)-momentum*vW(t))
 					//				= vW`(t+1) + scaling*grad_Loss( W`(t+1) )
+					iI.apply_grad_preNesterovMomentum(m_Vw, dLdW);
 					iM.evAdd_ip(m_Vw, dLdW);
+					iI.apply_grad_postNesterovMomentum(m_Vw);
 					// (4)  W(t+1)  = W(t) - vW(t+1) 
 					//				= W(t) - vW`(t+1) - scaling*grad_Loss( W`(t+1) )
 					//				= W`(t+1) - scaling * grad_Loss( W`(t+1) )
@@ -472,6 +474,8 @@ namespace nntl {
 				iM.mCheck_normalize_rows(weights, m_maxWeightVecNorm);
 				if (bIgnoreBiases) weights.restore_last_col();
 			}
+
+			iI.apply_grad_end(weights);
 		}
 
 		//////////////////////////////////////////////////////////////////////////

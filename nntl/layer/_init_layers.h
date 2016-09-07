@@ -57,6 +57,42 @@ namespace nntl {
 		template< class T >
 		struct m_prop_input_marker<T, std::void_t<typename std::enable_if< std::is_base_of<m_layer_input,T>::value >::type > > : m_layer_input {};
 
+		/*class init_layer_index {
+		protected:
+			layer_index_t _idx;
+			init_layer_index*const m_pUpdOnDelete;
+
+		public:
+			~init_layer_index()noexcept{
+				if (m_pUpdOnDelete) {
+					m_pUpdOnDelete->_idx = _idx;
+					//m_pUpdOnDelete = nullptr;
+				}
+			}
+			init_layer_index()noexcept : _idx(0), m_pUpdOnDelete(nullptr) {}
+			init_layer_index(init_layer_index& other)noexcept : _idx(other._idx), m_pUpdOnDelete(&other) {}
+
+			layer_index_t newIndex()noexcept {
+				return _idx++;
+			}
+		};*/
+
+		class init_layer_index {
+		protected:
+			layer_index_t& _idx;
+
+		public:
+			~init_layer_index()noexcept {}
+			init_layer_index(layer_index_t& src)noexcept : _idx(src){
+				NNTL_ASSERT(0 == src);
+			}
+			init_layer_index(init_layer_index& other)noexcept : _idx(other._idx){}
+
+			layer_index_t newIndex()noexcept {
+				return _idx++;
+			}
+		};
+
 		//////////////////////////////////////////////////////////////////////////
 		//class to help propagate NN structure through layer stack during that stack creation
 		class _preinit_layers {
@@ -65,15 +101,20 @@ namespace nntl {
 							// of _layer_pack_horizontal cover all activation units of the range of underlying layer
 							// Initialized to nullptr by default in constructors.
 
+			init_layer_index m_ILI;
+
 			neurons_count_t _incNeurons;
-			layer_index_t _idx;			
+			//layer_index_t _idx;			
+
 
 			~_preinit_layers()noexcept {
 				if(m_pPHLCheckStorage) delete[] m_pPHLCheckStorage;
 			}
-			_preinit_layers() noexcept : _idx(0), _incNeurons(0), m_pPHLCheckStorage(nullptr) {}
-			_preinit_layers(const layer_index_t i, const neurons_count_t n) noexcept : _idx(i), _incNeurons(n), m_pPHLCheckStorage(nullptr) {
-				NNTL_ASSERT(i && n);
+			_preinit_layers(layer_index_t& src) noexcept : m_ILI(src), _incNeurons(0), m_pPHLCheckStorage(nullptr) {}
+			_preinit_layers(init_layer_index& ili, const neurons_count_t n) noexcept 
+				: m_ILI(ili), _incNeurons(n), m_pPHLCheckStorage(nullptr)
+			{
+				NNTL_ASSERT(n);
 			}
 
 			//////////////////////////////////////////////////////////////////////////
@@ -87,20 +128,8 @@ namespace nntl {
 					, std::remove_reference<LPrev>::type>::value, "Each layer must derive from i_layer");
 				static_assert(std::is_same<LCur::interfaces_t, LPrev::interfaces_t>::value, "interfaces_t must be the same for all layers!");
 
-#ifdef NNTL_DEBUG
-				layer_index_t curIdx = _idx;
-#endif // NNTL_DEBUG
-
-				if (bFirst) {
-					lprev._preinit_layer(_idx, _incNeurons);
-#ifdef NNTL_DEBUG
-					NNTL_ASSERT(_idx > curIdx);
-					curIdx = _idx;
-#endif // NNTL_DEBUG
-				}
-
-				lcur._preinit_layer(_idx, lprev.get_neurons_cnt());
-				NNTL_ASSERT(_idx > curIdx);
+				if (bFirst) lprev._preinit_layer(m_ILI, _incNeurons);
+				lcur._preinit_layer(m_ILI, lprev.get_neurons_cnt());
 			}
 
 			//////////////////////////////////////////////////////////////////////////
@@ -123,11 +152,7 @@ namespace nntl {
 				const auto pBeg = m_pPHLCheckStorage + phl.m_offset;
 				std::fill(pBeg, pBeg + phl.m_count, char(1));
 
-#ifdef NNTL_DEBUG
-				layer_index_t curIdx = _idx;
-#endif // NNTL_DEBUG
-				phl.l._preinit_layer(_idx, phl.m_count);
-				NNTL_ASSERT(_idx > curIdx);
+				phl.l._preinit_layer(m_ILI, phl.m_count);
 			}
 
 			bool PHLCheck()noexcept {
@@ -144,14 +169,7 @@ namespace nntl {
 			// variation to use in other case just to preinit single layer
 			template<typename Layr>
 			std::enable_if_t<!is_PHL<Layr>::value> operator()(Layr& layr)noexcept {
-#ifdef NNTL_DEBUG
-				layer_index_t curIdx = _idx;
-#endif // NNTL_DEBUG
-
-				layr._preinit_layer(_idx, _incNeurons);
-#ifdef NNTL_DEBUG
-				NNTL_ASSERT(_idx > curIdx);
-#endif // NNTL_DEBUG
+				layr._preinit_layer(m_ILI, _incNeurons);
 			}
 		};
 

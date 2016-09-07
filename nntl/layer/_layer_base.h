@@ -315,7 +315,7 @@ namespace nntl {
 		const char* get_custom_name()const noexcept { return m_customName ? m_customName : get_self()._defName; }
 
 		void get_layer_name(char* pName, const size_t cnt)const noexcept {
-			sprintf_s(pName, cnt, "%s%d", get_self().get_custom_name(),static_cast<unsigned>(get_self().get_layer_idx()));
+			sprintf_s(pName, cnt, "%s_%d", get_self().get_custom_name(),static_cast<unsigned>(get_self().get_layer_idx()));
 		}
 		std::string get_layer_name_str()const noexcept {
 			constexpr size_t ml = layerNameMaxChars;
@@ -402,20 +402,16 @@ namespace nntl {
 		// other funcs
 	protected:
 		//this is how we going to initialize layer indexes.
-		//template <typename LCur, typename LPrev> friend void _init_layers::operator()(LCur&& lc, LPrev&& lp, bool bFirst)noexcept;
 		friend class _impl::_preinit_layers;
-		//idx is passed by reference. On function enter it contains the lowest free layer index withing a NN.
-		// On function exit after this (and possibly encapsulated into this) layer preinitialization it 
-		// must contain next lowest free index.
-		void _preinit_layer(layer_index_t& idx, const neurons_count_t inc_neurons_cnt)noexcept{
+		void _preinit_layer(_impl::init_layer_index& ili, const neurons_count_t inc_neurons_cnt)noexcept{
 			//there should better be an exception, but we don't want exceptions at all.
 			//anyway, there is nothing to help to those who'll try to abuse this API...
 			NNTL_ASSERT(!m_layerIdx);
 			NNTL_ASSERT(!m_incoming_neurons_cnt);
 
 			if (m_layerIdx || m_incoming_neurons_cnt) abort();
-			m_layerIdx = idx;
-			if (idx++) {//special check for the first (input) layer that doesn't have any incoming neurons
+			m_layerIdx = ili.newIndex();
+			if (m_layerIdx) {//special check for the first (input) layer that doesn't have any incoming neurons
 				NNTL_ASSERT(inc_neurons_cnt);
 				m_incoming_neurons_cnt = inc_neurons_cnt;
 			}

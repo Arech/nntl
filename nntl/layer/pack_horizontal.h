@@ -96,14 +96,14 @@ namespace nntl {
 	protected:
 		//this is how we going to initialize layer indexes.
 		friend class _impl::_preinit_layers;
-		void _preinit_layer(layer_index_t& idx, const neurons_count_t inc_neurons_cnt)noexcept {
+		void _preinit_layer(_impl::init_layer_index& ili, const neurons_count_t inc_neurons_cnt)noexcept {
 			//there should better be an exception, but we don't want exceptions at all.
 			//anyway, there is nothing to help to those who'll try to abuse this API...
-			NNTL_ASSERT(idx > 0 && inc_neurons_cnt > 0);
+			NNTL_ASSERT(inc_neurons_cnt > 0);
 
-			_base_class::_preinit_layer(idx, inc_neurons_cnt);
+			_base_class::_preinit_layer(ili, inc_neurons_cnt);
 
-			_impl::_preinit_layers initializer(idx, inc_neurons_cnt);
+			_impl::_preinit_layers initializer(ili, inc_neurons_cnt);
 			if (initializer.preparePHLCheck()) {
 				utils::for_each_up(m_phl_tuple, initializer);
 				if (!initializer.PHLCheck()) {
@@ -116,8 +116,6 @@ namespace nntl {
 				//#todo: probably need a better way to return error
 				abort();
 			}
-			
-			idx = initializer._idx;
 		}
 
 		first_layer_t& first_layer()const noexcept { return std::get<0>(m_phl_tuple).l; }

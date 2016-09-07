@@ -176,7 +176,8 @@ void test_same_layers(train_data<real_t>& td, uint64_t rngSeed) {
 	
 	//assembling into list of layers
 	auto AlayersTuple = std::make_tuple(std::ref(Ainp), std::ref(Aund), std::ref(Aint));
-	utils::for_eachwp_up(AlayersTuple, _impl::_preinit_layers{});
+	layer_index_t alc(0);
+	utils::for_eachwp_up(AlayersTuple, _impl::_preinit_layers(alc));
 
 	typedef _impl::common_nn_data<d_interfaces> common_data_t;
 	common_data_t CD(iMath, iRng, iInsp);
@@ -234,7 +235,8 @@ void test_same_layers(train_data<real_t>& td, uint64_t rngSeed) {
 
 	//assembling into list of layers
 	auto BlayersTuple = std::make_tuple(std::ref(Binp), std::ref(Bund), std::ref(lpHor));
-	utils::for_eachwp_up(BlayersTuple, _impl::_preinit_layers{});
+	layer_index_t blc(0);
+	utils::for_eachwp_up(BlayersTuple, _impl::_preinit_layers(blc));
 
 	lmr.zeros();
 

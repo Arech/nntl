@@ -614,11 +614,16 @@ namespace nntl_supp {
 					ec = ErrorCode::WrongState_NameAlreadySet;
 				} else {
 					mxArray* pNewStruct = nullptr;
+					mxArray* pOldHead = nullptr;
+					if (bDontNest && m_structureStack.size()) {
+						pOldHead = m_structureStack.top();
+						m_structureStack.pop();
+					}
 					if (bUpdateIfExist) {
 						m_curVarName = structName.c_str();
 						NNTL_ASSERT(m_curVarName);
 						vec_len_t r, c;
-						pNewStruct = _load_var(r, c, true);
+						pNewStruct = _load_var(r, c, true);						
 						m_curVarName = nullptr;
 						if (pNewStruct) {
 							if (1 != r || 1 != c) {
@@ -637,18 +642,12 @@ namespace nntl_supp {
 						pNewStruct = mxCreateStructMatrix(1, 1, 0, nullptr);
 					}
 					if (pNewStruct) {
-						if (bDontNest && m_structureStack.size()) {
-							//replacing the current top of the stack with the new
-							const auto pCurStruct = m_structureStack.top();
-							m_structureStack.pop();
-							m_nestedStructs.push(std::make_pair(std::forward<std::string>(structName), pCurStruct));
-						} else {
-							//putting the new struct on the top of the stack
-							m_nestedStructs.push(std::make_pair(std::forward<std::string>(structName), nullptr));
-						}
+						m_nestedStructs.push(std::make_pair(std::forward<std::string>(structName), pOldHead));
 						m_structureStack.push(pNewStruct);
-					} else ec = ErrorCode::FailedToCreateStructVariable;
-
+					} else {
+						if (ErrorCode::Success == ec) ec = ErrorCode::FailedToCreateStructVariable;
+						if (pOldHead) m_structureStack.push(pOldHead);
+					}
 				}
 			} else ec = ErrorCode::NoFileOpened;
 			if (ErrorCode::Success != ec) _set_last_error(ec);

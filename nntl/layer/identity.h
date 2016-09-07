@@ -144,11 +144,11 @@ namespace nntl {
 		// other funcs
 	protected:
 		friend class _impl::_preinit_layers;
-		void _preinit_layer(layer_index_t& idx, const neurons_count_t inc_neurons_cnt)noexcept {
-			NNTL_ASSERT(idx > 0 && inc_neurons_cnt > 0);
+		void _preinit_layer(_impl::init_layer_index& ili, const neurons_count_t inc_neurons_cnt)noexcept {
+			NNTL_ASSERT(inc_neurons_cnt > 0);
 			NNTL_ASSERT(get_self().get_neurons_cnt() == inc_neurons_cnt);
 
-			_base_class::_preinit_layer(idx, inc_neurons_cnt);
+			_base_class::_preinit_layer(ili, inc_neurons_cnt);
 			//get_self()._set_neurons_cnt(inc_neurons_cnt);
 		}
 

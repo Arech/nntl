@@ -106,17 +106,16 @@ namespace nntl {
 		//this is how we going to initialize layer indexes.
 		//template <typename LCur, typename LPrev> friend void _init_layers::operator()(LCur&& lc, LPrev&& lp, bool bFirst)noexcept;
 		friend class _impl::_preinit_layers;
-		void _preinit_layer(layer_index_t& idx, const neurons_count_t inc_neurons_cnt)noexcept {
+		void _preinit_layer(_impl::init_layer_index& ili, const neurons_count_t inc_neurons_cnt)noexcept {
 			//there should better be an exception, but we don't want exceptions at all.
 			//anyway, there is nothing to help to those who'll try to abuse this API...
-			NNTL_ASSERT(!m_layerIdx && idx > 0 && inc_neurons_cnt > 0);
+			NNTL_ASSERT(!m_layerIdx && inc_neurons_cnt > 0);
 
 			if (m_layerIdx) abort();
-			m_layerIdx = idx;
+			m_layerIdx = ili.newIndex();
 
-			_impl::_preinit_layers initializer(idx + 1, inc_neurons_cnt);
+			_impl::_preinit_layers initializer(ili, inc_neurons_cnt);
 			utils::for_eachwp_up(m_layers, initializer);
-			idx = initializer._idx;
 		}
 
 		first_layer_t& first_layer()const noexcept { return std::get<0>(m_layers); }

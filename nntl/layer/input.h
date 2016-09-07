@@ -115,10 +115,10 @@ namespace nntl {
 
 	protected:
 		friend class _impl::_preinit_layers;
-		void _preinit_layer(layer_index_t& idx, const neurons_count_t inc_neurons_cnt)noexcept {
-			NNTL_ASSERT(0 == idx);
+		void _preinit_layer(_impl::init_layer_index& ili, const neurons_count_t inc_neurons_cnt)noexcept {
 			NNTL_ASSERT(0 == inc_neurons_cnt);
-			_base_class::_preinit_layer(idx, inc_neurons_cnt);
+			_base_class::_preinit_layer(ili, inc_neurons_cnt);
+			NNTL_ASSERT(0 == get_self().get_layer_idx());
 		}
 	};
 

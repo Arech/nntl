@@ -95,6 +95,8 @@ namespace nntl {
 		// layer.lossAddendum() calls.
 		//TODO: is it possible for lossAddendum() to depend on data_y or nnet activation??? Do we have the right to
 		// cache this value in general case?
+	private:
+		layer_index_t m_totalLayersCount;
 
 		//////////////////////////////////////////////////////////////////////////
 		//Serialization support
@@ -110,9 +112,11 @@ namespace nntl {
 		//////////////////////////////////////////////////////////////////////////
 	public:
 		~layers()noexcept {}
-		layers(Layrs&... layrs) noexcept : m_layers(layrs...), m_lossAddendum(0.0){
+		layers(Layrs&... layrs) noexcept : m_layers(layrs...), m_lossAddendum(0.0), m_totalLayersCount(0){
 			//iterate over layers and check whether they i_layer derived and set their indexes
-			utils::for_eachwp_up(m_layers, _impl::_preinit_layers{});
+			_impl::_preinit_layers pil(m_totalLayersCount);
+			utils::for_eachwp_up(m_layers, pil);
+			//STDCOUTL("There are " << m_totalLayersCount << " layers at total");
 		}
 
 		//!! copy constructor not needed
@@ -123,6 +127,11 @@ namespace nntl {
 		//better don't play with _layers directly
 		_layers& get_layers()noexcept { return m_layers; }
 		
+		const layer_index_t total_layers()const noexcept {
+			NNTL_ASSERT(m_totalLayersCount);
+			return m_totalLayersCount;
+		}
+
 		//and apply function _Func(auto& layer) to each underlying (non-pack) layer here
 		template<typename _Func>
 		void for_each_layer(_Func&& f)noexcept {
