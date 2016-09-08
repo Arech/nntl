@@ -404,13 +404,16 @@ namespace nntl {
 
 						//TODO: denoising autoencoders support here
 
+						iI.train_preFprop(batch_x);
 						m_Layers.fprop(batch_x);
+						
 						//fullbatch algorithms with quadratic or crossentropy loss function use dL/dA (==error) to compute loss function value.
 						//But the dL/dA should be calculated during backward pass. We _can_ calculate it here, but because most of the time we will
 						// learn NN with dropout or some other regularizer, output layer activation values in fact can (or "will"
 						// in case of dropout) be distorted by that regularizer. Therefore there is no great point in computing error here and
 						// pass it to bprop() to be able to reuse it later in loss function computation (where it's suitable only in case of
 						// fullbatch learning and absence of dropout/regularizer). Therefore don't bother here with error and leave it to bprop()
+						iI.train_preBprop(batch_y);
 						m_Layers.bprop(batch_y, ttd.a_dLdA);
 
 						iI.train_batchEnd();

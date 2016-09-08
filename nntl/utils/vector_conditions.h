@@ -78,7 +78,8 @@ namespace nntl {
 			return *this;
 		}
 
-		size_t maxEpoch()const noexcept { return m_flgEvalPerf.size(); }
+		size_t size()const noexcept { return m_flgEvalPerf.size(); }
+		size_t maxEpoch()const noexcept { return size(); }
 
 		//using () instead of [] because can't (and don't need to) return reference
 		const bool operator()(size_t e)const noexcept { return m_flgEvalPerf[e]; }

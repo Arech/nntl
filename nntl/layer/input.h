@@ -66,7 +66,7 @@ namespace nntl {
 		_layer_input(const neurons_count_t _neurons_cnt, const char* pCustomName = nullptr)noexcept :
 			_base_class(_neurons_cnt, pCustomName), m_pActivations(nullptr) {};
 		~_layer_input() noexcept {};
-		static constexpr const char* _defName = "inp";
+		static constexpr const char _defName[] = "inp";
 
 		const realmtx_t& get_activations()const noexcept {
 			NNTL_ASSERT(m_pActivations);

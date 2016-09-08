@@ -59,7 +59,7 @@ namespace nntl {
 			m_activations.will_emulate_biases();
 		}
 
-		static constexpr const char* _defName = "id";
+		static constexpr const char _defName[] = "id";
 
 		//////////////////////////////////////////////////////////////////////////
 		const realmtxdef_t& get_activations()const noexcept { return m_activations; }
@@ -183,7 +183,7 @@ namespace nntl {
 		_layer_identity_gate(const char* pCustomName = nullptr)noexcept : _base_class(pCustomName) {
 			m_gate.dont_emulate_biases();
 		}
-		static constexpr const char* _defName = "idg";
+		static constexpr const char _defName[] = "idg";
 
 		//////////////////////////////////////////////////////////////////////////
 		const realmtx_t& get_gate()const noexcept { return m_gate; }

@@ -43,6 +43,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 // over the learning process including pausing/inspecting/modifying and so on. But that's a story for a future.
 
 #include "math/smatrix.h"
+#include "../utils/vector_conditions.h"
 #include <stack>
 
 namespace nntl {
@@ -85,7 +86,7 @@ namespace inspector {
 		//to notify about layer and it's name (for example, inspector can use this info to filter out calls from non-relevant layers later)
 		//this call can cost something, but we don't care because it happens only during init phase
 		template<typename StrT>
-		nntl_interface void init_layer(const layer_index_t lIdx, StrT&& LayerName)const noexcept;
+		nntl_interface void init_layer(const layer_index_t lIdx, StrT&& LayerName, const layer_type_id_t layerTypeId)const noexcept;
 
 		nntl_interface void train_epochBegin(const size_t epochIdx)const noexcept;
 		nntl_interface void train_epochEnd()const noexcept;
@@ -93,6 +94,11 @@ namespace inspector {
 		//train_batch* functions are called during learning process only
 		nntl_interface void train_batchBegin(const vec_len_t batchIdx)const noexcept;
 		nntl_interface void train_batchEnd()const noexcept;
+
+		//the following two functions are called during learning process only
+		nntl_interface void train_preFprop(const realmtx_t& data_x)const noexcept;
+		nntl_interface void train_preBprop(const realmtx_t& data_y)const noexcept;
+
 
 		//////////////////////////////////////////////////////////////////////////
 		// FPROP
@@ -158,13 +164,17 @@ namespace inspector {
 			//to notify about layer and it's name (for example, inspector can use this info to filter out calls from non-relevant layers later)
 			//this call can cost something, but we don't care because it happens only during init phase
 			template<typename StrT>
-			void init_layer(const layer_index_t lIdx, StrT&& LayerName)const noexcept {};
+			void init_layer(const layer_index_t lIdx, StrT&& LayerName, const layer_type_id_t layerTypeId)const noexcept {};
 
 			void train_epochBegin(const size_t epochIdx)const noexcept {}
 			void train_epochEnd()const noexcept {}
 
 			void train_batchBegin(const vec_len_t batchIdx)const noexcept {}
 			void train_batchEnd()const noexcept {}
+
+			//the following two functions are called during learning process only
+			void train_preFprop(const realmtx_t& data_x)const noexcept {}
+			void train_preBprop(const realmtx_t& data_y)const noexcept {}
 
 			//////////////////////////////////////////////////////////////////////////
 			// FPROP
@@ -203,6 +213,7 @@ namespace inspector {
 			void apply_grad_postNesterovMomentum(const realmtx_t& vW)const noexcept {}
 		};
 
+		//////////////////////////////////////////////////////////////////////////
 		//helper to store current layer index. Maximum depth is hardcoded into _maxDepth, but checked only during DEBUG builds
 		template<typename IdxT, IdxT defaultVal, size_t _maxDepth>
 		class layer_idx_keeper : private std::stack<IdxT, std::vector<IdxT>> {
@@ -238,6 +249,168 @@ namespace inspector {
 
 		};
 
+		//////////////////////////////////////////////////////////////////////////
+		//base class to support black&white lists of layers to enhance filtering while dumping variables (it could take
+		// a lot of time for a large network)
+		template<typename FinalChildT, typename RealT>
+		class _bwlist : public _base<RealT> {
+		public:
+			typedef FinalChildT self_t;
+			typedef FinalChildT& self_ref_t;
+			typedef const FinalChildT& self_cref_t;
+			typedef FinalChildT* self_ptr_t;
+
+			typedef std::vector<layer_type_id_t> layer_types_list_t;
+			typedef std::vector<layer_index_t> layer_idx_list_t;
+
+		protected:
+			vector_conditions m_dumpLayerCond;
+			layer_types_list_t m_layerTypes;
+			layer_idx_list_t m_layerIdxs;
+
+			//placed the following bool here for packing reasons
+			bool m_bDoDump;//it's 'protected' for some rare special unforeseen cases. Don't access in
+						   // derived classes, use the bDoDump() or the CondDumpT
+
+
+			bool m_bWhiteList;
+
+
+		public:
+			self_ref_t get_self() noexcept {
+				static_assert(std::is_base_of<_bwlist, FinalChildT>::value, "FinalChildT must derive from _bwlist");
+				return static_cast<self_ref_t>(*this);
+			}
+			self_cref_t get_self() const noexcept {
+				static_assert(std::is_base_of<_bwlist, FinalChildT>::value, "FinalChildT must derive from _bwlist");
+				return static_cast<self_cref_t>(*this);
+			}
+
+		private:
+			self_ref_t _addToList(const layer_type_id_t& t)noexcept {
+				m_layerTypes.push_back(t);
+				return get_self();
+			}
+			self_ref_t _addToList(const layer_index_t& lidx)noexcept {
+				m_layerIdxs.push_back(lidx);
+				return get_self();
+			}
+
+			template<typename LtlT>
+			std::enable_if_t< std::is_same<layer_type_id_t, std::remove_cv_t<typename LtlT::value_type>>::value, self_ref_t>
+			_addToList(LtlT&& tl)noexcept {
+				NNTL_ASSERT(!m_layerTypes.size());
+				m_layerTypes = std::forward<LtlT>(tl);
+				return get_self();
+			}
+			template<typename LilT>
+			std::enable_if_t< std::is_same<layer_index_t, std::remove_cv_t<typename LilT::value_type>>::value, self_ref_t>
+			_addToList(LilT&& lil)noexcept {
+				NNTL_ASSERT(!m_layerIdxs.size());
+				m_layerIdxs = std::forward<LilT>(lil);
+				return get_self();
+			}
+
+			void _checksetWhitelist()noexcept {
+				if (!isWhiteList()) {
+					NNTL_ASSERT(!m_layerTypes.size());
+					NNTL_ASSERT(!m_layerIdxs.size());
+					setWhiteList();
+				}
+			}
+			void _checksetBlacklist()noexcept {
+				if (isWhiteList()) {
+					NNTL_ASSERT(!m_layerTypes.size());
+					NNTL_ASSERT(!m_layerIdxs.size());
+					setBlackList();
+				}
+			}
+
+		protected:
+			void _bwlist_init(const size_t totalLayers)noexcept {
+				m_dumpLayerCond.clear()
+					.resize(totalLayers, !m_bWhiteList);
+			}
+			void _bwlist_updateLayer(const layer_index_t lIdx, const layer_type_id_t layerTypeId)noexcept {
+				NNTL_ASSERT(lIdx < m_dumpLayerCond.size());
+
+				if (
+					(m_layerTypes.size() && std::any_of(m_layerTypes.begin(), m_layerTypes.end(), [layerTypeId](const layer_type_id_t& e)->bool {
+						return e == layerTypeId;
+					})) || (m_layerIdxs.size() && std::any_of(m_layerIdxs.begin(), m_layerIdxs.end(), [lIdx](const layer_index_t& e)->bool {
+						return e == lIdx;
+					}))
+				){
+					m_dumpLayerCond.set(lIdx, m_bWhiteList);
+				}
+			}
+
+			const bool _bwlist_layerAllowed(const layer_index_t lIdx)const noexcept {
+				return m_dumpLayerCond(lIdx);
+			}
+
+		public:
+			~_bwlist()noexcept{}
+			_bwlist(const bool bWhitelistByDefault = false)noexcept : m_bDoDump(false), m_bWhiteList(bWhitelistByDefault) {}
+
+			self_ref_t resetLists()noexcept {
+				m_dumpLayerCond.clear();
+				m_layerTypes.clear();
+				m_layerIdxs.clear();
+				return get_self();
+			}
+			self_ref_t setMode(const bool bWhiteList)noexcept {
+				m_bWhiteList = bWhiteList;
+				return resetLists();
+			}
+			const bool getMode()const noexcept { return m_bWhiteList; }
+			self_ref_t setWhiteList()noexcept { return setMode(true); }
+			self_ref_t setBlackList()noexcept { return setMode(false); }
+			const bool isWhiteList()const noexcept { return getMode(); }
+			const bool isBlackList()const noexcept { return !getMode(); }
+
+			self_ref_t whitelist(const layer_type_id_t& p)noexcept {
+				_checksetWhitelist();
+				return _addToList(p);
+			}
+			template<typename LtlT>
+			std::enable_if_t< std::is_same<layer_type_id_t, std::remove_cv_t<typename LtlT::value_type>>::value, self_ref_t>
+			whitelist(LtlT&& p)noexcept {
+				_checksetWhitelist();
+				return _addToList(std::forward<LtlT>(p));
+			}
+			self_ref_t whitelist(const layer_index_t& p)noexcept {
+				_checksetWhitelist();
+				return _addToList(p);
+			}
+			template<typename LilT>
+			std::enable_if_t< std::is_same<layer_index_t, std::remove_cv_t<typename LilT::value_type>>::value, self_ref_t>
+			whitelist(LilT&& p)noexcept {
+				_checksetWhitelist();
+				return _addToList(std::forward<LilT>(p));
+			}
+
+			self_ref_t blacklist(const layer_type_id_t& p)noexcept {
+				_checksetBlacklist();
+				return _addToList(p);
+			}
+			template<typename LtlT>
+			std::enable_if_t< std::is_same<layer_type_id_t, std::remove_cv_t<typename LtlT::value_type>>::value, self_ref_t>
+			blacklist(LtlT&& p)noexcept {
+				_checksetBlacklist();
+				return _addToList(std::forward<LtlT>(p));
+			}
+			self_ref_t blacklist(const layer_index_t& p)noexcept {
+				_checksetBlacklist();
+				return _addToList(p);
+			}
+			template<typename LilT>
+			std::enable_if_t< std::is_same<layer_index_t, std::remove_cv_t<typename LilT::value_type>>::value, self_ref_t>
+			blacklist(LilT&& p)noexcept {
+				_checksetBlacklist();
+				return _addToList(std::forward<LilT>(p));
+			}
+		};
 	}
 
 }

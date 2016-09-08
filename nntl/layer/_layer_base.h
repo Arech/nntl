@@ -176,6 +176,14 @@ namespace nntl {
 		nntl_interface void get_layer_name(char* pName, const size_t cnt)const noexcept;
 		nntl_interface std::string get_layer_name_str()const noexcept;
 
+	private:
+		//redefine in derived class in public scope. Array-style definition MUST be preserved.
+		//the _defName must be unique for each final layer class and mustn't be longer than sizeof(layer_type_id_t) (it's also used as a layer typeId)
+		static constexpr const char _defName[] = "_i_layer";
+	public:
+		//returns layer type id based on layer's _defName
+		nntl_interface static constexpr layer_type_id_t get_layer_type_id()noexcept;
+
 		// batchSize==0 puts layer into training mode with batchSize predefined by init()::lid.training_batch_size
 		// any batchSize>0 puts layer into evaluation/testing mode with that batchSize. bs must be <= init()::lid.max_fprop_batch_size
 		// pNewActivationStorage is used in conjunction with compound layers, such as layer_pack_horizontal, that 
@@ -281,8 +289,9 @@ namespace nntl {
 		//limit for custom name length
 		static constexpr size_t customNameMaxChars = layerNameMaxChars - 10;
 	private:
-		//redefine in derived class in public
-		static constexpr const char* _defName = "_cpoly";
+		//redefine in derived class in public scope. Array-style definition MUST be preserved.
+		//the _defName must be unique for each final layer class (it's also served as a layer typeId)
+		static constexpr const char _defName[] = "_cpoly";
 
 	protected:
 		//just a pointer as passed, because don't want to care about memory allocation and leave a footprint as small as possible,
@@ -307,12 +316,13 @@ namespace nntl {
 			return static_cast<self_cref_t>(*this);
 		}
 
+		static constexpr const char* get_default_name()noexcept { return self_t::_defName; }
 		self_ref_t set_custom_name(const char* pCustName)noexcept {
 			NNTL_ASSERT(!pCustName || strlen(pCustName) < customNameMaxChars);
 			m_customName = pCustName;
 			return get_self();
 		}
-		const char* get_custom_name()const noexcept { return m_customName ? m_customName : get_self()._defName; }
+		const char* get_custom_name()const noexcept { return m_customName ? m_customName : get_self().get_default_name(); }
 
 		void get_layer_name(char* pName, const size_t cnt)const noexcept {
 			sprintf_s(pName, cnt, "%s_%d", get_self().get_custom_name(),static_cast<unsigned>(get_self().get_layer_idx()));
@@ -323,6 +333,18 @@ namespace nntl {
 			get_self().get_layer_name(n, ml);
 			return std::string(n);
 		}
+
+	private:
+		template<unsigned LEN>
+		static constexpr layer_type_id_t _get_layer_type_id(const char(&pStr)[LEN], const unsigned pos = 0)noexcept {
+			return pos < LEN ? (layer_type_id_t(pStr[pos]) | (_get_layer_type_id(pStr, pos + 1) << 8)) : 0;
+		}
+	public:
+		static constexpr layer_type_id_t get_layer_type_id()noexcept {
+			static_assert(sizeof(self_t::_defName) <= sizeof(layer_type_id_t), "Too long default layer name has been used. Can't use it to derive layer_type_id");
+			return _get_layer_type_id(self_t::_defName);
+		}
+
 	};
 	
 	//////////////////////////////////////////////////////////////////////////
@@ -351,7 +373,7 @@ namespace nntl {
 		neurons_count_t m_neurons_cnt, m_incoming_neurons_cnt;
 		layer_index_t m_layerIdx;
 
-		static constexpr const char* _defName = "_base";
+		static constexpr const char _defName[] = "_base";
 
 	protected:
 		bool m_bTraining;
@@ -370,7 +392,7 @@ namespace nntl {
 		ErrorCode init(_layer_init_data_t& lid, real_t* pNewActivationStorage = nullptr)noexcept {
 			set_common_data(lid.commonData);
 
-			get_self().get_iInspect().init_layer(get_self().get_layer_idx(), get_self().get_layer_name_str());
+			get_self().get_iInspect().init_layer(get_self().get_layer_idx(), get_self().get_layer_name_str(), get_self().get_layer_type_id());
 
 			return ErrorCode::Success;
 		}

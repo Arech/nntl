@@ -136,7 +136,14 @@ namespace nntl {
 			initializer(m_undLayer);
 		}
 
+	private:
+		template<bool b> struct _defNameS {};
+		template<> struct _defNameS<true> { static constexpr const char n[] = "lpg"; };
+		template<> struct _defNameS<false> { static constexpr const char n[] = "lpgfi"; };
 	public:
+		static constexpr const char _defName[sizeof(_defNameS<sbBinarizeGate>::n)] = _defNameS<sbBinarizeGate>::n;
+		//static constexpr const char _defName[] = sbBinarizeGate ? "lpg" : "lpgfi";
+		
 		~_layer_pack_gated()noexcept {}
 		_layer_pack_gated(UnderlyingLayer& ulayer, const GatingLayer& glayer, const char* pCustomName = nullptr)noexcept 
 			: _base_class(pCustomName), m_undLayer(ulayer), m_gatingLayer(glayer), m_layerIdx(0)
@@ -144,7 +151,6 @@ namespace nntl {
 			//gating mask works on biases also, but we shouldn't emulate them (causes unnecessary calls to fill_biases())
 			m_gatingMask.dont_emulate_biases();
 		}
-		static constexpr const char* _defName = sbBinarizeGate ? "lpg" : "lpgfi";
 
 		//and apply function _Func(auto& layer) to underlying layer
 		template<typename _Func>
@@ -194,7 +200,7 @@ namespace nntl {
 			if (ErrorCode::Success != ec) return ec;
 
 			//must be called after m_undLayer.init() because see get_iInspect() implementation
-			get_iInspect().init_layer(get_self().get_layer_idx(), get_self().get_layer_name_str());
+			get_iInspect().init_layer(get_self().get_layer_idx(), get_self().get_layer_name_str(), get_self().get_layer_type_id());
 
 			bool bSuccessfullyInitialized = false;
 			utils::scope_exit onExit([&bSuccessfullyInitialized, this]() {

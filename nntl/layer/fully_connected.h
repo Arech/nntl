@@ -50,7 +50,7 @@ namespace nntl {
 		typedef GradWorks grad_works_t;
 		static_assert(std::is_base_of<_i_grad_works<real_t>, grad_works_t>::value, "GradWorks template parameter should be derived from _i_grad_works");
 
-		static constexpr const char* _defName = "fcl";
+		static constexpr const char _defName[] = "fcl";
 
 		//////////////////////////////////////////////////////////////////////////
 		//members

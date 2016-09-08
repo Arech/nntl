@@ -145,7 +145,7 @@ namespace nntl {
 		{
 			m_activations.will_emulate_biases();
 		}
-		static constexpr const char* _defName = "lph";
+		static constexpr const char _defName[] = "lph";
 
 		const realmtxdef_t& get_activations()const noexcept { return m_activations; }
 		

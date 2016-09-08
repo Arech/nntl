@@ -192,7 +192,7 @@ namespace nntl {
 			m_innerActivations.will_emulate_biases();
 			m_innerLowerLayerActivations.will_emulate_biases();
 		}
-		static constexpr const char* _defName = "lpt";
+		static constexpr const char _defName[] = "lpt";
 
 		const realmtxdef_t& get_activations()const noexcept { return m_activations; }
 

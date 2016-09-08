@@ -33,8 +33,6 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include "../_i_inspector.h"
 
-#include "../../utils/vector_conditions.h"
-
 namespace nntl {
 	namespace inspector {
 
@@ -87,13 +85,9 @@ namespace nntl {
 
 
 		template<typename FinalChildT, typename RealT, typename ArchiveT, typename CondDumpT, size_t maxNnetDepth = 10>
-		class _dumper_base : public _impl::_base<RealT> {
+		class _dumper_base : public _impl::_bwlist<FinalChildT, RealT>
+		{
 		public:
-			typedef FinalChildT self_t;
-			typedef FinalChildT& self_ref_t;
-			typedef const FinalChildT& self_cref_t;
-			typedef FinalChildT* self_ptr_t;
-
 			typedef ArchiveT archive_t;
 			typedef typename archive_t::ErrorCode ArchiveError_t;
 
@@ -104,6 +98,13 @@ namespace nntl {
 		protected:
 			typedef _impl::layer_idx_keeper<layer_index_t, _NoLayerIdxSpecified, maxNnetDepth> keeper_t;
 
+			//#todo: this settings should be given be a special ParamsT class passed here as a template parameter
+			static constexpr bool bVerbose = false;
+			//dumps significantly (x10+) times faster when set to true
+			static constexpr bool bSplitFiles = true;
+
+			static constexpr bool bIgnoreLayersNesting = true;
+
 		protected:
 			cond_dump_t m_condDump;
 			
@@ -113,7 +114,6 @@ namespace nntl {
 
 			keeper_t m_curLayer;
 
-			//nullptr disables dumping
 			const char* m_pDirToDump;
 
 			static constexpr size_t maxFileNameLength = MAX_PATH;
@@ -124,13 +124,10 @@ namespace nntl {
 			const bool m_bOwnArch;		
 
 		protected:
-			bool m_bDoDump;//it's 'protected' for some rare special unforeseen cases. Don't access in derived classes, use CondDumpT
-		
-			static constexpr bool bVerbose = false;
+			
 
 			template<bool b=bVerbose>
 			std::enable_if_t<!b> _verbalize(const char*)const noexcept {}
-
 			template<bool b = bVerbose>
 			std::enable_if_t<b> _verbalize(const char* s)const noexcept {
 				STDCOUTL(_layer_name() << " - " << s);
@@ -151,7 +148,6 @@ namespace nntl {
 				m_epochIdx = -1;
 				m_batchIdx = -1;
 				m_layersCount = 0;
-				m_bDoDump = false;
 				m_pDirToDump = nullptr;
 			}
 
@@ -196,12 +192,22 @@ namespace nntl {
 				}
 			}
 
-			self_ref_t _open_archive()noexcept {
+			template<bool b = bSplitFiles>
+			std::enable_if_t<b> _make_file_name(char* n, const size_t ml, const bool bFprop)const noexcept {
 				NNTL_ASSERT(m_pDirToDump);
 				if (!m_pDirToDump) _epic_fail("m_pDirToDump is not set!");
+				sprintf_s(n, ml, bFprop ? "%s/epoch%zd_%df.mat" : "%s/epoch%zd_%db.mat", m_pDirToDump, m_epochIdx + 1, m_batchIdx);
+			}
+			template<bool b = bSplitFiles>
+			std::enable_if_t<!b> _make_file_name(char* n, const size_t ml, const bool bFprop)const noexcept {
+				NNTL_ASSERT(m_pDirToDump);
+				if (!m_pDirToDump) _epic_fail("m_pDirToDump is not set!");
+				sprintf_s(n, ml, "%s/epoch%zd_%d.mat", m_pDirToDump, m_epochIdx + 1, m_batchIdx);
+			}
 
+			self_ref_t _open_archive(const bool bFprop=false)noexcept {
 				char n[maxFileNameLength];
-				sprintf_s(n, "%s/epoch%zd_%d.mat", m_pDirToDump, m_epochIdx+1, m_batchIdx);
+				_make_file_name(n, maxFileNameLength, bFprop);
 				_check_err(get_self().getArchive().open(n, archive_t::FileOpenMode::UpdateDelete), "Opening file for updating");				
 				return get_self();
 			}
@@ -212,19 +218,17 @@ namespace nntl {
 			//default implementations
 			void on_train_batchBegin(const vec_len_t batchIdx) const noexcept {}
 			void on_train_batchEnd()const noexcept {}
+			void on_train_preFprop(const realmtx_t& data_x)const noexcept {}
+			void on_train_preBprop(const realmtx_t& data_y)const noexcept {}
 			void on_fprop_begin(const layer_index_t lIdx, const realmtx_t& prevAct, const bool bTrainingMode) const noexcept {}
 			void on_fprop_end(const realmtx_t& act) const noexcept {}
 			void on_bprop_begin(const layer_index_t lIdx, const realmtx_t& dLdA) const noexcept {}
 			void on_bprop_end(const realmtx_t& dLdAPrev) const noexcept {}
 
 		public:
-			self_ref_t get_self() noexcept {
-				static_assert(std::is_base_of<_dumper_base, FinalChildT>::value, "FinalChildT must derive from _dumper_base");
-				return static_cast<self_ref_t>(*this);
-			}
-			self_cref_t get_self() const noexcept {
-				static_assert(std::is_base_of<_dumper_base, FinalChildT>::value, "FinalChildT must derive from _dumper_base");
-				return static_cast<self_cref_t>(*this);
+			const bool bDoDump()const noexcept { return m_bDoDump; }
+			const bool bDoDump(const layer_index_t& lidx)const noexcept { 
+				return m_bDoDump && _bwlist_layerAllowed(lidx);
 			}
 
 			self_ref_t set_dir_to_dump(const char* pDirName)noexcept {
@@ -234,7 +238,6 @@ namespace nntl {
 				return get_self();
 			}
 
-			const bool bDoDump()const noexcept { return m_bDoDump; }
 			archive_t& getArchive()const noexcept {
 				NNTL_ASSERT(m_pArch);
 				return *m_pArch;
@@ -249,22 +252,25 @@ namespace nntl {
 				NNTL_ASSERT(m_pDirToDump);
 				NNTL_ASSERT(totalLayers && totalEpochs && totalBatches);
 				m_layersCount = totalLayers;
+				m_bDoDump = false;
 
 				//#exceptions STL
+				m_layerNames.clear();
 				m_layerNames.resize(m_layersCount);
 				m_layerNames.shrink_to_fit();
 
-				m_condDump.on_init_nnet(totalEpochs, totalBatches);
-				m_bDoDump = false;
+				_bwlist_init(totalLayers);
 
+				m_condDump.on_init_nnet(totalEpochs, totalBatches);
 				//if (!m_pDirToDump) STDCOUTL("*beware, dumping has been disabled due to unset directory to dump");
 			}
 
 			template<typename StrT>
-			void init_layer(const layer_index_t lIdx, StrT&& LayerName)noexcept {
+			void init_layer(const layer_index_t lIdx, StrT&& LayerName, const layer_type_id_t layerTypeId)noexcept {
 				NNTL_ASSERT(lIdx < m_layersCount);
 				//#exceptions STL
 				m_layerNames[lIdx].assign(std::forward<StrT>(LayerName));
+				_bwlist_updateLayer(lIdx, layerTypeId);
 			};
 
 			void train_epochBegin(const size_t epochIdx)noexcept {
@@ -276,10 +282,20 @@ namespace nntl {
 				m_bDoDump = m_condDump.on_train_batchBegin(m_bDoDump, batchIdx, m_epochIdx);
 				if (m_bDoDump) {
 					STDCOUTL("Going to dump the dataflow...");
-					get_self()._open_archive()
+					get_self()._open_archive(true)
 						.on_train_batchBegin(batchIdx);
 				}
 			}
+
+			void train_preBprop(const realmtx_t& data_y) noexcept {
+				if (m_bDoDump) {
+					if (bSplitFiles) get_self()._close_archive()
+						._open_archive(false);
+
+					get_self().on_train_preBprop(data_y);
+				}
+			}
+
 			void train_batchEnd() noexcept {
 				if (m_bDoDump) {
 					get_self().on_train_batchEnd();
@@ -295,29 +311,20 @@ namespace nntl {
 				//we shouldn't update m_bDoDump here, because it's already set by train_batchBegin(). bTrainingMode
 				// is guaranteed to be true when m_bDoDump==true
 				NNTL_ASSERT(!m_bDoDump || bTrainingMode);
-
-				if (m_bDoDump) {
-					m_curLayer.push(lIdx);
-					get_self().on_fprop_begin(lIdx, prevAct, bTrainingMode);
-				}
+				m_curLayer.push(lIdx);
+				if (bDoDump(lIdx)) get_self().on_fprop_begin(lIdx, prevAct, bTrainingMode);
 			}
 			void fprop_end(const realmtx_t& act) noexcept {
-				if (m_bDoDump) {
-					get_self().on_fprop_end(act);
-					m_curLayer.pop();
-				}
+				if (bDoDump(m_curLayer)) get_self().on_fprop_end(act);
+				m_curLayer.pop();
 			}
 			void bprop_begin(const layer_index_t lIdx, const realmtx_t& dLdA) noexcept {
-				if (m_bDoDump) {
-					m_curLayer.push(lIdx);
-					get_self().on_bprop_begin(lIdx, dLdA);
-				}
+				m_curLayer.push(lIdx);
+				if (bDoDump(lIdx)) get_self().on_bprop_begin(lIdx, dLdA);
 			}
 			void bprop_end(const realmtx_t& dLdAPrev) noexcept {
-				if (m_bDoDump) {
-					get_self().on_bprop_end(dLdAPrev);
-					m_curLayer.pop();
-				}
+				if (bDoDump(m_curLayer)) get_self().on_bprop_end(dLdAPrev);
+				m_curLayer.pop();
 			}
 		};
 
@@ -335,16 +342,16 @@ namespace nntl {
 		public:
 			//////////////////////////////////////////////////////////////////////////
 			//////////////////////////////////////////////////////////////////////////
-			//NB: every _i_inspector's function implementation (they aren't staring with on_) should check if (m_bDoDump) first
+			//NB: every _i_inspector's function implementation (they aren't staring with on_) should check if bDoDump() first
 			
 			void on_fprop_begin(const layer_index_t lIdx, const realmtx_t& prevAct, const bool bTrainingMode) const noexcept {
 				NNTL_ASSERT(bTrainingMode);
 				_verbalize("on_fprop_begin");
 				auto& ar = getArchive();
-				_check_err(ar.save_struct_begin(get_self()._layer_name(), false, true), "on_fprop_begin: save_struct_begin");
+				_check_err(ar.save_struct_begin(get_self()._layer_name(), false, bIgnoreLayersNesting), "on_fprop_begin: save_struct_begin");
 			}
 
-			void fprop_preNesterovMomentum(const realmtx_t& vW, const real_t momentum, const realmtx_t& W)const noexcept {
+			/*void fprop_preNesterovMomentum(const realmtx_t& vW, const real_t momentum, const realmtx_t& W)const noexcept {
 				if (bDoDump()) {
 					_verbalize("fprop_preNesterovMomentum");
 					auto& ar = getArchive();
@@ -353,7 +360,7 @@ namespace nntl {
 					ar & serialization::make_nvp("f_preNM_momentum", momentum);
 					_check_err(ar.get_last_error(), "fprop_preNesterovMomentum: saving momentum");
 				}
-			}
+			}*/
 
 			void on_fprop_end(const realmtx_t& A)const noexcept {
 				_verbalize("on_fprop_end");
@@ -370,13 +377,13 @@ namespace nntl {
 			void on_bprop_begin(const layer_index_t lIdx, const realmtx_t& dLdA)const noexcept {
 				_verbalize("on_bprop_begin");
 				auto& ar = getArchive();
-				_check_err (ar.save_struct_begin(get_self()._layer_name(), true, true),"on_bprop_begin: save_struct_begin");
+				_check_err (ar.save_struct_begin(get_self()._layer_name(), bSplitFiles ? false : true, bIgnoreLayersNesting),"on_bprop_begin: save_struct_begin");
 				ar & NNTL_SERIALIZATION_NVP(dLdA);
 				_check_err(ar.get_last_error(),"on_bprop_begin: saving dLdA");
 			}
 
 			void apply_grad_begin(const realmtx_t& W, const realmtx_t& dLdW)const noexcept {
-				if (bDoDump()) {
+				if (bDoDump(m_curLayer)) {
 					_verbalize("apply_grad_begin");
 					auto& ar = getArchive();
 					ar & NNTL_SERIALIZATION_NVP(dLdW);
@@ -384,7 +391,7 @@ namespace nntl {
 				}
 			}
 			void apply_grad_update(const realmtx_t& W, const realmtx_t& WUpd)const noexcept {
-				if (bDoDump()) {
+				if (bDoDump(m_curLayer)) {
 					_verbalize("apply_grad_update");
 					auto& ar = getArchive();
 					ar & serialization::make_nvp("a_preUpd_W",W);

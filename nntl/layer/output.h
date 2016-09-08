@@ -112,7 +112,7 @@ namespace nntl {
 			//dont need biases in last layer!  --- it is OFF by default
 			//m_activations.dont_emulate_biases();
 		};
-		static constexpr const char* _defName = "outp";
+		static constexpr const char _defName[] = "outp";
 
 		//constexpr const bool is_output_layer()const noexcept { return true; }
 		const realmtxdef_t& get_activations()const noexcept { return m_activations; }

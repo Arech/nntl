@@ -131,6 +131,9 @@ TEST(TestInspectors, DumperMat) {
 	opts.calcFullLossValue(false).batchSize(100);
 
 	myInspector Insp("./test_data");
+	Insp.blacklist(myInspector::layer_idx_list_t({ 1 }))
+		.blacklist(inp.get_layer_type_id());
+
 	auto nn = make_nnet(lp, Insp);
 
 	nn.get_iRng().seed64(seedVal);

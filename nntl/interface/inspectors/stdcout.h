@@ -94,11 +94,11 @@ namespace inspector {
 		}
 
 		template<typename StrT>
-		void init_layer(const layer_index_t lIdx, StrT&& LayerName)noexcept {
+		void init_layer(const layer_index_t lIdx, StrT&& LayerName, const layer_type_id_t layerTypeId)noexcept {
 			NNTL_ASSERT(lIdx < m_layersCount);
 			//#exceptions STL
 			m_layerNames[lIdx].assign(std::forward<StrT>(LayerName));
-			STDCOUTL("Layer " << m_layerNames[lIdx] << " is being initialized");
+			STDCOUTL("Layer " << m_layerNames[lIdx] << " of type 0x" << std::hex << layerTypeId << std::dec << " is being initialized");
 		};
 
 		void train_epochBegin(const size_t epochIdx)noexcept {

@@ -132,7 +132,7 @@ namespace nntl {
 					"Inner layers of _layer_pack_vertical mustn't be input or output layers!");
 			});
 		}
-		static constexpr const char* _defName = "lpv";
+		static constexpr const char _defName[] = "lpv";
 
 		//////////////////////////////////////////////////////////////////////////
 		// helpers to access common data 
@@ -218,7 +218,7 @@ namespace nntl {
 			}
 
 			//must be called after first inner layer initialization complete - see our get_iInspect() implementation
-			get_iInspect().init_layer(get_self().get_layer_idx(), get_self().get_layer_name_str());
+			get_iInspect().init_layer(get_self().get_layer_idx(), get_self().get_layer_name_str(), get_self().get_layer_type_id());
 
 			//#TODO need some way to return failedLayerIdx
 			if (ErrorCode::Success == ec) bSuccessfullyInitialized = true;

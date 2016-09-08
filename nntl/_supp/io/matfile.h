@@ -614,11 +614,12 @@ namespace nntl_supp {
 					ec = ErrorCode::WrongState_NameAlreadySet;
 				} else {
 					mxArray* pNewStruct = nullptr;
-					mxArray* pOldHead = nullptr;
+					mxArray* pOldHead;
 					if (bDontNest && m_structureStack.size()) {
 						pOldHead = m_structureStack.top();
 						m_structureStack.pop();
-					}
+					} else pOldHead = nullptr;
+
 					if (bUpdateIfExist) {
 						m_curVarName = structName.c_str();
 						NNTL_ASSERT(m_curVarName);

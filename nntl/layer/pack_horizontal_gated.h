@@ -89,7 +89,14 @@ namespace nntl {
 
 		friend class _impl::_preinit_layers;
 
+	private:
+		template<bool b> struct _defNameS {};
+		template<> struct _defNameS<true> { static constexpr const char n[] = "lphg"; };
+		template<> struct _defNameS<false> { static constexpr const char n[] = "lphgfi"; };
 	public:
+		static constexpr const char _defName[sizeof(_defNameS<sbBinarizeGate>::n)] = _defNameS<sbBinarizeGate>::n;
+		//static constexpr const char _defName[] = sbBinarizeGate ? "lphg" : "lphgfi";
+
 		~_layer_pack_horizontal_gated()noexcept {}
 		_layer_pack_horizontal_gated(const char* pCustomName, PHLsT&... phls)noexcept : _base_class(pCustomName, phls...) {
 			//at this point all neuron counts in gating layers must be initialized and therefore we can check whether
@@ -108,7 +115,6 @@ namespace nntl {
 			NNTL_ASSERT(s == gated_layers_count);
 			NNTL_ASSERT(std::accumulate(m_colSpec.begin(), m_colSpec.end(), vec_len_t(0)) == get_self().get_neurons_cnt() - get_self().gating_layer().get_neurons_cnt());
 		}
-		static constexpr const char* _defName = sbBinarizeGate ? "lphg" : "lphgfi";
 
 		const gating_layer_t& gating_layer()const noexcept { return get_self().first_layer(); }
 
