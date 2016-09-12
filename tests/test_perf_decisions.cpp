@@ -1420,6 +1420,7 @@ TEST(TestPerfDecisions, RmsPropH) {
 //////////////////////////////////////////////////////////////////////////
 // perf test to find out which strategy better to performing dropout - processing elementwise, or 'vectorized'
 // dropout_batch is significantly faster
+/*
 template<typename iRng_t, typename iMath_t>
 void dropout_batch(realmtx_t& activs, real_t dropoutFraction, realmtx_t& dropoutMask, iRng_t& iR, iMath_t& iM) {
 	NNTL_ASSERT(activs.size() == dropoutMask.size());
@@ -1498,9 +1499,10 @@ void test_dropout_perf(iMath& iM, vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 	diff = steady_clock::now() - bt;
 	STDCOUTL("batch:\t" << utils::duration_readable(diff, maxReps, &tBatch));
 }
+*/
 
 /*
- * this is BS
+ * this test is a BS
 TEST(TestPerfDecisions, Dropout) {
 	typedef nntl::d_interfaces::iThreads_t def_threads_t;
 	typedef math::MathN<real_t, def_threads_t> iMB;
@@ -1517,3 +1519,142 @@ TEST(TestPerfDecisions, Dropout) {
 #endif
 }*/
 //////////////////////////////////////////////////////////////////////////
+
+#include "../nntl/weights_init.h"
+#include "../nntl/activation.h"
+
+static void pt_ileakyrelu_st(realmtx_t& srcdest, const real_t leak) noexcept {
+	NNTL_ASSERT(!srcdest.empty());
+	NNTL_ASSERT(leak > real_t(0.0));
+	auto pV = srcdest.data();
+	const auto pVE = pV + srcdest.numel();
+	while (pV != pVE) {
+		const auto v = *pV;
+		/*if (v < real_t(+0.0))  *pV = v*leak; //this code doesn't vectorize and work about x10 times slower on my HW
+		++pV;*/
+		*pV++ = v < real_t(+0.0) ? v*leak : v; //this one however does vectorize
+	}
+}
+template<typename FunctorT>
+void pt_iact_asymm_st(realmtx_t& srcdest) noexcept {
+	NNTL_ASSERT(!srcdest.empty());
+	auto pV = srcdest.data();
+	const auto pVE = pV + srcdest.numel();
+	while (pV != pVE) {
+		const auto v = *pV;
+		*pV++ = v < real_t(+0.0) ? FunctorT::f_neg(v) : FunctorT::f_pos(v);
+	}
+}
+//slightly faster (177vs192)
+template<typename RealT, size_t LeakKInv100 = 10000, typename WeightsInitScheme = weights_init::He_Zhang<>>
+class exp_leaky_relu : public activation::_i_activation<RealT> {
+	exp_leaky_relu() = delete;
+	~exp_leaky_relu() = delete;
+public:
+	typedef WeightsInitScheme weights_scheme;
+	static constexpr real_t LeakK = real_t(100.0) / real_t(LeakKInv100);
+
+public:
+	static void f(realmtx_t& srcdest) noexcept {
+		pt_ileakyrelu_st(srcdest, LeakK);
+	};
+};
+//slightly slower (192vs177)
+template<typename RealT, size_t LeakKInv100 = 10000, typename WeightsInitScheme = weights_init::He_Zhang<>>
+class exp2_leaky_relu : public activation::_i_activation<RealT> {
+	exp2_leaky_relu() = delete;
+	~exp2_leaky_relu() = delete;
+public:
+	typedef WeightsInitScheme weights_scheme;
+	static constexpr real_t LeakK = real_t(100.0) / real_t(LeakKInv100);
+
+	struct LRFunc {
+		static constexpr real_t f_pos(const real_t& x)noexcept { return x; }
+		static constexpr real_t f_neg(const real_t& x)noexcept { return x*LeakK; }
+
+		static constexpr real_t df_pos(const real_t& fv)noexcept { return real_t(1.); }
+		static constexpr real_t df_neg(const real_t& fv)noexcept { return LeakK; }
+	};
+
+public:
+	static void f(realmtx_t& srcdest) noexcept {
+		pt_iact_asymm_st<LRFunc>(srcdest);
+	};
+};
+
+void test_ActPrmVsNonprm_perf(vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
+	typedef nntl::d_interfaces::iThreads_t def_threads_t;
+	typedef math::MathN<real_t, def_threads_t> iMB;
+	iMB iM;
+
+	const auto dataSize = realmtx_t::sNumel(rowsCnt, colsCnt);
+	STDCOUTL("**** testing test_ActPrmVsNonprm_perf() over " << rowsCnt << "x" << colsCnt << " matrix (" << dataSize << " elements) ****");
+
+	constexpr unsigned maxReps = TEST_PERF_REPEATS_COUNT;
+
+	d_interfaces::iRng_t rg;
+	rg.set_ithreads(iM.ithreads());
+
+	realmtx_t XSrc(rowsCnt, colsCnt), X(rowsCnt, colsCnt), TV(rowsCnt, colsCnt);
+	ASSERT_TRUE(!XSrc.isAllocationFailed() && !X.isAllocationFailed() && !TV.isAllocationFailed());
+	
+	typedef exp_leaky_relu<real_t> AType;
+	typedef exp2_leaky_relu<real_t> BType;
+
+	tictoc tA1, tB1, tA2, tB2, tA3, tB3;
+	utils::prioritize_workers<utils::PriorityClass::PerfTesting, def_threads_t> pw(iM.ithreads());
+	for (unsigned r = 0; r < maxReps; ++r) {
+			rg.gen_matrix(XSrc, real_t(5.0));
+
+			XSrc.cloneTo(X);
+			tA1.tic();
+			AType::f(X);
+			tA1.toc();
+
+			XSrc.cloneTo(X);
+			tB1.tic();
+			BType::f(X);
+			tB1.toc();
+
+			XSrc.cloneTo(X);
+			tA2.tic();
+			AType::f(X);
+			tA2.toc();
+
+			XSrc.cloneTo(X);
+			tB2.tic();
+			BType::f(X);
+			tB2.toc();
+
+			XSrc.cloneTo(X);
+			tA3.tic();
+			AType::f(X);
+			tA3.toc();
+			X.cloneTo(TV);
+
+			XSrc.cloneTo(X);
+			tB3.tic();
+			BType::f(X);
+			tB3.toc();
+
+			ASSERT_EQ(TV, X);
+	}
+
+	tA1.say("A1");
+	tA2.say("A2");
+	tA3.say("A3");
+	tB1.say("B1");
+	tB2.say("B2");
+	tB3.say("B3");
+}
+
+TEST(TestPerfDecisions, ActPrmVsNonprm) {
+	test_ActPrmVsNonprm_perf(100, 5);
+	test_ActPrmVsNonprm_perf(100, 50);
+
+	test_ActPrmVsNonprm_perf(10000, 5);
+	test_ActPrmVsNonprm_perf(10000, 50);
+
+	test_ActPrmVsNonprm_perf(100000, 5);
+	test_ActPrmVsNonprm_perf(100000, 50);
+}

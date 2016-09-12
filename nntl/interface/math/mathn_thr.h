@@ -79,19 +79,28 @@ namespace _impl {
 		static constexpr size_t evAbs = 20300;
 		static constexpr size_t vSumAbs = 18000;//not tested		
 
-		static constexpr size_t sigm = 1000;
-		static constexpr size_t dsigm = 28000;
+		static constexpr size_t sigm = 1300;
+		static constexpr size_t dsigm = 24500;
 		static constexpr size_t dSigmQuadLoss_dZ = 14900;
 
-		static constexpr size_t relu = 6300;
-		static constexpr size_t drelu = 4700;
-		static constexpr size_t leakyrelu = 6000;
-		static constexpr size_t dleakyrelu = 4700;
+		static constexpr size_t relu = 108000/2;
+		static constexpr size_t drelu = 26500/2;
+		static constexpr size_t leakyrelu = 106000/2;
+		static constexpr size_t dleakyrelu = 26500/2;
 
-		static constexpr size_t elu = 1400;
-		static constexpr size_t delu = 4700;
-		static constexpr size_t elu_unitalpha = 1500;
-		static constexpr size_t delu_unitalpha = 4700;
+		static constexpr size_t elu = 1500;
+		static constexpr size_t delu = 25000;
+		static constexpr size_t elu_unitalpha = 1550;
+		static constexpr size_t delu_unitalpha = 25600;
+
+		static constexpr size_t elogu = 1100;
+		static constexpr size_t delogu = 1700;
+		static constexpr size_t elogu_ua = 1100;
+		static constexpr size_t delogu_ua = 1800;
+		static constexpr size_t elogu_nb = 1100;
+		static constexpr size_t delogu_nb = 1800;
+		static constexpr size_t elogu_ua_nb = 1150;
+		static constexpr size_t delogu_ua_nb = 1850;
 
 		static constexpr size_t softmax_parts = 1900;
 		static constexpr size_t softmax_parts_mt_cw_ColsPerThread = 3;
@@ -142,19 +151,28 @@ namespace _impl {
 		static constexpr size_t evAbs = 43000;
 		static constexpr size_t vSumAbs = 36000;//not tested
 
-		static constexpr size_t sigm = 35000;
-		static constexpr size_t dsigm = 52000;
+		static constexpr size_t sigm = 1300;//*
+		static constexpr size_t dsigm = 24500;//*
 		static constexpr size_t dSigmQuadLoss_dZ = 32000;
 
-		static constexpr size_t relu = 5500;
-		static constexpr size_t drelu = 4700;
-		static constexpr size_t leakyrelu = 5400;//*
-		static constexpr size_t dleakyrelu = 4700;//*
+		static constexpr size_t relu = 108000;//*
+		static constexpr size_t drelu = 26500;//*
+		static constexpr size_t leakyrelu = 106000;//*
+		static constexpr size_t dleakyrelu = 26500;//*
 
-		static constexpr size_t elu = 1400;//*
-		static constexpr size_t delu = 4700;//*
-		static constexpr size_t elu_unitalpha = 1500;//*
-		static constexpr size_t delu_unitalpha = 4700;//*
+		static constexpr size_t elu = 1600;//*
+		static constexpr size_t delu = 25000;//*
+		static constexpr size_t elu_unitalpha = 1650;//*
+		static constexpr size_t delu_unitalpha = 25600;//*
+
+		static constexpr size_t elogu = 1100;
+		static constexpr size_t delogu = 1700;
+		static constexpr size_t elogu_ua = 1100;
+		static constexpr size_t delogu_ua = 1800;
+		static constexpr size_t elogu_nb = 1100;
+		static constexpr size_t delogu_nb = 1800;
+		static constexpr size_t elogu_ua_nb = 1150;
+		static constexpr size_t delogu_ua_nb = 1850;
 
 		static constexpr size_t softmax_parts = 3200;
 		static constexpr size_t softmax_parts_mt_cw_ColsPerThread = 3;

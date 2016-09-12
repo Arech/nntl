@@ -44,11 +44,14 @@ namespace nntl {
 				epochs_to_dump_t m_epochsToDump;
 
 				void on_init_nnet(const size_t totalEpochs, const vec_len_t totalBatches)noexcept {
-					if (!m_epochsToDump.size()) m_epochsToDump.push_back(totalEpochs - 1);
+					const auto lastEpochIdx = totalEpochs - 1;
+					if (!m_epochsToDump.size()) m_epochsToDump.push_back(lastEpochIdx);
 
 					m_dumpEpochCond.clear().resize(totalEpochs, false);
 					for (const auto etd : m_epochsToDump) {
-						if (etd < totalEpochs) m_dumpEpochCond.verbose(etd);
+						if (etd < totalEpochs) {
+							m_dumpEpochCond.verbose(etd);
+						} else m_dumpEpochCond.verbose(lastEpochIdx);
 					}
 				}
 
@@ -381,6 +384,15 @@ namespace nntl {
 				ar & NNTL_SERIALIZATION_NVP(dLdA);
 				_check_err(ar.get_last_error(),"on_bprop_begin: saving dLdA");
 			}
+
+			/*void bprop_dLdZ(const realmtx_t& dLdZ) const noexcept {
+				if (bDoDump(m_curLayer)) {
+					_verbalize("bprop_dLdZ");
+					auto& ar = getArchive();
+					ar & NNTL_SERIALIZATION_NVP(dLdZ);
+					_check_err(ar.get_last_error(), "bprop_dLdZ: saving dLdZ");
+				}
+			}*/
 
 			void apply_grad_begin(const realmtx_t& W, const realmtx_t& dLdW)const noexcept {
 				if (bDoDump(m_curLayer)) {

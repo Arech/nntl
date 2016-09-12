@@ -264,9 +264,12 @@ namespace nntl {
 			//compute dL/dZ
 			iI.bprop_predLdZOut(m_activations, data_y);
 			activation_f_t::dLdZ(m_activations, data_y, m_dLdZ, _Math);
-			iI.bprop_postdLdZ(m_dLdZ);
+			iI.bprop_dLdZ(m_dLdZ);
 
-			if (m_bRestrictdLdZ) _Math.evClamp(m_dLdZ, m_dLdZRestrictLowerBnd, m_dLdZRestrictUpperBnd);
+			if (m_bRestrictdLdZ) {
+				_Math.evClamp(m_dLdZ, m_dLdZRestrictLowerBnd, m_dLdZRestrictUpperBnd);
+				iI.bprop_postClampdLdZ(m_dLdZ, m_dLdZRestrictLowerBnd, m_dLdZRestrictUpperBnd);
+			}
 
 			//compute dL/dW = 1/batchsize * (dL/dZ)` * Aprev
 			_Math.mScaledMulAtB_C(real_t(1.0) / real_t(m_dLdZ.rows()), m_dLdZ, prevActivations, m_dLdW);

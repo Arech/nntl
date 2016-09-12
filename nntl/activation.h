@@ -290,7 +290,74 @@ namespace activation {
 	};
 
 	template<typename RealT, typename WeightsInitScheme = weights_init::He_Zhang<>>
-	using elu_unitalpha = elu<RealT, 1000, WeightsInitScheme>;
+	using elu_ua = elu<RealT, 1000, WeightsInitScheme>;
 
+
+	//////////////////////////////////////////////////////////////////////////
+	//////////////////////////////////////////////////////////////////////////
+	//ELogU : log(x+1)/log(b) | x>0,  alpha*(exp(x)-1) | x<0
+	template<typename RealT, size_t Alpha1e3 = 1000, size_t B1e6 = 2000000, typename WeightsInitScheme = weights_init::He_Zhang<>>
+	class elogu : public _i_activation<RealT> {
+		elogu() = delete;
+		~elogu() = delete;
+	public:
+		typedef WeightsInitScheme weights_scheme;
+		static constexpr real_t Alpha = real_t(Alpha1e3) / real_t(1000.0);
+		static constexpr bool bIsUnitAlpha = (Alpha1e3 == 1000);
+
+		static constexpr real_t B = real_t(B1e3) / real_t(1000000.0);
+		static constexpr bool bIsNaturalB = (B1e3 == 2718281);
+
+	public:
+		//apply f to each srcdest matrix element. The biases (if any) must be left untouched!
+		template <typename iMath, bool bUnitAlpha = bIsUnitAlpha, bool bNatB = bIsNaturalB>
+		static std::enable_if_t<!bUnitAlpha && !bNatB> f(realmtx_t& srcdest, iMath& m) noexcept {
+			static_assert(std::is_base_of<math::_i_math<real_t>, iMath>::value, "iMath should implement math::_i_math");
+			m.elogu(srcdest, Alpha, B);
+		};
+		template <typename iMath, bool bUnitAlpha = bIsUnitAlpha, bool bNatB = bIsNaturalB>
+		static std::enable_if_t<bUnitAlpha && !bNatB> f(realmtx_t& srcdest, iMath& m) noexcept {
+			static_assert(std::is_base_of<math::_i_math<real_t>, iMath>::value, "iMath should implement math::_i_math");
+			m.elogu_ua(srcdest, B);
+		};
+		template <typename iMath, bool bUnitAlpha = bIsUnitAlpha, bool bNatB = bIsNaturalB>
+		static std::enable_if_t<!bUnitAlpha && bNatB> f(realmtx_t& srcdest, iMath& m) noexcept {
+			static_assert(std::is_base_of<math::_i_math<real_t>, iMath>::value, "iMath should implement math::_i_math");
+			m.elogu_nb(srcdest, Alpha);
+		};
+		template <typename iMath, bool bUnitAlpha = bIsUnitAlpha, bool bNatB = bIsNaturalB>
+		static std::enable_if_t<bUnitAlpha && bNatB> f(realmtx_t& srcdest, iMath& m) noexcept {
+			static_assert(std::is_base_of<math::_i_math<real_t>, iMath>::value, "iMath should implement math::_i_math");
+			m.elogu_ua_nb(srcdest);
+		};
+
+		template <typename iMath, bool bUnitAlpha = bIsUnitAlpha, bool bNatB = bIsNaturalB>
+		static std::enable_if_t<!bUnitAlpha && !bNatB> df(const realmtx_t& fValue, realmtx_t& df, iMath& m) noexcept {
+			static_assert(std::is_base_of<math::_i_math<real_t>, iMath>::value, "iMath should implement math::_i_math");
+			m.delogu(fValue, df, Alpha, B);//fValue is used in no_bias version!
+		}
+		template <typename iMath, bool bUnitAlpha = bIsUnitAlpha, bool bNatB = bIsNaturalB>
+		static std::enable_if_t<bUnitAlpha && !bNatB> df(const realmtx_t& fValue, realmtx_t& df, iMath& m) noexcept {
+			static_assert(std::is_base_of<math::_i_math<real_t>, iMath>::value, "iMath should implement math::_i_math");
+			m.delogu_ua(fValue, df, B);//fValue is used in no_bias version!
+		}
+		template <typename iMath, bool bUnitAlpha = bIsUnitAlpha, bool bNatB = bIsNaturalB>
+		static std::enable_if_t<!bUnitAlpha && bNatB> df(const realmtx_t& fValue, realmtx_t& df, iMath& m) noexcept {
+			static_assert(std::is_base_of<math::_i_math<real_t>, iMath>::value, "iMath should implement math::_i_math");
+			m.delogu_nb(fValue, df, Alpha);//fValue is used in no_bias version!
+		}
+		template <typename iMath, bool bUnitAlpha = bIsUnitAlpha, bool bNatB = bIsNaturalB>
+		static std::enable_if_t<bUnitAlpha && bNatB> df(const realmtx_t& fValue, realmtx_t& df, iMath& m) noexcept {
+			static_assert(std::is_base_of<math::_i_math<real_t>, iMath>::value, "iMath should implement math::_i_math");
+			m.delogu_ua_nb(fValue, df);//fValue is used in no_bias version!
+		}
+	};
+
+	template<typename RealT, size_t B1e3 = 2000, typename WeightsInitScheme = weights_init::He_Zhang<>>
+	using elogu_ua = elogu<RealT, 1000, B1e3, WeightsInitScheme>;
+	template<typename RealT, size_t Alpha1e3 = 1000, typename WeightsInitScheme = weights_init::He_Zhang<>>
+	using elogu_nb = elogu<RealT, Alpha1e3, 2718281, WeightsInitScheme>;
+	template<typename RealT, typename WeightsInitScheme = weights_init::He_Zhang<>>
+	using elogu_ua_nb = elogu<RealT, 1000, 2718281, WeightsInitScheme>;
 }
 }

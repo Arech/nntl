@@ -51,7 +51,7 @@ namespace utils {
 		public:
 			~prioritize_workers_dummy()noexcept {}
 			prioritize_workers_dummy(iThreadsT& iT)noexcept {
-				STDCOUTL("*** prioritize_workers not implemented for this OS, using dummy class");
+				//STDCOUTL("*** prioritize_workers not implemented for this OS, using dummy class");
 			}
 		};
 	}
@@ -168,6 +168,7 @@ namespace utils {
 	template<typename iThreads_t>
 	using prioritize_workers = _impl::prioritize_workers_dummy<iThreads_t>;
 
+#pragma message( __FILE__ "[" STRING(__LINE__) "]: *** prioritize_workers was not implemented for current OS, using dummy class")
 
 #endif
 

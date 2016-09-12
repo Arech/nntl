@@ -31,6 +31,9 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
 #include "stdafx.h"
+
+#include <cmath>
+
 #include "imath_etalons.h"
 
 #include <algorithm>
@@ -129,13 +132,20 @@ void apply_ILR_ET(realmtx_t& dLdW, const realmtx_t& prevdLdW, realmtx_t& ILRGain
 		const auto cond = pdW[i] * prevdW[i];
 		auto gain = pGain[i];
 
-		if (cond > 0) {
+		/*if (cond > 0) {
 			gain *= incr;
 			if (gain > capHigh)gain = capHigh;
 		} else if (cond < 0) {
 			gain *= decr;
 			if (gain < capLow)gain = capLow;
+		}*/
+
+		if (cond > real_t(+0.)) {
+			if (gain < capHigh) gain *= incr;
+		} else if (cond < real_t(-0.)) {
+			if (gain > capLow) gain *= decr;
 		}
+
 		pGain[i] = gain;
 		pdW[i] *= gain;
 	}
@@ -408,7 +418,7 @@ void relu_ET(realmtx_t& f) {
 	const auto p = f.data();
 	const auto ne = f.numel_no_bias();
 	for (numel_cnt_t i = 0; i < ne; ++i) {
-		if (p[i]<real_t(+0.)) p[i] = real_t(0.);
+		if (p[i]<real_t(-0.)) p[i] = real_t(0.);
 	}
 }
 void drelu_ET(const realmtx_t& f, realmtx_t& df) {
@@ -424,7 +434,7 @@ void leakyrelu_ET(realmtx_t& f, const real_t leak) {
 	const auto p = f.data();
 	const auto ne = f.numel_no_bias();
 	for (numel_cnt_t i = 0; i < ne; ++i) {
-		if (p[i] < real_t(+0.)) p[i] *= leak;
+		if (p[i] < real_t(0.)) p[i] *= leak;
 	}
 }
 void dleakyrelu_ET(const realmtx_t& f, realmtx_t& df, const real_t leak) {
@@ -432,7 +442,7 @@ void dleakyrelu_ET(const realmtx_t& f, realmtx_t& df, const real_t leak) {
 	const auto pd = df.data();
 	const auto ne = f.numel_no_bias();
 	for (numel_cnt_t i = 0; i < ne; ++i) {
-		pd[i] = (p[i] < real_t(+0.)) ? leak : real_t(1.);
+		pd[i] = (p[i] < real_t(0.)) ? leak : real_t(1.);
 	}
 }
 
@@ -440,7 +450,7 @@ void elu_ET(realmtx_t& f, const real_t alpha) {
 	const auto p = f.data();
 	const auto ne = f.numel_no_bias();
 	for (numel_cnt_t i = 0; i < ne; ++i) {
-		if (p[i] < real_t(+0.)) p[i] = alpha*(std::exp(p[i]) - real_t(1.));
+		if (p[i] < real_t(0.)) p[i] = alpha*(std::exp(p[i]) - real_t(1.));
 	}
 }
 //#TODO: probably it's better to make df value out of plain x value instead of f(x). Update this and related functions and tests
@@ -449,8 +459,45 @@ void delu_ET(const realmtx_t& f, realmtx_t& df, const real_t alpha) {
 	const auto pd = df.data();
 	const auto ne = f.numel_no_bias();
 	for (numel_cnt_t i = 0; i < ne; ++i) {
-		pd[i] = (p[i] < real_t(+0.)) ? (p[i] + alpha) : real_t(1.);
+		pd[i] = (p[i] < real_t(0.)) ? (p[i] + alpha) : real_t(1.);
 	}
 }
 void elu_unitalpha_ET(realmtx_t& f) { elu_ET(f, real_t(1.0)); }
 void delu_unitalpha_ET(const realmtx_t& f, realmtx_t& df) { delu_ET(f, df, real_t(1.0)); }
+
+void elogu_ET(const realmtx_t& x, realmtx_t& f, const real_t& alpha, const real_t& b) {
+	NNTL_ASSERT(x.size() == f.size());
+	const auto px = x.data();
+	const auto dest = f.data();
+	const auto ne = x.numel_no_bias();
+	const auto ilb = real_t(1.) / log(b);
+	for (numel_cnt_t i = 0; i < ne; ++i) {
+		const auto xv = px[i];
+		if (xv < real_t(0.)) {
+			dest[i] = alpha*(std::exp(xv) - real_t(1.));
+		} else {
+			dest[i] = log(xv + real_t(1.))*ilb;
+		}
+	}
+}
+void delogu_ET(const realmtx_t& x, realmtx_t& df, const real_t& alpha, const real_t& b) {
+	NNTL_ASSERT(df.size() == x.size_no_bias());
+	const auto ilb = real_t(1.) / log(b);
+	const auto px = x.data();
+	const auto dest = df.data();
+	const auto ne = x.numel_no_bias();
+	for (numel_cnt_t i = 0; i < ne; ++i) {
+		const auto xv = px[i];
+		if (xv < real_t(0.)) {
+			dest[i] = alpha*std::exp(xv);
+		} else {
+			dest[i] = ilb / (xv + real_t(1.));
+		}
+	}
+}
+void elogu_ua_ET(const realmtx_t& x, realmtx_t& f, const real_t& b) { elogu_ET(x, f, real_t(1.), b); }
+void delogu_ua_ET(const realmtx_t& x, realmtx_t& df, const real_t& b) { delogu_ET(x, df, real_t(1.), b); }
+void elogu_nb_ET(const realmtx_t& x, realmtx_t& f, const real_t& alpha) { elogu_ET(x, f, alpha, real_t(M_E)); }
+void delogu_nb_ET(const realmtx_t& x, realmtx_t& df, const real_t& alpha) { delogu_ET(x, df, alpha, real_t(M_E)); }
+void elogu_ua_nb_ET(const realmtx_t& x, realmtx_t& f) { elogu_ET(x, f, real_t(1.), real_t(M_E)); }
+void delogu_ua_nb_ET(const realmtx_t& x, realmtx_t& df) { delogu_ET(x, df, real_t(1.), real_t(M_E)); }

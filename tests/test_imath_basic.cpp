@@ -1299,8 +1299,10 @@ TEST(TestMathN, ApplyILRPerf) {
 	iMB iM;
 	NNTL_RUN_TEST2(iMB::Thresholds_t::apply_ILR_st, 10) test_applyILR_perf(iM, i, 10);
 	//NNTL_RUN_TEST4(iMB::Thresholds_t::apply_ILR_st, 60, 2, 10) test_applyILR_perf(iM, i, 10);
-	NNTL_RUN_TEST2(iMB::Thresholds_t::apply_ILR_mt_lo, 100) test_applyILR_perf(iM, i, 100);
+	
+	NNTL_RUN_TEST2(iMB::Thresholds_t::apply_ILR_mt_lo, 100) test_applyILR_perf(iM, i, 100);	
 	//NNTL_RUN_TEST4(iMB::Thresholds_t::apply_ILR_mt_lo, 4, 1, 100) test_applyILR_perf(iM, i, 100);
+	
 	NNTL_RUN_TEST2(iMB::Thresholds_t::apply_ILR_mt_hi, 100) test_applyILR_perf(iM, i, 100);
 	//NNTL_RUN_TEST4(iMB::Thresholds_t::apply_ILR_mt_hi, 4, 1, 100) test_applyILR_perf(iM, i, 100);
 }
@@ -2862,11 +2864,11 @@ void test_relu_corr(vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 		ASSERT_TRUE(F_ET.test_biases_ok());
 
 		src.cloneTo(F);
-		iM.relu_st_naive(F);
+		iM.relu_st(F);
 		ASSERT_MTX_EQ(F, F_ET, "_st() failed");
 
 		src.cloneTo(F);
-		iM.relu_mt_naive(F);
+		iM.relu_mt(F);
 		ASSERT_MTX_EQ(F, F_ET, "_mt() failed");
 
 		src.cloneTo(F);
@@ -2896,10 +2898,10 @@ void test_drelu_corr(vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 		drelu_ET(F,df_ET);
 		ASSERT_TRUE(F.test_biases_ok());
 
-		iM.drelu_st_naive(F,dfM);
+		iM.drelu_st(F,dfM);
 		ASSERT_MTX_EQ(df_ET, dfM, "_st() failed");
 
-		iM.drelu_mt_naive(F, dfM);
+		iM.drelu_mt(F, dfM);
 		ASSERT_MTX_EQ(df_ET, dfM, "_mt() failed");
 
 		iM.drelu(F, dfM);
@@ -3076,6 +3078,173 @@ TEST(TestMathN, DELU) {
 	for (vec_len_t r = 1; r < g_MinDataSizeDelta; ++r) {
 		for (vec_len_t c = 1; c < g_MinDataSizeDelta; ++c) {
 			test_delu_corr(r, c);
+		}
+	}
+}
+
+//////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////
+template<typename base_t> struct elogu_EPS {};
+template<> struct elogu_EPS <double> { static constexpr double eps = 1e-12; };
+template<> struct elogu_EPS <float> { static constexpr float eps = 1e-6f; };
+void test_elogu_corr(vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
+	MTXSIZE_SCOPED_TRACE(rowsCnt, colsCnt, "test_elogu_corr");
+	constexpr unsigned testCorrRepCnt = 10;
+	realmtx_t X(rowsCnt, colsCnt, true), F(rowsCnt, colsCnt, true)
+		, F_ET(rowsCnt, colsCnt, true)
+		, FUA_ET(rowsCnt, colsCnt, true)
+		, FNB_ET(rowsCnt, colsCnt, true)
+		, FUANB_ET(rowsCnt, colsCnt, true);
+
+	ASSERT_TRUE(!X.isAllocationFailed() && !F.isAllocationFailed() && !F_ET.isAllocationFailed() 
+		&& !FUA_ET.isAllocationFailed() && !FNB_ET.isAllocationFailed() && !FUANB_ET.isAllocationFailed());
+
+	constexpr real_t alpha = real_t(2.5), b=real_t(2.);
+
+	d_interfaces::iRng_t rg;
+	rg.set_ithreads(iM.ithreads());
+	for (unsigned r = 0; r < testCorrRepCnt; ++r) {
+		rg.gen_matrix_no_bias(X, 5);
+		ASSERT_TRUE(X.test_biases_ok());
+
+		elogu_ET(X, F_ET, alpha, b);
+		ASSERT_TRUE(F_ET.test_biases_ok());
+		elogu_ua_ET(X, FUA_ET, b);
+		ASSERT_TRUE(FUA_ET.test_biases_ok());
+		elogu_nb_ET(X, FNB_ET, alpha);
+		ASSERT_TRUE(FNB_ET.test_biases_ok());
+		elogu_ua_nb_ET(X, FUANB_ET);
+		ASSERT_TRUE(FUANB_ET.test_biases_ok());
+
+
+		X.cloneTo(F);
+		iM.elogu_st(F, alpha, b);
+		ASSERT_REALMTX_NEAR(F, F_ET, "elogu_st() failed", elogu_EPS<real_t>::eps);
+		X.cloneTo(F);
+		iM.elogu_ua_st(F, b);
+		ASSERT_REALMTX_NEAR(F, FUA_ET, "elogu_ua_st() failed", elogu_EPS<real_t>::eps);
+		X.cloneTo(F);
+		iM.elogu_nb_st(F, alpha);
+		ASSERT_REALMTX_NEAR(F, FNB_ET, "elogu_nb_st() failed", elogu_EPS<real_t>::eps);
+		X.cloneTo(F);
+		iM.elogu_ua_nb_st(F);
+		ASSERT_REALMTX_NEAR(F, FUANB_ET, "elogu_ua_nb_st() failed", elogu_EPS<real_t>::eps);
+
+
+		X.cloneTo(F);
+		iM.elogu_mt(F, alpha, b);
+		ASSERT_REALMTX_NEAR(F, F_ET, "elogu_mt() failed", elogu_EPS<real_t>::eps);
+		X.cloneTo(F);
+		iM.elogu_ua_mt(F, b);
+		ASSERT_REALMTX_NEAR(F, FUA_ET, "elogu_ua_mt() failed", elogu_EPS<real_t>::eps);
+		X.cloneTo(F);
+		iM.elogu_nb_mt(F, alpha);
+		ASSERT_REALMTX_NEAR(F, FNB_ET, "elogu_nb_mt() failed", elogu_EPS<real_t>::eps);
+		X.cloneTo(F);
+		iM.elogu_ua_nb_mt(F);
+		ASSERT_REALMTX_NEAR(F, FUANB_ET, "elogu_ua_nb_mt() failed", elogu_EPS<real_t>::eps);
+
+
+		X.cloneTo(F);
+		iM.elogu(F, alpha, b);
+		ASSERT_REALMTX_NEAR(F, F_ET, "elogu() failed", elogu_EPS<real_t>::eps);
+		X.cloneTo(F);
+		iM.elogu_ua(F, b);
+		ASSERT_REALMTX_NEAR(F, FUA_ET, "elogu_ua() failed", elogu_EPS<real_t>::eps);
+		X.cloneTo(F);
+		iM.elogu_nb(F, alpha);
+		ASSERT_REALMTX_NEAR(F, FNB_ET, "elogu_nb() failed", elogu_EPS<real_t>::eps);
+		X.cloneTo(F);
+		iM.elogu_ua_nb(F);
+		ASSERT_REALMTX_NEAR(F, FUANB_ET, "elogu_ua_nb() failed", elogu_EPS<real_t>::eps);
+	}
+}
+TEST(TestMathN, ELogU) {
+	for (vec_len_t r = 1; r < g_MinDataSizeDelta; ++r) {
+		for (vec_len_t c = 1; c < g_MinDataSizeDelta; ++c) {
+			test_elogu_corr(r, c);
+		}
+	}
+}
+template<typename base_t> struct delogu_EPS {};
+template<> struct delogu_EPS <double> { static constexpr double eps = 1e-12; };
+template<> struct delogu_EPS <float> { static constexpr float eps = 1e-6f; };
+void test_delogu_corr(vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
+	MTXSIZE_SCOPED_TRACE(rowsCnt, colsCnt, "test_delogu_corr");
+	constexpr unsigned testCorrRepCnt = 10;
+	realmtx_t X(rowsCnt, colsCnt, true), F(rowsCnt, colsCnt, true), DF(rowsCnt, colsCnt, false)
+		, df_ET(rowsCnt, colsCnt, false), dfUA_ET(rowsCnt, colsCnt, false)
+		, dfNB_ET(rowsCnt, colsCnt, false), dfUANB_ET(rowsCnt, colsCnt, false);
+	ASSERT_TRUE(!X.isAllocationFailed() && !F.isAllocationFailed() && !DF.isAllocationFailed() 
+		&& !df_ET.isAllocationFailed() && !dfUA_ET.isAllocationFailed()
+		&& !dfNB_ET.isAllocationFailed() && !dfUANB_ET.isAllocationFailed());
+
+	constexpr real_t alpha = real_t(2.5), b = real_t(2.);
+
+	d_interfaces::iRng_t rg;
+	rg.set_ithreads(iM.ithreads());
+	for (unsigned r = 0; r < testCorrRepCnt; ++r) {
+		rg.gen_matrix_no_bias(X, 5);
+		ASSERT_TRUE(X.test_biases_ok());
+
+		delogu_ET(X, df_ET, alpha, b);
+		delogu_ua_ET(X, dfUA_ET, b);
+		delogu_nb_ET(X, dfNB_ET, alpha);
+		delogu_ua_nb_ET(X, dfUANB_ET);
+
+		elogu_ET(X, F, alpha, b);
+		ASSERT_TRUE(F.test_biases_ok());
+		DF.zeros();
+		iM.delogu_st(F, DF, alpha, b);
+		ASSERT_REALMTX_NEAR(df_ET, DF, "delogu_st() failed", delogu_EPS<real_t>::eps);
+		DF.zeros();
+		iM.delogu_mt(F, DF, alpha, b);
+		ASSERT_REALMTX_NEAR(df_ET, DF, "delogu_mt() failed", delogu_EPS<real_t>::eps);
+		DF.zeros();
+		iM.delogu(F, DF, alpha, b);
+		ASSERT_REALMTX_NEAR(df_ET, DF, "delogu() failed", delogu_EPS<real_t>::eps);
+
+		elogu_ua_ET(X, F, b);
+		ASSERT_TRUE(F.test_biases_ok());
+		DF.zeros();
+		iM.delogu_ua_st(F, DF, b);
+		ASSERT_REALMTX_NEAR(dfUA_ET, DF, "delogu_ua_st() failed", delogu_EPS<real_t>::eps);
+		DF.zeros();
+		iM.delogu_ua_mt(F, DF, b);
+		ASSERT_REALMTX_NEAR(dfUA_ET, DF, "delogu_ua_mt() failed", delogu_EPS<real_t>::eps);
+		DF.zeros();
+		iM.delogu_ua(F, DF, b);
+		ASSERT_REALMTX_NEAR(dfUA_ET, DF, "delogu_ua() failed", delogu_EPS<real_t>::eps);
+
+		elogu_nb_ET(X, F, alpha);
+		ASSERT_TRUE(F.test_biases_ok());
+		DF.zeros();
+		iM.delogu_nb_st(F, DF, alpha);
+		ASSERT_REALMTX_NEAR(dfNB_ET, DF, "delogu_nb_st() failed", delogu_EPS<real_t>::eps);
+		DF.zeros();
+		iM.delogu_nb_mt(F, DF, alpha);
+		ASSERT_REALMTX_NEAR(dfNB_ET, DF, "delogu_nb_mt() failed", delogu_EPS<real_t>::eps);
+		DF.zeros();
+		iM.delogu_nb(F, DF, alpha);
+		ASSERT_REALMTX_NEAR(dfNB_ET, DF, "delogu_nb() failed", delogu_EPS<real_t>::eps);
+
+		elogu_ua_nb_ET(X, F);
+		ASSERT_TRUE(F.test_biases_ok());
+		DF.zeros();
+		iM.delogu_ua_nb_st(F, DF);
+		ASSERT_REALMTX_NEAR(dfUANB_ET, DF, "delogu_ua_nb_st() failed", delogu_EPS<real_t>::eps);
+		DF.zeros();
+		iM.delogu_ua_nb_mt(F, DF);
+		ASSERT_REALMTX_NEAR(dfUANB_ET, DF, "delogu_ua_nb_mt() failed", delogu_EPS<real_t>::eps);
+		DF.zeros();
+		iM.delogu_ua_nb(F, DF);
+		ASSERT_REALMTX_NEAR(dfUANB_ET, DF, "delogu_ua_nb() failed", delogu_EPS<real_t>::eps);
+	}
+}
+TEST(TestMathN, DELogU) {
+	for (vec_len_t r = 1; r < g_MinDataSizeDelta; ++r) {
+		for (vec_len_t c = 1; c < g_MinDataSizeDelta; ++c) {
+			test_delogu_corr(r, c);
 		}
 	}
 }

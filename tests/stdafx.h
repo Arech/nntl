@@ -46,6 +46,8 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //Either remove this compiler option, or define _ALLOW_RTCc_IN_STL to acknowledge that you have received this warning.
 #define _ALLOW_RTCc_IN_STL
 
+#define _USE_MATH_DEFINES // for C++ math constants
+
 #include "targetver.h"
 
 #include <stdio.h>

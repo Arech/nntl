@@ -39,7 +39,8 @@ I wouldn't state the NNTL is the fastest CPU implementation of feedforward neura
   * **Sigm**oid
   * Rectified linear units (**ReLU**)
   * **Leaky ReLU**
-  * Exponential Linear Units (**ELU**)
+  * Exponential Linear Units (**ELU**). (exp(x)-1)*alpha for x<0 and (x) for x>0; See Clevert et al. "Fast and Accurate Deep Network Learning by Exponential Linear Units (ELUs)", 1511.07289)
+  * Exponential ( (exp(x)-1)*alpha for x<0 ) - logarithmic ( log(x+1)/log(b) for x>0 ) Units (ELogU). I haven't seen a description of this kind of units in academic papers, however, I'm sure someone else has also tryed them. They are good to squash too big output (you may get from ReLU-family units) to more reasonable values and aren't saturating contrary to sigmoids.
 * Neuron weights initialization schemes:
   * According to **Xavier** et al. "Understanding the difficulty of training deep feedforward neural networks" 2010 (so called "Xavier initialization" - good for sigmoids)
   * According to **He, Zhang** et al. "Delving Deep into Rectifiers: Surpassing Human-Level Performance on ImageNet Classification" 2015 (amazing for ReLU)

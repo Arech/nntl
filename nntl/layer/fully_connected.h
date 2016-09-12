@@ -340,13 +340,15 @@ namespace nntl {
 				iI.bprop_postCancelDropout(m_activations);
 			}
 			
+			//#TODO 
+
 			//computing dA/dZ(no_bias)
 			iI.bprop_predAdZ(m_activations);
 			activation_f_t::df(m_activations, m_dAdZ_dLdZ, _Math);
-			iI.bprop_predLdZ(dLdA, m_dAdZ_dLdZ);
+			iI.bprop_dLdA_dAdZ(dLdA, m_dAdZ_dLdZ);
 			//compute dL/dZ=dL/dA.*dA/dZ into dA/dZ
 			_Math.evMul_ip(m_dAdZ_dLdZ, dLdA);
-			iI.bprop_postdLdZ(m_dAdZ_dLdZ);
+			iI.bprop_dLdZ(m_dAdZ_dLdZ);
 
 			if (bUseDropout) {
 				//we must cancel activations that was dropped out by the mask (should they've been restored by activation_f_t::df())

@@ -165,8 +165,9 @@ namespace rng {
 			get_self().gen_vector(mtx.data(), mtx.numel(), a);
 		}
 		void gen_matrix_no_bias(realmtx_t& mtx, const real_t a)noexcept {
-			NNTL_ASSERT(mtx.emulatesBiases());
+			NNTL_ASSERT(mtx.emulatesBiases() && mtx.test_biases_ok());
 			get_self().gen_vector(mtx.data(), mtx.numel_no_bias(), a);
+			NNTL_ASSERT(mtx.test_biases_ok());
 		}
 
 		//generate matrix with values in range [0,1]
@@ -175,8 +176,9 @@ namespace rng {
 			get_self().gen_vector_norm(mtx.data(), mtx.numel());
 		}
 		void gen_matrix_no_bias_norm(realmtx_t& mtx)noexcept {
-			NNTL_ASSERT(mtx.emulatesBiases());
+			NNTL_ASSERT(mtx.emulatesBiases() && mtx.test_biases_ok());
 			get_self().gen_vector_norm(mtx.data(), mtx.numel_no_bias());
+			NNTL_ASSERT(mtx.test_biases_ok());
 		}
 
 		//////////////////////////////////////////////////////////////////////////
@@ -186,8 +188,9 @@ namespace rng {
 			get_self().gen_vector_gtz(mtx.data(), mtx.numel(), a);
 		}
 		void gen_matrix_no_bias_gtz(realmtx_t& mtx, const real_t a)noexcept {
-			NNTL_ASSERT(mtx.emulatesBiases());
+			NNTL_ASSERT(mtx.emulatesBiases() && mtx.test_biases_ok());
 			get_self().gen_vector_gtz(mtx.data(), mtx.numel_no_bias(), a);
+			NNTL_ASSERT(mtx.test_biases_ok());
 		}
 
 		static uint32_t s64to32(uint64_t v)noexcept {

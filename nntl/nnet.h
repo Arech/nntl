@@ -144,12 +144,17 @@ namespace nntl {
 
 	protected:
 		//returns test loss
-		template<typename Observer>
+		template<bool bPrioritizeThreads = true, typename Observer>
 		const real_t _report_training_fragment(const size_t epoch, const real_t trainLoss, train_data_t& td,
 			const std::chrono::nanoseconds& tElapsed, Observer& obs, nnet_eval_results<real_t>*const pTestEvalRes=nullptr) noexcept
 		{
 			//relaxing thread priorities (we don't know in advance what callback functions actually do, so better relax it)
-			utils::prioritize_workers<utils::PriorityClass::Normal, iThreads_t> pw(get_iMath().ithreads());
+			//utils::prioritize_workers<utils::PriorityClass::Normal, iThreads_t> pw(get_iMath().ithreads());
+			std::conditional_t<bPrioritizeThreads
+				, utils::prioritize_workers<utils::PriorityClass::Normal, iThreads_t>
+				, utils::_impl::prioritize_workers_dummy<utils::PriorityClass::Normal, iThreads_t>
+			> pw(get_iMath().ithreads());
+
 
 			//const auto& activations = m_Layers.output_layer().get_activations();
 			obs.inspect_results(epoch, td.train_y(), false, *this);
@@ -300,9 +305,13 @@ namespace nntl {
 		
 	public:
 
-		template <typename TrainOptsT, typename OnEpochEndCbT = NNetCB_OnEpochEnd_Dummy>
+		template <bool bPrioritizeThreads = true, typename TrainOptsT, typename OnEpochEndCbT = NNetCB_OnEpochEnd_Dummy>
 		ErrorCode train(train_data_t& td, TrainOptsT& opts, OnEpochEndCbT&& onEpochEndCB = NNetCB_OnEpochEnd_Dummy())noexcept
 		{
+			typedef std::conditional_t<bPrioritizeThreads
+				, utils::prioritize_workers<utils::PriorityClass::Working, iThreads_t>
+				, utils::_impl::prioritize_workers_dummy<utils::PriorityClass::Normal, iThreads_t>> PW_t;
+
 			if (td.empty()) return _set_last_error(ErrorCode::InvalidTD);
 
 			auto& iI = get_iInspect();
@@ -371,7 +380,7 @@ namespace nntl {
 			//making initial report
 			opts.observer().on_training_start(samplesCount, td.test_x().rows(), train_x.cols_no_bias(), train_y.cols(), batchSize, m_LMR.totalParamsToLearn);
 			if (m_bCalcFullLossValue) m_Layers.prepToCalcLossAddendum();
-			_report_training_fragment(-1, _calcLoss(train_x, train_y), td, std::chrono::nanoseconds(0), opts.observer());
+			_report_training_fragment<bPrioritizeThreads>(-1, _calcLoss(train_x, train_y), td, std::chrono::nanoseconds(0), opts.observer());
 
 			m_Layers.set_mode(0);//prepare for training (sets to batchSize, that's already stored in Layers)
 
@@ -383,7 +392,8 @@ namespace nntl {
 
 			{
 				//raising thread priorities for faster computation
-				utils::prioritize_workers<utils::PriorityClass::Working, iThreads_t> pw(get_iMath().ithreads());
+				//utils::prioritize_workers<utils::PriorityClass::Working, iThreads_t> pw(get_iMath().ithreads());
+				PW_t pw(get_iMath().ithreads());
 
 				for (size_t epochIdx = 0; epochIdx < maxEpoch; ++epochIdx) {
 					iI.train_epochBegin(epochIdx);
@@ -440,7 +450,7 @@ namespace nntl {
 								m_Layers.output_layer().get_activations().cloneTo(trr.output_activations);
 								pTestEvalRes = &opts.NNEvalFinalResults().testSet;
 							}
-							_report_training_fragment(epochIdx, trainLoss, td, epochPeriodEnds - epochPeriodBeginsAt, opts.observer(), pTestEvalRes);
+							_report_training_fragment<bPrioritizeThreads>(epochIdx, trainLoss, td, epochPeriodEnds - epochPeriodBeginsAt, opts.observer(), pTestEvalRes);
 							epochPeriodBeginsAt = epochPeriodEnds;//restarting period timer
 						}
 						m_Layers.set_mode(0);//restoring training mode after _calcLoss()

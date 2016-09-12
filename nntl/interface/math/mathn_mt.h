@@ -298,16 +298,16 @@ namespace math {
 		//////////////////////////////////////////////////////////////////////////
 		//ReLU
 		void relu(realmtx_t& srcdest) noexcept {
-			relu_mt_naive(srcdest);
+			relu_mt(srcdest);
 		}
 		//////////////////////////////////////////////////////////////////////////
 		// d(ReLU)/dZ
 		void drelu(const realmtx_t& fValue, realmtx_t& df) noexcept {
-			 drelu_mt_naive(fValue, df);
+			drelu(fValue, df);
 		}
 
 		void leakyrelu(realmtx_t& srcdest, const real_t leak) noexcept {
-			leakyrelu_mt(srcdest, leak);
+			leakyrelu(srcdest, leak);
 		}
 		void dleakyrelu(const realmtx_t& fValue, realmtx_t& df, const real_t leak) noexcept {
 			dleakyrelu_mt(fValue, df, leak);
@@ -325,6 +325,34 @@ namespace math {
 		}
 		void delu_unitalpha(const realmtx_t& fValue, realmtx_t& df) noexcept {
 			delu_unitalpha_mt(fValue, df);
+		}
+
+		void elogu(realmtx_t& srcdest, const real_t& alpha, const real_t& b) noexcept {
+			get_self().elogu_mt(srcdest, alpha, b);
+		}
+		void delogu(const realmtx_t& fValue, realmtx_t& df, const real_t& alpha, const real_t& b) noexcept {
+			get_self().delogu_mt(fValue, df, alpha, b);
+		}
+
+		void elogu_ua(realmtx_t& srcdest, const real_t& b) noexcept {
+			get_self().elogu_ua_mt(srcdest, b);
+		}
+		void delogu_ua(const realmtx_t& fValue, realmtx_t& df, const real_t& b) noexcept {
+			get_self().delogu_ua_mt(fValue, df, b);
+		}
+
+		void elogu_nb(realmtx_t& srcdest, const real_t& alpha) noexcept {
+			get_self().elogu_nb_mt(srcdest, alpha);
+		}
+		void delogu_nb(const realmtx_t& fValue, realmtx_t& df, const real_t& alpha) noexcept {
+			get_self().delogu_nb_mt(fValue, df, alpha);
+		}
+
+		void elogu_ua_nb(realmtx_t& srcdest) noexcept {
+			get_self().elogu_ua_nb_mt(srcdest);
+		}
+		void delogu_ua_nb(const realmtx_t& fValue, realmtx_t& df) noexcept {
+			get_self().delogu_ua_nb_mt(fValue, df);
 		}
 
 		//////////////////////////////////////////////////////////////////////////
