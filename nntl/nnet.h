@@ -143,10 +143,13 @@ namespace nntl {
 		void require_reinit()noexcept { m_bRequireReinit = true; }
 
 	protected:
+
+		//#todo get rid of pTestEvalRes
 		//returns test loss
 		template<bool bPrioritizeThreads = true, typename Observer>
-		const real_t _report_training_fragment(const size_t epoch, const real_t trainLoss, train_data_t& td,
-			const std::chrono::nanoseconds& tElapsed, Observer& obs, nnet_eval_results<real_t>*const pTestEvalRes=nullptr) noexcept
+		const real_t _report_training_fragment(const size_t& epoch, const real_t& trainLoss, train_data_t& td,
+			const std::chrono::nanoseconds& tElapsed, Observer& obs, const bool& bTrainSetWasInspected = false,
+			nnet_eval_results<real_t>*const pTestEvalRes=nullptr) noexcept
 		{
 			//relaxing thread priorities (we don't know in advance what callback functions actually do, so better relax it)
 			//utils::prioritize_workers<utils::PriorityClass::Normal, iThreads_t> pw(get_iMath().ithreads());
@@ -157,7 +160,7 @@ namespace nntl {
 
 
 			//const auto& activations = m_Layers.output_layer().get_activations();
-			obs.inspect_results(epoch, td.train_y(), false, *this);
+			if (!bTrainSetWasInspected) obs.inspect_results(epoch, td.train_y(), false, *this);
 
 			const auto testLoss = _calcLoss(td.test_x(), td.test_y());
 			if (pTestEvalRes) {
@@ -330,11 +333,10 @@ namespace nntl {
 			const bool bTrainSetBigger = samplesCount >= td.test_x().rows();
 			const bool bMiniBatch = opts.batchSize() > 0 && opts.batchSize() < samplesCount;
 			const bool bSaveNNEvalResults = opts.evalNNFinalPerf();
-			const bool bDropFProp4ErrorCalc = !bMiniBatch && opts.dropFProp4FullBatchErrorCalc();
-			const auto batchSize = bMiniBatch ? opts.batchSize() : samplesCount;
 
 			const size_t maxEpoch = opts.maxEpoch();
 			const auto lastEpoch = maxEpoch - 1;
+			const vec_len_t batchSize = bMiniBatch ? opts.batchSize() : samplesCount;
 			const vec_len_t numBatches = samplesCount / batchSize;
 
 			if (!_batchSizeOk(td, batchSize)) return _set_last_error(ErrorCode::BatchSizeMustBeMultipleOfTrainDataLength);
@@ -355,7 +357,7 @@ namespace nntl {
 					_deinit();
 				}
 			});
-			
+
 			if (m_bCalcFullLossValue) m_bCalcFullLossValue = m_LMR.bHasLossAddendum;
 
 			realmtx_t& batch_x = bMiniBatch ? ttd._batch_x : td.train_x_mutable();
@@ -370,6 +372,11 @@ namespace nntl {
 			const auto& cee = opts.getCondEpochEval();			
 			const auto divergenceCheckLastEpoch = opts.divergenceCheckLastEpoch();
 
+			//when we're in a fullbatch mode and nn output is the same in training and testing modes, then we may use
+			//results of training's fprop() in error calculation to skip corresponding fprop() completely
+			const bool bOptimFullBatchErrorCalc = !bMiniBatch && opts.dropFProp4FullBatchErrorCalc()
+				&& !m_LMR.bOutputDifferentDuringTraining;
+
 			if (bSaveNNEvalResults) opts.getCondEpochEval().verbose(lastEpoch);
 
 			if (! opts.observer().init(maxEpoch, train_y, td.test_y(), get_iMath())) return _set_last_error(ErrorCode::CantInitializeObserver);
@@ -379,8 +386,10 @@ namespace nntl {
 			
 			//making initial report
 			opts.observer().on_training_start(samplesCount, td.test_x().rows(), train_x.cols_no_bias(), train_y.cols(), batchSize, m_LMR.totalParamsToLearn);
-			if (m_bCalcFullLossValue) m_Layers.prepToCalcLossAddendum();
-			_report_training_fragment<bPrioritizeThreads>(-1, _calcLoss(train_x, train_y), td, std::chrono::nanoseconds(0), opts.observer());
+			
+			if (m_bCalcFullLossValue) m_Layers.prepToCalcLossAddendum();			
+			_report_training_fragment<bPrioritizeThreads>(-1, _calcLoss(train_x, train_y), td
+				, std::chrono::nanoseconds(0), opts.observer());
 
 			m_Layers.set_mode(0);//prepare for training (sets to batchSize, that's already stored in Layers)
 
@@ -398,6 +407,13 @@ namespace nntl {
 				for (size_t epochIdx = 0; epochIdx < maxEpoch; ++epochIdx) {
 					iI.train_epochBegin(epochIdx);
 
+					real_t trainLoss;
+					const bool bInspectEpoch = cee(epochIdx);
+					const bool bCheckForDivergence = epochIdx < divergenceCheckLastEpoch;
+					const bool bCalcLoss = bInspectEpoch || bCheckForDivergence;
+					const bool bLastEpoch = epochIdx == lastEpoch;
+					const bool bOptFBErrCalcThisEpoch = bOptimFullBatchErrorCalc && bCalcLoss && !bLastEpoch;
+
 					auto vRowIdxIt = vRowIdxs.begin();
 					if (bMiniBatch) {
 						//making random permutations to define which data rows will be used as batch data
@@ -406,39 +422,36 @@ namespace nntl {
 
 					for (vec_len_t batchIdx = 0; batchIdx < numBatches; ++batchIdx) {
 						iI.train_batchBegin(batchIdx);
+
 						if (bMiniBatch) {
 							get_iMath().mExtractRows(train_x, vRowIdxIt, batchSize, batch_x);
 							get_iMath().mExtractRows(train_y, vRowIdxIt, batchSize, batch_y);
 							vRowIdxIt += batchSize;
 						}
 
-						//TODO: denoising autoencoders support here
-
 						iI.train_preFprop(batch_x);
 						m_Layers.fprop(batch_x);
-						
-						//fullbatch algorithms with quadratic or crossentropy loss function use dL/dA (==error) to compute loss function value.
-						//But the dL/dA should be calculated during backward pass. We _can_ calculate it here, but because most of the time we will
-						// learn NN with dropout or some other regularizer, output layer activation values in fact can (or "will"
-						// in case of dropout) be distorted by that regularizer. Therefore there is no great point in computing error here and
-						// pass it to bprop() to be able to reuse it later in loss function computation (where it's suitable only in case of
-						// fullbatch learning and absence of dropout/regularizer). Therefore don't bother here with error and leave it to bprop()
+
+						if (bOptFBErrCalcThisEpoch) {
+							if (m_bCalcFullLossValue) m_Layers.prepToCalcLossAddendum();
+							trainLoss = _calcLoss(batch_x, batch_y, true);
+							//we don't need to call m_Layers.set_mode(0) here because we did not do fprop() in _calcLoss()
+							if (bInspectEpoch) opts.observer().inspect_results(epochIdx, train_y, false, *this);
+						}
+
 						iI.train_preBprop(batch_y);
 						m_Layers.bprop(batch_y, ttd.a_dLdA);
 
 						iI.train_batchEnd();
 					}
 
-					const bool bInspectEpoch = cee(epochIdx);
-					const bool bCheckForDivergence = epochIdx < divergenceCheckLastEpoch;
-					if (bInspectEpoch || bCheckForDivergence) {
-						const bool bLastEpoch = epochIdx == lastEpoch;
-
-						if (m_bCalcFullLossValue) m_Layers.prepToCalcLossAddendum();
-						const auto trainLoss = _calcLoss(train_x, train_y, bDropFProp4ErrorCalc && !bLastEpoch);
-						if (bCheckForDivergence && trainLoss >= opts.divergenceCheckThreshold()) {
-							return _set_last_error(ErrorCode::NNDiverged);
+					if (bCalcLoss) {
+						if (!bOptFBErrCalcThisEpoch) {
+							if (m_bCalcFullLossValue) m_Layers.prepToCalcLossAddendum();
+							trainLoss = _calcLoss(train_x, train_y);
 						}
+						if (bCheckForDivergence && trainLoss >= opts.divergenceCheckThreshold())
+							return _set_last_error(ErrorCode::NNDiverged);
 
 						if (bInspectEpoch) {
 							const auto epochPeriodEnds = std::chrono::steady_clock::now();
@@ -447,13 +460,18 @@ namespace nntl {
 								//saving training results
 								auto& trr = opts.NNEvalFinalResults().trainSet;
 								trr.lossValue = trainLoss;
+								//we can call output_layer().get_activations() here because for the last epoch
+								// bOptFBErrCalcThisEpoch is always ==false
 								m_Layers.output_layer().get_activations().cloneTo(trr.output_activations);
 								pTestEvalRes = &opts.NNEvalFinalResults().testSet;
 							}
-							_report_training_fragment<bPrioritizeThreads>(epochIdx, trainLoss, td, epochPeriodEnds - epochPeriodBeginsAt, opts.observer(), pTestEvalRes);
+							_report_training_fragment<bPrioritizeThreads>(epochIdx, trainLoss, td
+								, epochPeriodEnds - epochPeriodBeginsAt, opts.observer(), bOptFBErrCalcThisEpoch, pTestEvalRes);
 							epochPeriodBeginsAt = epochPeriodEnds;//restarting period timer
 						}
-						m_Layers.set_mode(0);//restoring training mode after _calcLoss()
+
+						if (bInspectEpoch || !bOptFBErrCalcThisEpoch)
+							m_Layers.set_mode(0);//restoring training mode after _calcLoss()
 					}
 
 					iI.train_epochEnd();
@@ -473,21 +491,24 @@ namespace nntl {
 			return _set_last_error(ec);
 		}
 
-		ErrorCode calcLoss(const realmtx_t& data_x, const realmtx_t& data_y, real_t& lossVal) noexcept {
+		ErrorCode calcLoss(const realmtx_t& data_x, const realmtx_t& data_y, real_t& lossVal, const bool& bUseOldLossAddendum = false) noexcept {
 			NNTL_ASSERT(data_x.rows() == data_y.rows());
 
 			auto ec = _init(data_x.rows());
 			if (ErrorCode::Success != ec) return _set_last_error(ec);
 
+			if (m_bCalcFullLossValue && !bUseOldLossAddendum) m_Layers.prepToCalcLossAddendum();
 			lossVal = _calcLoss(data_x, data_y);
 			return _set_last_error(ec);
 		}
 
-		ErrorCode eval(const realmtx_t& data_x, const realmtx_t& data_y, nnet_eval_results<real_t>& res)noexcept {
+		ErrorCode eval(const realmtx_t& data_x, const realmtx_t& data_y, nnet_eval_results<real_t>& res, const bool& bUseOldLossAddendum=false)noexcept {
 			NNTL_ASSERT(data_x.rows() == data_y.rows());
 
 			auto ec = _init(data_x.rows());
 			if (ErrorCode::Success != ec) return _set_last_error(ec);
+
+			if (m_bCalcFullLossValue && !bUseOldLossAddendum) m_Layers.prepToCalcLossAddendum();
 
 			res.lossValue = _calcLoss(data_x, data_y);
 			m_Layers.output_layer().get_activations().cloneTo(res.output_activations);
@@ -495,10 +516,12 @@ namespace nntl {
 		}
 
 		ErrorCode td_eval(train_data_t& td, nnet_td_eval_results<real_t>& res)noexcept {
-			auto ec = eval(td.train_x(), td.train_y(), res.trainSet);
+			if (m_bCalcFullLossValue) m_Layers.prepToCalcLossAddendum();
+
+			auto ec = eval(td.train_x(), td.train_y(), res.trainSet, true);
 			if (ec != ErrorCode::Success) return ec;
 			
-			ec = eval(td.test_x(), td.test_y(), res.testSet);
+			ec = eval(td.test_x(), td.test_y(), res.testSet, true);
 			return ec;
 		}
 

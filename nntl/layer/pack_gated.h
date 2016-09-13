@@ -114,8 +114,6 @@ namespace nntl {
 	private:
 		layer_index_t m_layerIdx;
 
-	protected:
-		bool m_bTraining;
 
 		//////////////////////////////////////////////////////////////////////////
 		//
@@ -165,7 +163,11 @@ namespace nntl {
 		const neurons_count_t get_neurons_cnt() const noexcept { return m_undLayer.get_neurons_cnt(); }
 		const neurons_count_t get_incoming_neurons_cnt()const noexcept { return  m_undLayer.get_incoming_neurons_cnt(); }
 
-		const realmtxdef_t& get_activations()const noexcept { return m_undLayer.get_activations(); }
+		const realmtxdef_t& get_activations()const noexcept { 
+			NNTL_ASSERT(m_bActivationsValid);
+			return m_undLayer.get_activations();
+		}
+		const mtx_size_t get_activations_size()const noexcept { return m_undLayer.get_activations_size(); }
 
 		//////////////////////////////////////////////////////////////////////////
 		// helpers to access common data 
@@ -195,6 +197,7 @@ namespace nntl {
 
 		//////////////////////////////////////////////////////////////////////////
 		ErrorCode init(_layer_init_data_t& lid, real_t* pNewActivationStorage = nullptr)noexcept {
+			_base_class::init();
 			NNTL_ASSERT(1 == m_gatingLayer.get_gate_width());
 			auto ec = m_undLayer.init(lid, pNewActivationStorage);
 			if (ErrorCode::Success != ec) return ec;
@@ -209,10 +212,11 @@ namespace nntl {
 
 			//we must resize gatingMask here to the size of underlying_layer activations, however gatingMask mustn't
 			//have an emulated bias column
-			NNTL_ASSERT(m_undLayer.get_activations().emulatesBiases());
+			//NNTL_ASSERT(m_undLayer.get_activations().emulatesBiases()); //every layer except an output MUST have biases
 			NNTL_ASSERT(!m_gatingMask.emulatesBiases());
-			NNTL_ASSERT(m_undLayer.get_activations().size() != realmtx_t::mtx_size_t(0, 0));
-			if (m_gatingMask.resize(m_undLayer.get_activations().size_no_bias())) {
+			const mtx_size_t uas = m_undLayer.get_activations_size();
+			NNTL_ASSERT(uas != realmtx_t::mtx_size_t(0, 0) && uas.second > 1);
+			if (m_gatingMask.resize(uas.first, uas.second - 1)) {
 				if (sbBinarizeGate) {
 					//we'll use iMath internal memory storage for binarized source matrix, therefore we must notify iMath about it
 					get_self().get_iMath().preinit(
@@ -228,6 +232,7 @@ namespace nntl {
 		void deinit() noexcept {
 			m_undLayer.deinit();
 			m_gatingMask.clear();
+			_base_class::deinit();
 		}
 
 		void initMem(real_t* ptr, numel_cnt_t cnt)noexcept {
@@ -235,14 +240,18 @@ namespace nntl {
 		}
 
 		void set_mode(vec_len_t batchSize, real_t* pNewActivationStorage = nullptr)noexcept {
+			m_bActivationsValid = false;
 			m_bTraining = 0==batchSize;
+
 			m_undLayer.set_mode(batchSize, pNewActivationStorage);
 
-			NNTL_ASSERT(m_undLayer.get_activations().emulatesBiases());
+			//NNTL_ASSERT(m_undLayer.get_activations().emulatesBiases());
 			NNTL_ASSERT(!m_gatingMask.emulatesBiases());
 			//we must deform the mask to fit new underlying activations size
-			m_gatingMask.deform_rows(m_undLayer.get_activations().rows());
-			NNTL_ASSERT(m_gatingMask.size() == m_undLayer.get_activations().size_no_bias());
+			const mtx_size_t uas = m_undLayer.get_activations_size();
+			NNTL_ASSERT(uas.second > 1);
+			m_gatingMask.deform_rows(uas.first);
+			NNTL_ASSERT(m_gatingMask.size() == mtx_size_t(uas.first, uas.second-1));
 		}
 
 		//////////////////////////////////////////////////////////////////////////
@@ -304,6 +313,7 @@ namespace nntl {
 			get_self()
 				.make_gating_mask<>()
 				.apply_gating_mask(*const_cast<realmtxdef_t*>(&m_undLayer.get_activations()));
+			m_bActivationsValid = true;
 		}
 
 	public:
@@ -313,9 +323,9 @@ namespace nntl {
 			auto& iI = get_self().get_iInspect();
 			iI.fprop_begin(get_self().get_layer_idx(), lowerLayer.get_activations(), m_bTraining);
 
-			NNTL_ASSERT(m_gatingMask.size() == m_undLayer.get_activations().size_no_bias());
 			NNTL_ASSERT(lowerLayer.get_activations().test_biases_ok());
 			m_undLayer.fprop(lowerLayer);
+			NNTL_ASSERT(m_gatingMask.size() == m_undLayer.get_activations().size_no_bias());
 			get_self().finish_fprop();
 			NNTL_ASSERT(lowerLayer.get_activations().test_biases_ok());
 
@@ -325,6 +335,7 @@ namespace nntl {
 		template <typename LowerLayer>
 		const unsigned bprop(realmtxdef_t& dLdA, const LowerLayer& lowerLayer, realmtxdef_t& dLdAPrev)noexcept {
 			static_assert(std::is_base_of<_i_layer_trainable<real_t>, LowerLayer>::value, "Template parameter LowerLayer must implement _i_layer_trainable");
+			m_bActivationsValid = false;
 			auto& iI = get_self().get_iInspect();
 			iI.bprop_begin(get_self().get_layer_idx(), dLdA);
 

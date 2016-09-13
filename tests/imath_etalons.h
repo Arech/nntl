@@ -61,6 +61,7 @@ void softmax_parts_ET(const realmtx_t& act, const real_t* pMax, real_t* pDenomin
 void softmax_ET(realmtxdef_t& act, real_t* pTmp)noexcept;
 real_t loss_softmax_xentropy_ET(const realmtx_t& activations, const realmtx_t& data_y)noexcept;
 
+void dSigmQuadLoss_dZ_ET(const realmtx_t& data_y, realmtx_t& act_dLdZ)noexcept;
 
 void apply_momentum_ET(realmtx_t& vW, const real_t momentum, const realmtx_t& dW)noexcept;
 void apply_ILR_ET(realmtx_t& dLdW, const realmtx_t& prevdLdW, realmtx_t& ILRGain, const real_t decr, const real_t incr, const real_t capLow, const real_t capHigh)noexcept;
@@ -87,15 +88,18 @@ real_t vSumAbs_ET(const realmtx_t& A)noexcept;
 real_t vSumSquares_ET(const realmtx_t& A)noexcept;
 real_t rowvecs_renorm_ET(realmtx_t& m, real_t* pTmp)noexcept;
 
+void sigm_ET(realmtx_t& x);
+void dsigm_ET(realmtx_t& f_df);
+
 void relu_ET(realmtx_t& f);
-void drelu_ET(const realmtx_t& f, realmtx_t& df);
+void drelu_ET(realmtx_t& f_df);
 void leakyrelu_ET(realmtx_t& f, const real_t leak);
-void dleakyrelu_ET(const realmtx_t& f, realmtx_t& df, const real_t leak);
+void dleakyrelu_ET(realmtx_t& f_df, const real_t leak);
 
 void elu_ET(realmtx_t& f, const real_t alpha);
-void delu_ET(const realmtx_t& f, realmtx_t& df, const real_t alpha);
+void delu_ET(realmtx_t& f_df, const real_t alpha);
 void elu_unitalpha_ET(realmtx_t& f);
-void delu_unitalpha_ET(const realmtx_t& f, realmtx_t& df);
+void delu_unitalpha_ET(realmtx_t& f_df);
 
 void elogu_ET(const realmtx_t& x, realmtx_t& f, const real_t& alpha, const real_t& b);
 void delogu_ET(const realmtx_t& x, realmtx_t& df, const real_t& alpha, const real_t& b);

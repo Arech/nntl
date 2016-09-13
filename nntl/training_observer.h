@@ -55,10 +55,10 @@ namespace nntl {
 		nntl_interface bool init(size_t epochs, const realmtx_t& train_y, const realmtx_t& test_y, iMath& iM)noexcept;
 		nntl_interface void deinit()noexcept;
 
-		//always called before on_training_fragment_end() twice: on training and on testing/validation data
-		// Call sequence inspect_results() + inspect_results() + on_training_fragment_end() is guaranteed for every epoch to be
-		// evaluated
-		//data_y must be the same as init(train_y)|bOnTestData==false or init(test_y)|bOnTestData==true
+		//always called before on_training_fragment_end() twice: on the training and on the testing data
+		// Call sequence <inspect_results(bOnTestData==false) 
+		// + inspect_results(bOnTestData==true) + on_training_fragment_end()> is guaranteed for every epoch to be evaluated
+		// data_y is the same as init(train_y)|bOnTestData==false or init(test_y)|bOnTestData==true
 		template<typename NnetT>
 		nntl_interface void inspect_results(const size_t epochEnded, const realmtx_t& data_y, const bool bOnTestData, const NnetT& nn)noexcept;
 
@@ -74,7 +74,7 @@ namespace nntl {
 		constexpr bool init(size_t epochs, const realmtx_t& train_y, const realmtx_t& test_y, iMath& iM)const noexcept { return true; }
 		void deinit()const noexcept {}
 
-		//always called before on_training_fragment_end() twice: on training and on testing/validation data
+		//always called before on_training_fragment_end() twice: on the training and on the testing data
 		template<typename NnetT>
 		void inspect_results(const size_t epochEnded, const realmtx_t& data_y, const bool bOnTestData, const NnetT& nn)const noexcept {}
 
@@ -107,7 +107,7 @@ namespace nntl {
 			std::cout << szRep << std::endl;
 		}
 
-		//always called before on_training_fragment_end() twice: on training and on testing/validation data
+		//always called before on_training_fragment_end() twice: on the training and on the testing data
 		//data_y must be the same as init(train_y)|bOnTestData==false or init(test_y)|bOnTestData==true
 		template<typename NnetT>
 		void inspect_results(const size_t epochEnded, const realmtx_t& data_y, const bool bOnTestData, const NnetT& nn)noexcept { }
@@ -170,8 +170,8 @@ namespace nntl {
 			std::cout << szRep << std::endl;
 		}
 
-		//always called before on_training_fragment_end() twice: on training and on testing/validation data
-		//data_y must be the same as init(train_y)|bOnTestData==false or init(test_y)|bOnTestData==true
+		//always called before on_training_fragment_end() twice: on the training and on the testing data
+		//data_y is the same as init(train_y)|bOnTestData==false or init(test_y)|bOnTestData==true
 		template<typename NnetT>
 		void inspect_results(const size_t epochEnded, const realmtx_t& data_y, const bool bOnTestData, const NnetT& nn)noexcept {
 			const auto& activations = nn.get_layer_pack().output_layer().get_activations();

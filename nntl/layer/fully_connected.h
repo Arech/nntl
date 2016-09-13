@@ -67,7 +67,7 @@ namespace nntl {
 		realmtx_t m_dropoutMask;//<batch_size rows> x <m_neurons_cnt cols> (must not have a bias column)
 		real_t m_dropoutPercentActive;//probability of keeping unit active
 
-		realmtx_t m_dAdZ_dLdZ;//doesn't guarantee to retain it's value between usage in different code flows; may share memory with some other data structure
+		//realmtx_t m_dAdZ_dLdZ;//doesn't guarantee to retain it's value between usage in different code flows; may share memory with some other data structure
 
 		realmtxdef_t m_dLdW;//doesn't guarantee to retain it's value between usage in different code flows;
 		// may share memory with some other data structure. Must be deformable for grad_works_t
@@ -110,7 +110,7 @@ namespace nntl {
 		~_layer_fully_connected() noexcept {};
 		_layer_fully_connected(const neurons_count_t _neurons_cnt
 			, const real_t learningRate = real_t(.01)
-			, const real_t dpa = real_t(1.0)
+			, const real_t dpa = real_t(1.0) //"dropout_percent_alive"
 			, const char* pCustomName=nullptr
 		)noexcept
 			: _base_class(_neurons_cnt, pCustomName), m_activations(), m_weights(), m_bWeightsInitialized(false)
@@ -121,7 +121,11 @@ namespace nntl {
 			m_activations.will_emulate_biases();
 		};
 		
-		const realmtxdef_t& get_activations()const noexcept { return m_activations; }
+		const realmtxdef_t& get_activations()const noexcept {
+			NNTL_ASSERT(m_bActivationsValid);
+			return m_activations;
+		}
+		const mtx_size_t get_activations_size()const noexcept { return m_activations.size(); }
 
 		//#TODO: move all generic fullyconnected stuff into a special base class!
 
@@ -196,14 +200,15 @@ namespace nntl {
  				if(!_check_init_dropout()) return ErrorCode::CantAllocateMemoryForDropoutMask;
 
 				lid.max_dLdA_numel = realmtx_t::sNumel(get_self().get_training_batch_size(), get_self().get_neurons_cnt());
-				// we'll need 2 temporarily matrices for bprop(): one for dA/dZ -> dL/dZ [batchSize x m_neurons_cnt] and
-				// the other for dL/dW [m_neurons_cnt x get_incoming_neurons_cnt()+1]
-				lid.maxMemBPropRequire = lid.max_dLdA_numel + m_weights.numel();
+				// we'll need 1 temporarily matrix for bprop(): for dL/dW [m_neurons_cnt x get_incoming_neurons_cnt()+1]
+				lid.maxMemBPropRequire = m_weights.numel();
+				//lid.maxMemBPropRequire = lid.max_dLdA_numel + m_weights.numel();
 			}
 
 			if (!m_gradientWorks.init(get_self().get_common_data(), m_weights.size()))return ErrorCode::CantInitializeGradWorks;
 
 			lid.bHasLossAddendum = hasLossAddendum();
+			lid.bOutputDifferentDuringTraining = bDropout();
 
 			bSuccessfullyInitialized = true;
 			return ec;
@@ -213,24 +218,28 @@ namespace nntl {
 			m_gradientWorks.deinit();
 			m_activations.clear();
 			m_dropoutMask.clear();
-			m_dAdZ_dLdZ.clear();
+			//m_dAdZ_dLdZ.clear();
 			m_dLdW.clear();
 			_base_class::deinit();
 		}
 
 		void initMem(real_t* ptr, numel_cnt_t cnt)noexcept {
 			if (get_self().get_training_batch_size() > 0) {
-				m_dAdZ_dLdZ.useExternalStorage(ptr, get_self().get_training_batch_size(), get_self().get_neurons_cnt());
-				m_dLdW.useExternalStorage( ptr + m_dAdZ_dLdZ.numel(), m_weights);
-				NNTL_ASSERT(!m_dAdZ_dLdZ.emulatesBiases() && !m_dLdW.emulatesBiases());
-				NNTL_ASSERT(cnt >= m_dAdZ_dLdZ.numel() + m_dLdW.numel());
+// 				m_dAdZ_dLdZ.useExternalStorage(ptr, get_self().get_training_batch_size(), get_self().get_neurons_cnt());
+// 				m_dLdW.useExternalStorage( ptr + m_dAdZ_dLdZ.numel(), m_weights);
+// 				NNTL_ASSERT(!m_dAdZ_dLdZ.emulatesBiases() && !m_dLdW.emulatesBiases());
+// 				NNTL_ASSERT(cnt >= m_dAdZ_dLdZ.numel() + m_dLdW.numel());
 				//NNTL_ASSERT(m_dAdZ.size() == m_activations.size() && m_dLdW.size() == m_weights.size());
+				NNTL_ASSERT(ptr && cnt >= m_weights.numel());
+				m_dLdW.useExternalStorage(ptr, m_weights);
+				NNTL_ASSERT(!m_dLdW.emulatesBiases());
 			}
 		}
 		
 		void set_mode(vec_len_t batchSize, real_t* pNewActivationStorage = nullptr)noexcept {
 			NNTL_ASSERT(m_activations.emulatesBiases());
 
+			m_bActivationsValid = false;
 			m_bTraining = batchSize == 0;
 
 			const auto _training_batch_size = get_self().get_training_batch_size();
@@ -305,24 +314,24 @@ namespace nntl {
 
 			NNTL_ASSERT(prevActivations.test_biases_ok());
 			iI.fprop_end(m_activations);
+			m_bActivationsValid = true;
 		}
 
 		void _bprop(realmtx_t& dLdA, const realmtx_t& prevActivations, const bool bPrevLayerIsInput, realmtx_t& dLdAPrev)noexcept {
+			m_bActivationsValid = false;
 			auto& iI = get_self().get_iInspect();
 			iI.bprop_begin(get_self().get_layer_idx(), dLdA);
 
 			dLdA.assert_storage_does_not_intersect(dLdAPrev);
 			dLdA.assert_storage_does_not_intersect(m_dLdW);
-			dLdA.assert_storage_does_not_intersect(m_dAdZ_dLdZ);
 			dLdAPrev.assert_storage_does_not_intersect(m_dLdW);
-			dLdAPrev.assert_storage_does_not_intersect(m_dAdZ_dLdZ);
 			NNTL_ASSERT(m_bTraining);
 			NNTL_ASSERT(prevActivations.test_biases_ok());
 
-			NNTL_ASSERT(m_activations.emulatesBiases() && !m_dAdZ_dLdZ.emulatesBiases() && !m_dLdW.emulatesBiases());
+			NNTL_ASSERT(m_activations.emulatesBiases() && !m_dLdW.emulatesBiases());
 
 			NNTL_ASSERT(m_activations.size_no_bias() == dLdA.size());
-			NNTL_ASSERT(m_dAdZ_dLdZ.size() == m_activations.size_no_bias());
+			//NNTL_ASSERT(m_dAdZ_dLdZ.size() == m_activations.size_no_bias());
 			NNTL_ASSERT(m_dLdW.size() == m_weights.size());
 
 			NNTL_ASSERT(bPrevLayerIsInput || prevActivations.emulatesBiases());//input layer in batch mode may have biases included, but no emulatesBiases() set
@@ -340,21 +349,23 @@ namespace nntl {
 				iI.bprop_postCancelDropout(m_activations);
 			}
 			
-			//#TODO 
-
-			//computing dA/dZ(no_bias)
 			iI.bprop_predAdZ(m_activations);
-			activation_f_t::df(m_activations, m_dAdZ_dLdZ, _Math);
-			iI.bprop_dLdA_dAdZ(dLdA, m_dAdZ_dLdZ);
+			
+			realmtx_t dLdZ;
+			dLdZ.useExternalStorage_mtx_no_bias(m_activations);
+
+			//computing dA/dZ using m_activations (aliased to dLdZ variable, which eventually will be a dL/dZ
+			activation_f_t::df(dLdZ, _Math);//it's a dA/dZ actually
+			iI.bprop_dAdZ(dLdZ);
 			//compute dL/dZ=dL/dA.*dA/dZ into dA/dZ
-			_Math.evMul_ip(m_dAdZ_dLdZ, dLdA);
-			iI.bprop_dLdZ(m_dAdZ_dLdZ);
+			_Math.evMul_ip(dLdZ, dLdA);
+			iI.bprop_dLdZ(dLdZ);
 
 			if (bUseDropout) {
 				//we must cancel activations that was dropped out by the mask (should they've been restored by activation_f_t::df())
 				//and restore the scale of dA/dZ according to 1/p
 				//because the true scaled_dA/dZ = 1/p * computed_dA/dZ (same for dL/dZ)
-				_Math.evMul_ip(m_dAdZ_dLdZ, m_dropoutMask);
+				_Math.evMul_ip(dLdZ, m_dropoutMask);
 			}
 
 			//compute dL/dW = 1/batchsize * (dL/dZ)` * Aprev
@@ -364,13 +375,13 @@ namespace nntl {
 			// (dLdW(i's neuron,j's lower layer neuron) = Sum_over_batch( dLdZ(i)*Aprev(j) ) ), it's almost impossible
 			// to get some element of dLdW equals to zero, because it'll require that dLdZ entries for some neuron over the
 			// whole batch were set to zero.
-			_Math.mScaledMulAtB_C(real_t(1.0) / real_t(m_dAdZ_dLdZ.rows()), m_dAdZ_dLdZ, prevActivations, m_dLdW);
+			_Math.mScaledMulAtB_C(real_t(1.0) / real_t(dLdZ.rows()), dLdZ, prevActivations, m_dLdW);
 
 			if (!bPrevLayerIsInput) {
 				NNTL_ASSERT(!m_weights.emulatesBiases());
 				//finally compute dL/dAprev to use in lower layer. Before that make m_weights looks like there is no bias weights
 				m_weights.hide_last_col();
-				_Math.mMulAB_C(m_dAdZ_dLdZ, m_weights, dLdAPrev);
+				_Math.mMulAB_C(dLdZ, m_weights, dLdAPrev);
 				m_weights.restore_last_col();//restore weights back
 			}
 

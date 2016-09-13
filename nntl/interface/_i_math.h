@@ -228,23 +228,32 @@ namespace math {
 		// sigm activation.
 		// Remember to ignore biases for activation function calculations!
 		nntl_interface void sigm(realmtx_t& srcdest) noexcept;
-		nntl_interface void dsigm(const realmtx_t& fValue, realmtx_t& df) noexcept;
+		nntl_interface void dsigm(realmtx_t& f_df) noexcept;
 		//calculates derivative of quadratic loss function for sigm neurons wrt total neuron input Z (=Aprev_layer*W), dL/dZ
-		nntl_interface void dSigmQuadLoss_dZ(const realmtx_t& activations, const realmtx_t& data_y, realmtx_t& dLdZ);
+		nntl_interface void dSigmQuadLoss_dZ(const realmtx_t& data_y, realmtx_t& act_dLdZ);
 
 		//////////////////////////////////////////////////////////////////////////
 		//ReLU
 		// MUST ignore biases!
 		nntl_interface void relu(realmtx_t& srcdest) noexcept;
-		nntl_interface void drelu(const realmtx_t& fValue, realmtx_t& df) noexcept;
+		nntl_interface void drelu(realmtx_t& f_df) noexcept;
 
 		nntl_interface void leakyrelu(realmtx_t& srcdest, const real_t leak) noexcept;
-		nntl_interface void dleakyrelu(const realmtx_t& fValue, realmtx_t& df, const real_t leak) noexcept;
+		nntl_interface void dleakyrelu(realmtx_t& f_df, const real_t leak) noexcept;
 
 		nntl_interface void elu(realmtx_t& srcdest, const real_t alpha) noexcept;
-		nntl_interface void delu(const realmtx_t& fValue, realmtx_t& df, const real_t alpha) noexcept;
+		nntl_interface void delu(realmtx_t& f_df, const real_t alpha) noexcept;
 		nntl_interface void elu_unitalpha(realmtx_t& srcdest) noexcept;
-		nntl_interface void delu_unitalpha(const realmtx_t& fValue, realmtx_t& df) noexcept;
+		nntl_interface void delu_unitalpha(realmtx_t& f_df) noexcept;
+
+		nntl_interface void elogu(realmtx_t& srcdest, const real_t& alpha, const real_t& b) noexcept;
+		nntl_interface void delogu(realmtx_t& f_df, const real_t& alpha, const real_t& b) noexcept;
+		nntl_interface void elogu_ua(realmtx_t& srcdest, const real_t& b) noexcept;
+		nntl_interface void delogu_ua(realmtx_t& f_df, const real_t& b) noexcept;
+		nntl_interface void elogu_nb(realmtx_t& srcdest, const real_t& alpha) noexcept;
+		nntl_interface void delogu_nb(realmtx_t& f_df, const real_t& alpha) noexcept;
+		nntl_interface void elogu_ua_nb(realmtx_t& srcdest) noexcept;
+		nntl_interface void delogu_ua_nb(realmtx_t& f_df) noexcept;
 
 		//////////////////////////////////////////////////////////////////////////
 		//SoftMax

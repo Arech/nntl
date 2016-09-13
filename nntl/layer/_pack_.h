@@ -91,6 +91,7 @@ namespace nntl {
 			trainable_layer_wrapper(const realmtx_t& underlyingLayerAct) : m_act(underlyingLayerAct) {}
 
 			const realmtx_t& get_activations()const noexcept { return m_act; }
+			const mtx_size_t get_activations_size()const noexcept { return m_act.size(); }
 		};
 
 		//////////////////////////////////////////////////////////////////////////
@@ -137,6 +138,7 @@ namespace nntl {
 			}
 
 			const realmtx_t& get_activations()const noexcept { return m_act; }
+			const mtx_size_t get_activations_size()const noexcept { return m_act.size(); }
 		};
 
 

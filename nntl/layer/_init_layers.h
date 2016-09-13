@@ -199,6 +199,8 @@ namespace nntl {
 			OUT numel_cnt_t nParamsToLearn;//total number of parameters, that layer has to learn during training
 
 			OUT bool bHasLossAddendum;//to be set by layer.init()
+			OUT bool bOutputDifferentDuringTraining;//set by layer.init() to note that the layer output (fprop results)
+			// differs in the training and testing mode for the same data_x and parameters (for example, due to a dropout)
 
 			_layer_init_data(const common_data_t& cd) noexcept : commonData(cd) {
 				//clean(); //not necessary here because the struct is reused
@@ -212,6 +214,7 @@ namespace nntl {
 				max_dLdA_numel = 0;
 				nParamsToLearn = 0;
 				bHasLossAddendum = false;
+				bOutputDifferentDuringTraining = false;
 			}
 
 			//used by compound layers to gather data from layers encapsulated into them.
@@ -221,6 +224,7 @@ namespace nntl {
 				max_dLdA_numel = std::max(max_dLdA_numel, o.max_dLdA_numel);
 				nParamsToLearn += o.nParamsToLearn;
 				bHasLossAddendum |= o.bHasLossAddendum;
+				bOutputDifferentDuringTraining |= o.bOutputDifferentDuringTraining;
 			}
 
 			_layer_init_data dupe()const noexcept {
@@ -237,6 +241,7 @@ namespace nntl {
 				totalParamsToLearn;//The total parameters count the model has
 
 			bool bHasLossAddendum;
+			bool bOutputDifferentDuringTraining;
 
 			layers_mem_requirements() noexcept{
 				zeros();
@@ -248,22 +253,25 @@ namespace nntl {
 				maxSingledLdANumel = 0;//single! The biggest matrix.numel() to be used in a bprop()
 				totalParamsToLearn = 0;
 				bHasLossAddendum = false;
+				bOutputDifferentDuringTraining = false;
 			}
 
-			void updateLayerReq(const numel_cnt_t mmlF, const numel_cnt_t mmlB
-				, const numel_cnt_t maxdLdA, const numel_cnt_t nLP, const bool _HasLossAddendum)noexcept
+			void updateLayerReq(const numel_cnt_t& mmlF, const numel_cnt_t& mmlB
+				, const numel_cnt_t& maxdLdA, const numel_cnt_t& nLP
+				, const bool _HasLossAddendum, const bool _OutputDifferentDuringTraining)noexcept
 			{
 				maxMemLayerTrainingRequire = std::max({ maxMemLayerTrainingRequire, mmlF, mmlB });
 				maxMemLayersFPropRequire = std::max(maxMemLayersFPropRequire, mmlF);
 				maxSingledLdANumel = std::max(maxSingledLdANumel, maxdLdA);
 				totalParamsToLearn += nLP;
 				bHasLossAddendum |= _HasLossAddendum;
+				bOutputDifferentDuringTraining |= _OutputDifferentDuringTraining;
 			}
 
 			template<typename _layer_init_data_t>
 			void updateLayerReq(const _layer_init_data_t& lid)noexcept {
 				return updateLayerReq(lid.maxMemFPropRequire, lid.maxMemBPropRequire, lid.max_dLdA_numel
-					, lid.nParamsToLearn, lid.bHasLossAddendum);
+					, lid.nParamsToLearn, lid.bHasLossAddendum, lid.bOutputDifferentDuringTraining);
 			}
 		};
 	}

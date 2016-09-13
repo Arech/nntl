@@ -39,7 +39,10 @@ namespace nntl {
 	// class to derive from when making final input layer. Need it to propagate correct FinalPolymorphChild to
 	// static polymorphism implementation here and in layer__base
 	template<typename Interfaces, typename FinalPolymorphChild>
-	class _layer_input : public m_layer_input, public _layer_base<Interfaces, FinalPolymorphChild> {
+	class _layer_input 
+		: public m_layer_input
+		, public _layer_base<Interfaces, FinalPolymorphChild>
+	{
 	private:
 		typedef _layer_base<Interfaces, FinalPolymorphChild> _base_class;
 
@@ -70,7 +73,12 @@ namespace nntl {
 
 		const realmtx_t& get_activations()const noexcept {
 			NNTL_ASSERT(m_pActivations);
+			NNTL_ASSERT(m_bActivationsValid);
 			return *m_pActivations;
+		}
+		const mtx_size_t get_activations_size()const noexcept { 
+			NNTL_ASSERT(m_pActivations);
+			return m_pActivations->size();
 		}
 
 		ErrorCode init(_layer_init_data_t& lid)noexcept {
@@ -89,6 +97,7 @@ namespace nntl {
 		void initMem(real_t* ptr, numel_cnt_t cnt)noexcept {}
 		void set_mode(vec_len_t batchSize)noexcept {
 			m_bTraining = 0 == batchSize;
+			m_bActivationsValid = false;
 		}
 
 		void fprop(const realmtx_t& data_x)noexcept {
@@ -99,10 +108,12 @@ namespace nntl {
 			m_pActivations = &data_x;
 
 			iI.fprop_end(*m_pActivations);
+			m_bActivationsValid = true;
 		}
 
 		template <typename LowerLayer>
 		const unsigned bprop(realmtx_t& dLdA, const LowerLayer& lowerLayer, realmtx_t& dLdAPrev)noexcept {
+			m_bActivationsValid = false;
 			auto& iI = get_self().get_iInspect();
 			iI.bprop_begin(get_self().get_layer_idx(), dLdA);
 

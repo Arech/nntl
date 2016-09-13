@@ -97,9 +97,6 @@ namespace nntl {
 	private:
 		layer_index_t m_layerIdx;
 
-	protected:
-		bool m_bTraining;
-
 		//////////////////////////////////////////////////////////////////////////
 		//
 	protected:
@@ -162,7 +159,11 @@ namespace nntl {
 		const neurons_count_t get_neurons_cnt() const noexcept { return get_self().last_layer().get_neurons_cnt(); }
 		const neurons_count_t get_incoming_neurons_cnt()const noexcept { return  get_self().first_layer().get_incoming_neurons_cnt(); }
 
-		const realmtxdef_t& get_activations()const noexcept { return get_self().last_layer().get_activations(); }
+		const realmtxdef_t& get_activations()const noexcept { 
+			NNTL_ASSERT(m_bActivationsValid);
+			return get_self().last_layer().get_activations();
+		}
+		const mtx_size_t get_activations_size()const noexcept { return get_self().last_layer().get_activations_size(); }
 
 		//should return true, if the layer has a value to add to Loss function value (there's some regularizer attached)
 		bool hasLossAddendum()const noexcept {
@@ -178,6 +179,7 @@ namespace nntl {
 		}
 
 		void set_mode(vec_len_t batchSize, real_t* pNewActivationStorage = nullptr)noexcept {
+			m_bActivationsValid = false;
 			m_bTraining = 0 == batchSize;
 			utils::for_each_exc_last_up(m_layers, [batchSize](auto& lyr)noexcept {
 				lyr.set_mode(batchSize);
@@ -186,6 +188,7 @@ namespace nntl {
 		}
 
 		ErrorCode init(_layer_init_data_t& lid, real_t* pNewActivationStorage = nullptr)noexcept {
+			_base_class::init();
 			ErrorCode ec = ErrorCode::Success;
 			layer_index_t failedLayerIdx = 0;
 
@@ -227,6 +230,7 @@ namespace nntl {
 
 		void deinit() noexcept {
 			get_self().for_each_packed_layer([](auto& l) {l.deinit(); });
+			_base_class::deinit();
 		}
 
 		void initMem(real_t* ptr, numel_cnt_t cnt)noexcept {
@@ -257,12 +261,14 @@ namespace nntl {
 			});
 			NNTL_ASSERT(lowerLayer.get_activations().test_biases_ok());
 
+			m_bActivationsValid = true;
 			iI.fprop_end(get_self().get_activations());
 		}
 
 		template <typename LowerLayer>
 		const unsigned bprop(realmtxdef_t& dLdA, const LowerLayer& lowerLayer, realmtxdef_t& dLdAPrev)noexcept {
 			static_assert(std::is_base_of<_i_layer_trainable, LowerLayer>::value, "Template parameter LowerLayer must implement _i_layer_trainable");
+			m_bActivationsValid = false;
 			auto& iI = get_self().get_iInspect();
 			iI.bprop_begin(get_self().get_layer_idx(), dLdA);
 

@@ -102,6 +102,17 @@ real_t loss_softmax_xentropy_ET(const realmtx_t& activations, const realmtx_t& d
 	return ret/ activations.rows();
 }
 
+void dSigmQuadLoss_dZ_ET(const realmtx_t& data_y, realmtx_t& act_dLdZ)noexcept {
+	NNTL_ASSERT(data_y.size() == act_dLdZ.size());
+	const auto pA = act_dLdZ.data();
+	const auto pY = data_y.data();
+	const auto ne = act_dLdZ.numel();
+	for (numel_cnt_t i = 0; i < ne; ++i) {
+		const auto a = pA[i];
+		pA[i] = (a - pY[i])*a*(real_t(1.0) - a);
+	}
+}
+
 
 void apply_momentum_ET(realmtx_t& vW, const real_t momentum, const realmtx_t& dW)noexcept {
 	NNTL_ASSERT(vW.size() == dW.size());
@@ -414,19 +425,36 @@ real_t vSumSquares_ET(const realmtx_t& A)noexcept {
 }
 
 //////////////////////////////////////////////////////////////////////////
+
+void sigm_ET(realmtx_t& X) {
+	const auto p = X.data();
+	const auto ne = X.numel_no_bias();
+	for (numel_cnt_t i = 0; i < ne; ++i) {
+		p[i] = real_t(1.0) / (real_t(1.0) + std::exp(-p[i]));
+	}
+}
+void dsigm_ET(realmtx_t& f_df) {
+	const auto p = f_df.data();
+	const auto ne = f_df.numel();
+	for (numel_cnt_t i = 0; i < ne; ++i) {
+		const auto f = p[i];
+		NNTL_ASSERT(f >= 0 && f <= 1);
+		p[i] = f * (real_t(1.) - f);
+	}
+}
+
 void relu_ET(realmtx_t& f) {
 	const auto p = f.data();
 	const auto ne = f.numel_no_bias();
 	for (numel_cnt_t i = 0; i < ne; ++i) {
-		if (p[i]<real_t(-0.)) p[i] = real_t(0.);
+		if (p[i]<=real_t(0.)) p[i] = real_t(0.);
 	}
 }
-void drelu_ET(const realmtx_t& f, realmtx_t& df) {
-	const auto p = f.data();
-	const auto pd = df.data();
-	const auto ne = f.numel_no_bias();
+void drelu_ET(realmtx_t& f_df) {
+	const auto p = f_df.data();
+	const auto ne = f_df.numel();
 	for (numel_cnt_t i = 0; i < ne; ++i) {
-		pd[i] = (p[i] < real_t(+0.)) ? real_t(0.) : real_t(1.);
+		p[i] = (p[i] <= real_t(+0.)) ? real_t(0.) : real_t(1.);
 	}
 }
 void leakyrelu_ET(realmtx_t& f, const real_t leak) {
@@ -437,12 +465,11 @@ void leakyrelu_ET(realmtx_t& f, const real_t leak) {
 		if (p[i] < real_t(0.)) p[i] *= leak;
 	}
 }
-void dleakyrelu_ET(const realmtx_t& f, realmtx_t& df, const real_t leak) {
-	const auto p = f.data();
-	const auto pd = df.data();
-	const auto ne = f.numel_no_bias();
+void dleakyrelu_ET(realmtx_t& f_df, const real_t leak) {
+	const auto p = f_df.data();
+	const auto ne = f_df.numel();
 	for (numel_cnt_t i = 0; i < ne; ++i) {
-		pd[i] = (p[i] < real_t(0.)) ? leak : real_t(1.);
+		p[i] = (p[i] <= real_t(0.)) ? leak : real_t(1.);
 	}
 }
 
@@ -454,16 +481,15 @@ void elu_ET(realmtx_t& f, const real_t alpha) {
 	}
 }
 //#TODO: probably it's better to make df value out of plain x value instead of f(x). Update this and related functions and tests
-void delu_ET(const realmtx_t& f, realmtx_t& df, const real_t alpha) {
-	const auto p = f.data();
-	const auto pd = df.data();
-	const auto ne = f.numel_no_bias();
+void delu_ET(realmtx_t& f_df, const real_t alpha) {
+	const auto p = f_df.data();
+	const auto ne = f_df.numel();
 	for (numel_cnt_t i = 0; i < ne; ++i) {
-		pd[i] = (p[i] < real_t(0.)) ? (p[i] + alpha) : real_t(1.);
+		p[i] = (p[i] < real_t(0.)) ? (p[i] + alpha) : real_t(1.);
 	}
 }
 void elu_unitalpha_ET(realmtx_t& f) { elu_ET(f, real_t(1.0)); }
-void delu_unitalpha_ET(const realmtx_t& f, realmtx_t& df) { delu_ET(f, df, real_t(1.0)); }
+void delu_unitalpha_ET(realmtx_t& f_df) { delu_ET(f_df, real_t(1.0)); }
 
 void elogu_ET(const realmtx_t& x, realmtx_t& f, const real_t& alpha, const real_t& b) {
 	NNTL_ASSERT(x.size() == f.size());

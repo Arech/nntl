@@ -50,7 +50,7 @@ namespace activation {
 		typedef typename realmtx_t::numel_cnt_t numel_cnt_t;
 		typedef typename realmtx_t::vec_len_t vec_len_t;
 
-		//apply f to each srcdest matrix element. The biases (if any) must be left untouched!
+		//apply f to each srcdest matrix element to compute activation values. The biases (if any) must be left untouched!
 		template <typename iMath>
 		nntl_interface static void f(realmtx_t& srcdest, iMath& m) noexcept;
 
@@ -71,9 +71,10 @@ namespace activation {
 		~_i_activation() = delete;
 	public:
 
-		//f derivative, fValue is used in no_bias version! (dA/dZ)
+		//computes activation function derivative by using its value.
+		//i.e. computes y' based on y value ( not the x-value, where y=y(x) )
 		template <typename iMath>
-		nntl_interface static void df(const realmtx_t& fValue, realmtx_t& df, iMath& m) noexcept;
+		nntl_interface static void df(realmtx_t& f_df, iMath& m) noexcept;
 	};
 
 
@@ -89,8 +90,8 @@ namespace activation {
 
 		//loss function derivative wrt total neuron input Z (=Aprev_layer*W), dL/dZ
 		template <typename iMath>
-		nntl_interface static void dLdZ(const typename _i_activation<RealT>::realmtx_t& activations, const typename _i_activation<RealT>::realmtx_t& data_y,
-			typename _i_activation<RealT>::realmtx_t& dLdZ, iMath& m)noexcept;
+		nntl_interface static void dLdZ(const typename _i_activation<RealT>::realmtx_t& data_y,
+			IN OUT typename _i_activation<RealT>::realmtx_t& act_dLdZ, iMath& m)noexcept;
 		//we glue into single function calculation of dL/dA and dA/dZ. The latter is in fact calculated by _i_activation::df(), but if
 		//we'll calculate dL/dZ in separate functions, then we can't make some optimizations
 	};
@@ -106,16 +107,17 @@ namespace activation {
 		typedef WeightsInitScheme weights_scheme;
 
 	public:
-		//apply f to each srcdest matrix element. The biases (if any) must be left untouched!
+		//apply f to each srcdest matrix element to compute activation values. The biases (if any) must be left untouched!
 		template <typename iMath>
 		static void f(realmtx_t& srcdest, iMath& m) noexcept{
 			static_assert( std::is_base_of<math::_i_math<real_t>, iMath>::value, "iMath should implement math::_i_math" );
 			m.sigm(srcdest);
 		};
 		template <typename iMath>
-		static void df(const realmtx_t& fValue, realmtx_t& df, iMath& m) noexcept {
+		static void df(realmtx_t& f_df, iMath& m) noexcept {
 			static_assert(std::is_base_of<math::_i_math<real_t>, iMath>::value, "iMath should implement math::_i_math");
-			m.dsigm(fValue, df);//fValue is used in no_bias version!
+			NNTL_ASSERT(!f_df.emulatesBiases());
+			m.dsigm(f_df);
 		}
 	};
 
@@ -125,9 +127,9 @@ namespace activation {
 		~sigm_quad_loss() = delete;
 	public:
 		template <typename iMath>
-		static void dLdZ(const realmtx_t& activations, const realmtx_t& data_y, realmtx_t& dLdZ, iMath& m)noexcept {
+		static void dLdZ(const realmtx_t& data_y, realmtx_t& act_dLdZ, iMath& m)noexcept {
 			static_assert(std::is_base_of<math::_i_math<real_t>, iMath>::value, "iMath should implement math::_i_math");
-			m.dSigmQuadLoss_dZ(activations, data_y, dLdZ);
+			m.dSigmQuadLoss_dZ(data_y, act_dLdZ);
 		}
 
 		template <typename iMath>
@@ -143,10 +145,12 @@ namespace activation {
 		~sigm_xentropy_loss() = delete;
 	public:
 		template <typename iMath>
-		static void dLdZ(const realmtx_t& activations, const realmtx_t& data_y, realmtx_t& dLdZ, iMath& m)noexcept {
+		static void dLdZ(const realmtx_t& data_y, realmtx_t& act_dLdZ, iMath& m)noexcept {
 			static_assert(std::is_base_of<math::_i_math<real_t>, iMath>::value, "iMath should implement math::_i_math");
 			//dL/dz = dL/dA * dA/dZ = (a-y)
-			m.evSub(activations, data_y, dLdZ);
+			//m.evSub(activations, data_y, dLdZ);
+			NNTL_ASSERT(!act_dLdZ.emulatesBiases() && !data_y.emulatesBiases());
+			m.evSub_ip(act_dLdZ, data_y);
 		}
 
 		template <typename iMath>
@@ -183,10 +187,12 @@ namespace activation {
 
 
 		template <typename iMath>
-		static void dLdZ(const realmtx_t& activations, const realmtx_t& data_y, realmtx_t& dLdZ, iMath& m)noexcept {
+		static void dLdZ(const realmtx_t& data_y, realmtx_t& act_dLdZ, iMath& m)noexcept {
 			static_assert(std::is_base_of<math::_i_math<real_t>, iMath>::value, "iMath should implement math::_i_math");
 			//SoftMax dL/dZ = dL/dA * dA/dZ = (a-y)
-			m.evSub(activations, data_y, dLdZ);
+			//m.evSub(activations, data_y, dLdZ);
+			NNTL_ASSERT(!act_dLdZ.emulatesBiases() && !data_y.emulatesBiases());
+			m.evSub_ip(act_dLdZ, data_y);
 		}
 
 		template <typename iMath>
@@ -215,9 +221,10 @@ namespace activation {
 		};
 
 		template <typename iMath>
-		static void df(const realmtx_t& fValue, realmtx_t& df, iMath& m) noexcept {
+		static void df(realmtx_t& f_df, iMath& m) noexcept {
 			static_assert(std::is_base_of<math::_i_math<real_t>, iMath>::value, "iMath should implement math::_i_math");
-			m.drelu(fValue, df);//fValue is used in no_bias version!
+			NNTL_ASSERT(!f_df.emulatesBiases());
+			m.drelu(f_df);
 		}
 	};
 
@@ -240,9 +247,10 @@ namespace activation {
 		};
 
 		template <typename iMath>
-		static void df(const realmtx_t& fValue, realmtx_t& df, iMath& m) noexcept {
+		static void df(realmtx_t& f_df, iMath& m) noexcept {
 			static_assert(std::is_base_of<math::_i_math<real_t>, iMath>::value, "iMath should implement math::_i_math");
-			m.dleakyrelu(fValue, df, LeakK);//fValue is used in no_bias version!
+			NNTL_ASSERT(!f_df.emulatesBiases());
+			m.dleakyrelu(f_df, LeakK);
 		}
 	};
 
@@ -278,14 +286,16 @@ namespace activation {
 		};
 
 		template <typename iMath, bool bUnitAlpha = bIsUnitAlpha>
-		static std::enable_if_t<!bUnitAlpha> df(const realmtx_t& fValue, realmtx_t& df, iMath& m) noexcept {
+		static std::enable_if_t<!bUnitAlpha> df(realmtx_t& f_df, iMath& m) noexcept {
 			static_assert(std::is_base_of<math::_i_math<real_t>, iMath>::value, "iMath should implement math::_i_math");
-			m.delu(fValue, df, Alpha);//fValue is used in no_bias version!
+			NNTL_ASSERT(!f_df.emulatesBiases());
+			m.delu(f_df, Alpha);
 		}
 		template <typename iMath, bool bUnitAlpha = bIsUnitAlpha>
-		static std::enable_if_t<bUnitAlpha> df(const realmtx_t& fValue, realmtx_t& df, iMath& m) noexcept {
+		static std::enable_if_t<bUnitAlpha> df(realmtx_t& f_df, iMath& m) noexcept {
 			static_assert(std::is_base_of<math::_i_math<real_t>, iMath>::value, "iMath should implement math::_i_math");
-			m.delu_unitalpha(fValue, df);//fValue is used in no_bias version!
+			NNTL_ASSERT(!f_df.emulatesBiases());
+			m.delu_unitalpha(f_df);
 		}
 	};
 
@@ -305,8 +315,8 @@ namespace activation {
 		static constexpr real_t Alpha = real_t(Alpha1e3) / real_t(1000.0);
 		static constexpr bool bIsUnitAlpha = (Alpha1e3 == 1000);
 
-		static constexpr real_t B = real_t(B1e3) / real_t(1000000.0);
-		static constexpr bool bIsNaturalB = (B1e3 == 2718281);
+		static constexpr real_t B = real_t(B1e6) / real_t(1000000.0);
+		static constexpr bool bIsNaturalB = (B1e6 == 2718281);
 
 	public:
 		//apply f to each srcdest matrix element. The biases (if any) must be left untouched!
@@ -332,29 +342,33 @@ namespace activation {
 		};
 
 		template <typename iMath, bool bUnitAlpha = bIsUnitAlpha, bool bNatB = bIsNaturalB>
-		static std::enable_if_t<!bUnitAlpha && !bNatB> df(const realmtx_t& fValue, realmtx_t& df, iMath& m) noexcept {
+		static std::enable_if_t<!bUnitAlpha && !bNatB> df(realmtx_t& f_df, iMath& m) noexcept {
 			static_assert(std::is_base_of<math::_i_math<real_t>, iMath>::value, "iMath should implement math::_i_math");
-			m.delogu(fValue, df, Alpha, B);//fValue is used in no_bias version!
+			NNTL_ASSERT(!f_df.emulatesBiases());
+			m.delogu(f_df, Alpha, B);
 		}
 		template <typename iMath, bool bUnitAlpha = bIsUnitAlpha, bool bNatB = bIsNaturalB>
-		static std::enable_if_t<bUnitAlpha && !bNatB> df(const realmtx_t& fValue, realmtx_t& df, iMath& m) noexcept {
+		static std::enable_if_t<bUnitAlpha && !bNatB> df(realmtx_t& f_df, iMath& m) noexcept {
 			static_assert(std::is_base_of<math::_i_math<real_t>, iMath>::value, "iMath should implement math::_i_math");
-			m.delogu_ua(fValue, df, B);//fValue is used in no_bias version!
+			NNTL_ASSERT(!f_df.emulatesBiases());
+			m.delogu_ua(f_df, B);
 		}
 		template <typename iMath, bool bUnitAlpha = bIsUnitAlpha, bool bNatB = bIsNaturalB>
-		static std::enable_if_t<!bUnitAlpha && bNatB> df(const realmtx_t& fValue, realmtx_t& df, iMath& m) noexcept {
+		static std::enable_if_t<!bUnitAlpha && bNatB> df(realmtx_t& f_df, iMath& m) noexcept {
 			static_assert(std::is_base_of<math::_i_math<real_t>, iMath>::value, "iMath should implement math::_i_math");
-			m.delogu_nb(fValue, df, Alpha);//fValue is used in no_bias version!
+			NNTL_ASSERT(!f_df.emulatesBiases());
+			m.delogu_nb(f_df, Alpha);
 		}
 		template <typename iMath, bool bUnitAlpha = bIsUnitAlpha, bool bNatB = bIsNaturalB>
-		static std::enable_if_t<bUnitAlpha && bNatB> df(const realmtx_t& fValue, realmtx_t& df, iMath& m) noexcept {
+		static std::enable_if_t<bUnitAlpha && bNatB> df(realmtx_t& f_df, iMath& m) noexcept {
 			static_assert(std::is_base_of<math::_i_math<real_t>, iMath>::value, "iMath should implement math::_i_math");
-			m.delogu_ua_nb(fValue, df);//fValue is used in no_bias version!
+			NNTL_ASSERT(!f_df.emulatesBiases());
+			m.delogu_ua_nb(f_df);
 		}
 	};
 
-	template<typename RealT, size_t B1e3 = 2000, typename WeightsInitScheme = weights_init::He_Zhang<>>
-	using elogu_ua = elogu<RealT, 1000, B1e3, WeightsInitScheme>;
+	template<typename RealT, size_t B1e6 = 2000000, typename WeightsInitScheme = weights_init::He_Zhang<>>
+	using elogu_ua = elogu<RealT, 1000, B1e6, WeightsInitScheme>;
 	template<typename RealT, size_t Alpha1e3 = 1000, typename WeightsInitScheme = weights_init::He_Zhang<>>
 	using elogu_nb = elogu<RealT, Alpha1e3, 2718281, WeightsInitScheme>;
 	template<typename RealT, typename WeightsInitScheme = weights_init::He_Zhang<>>

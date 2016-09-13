@@ -147,7 +147,11 @@ namespace nntl {
 		}
 		static constexpr const char _defName[] = "lph";
 
-		const realmtxdef_t& get_activations()const noexcept { return m_activations; }
+		const realmtxdef_t& get_activations()const noexcept {
+			NNTL_ASSERT(m_bActivationsValid);
+			return m_activations;
+		}
+		const mtx_size_t get_activations_size()const noexcept { return m_activations.size(); }
 		
 		//and apply function _Func(auto& layer) to each underlying (non-pack) layer here
 		template<typename _Func>
@@ -282,13 +286,15 @@ namespace nntl {
 			}
 
 			get_self().for_each_packed_layer([=](auto& l) {l.initMem(ptr, cnt); });
+
 		}
 
 		void set_mode(vec_len_t batchSize, real_t* pNewActivationStorage = nullptr)noexcept {
 			NNTL_ASSERT(m_activations.emulatesBiases());
 			// now we must resize m_activations and update activations of inner layers with set_mode variation
-
+			m_bActivationsValid = false;
 			m_bTraining = batchSize == 0;
+
 			const auto _training_batch_size = get_self().get_training_batch_size();
 			bool bRestoreBiases;
 
@@ -312,7 +318,6 @@ namespace nntl {
 					bRestoreBiases = batchSize != _max_fprop_batch_size;
 				}
 			}
-
 
 			auto& act = m_activations;
 			neurons_count_t firstNeuronOfs = 0;
@@ -345,6 +350,7 @@ namespace nntl {
 			NNTL_ASSERT(lowerLayer.get_activations().test_biases_ok());
 
 			iI.fprop_end(m_activations);
+			m_bActivationsValid = true;
 		}
 
 		// in order to implement backprop for the inner layers, we must provide them with a correct dLdA and dLdAPrev, each of which must
@@ -363,13 +369,14 @@ namespace nntl {
 		template <typename LowerLayer>
 		const unsigned bprop(realmtx_t& dLdA, const LowerLayer& lowerLayer, realmtx_t& dLdAPrev)noexcept {
 			static_assert(std::is_base_of<_i_layer_trainable, LowerLayer>::value, "Template parameter LowerLayer must implement _i_layer_trainable");
+			m_bActivationsValid = false;
 			auto& iI = get_self().get_iInspect();
 			iI.bprop_begin(get_self().get_layer_idx(), dLdA);
 
 			NNTL_ASSERT(m_bTraining);
 			NNTL_ASSERT(lowerLayer.get_activations().test_biases_ok());
 			//NNTL_ASSERT(m_activations.test_biases_ok());
-			NNTL_ASSERT(dLdA.size() == get_self().get_activations().size_no_bias());
+			NNTL_ASSERT(dLdA.size() == m_activations.size_no_bias());
 			NNTL_ASSERT((std::is_base_of<m_layer_input, LowerLayer>::value) || dLdAPrev.size() == lowerLayer.get_activations().size_no_bias());
 			
 			// We'll copy corresponding parts of dLdA into m_innerdLdA and on inner layer.bprop() return we'll ADD corresponding dLdA to dLdAPrev passed

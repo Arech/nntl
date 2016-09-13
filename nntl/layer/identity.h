@@ -62,7 +62,11 @@ namespace nntl {
 		static constexpr const char _defName[] = "id";
 
 		//////////////////////////////////////////////////////////////////////////
-		const realmtxdef_t& get_activations()const noexcept { return m_activations; }
+		const realmtxdef_t& get_activations()const noexcept {
+			NNTL_ASSERT(m_bActivationsValid);
+			return m_activations;
+		}
+		const mtx_size_t get_activations_size()const noexcept { return m_activations.size(); }
 
 		// pNewActivationStorage MUST be specified (we're expecting to be encapsulated into a layer_pack_horizontal)
 		ErrorCode init(_layer_init_data_t& lid, real_t* pNewActivationStorage)noexcept {
@@ -87,12 +91,13 @@ namespace nntl {
 		void set_mode(vec_len_t batchSize, real_t* pNewActivationStorage)noexcept {
 			NNTL_ASSERT(pNewActivationStorage);
 
-			const bool bTraining = batchSize == 0;
+			m_bActivationsValid = false;
+			m_bTraining = batchSize == 0;
 
 			NNTL_ASSERT(m_activations.emulatesBiases() && m_activations.bDontManageStorage() && get_self().get_neurons_cnt());
 			//m_neurons_cnt + 1 for biases
 			m_activations.useExternalStorage(pNewActivationStorage
-				, bTraining ? get_self().get_training_batch_size() : batchSize, get_self().get_neurons_cnt() + 1, true);
+				, m_bTraining ? get_self().get_training_batch_size() : batchSize, get_self().get_neurons_cnt() + 1, true);
 			//should not restore biases here, because for compound layers its a job for their fprop() implementation
 		}
 	protected:
@@ -123,12 +128,14 @@ namespace nntl {
 			NNTL_ASSERT(lowerLayer.get_activations().test_biases_ok());
 			get_self()._fprop(lowerLayer.get_activations());
 			NNTL_ASSERT(lowerLayer.get_activations().test_biases_ok());
+			m_bActivationsValid = true;
 		}
 
 		template <typename LowerLayerWrapper>
 		std::enable_if_t<_impl::is_layer_wrapper<LowerLayerWrapper>::value, const unsigned>
 			bprop(realmtx_t& dLdA, const LowerLayerWrapper& lowerLayer, realmtx_t& dLdAPrev)noexcept
 		{
+			m_bActivationsValid = false;
 			auto& iI = get_self().get_iInspect();
 			iI.bprop_begin(get_self().get_layer_idx(), dLdA);
 
@@ -211,9 +218,9 @@ namespace nntl {
 			NNTL_ASSERT(pNewActivationStorage);
 			_base_class::set_mode(batchSize, pNewActivationStorage);
 
-			const bool bTraining = batchSize == 0;
+			NNTL_ASSERT(m_bTraining == (batchSize == 0));
 			m_gate.useExternalStorage(pNewActivationStorage
-				, bTraining ? get_self().get_training_batch_size() : batchSize, get_self().get_neurons_cnt(), false);
+				, m_bTraining ? get_self().get_training_batch_size() : batchSize, get_self().get_neurons_cnt(), false);
 		}
 
 	private:

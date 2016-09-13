@@ -165,8 +165,9 @@ namespace nntl {
 			
 			NNTL_ASSERT(!m_gatingMask.emulatesBiases());
 			//we must deform the mask to fit new underlying activations size
-			m_gatingMask.deform_rows(get_self().gating_layer().get_activations().rows());
-			NNTL_ASSERT(m_gatingMask.rows() == last_layer().get_activations().rows());
+			const mtx_size_t gas = get_self().gating_layer().get_activations_size();
+			m_gatingMask.deform_rows(gas.first);
+			//NNTL_ASSERT(m_gatingMask.rows() == last_layer().get_activations().rows());
 			NNTL_ASSERT(m_gatingMask.cols() == get_self().get_neurons_cnt() - get_self().gating_layer().get_neurons_cnt());
 		}
 
@@ -272,7 +273,7 @@ namespace nntl {
 			iI.fprop_begin(get_self().get_layer_idx(), lowerLayer.get_activations(), m_bTraining);
 
 			NNTL_ASSERT(lowerLayer.get_activations().test_biases_ok());
-			NNTL_ASSERT(m_gatingMask.rows() == get_self().get_activations().rows());
+			NNTL_ASSERT(m_gatingMask.rows() == m_activations.rows());
 			NNTL_ASSERT(m_gatingMask.rows() == lowerLayer.get_activations().rows());
 			NNTL_ASSERT(m_gatingMask.cols() == get_self().get_neurons_cnt() - get_self().gating_layer().get_neurons_cnt());
 

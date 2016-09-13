@@ -153,7 +153,7 @@ namespace _impl {
 
 		static constexpr size_t sigm = 1300;//*
 		static constexpr size_t dsigm = 24500;//*
-		static constexpr size_t dSigmQuadLoss_dZ = 32000;
+		static constexpr size_t dSigmQuadLoss_dZ = 70000;//*
 
 		static constexpr size_t relu = 108000;//*
 		static constexpr size_t drelu = 26500;//*

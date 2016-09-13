@@ -1321,8 +1321,14 @@ namespace math {
 		}
 		static void _isigm_st(realmtx_t& srcdest, const elms_range& er) noexcept {
 			NNTL_ASSERT(!srcdest.empty());
-			const auto ptr = srcdest.data();
-			for (range_t i = er.elmBegin; i < er.elmEnd; ++i) ptr[i] = real_t(1.0) / (real_t(1.0) + std::exp(-ptr[i]));
+// 			const auto ptr = srcdest.data();
+// 			for (range_t i = er.elmBegin; i < er.elmEnd; ++i) ptr[i] = real_t(1.0) / (real_t(1.0) + std::exp(-ptr[i]));
+			auto pA = srcdest.data() + er.elmBegin;
+			const auto pAE = pA + er.totalElements();
+			while (pA != pAE) {
+				const auto x = *pA;
+				*pA++ = real_t(1.0) / (real_t(1.0) + std::exp(-x));
+			}
 		}
 		void sigm_mt(realmtx_t& srcdest) noexcept {
 			NNTL_ASSERT(!srcdest.empty());
@@ -1333,29 +1339,28 @@ namespace math {
 
 		//////////////////////////////////////////////////////////////////////////
 		// d(sigm)/d(arg) - sigmoid derivative df = f.*(1-f), where fValue is activation value (used in no_bias version)
-		void dsigm(const realmtx_t& fValue, realmtx_t& df) noexcept {
-			if (fValue.numel_no_bias() < Thresholds_t::dsigm) {
-				get_self().dsigm_st(fValue, df);
-			} else get_self().dsigm_mt(fValue, df);
+		void dsigm(realmtx_t& f_df) noexcept {
+			if (f_df.numel() < Thresholds_t::dsigm) {
+				get_self().dsigm_st(f_df);
+			} else get_self().dsigm_mt(f_df);
 		}
-		void dsigm_st(const realmtx_t& fValue, realmtx_t& df, const elms_range*const pER = nullptr) noexcept {
-			get_self()._idsigm_st(fValue, df, pER ? *pER : elms_range(0, fValue.numel_no_bias()));
+		void dsigm_st(realmtx_t& f_df, const elms_range*const pER = nullptr) noexcept {
+			get_self()._idsigm_st(f_df, pER ? *pER : elms_range(f_df));
 		}
-		static void _idsigm_st(const realmtx_t& fValue, realmtx_t& df, const elms_range& er) noexcept {
-			fValue.assert_storage_does_not_intersect(df);
-			NNTL_ASSERT(fValue.size_no_bias() == df.size());
-			const auto ptrF = fValue.data();
-			const auto ptrDF = df.data();
-			for (numel_cnt_t i = er.elmBegin; i < er.elmEnd; ++i) {
-				const auto f = ptrF[i];
-				NNTL_ASSERT(f >= 0 && f <= 1);
-				ptrDF[i] = f*(real_t(1.0) - f);
+		static void _idsigm_st(realmtx_t& f_df, const elms_range& er) noexcept {
+			NNTL_ASSERT(!f_df.empty());
+			auto pF = f_df.data() + er.elmBegin;
+			const auto pFE = pF + er.totalElements();
+			while (pF != pFE) {
+				const auto f = *pF;
+				NNTL_ASSERT(f >= real_t(0.) && f <= real_t(1.));
+				*pF++ = f*(real_t(1.0) - f);
 			}
 		}
-		void dsigm_mt(const realmtx_t& fValue, realmtx_t& df) noexcept {
-			m_threads.run([&fValue, &df, this](const par_range_t& pr) {
-				get_self()._idsigm_st(fValue, df, elms_range(pr));
-			}, fValue.numel_no_bias());
+		void dsigm_mt(realmtx_t& f_df) noexcept {
+			m_threads.run([&f_df, this](const par_range_t& pr) {
+				get_self()._idsigm_st(f_df, elms_range(pr));
+			}, f_df.numel());
 		}
 		
 		//////////////////////////////////////////////////////////////////////////
@@ -1363,50 +1368,39 @@ namespace math {
 		//////////////////////////////////////////////////////////////////////////
 		//dL/dZ = (err===a-y)*a*(1-a)
 		// because activations comes from the output layer, expecting no biases there
-		void dSigmQuadLoss_dZ(const realmtx_t& activations, const realmtx_t& data_y, realmtx_t& dLdZ) {
-			if (activations.numel() < Thresholds_t::dSigmQuadLoss_dZ) {
-				get_self().dSigmQuadLoss_dZ_st_naive(activations, data_y, dLdZ);
-			}else get_self().dSigmQuadLoss_dZ_mt_naive(activations, data_y, dLdZ);
+		void dSigmQuadLoss_dZ(const realmtx_t& data_y, realmtx_t& act_dLdZ) {
+			if (act_dLdZ.numel() < Thresholds_t::dSigmQuadLoss_dZ) {
+				get_self().dSigmQuadLoss_dZ_st(data_y, act_dLdZ);
+			}else get_self().dSigmQuadLoss_dZ_mt(data_y, act_dLdZ);
 		}
 		//usually error is defined as diffrence between data_y and last layer activation, i.e. nn.e=y-nn.a{n}, but
 		//that will lead to necessity of negation of error in back propagation algorithm. To get rid of that negation,
 		// we'll define error as nn.a{n}-y. This won't bother loss calculation, because it is either squares error
 		// (conventional quadratic loss function) or doesn't use that error definition at all (crossentropy error)
-		static void dSigmQuadLoss_dZ_st_naive(const realmtx_t& activations, const realmtx_t& data_y, realmtx_t& dLdZ) {
-			NNTL_ASSERT(!activations.emulatesBiases());
-			NNTL_ASSERT(activations.size() == data_y.size() && activations.size() == dLdZ.size());
-			activations.assert_storage_does_not_intersect(data_y);
-			activations.assert_storage_does_not_intersect(dLdZ);
-			data_y.assert_storage_does_not_intersect(dLdZ);
+		void dSigmQuadLoss_dZ_st(const realmtx_t& data_y, realmtx_t& act_dLdZ, const elms_range*const pER = nullptr) {
+			get_self()._idSigmQuadLoss_dZ_st(data_y, act_dLdZ, pER ? *pER : elms_range(act_dLdZ));
+		}
+		static void _idSigmQuadLoss_dZ_st(const realmtx_t& data_y, realmtx_t& act_dLdZ, const elms_range& er) {
+			NNTL_ASSERT(!act_dLdZ.emulatesBiases() && !data_y.emulatesBiases());
+			NNTL_ASSERT(act_dLdZ.size() == data_y.size());
 
-			const auto ptrAct = activations.data(), ptrDataY=data_y.data();
-			auto ptrdLdZ = dLdZ.data();
-			const auto dataCnt = activations.numel();
-
-			for (numel_cnt_t i = 0; i < dataCnt; ++i) {
-				const auto a = ptrAct[i];
-				ptrdLdZ[i] = (a - ptrDataY[i])*a*(real_t(1.0) - a);
+			auto pY = data_y.data() + er.elmBegin;
+			auto pSD = act_dLdZ.data() + er.elmBegin;
+			const auto pSDE = pSD + er.totalElements();
+			while (pSD != pSDE) {
+				const auto a = *pSD;
+				NNTL_ASSERT(real_t(0.) <= a && a <= real_t(1.));
+				const auto y = *pY++;
+				NNTL_ASSERT(real_t(0.) <= y && y <= real_t(1.));
+				*pSD++ = (a - y)*a*(real_t(1.0) - a);
 			}
 		}
-		void dSigmQuadLoss_dZ_mt_naive(const realmtx_t& activations, const realmtx_t& data_y, realmtx_t& dLdZ) {
-			NNTL_ASSERT(!activations.emulatesBiases());
-			NNTL_ASSERT(activations.size() == data_y.size() && activations.size() == dLdZ.size());
-			activations.assert_storage_does_not_intersect(data_y);
-			activations.assert_storage_does_not_intersect(dLdZ);
-			data_y.assert_storage_does_not_intersect(dLdZ);
-
-			const auto ptrAct = activations.data(), ptrDataY = data_y.data();
-			auto ptrdLdZ = dLdZ.data();
-			const auto dataCnt = activations.numel();
-
-			m_threads.run([ptrAct, ptrDataY, ptrdLdZ](const par_range_t& r) {
-				const auto ofs = r.offset();
-				const numel_cnt_t im = ofs + r.cnt();
-				for (numel_cnt_t i = ofs; i < im; ++i) {
-					const auto a = ptrAct[i];
-					ptrdLdZ[i] = (a - ptrDataY[i])*a*(real_t(1.0) - a);
-				}
-			}, dataCnt);
+		void dSigmQuadLoss_dZ_mt(const realmtx_t& data_y, realmtx_t& act_dLdZ) {
+			NNTL_ASSERT(!act_dLdZ.emulatesBiases() && !data_y.emulatesBiases());
+			NNTL_ASSERT(act_dLdZ.size() == data_y.size());
+			m_threads.run([&data_y, &act_dLdZ, this](const par_range_t& r) {
+				get_self()._idSigmQuadLoss_dZ_st(data_y, act_dLdZ, elms_range(r));
+			}, act_dLdZ.numel());
 		}
 		//////////////////////////////////////////////////////////////////////////
 		//////////////////////////////////////////////////////////////////////////
@@ -1428,7 +1422,7 @@ namespace math {
 				/*if (*pV < real_t(+0.0))  *pV = real_t(0.0);
 				++pV;*/
 				const auto v = *pV;
-				*pV++ = v < real_t(0.) ? real_t(0.) : v;
+				*pV++ = v <= real_t(0.) ? real_t(0.) : v;
 			}
 		}
 		void relu_mt(realmtx_t& srcdest) noexcept {
@@ -1440,36 +1434,28 @@ namespace math {
 
 		//////////////////////////////////////////////////////////////////////////
 		// d(ReLU)/dZ
-		void drelu(const realmtx_t& fValue, realmtx_t& df) noexcept {
-			if (df.numel_no_bias() < Thresholds_t::drelu) {
-				get_self().drelu_st(fValue, df);
-			} else get_self().drelu_mt(fValue, df);
+		void drelu(realmtx_t& f_df) noexcept {
+			if (f_df.numel() < Thresholds_t::drelu) {
+				get_self().drelu_st(f_df);
+			} else get_self().drelu_mt(f_df);
 		}
-		void drelu_st(const realmtx_t& fValue, realmtx_t& df, const elms_range*const pER = nullptr) noexcept {
-			get_self()._idrelu_st(fValue, df, pER ? *pER : elms_range(df));
+		void drelu_st(realmtx_t& f_df, const elms_range*const pER = nullptr) noexcept {
+			get_self()._idrelu_st(f_df, pER ? *pER : elms_range(f_df));
 		}
-		static void _idrelu_st(const realmtx_t& fValue, realmtx_t& df, const elms_range& er) noexcept {
-			fValue.assert_storage_does_not_intersect(df);
-			NNTL_ASSERT(fValue.size_no_bias() == df.size());
-			/*const auto ptrF = fValue.data();
-			const auto ptrDF = df.data();
-			for (numel_cnt_t i = er.elmBegin; i < er.elmEnd; ++i) {
-				ptrDF[i] = ptrF[i]<real_t(+0.) ? real_t(0.0) : real_t(1.0);
-			}*/
-			auto ptrDF = df.data() + er.elmBegin;
-			memcpy(ptrDF, fValue.data() + er.elmBegin, sizeof(real_t)*er.totalElements());
+		static void _idrelu_st(realmtx_t& f_df, const elms_range& er) noexcept {			
+			NNTL_ASSERT(!f_df.empty());
+			auto ptrDF = f_df.data() + er.elmBegin;
 			const auto ptrDFE = ptrDF + er.totalElements();
 			while (ptrDF != ptrDFE) {
 				const auto v = *ptrDF;
-				*ptrDF++ = v < real_t(0.) ? real_t(0.) : real_t(1.0);
+				*ptrDF++ = v <= real_t(0.) ? real_t(0.) : real_t(1.0);
 			}
 		}
-		void drelu_mt(const realmtx_t& fValue, realmtx_t& df) noexcept {
-			fValue.assert_storage_does_not_intersect(df);
-			NNTL_ASSERT(fValue.size_no_bias() == df.size());
-			m_threads.run([&fValue, &df,this](const par_range_t& r) {
-				get_self()._idrelu_st(fValue, df, elms_range(r));
-			}, df.numel());
+		void drelu_mt(realmtx_t& f_df) noexcept {			
+			NNTL_ASSERT(!f_df.empty());
+			m_threads.run([&f_df,this](const par_range_t& r) {
+				get_self()._idrelu_st(f_df, elms_range(r));
+			}, f_df.numel());
 		}
 		//////////////////////////////////////////////////////////////////////////
 		//////////////////////////////////////////////////////////////////////////
@@ -1502,37 +1488,28 @@ namespace math {
 		}
 		//////////////////////////////////////////////////////////////////////////
 		// d(LeakyReLU)/dZ
-		void dleakyrelu(const realmtx_t& fValue, realmtx_t& df, const real_t leak) noexcept {
-			if (df.numel_no_bias() < Thresholds_t::dleakyrelu) {
-				get_self().dleakyrelu_st(fValue, df, leak);
-			} else get_self().dleakyrelu_mt(fValue, df, leak);
+		void dleakyrelu(realmtx_t& f_df, const real_t leak) noexcept {
+			if (f_df.numel() < Thresholds_t::dleakyrelu) {
+				get_self().dleakyrelu_st(f_df, leak);
+			} else get_self().dleakyrelu_mt(f_df, leak);
 		}
-		void dleakyrelu_st(const realmtx_t& fValue, realmtx_t& df, const real_t leak, const elms_range*const pER = nullptr) noexcept {
-			get_self()._idleakyrelu_st(fValue, df, leak, pER ? *pER : elms_range(df));
+		void dleakyrelu_st(realmtx_t& f_df, const real_t leak, const elms_range*const pER = nullptr) noexcept {
+			get_self()._idleakyrelu_st(f_df, leak, pER ? *pER : elms_range(f_df));
 		}
-		static void _idleakyrelu_st(const realmtx_t& fValue, realmtx_t& df, const real_t leak, const elms_range& er) noexcept {
-			fValue.assert_storage_does_not_intersect(df);
+		static void _idleakyrelu_st(realmtx_t& f_df, const real_t leak, const elms_range& er) noexcept {
 			NNTL_ASSERT(leak > real_t(0.0));
-			NNTL_ASSERT(fValue.size_no_bias() == df.size());
-			/*const auto ptrF = fValue.data();
-			const auto ptrDF = df.data();
-			for (numel_cnt_t i = er.elmBegin; i < er.elmEnd; ++i) {
-				ptrDF[i] = ptrF[i] < real_t(+0.) ? leak : real_t(1.0);
-			}*/
-			auto ptrDF = df.data() + er.elmBegin;
-			memcpy(ptrDF, fValue.data() + er.elmBegin, sizeof(real_t)*er.totalElements());
+			auto ptrDF = f_df.data() + er.elmBegin;
 			const auto ptrDFE = ptrDF + er.totalElements();
 			while (ptrDF != ptrDFE) {
 				const auto v = *ptrDF;
-				*ptrDF++ = v < real_t(0.) ? leak : real_t(1.0);
+				*ptrDF++ = v <= real_t(0.) ? leak : real_t(1.0);
 			}
 		}
-		void dleakyrelu_mt(const realmtx_t& fValue, realmtx_t& df, const real_t leak) noexcept {
-			fValue.assert_storage_does_not_intersect(df);
-			NNTL_ASSERT(fValue.size_no_bias() == df.size());
-			m_threads.run([&fValue, &df, leak,this](const par_range_t& r) {
-				get_self()._idleakyrelu_st(fValue, df, leak, elms_range(r));
-			}, df.numel());
+		void dleakyrelu_mt(realmtx_t& f_df, const real_t leak) noexcept {
+			NNTL_ASSERT(!f_df.empty());
+			m_threads.run([&f_df, leak,this](const par_range_t& r) {
+				get_self()._idleakyrelu_st(f_df, leak, elms_range(r));
+			}, f_df.numel());
 		}
 		//////////////////////////////////////////////////////////////////////////
 		//////////////////////////////////////////////////////////////////////////
@@ -1565,38 +1542,29 @@ namespace math {
 		}
 		//////////////////////////////////////////////////////////////////////////
 		// d(ELU)/dZ
-		void delu(const realmtx_t& fValue, realmtx_t& df, const real_t alpha) noexcept {
-			if (df.numel_no_bias() < Thresholds_t::delu) {
-				get_self().delu_st(fValue, df, alpha);
-			} else get_self().delu_mt(fValue, df, alpha);
+		void delu(realmtx_t& f_df, const real_t alpha) noexcept {
+			if (f_df.numel() < Thresholds_t::delu) {
+				get_self().delu_st(f_df, alpha);
+			} else get_self().delu_mt(f_df, alpha);
 		}
-		void delu_st(const realmtx_t& fValue, realmtx_t& df, const real_t alpha, const elms_range*const pER = nullptr) const noexcept {
-			get_self()._idelu_st(fValue, df, alpha, pER ? *pER : elms_range(df));
+		void delu_st(realmtx_t& f_df, const real_t alpha, const elms_range*const pER = nullptr) const noexcept {
+			get_self()._idelu_st(f_df, alpha, pER ? *pER : elms_range(f_df));
 		}
-		static void _idelu_st(const realmtx_t& fValue, realmtx_t& df, const real_t alpha, const elms_range& er) noexcept {
-			fValue.assert_storage_does_not_intersect(df);
+		static void _idelu_st(realmtx_t& f_df, const real_t alpha, const elms_range& er) noexcept {
 			NNTL_ASSERT(alpha > real_t(0.0));
-			NNTL_ASSERT(fValue.size_no_bias() == df.size());
-			/*const auto ptrF = fValue.data();
-			const auto ptrDF = df.data();
-			for (numel_cnt_t i = er.elmBegin; i < er.elmEnd; ++i) {
-				const auto fv = ptrF[i];
-				ptrDF[i] = fv < real_t(+0.) ? (fv + alpha) : real_t(1.0);
-			}*/
-			auto ptrDF = df.data() + er.elmBegin;
-			memcpy(ptrDF, fValue.data() + er.elmBegin, sizeof(real_t)*er.totalElements());
+			NNTL_ASSERT(!f_df.empty());
+			auto ptrDF = f_df.data() + er.elmBegin;
 			const auto ptrDFE = ptrDF + er.totalElements();
 			while (ptrDF != ptrDFE) {
 				const auto v = *ptrDF;
 				*ptrDF++ = v < real_t(0.) ? (v + alpha) : real_t(1.0);
 			}
 		}
-		void delu_mt(const realmtx_t& fValue, realmtx_t& df, const real_t alpha) noexcept {
-			fValue.assert_storage_does_not_intersect(df);
-			NNTL_ASSERT(fValue.size_no_bias() == df.size());
-			m_threads.run([&fValue, &df, alpha, this](const par_range_t& r) {
-				get_self()._idelu_st(fValue, df, alpha, elms_range(r));
-			}, df.numel());
+		void delu_mt(realmtx_t& f_df, const real_t alpha) noexcept {			
+			NNTL_ASSERT(!f_df.empty());
+			m_threads.run([&f_df, alpha, this](const par_range_t& r) {
+				get_self()._idelu_st(f_df, alpha, elms_range(r));
+			}, f_df.numel());
 		}
 		//////////////////////////////////////////////////////////////////////////
 		//////////////////////////////////////////////////////////////////////////
@@ -1628,37 +1596,28 @@ namespace math {
 		}
 		//////////////////////////////////////////////////////////////////////////
 		// d(ELU)/dZ
-		void delu_unitalpha(const realmtx_t& fValue, realmtx_t& df) noexcept {
-			if (df.numel_no_bias() < Thresholds_t::delu_unitalpha) {
-				get_self().delu_unitalpha_st(fValue, df);
-			} else get_self().delu_unitalpha_mt(fValue, df);
+		void delu_unitalpha(realmtx_t& f_df) noexcept {
+			if (f_df.numel() < Thresholds_t::delu_unitalpha) {
+				get_self().delu_unitalpha_st(f_df);
+			} else get_self().delu_unitalpha_mt(f_df);
 		}
-		void delu_unitalpha_st(const realmtx_t& fValue, realmtx_t& df, const elms_range*const pER = nullptr) noexcept {
-			get_self()._idelu_unitalpha_st(fValue, df, pER ? *pER : elms_range(df));
+		void delu_unitalpha_st(realmtx_t& f_df, const elms_range*const pER = nullptr) noexcept {
+			get_self()._idelu_unitalpha_st(f_df, pER ? *pER : elms_range(f_df));
 		}
-		static void _idelu_unitalpha_st(const realmtx_t& fValue, realmtx_t& df, const elms_range& er) noexcept {
-			fValue.assert_storage_does_not_intersect(df);
-			NNTL_ASSERT(fValue.size_no_bias() == df.size());
-			/*const auto ptrF = fValue.data();
-			const auto ptrDF = df.data();
-			for (numel_cnt_t i = er.elmBegin; i < er.elmEnd; ++i) {
-				const auto fv = ptrF[i];
-				ptrDF[i] = fv < real_t(+0.) ? (fv + real_t(1.0)) : real_t(1.0);
-			}*/
-			auto ptrDF = df.data() + er.elmBegin;
-			memcpy(ptrDF, fValue.data() + er.elmBegin, sizeof(real_t)*er.totalElements());
+		static void _idelu_unitalpha_st(realmtx_t& f_df, const elms_range& er) noexcept {
+			NNTL_ASSERT(!f_df.empty());
+			auto ptrDF = f_df.data() + er.elmBegin;
 			const auto ptrDFE = ptrDF + er.totalElements();
 			while (ptrDF != ptrDFE) {
 				const auto v = *ptrDF;
 				*ptrDF++ = v < real_t(0.) ? (v + real_t(1.0)) : real_t(1.0);
 			}
 		}
-		void delu_unitalpha_mt(const realmtx_t& fValue, realmtx_t& df) noexcept {
-			fValue.assert_storage_does_not_intersect(df);
-			NNTL_ASSERT(fValue.size_no_bias() == df.size());
-			m_threads.run([&fValue, &df, this](const par_range_t& r) {
-				get_self()._idelu_unitalpha_st(fValue, df, elms_range(r));
-			}, df.numel());
+		void delu_unitalpha_mt(realmtx_t& f_df) noexcept {
+			NNTL_ASSERT(!f_df.empty());
+			m_threads.run([&f_df, this](const par_range_t& r) {
+				get_self()._idelu_unitalpha_st(f_df, elms_range(r));
+			}, f_df.numel());
 		}
 
 		//////////////////////////////////////////////////////////////////////////
@@ -1694,45 +1653,36 @@ namespace math {
 		}
 		//////////////////////////////////////////////////////////////////////////
 		// d(ELU)/dZ = exp(-y*log(b)-log(log(b))) | x>0
-		void delogu(const realmtx_t& fValue, realmtx_t& df, const real_t& alpha, const real_t& b) noexcept {
-			if (df.numel_no_bias() < Thresholds_t::delogu) {
-				get_self().delogu_st(fValue, df, alpha, b);
-			} else get_self().delogu_mt(fValue, df, alpha, b);
+		void delogu(realmtx_t& f_df, const real_t& alpha, const real_t& b) noexcept {
+			if (f_df.numel() < Thresholds_t::delogu) {
+				get_self().delogu_st(f_df, alpha, b);
+			} else get_self().delogu_mt(f_df, alpha, b);
 		}
-		void delogu_st(const realmtx_t& fValue, realmtx_t& df, const real_t& alpha, const real_t& b, const elms_range*const pER = nullptr) const noexcept {
-			get_self()._idelogu_st(fValue, df, alpha, b, pER ? *pER : elms_range(df));
+		void delogu_st(realmtx_t& f_df, const real_t& alpha, const real_t& b, const elms_range*const pER = nullptr) const noexcept {
+			get_self()._idelogu_st(f_df, alpha, b, pER ? *pER : elms_range(f_df));
 		}
-		static void _idelogu_st(const realmtx_t& fValue, realmtx_t& df, const real_t& alpha, const real_t& b, const elms_range& er) noexcept {
-			fValue.assert_storage_does_not_intersect(df);
+		static void _idelogu_st(realmtx_t& f_df, const real_t& alpha, const real_t& b, const elms_range& er) noexcept {
 			NNTL_ASSERT(alpha > real_t(0.0));
 			NNTL_ASSERT(b > real_t(1.0));
-			NNTL_ASSERT(fValue.size_no_bias() == df.size());
+			NNTL_ASSERT(!f_df.empty());
 
 			const double _lb = log(double(b));
 			const real_t nllb = -static_cast<real_t>(log(_lb)), nlb = -static_cast<real_t>(_lb);
 
-			/*const auto ptrF = fValue.data();
-			const auto ptrDF = df.data();
-			for (numel_cnt_t i = er.elmBegin; i < er.elmEnd; ++i) {
-				const auto fv = ptrF[i];
-				ptrDF[i] = fv < real_t(+0.) ? (fv + alpha) : std::exp(fv*nlb + nllb);
-			}*/
-			auto ptrDF = df.data() + er.elmBegin;
-			memcpy(ptrDF, fValue.data() + er.elmBegin, sizeof(real_t)*er.totalElements());
+			auto ptrDF = f_df.data() + er.elmBegin;
 			const auto ptrDFE = ptrDF + er.totalElements();
 			while (ptrDF != ptrDFE) {
 				const auto v = *ptrDF;
 				*ptrDF++ = v < real_t(0.) ? (v + alpha) : std::exp(v*nlb + nllb);
 			}
 		}
-		void delogu_mt(const realmtx_t& fValue, realmtx_t& df, const real_t& alpha, const real_t& b) noexcept {
-			fValue.assert_storage_does_not_intersect(df);
-			NNTL_ASSERT(fValue.size_no_bias() == df.size());
+		void delogu_mt(realmtx_t& f_df, const real_t& alpha, const real_t& b) noexcept {
+			NNTL_ASSERT(!f_df.empty());
 			NNTL_ASSERT(alpha > real_t(0.0));
 			NNTL_ASSERT(b > real_t(1.0));
-			m_threads.run([&fValue, &df, &alpha, &b, this](const par_range_t& r) {
-				get_self()._idelogu_st(fValue, df, alpha, b, elms_range(r));
-			}, df.numel());
+			m_threads.run([&f_df, &alpha, &b, this](const par_range_t& r) {
+				get_self()._idelogu_st(f_df, alpha, b, elms_range(r));
+			}, f_df.numel());
 		}
 		//////////////////////////////////////////////////////////////////////////
 		//////////////////////////////////////////////////////////////////////////
@@ -1765,43 +1715,34 @@ namespace math {
 		}
 		//////////////////////////////////////////////////////////////////////////
 		// d(ELU)/dZ = exp(-y*log(b)-log(log(b))) | x>0
-		void delogu_ua(const realmtx_t& fValue, realmtx_t& df, const real_t& b) noexcept {
-			if (df.numel_no_bias() < Thresholds_t::delogu_ua) {
-				get_self().delogu_ua_st(fValue, df, b);
-			} else get_self().delogu_ua_mt(fValue, df, b);
+		void delogu_ua(realmtx_t& f_df, const real_t& b) noexcept {
+			if (f_df.numel() < Thresholds_t::delogu_ua) {
+				get_self().delogu_ua_st(f_df, b);
+			} else get_self().delogu_ua_mt(f_df, b);
 		}
-		void delogu_ua_st(const realmtx_t& fValue, realmtx_t& df, const real_t& b, const elms_range*const pER = nullptr) const noexcept {
-			get_self()._idelogu_ua_st(fValue, df, b, pER ? *pER : elms_range(df));
+		void delogu_ua_st(realmtx_t& f_df, const real_t& b, const elms_range*const pER = nullptr) const noexcept {
+			get_self()._idelogu_ua_st(f_df, b, pER ? *pER : elms_range(f_df));
 		}
-		static void _idelogu_ua_st(const realmtx_t& fValue, realmtx_t& df, const real_t& b, const elms_range& er) noexcept {
-			fValue.assert_storage_does_not_intersect(df);
+		static void _idelogu_ua_st(realmtx_t& f_df, const real_t& b, const elms_range& er) noexcept {
 			NNTL_ASSERT(b > real_t(1.0));
-			NNTL_ASSERT(fValue.size_no_bias() == df.size());
+			NNTL_ASSERT(!f_df.empty());
 
 			const double _lb = log(double(b));
 			const real_t nllb = -static_cast<real_t>(log(_lb)), nlb = -static_cast<real_t>(_lb);
 
-			/*const auto ptrF = fValue.data();
-			const auto ptrDF = df.data();
-			for (numel_cnt_t i = er.elmBegin; i < er.elmEnd; ++i) {
-				const auto fv = ptrF[i];
-				ptrDF[i] = fv < real_t(+0.) ? (fv + real_t(1.)) : std::exp(fv*nlb + nllb);
-			}*/
-			auto ptrDF = df.data() + er.elmBegin;
-			memcpy(ptrDF, fValue.data() + er.elmBegin, sizeof(real_t)*er.totalElements());
+			auto ptrDF = f_df.data() + er.elmBegin;
 			const auto ptrDFE = ptrDF + er.totalElements();
 			while (ptrDF != ptrDFE) {
 				const auto v = *ptrDF;
 				*ptrDF++ = v < real_t(0.) ? (v + real_t(1.)) : std::exp(v*nlb + nllb);
 			}
 		}
-		void delogu_ua_mt(const realmtx_t& fValue, realmtx_t& df, const real_t& b) noexcept {
-			fValue.assert_storage_does_not_intersect(df);
-			NNTL_ASSERT(fValue.size_no_bias() == df.size());
+		void delogu_ua_mt(realmtx_t& f_df, const real_t& b) noexcept {
+			NNTL_ASSERT(!f_df.empty());
 			NNTL_ASSERT(b > real_t(1.0));
-			m_threads.run([&fValue, &df, &b, this](const par_range_t& r) {
-				get_self()._idelogu_ua_st(fValue, df, b, elms_range(r));
-			}, df.numel());
+			m_threads.run([&f_df, &b, this](const par_range_t& r) {
+				get_self()._idelogu_ua_st(f_df, b, elms_range(r));
+			}, f_df.numel());
 		}
 		//////////////////////////////////////////////////////////////////////////
 		//////////////////////////////////////////////////////////////////////////
@@ -1833,39 +1774,31 @@ namespace math {
 		}
 		//////////////////////////////////////////////////////////////////////////
 		// d(ELU)/dZ = exp(-y*log(b)-log(log(b))) | x>0
-		void delogu_nb(const realmtx_t& fValue, realmtx_t& df, const real_t& alpha) noexcept {
-			if (df.numel_no_bias() < Thresholds_t::delogu_nb) {
-				get_self().delogu_nb_st(fValue, df, alpha);
-			} else get_self().delogu_nb_mt(fValue, df, alpha);
+		void delogu_nb(realmtx_t& f_df, const real_t& alpha) noexcept {
+			if (f_df.numel() < Thresholds_t::delogu_nb) {
+				get_self().delogu_nb_st(f_df, alpha);
+			} else get_self().delogu_nb_mt(f_df, alpha);
 		}
-		void delogu_nb_st(const realmtx_t& fValue, realmtx_t& df, const real_t& alpha, const elms_range*const pER = nullptr) const noexcept {
-			get_self()._idelogu_nb_st(fValue, df, alpha, pER ? *pER : elms_range(df));
+		void delogu_nb_st(realmtx_t& f_df, const real_t& alpha, const elms_range*const pER = nullptr) const noexcept {
+			get_self()._idelogu_nb_st(f_df, alpha, pER ? *pER : elms_range(f_df));
 		}
-		static void _idelogu_nb_st(const realmtx_t& fValue, realmtx_t& df, const real_t& alpha, const elms_range& er) noexcept {
-			fValue.assert_storage_does_not_intersect(df);
+		static void _idelogu_nb_st(realmtx_t& f_df, const real_t& alpha, const elms_range& er) noexcept {
 			NNTL_ASSERT(alpha > real_t(0.0));
-			NNTL_ASSERT(fValue.size_no_bias() == df.size());
-			/*const auto ptrF = fValue.data();
-			const auto ptrDF = df.data();
-			for (numel_cnt_t i = er.elmBegin; i < er.elmEnd; ++i) {
-				const auto fv = ptrF[i];
-				ptrDF[i] = fv < real_t(+0.) ? (fv + alpha) : std::exp(-fv);
-			}*/
-			auto ptrDF = df.data() + er.elmBegin;
-			memcpy(ptrDF, fValue.data() + er.elmBegin, sizeof(real_t)*er.totalElements());
+			NNTL_ASSERT(!f_df.empty());
+
+			auto ptrDF = f_df.data() + er.elmBegin;
 			const auto ptrDFE = ptrDF + er.totalElements();
 			while (ptrDF != ptrDFE) {
 				const auto v = *ptrDF;
 				*ptrDF++ = v < real_t(0.) ? (v + alpha) : std::exp(-v);
 			}
 		}
-		void delogu_nb_mt(const realmtx_t& fValue, realmtx_t& df, const real_t& alpha) noexcept {
-			fValue.assert_storage_does_not_intersect(df);
-			NNTL_ASSERT(fValue.size_no_bias() == df.size());
+		void delogu_nb_mt(realmtx_t& f_df, const real_t& alpha) noexcept {
+			NNTL_ASSERT(!f_df.empty());
 			NNTL_ASSERT(alpha > real_t(0.0));
-			m_threads.run([&fValue, &df, &alpha, this](const par_range_t& r) {
-				get_self()._idelogu_nb_st(fValue, df, alpha, elms_range(r));
-			}, df.numel());
+			m_threads.run([&f_df, &alpha, this](const par_range_t& r) {
+				get_self()._idelogu_nb_st(f_df, alpha, elms_range(r));
+			}, f_df.numel());
 		}
 		//////////////////////////////////////////////////////////////////////////
 		//ELogU with unit alpha and natural base, b==exp(1)
@@ -1894,37 +1827,28 @@ namespace math {
 		}
 		//////////////////////////////////////////////////////////////////////////
 		// d(ELU)/dZ = exp(-y*log(b)-log(log(b))) | x>0
-		void delogu_ua_nb(const realmtx_t& fValue, realmtx_t& df) noexcept {
-			if (df.numel_no_bias() < Thresholds_t::delogu_ua_nb) {
-				get_self().delogu_ua_nb_st(fValue, df);
-			} else get_self().delogu_ua_nb_mt(fValue, df);
+		void delogu_ua_nb(realmtx_t& f_df) noexcept {
+			if (f_df.numel() < Thresholds_t::delogu_ua_nb) {
+				get_self().delogu_ua_nb_st(f_df);
+			} else get_self().delogu_ua_nb_mt(f_df);
 		}
-		void delogu_ua_nb_st(const realmtx_t& fValue, realmtx_t& df, const elms_range*const pER = nullptr) const noexcept {
-			get_self()._idelogu_ua_nb_st(fValue, df, pER ? *pER : elms_range(df));
+		void delogu_ua_nb_st(realmtx_t& f_df, const elms_range*const pER = nullptr) const noexcept {
+			get_self()._idelogu_ua_nb_st(f_df, pER ? *pER : elms_range(f_df));
 		}
-		static void _idelogu_ua_nb_st(const realmtx_t& fValue, realmtx_t& df, const elms_range& er) noexcept {
-			fValue.assert_storage_does_not_intersect(df);
-			NNTL_ASSERT(fValue.size_no_bias() == df.size());
-			/*const auto ptrF = fValue.data();
-			const auto ptrDF = df.data();
-			for (numel_cnt_t i = er.elmBegin; i < er.elmEnd; ++i) {
-				const auto fv = ptrF[i];
-				ptrDF[i] = fv < real_t(+0.) ? (fv + real_t(1.)) : std::exp(-fv);
-			}*/
-			auto ptrDF = df.data() + er.elmBegin;
-			memcpy(ptrDF, fValue.data() + er.elmBegin, sizeof(real_t)*er.totalElements());
+		static void _idelogu_ua_nb_st(realmtx_t& f_df, const elms_range& er) noexcept {
+			NNTL_ASSERT(!f_df.empty());
+			auto ptrDF = f_df.data() + er.elmBegin;
 			const auto ptrDFE = ptrDF + er.totalElements();
 			while (ptrDF != ptrDFE) {
 				const auto v = *ptrDF;
 				*ptrDF++ = v < real_t(0.) ? (v + real_t(1.)) : std::exp(-v);
 			}
 		}
-		void delogu_ua_nb_mt(const realmtx_t& fValue, realmtx_t& df) noexcept {
-			fValue.assert_storage_does_not_intersect(df);
-			NNTL_ASSERT(fValue.size_no_bias() == df.size());
-			m_threads.run([&fValue, &df, this](const par_range_t& r) {
-				get_self()._idelogu_ua_nb_st(fValue, df, elms_range(r));
-			}, df.numel());
+		void delogu_ua_nb_mt(realmtx_t& f_df) noexcept {
+			NNTL_ASSERT(!f_df.empty());
+			m_threads.run([&f_df, this](const par_range_t& r) {
+				get_self()._idelogu_ua_nb_st(f_df, elms_range(r));
+			}, f_df.numel());
 		}
 		//////////////////////////////////////////////////////////////////////////
 		// #TODO: probably, it is better to rewrite asymmetric activation functions processing using two templated
@@ -1959,34 +1883,25 @@ namespace math {
 		}
 		//////////////////////////////////////////////////////////////////////////
 		template<size_t MtThreshold, typename FunctorT>
-		void dact_asymm(const realmtx_t& fValue, realmtx_t& df) noexcept {
-			if (df.numel_no_bias() < MtThreshold) {
-				get_self().dact_asymm_st<FunctorT>(fValue, df);
-			} else get_self().dact_asymm_mt<FunctorT>(fValue, df);
+		void dact_asymm(realmtx_t& f_df) noexcept {
+			if (f_df.numel() < MtThreshold) {
+				get_self().dact_asymm_st<FunctorT>(f_df);
+			} else get_self().dact_asymm_mt<FunctorT>(f_df);
 		}
 		template<typename FunctorT>
-		void dact_asymm_st(const realmtx_t& fValue, realmtx_t& df, const elms_range*const pER = nullptr) noexcept {
-			get_self()._idact_asymm_st(fValue, df, pER ? *pER : elms_range(df));
+		void dact_asymm_st(realmtx_t& f_df, const elms_range*const pER = nullptr) noexcept {
+			get_self()._idact_asymm_st(f_df, pER ? *pER : elms_range(f_df));
 		}
 		template<typename FunctorT>
-		void dact_asymm_mt(const realmtx_t& fValue, realmtx_t& df) noexcept {
-			NNTL_ASSERT(fValue.size_no_bias() == df.size());
-			m_threads.run([&fValue, &df, this](const par_range_t& r) {
-				get_self()._idact_asymm_st(fValue, df, elms_range(r));
-			}, df.numel());
+		void dact_asymm_mt(realmtx_t& f_df) noexcept {
+			NNTL_ASSERT(!f_df.empty());
+			m_threads.run([&f_df, this](const par_range_t& r) {
+				get_self()._idact_asymm_st(f_df, elms_range(r));
+			}, f_df.numel());
 		}
 		template<typename FunctorT>
-		void _idact_asymm_st(const realmtx_t& fValue, realmtx_t& df, const elms_range& er) noexcept {
-			fValue.assert_storage_does_not_intersect(df);
-			NNTL_ASSERT(fValue.size_no_bias() == df.size());
-			/*const auto ptrF = fValue.data();
-			const auto ptrDF = df.data();
-			for (numel_cnt_t i = er.elmBegin; i < er.elmEnd; ++i) {
-				const auto fv = ptrF[i];
-				ptrDF[i] = fv < real_t(+0.) ? FunctorT::df_neg(fv) : FunctorT::df_pos(fv);
-			}*/
-			auto ptrDF = df.data() + er.elmBegin;
-			memcpy(ptrDF, fValue.data() + er.elmBegin, sizeof(real_t)*er.totalElements());
+		void _idact_asymm_st(realmtx_t& f_df, const elms_range& er) noexcept {
+			auto ptrDF = f_df.data() + er.elmBegin;
 			const auto ptrDFE = ptrDF + er.totalElements();
 			while (ptrDF != ptrDFE) {
 				const auto v = *ptrDF;

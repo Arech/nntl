@@ -249,6 +249,7 @@
     <ClInclude Include="..\nntl\_supp\io\binfile.h" />
     <ClInclude Include="..\nntl\_supp\io\jsonreader.h" />
     <ClInclude Include="..\nntl\_supp\io\matfile.h" />
+    <ClInclude Include="..\nntl\_test\functions.h" />
     <ClInclude Include="..\nntl\_test\test.h" />
     <ClInclude Include="..\nntl\utils\tictoc.h" />
     <ClInclude Include="..\nntl\_test\test_weights_init.h" />

@@ -103,7 +103,9 @@ namespace nntl {
 		_i_layer_fprop& operator=(const _i_layer_fprop& rhs) noexcept; // = delete; //-it should be `delete`d, but factory function won't work if it is
 
 	public:
+		//get_activations() is allowed to call after fprop() only. bprop() invalidates activation values!
 		nntl_interface const realmtxdef_t& get_activations()const noexcept;
+		nntl_interface const mtx_size_t get_activations_size()const noexcept;
 	};
 
 	template <typename RealT>
@@ -298,10 +300,18 @@ namespace nntl {
 		//because it's just a matter of convenience.
 		const char* m_customName;
 
+	protected:
+		bool m_bTraining;
+		bool m_bActivationsValid;
+
+	protected:
+		void init()noexcept { m_bActivationsValid = false; }
+		void deinit()noexcept { m_bActivationsValid = false; }
+
 	public:
 		//////////////////////////////////////////////////////////////////////////
 		~_cpolym_layer_base()noexcept {}
-		_cpolym_layer_base(const char* pCustName=nullptr)noexcept {
+		_cpolym_layer_base(const char* pCustName=nullptr)noexcept : m_bTraining(false), m_bActivationsValid(false) {
 			set_custom_name(pCustName);
 		}
 
@@ -375,28 +385,29 @@ namespace nntl {
 
 		static constexpr const char _defName[] = "_base";
 
-	protected:
-		bool m_bTraining;
-
 	public:		
 		//////////////////////////////////////////////////////////////////////////
 		//constructors-destructor
 		~_layer_base()noexcept {};
 		_layer_base(const neurons_count_t _neurons_cnt, const char* pCustomName=nullptr) noexcept 
 			: _base_class(pCustomName)
-			, m_layerIdx(0), m_neurons_cnt(_neurons_cnt), m_incoming_neurons_cnt(0), m_bTraining(false)
+			, m_layerIdx(0), m_neurons_cnt(_neurons_cnt), m_incoming_neurons_cnt(0)
 		{};
 		
 		//////////////////////////////////////////////////////////////////////////
 		//nntl_interface overridings
 		ErrorCode init(_layer_init_data_t& lid, real_t* pNewActivationStorage = nullptr)noexcept {
+			_base_class::init();
 			set_common_data(lid.commonData);
 
 			get_self().get_iInspect().init_layer(get_self().get_layer_idx(), get_self().get_layer_name_str(), get_self().get_layer_type_id());
 
 			return ErrorCode::Success;
 		}
-		void deinit() noexcept { clean_common_data(); }
+		void deinit() noexcept { 
+			clean_common_data();
+			_base_class::deinit();
+		}
 
 		const layer_index_t get_layer_idx() const noexcept { return m_layerIdx; }
 		const neurons_count_t get_neurons_cnt() const noexcept { 

@@ -121,8 +121,7 @@ namespace nntl {
 		bool m_bImmediatelyDeinit;
 
 		//set this flag to true to skip forward pass during training set error calculation in full-batch mode
-		//This will make error value report slightly wrong (will return errVal for the previous pass), but
-		// bring some speedup
+		//This will make error value report slightly wrong (errVal corresponds to the previous pass), but will make a significant speedup
 		bool m_bDropFProp4TrainingSetErrorCalculationWhileFullBatch;
 
 		void _ctor()noexcept {

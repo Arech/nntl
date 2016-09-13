@@ -187,6 +187,24 @@ namespace math {
 			NNTL_ASSERT(*this == dest);
 			return true;
 		}
+
+		//strips biases column from the source data
+		const bool cloneTo_no_bias(smatrix& dest)const noexcept {
+			const auto cnb = cols_no_bias();
+			const auto orig_eb = dest.m_bEmulateBiases;
+			dest.m_bEmulateBiases = false;
+			if (dest.m_bDontManageStorage) {
+				if (dest.m_rows != m_rows || dest.m_cols != cnb) {
+					dest.m_bEmulateBiases = orig_eb;
+					return false;
+				}
+			} else {				
+				if (!dest.resize(m_rows, cnb)) return false;
+			}
+			memcpy(dest.m_pData, m_pData, byte_size_no_bias());
+			return true;
+		}
+
 		const bool operator==(const smatrix& rhs)const noexcept {
 			//TODO: this is bad implementation, but it's enough cause we're gonna use it for testing only.
 			return m_bEmulateBiases==rhs.m_bEmulateBiases && size() == rhs.size()
@@ -381,62 +399,10 @@ namespace math {
 			memcpy(m_pData, pSrc, byte_size_no_bias());
 		}
 
-		//ATTN: _i_math implementation should have a faster variants of this function.
-		//extract number=cnt rows by their indexes, specified by sequential iterator begin, into allocated dest matrix
-		/*template<typename SeqIt>
-		void extractRows(SeqIt begin, const numel_cnt_t cnt, smatrix<value_type>& dest)const noexcept {
-			NNTL_ASSERT(!dest.empty());
-			static_assert(std::is_same<vec_len_t, SeqIt::value_type>::value, "Iterator should point to vec_len_t data");
 
-			const vec_len_t destRows = dest.rows(), destCols = dest.cols(), thisRows = m_rows, thisCols = m_cols;
-			NNTL_ASSERT(destCols == thisCols && destRows >= cnt && cnt <= thisRows);
-
-			//TODO: accessing row data, defined by SeqIt begin in sequential order could provide some performance gains. However
-			//it requires the content of [begin,begin+cnt) to be sorted. Therefore, testing is required to decide whether it's all worth it
-
-			const auto pThis = m_pData, pDest = dest.m_pData;
-			for (numel_cnt_t c = 0; c < destCols; ++c) {
-				SeqIt pRI = begin;
-				auto destCur = pDest + sNumel(destRows,c);
-				const auto destEnd = destCur + cnt;
-				const auto thisBeg = pThis + sNumel(thisRows,c);
-				//for (numel_cnt_t ri = 0; ri < cnt; ++ri) {
-					//pDest[ri + ofsDest] = pThis[*pRI + ofsThis];
-				while(destCur!=destEnd){
-					// *destCur++ = pThis[*pRI++ + ofsThis];
-					*destCur++ = *(thisBeg + *pRI++);
-				}
-			}
-
-		}*/
-
-		//extract number=cnt rows by their indexes, specified by sequential iterator begin, into allocated dest matrix
-		/*template<typename SeqIt>
-		void extractRows_slow(SeqIt begin, const numel_cnt_t cnt, smatrix<value_type>& dest)const noexcept {
-			NNTL_ASSERT(!dest.empty());
-			static_assert(std::is_same<vec_len_t, SeqIt::value_type>::value, "Iterator should point to vec_len_t data");
-
-			const numel_cnt_t destRows = dest.rows(), destCols = dest.cols(), thisRows=m_rows,thisCols=m_cols;
-			NNTL_ASSERT(destCols == thisCols && destRows >= cnt && cnt<=thisRows);
-
-			//TODO: accessing row data, defined by SeqIt begin in sequential order could provide some performance gains. However
-			//it requires the content of [begin,begin+cnt) to be sorted. Therefore, testing is required to decide whether it's all worth it
-			
-			auto pThis = m_pData, pDest = dest.m_pData;
-			
-			//walk over this matrix in colmajor order - that PROBABLY would work better due to cache coherency
-			//TODO: test whether it is really better
-			for (numel_cnt_t c = 0; c < destCols; ++c) {
-				SeqIt pRI = begin;
-				const auto ofsDest = c*destRows, ofsThis = c*thisRows;
-				for (numel_cnt_t ri = 0; ri < cnt;++ri) {
-					pDest[ri + ofsDest] = pThis[*pRI + ofsThis];
-					++pRI;
-				}
-			}
-		}*/
-
-
+		void useExternalStorage_mtx_no_bias(smatrix& src)noexcept {
+			useExternalStorage(src.data(), src.rows(), src.cols_no_bias(), false);
+		}
 		void useExternalStorage(value_ptr_t ptr, const smatrix& sizeLikeThis)noexcept {
 			useExternalStorage(ptr, sizeLikeThis.rows(), sizeLikeThis.cols(), sizeLikeThis.emulatesBiases());
 		}

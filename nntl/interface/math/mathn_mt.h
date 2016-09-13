@@ -282,8 +282,8 @@ namespace math {
 
 		//////////////////////////////////////////////////////////////////////////
 		// d(sigm)/d(arg) - sigmoid derivative df = f.*(1-f), where fValue is activation value (used in no_bias version)
-		void dsigm(const realmtx_t& fValue, realmtx_t& df) noexcept {
-			dsigm_mt(fValue, df);
+		void dsigm(realmtx_t& f_df) noexcept {
+			dsigm_mt(f_df);
 		}
 
 		//////////////////////////////////////////////////////////////////////////
@@ -291,8 +291,8 @@ namespace math {
 		//////////////////////////////////////////////////////////////////////////
 		//dL/dZ = (err===a-y)*a*(1-a)
 		// because activations comes from the output layer, expecting no biases there
-		void dSigmQuadLoss_dZ(const realmtx_t& activations, const realmtx_t& data_y, realmtx_t& dLdZ) {
-			dSigmQuadLoss_dZ_mt_naive(activations, data_y, dLdZ);
+		void dSigmQuadLoss_dZ(const realmtx_t& data_y, realmtx_t& act_dLdZ) {
+			dSigmQuadLoss_dZ_mt(data_y, act_dLdZ);
 		}
 	
 		//////////////////////////////////////////////////////////////////////////
@@ -302,57 +302,57 @@ namespace math {
 		}
 		//////////////////////////////////////////////////////////////////////////
 		// d(ReLU)/dZ
-		void drelu(const realmtx_t& fValue, realmtx_t& df) noexcept {
-			drelu(fValue, df);
+		void drelu(realmtx_t& f_df) noexcept {
+			drelu(f_df);
 		}
 
 		void leakyrelu(realmtx_t& srcdest, const real_t leak) noexcept {
 			leakyrelu(srcdest, leak);
 		}
-		void dleakyrelu(const realmtx_t& fValue, realmtx_t& df, const real_t leak) noexcept {
-			dleakyrelu_mt(fValue, df, leak);
+		void dleakyrelu(realmtx_t& f_df, const real_t leak) noexcept {
+			dleakyrelu_mt(f_df, leak);
 		}
 
 		void elu(realmtx_t& srcdest, const real_t alpha) noexcept {
 			elu_mt(srcdest, alpha);
 		}
-		void delu(const realmtx_t& fValue, realmtx_t& df, const real_t alpha) noexcept {
-			delu_mt(fValue, df, alpha);
+		void delu(realmtx_t& f_df, const real_t alpha) noexcept {
+			delu_mt(f_df, alpha);
 		}
 
 		void elu_unitalpha(realmtx_t& srcdest) noexcept {
 			elu_unitalpha_mt(srcdest);
 		}
-		void delu_unitalpha(const realmtx_t& fValue, realmtx_t& df) noexcept {
-			delu_unitalpha_mt(fValue, df);
+		void delu_unitalpha(realmtx_t& f_df) noexcept {
+			delu_unitalpha_mt(f_df);
 		}
 
 		void elogu(realmtx_t& srcdest, const real_t& alpha, const real_t& b) noexcept {
 			get_self().elogu_mt(srcdest, alpha, b);
 		}
-		void delogu(const realmtx_t& fValue, realmtx_t& df, const real_t& alpha, const real_t& b) noexcept {
-			get_self().delogu_mt(fValue, df, alpha, b);
+		void delogu(realmtx_t& f_df, const real_t& alpha, const real_t& b) noexcept {
+			get_self().delogu_mt(f_df, alpha, b);
 		}
 
 		void elogu_ua(realmtx_t& srcdest, const real_t& b) noexcept {
 			get_self().elogu_ua_mt(srcdest, b);
 		}
-		void delogu_ua(const realmtx_t& fValue, realmtx_t& df, const real_t& b) noexcept {
-			get_self().delogu_ua_mt(fValue, df, b);
+		void delogu_ua(realmtx_t& f_df, const real_t& b) noexcept {
+			get_self().delogu_ua_mt(f_df, b);
 		}
 
 		void elogu_nb(realmtx_t& srcdest, const real_t& alpha) noexcept {
 			get_self().elogu_nb_mt(srcdest, alpha);
 		}
-		void delogu_nb(const realmtx_t& fValue, realmtx_t& df, const real_t& alpha) noexcept {
-			get_self().delogu_nb_mt(fValue, df, alpha);
+		void delogu_nb(realmtx_t& f_df, const real_t& alpha) noexcept {
+			get_self().delogu_nb_mt(f_df, alpha);
 		}
 
 		void elogu_ua_nb(realmtx_t& srcdest) noexcept {
 			get_self().elogu_ua_nb_mt(srcdest);
 		}
-		void delogu_ua_nb(const realmtx_t& fValue, realmtx_t& df) noexcept {
-			get_self().delogu_ua_nb_mt(fValue, df);
+		void delogu_ua_nb(realmtx_t& f_df) noexcept {
+			get_self().delogu_ua_nb_mt(f_df);
 		}
 
 		//////////////////////////////////////////////////////////////////////////

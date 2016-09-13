@@ -129,7 +129,7 @@ namespace inspector {
 		nntl_interface void bprop_predLdZOut(const realmtx_t& Act, const realmtx_t& data_y) const noexcept;
 
 		nntl_interface void bprop_predAdZ(const realmtx_t& Act) const noexcept;
-		nntl_interface void bprop_dLdA_dAdZ(const realmtx_t& dLdA, const realmtx_t& dAdZ) const noexcept;
+		nntl_interface void bprop_dAdZ(const realmtx_t& dAdZ) const noexcept;
 		nntl_interface void bprop_dLdZ(const realmtx_t& dLdZ) const noexcept;
 		nntl_interface void bprop_postClampdLdZ(const realmtx_t& dLdZ,const real_t& Ub, const real_t& Lb) const noexcept;
 
@@ -202,7 +202,7 @@ namespace inspector {
 
 			void bprop_predLdZOut(const realmtx_t& Act, const realmtx_t& data_y) const noexcept{}
 			void bprop_predAdZ(const realmtx_t& Act) const noexcept{}
-			void bprop_dLdA_dAdZ(const realmtx_t& dLdA, const realmtx_t& dAdZ) const noexcept{}
+			void bprop_dAdZ(const realmtx_t& dAdZ) const noexcept{}
 			void bprop_dLdZ(const realmtx_t& dLdZ) const noexcept{}
 			void bprop_postClampdLdZ(const realmtx_t& dLdZ, const real_t& Ub, const real_t& Lb) const noexcept{}
 

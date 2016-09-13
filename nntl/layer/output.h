@@ -59,7 +59,7 @@ namespace nntl {
 		//need it to be deformable to get rid of unnecessary bias column when doing dLdAprev
 		realmtxdef_t m_weights;
 
-		realmtx_t m_dLdZ;//doesn't guarantee to retain it's value between usage in different code flows; may share memory with some other data structure
+		//realmtx_t m_dLdZ;//doesn't guarantee to retain it's value between usage in different code flows; may share memory with some other data structure
 
 		realmtxdef_t m_dLdW;//doesn't guarantee to retain it's value between usage in different code flows;
 		//may share memory with some other data structure. Must be deformable for grad_works_t
@@ -105,7 +105,7 @@ namespace nntl {
 		~_layer_output() noexcept {};
 
 		_layer_output(const neurons_count_t _neurons_cnt, real_t learningRate = 0.01, const char* pCustomName = nullptr) noexcept
-			: _base_class(_neurons_cnt, pCustomName), m_activations(), m_weights(), m_dLdZ(), m_dLdW(), m_bWeightsInitialized(false)
+			: _base_class(_neurons_cnt, pCustomName), m_activations(), m_weights(), m_dLdW(), m_bWeightsInitialized(false)
 			, m_gradientWorks(learningRate)
 			, m_bRestrictdLdZ(false), m_dLdZRestrictLowerBnd(.0), m_dLdZRestrictUpperBnd(.0)
 		{
@@ -115,7 +115,11 @@ namespace nntl {
 		static constexpr const char _defName[] = "outp";
 
 		//constexpr const bool is_output_layer()const noexcept { return true; }
-		const realmtxdef_t& get_activations()const noexcept { return m_activations; }
+		const realmtxdef_t& get_activations()const noexcept {
+			NNTL_ASSERT(m_bActivationsValid);
+			return m_activations;
+		}
+		const mtx_size_t get_activations_size()const noexcept { return m_activations.size(); }
 
 		//#TODO: move all generic fullyconnected stuff into a special base class!
 
@@ -182,10 +186,10 @@ namespace nntl {
 				//There's no dLdA coming into the output layer, therefore leave max_dLdA_numel it zeroed
 				//lid.max_dLdA_numel = 0; ///realmtx_t::sNumel(get_self().get_training_batch_size(), get_self().get_neurons_cnt());
 				
-				// we'll need 2 temporarily matrices for bprop(): one for dA/dZ -> dL/dZ [batchSize x m_neurons_cnt] and
-				// the other for dL/dW [m_neurons_cnt x get_incoming_neurons_cnt()+1]
-				lid.maxMemBPropRequire = realmtx_t::sNumel(get_self().get_training_batch_size(), get_self().get_neurons_cnt())
-					+ m_weights.numel();
+				// we'll need 1 temporarily matrix for bprop(): for dL/dW [m_neurons_cnt x get_incoming_neurons_cnt()+1]
+				lid.maxMemBPropRequire = m_weights.numel();
+// 				lid.maxMemBPropRequire = realmtx_t::sNumel(get_self().get_training_batch_size(), get_self().get_neurons_cnt())
+// 					+ m_weights.numel();
 			}
 
 			if (!m_gradientWorks.init(get_self().get_common_data(), m_weights.size()))return ErrorCode::CantInitializeGradWorks;
@@ -199,21 +203,26 @@ namespace nntl {
 		void deinit()noexcept {
 			m_gradientWorks.deinit();
 			m_activations.clear();
-			m_dLdZ.clear();
+			//m_dLdZ.clear();
 			m_dLdW.clear();
 			_base_class::deinit();
 		}
 
 		void initMem(real_t* ptr, numel_cnt_t cnt)noexcept {
 			if (get_self().get_training_batch_size() > 0) {
-				m_dLdZ.useExternalStorage(ptr, get_self().get_training_batch_size(), m_activations.cols_no_bias());
-				m_dLdW.useExternalStorage(ptr + m_dLdZ.numel(), m_weights);
-				NNTL_ASSERT(!m_dLdZ.emulatesBiases() && !m_dLdW.emulatesBiases());
-				NNTL_ASSERT(cnt >= m_dLdZ.numel() + m_dLdW.numel());
+// 				m_dLdZ.useExternalStorage(ptr, get_self().get_training_batch_size(), m_activations.cols_no_bias());
+// 				m_dLdW.useExternalStorage(ptr + m_dLdZ.numel(), m_weights);
+// 				NNTL_ASSERT(!m_dLdZ.emulatesBiases() && !m_dLdW.emulatesBiases());
+// 				NNTL_ASSERT(cnt >= m_dLdZ.numel() + m_dLdW.numel());
+
+				NNTL_ASSERT(ptr && cnt >= m_weights.numel());
+				m_dLdW.useExternalStorage(ptr, m_weights);
+				NNTL_ASSERT(!m_dLdW.emulatesBiases());
 			}
 		}
 
 		void set_mode(vec_len_t batchSize)noexcept {
+			m_bActivationsValid = false;
 			m_bTraining = batchSize == 0;
 			NNTL_ASSERT(!m_activations.emulatesBiases());
 			if (m_bTraining) {
@@ -241,19 +250,20 @@ namespace nntl {
 			activation_f_t::f(m_activations, _Math);
 			iI.fprop_activations(m_activations);
 			iI.fprop_end(m_activations);
+			m_bActivationsValid = true;
 		}
 
 		void _bprop(const realmtx_t& data_y, const realmtx_t& prevActivations, const bool bPrevLayerIsInput, realmtx_t& dLdAPrev)noexcept {
+			m_bActivationsValid = false;
 			auto& iI = get_self().get_iInspect();
 			iI.bprop_begin(get_self().get_layer_idx(), data_y);
 
 			data_y.assert_storage_does_not_intersect(dLdAPrev);
 			dLdAPrev.assert_storage_does_not_intersect(m_dLdW);
-			dLdAPrev.assert_storage_does_not_intersect(m_dLdZ);
 			NNTL_ASSERT(m_bTraining);
-			NNTL_ASSERT(!m_dLdZ.emulatesBiases() && !m_dLdW.emulatesBiases());
+			NNTL_ASSERT(!m_dLdW.emulatesBiases());
 			NNTL_ASSERT(m_activations.size() == data_y.size());
-			NNTL_ASSERT(m_dLdZ.size() == m_activations.size());
+			//NNTL_ASSERT(m_dLdZ.size() == m_activations.size());
 			NNTL_ASSERT(m_dLdW.size() == m_weights.size());
 			NNTL_ASSERT(bPrevLayerIsInput || prevActivations.emulatesBiases());//input layer in batch mode may have biases included, but no emulatesBiases() set
 			NNTL_ASSERT(mtx_size_t(get_self().get_training_batch_size(), get_self().get_incoming_neurons_cnt() + 1) == prevActivations.size());
@@ -263,22 +273,25 @@ namespace nntl {
 
 			//compute dL/dZ
 			iI.bprop_predLdZOut(m_activations, data_y);
-			activation_f_t::dLdZ(m_activations, data_y, m_dLdZ, _Math);
-			iI.bprop_dLdZ(m_dLdZ);
+			
+			activation_f_t::dLdZ(data_y, m_activations, _Math);
+			//now dLdZ is calculated into m_activations
+			realmtx_t & dLdZ = m_activations;
+			iI.bprop_dLdZ(dLdZ);
 
 			if (m_bRestrictdLdZ) {
-				_Math.evClamp(m_dLdZ, m_dLdZRestrictLowerBnd, m_dLdZRestrictUpperBnd);
-				iI.bprop_postClampdLdZ(m_dLdZ, m_dLdZRestrictLowerBnd, m_dLdZRestrictUpperBnd);
+				_Math.evClamp(dLdZ, m_dLdZRestrictLowerBnd, m_dLdZRestrictUpperBnd);
+				iI.bprop_postClampdLdZ(dLdZ, m_dLdZRestrictLowerBnd, m_dLdZRestrictUpperBnd);
 			}
 
 			//compute dL/dW = 1/batchsize * (dL/dZ)` * Aprev
-			_Math.mScaledMulAtB_C(real_t(1.0) / real_t(m_dLdZ.rows()), m_dLdZ, prevActivations, m_dLdW);
+			_Math.mScaledMulAtB_C(real_t(1.0) / real_t(dLdZ.rows()), dLdZ, prevActivations, m_dLdW);
 
 			if (!bPrevLayerIsInput) {
 				NNTL_ASSERT(!m_weights.emulatesBiases());
 				//finally compute dL/dAprev to use in lower layer. Before that make m_weights looks like there is no bias weights
 				m_weights.hide_last_col();
-				_Math.mMulAB_C(m_dLdZ, m_weights, dLdAPrev);
+				_Math.mMulAB_C(dLdZ, m_weights, dLdAPrev);
 				m_weights.restore_last_col();//restore weights back
 			}
 

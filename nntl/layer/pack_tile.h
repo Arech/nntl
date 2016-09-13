@@ -194,7 +194,11 @@ namespace nntl {
 		}
 		static constexpr const char _defName[] = "lpt";
 
-		const realmtxdef_t& get_activations()const noexcept { return m_activations; }
+		const realmtxdef_t& get_activations()const noexcept { 
+			NNTL_ASSERT(m_bActivationsValid);
+			return m_activations;
+		}
+		const mtx_size_t get_activations_size()const noexcept { return m_activations.size(); }
 
 		//and apply function _Func(auto& layer) to each underlying (non-pack) layer here
 		template<typename _Func>
@@ -279,8 +283,9 @@ namespace nntl {
 		void set_mode(vec_len_t batchSize, real_t* pNewActivationStorage = nullptr)noexcept {
 			NNTL_ASSERT(m_activations.emulatesBiases());
 			// now we must resize m_activations and update activations of inner layers with set_mode variation
-
+			m_bActivationsValid = false;
 			m_bTraining = batchSize == 0;
+
 			const auto _training_batch_size = get_self().get_training_batch_size();
 			bool bRestoreBiases;
 
@@ -350,6 +355,7 @@ namespace nntl {
 
 			NNTL_ASSERT(m_innerLowerLayerActivations.test_biases_ok());
 			iI.fprop_end(m_activations);
+			m_bActivationsValid = true;
 		}
 		// FProp for the incoming data that wasn't transformed for use in a tiled layer
 		template <typename LowerLayer, bool _C = bExpectSpecialDataX>
@@ -376,12 +382,14 @@ namespace nntl {
 
 			NNTL_ASSERT(m_innerLowerLayerActivations.test_biases_ok());
 			iI.fprop_end(m_activations);
+			m_bActivationsValid = true;
 		}
 
 		// in order to implement backprop for the m_tiledLayer, we must provide it with a correct dLdA and dLdAPrev
 		template <typename LowerLayer>
 		const unsigned bprop(realmtxdef_t& dLdA, const LowerLayer& lowerLayer, realmtxdef_t& dLdAPrev)noexcept {
 			static_assert(std::is_base_of<_i_layer_trainable, LowerLayer>::value, "Template parameter LowerLayer must implement _i_layer_trainable");
+			m_bActivationsValid = false;
 			auto& iI = get_self().get_iInspect();
 			iI.bprop_begin(get_self().get_layer_idx(), dLdA);
 
