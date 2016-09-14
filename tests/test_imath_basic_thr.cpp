@@ -263,6 +263,94 @@ TEST(TestMathNThr, DELogU_ua_nb) {
 }
 
 //////////////////////////////////////////////////////////////////////////
+
+TEST(TestMathNThr, LogLogU) {
+	constexpr real_t b_neg = real_t(3.), b_pos = real_t(2.);
+	const auto fst = [b_neg, b_pos](realmtx_t& X) { iM.loglogu_st(X, b_neg, b_pos); };
+	const auto fmt = [b_neg, b_pos](realmtx_t& X) {iM.loglogu_mt(X, b_neg, b_pos); };
+	const auto fb = [b_neg, b_pos](realmtx_t& X) {iM.loglogu(X, b_neg, b_pos); };
+
+	NNTL_RUN_TEST2(imath_basic_t::Thresholds_t::loglogu, 10) {
+		test_f_x_perf(fst, fmt, fb, "loglogu", i, 10);
+	}
+}
+
+TEST(TestMathNThr, DLogLogU) {
+	constexpr real_t b_neg = real_t(3.), b_pos = real_t(2.);
+	const auto fst = [b_neg, b_pos](realmtx_t& F_DF) { iM.dloglogu_st(F_DF, b_neg, b_pos); };
+	const auto fmt = [b_neg, b_pos](realmtx_t& F_DF) {iM.dloglogu_mt(F_DF, b_neg, b_pos); };
+	const auto fb = [b_neg, b_pos](realmtx_t& F_DF) {iM.dloglogu(F_DF, b_neg, b_pos); };
+
+	NNTL_RUN_TEST2(imath_basic_t::Thresholds_t::dloglogu, 10) {
+		test_f_x_perf(fst, fmt, fb, "dloglogu", i, 10);
+	}
+}
+
+TEST(TestMathNThr, LogLogU_nbn) {
+	constexpr real_t b_pos = real_t(2.);
+	const auto fst = [b_pos](realmtx_t& X) { iM.loglogu_nbn_st(X, b_pos); };
+	const auto fmt = [b_pos](realmtx_t& X) {iM.loglogu_nbn_mt(X, b_pos); };
+	const auto fb = [b_pos](realmtx_t& X) {iM.loglogu_nbn(X, b_pos); };
+
+	NNTL_RUN_TEST2(imath_basic_t::Thresholds_t::loglogu_nbn, 10) {
+		test_f_x_perf(fst, fmt, fb, "loglogu_nbn", i, 10);
+	}
+}
+
+TEST(TestMathNThr, DLogLogU_nbn) {
+	constexpr real_t b_neg = real_t(3.), b_pos = real_t(2.);
+	const auto fst = [ b_pos](realmtx_t& F_DF) { iM.dloglogu_nbn_st(F_DF, b_pos); };
+	const auto fmt = [b_pos](realmtx_t& F_DF) {iM.dloglogu_nbn_mt(F_DF, b_pos); };
+	const auto fb = [b_pos](realmtx_t& F_DF) {iM.dloglogu_nbn(F_DF, b_pos); };
+
+	NNTL_RUN_TEST2(imath_basic_t::Thresholds_t::dloglogu_nbn, 10) {
+		test_f_x_perf(fst, fmt, fb, "dloglogu_nbn", i, 10);
+	}
+}
+
+TEST(TestMathNThr, LogLogU_nbp) {
+	constexpr real_t b_neg = real_t(3.);
+	const auto fst = [b_neg](realmtx_t& X) { iM.loglogu_nbp_st(X, b_neg); };
+	const auto fmt = [b_neg](realmtx_t& X) {iM.loglogu_nbp_mt(X, b_neg); };
+	const auto fb = [b_neg](realmtx_t& X) {iM.loglogu_nbp(X, b_neg); };
+
+	NNTL_RUN_TEST2(imath_basic_t::Thresholds_t::loglogu_nbp, 10) {
+		test_f_x_perf(fst, fmt, fb, "loglogu_nbp", i, 10);
+	}
+}
+
+TEST(TestMathNThr, DLogLogU_nbp) {
+	constexpr real_t b_neg = real_t(3.);
+	const auto fst = [b_neg](realmtx_t& F_DF) { iM.dloglogu_nbp_st(F_DF, b_neg); };
+	const auto fmt = [b_neg](realmtx_t& F_DF) {iM.dloglogu_nbp_mt(F_DF, b_neg); };
+	const auto fb = [b_neg](realmtx_t& F_DF) {iM.dloglogu_nbp(F_DF, b_neg); };
+
+	NNTL_RUN_TEST2(imath_basic_t::Thresholds_t::dloglogu_nbp, 10) {
+		test_f_x_perf(fst, fmt, fb, "dloglogu_nbp", i, 10);
+	}
+}
+
+TEST(TestMathNThr, LogLogU_nbn_nbp) {
+	const auto fst = [](realmtx_t& X) { iM.loglogu_nbn_nbp_st(X); };
+	const auto fmt = [](realmtx_t& X) {iM.loglogu_nbn_nbp_mt(X); };
+	const auto fb = [](realmtx_t& X) {iM.loglogu_nbn_nbp(X); };
+
+	NNTL_RUN_TEST2(imath_basic_t::Thresholds_t::loglogu_nbn_nbp, 10) {
+		test_f_x_perf(fst, fmt, fb, "loglogu_nbn_nbp", i, 10);
+	}
+}
+
+TEST(TestMathNThr, DLogLogU_nbn_nbp) {
+	const auto fst = [](realmtx_t& F_DF) { iM.dloglogu_nbn_nbp_st(F_DF); };
+	const auto fmt = [](realmtx_t& F_DF) {iM.dloglogu_nbn_nbp_mt(F_DF); };
+	const auto fb = [](realmtx_t& F_DF) {iM.dloglogu_nbn_nbp(F_DF); };
+
+	NNTL_RUN_TEST2(imath_basic_t::Thresholds_t::dloglogu_nbn_nbp, 10) {
+		test_f_x_perf(fst, fmt, fb, "dloglogu_nbn_nbp", i, 10);
+	}
+}
+
+//////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////
 void test_adam_perf(const size_t epochs, vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 	const auto dataSize = realmtx_t::sNumel(rowsCnt, colsCnt);

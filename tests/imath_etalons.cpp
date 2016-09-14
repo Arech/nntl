@@ -527,3 +527,49 @@ void elogu_nb_ET(const realmtx_t& x, realmtx_t& f, const real_t& alpha) { elogu_
 void delogu_nb_ET(const realmtx_t& x, realmtx_t& df, const real_t& alpha) { delogu_ET(x, df, alpha, real_t(M_E)); }
 void elogu_ua_nb_ET(const realmtx_t& x, realmtx_t& f) { elogu_ET(x, f, real_t(1.), real_t(M_E)); }
 void delogu_ua_nb_ET(const realmtx_t& x, realmtx_t& df) { delogu_ET(x, df, real_t(1.), real_t(M_E)); }
+
+void loglogu_ET(const realmtx_t& x, realmtx_t& f, const real_t& b_neg, const real_t& b_pos) {
+	NNTL_ASSERT(x.size() == f.size());
+	const auto px = x.data();
+	const auto dest = f.data();
+	const auto ne = x.numel_no_bias();
+
+	const auto ilbpos = real_t(1.) / log(b_pos);
+	const auto nilbneg = real_t(-1.) / log(b_neg);
+
+	for (numel_cnt_t i = 0; i < ne; ++i) {
+		const auto xv = px[i];
+		if (xv < real_t(0.)) {
+			dest[i] = log(real_t(1.) - xv)*nilbneg;
+		} else {
+			dest[i] = log(xv + real_t(1.))*ilbpos;
+		}
+	}
+}
+void dloglogu_ET(const realmtx_t& x, realmtx_t& df, const real_t& b_neg, const real_t& b_pos) {
+	NNTL_ASSERT(df.size() == x.size_no_bias());
+	const auto px = x.data();
+	const auto dest = df.data();
+	const auto ne = x.numel_no_bias();
+
+	const auto ilbpos = real_t(1.) / log(b_pos);
+	const auto ilbneg = real_t(1.) / log(b_neg);
+
+	for (numel_cnt_t i = 0; i < ne; ++i) {
+		const auto xv = px[i];
+		if (xv < real_t(0.)) {
+			dest[i] = ilbneg / (real_t(1.) - xv);
+		} else {
+			dest[i] = ilbpos / (xv + real_t(1.));
+		}
+	}
+}
+void loglogu_nbn_ET(const realmtx_t& x, realmtx_t& f, const real_t& b_pos) { loglogu_ET(x, f, real_t(M_E), b_pos); }
+void dloglogu_nbn_ET(const realmtx_t& x, realmtx_t& df, const real_t& b_pos) { dloglogu_ET(x, df, real_t(M_E), b_pos); }
+
+void loglogu_nbp_ET(const realmtx_t& x, realmtx_t& f, const real_t& b_neg) { loglogu_ET(x, f, b_neg, real_t(M_E)); }
+void dloglogu_nbp_ET(const realmtx_t& x, realmtx_t& df, const real_t& b_neg) { dloglogu_ET(x, df, b_neg, real_t(M_E)); }
+
+void loglogu_nbn_nbp_ET(const realmtx_t& x, realmtx_t& f) { loglogu_ET(x, f, real_t(M_E), real_t(M_E)); }
+void dloglogu_nbn_nbp_ET(const realmtx_t& x, realmtx_t& df) { dloglogu_ET(x, df, real_t(M_E), real_t(M_E)); }
+

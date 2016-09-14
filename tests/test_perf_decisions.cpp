@@ -1536,13 +1536,14 @@ static void pt_ileakyrelu_st(realmtx_t& srcdest, const real_t leak) noexcept {
 	}
 }
 template<typename FunctorT>
-void pt_iact_asymm_st(realmtx_t& srcdest) noexcept {
+void pt_iact_asymm_st(realmtx_t& srcdest, FunctorT&& fnc) noexcept {
 	NNTL_ASSERT(!srcdest.empty());
 	auto pV = srcdest.data();
 	const auto pVE = pV + srcdest.numel();
 	while (pV != pVE) {
 		const auto v = *pV;
-		*pV++ = v < real_t(+0.0) ? FunctorT::f_neg(v) : FunctorT::f_pos(v);
+		//*pV++ = v < real_t(+0.0) ? FunctorT::f_neg(v) : FunctorT::f_pos(v);
+		*pV++ = (std::forward<FunctorT>(fnc)).f( v );
 	}
 }
 //slightly faster (177vs192)
@@ -1560,6 +1561,7 @@ public:
 	};
 };
 //slightly slower (192vs177)
+/*
 template<typename RealT, size_t LeakKInv100 = 10000, typename WeightsInitScheme = weights_init::He_Zhang<>>
 class exp2_leaky_relu : public activation::_i_activation<RealT> {
 	exp2_leaky_relu() = delete;
@@ -1580,8 +1582,26 @@ public:
 	static void f(realmtx_t& srcdest) noexcept {
 		pt_iact_asymm_st<LRFunc>(srcdest);
 	};
-};
+};*/
+//well, this one and current pt_iact_asymm_st() is a bit better and approximately as fast as plain version.
+//however, better fire me than make me refactor the old code now... Leave it for a future.
+template<typename RealT, size_t LeakKInv100 = 10000, typename WeightsInitScheme = weights_init::He_Zhang<>>
+class exp3_leaky_relu : public activation::_i_activation<RealT> {
+	exp3_leaky_relu() = delete;
+	~exp3_leaky_relu() = delete;
+public:
+	typedef WeightsInitScheme weights_scheme;
+	static constexpr real_t LeakK = real_t(100.0) / real_t(LeakKInv100);
 
+	struct LRFunc {
+		static constexpr real_t f(const real_t x)noexcept { return x < real_t(+0.0) ? x*LeakK : x; }
+	};
+
+public:
+	static void f(realmtx_t& srcdest) noexcept {
+		pt_iact_asymm_st(srcdest, LRFunc());
+	};
+};
 void test_ActPrmVsNonprm_perf(vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 	typedef nntl::d_interfaces::iThreads_t def_threads_t;
 	typedef math::MathN<real_t, def_threads_t> iMB;
@@ -1598,8 +1618,8 @@ void test_ActPrmVsNonprm_perf(vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 	realmtx_t XSrc(rowsCnt, colsCnt), X(rowsCnt, colsCnt), TV(rowsCnt, colsCnt);
 	ASSERT_TRUE(!XSrc.isAllocationFailed() && !X.isAllocationFailed() && !TV.isAllocationFailed());
 	
-	typedef exp_leaky_relu<real_t> AType;
-	typedef exp2_leaky_relu<real_t> BType;
+	typedef exp_leaky_relu<real_t> BType;
+	typedef exp3_leaky_relu<real_t> AType;
 
 	tictoc tA1, tB1, tA2, tB2, tA3, tB3;
 	utils::prioritize_workers<utils::PriorityClass::PerfTesting, def_threads_t> pw(iM.ithreads());

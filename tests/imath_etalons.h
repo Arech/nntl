@@ -109,3 +109,17 @@ void elogu_nb_ET(const realmtx_t& x, realmtx_t& f, const real_t& alpha);
 void delogu_nb_ET(const realmtx_t& x, realmtx_t& df, const real_t& alpha);
 void elogu_ua_nb_ET(const realmtx_t& x, realmtx_t& f);
 void delogu_ua_nb_ET(const realmtx_t& x, realmtx_t& df);
+
+void loglogu_ET(const realmtx_t& x, realmtx_t& f, const real_t& b_neg, const real_t& b_pos);
+void dloglogu_ET(const realmtx_t& x, realmtx_t& df, const real_t& b_neg, const real_t& b_pos);
+
+void loglogu_nbn_ET(const realmtx_t& x, realmtx_t& f, const real_t& b_pos);
+void dloglogu_nbn_ET(const realmtx_t& x, realmtx_t& df, const real_t& b_pos);
+
+void loglogu_nbp_ET(const realmtx_t& x, realmtx_t& f, const real_t& b_neg);
+void dloglogu_nbp_ET(const realmtx_t& x, realmtx_t& df, const real_t& b_neg);
+
+void loglogu_nbn_nbp_ET(const realmtx_t& x, realmtx_t& f);
+void dloglogu_nbn_nbp_ET(const realmtx_t& x, realmtx_t& df);
+
+

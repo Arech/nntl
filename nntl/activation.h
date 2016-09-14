@@ -230,7 +230,7 @@ namespace activation {
 
 	//////////////////////////////////////////////////////////////////////////
 	// Leaky Relu
-	template<typename RealT, size_t LeakKInv100 = 10000, typename WeightsInitScheme = weights_init::He_Zhang<>>
+	template<typename RealT, unsigned int LeakKInv100 = 10000, typename WeightsInitScheme = weights_init::He_Zhang<>>
 	class leaky_relu : public _i_activation<RealT> {
 		leaky_relu() = delete;
 		~leaky_relu() = delete;
@@ -263,7 +263,7 @@ namespace activation {
 
 	//////////////////////////////////////////////////////////////////////////
 	// ELU
-	template<typename RealT, size_t Alpha1e3 = 1000, typename WeightsInitScheme = weights_init::He_Zhang<>>
+	template<typename RealT, unsigned int Alpha1e3 = 1000, typename WeightsInitScheme = weights_init::He_Zhang<>>
 	class elu : public _i_activation<RealT> {
 		elu() = delete;
 		~elu() = delete;
@@ -306,7 +306,7 @@ namespace activation {
 	//////////////////////////////////////////////////////////////////////////
 	//////////////////////////////////////////////////////////////////////////
 	//ELogU : log(x+1)/log(b) | x>0,  alpha*(exp(x)-1) | x<0
-	template<typename RealT, size_t Alpha1e3 = 1000, size_t B1e6 = 2000000, typename WeightsInitScheme = weights_init::He_Zhang<>>
+	template<typename RealT, unsigned int Alpha1e3 = 1000, unsigned int LogBase1e3 = 2000, typename WeightsInitScheme = weights_init::He_Zhang<>>
 	class elogu : public _i_activation<RealT> {
 		elogu() = delete;
 		~elogu() = delete;
@@ -315,51 +315,51 @@ namespace activation {
 		static constexpr real_t Alpha = real_t(Alpha1e3) / real_t(1000.0);
 		static constexpr bool bIsUnitAlpha = (Alpha1e3 == 1000);
 
-		static constexpr real_t B = real_t(B1e6) / real_t(1000000.0);
-		static constexpr bool bIsNaturalB = (B1e6 == 2718281);
+		static constexpr real_t LogBase = real_t(LogBase1e3) / real_t(1000.0);
+		static constexpr bool bIsNaturalBase = (LogBase1e3 == 2718);
 
 	public:
 		//apply f to each srcdest matrix element. The biases (if any) must be left untouched!
-		template <typename iMath, bool bUnitAlpha = bIsUnitAlpha, bool bNatB = bIsNaturalB>
+		template <typename iMath, bool bUnitAlpha = bIsUnitAlpha, bool bNatB = bIsNaturalBase>
 		static std::enable_if_t<!bUnitAlpha && !bNatB> f(realmtx_t& srcdest, iMath& m) noexcept {
 			static_assert(std::is_base_of<math::_i_math<real_t>, iMath>::value, "iMath should implement math::_i_math");
-			m.elogu(srcdest, Alpha, B);
+			m.elogu(srcdest, Alpha, LogBase);
 		};
-		template <typename iMath, bool bUnitAlpha = bIsUnitAlpha, bool bNatB = bIsNaturalB>
+		template <typename iMath, bool bUnitAlpha = bIsUnitAlpha, bool bNatB = bIsNaturalBase>
 		static std::enable_if_t<bUnitAlpha && !bNatB> f(realmtx_t& srcdest, iMath& m) noexcept {
 			static_assert(std::is_base_of<math::_i_math<real_t>, iMath>::value, "iMath should implement math::_i_math");
-			m.elogu_ua(srcdest, B);
+			m.elogu_ua(srcdest, LogBase);
 		};
-		template <typename iMath, bool bUnitAlpha = bIsUnitAlpha, bool bNatB = bIsNaturalB>
+		template <typename iMath, bool bUnitAlpha = bIsUnitAlpha, bool bNatB = bIsNaturalBase>
 		static std::enable_if_t<!bUnitAlpha && bNatB> f(realmtx_t& srcdest, iMath& m) noexcept {
 			static_assert(std::is_base_of<math::_i_math<real_t>, iMath>::value, "iMath should implement math::_i_math");
 			m.elogu_nb(srcdest, Alpha);
 		};
-		template <typename iMath, bool bUnitAlpha = bIsUnitAlpha, bool bNatB = bIsNaturalB>
+		template <typename iMath, bool bUnitAlpha = bIsUnitAlpha, bool bNatB = bIsNaturalBase>
 		static std::enable_if_t<bUnitAlpha && bNatB> f(realmtx_t& srcdest, iMath& m) noexcept {
 			static_assert(std::is_base_of<math::_i_math<real_t>, iMath>::value, "iMath should implement math::_i_math");
 			m.elogu_ua_nb(srcdest);
 		};
 
-		template <typename iMath, bool bUnitAlpha = bIsUnitAlpha, bool bNatB = bIsNaturalB>
+		template <typename iMath, bool bUnitAlpha = bIsUnitAlpha, bool bNatB = bIsNaturalBase>
 		static std::enable_if_t<!bUnitAlpha && !bNatB> df(realmtx_t& f_df, iMath& m) noexcept {
 			static_assert(std::is_base_of<math::_i_math<real_t>, iMath>::value, "iMath should implement math::_i_math");
 			NNTL_ASSERT(!f_df.emulatesBiases());
-			m.delogu(f_df, Alpha, B);
+			m.delogu(f_df, Alpha, LogBase);
 		}
-		template <typename iMath, bool bUnitAlpha = bIsUnitAlpha, bool bNatB = bIsNaturalB>
+		template <typename iMath, bool bUnitAlpha = bIsUnitAlpha, bool bNatB = bIsNaturalBase>
 		static std::enable_if_t<bUnitAlpha && !bNatB> df(realmtx_t& f_df, iMath& m) noexcept {
 			static_assert(std::is_base_of<math::_i_math<real_t>, iMath>::value, "iMath should implement math::_i_math");
 			NNTL_ASSERT(!f_df.emulatesBiases());
-			m.delogu_ua(f_df, B);
+			m.delogu_ua(f_df, LogBase);
 		}
-		template <typename iMath, bool bUnitAlpha = bIsUnitAlpha, bool bNatB = bIsNaturalB>
+		template <typename iMath, bool bUnitAlpha = bIsUnitAlpha, bool bNatB = bIsNaturalBase>
 		static std::enable_if_t<!bUnitAlpha && bNatB> df(realmtx_t& f_df, iMath& m) noexcept {
 			static_assert(std::is_base_of<math::_i_math<real_t>, iMath>::value, "iMath should implement math::_i_math");
 			NNTL_ASSERT(!f_df.emulatesBiases());
 			m.delogu_nb(f_df, Alpha);
 		}
-		template <typename iMath, bool bUnitAlpha = bIsUnitAlpha, bool bNatB = bIsNaturalB>
+		template <typename iMath, bool bUnitAlpha = bIsUnitAlpha, bool bNatB = bIsNaturalBase>
 		static std::enable_if_t<bUnitAlpha && bNatB> df(realmtx_t& f_df, iMath& m) noexcept {
 			static_assert(std::is_base_of<math::_i_math<real_t>, iMath>::value, "iMath should implement math::_i_math");
 			NNTL_ASSERT(!f_df.emulatesBiases());
@@ -367,11 +367,83 @@ namespace activation {
 		}
 	};
 
-	template<typename RealT, size_t B1e6 = 2000000, typename WeightsInitScheme = weights_init::He_Zhang<>>
-	using elogu_ua = elogu<RealT, 1000, B1e6, WeightsInitScheme>;
-	template<typename RealT, size_t Alpha1e3 = 1000, typename WeightsInitScheme = weights_init::He_Zhang<>>
-	using elogu_nb = elogu<RealT, Alpha1e3, 2718281, WeightsInitScheme>;
+	template<typename RealT, unsigned int LogBase1e3 = 2000, typename WeightsInitScheme = weights_init::He_Zhang<>>
+	using elogu_ua = elogu<RealT, 1000, LogBase1e3, WeightsInitScheme>;
+	template<typename RealT, unsigned int Alpha1e3 = 1000, typename WeightsInitScheme = weights_init::He_Zhang<>>
+	using elogu_nb = elogu<RealT, Alpha1e3, 2718, WeightsInitScheme>;
 	template<typename RealT, typename WeightsInitScheme = weights_init::He_Zhang<>>
-	using elogu_ua_nb = elogu<RealT, 1000, 2718281, WeightsInitScheme>;
+	using elogu_ua_nb = elogu<RealT, 1000, 2718, WeightsInitScheme>;
+
+
+	//////////////////////////////////////////////////////////////////////////
+	//////////////////////////////////////////////////////////////////////////
+	//LogLogU : -log(1-x)/log(b_neg) | x<0,   log(x+1)/log(b_pos) | x>0
+	template<typename RealT, unsigned int LogBaseNeg1e3 = 2718, unsigned int LogBasePos1e3 = 2000, typename WeightsInitScheme = weights_init::He_Zhang<>>
+	class loglogu : public _i_activation<RealT> {
+		loglogu() = delete;
+		~loglogu() = delete;
+	public:
+		typedef WeightsInitScheme weights_scheme;
+		static constexpr real_t LogBaseNeg = real_t(LogBaseNeg1e3) / real_t(1000.0);
+		static constexpr bool bIsNBN = (LogBaseNeg1e3 == 2718);
+
+		static constexpr real_t LogBasePos = real_t(LogBasePos1e3) / real_t(1000.0);
+		static constexpr bool bIsNBP = (LogBasePos1e3 == 2718);
+
+	public:
+		//apply f to each srcdest matrix element. The biases (if any) must be left untouched!
+		template <typename iMath, bool bNBN = bIsNBN, bool bNBP = bIsNBP>
+		static std::enable_if_t<!bNBN && !bNBP> f(realmtx_t& srcdest, iMath& m) noexcept {
+			static_assert(std::is_base_of<math::_i_math<real_t>, iMath>::value, "iMath should implement math::_i_math");
+			m.loglogu(srcdest, LogBaseNeg, LogBasePos);
+		};
+		template <typename iMath, bool bNBN = bIsNBN, bool bNBP = bIsNBP>
+		static std::enable_if_t<bNBN && !bNBP> f(realmtx_t& srcdest, iMath& m) noexcept {
+			static_assert(std::is_base_of<math::_i_math<real_t>, iMath>::value, "iMath should implement math::_i_math");
+			m.loglogu_nbn(srcdest, LogBasePos);
+		};
+		template <typename iMath, bool bNBN = bIsNBN, bool bNBP = bIsNBP>
+		static std::enable_if_t<!bNBN && bNBP> f(realmtx_t& srcdest, iMath& m) noexcept {
+			static_assert(std::is_base_of<math::_i_math<real_t>, iMath>::value, "iMath should implement math::_i_math");
+			m.loglogu_nbp(srcdest, LogBaseNeg);
+		};
+		template <typename iMath, bool bNBN = bIsNBN, bool bNBP = bIsNBP>
+		static std::enable_if_t<bNBN && bNBP> f(realmtx_t& srcdest, iMath& m) noexcept {
+			static_assert(std::is_base_of<math::_i_math<real_t>, iMath>::value, "iMath should implement math::_i_math");
+			m.loglogu_nbn_nbp(srcdest);
+		};
+
+		template <typename iMath, bool bNBN = bIsNBN, bool bNBP = bIsNBP>
+		static std::enable_if_t<!bNBN && !bNBP> df(realmtx_t& f_df, iMath& m) noexcept {
+			static_assert(std::is_base_of<math::_i_math<real_t>, iMath>::value, "iMath should implement math::_i_math");
+			NNTL_ASSERT(!f_df.emulatesBiases());
+			m.dloglogu(f_df, LogBaseNeg, LogBasePos);
+		}
+		template <typename iMath, bool bNBN = bIsNBN, bool bNBP = bIsNBP>
+		static std::enable_if_t<bNBN && !bNBP> df(realmtx_t& f_df, iMath& m) noexcept {
+			static_assert(std::is_base_of<math::_i_math<real_t>, iMath>::value, "iMath should implement math::_i_math");
+			NNTL_ASSERT(!f_df.emulatesBiases());
+			m.dloglogu_nbn(f_df, LogBasePos);
+		}
+		template <typename iMath, bool bNBN = bIsNBN, bool bNBP = bIsNBP>
+		static std::enable_if_t<!bNBN && bNBP> df(realmtx_t& f_df, iMath& m) noexcept {
+			static_assert(std::is_base_of<math::_i_math<real_t>, iMath>::value, "iMath should implement math::_i_math");
+			NNTL_ASSERT(!f_df.emulatesBiases());
+			m.dloglogu_nbp(f_df, LogBaseNeg);
+		}
+		template <typename iMath, bool bNBN = bIsNBN, bool bNBP = bIsNBP>
+		static std::enable_if_t<bNBN && bNBP> df(realmtx_t& f_df, iMath& m) noexcept {
+			static_assert(std::is_base_of<math::_i_math<real_t>, iMath>::value, "iMath should implement math::_i_math");
+			NNTL_ASSERT(!f_df.emulatesBiases());
+			m.dloglogu_nbn_nbp(f_df);
+		}
+	};
+
+	template<typename RealT, unsigned int LogBasePos1e3 = 2000, typename WeightsInitScheme = weights_init::He_Zhang<>>
+	using loglogu_nbn = loglogu<RealT, 2718, LogBasePos1e3, WeightsInitScheme>;
+	template<typename RealT, unsigned int LogBaseNeg1e3 = 2718, typename WeightsInitScheme = weights_init::He_Zhang<>>
+	using loglogu_nbp = loglogu<RealT, LogBaseNeg1e3, 2718, WeightsInitScheme>;
+	template<typename RealT, typename WeightsInitScheme = weights_init::He_Zhang<>>
+	using loglogu_nbb_nbp = loglogu<RealT, 2718, 2718, WeightsInitScheme>;
 }
 }

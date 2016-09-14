@@ -48,7 +48,7 @@ namespace weights_init {
 	// 
 	// And by the way, according to mentioned work it looks like this formula works best for same-sized adjacent layers. If their
 	// sizes are different, it's kind of compromise. Which means, that there might be other more suitable initialization schemes.
-	template<size_t scalingCoeff1e6 = 1000000>
+	template<unsigned int scalingCoeff1e6 = 1000000>
 	struct Xavier {
 		template <typename iRng_t>
 		static bool init(typename iRng_t::realmtx_t& W, iRng_t& iR)noexcept {
@@ -72,7 +72,7 @@ namespace weights_init {
 	// according to He, Zhang et al. "Delving Deep into Rectifiers: Surpassing Human-Level Performance on 
 	// ImageNet Classification" 2015 the formula (sqrt(2/prevLayerNeurons) should define _standard_ deviation
 	// of gaussian zero-mean noise. Bias weights set to zero.
-	template<size_t scalingCoeff1e6 = 1000000>
+	template<unsigned int scalingCoeff1e6 = 1000000>
 	struct He_Zhang {
 		template <typename iRng_t>
 		static bool init(typename iRng_t::realmtx_t& W, iRng_t& iR)noexcept {
@@ -81,7 +81,7 @@ namespace weights_init {
 
 			NNTL_ASSERT(!W.empty() && W.numel() > 0);
 
-			const real_t scalingCoeff = real_t(scalingCoeff1e6) / real_t(1000000);
+			constexpr real_t scalingCoeff = real_t(scalingCoeff1e6) / real_t(1000000);
 			const auto prevLayerNeuronsCnt = W.cols() - 1;
 			const real_t stdDev = scalingCoeff*sqrt(real_t(2.0) / prevLayerNeuronsCnt);
 
@@ -103,7 +103,7 @@ namespace weights_init {
 	// whose weights are drawn from a unit Gaussian, and the biases are set to zero."
 	// Tanh: "When using tanh units, we transform the weights to simulate sigmoid units by setting 
 	// the biases to 0.5 and rescaling the weights by 0.25."
-	template<int Biases1e6 = 0, size_t StdDev1e6=1000000, unsigned int NonZeroUnitsCount = 15>
+	template<int Biases1e6 = 0, unsigned int StdDev1e6=1000000, unsigned int NonZeroUnitsCount = 15>
 	struct Martens_SI {
 		template <typename iRng_t>
 		static bool init(typename iRng_t::realmtx_t& W, iRng_t& iR)noexcept {
@@ -122,8 +122,8 @@ namespace weights_init {
 
 			W.zeros();
 
-			const real_t biases = real_t(Biases1e6) / real_t(1000000);
-			const real_t stdDev = real_t(StdDev1e6) / real_t(1000000);
+			constexpr real_t biases = real_t(Biases1e6) / real_t(1000000);
+			constexpr real_t stdDev = real_t(StdDev1e6) / real_t(1000000);
 
 			//making random indexes of weights to set
 			std::unique_ptr<vec_len_t[]> columnIdxs(new(std::nothrow) vec_len_t[prevLayerNeuronsCnt]);

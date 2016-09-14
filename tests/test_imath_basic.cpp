@@ -2849,7 +2849,7 @@ void test_elogu_corr(vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 		ASSERT_REALMTX_NEAR(F, FUANB_ET, "elogu_ua_nb() failed", elogu_EPS<real_t>::eps);
 	}
 }
-TEST(TestMathN, ELogU) {
+TEST(TestMathN, ELogU_family) {
 	for (vec_len_t r = 1; r < g_MinDataSizeDelta; ++r) {
 		for (vec_len_t c = 1; c < g_MinDataSizeDelta; ++c) {
 			test_elogu_corr(r, c);
@@ -2943,13 +2943,193 @@ void test_delogu_corr(vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 		ASSERT_REALMTX_NEAR(dfUANB_ET, DF, "delogu_ua_nb() failed", delogu_EPS<real_t>::eps);
 	}
 }
-TEST(TestMathN, DELogU) {
+TEST(TestMathN, DELogU_family) {
 	for (vec_len_t r = 1; r < g_MinDataSizeDelta; ++r) {
 		for (vec_len_t c = 1; c < g_MinDataSizeDelta; ++c) {
 			test_delogu_corr(r, c);
 		}
 	}
 }
+//////////////////////////////////////////////////////////////////////////
+template<typename base_t> struct loglogu_EPS {};
+template<> struct loglogu_EPS <double> { static constexpr double eps = 1e-12; };
+template<> struct loglogu_EPS <float> { static constexpr float eps = 1e-6f; };
+void test_loglogu_corr(vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
+	MTXSIZE_SCOPED_TRACE(rowsCnt, colsCnt, "test_loglogu_corr");
+	constexpr unsigned testCorrRepCnt = 10;
+	realmtx_t X(rowsCnt, colsCnt, true), F(rowsCnt, colsCnt, true)
+		, F_ET(rowsCnt, colsCnt, true)
+		, FUA_ET(rowsCnt, colsCnt, true)
+		, FNB_ET(rowsCnt, colsCnt, true)
+		, FUANB_ET(rowsCnt, colsCnt, true);
+
+	ASSERT_TRUE(!X.isAllocationFailed() && !F.isAllocationFailed() && !F_ET.isAllocationFailed()
+		&& !FUA_ET.isAllocationFailed() && !FNB_ET.isAllocationFailed() && !FUANB_ET.isAllocationFailed());
+
+	constexpr real_t b_neg = real_t(3), b_pos = real_t(2.);
+
+	d_interfaces::iRng_t rg;
+	rg.set_ithreads(iM.ithreads());
+	for (unsigned r = 0; r < testCorrRepCnt; ++r) {
+		rg.gen_matrix_no_bias(X, 5);
+		ASSERT_TRUE(X.test_biases_ok());
+
+		loglogu_ET(X, F_ET, b_neg, b_pos);
+		ASSERT_TRUE(F_ET.test_biases_ok());
+		loglogu_nbn_ET(X, FUA_ET, b_pos);
+		ASSERT_TRUE(FUA_ET.test_biases_ok());
+		loglogu_nbp_ET(X, FNB_ET, b_neg);
+		ASSERT_TRUE(FNB_ET.test_biases_ok());
+		loglogu_nbn_nbp_ET(X, FUANB_ET);
+		ASSERT_TRUE(FUANB_ET.test_biases_ok());
+
+
+		X.cloneTo(F);
+		iM.loglogu_st(F, b_neg, b_pos);
+		ASSERT_REALMTX_NEAR(F, F_ET, "loglogu_st() failed", loglogu_EPS<real_t>::eps);
+		X.cloneTo(F);
+		iM.loglogu_nbn_st(F, b_pos);
+		ASSERT_REALMTX_NEAR(F, FUA_ET, "loglogu_nbn_st() failed", loglogu_EPS<real_t>::eps);
+		X.cloneTo(F);
+		iM.loglogu_nbp_st(F, b_neg);
+		ASSERT_REALMTX_NEAR(F, FNB_ET, "loglogu_nbp_st() failed", loglogu_EPS<real_t>::eps);
+		X.cloneTo(F);
+		iM.loglogu_nbn_nbp_st(F);
+		ASSERT_REALMTX_NEAR(F, FUANB_ET, "loglogu_nbn_nbp_st() failed", loglogu_EPS<real_t>::eps);
+
+
+		X.cloneTo(F);
+		iM.loglogu_mt(F, b_neg, b_pos);
+		ASSERT_REALMTX_NEAR(F, F_ET, "loglogu_mt() failed", loglogu_EPS<real_t>::eps);
+		X.cloneTo(F);
+		iM.loglogu_nbn_mt(F, b_pos);
+		ASSERT_REALMTX_NEAR(F, FUA_ET, "loglogu_nbn_mt() failed", loglogu_EPS<real_t>::eps);
+		X.cloneTo(F);
+		iM.loglogu_nbp_mt(F, b_neg);
+		ASSERT_REALMTX_NEAR(F, FNB_ET, "loglogu_nbp_mt() failed", loglogu_EPS<real_t>::eps);
+		X.cloneTo(F);
+		iM.loglogu_nbn_nbp_mt(F);
+		ASSERT_REALMTX_NEAR(F, FUANB_ET, "loglogu_nbn_nbp_mt() failed", loglogu_EPS<real_t>::eps);
+
+
+		X.cloneTo(F);
+		iM.loglogu(F, b_neg, b_pos);
+		ASSERT_REALMTX_NEAR(F, F_ET, "loglogu() failed", loglogu_EPS<real_t>::eps);
+		X.cloneTo(F);
+		iM.loglogu_nbn(F, b_pos);
+		ASSERT_REALMTX_NEAR(F, FUA_ET, "loglogu_nbn() failed", loglogu_EPS<real_t>::eps);
+		X.cloneTo(F);
+		iM.loglogu_nbp(F, b_neg);
+		ASSERT_REALMTX_NEAR(F, FNB_ET, "loglogu_nbp() failed", loglogu_EPS<real_t>::eps);
+		X.cloneTo(F);
+		iM.loglogu_nbn_nbp(F);
+		ASSERT_REALMTX_NEAR(F, FUANB_ET, "loglogu_nbn_nbp() failed", loglogu_EPS<real_t>::eps);
+	}
+}
+TEST(TestMathN, LogLogU_family) {
+	for (vec_len_t r = 1; r < g_MinDataSizeDelta; ++r) {
+		for (vec_len_t c = 1; c < g_MinDataSizeDelta; ++c) {
+			test_loglogu_corr(r, c);
+		}
+	}
+}
+template<typename base_t> struct dloglogu_EPS {};
+template<> struct dloglogu_EPS <double> { static constexpr double eps = 1e-12; };
+template<> struct dloglogu_EPS <float> { static constexpr float eps = 1e-6f; };
+void test_dloglogu_corr(vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
+	MTXSIZE_SCOPED_TRACE(rowsCnt, colsCnt, "test_dloglogu_corr");
+	constexpr unsigned testCorrRepCnt = 10;
+	realmtx_t X(rowsCnt, colsCnt, true), F(rowsCnt, colsCnt, true), DF(rowsCnt, colsCnt, false)
+		, df_ET(rowsCnt, colsCnt, false), dfUA_ET(rowsCnt, colsCnt, false)
+		, dfNB_ET(rowsCnt, colsCnt, false), dfUANB_ET(rowsCnt, colsCnt, false);
+	ASSERT_TRUE(!X.isAllocationFailed() && !F.isAllocationFailed() && !DF.isAllocationFailed()
+		&& !df_ET.isAllocationFailed() && !dfUA_ET.isAllocationFailed()
+		&& !dfNB_ET.isAllocationFailed() && !dfUANB_ET.isAllocationFailed());
+
+	constexpr real_t b_neg = real_t(3), b_pos = real_t(2.);
+
+	d_interfaces::iRng_t rg;
+	rg.set_ithreads(iM.ithreads());
+	for (unsigned r = 0; r < testCorrRepCnt; ++r) {
+		rg.gen_matrix_no_bias(X, 5);
+		ASSERT_TRUE(X.test_biases_ok());
+
+		dloglogu_ET(X, df_ET, b_neg, b_pos);
+		dloglogu_nbn_ET(X, dfUA_ET, b_pos);
+		dloglogu_nbp_ET(X, dfNB_ET, b_neg);
+		dloglogu_nbn_nbp_ET(X, dfUANB_ET);
+
+		loglogu_ET(X, F, b_neg, b_pos);
+		ASSERT_TRUE(F.test_biases_ok());
+
+		ASSERT_TRUE(F.cloneTo_no_bias(DF));
+		iM.dloglogu_st(DF, b_neg, b_pos);
+		ASSERT_REALMTX_NEAR(df_ET, DF, "dloglogu_st() failed", dloglogu_EPS<real_t>::eps);
+
+		ASSERT_TRUE(F.cloneTo_no_bias(DF));
+		iM.dloglogu_mt(DF, b_neg, b_pos);
+		ASSERT_REALMTX_NEAR(df_ET, DF, "dloglogu_mt() failed", dloglogu_EPS<real_t>::eps);
+
+		ASSERT_TRUE(F.cloneTo_no_bias(DF));
+		iM.dloglogu(DF, b_neg, b_pos);
+		ASSERT_REALMTX_NEAR(df_ET, DF, "dloglogu() failed", dloglogu_EPS<real_t>::eps);
+
+		loglogu_nbn_ET(X, F, b_pos);
+		ASSERT_TRUE(F.test_biases_ok());
+
+		ASSERT_TRUE(F.cloneTo_no_bias(DF));
+		iM.dloglogu_nbn_st(DF, b_pos);
+		ASSERT_REALMTX_NEAR(dfUA_ET, DF, "dloglogu_nbn_st() failed", dloglogu_EPS<real_t>::eps);
+
+		ASSERT_TRUE(F.cloneTo_no_bias(DF));
+		iM.dloglogu_nbn_mt(DF, b_pos);
+		ASSERT_REALMTX_NEAR(dfUA_ET, DF, "dloglogu_nbn_mt() failed", dloglogu_EPS<real_t>::eps);
+
+		ASSERT_TRUE(F.cloneTo_no_bias(DF));
+		iM.dloglogu_nbn(DF, b_pos);
+		ASSERT_REALMTX_NEAR(dfUA_ET, DF, "dloglogu_nbn() failed", dloglogu_EPS<real_t>::eps);
+
+		loglogu_nbp_ET(X, F, b_neg);
+		ASSERT_TRUE(F.test_biases_ok());
+
+		ASSERT_TRUE(F.cloneTo_no_bias(DF));
+		iM.dloglogu_nbp_st(DF, b_neg);
+		ASSERT_REALMTX_NEAR(dfNB_ET, DF, "dloglogu_nbp_st() failed", dloglogu_EPS<real_t>::eps);
+
+		ASSERT_TRUE(F.cloneTo_no_bias(DF));
+		iM.dloglogu_nbp_mt(DF, b_neg);
+		ASSERT_REALMTX_NEAR(dfNB_ET, DF, "dloglogu_nbp_mt() failed", dloglogu_EPS<real_t>::eps);
+
+		ASSERT_TRUE(F.cloneTo_no_bias(DF));
+		iM.dloglogu_nbp(DF, b_neg);
+		ASSERT_REALMTX_NEAR(dfNB_ET, DF, "dloglogu_nbp() failed", dloglogu_EPS<real_t>::eps);
+
+		loglogu_nbn_nbp_ET(X, F);
+		ASSERT_TRUE(F.test_biases_ok());
+
+		ASSERT_TRUE(F.cloneTo_no_bias(DF));
+		iM.dloglogu_nbn_nbp_st(DF);
+		ASSERT_REALMTX_NEAR(dfUANB_ET, DF, "dloglogu_nbn_nbp_st() failed", dloglogu_EPS<real_t>::eps);
+
+		ASSERT_TRUE(F.cloneTo_no_bias(DF));
+		iM.dloglogu_nbn_nbp_mt(DF);
+		ASSERT_REALMTX_NEAR(dfUANB_ET, DF, "dloglogu_nbn_nbp_mt() failed", dloglogu_EPS<real_t>::eps);
+
+		ASSERT_TRUE(F.cloneTo_no_bias(DF));
+		iM.dloglogu_nbn_nbp(DF);
+		ASSERT_REALMTX_NEAR(dfUANB_ET, DF, "dloglogu_nbn_nbp() failed", dloglogu_EPS<real_t>::eps);
+	}
+}
+TEST(TestMathN, DLogLogU_family) {
+	for (vec_len_t r = 1; r < g_MinDataSizeDelta; ++r) {
+		for (vec_len_t c = 1; c < g_MinDataSizeDelta; ++c) {
+			test_dloglogu_corr(r, c);
+		}
+	}
+}
+
+
+
 
 
 ////////////////////////////////////////////////////////////////////////// 

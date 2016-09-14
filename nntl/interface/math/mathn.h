@@ -1622,7 +1622,7 @@ namespace math {
 
 		//////////////////////////////////////////////////////////////////////////
 		//////////////////////////////////////////////////////////////////////////
-		//ELogU : log(x+1)/log(b) | x>0,  alpha*(exp(x)-1) | x<0
+		//ELogU : alpha*(exp(x)-1) | x<0,    log(x+1)/log(b) | x>0
 		void elogu(realmtx_t& srcdest, const real_t& alpha, const real_t& b) noexcept {
 			if (srcdest.numel_no_bias() < Thresholds_t::elogu) {
 				get_self().elogu_st(srcdest, alpha, b);
@@ -1850,10 +1850,253 @@ namespace math {
 				get_self()._idelogu_ua_nb_st(f_df, elms_range(r));
 			}, f_df.numel());
 		}
+
+		//////////////////////////////////////////////////////////////////////////
+		//////////////////////////////////////////////////////////////////////////
+		//LogLogU : -log(1-x)/log(b_neg) | x<0,   log(x+1)/log(b_pos) | x>0
+		void loglogu(realmtx_t& srcdest, const real_t& b_neg, const real_t& b_pos) noexcept {
+			if (srcdest.numel_no_bias() < Thresholds_t::loglogu) {
+				get_self().loglogu_st(srcdest, b_neg, b_pos);
+			} else get_self().loglogu_mt(srcdest, b_neg, b_pos);
+		}
+		void loglogu_st(realmtx_t& srcdest, const real_t& b_neg, const real_t& b_pos, const elms_range*const pER = nullptr) const noexcept {
+			get_self()._iloglogu_st(srcdest, b_neg, b_pos, pER ? *pER : elms_range(0, srcdest.numel_no_bias()));
+		}
+		static void _iloglogu_st(realmtx_t& srcdest, const real_t& b_neg, const real_t& b_pos, const elms_range& er) noexcept {
+			NNTL_ASSERT(!srcdest.empty());
+			NNTL_ASSERT(b_neg > real_t(1.0));
+			NNTL_ASSERT(b_pos > real_t(1.0));
+			const real_t lbposi = real_t(1.) / log(b_pos), nlbnegi = real_t(-1.) / log(b_neg);
+			auto pV = srcdest.data() + er.elmBegin;
+			const auto pVE = pV + er.totalElements();
+			while (pV != pVE) {
+				const auto v = *pV;
+				const auto isNeg = v < real_t(0.0);
+				const auto lv = isNeg ? (real_t(1.) - v) : (v + real_t(1.));
+				const auto bv = isNeg ? nlbnegi : lbposi;
+				*pV++ = bv*log(lv);
+			}
+		}
+		void loglogu_mt(realmtx_t& srcdest, const real_t& b_neg, const real_t& b_pos) noexcept {
+			NNTL_ASSERT(!srcdest.empty());
+			NNTL_ASSERT(b_neg > real_t(1.0));
+			NNTL_ASSERT(b_pos > real_t(1.0));
+			m_threads.run([&srcdest, &b_neg, &b_pos, this](const par_range_t& r) {
+				get_self()._iloglogu_st(srcdest, b_neg, b_pos, elms_range(r));
+			}, srcdest.numel_no_bias());
+		}
+		//////////////////////////////////////////////////////////////////////////
+		// d(ELU)/dZ = exp(y*log(b_neg)-log(log(b_neg))) | x<0 ,  exp(-y*log(b_pos)-log(log(b_pos))) | x>0
+		void dloglogu(realmtx_t& f_df, const real_t& b_neg, const real_t& b_pos) noexcept {
+			if (f_df.numel() < Thresholds_t::dloglogu) {
+				get_self().dloglogu_st(f_df, b_neg, b_pos);
+			} else get_self().dloglogu_mt(f_df, b_neg, b_pos);
+		}
+		void dloglogu_st(realmtx_t& f_df, const real_t& b_neg, const real_t& b_pos, const elms_range*const pER = nullptr) const noexcept {
+			get_self()._idloglogu_st(f_df, b_neg, b_pos, pER ? *pER : elms_range(f_df));
+		}
+		static void _idloglogu_st(realmtx_t& f_df, const real_t& b_neg, const real_t& b_pos, const elms_range& er) noexcept {
+			NNTL_ASSERT(b_neg > real_t(1.0));
+			NNTL_ASSERT(b_pos > real_t(1.0));
+			NNTL_ASSERT(!f_df.empty());
+			const double _lbpos = log(double(b_pos)), _lbneg = log(double(b_neg));
+			const real_t nllbpos = -static_cast<real_t>(log(_lbpos)), nlbpos = -static_cast<real_t>(_lbpos);
+			const real_t nllbneg = -static_cast<real_t>(log(_lbneg)), lbneg = static_cast<real_t>(_lbneg);
+			auto ptrDF = f_df.data() + er.elmBegin;
+			const auto ptrDFE = ptrDF + er.totalElements();
+			while (ptrDF != ptrDFE) {
+				const auto v = *ptrDF;
+				*ptrDF++ = std::exp(v < real_t(0.) ? (v*lbneg + nllbneg) : (v*nlbpos + nllbpos));
+			}
+		}
+		void dloglogu_mt(realmtx_t& f_df, const real_t& b_neg, const real_t& b_pos) noexcept {
+			NNTL_ASSERT(!f_df.empty());
+			NNTL_ASSERT(b_neg > real_t(1.0));
+			NNTL_ASSERT(b_pos > real_t(1.0));
+			m_threads.run([&f_df, &b_neg, &b_pos, this](const par_range_t& r) {
+				get_self()._idloglogu_st(f_df, b_neg, b_pos, elms_range(r));
+			}, f_df.numel());
+		}
+		//////////////////////////////////////////////////////////////////////////
+		void loglogu_nbn(realmtx_t& srcdest, const real_t& b_pos) noexcept {
+			if (srcdest.numel_no_bias() < Thresholds_t::loglogu_nbn) {
+				get_self().loglogu_nbn_st(srcdest, b_pos);
+			} else get_self().loglogu_nbn_mt(srcdest, b_pos);
+		}
+		void loglogu_nbn_st(realmtx_t& srcdest, const real_t& b_pos, const elms_range*const pER = nullptr) const noexcept {
+			get_self()._iloglogu_nbn_st(srcdest, b_pos, pER ? *pER : elms_range(0, srcdest.numel_no_bias()));
+		}
+		static void _iloglogu_nbn_st(realmtx_t& srcdest, const real_t& b_pos, const elms_range& er) noexcept {
+			NNTL_ASSERT(!srcdest.empty());
+			NNTL_ASSERT(b_pos > real_t(1.0));
+			const real_t lbposi = real_t(1.) / log(b_pos);
+			auto pV = srcdest.data() + er.elmBegin;
+			const auto pVE = pV + er.totalElements();
+			while (pV != pVE) {
+				const auto v = *pV;
+				/*const auto isNeg = v < real_t(0.0);
+				const auto lv = isNeg ? (real_t(1.) - v) : (v + real_t(1.));
+				const auto bv = isNeg ? real_t(-1.) : lbposi;
+				*pV++ = bv*log(lv);*/
+				*pV++ = v < real_t(0.0) ? -log(real_t(1.) - v) : lbposi*log(v + real_t(1.));
+			}
+		}
+		void loglogu_nbn_mt(realmtx_t& srcdest, const real_t& b_pos) noexcept {
+			NNTL_ASSERT(!srcdest.empty());
+			NNTL_ASSERT(b_pos > real_t(1.0));
+			m_threads.run([&srcdest, &b_pos, this](const par_range_t& r) {
+				get_self()._iloglogu_nbn_st(srcdest, b_pos, elms_range(r));
+			}, srcdest.numel_no_bias());
+		}
+		//////////////////////////////////////////////////////////////////////////
+		// d(ELU)/dZ = exp(y*log(b_neg)-log(log(b_neg))) | x<0 ,  exp(-y*log(b_pos)-log(log(b_pos))) | x>0
+		void dloglogu_nbn(realmtx_t& f_df, const real_t& b_pos) noexcept {
+			if (f_df.numel() < Thresholds_t::dloglogu_nbn) {
+				get_self().dloglogu_nbn_st(f_df, b_pos);
+			} else get_self().dloglogu_nbn_mt(f_df, b_pos);
+		}
+		void dloglogu_nbn_st(realmtx_t& f_df, const real_t& b_pos, const elms_range*const pER = nullptr) const noexcept {
+			get_self()._idloglogu_nbn_st(f_df, b_pos, pER ? *pER : elms_range(f_df));
+		}
+		static void _idloglogu_nbn_st(realmtx_t& f_df, const real_t& b_pos, const elms_range& er) noexcept {
+			NNTL_ASSERT(b_pos > real_t(1.0));
+			NNTL_ASSERT(!f_df.empty());
+			const double _lbpos = log(double(b_pos));
+			const real_t nllbpos = -static_cast<real_t>(log(_lbpos)), nlbpos = -static_cast<real_t>(_lbpos);
+			auto ptrDF = f_df.data() + er.elmBegin;
+			const auto ptrDFE = ptrDF + er.totalElements();
+			while (ptrDF != ptrDFE) {
+				const auto v = *ptrDF;
+				*ptrDF++ = std::exp(v < real_t(0.) ? v : (v*nlbpos + nllbpos));
+			}
+		}
+		void dloglogu_nbn_mt(realmtx_t& f_df, const real_t& b_pos) noexcept {
+			NNTL_ASSERT(!f_df.empty());
+			NNTL_ASSERT(b_pos > real_t(1.0));
+			m_threads.run([&f_df, &b_pos, this](const par_range_t& r) {
+				get_self()._idloglogu_nbn_st(f_df, b_pos, elms_range(r));
+			}, f_df.numel());
+		}
+		//////////////////////////////////////////////////////////////////////////
+		void loglogu_nbp(realmtx_t& srcdest, const real_t& b_neg) noexcept {
+			if (srcdest.numel_no_bias() < Thresholds_t::loglogu_nbp) {
+				get_self().loglogu_nbp_st(srcdest, b_neg);
+			} else get_self().loglogu_nbp_mt(srcdest, b_neg);
+		}
+		void loglogu_nbp_st(realmtx_t& srcdest, const real_t& b_neg, const elms_range*const pER = nullptr) const noexcept {
+			get_self()._iloglogu_nbp_st(srcdest, b_neg, pER ? *pER : elms_range(0, srcdest.numel_no_bias()));
+		}
+		static void _iloglogu_nbp_st(realmtx_t& srcdest, const real_t& b_neg, const elms_range& er) noexcept {
+			NNTL_ASSERT(!srcdest.empty());
+			NNTL_ASSERT(b_neg > real_t(1.0));			
+			const real_t nlbnegi = real_t(-1.) / log(b_neg);
+			auto pV = srcdest.data() + er.elmBegin;
+			const auto pVE = pV + er.totalElements();
+			while (pV != pVE) {
+				const auto v = *pV;
+				/*const auto isNeg = v < real_t(0.0);
+				const auto lv = isNeg ? (real_t(1.) - v) : (v + real_t(1.));
+				const auto bv = isNeg ? nlbnegi : lbposi;
+				*pV++ = bv*log(lv);*/
+				*pV++ = v < real_t(0.0) ? nlbnegi*log(real_t(1.) - v) : log(v + real_t(1.));
+			}
+		}
+		void loglogu_nbp_mt(realmtx_t& srcdest, const real_t& b_neg) noexcept {
+			NNTL_ASSERT(!srcdest.empty());
+			NNTL_ASSERT(b_neg > real_t(1.0));			
+			m_threads.run([&srcdest, &b_neg, this](const par_range_t& r) {
+				get_self()._iloglogu_nbp_st(srcdest, b_neg, elms_range(r));
+			}, srcdest.numel_no_bias());
+		}
+		//////////////////////////////////////////////////////////////////////////
+		// d(ELU)/dZ = exp(y*log(b_neg)-log(log(b_neg))) | x<0 ,  exp(-y*log(b_pos)-log(log(b_pos))) | x>0
+		void dloglogu_nbp(realmtx_t& f_df, const real_t& b_neg) noexcept {
+			if (f_df.numel() < Thresholds_t::dloglogu_nbp) {
+				get_self().dloglogu_nbp_st(f_df, b_neg);
+			} else get_self().dloglogu_nbp_mt(f_df, b_neg);
+		}
+		void dloglogu_nbp_st(realmtx_t& f_df, const real_t& b_neg, const elms_range*const pER = nullptr) const noexcept {
+			get_self()._idloglogu_nbp_st(f_df, b_neg, pER ? *pER : elms_range(f_df));
+		}
+		static void _idloglogu_nbp_st(realmtx_t& f_df, const real_t& b_neg, const elms_range& er) noexcept {
+			NNTL_ASSERT(b_neg > real_t(1.0));			
+			NNTL_ASSERT(!f_df.empty());
+			const double _lbneg = log(double(b_neg));
+			const real_t nllbneg = -static_cast<real_t>(log(_lbneg)), lbneg = static_cast<real_t>(_lbneg);
+			auto ptrDF = f_df.data() + er.elmBegin;
+			const auto ptrDFE = ptrDF + er.totalElements();
+			while (ptrDF != ptrDFE) {
+				const auto v = *ptrDF;
+				*ptrDF++ = std::exp(v < real_t(0.) ? (v*lbneg + nllbneg) : -v);
+			}
+		}
+		void dloglogu_nbp_mt(realmtx_t& f_df, const real_t& b_neg) noexcept {
+			NNTL_ASSERT(!f_df.empty());
+			NNTL_ASSERT(b_neg > real_t(1.0));			
+			m_threads.run([&f_df, &b_neg, this](const par_range_t& r) {
+				get_self()._idloglogu_nbp_st(f_df, b_neg, elms_range(r));
+			}, f_df.numel());
+		}
+		//////////////////////////////////////////////////////////////////////////
+		void loglogu_nbn_nbp(realmtx_t& srcdest) noexcept {
+			if (srcdest.numel_no_bias() < Thresholds_t::loglogu_nbn_nbp) {
+				get_self().loglogu_nbn_nbp_st(srcdest);
+			} else get_self().loglogu_nbn_nbp_mt(srcdest);
+		}
+		void loglogu_nbn_nbp_st(realmtx_t& srcdest, const elms_range*const pER = nullptr) const noexcept {
+			get_self()._iloglogu_nbn_nbp_st(srcdest, pER ? *pER : elms_range(0, srcdest.numel_no_bias()));
+		}
+		static void _iloglogu_nbn_nbp_st(realmtx_t& srcdest, const elms_range& er) noexcept {
+			NNTL_ASSERT(!srcdest.empty());
+			auto pV = srcdest.data() + er.elmBegin;
+			const auto pVE = pV + er.totalElements();
+			while (pV != pVE) {
+				const auto v = *pV;
+				/*const auto isNeg = v < real_t(0.0);
+				const auto lv = isNeg ? (real_t(1.) - v) : (v + real_t(1.));
+				const auto bv = isNeg ? nlbnegi : lbposi;
+				*pV++ = bv*log(lv);*/
+				*pV++ = v < real_t(0.0) ? -log(real_t(1.) - v) : log(v + real_t(1.));
+			}
+		}
+		void loglogu_nbn_nbp_mt(realmtx_t& srcdest) noexcept {
+			NNTL_ASSERT(!srcdest.empty());			
+			m_threads.run([&srcdest, this](const par_range_t& r) {
+				get_self()._iloglogu_nbn_nbp_st(srcdest, elms_range(r));
+			}, srcdest.numel_no_bias());
+		}
+		//////////////////////////////////////////////////////////////////////////
+		// d(ELU)/dZ = exp(y*log(b_neg)-log(log(b_neg))) | x<0 ,  exp(-y*log(b_pos)-log(log(b_pos))) | x>0
+		void dloglogu_nbn_nbp(realmtx_t& f_df) noexcept {
+			if (f_df.numel() < Thresholds_t::dloglogu_nbn_nbp) {
+				get_self().dloglogu_nbn_nbp_st(f_df);
+			} else get_self().dloglogu_nbn_nbp_mt(f_df);
+		}
+		void dloglogu_nbn_nbp_st(realmtx_t& f_df, const elms_range*const pER = nullptr) const noexcept {
+			get_self()._idloglogu_nbn_nbp_st(f_df, pER ? *pER : elms_range(f_df));
+		}
+		static void _idloglogu_nbn_nbp_st(realmtx_t& f_df, const elms_range& er) noexcept {
+			NNTL_ASSERT(!f_df.empty());
+			auto ptrDF = f_df.data() + er.elmBegin;
+			const auto ptrDFE = ptrDF + er.totalElements();
+			while (ptrDF != ptrDFE) {
+				const auto v = *ptrDF;
+				*ptrDF++ = std::exp(v < real_t(0.) ? v : -v);
+			}
+		}
+		void dloglogu_nbn_nbp_mt(realmtx_t& f_df) noexcept {
+			NNTL_ASSERT(!f_df.empty());
+			m_threads.run([&f_df, this](const par_range_t& r) {
+				get_self()._idloglogu_nbn_nbp_st(f_df, elms_range(r));
+			}, f_df.numel());
+		}
+
+
 		//////////////////////////////////////////////////////////////////////////
 		// #TODO: probably, it is better to rewrite asymmetric activation functions processing using two templated
 		// functions, one for f(x) and the other for dF/dX. However, possible performance penalty should be considered
 		// -- well, it's a bit slower than Indian-style copy&pasted code...
+		/* see test_perf_decisions for better solution. will update code later...
 		template<size_t MtThreshold, typename FunctorT>
 		void act_asymm(realmtx_t& srcdest) noexcept {
 			if (srcdest.numel_no_bias() < MtThreshold) {
@@ -1907,7 +2150,7 @@ namespace math {
 				const auto v = *ptrDF;
 				*ptrDF++ = v < real_t(+0.) ? FunctorT::df_neg(v) : FunctorT::df_pos(v);
 			}
-		}
+		}*/
 
 
 		//////////////////////////////////////////////////////////////////////////
