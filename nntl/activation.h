@@ -444,6 +444,73 @@ namespace activation {
 	template<typename RealT, unsigned int LogBaseNeg1e3 = 2718, typename WeightsInitScheme = weights_init::He_Zhang<>>
 	using loglogu_nbp = loglogu<RealT, LogBaseNeg1e3, 2718, WeightsInitScheme>;
 	template<typename RealT, typename WeightsInitScheme = weights_init::He_Zhang<>>
-	using loglogu_nbb_nbp = loglogu<RealT, 2718, 2718, WeightsInitScheme>;
+	using loglogu_nbn_nbp = loglogu<RealT, 2718, 2718, WeightsInitScheme>;
+
+	//////////////////////////////////////////////////////////////////////////
+	//////////////////////////////////////////////////////////////////////////
+	// SoftSign, y = (x/(a+|x|)), dy/dx = (1-|y|)^2 /a, parameter 'a' controls the slope of the curve
+	template<typename RealT, unsigned int A1e3 = 1000, typename WeightsInitScheme = weights_init::Martens_SI_sigm<>>
+	class softsign : public _i_activation<RealT> {
+		softsign() = delete;
+		~softsign() = delete;
+	public:
+		typedef WeightsInitScheme weights_scheme;
+		static constexpr real_t A = real_t(A1e3) / real_t(1000.0);
+		static constexpr bool bIsUnitA = (A1e3 == 1000);
+
+	public:
+		//apply f to each srcdest matrix element. The biases (if any) must be left untouched!
+		template <typename iMath>
+		static void f(realmtx_t& srcdest, iMath& m) noexcept {
+			static_assert(std::is_base_of<math::_i_math<real_t>, iMath>::value, "iMath should implement math::_i_math");
+			m.softsign(srcdest, A);
+		};
+
+		template <typename iMath, bool bUnitA = bIsUnitA>
+		static std::enable_if_t<!bUnitA> df(realmtx_t& f_df, iMath& m) noexcept {
+			static_assert(std::is_base_of<math::_i_math<real_t>, iMath>::value, "iMath should implement math::_i_math");
+			NNTL_ASSERT(!f_df.emulatesBiases());
+			m.dsoftsign(f_df, A);
+		}
+		template <typename iMath, bool bUnitA = bIsUnitA>
+		static std::enable_if_t<bUnitA> df(realmtx_t& f_df, iMath& m) noexcept {
+			static_assert(std::is_base_of<math::_i_math<real_t>, iMath>::value, "iMath should implement math::_i_math");
+			NNTL_ASSERT(!f_df.emulatesBiases());
+			m.dsoftsign_ua(f_df);
+		}
+	};
+
+	template<typename RealT, typename WeightsInitScheme = weights_init::Martens_SI_sigm<>>
+	using softsign_ua = softsign<RealT, 1000, WeightsInitScheme>;
+
+	//////////////////////////////////////////////////////////////////////////
+	//////////////////////////////////////////////////////////////////////////
+	// SoftSigm, y = (x/(2*(a+|x|)) +.5), dy/dx = (.5-|y-.5|)^2 * 2/a, parameter 'a' controls the slope of the curve
+	template<typename RealT, unsigned int A1e3 = 1000, typename WeightsInitScheme = weights_init::Martens_SI_sigm<>>
+	class softsigm : public _i_activation<RealT> {
+		softsigm() = delete;
+		~softsigm() = delete;
+	public:
+		typedef WeightsInitScheme weights_scheme;
+		static constexpr real_t A = real_t(A1e3) / real_t(1000.0);
+
+	public:
+		//apply f to each srcdest matrix element. The biases (if any) must be left untouched!
+		template <typename iMath>
+		static void f(realmtx_t& srcdest, iMath& m) noexcept {
+			static_assert(std::is_base_of<math::_i_math<real_t>, iMath>::value, "iMath should implement math::_i_math");
+			m.softsigm(srcdest, A);
+		};
+
+		template <typename iMath>
+		static void df(realmtx_t& f_df, iMath& m) noexcept {
+			static_assert(std::is_base_of<math::_i_math<real_t>, iMath>::value, "iMath should implement math::_i_math");
+			NNTL_ASSERT(!f_df.emulatesBiases());
+			m.dsoftsigm(f_df, A);
+		}
+	};
+
+	template<typename RealT, typename WeightsInitScheme = weights_init::He_Zhang<>>
+	using softsigm_ua = softsigm<RealT, 1000, WeightsInitScheme>;
 }
 }

@@ -3128,7 +3128,158 @@ TEST(TestMathN, DLogLogU_family) {
 	}
 }
 
+//////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////
+template<typename base_t> struct softsign_EPS {};
+template<> struct softsign_EPS <double> { static constexpr double eps = 1e-12; };
+template<> struct softsign_EPS <float> { static constexpr float eps = 1e-6f; };
+void test_softsign_corr(vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
+	MTXSIZE_SCOPED_TRACE(rowsCnt, colsCnt, "test_softsign_corr");
+	constexpr unsigned testCorrRepCnt = 10;
+	realmtx_t X(rowsCnt, colsCnt, true), F(rowsCnt, colsCnt, true)
+		, F_ET(rowsCnt, colsCnt, true)
+		, FUA_ET(rowsCnt, colsCnt, true);
 
+	ASSERT_TRUE(!X.isAllocationFailed() && !F.isAllocationFailed() && !F_ET.isAllocationFailed()
+		&& !FUA_ET.isAllocationFailed());
+
+	constexpr real_t ua = real_t(1), a = real_t(2);
+
+	d_interfaces::iRng_t rg;
+	rg.set_ithreads(iM.ithreads());
+	for (unsigned r = 0; r < testCorrRepCnt; ++r) {
+		rg.gen_matrix_no_bias(X, 5);
+		ASSERT_TRUE(X.test_biases_ok());
+
+		softsign_ET(X, F_ET, a);
+		ASSERT_TRUE(F_ET.test_biases_ok());
+		softsign_ET(X, FUA_ET, ua);
+		ASSERT_TRUE(FUA_ET.test_biases_ok());
+		
+		X.cloneTo(F);
+		iM.softsign_st(F, a);
+		ASSERT_REALMTX_NEAR(F, F_ET, "softsign_st() failed", softsign_EPS<real_t>::eps);
+		X.cloneTo(F);
+		iM.softsign_st(F, ua);
+		ASSERT_REALMTX_NEAR(F, FUA_ET, "softsign_st(ua) failed", softsign_EPS<real_t>::eps);
+
+		X.cloneTo(F);
+		iM.softsign_mt(F, a);
+		ASSERT_REALMTX_NEAR(F, F_ET, "softsign_mt() failed", softsign_EPS<real_t>::eps);
+		X.cloneTo(F);
+		iM.softsign_mt(F, ua);
+		ASSERT_REALMTX_NEAR(F, FUA_ET, "softsign_mt(ua) failed", softsign_EPS<real_t>::eps);
+
+		X.cloneTo(F);
+		iM.softsign(F, a);
+		ASSERT_REALMTX_NEAR(F, F_ET, "softsign() failed", softsign_EPS<real_t>::eps);
+		X.cloneTo(F);
+		iM.softsign(F, ua);
+		ASSERT_REALMTX_NEAR(F, FUA_ET, "softsign(ua) failed", softsign_EPS<real_t>::eps);
+	}
+}
+TEST(TestMathN, SoftSign_family) {
+	for (vec_len_t r = 1; r < g_MinDataSizeDelta; ++r) {
+		for (vec_len_t c = 1; c < g_MinDataSizeDelta; ++c) {
+			test_softsign_corr(r, c);
+		}
+	}
+}
+template<typename base_t> struct dsoftsign_EPS {};
+template<> struct dsoftsign_EPS <double> { static constexpr double eps = 1e-12; };
+template<> struct dsoftsign_EPS <float> { static constexpr float eps = 1e-6f; };
+void test_dsoftsign_corr(vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
+	MTXSIZE_SCOPED_TRACE(rowsCnt, colsCnt, "test_dsoftsign_corr");
+	constexpr unsigned testCorrRepCnt = 10;
+	realmtx_t X(rowsCnt, colsCnt, true), F(rowsCnt, colsCnt, true), DF(rowsCnt, colsCnt, false)
+		, df_ET(rowsCnt, colsCnt, false), dfUA_ET(rowsCnt, colsCnt, false);
+	ASSERT_TRUE(!X.isAllocationFailed() && !F.isAllocationFailed() && !DF.isAllocationFailed()
+		&& !df_ET.isAllocationFailed() && !dfUA_ET.isAllocationFailed());
+
+	constexpr real_t a = real_t(2), ua = real_t(1.);
+
+	d_interfaces::iRng_t rg;
+	rg.set_ithreads(iM.ithreads());
+	for (unsigned r = 0; r < testCorrRepCnt; ++r) {
+		rg.gen_matrix_no_bias(X, 5);
+		ASSERT_TRUE(X.test_biases_ok());
+
+		dsoftsign_ET(X, df_ET, a);
+		dsoftsign_ET(X, dfUA_ET, ua);
+
+		softsign_ET(X, F, a);
+		ASSERT_TRUE(F.test_biases_ok());
+
+		ASSERT_TRUE(F.cloneTo_no_bias(DF));
+		iM.dsoftsign_st(DF, a);
+		ASSERT_REALMTX_NEAR(df_ET, DF, "dsoftsign_st() failed", dsoftsign_EPS<real_t>::eps);
+
+		ASSERT_TRUE(F.cloneTo_no_bias(DF));
+		iM.dsoftsign_mt(DF, a);
+		ASSERT_REALMTX_NEAR(df_ET, DF, "dsoftsign_mt() failed", dsoftsign_EPS<real_t>::eps);
+
+		ASSERT_TRUE(F.cloneTo_no_bias(DF));
+		iM.dsoftsign(DF, a);
+		ASSERT_REALMTX_NEAR(df_ET, DF, "dsoftsign() failed", dsoftsign_EPS<real_t>::eps);
+
+		softsign_ET(X, F, ua);
+		ASSERT_TRUE(F.test_biases_ok());
+
+		ASSERT_TRUE(F.cloneTo_no_bias(DF));
+		iM.dsoftsign_ua_st(DF);
+		ASSERT_REALMTX_NEAR(dfUA_ET, DF, "dsoftsign_ua_st() failed", dsoftsign_EPS<real_t>::eps);
+
+		ASSERT_TRUE(F.cloneTo_no_bias(DF));
+		iM.dsoftsign_ua_mt(DF);
+		ASSERT_REALMTX_NEAR(dfUA_ET, DF, "dsoftsign_ua_mt() failed", dsoftsign_EPS<real_t>::eps);
+
+		ASSERT_TRUE(F.cloneTo_no_bias(DF));
+		iM.dsoftsign_ua(DF);
+		ASSERT_REALMTX_NEAR(dfUA_ET, DF, "dsoftsign_ua() failed", dsoftsign_EPS<real_t>::eps);
+	}
+}
+TEST(TestMathN, DSoftSign_family) {
+	for (vec_len_t r = 1; r < g_MinDataSizeDelta; ++r) {
+		for (vec_len_t c = 1; c < g_MinDataSizeDelta; ++c) {
+			test_dsoftsign_corr(r, c);
+		}
+	}
+}
+
+template<typename base_t> struct softsigm_EPS {};
+template<> struct softsigm_EPS <double> { static constexpr double eps = 1e-12; };
+template<> struct softsigm_EPS <float> { static constexpr float eps = 1e-6f; };
+TEST(TestMathN, SoftSigm) {
+	constexpr real_t a = real_t(2.);
+	const auto fst = [a](realmtx_t& X) { iM.softsigm_st(X,a); };
+	const auto fmt = [a](realmtx_t& X) { iM.softsigm_mt(X,a); };
+	const auto fb = [a](realmtx_t& X) { iM.softsigm(X,a); };
+	const auto fet = [a](const realmtx_t& X, realmtx_t& F) { softsigm_ET(X, F, a); };
+
+	for (vec_len_t r = 1; r < g_MinDataSizeDelta; ++r) {
+		for (vec_len_t c = 1; c < g_MinDataSizeDelta; ++c) {
+			ASSERT_NO_FATAL_FAILURE((test_f_x_xbasedET_corr<true, false, softsigm_EPS<real_t>>(fet, fst, fmt, fb, "softsigm", r, c)));
+		}
+	}
+}
+
+template<typename base_t> struct dsoftsigm_EPS {};
+template<> struct dsoftsigm_EPS <double> { static constexpr double eps = 1e-12; };
+template<> struct dsoftsigm_EPS <float> { static constexpr float eps = 1e-6f; };
+TEST(TestMathN, DSoftSigm) {
+	constexpr real_t a = real_t(2.);
+	const auto dfst = [a](realmtx_t& X) { iM.dsoftsigm_st(X, a); };
+	const auto dfmt = [a](realmtx_t& X) { iM.dsoftsigm_mt(X, a); };
+	const auto dfb = [a](realmtx_t& X) { iM.dsoftsigm(X, a); };
+	const auto fet = [a](const realmtx_t& X, realmtx_t& F) { softsigm_ET(X, F, a); };
+	const auto dfet = [a](const realmtx_t& X, realmtx_t& DF) { dsoftsigm_ET(X, DF, a); };
+
+	for (vec_len_t r = 1; r < g_MinDataSizeDelta; ++r) {
+		for (vec_len_t c = 1; c < g_MinDataSizeDelta; ++c) {
+			ASSERT_NO_FATAL_FAILURE((test_df_x_xbasedET_corr<dsoftsigm_EPS<real_t>>(fet, dfet, dfst, dfmt, dfb, "dsoftsigm", r, c)));
+		}
+	}
+}
 
 
 

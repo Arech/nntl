@@ -111,6 +111,12 @@ namespace _impl {
 		static constexpr size_t loglogu_nbn_nbp = 1020;
 		static constexpr size_t dloglogu_nbn_nbp = 3000;
 
+		static constexpr size_t softsign = 15000;
+		static constexpr size_t dsoftsign = 20000;
+		static constexpr size_t dsoftsign_ua = 21000;
+		static constexpr size_t softsigm = 15000;
+		static constexpr size_t dsoftsigm = 15000;
+
 		static constexpr size_t softmax_parts = 1900;
 		static constexpr size_t softmax_parts_mt_cw_ColsPerThread = 3;
 		static constexpr size_t softmax_parts_mt_rows = 1000;
@@ -174,23 +180,29 @@ namespace _impl {
 		static constexpr size_t elu_unitalpha = 1650;//*
 		static constexpr size_t delu_unitalpha = 25600;//*
 
-		static constexpr size_t elogu = 1100;
-		static constexpr size_t delogu = 1700;
-		static constexpr size_t elogu_ua = 1100;
-		static constexpr size_t delogu_ua = 1800;
-		static constexpr size_t elogu_nb = 1100;
-		static constexpr size_t delogu_nb = 1800;
-		static constexpr size_t elogu_ua_nb = 1150;
-		static constexpr size_t delogu_ua_nb = 1850;
+		static constexpr size_t elogu = 1100;//*
+		static constexpr size_t delogu = 1700;//*
+		static constexpr size_t elogu_ua = 1100;//*
+		static constexpr size_t delogu_ua = 1800;//*
+		static constexpr size_t elogu_nb = 1100;//*
+		static constexpr size_t delogu_nb = 1800;//*
+		static constexpr size_t elogu_ua_nb = 1150;//*
+		static constexpr size_t delogu_ua_nb = 1850;//*
 
-		static constexpr size_t loglogu = 1030;
-		static constexpr size_t dloglogu = 970;
-		static constexpr size_t loglogu_nbn = 1040;
-		static constexpr size_t dloglogu_nbn = 1000;
-		static constexpr size_t loglogu_nbp = 1040;
-		static constexpr size_t dloglogu_nbp = 980;
-		static constexpr size_t loglogu_nbn_nbp = 1020;
-		static constexpr size_t dloglogu_nbn_nbp = 8900;
+		static constexpr size_t loglogu = 1030;//*
+		static constexpr size_t dloglogu = 970;//*
+		static constexpr size_t loglogu_nbn = 1040;//*
+		static constexpr size_t dloglogu_nbn = 1000;//*
+		static constexpr size_t loglogu_nbp = 1040;//*
+		static constexpr size_t dloglogu_nbp = 980;//*
+		static constexpr size_t loglogu_nbn_nbp = 1020;//*
+		static constexpr size_t dloglogu_nbn_nbp = 8900;//*
+
+		static constexpr size_t softsign = 8000;//*
+		static constexpr size_t dsoftsign = 18500;//*
+		static constexpr size_t dsoftsign_ua = 35700;//*
+		static constexpr size_t softsigm = 6700;//*
+		static constexpr size_t dsoftsigm = 11500;//*
 
 		static constexpr size_t softmax_parts = 3200;
 		static constexpr size_t softmax_parts_mt_cw_ColsPerThread = 3;

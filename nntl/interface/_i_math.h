@@ -255,6 +255,13 @@ namespace math {
 		nntl_interface void elogu_ua_nb(realmtx_t& srcdest) noexcept;
 		nntl_interface void delogu_ua_nb(realmtx_t& f_df) noexcept;
 
+		nntl_interface void softsign(realmtx_t& srcdest, const real_t& a) noexcept;
+		nntl_interface void dsoftsign(realmtx_t& f_df, const real_t& a) noexcept;
+		nntl_interface void dsoftsign_ua(realmtx_t& f_df) noexcept;
+		nntl_interface void softsigm(realmtx_t& srcdest, const real_t& a) noexcept;
+		nntl_interface void dsoftsigm(realmtx_t& f_df, const real_t& a) noexcept;
+
+
 		//////////////////////////////////////////////////////////////////////////
 		//SoftMax
 		// helper function that return the amount of temporary memory (in real_t) needed to process by softmax()

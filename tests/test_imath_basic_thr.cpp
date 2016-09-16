@@ -349,6 +349,57 @@ TEST(TestMathNThr, DLogLogU_nbn_nbp) {
 		test_f_x_perf(fst, fmt, fb, "dloglogu_nbn_nbp", i, 10);
 	}
 }
+//////////////////////////////////////////////////////////////////////////
+
+TEST(TestMathNThr, SoftSign) {
+	constexpr real_t alpha = real_t(2.);
+	const auto fst = [alpha](realmtx_t& X) { iM.softsign_st(X, alpha); };
+	const auto fmt = [alpha](realmtx_t& X) {iM.softsign_mt(X, alpha); };
+	const auto fb = [alpha](realmtx_t& X) {iM.softsign(X, alpha); };
+
+	NNTL_RUN_TEST2(imath_basic_t::Thresholds_t::softsign, 10) {
+		test_f_x_perf(fst, fmt, fb, "softsign", i, 10);
+	}
+}
+TEST(TestMathNThr, DSoftSign) {
+	constexpr real_t alpha = real_t(2.);
+	const auto fst = [alpha](realmtx_t& F_DF) { iM.dsoftsign_st(F_DF, alpha); };
+	const auto fmt = [alpha](realmtx_t& F_DF) {iM.dsoftsign_mt(F_DF, alpha); };
+	const auto fb = [alpha](realmtx_t& F_DF) {iM.dsoftsign(F_DF, alpha); };
+
+	NNTL_RUN_TEST2(imath_basic_t::Thresholds_t::dsoftsign, 10) {
+		test_f_x_perf(fst, fmt, fb, "dsoftsign", i, 10);
+	}
+}
+TEST(TestMathNThr, DSoftSign_ua) {
+	const auto fst = [](realmtx_t& F_DF) { iM.dsoftsign_ua_st(F_DF); };
+	const auto fmt = [](realmtx_t& F_DF) {iM.dsoftsign_ua_mt(F_DF); };
+	const auto fb = [](realmtx_t& F_DF) {iM.dsoftsign_ua(F_DF); };
+
+	NNTL_RUN_TEST2(imath_basic_t::Thresholds_t::dsoftsign_ua, 10) {
+		test_f_x_perf(fst, fmt, fb, "dsoftsign_ua", i, 10);
+	}
+}
+TEST(TestMathNThr, SoftSigm) {
+	constexpr real_t alpha = real_t(2.);
+	const auto fst = [alpha](realmtx_t& X) { iM.softsigm_st(X, alpha); };
+	const auto fmt = [alpha](realmtx_t& X) {iM.softsigm_mt(X, alpha); };
+	const auto fb = [alpha](realmtx_t& X) {iM.softsigm(X, alpha); };
+
+	NNTL_RUN_TEST2(imath_basic_t::Thresholds_t::softsigm, 10) {
+		test_f_x_perf(fst, fmt, fb, "softsigm", i, 10);
+	}
+}
+TEST(TestMathNThr, DSoftSigm) {
+	constexpr real_t alpha = real_t(2.);
+	const auto fst = [alpha](realmtx_t& F_DF) { iM.dsoftsigm_st(F_DF, alpha); };
+	const auto fmt = [alpha](realmtx_t& F_DF) {iM.dsoftsigm_mt(F_DF, alpha); };
+	const auto fb = [alpha](realmtx_t& F_DF) {iM.dsoftsigm(F_DF, alpha); };
+
+	NNTL_RUN_TEST2(imath_basic_t::Thresholds_t::dsoftsigm, 10) {
+		test_f_x_perf(fst, fmt, fb, "dsoftsigm", i, 10);
+	}
+}
 
 //////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////

@@ -328,31 +328,48 @@ namespace math {
 		}
 
 		void elogu(realmtx_t& srcdest, const real_t& alpha, const real_t& b) noexcept {
-			get_self().elogu_mt(srcdest, alpha, b);
+			elogu_mt(srcdest, alpha, b);
 		}
 		void delogu(realmtx_t& f_df, const real_t& alpha, const real_t& b) noexcept {
-			get_self().delogu_mt(f_df, alpha, b);
+			delogu_mt(f_df, alpha, b);
 		}
 
 		void elogu_ua(realmtx_t& srcdest, const real_t& b) noexcept {
-			get_self().elogu_ua_mt(srcdest, b);
+			elogu_ua_mt(srcdest, b);
 		}
 		void delogu_ua(realmtx_t& f_df, const real_t& b) noexcept {
-			get_self().delogu_ua_mt(f_df, b);
+			delogu_ua_mt(f_df, b);
 		}
 
 		void elogu_nb(realmtx_t& srcdest, const real_t& alpha) noexcept {
-			get_self().elogu_nb_mt(srcdest, alpha);
+			elogu_nb_mt(srcdest, alpha);
 		}
 		void delogu_nb(realmtx_t& f_df, const real_t& alpha) noexcept {
-			get_self().delogu_nb_mt(f_df, alpha);
+			delogu_nb_mt(f_df, alpha);
 		}
 
 		void elogu_ua_nb(realmtx_t& srcdest) noexcept {
-			get_self().elogu_ua_nb_mt(srcdest);
+			elogu_ua_nb_mt(srcdest);
 		}
 		void delogu_ua_nb(realmtx_t& f_df) noexcept {
-			get_self().delogu_ua_nb_mt(f_df);
+			delogu_ua_nb_mt(f_df);
+		}
+
+		//////////////////////////////////////////////////////////////////////////
+		void softsign(realmtx_t& srcdest, const real_t& a) noexcept {
+			softsign_mt(srcdest, a);
+		}
+		void dsoftsign_ua(realmtx_t& f_df) noexcept {
+			dsoftsign_ua_mt(f_df);
+		}
+		void dsoftsign(realmtx_t& f_df, const real_t& a) noexcept {
+			dsoftsign_mt(f_df, a);
+		}
+		void softsigm(realmtx_t& srcdest, const real_t& a) noexcept {
+			softsigm_mt(srcdest, a);
+		}
+		void dsoftsigm(realmtx_t& f_df, const real_t& a) noexcept {
+			dsoftsigm_mt(f_df, a);
 		}
 
 		//////////////////////////////////////////////////////////////////////////
@@ -411,13 +428,13 @@ namespace math {
 		void Adam(realmtx_t& dW, realmtx_t& Mt, realmtx_t& Vt, real_t& beta1t, real_t& beta2t, const real_t learningRate,
 			const real_t beta1, const real_t beta2, const real_t numericStabilizer)noexcept
 		{
-			get_self().Adam_mt(dW, Mt, Vt, beta1t, beta2t, learningRate, beta1, beta2, numericStabilizer);
+			Adam_mt(dW, Mt, Vt, beta1t, beta2t, learningRate, beta1, beta2, numericStabilizer);
 		}
 
 		void AdaMax(realmtx_t& dW, realmtx_t& Mt, realmtx_t& Ut, real_t& beta1t, const real_t learningRate,
 			const real_t beta1, const real_t beta2, const real_t numericStabilizer)noexcept
 		{
-			get_self().AdaMax_mt(dW, Mt, Ut, beta1t, learningRate, beta1, beta2, numericStabilizer);
+			AdaMax_mt(dW, Mt, Ut, beta1t, learningRate, beta1, beta2, numericStabilizer);
 		}
 	};
 

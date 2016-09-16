@@ -119,6 +119,90 @@ void test_f_x_corr(FET&& fet, FST&& fst, FMT&& fmt, FB&& fb, const char* descr, 
 }
 
 //////////////////////////////////////////////////////////////////////////
+template<bool XHasBiases, bool bXNorm = false, typename EPST, typename FET, typename FST, typename FMT, typename FB>
+void test_f_x_xbasedET_corr(FET&& fet, FST&& fst, FMT&& fmt, FB&& fb, const char* descr, vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
+	MTXSIZE_SCOPED_TRACE(rowsCnt, colsCnt, descr);
+	constexpr unsigned testCorrRepCnt = TEST_CORRECTN_REPEATS_COUNT;
+
+	//no biases here by intent, because dLdZ works with output layer
+	realmtx_t X(rowsCnt, colsCnt, XHasBiases), F(rowsCnt, colsCnt, XHasBiases), F_ET(rowsCnt, colsCnt, XHasBiases);
+	ASSERT_TRUE(!X.isAllocationFailed() && !F.isAllocationFailed() && !F_ET.isAllocationFailed());
+
+	iM.preinit(X.numel());
+	ASSERT_TRUE(iM.init());
+	d_interfaces::iRng_t rg;
+	rg.set_ithreads(iM.ithreads());
+
+	for (unsigned r = 0; r < testCorrRepCnt; ++r) {
+		if (bXNorm) {
+			if (XHasBiases) {
+				rg.gen_matrix_no_bias_norm(X);
+			} else rg.gen_matrix_norm(X);
+		} else {
+			if (XHasBiases) {
+				rg.gen_matrix_no_bias(X, real_t(5.));
+			} else rg.gen_matrix(X, real_t(5.));
+		}
+		ASSERT_TRUE(!XHasBiases || F.test_biases_ok());
+
+		(std::forward<FET>(fet))(X, F_ET);
+		ASSERT_TRUE(!XHasBiases || F_ET.test_biases_ok());
+
+		X.cloneTo(F);
+		(std::forward<FST>(fst))(F);
+		ASSERT_TRUE(!XHasBiases || F.test_biases_ok());
+		ASSERT_REALMTX_NEAR(F_ET, F, "_st", EPST::eps);
+
+		X.cloneTo(F);
+		(std::forward<FMT>(fmt))(F);
+		ASSERT_TRUE(!XHasBiases || F.test_biases_ok());
+		ASSERT_REALMTX_NEAR(F_ET, F, "_mt", EPST::eps);
+
+		X.cloneTo(F);
+		(std::forward<FB>(fb))(F);
+		ASSERT_TRUE(!XHasBiases || F.test_biases_ok());
+		ASSERT_REALMTX_NEAR(F_ET, F, "()", EPST::eps);
+	}
+}
+
+template<typename EPST, typename FET, typename DFET, typename DFST, typename DFMT, typename DFB>
+void test_df_x_xbasedET_corr(FET&& fet, DFET&& dfet, DFST&& dfst, DFMT&& dfmt, DFB&& dfb, const char* descr, vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
+	MTXSIZE_SCOPED_TRACE(rowsCnt, colsCnt, descr);
+	constexpr unsigned testCorrRepCnt = TEST_CORRECTN_REPEATS_COUNT;
+
+	//no biases here by intent, because dLdZ works with output layer
+	realmtx_t X(rowsCnt, colsCnt, true), F(rowsCnt, colsCnt, true), DF(rowsCnt, colsCnt, false)
+		, df_ET(rowsCnt, colsCnt, false);
+	ASSERT_TRUE(!X.isAllocationFailed() && !F.isAllocationFailed() && !DF.isAllocationFailed() && !df_ET.isAllocationFailed());
+
+	iM.preinit(X.numel());
+	ASSERT_TRUE(iM.init());
+	d_interfaces::iRng_t rg;
+	rg.set_ithreads(iM.ithreads());
+
+	for (unsigned r = 0; r < testCorrRepCnt; ++r) {
+		rg.gen_matrix_no_bias(X, real_t(5.));
+		ASSERT_TRUE(X.test_biases_ok());
+
+		(std::forward<DFET>(dfet))(X, df_ET);
+		(std::forward<FET>(fet))(X, F);
+		ASSERT_TRUE(F.test_biases_ok());
+
+		F.cloneTo_no_bias(DF);
+		(std::forward<DFST>(dfst))(DF);
+		ASSERT_REALMTX_NEAR(df_ET, DF, "_st", EPST::eps);
+
+		F.cloneTo_no_bias(DF);
+		(std::forward<DFMT>(dfmt))(DF);
+		ASSERT_REALMTX_NEAR(df_ET, DF, "_mt", EPST::eps);
+
+		F.cloneTo_no_bias(DF);
+		(std::forward<DFB>(dfb))(DF);
+		ASSERT_REALMTX_NEAR(df_ET, DF, "()", EPST::eps);
+	}
+}
+
+//////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////// 
 

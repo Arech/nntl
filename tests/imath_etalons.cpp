@@ -573,3 +573,50 @@ void dloglogu_nbp_ET(const realmtx_t& x, realmtx_t& df, const real_t& b_neg) { d
 void loglogu_nbn_nbp_ET(const realmtx_t& x, realmtx_t& f) { loglogu_ET(x, f, real_t(M_E), real_t(M_E)); }
 void dloglogu_nbn_nbp_ET(const realmtx_t& x, realmtx_t& df) { dloglogu_ET(x, df, real_t(M_E), real_t(M_E)); }
 
+void softsign_ET(const realmtx_t& x, realmtx_t& f, const real_t& a) {
+	NNTL_ASSERT(x.size() == f.size());
+	NNTL_ASSERT(a > 0);
+	const auto px = x.data();
+	const auto dest = f.data();
+	const auto ne = x.numel_no_bias();
+	for (numel_cnt_t i = 0; i < ne; ++i) {
+		const auto xv = px[i];
+		dest[i] = xv / (a + abs(xv));
+	}
+}
+void dsoftsign_ET(const realmtx_t& x, realmtx_t& df, const real_t& a) {
+	NNTL_ASSERT(df.size() == x.size_no_bias());
+	const auto px = x.data();
+	const auto dest = df.data();
+	const auto ne = x.numel_no_bias();
+
+	for (numel_cnt_t i = 0; i < ne; ++i) {
+		const auto xv = px[i];
+		const auto d = a + abs(xv);
+		dest[i] = a / (d*d);
+	}
+}
+
+void softsigm_ET(const realmtx_t& x, realmtx_t& f, const real_t& a) {
+	NNTL_ASSERT(x.size() == f.size());
+	NNTL_ASSERT(a > 0);
+	const auto px = x.data();
+	const auto dest = f.data();
+	const auto ne = x.numel_no_bias();
+	for (numel_cnt_t i = 0; i < ne; ++i) {
+		const auto xv = px[i];
+		dest[i] = real_t(.5) + xv / (real_t(2.)*(a + abs(xv)));
+	}
+}
+void dsoftsigm_ET(const realmtx_t& x, realmtx_t& df, const real_t& a) {
+	NNTL_ASSERT(df.size() == x.size_no_bias());
+	const auto px = x.data();
+	const auto dest = df.data();
+	const auto ne = x.numel_no_bias();
+
+	for (numel_cnt_t i = 0; i < ne; ++i) {
+		const auto xv = px[i];
+		const auto d = a + abs(xv);
+		dest[i] = a / (real_t(2.)* d*d);
+	}
+}
