@@ -84,7 +84,7 @@ namespace nntl {
 	//////////////////////////////////////////////////////////////////////////
 	// options of training algo
 	template <typename TrainingObserver = training_observer_stdcout<>>
-	class nnet_train_opts {
+	class nnet_train_opts : public math::smatrix_td {
 		static_assert(std::is_base_of<i_training_observer<typename TrainingObserver::real_t>, TrainingObserver>::value,
 			"TrainingObserver template parameter must be derived from i_training_observer");
 
@@ -94,7 +94,6 @@ namespace nntl {
 		
 		typedef typename training_observer_t::real_t real_t;
 		typedef typename training_observer_t::realmtx_t realmtx_t;
-		typedef typename realmtx_t::vec_len_t batch_size_t;
 
 		//////////////////////////////////////////////////////////////////////////
 		//members
@@ -108,7 +107,7 @@ namespace nntl {
 		//DivergenceCheck* vars describes how to check for nn algo divergence
 		real_t m_DivergenceCheckThreshold;
 
-		batch_size_t m_BatchSize;
+		vec_len_t m_BatchSize;
 
 		int16_t m_DivergenceCheckLastEpoch;//probably don't need a bigger type here
 
@@ -154,8 +153,8 @@ namespace nntl {
 		size_t divergenceCheckLastEpoch() const noexcept { return m_DivergenceCheckLastEpoch; }
 		self_t& divergenceCheckLastEpoch(int16_t val) noexcept { m_DivergenceCheckLastEpoch = val; return *this; }
 
-		batch_size_t batchSize() const noexcept { return m_BatchSize; }
-		self_t& batchSize(batch_size_t val) noexcept { m_BatchSize = val; return *this; }
+		vec_len_t batchSize() const noexcept { return m_BatchSize; }
+		self_t& batchSize(vec_len_t val) noexcept { m_BatchSize = val; return *this; }
 
 		training_observer_t& observer() noexcept { return m_trainingObserver; }
 

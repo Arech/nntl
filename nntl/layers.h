@@ -297,4 +297,12 @@ namespace nntl {
 		}
 		template<typename _L> std::enable_if_t<!nntl::layer_has_gradworks<_L>::value> operator()(_L& l, typename _L::real_t nm)noexcept {}
 	};
+
+	template<typename F>
+	struct hlpr_layer_apply_func2gradworks {
+		template<typename _L> std::enable_if_t<nntl::layer_has_gradworks<_L>::value> operator()(_L& l, F&& f)noexcept {
+			(std::forward<F>(f))(l.m_gradientWorks);
+		}
+		template<typename _L> std::enable_if_t<!nntl::layer_has_gradworks<_L>::value> operator()(_L& l, F&& f)noexcept {}
+	};
 };

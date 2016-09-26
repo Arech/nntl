@@ -203,6 +203,7 @@ namespace nntl {
 		// For the _layer_init_data_t parameter see the _impl::_layer_init_data<>.
 		template<typename _layer_init_data_t>
 		nntl_interface ErrorCode init(_layer_init_data_t& lid, real_t* pNewActivationStorage = nullptr)noexcept;
+		//If a layer is given a pNewActivationStorage, then it MUST NOT touch a bit in the bias column of the activation storage.
 
 		//frees any temporary resources that doesn't contain layer-specific information (i.e. layer weights shouldn't be freed).
 		//In other words, this routine burns some unnecessary fat layer gained during training, but don't touch any data necessary
@@ -221,6 +222,7 @@ namespace nntl {
 		//input layer should use slightly different specialization: void fprop(const realmtx_t& data_x)noexcept
 		template <typename LowerLayer>
 		nntl_interface void fprop(const LowerLayer& lowerLayer)noexcept;
+		//If a layer is given a pNewActivationStorage, then it MUST NOT touch a bit in the bias column of the activation storage.
 
 		// dLdA is derivative of loss function wrt this layer neuron activations.
 		// Size [batchSize x layer_neuron_cnt] (bias units ignored - their weights actually belongs to upper layer
@@ -238,6 +240,7 @@ namespace nntl {
 		// in DEBUG builds!). Same for dLdAPrev, but on exit from bprop() it must have a proper size and content.
 		template <typename LowerLayer>
 		nntl_interface unsigned bprop(realmtxdef_t& dLdA, const LowerLayer& lowerLayer, realmtxdef_t& dLdAPrev)noexcept;
+		//If a layer is given a pNewActivationStorage, then it MUST NOT touch a bit in the bias column of the activation storage.
 		//output layer must use form void bprop(const realmtx_t& data_y, const LowerLayer& lowerLayer, realmtxdef_t& dLdAPrev);
 		//On return value: in a short, simple/single layers should return 1.
 		// In a long: during the init() phase, each layer returns the size of its dLdA matrix in _layer_init_data_t::max_dLdA_numel.

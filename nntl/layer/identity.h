@@ -105,6 +105,7 @@ namespace nntl {
 		void _fprop(const realmtx_t& prevActivations)noexcept {
 			NNTL_ASSERT(prevActivations.size() == m_activations.size());
 			NNTL_ASSERT(m_activations.bDontManageStorage());
+			NNTL_ASSERT(prevActivations.test_biases_ok());
 
 			auto& iI = get_self().get_iInspect();
 			iI.fprop_begin(get_self().get_layer_idx(), prevActivations, m_bTraining);
@@ -113,14 +114,16 @@ namespace nntl {
 			// We must copy the data, because layer_pack_horizontal uses its own storage for activations, therefore
 			// we can't just use the m_activations as an alias to prevActivations - we have to physically copy the data
 			// to a new storage within layer_pack_horizontal activations
-			const bool r = prevActivations.cloneTo(m_activations);
+			//const bool r = prevActivations.cloneTo(m_activations);
+			// we mustn't touch the bias column!
+			const bool r = prevActivations.copy_data_skip_bias(m_activations);
 			NNTL_ASSERT(r);
 
 			iI.fprop_end(m_activations);
 		}
 
 	public:
-		//we're restricting the use of layer_identity to layer_pack_horizontal only
+		//we're restricting the use of the layer_identity to the layer_pack_horizontal only
 		template <typename LowerLayerWrapper>
 		std::enable_if_t<_impl::is_layer_wrapper<LowerLayerWrapper>::value> fprop(const LowerLayerWrapper& lowerLayer)noexcept
 		{
@@ -143,7 +146,7 @@ namespace nntl {
 			NNTL_ASSERT(lowerLayer.get_activations().test_biases_ok());
 
 			iI.bprop_end(dLdA);
-			return 0;//indicating that dL/dA for previous layer is actually in dLdA parameter (not in dLdAPrev)
+			return 0;//indicating that dL/dA for a previous layer is actually in the dLdA parameter (not in the dLdAPrev)
 		}
 
 

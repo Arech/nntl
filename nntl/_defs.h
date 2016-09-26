@@ -56,6 +56,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #define NNTL_STRINGIZE(s) #s
 
+
 //////////////////////////////////////////////////////////////////////////
 // debugging-specific tools
 // set to __func__ to conform ANSI C

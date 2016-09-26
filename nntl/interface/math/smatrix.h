@@ -204,6 +204,12 @@ namespace math {
 			memcpy(dest.m_pData, m_pData, byte_size_no_bias());
 			return true;
 		}
+		//similar to cloneTo_no_bias(), however it doesn't drops the destination m_bEmulateBiases flag. It just ignores it existace
+		const bool copy_data_skip_bias(smatrix& dest)const noexcept {
+			if (dest.m_rows != m_rows || dest.cols_no_bias() != cols_no_bias()) return false;
+			memcpy(dest.m_pData, m_pData, byte_size_no_bias());
+			return true;
+		}
 
 		const bool operator==(const smatrix& rhs)const noexcept {
 			//TODO: this is bad implementation, but it's enough cause we're gonna use it for testing only.
@@ -247,8 +253,7 @@ namespace math {
 			m_bEmulateBiases = false;
 		}
 
-		//function is expected to be called from context of NNTL_ASSERT macro. Real assertion happens inside of the function, so the
-		// return value is used only for compilation purposes, DON'T RELY ON IT!
+		//function is expected to be called from context of NNTL_ASSERT macro.
 		const bool test_biases_ok()const noexcept {
 			//NNTL_ASSERT(emulatesBiases());
 			//if (!emulatesBiases()) return false;//not necessary test, because there's no restriction to have biases otherwise
