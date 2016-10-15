@@ -358,7 +358,8 @@ namespace nntl {
 		template<class Archive> void serialize(Archive & ar, const unsigned int version) {
 			if (utils::binary_option<true>(ar, serialization::serialize_gating_mask)) ar & NNTL_SERIALIZATION_NVP(m_gatingMask);
 			if (utils::binary_option<true>(ar, serialization::serialize_training_parameters)) {
-				ar & serialization::make_nvp("gating_layer_id", m_gatingLayer.get_layer_name_str());
+				size_t li = m_gatingLayer.get_layer_idx();
+				ar & serialization::make_nvp("gating_layer_idx", li);
 			}
 			ar & serialization::make_named_struct(m_undLayer.get_layer_name_str().c_str(), m_undLayer);
 		}
