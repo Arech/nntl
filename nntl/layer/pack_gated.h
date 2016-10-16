@@ -370,18 +370,18 @@ namespace nntl {
 	// final implementation of layer with all functionality of _layer_pack_gated
 	// If you need to derive a new class, derive it from _layer_pack_gated (to make static polymorphism work)
 
-	template<typename UnderlyingLayer, typename GatingLayer>
+	template<typename UnderlyingLayer, typename GatingLayer, int32_t nBinarize1e6 = 500000>
 	class LPG final
-		: public _layer_pack_gated<LPG<UnderlyingLayer, GatingLayer>, UnderlyingLayer, GatingLayer>
+		: public _layer_pack_gated<LPG<UnderlyingLayer, GatingLayer, nBinarize1e6>, UnderlyingLayer, GatingLayer>
 	{
 	public:
 		~LPG() noexcept {};
 		LPG(UnderlyingLayer& u, const GatingLayer& g, const char* pCustomName = nullptr) noexcept
-			: _layer_pack_gated<LPG<UnderlyingLayer, GatingLayer>, UnderlyingLayer, GatingLayer>(u,g,pCustomName){};
+			: _layer_pack_gated<LPG<UnderlyingLayer, GatingLayer, nBinarize1e6>, UnderlyingLayer, GatingLayer, nBinarize1e6>(u,g,pCustomName){};
 	};
 
-	template<typename UnderlyingLayer, typename GatingLayer>
-	using layer_pack_gated = typename LPG<UnderlyingLayer, GatingLayer>;
+	template<typename UnderlyingLayer, typename GatingLayer, int32_t nBinarize1e6 = 500000>
+	using layer_pack_gated = typename LPG<UnderlyingLayer, GatingLayer, nBinarize1e6>;
 
 	template <typename UnderlyingLayer, typename GatingLayer> inline
 		LPG <UnderlyingLayer, GatingLayer> make_layer_pack_gated(UnderlyingLayer& u, const GatingLayer& g, const char* pCustomName = nullptr) noexcept

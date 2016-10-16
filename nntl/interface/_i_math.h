@@ -261,6 +261,9 @@ namespace math {
 		nntl_interface void softsigm(realmtx_t& srcdest, const real_t& a) noexcept;
 		nntl_interface void dsoftsigm(realmtx_t& f_df, const real_t& a) noexcept;
 
+		nntl_interface void dSoftSigmQuadLoss_dZ(const realmtx_t& data_y, realmtx_t& act_dLdZ, const real_t& a);
+
+		nntl_interface void step(realmtx_t& srcdest) noexcept;
 
 		//////////////////////////////////////////////////////////////////////////
 		//SoftMax

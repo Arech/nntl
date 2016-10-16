@@ -117,6 +117,10 @@ namespace _impl {
 		static constexpr size_t softsigm = 15000;
 		static constexpr size_t dsoftsigm = 15000;
 
+		static constexpr size_t dSoftSigmQuadLoss_dZ = 14000;
+
+		static constexpr size_t step = 132000;
+
 		static constexpr size_t softmax_parts = 1900;
 		static constexpr size_t softmax_parts_mt_cw_ColsPerThread = 3;
 		static constexpr size_t softmax_parts_mt_rows = 1000;
@@ -203,6 +207,10 @@ namespace _impl {
 		static constexpr size_t dsoftsign_ua = 35700;//*
 		static constexpr size_t softsigm = 6700;//*
 		static constexpr size_t dsoftsigm = 11500;//*
+
+		static constexpr size_t dSoftSigmQuadLoss_dZ = 10000;
+
+		static constexpr size_t step = 500000;
 
 		static constexpr size_t softmax_parts = 3200;
 		static constexpr size_t softmax_parts_mt_cw_ColsPerThread = 3;

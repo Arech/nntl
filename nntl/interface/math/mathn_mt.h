@@ -372,6 +372,14 @@ namespace math {
 			dsoftsigm_mt(f_df, a);
 		}
 
+		void dSoftSigmQuadLoss_dZ(const realmtx_t& data_y, realmtx_t& act_dLdZ, const real_t& a) {
+			dSoftSigmQuadLoss_dZ(data_y, act_dLdZ, a);
+		}
+
+		void step(realmtx_t& srcdest) noexcept {
+			step_mt(srcdest);
+		}
+
 		//////////////////////////////////////////////////////////////////////////
 		//SoftMax
 		// MUST ignore biases!

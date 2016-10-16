@@ -2235,6 +2235,78 @@ namespace math {
 				get_self()._idsoftsigm_st(f_df, a, elms_range(r));
 			}, f_df.numel());
 		}
+		//////////////////////////////////////////////////////////////////////////
+		//calculates derivative of quadratic loss function for softsigm neurons wrt total neuron input Z (=Aprev_layer*W), dL/dZ
+		//////////////////////////////////////////////////////////////////////////
+		//dL/dZ = (err===a-y)*dSoftSigm/dZ
+		// because activations comes from the output layer, expecting no biases there
+		void dSoftSigmQuadLoss_dZ(const realmtx_t& data_y, realmtx_t& act_dLdZ, const real_t& a) {
+			if (act_dLdZ.numel() < Thresholds_t::dSoftSigmQuadLoss_dZ) {
+				get_self().dSoftSigmQuadLoss_dZ_st(data_y, act_dLdZ, a);
+			} else get_self().dSoftSigmQuadLoss_dZ_mt(data_y, act_dLdZ, a);
+		}
+		//usually error is defined as diffrence between data_y and last layer activation, i.e. nn.e=y-nn.a{n}, but
+		//that will lead to necessity of negation of error in back propagation algorithm. To get rid of that negation,
+		// we'll define error as nn.a{n}-y. This won't bother loss calculation, because it is either squares error
+		// (conventional quadratic loss function) or doesn't use that error definition at all (crossentropy error)
+		void dSoftSigmQuadLoss_dZ_st(const realmtx_t& data_y, realmtx_t& act_dLdZ, const real_t& a, const elms_range*const pER = nullptr) {
+			get_self()._idSoftSigmQuadLoss_dZ_st(data_y, act_dLdZ, a, pER ? *pER : elms_range(act_dLdZ));
+		}
+		static void _idSoftSigmQuadLoss_dZ_st(const realmtx_t& data_y, realmtx_t& act_dLdZ, const real_t& a, const elms_range& er) {
+			NNTL_ASSERT(!act_dLdZ.emulatesBiases() && !data_y.emulatesBiases());
+			NNTL_ASSERT(act_dLdZ.size() == data_y.size());
+			NNTL_ASSERT(a > real_t(0.0));
+
+			const auto dainv = real_t(2.) / a;
+			auto pY = data_y.data() + er.elmBegin;
+			auto pSD = act_dLdZ.data() + er.elmBegin;
+			const auto pSDE = pSD + er.totalElements();
+			while (pSD != pSDE) {
+				const auto av = *pSD;
+				NNTL_ASSERT(real_t(0.) <= av && av <= real_t(1.));
+				const auto y = *pY++;
+				NNTL_ASSERT(real_t(0.) <= y && y <= real_t(1.));
+				const auto s = real_t(.5) - abs(av - real_t(.5));
+				*pSD++ = (av - y)*dainv*s*s;
+			}
+		}
+		void dSoftSigmQuadLoss_dZ_mt(const realmtx_t& data_y, realmtx_t& act_dLdZ, const real_t& a) {
+			NNTL_ASSERT(!act_dLdZ.emulatesBiases() && !data_y.emulatesBiases());
+			NNTL_ASSERT(act_dLdZ.size() == data_y.size());
+			NNTL_ASSERT(a > real_t(0.0));
+			m_threads.run([&data_y, &act_dLdZ, &a, this](const par_range_t& r) {
+				get_self()._idSoftSigmQuadLoss_dZ_st(data_y, act_dLdZ, a, elms_range(r));
+			}, act_dLdZ.numel());
+		}
+
+
+
+		//////////////////////////////////////////////////////////////////////////
+		//////////////////////////////////////////////////////////////////////////
+		//step activation unit
+		void step(realmtx_t& srcdest) noexcept {
+			if (srcdest.numel_no_bias() < Thresholds_t::step) {
+				get_self().step_st(srcdest);
+			} else get_self().step_mt(srcdest);
+		}
+		void step_st(realmtx_t& srcdest, const elms_range*const pER = nullptr) const noexcept {
+			get_self()._istep_st(srcdest, pER ? *pER : elms_range(0, srcdest.numel_no_bias()));
+		}
+		static void _istep_st(realmtx_t& srcdest, const elms_range& er) noexcept {
+			NNTL_ASSERT(!srcdest.empty());
+			auto pV = srcdest.data() + er.elmBegin;
+			const auto pVE = pV + er.totalElements();
+			while (pV != pVE) {
+				const auto v = *pV;
+				*pV++ = v < real_t(0.0) ? real_t(0.) : real_t(1.);
+			}
+		}
+		void step_mt(realmtx_t& srcdest) noexcept {
+			NNTL_ASSERT(!srcdest.empty());
+			m_threads.run([&srcdest, this](const par_range_t& r) {
+				get_self()._istep_st(srcdest, elms_range(r));
+			}, srcdest.numel_no_bias());
+		}
 
 
 		//////////////////////////////////////////////////////////////////////////

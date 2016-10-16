@@ -449,7 +449,7 @@ namespace activation {
 	//////////////////////////////////////////////////////////////////////////
 	//////////////////////////////////////////////////////////////////////////
 	// SoftSign, y = (x/(a+|x|)), dy/dx = (1-|y|)^2 /a, parameter 'a' controls the slope of the curve
-	template<typename RealT, unsigned int A1e3 = 1000, typename WeightsInitScheme = weights_init::Martens_SI_sigm<>>
+	template<typename RealT, unsigned int A1e3 = 1000, typename WeightsInitScheme = weights_init::He_Zhang<>>
 	class softsign : public _i_activation<RealT> {
 		softsign() = delete;
 		~softsign() = delete;
@@ -480,13 +480,13 @@ namespace activation {
 		}
 	};
 
-	template<typename RealT, typename WeightsInitScheme = weights_init::Martens_SI_sigm<>>
+	template<typename RealT, typename WeightsInitScheme = weights_init::He_Zhang<>>
 	using softsign_ua = softsign<RealT, 1000, WeightsInitScheme>;
 
 	//////////////////////////////////////////////////////////////////////////
 	//////////////////////////////////////////////////////////////////////////
 	// SoftSigm, y = (x/(2*(a+|x|)) +.5), dy/dx = (.5-|y-.5|)^2 * 2/a, parameter 'a' controls the slope of the curve
-	template<typename RealT, unsigned int A1e3 = 1000, typename WeightsInitScheme = weights_init::Martens_SI_sigm<>>
+	template<typename RealT, unsigned int A1e3 = 1000, typename WeightsInitScheme = weights_init::He_Zhang<>>
 	class softsigm : public _i_activation<RealT> {
 		softsigm() = delete;
 		~softsigm() = delete;
@@ -512,5 +512,51 @@ namespace activation {
 
 	template<typename RealT, typename WeightsInitScheme = weights_init::He_Zhang<>>
 	using softsigm_ua = softsigm<RealT, 1000, WeightsInitScheme>;
+
+
+	//////////////////////////////////////////////////////////////////////////
+	template<typename RealT, unsigned int A1e3 = 1000, typename WeightsInitScheme = weights_init::He_Zhang<>>
+	class softsigm_quad_loss : public softsigm<RealT, A1e3, WeightsInitScheme>, public _i_activation_loss<RealT> {
+		softsigm_quad_loss() = delete;
+		~softsigm_quad_loss() = delete;
+	public:
+		template <typename iMath>
+		static void dLdZ(const realmtx_t& data_y, realmtx_t& act_dLdZ, iMath& m)noexcept {
+			static_assert(std::is_base_of<math::_i_math<real_t>, iMath>::value, "iMath should implement math::_i_math");
+			m.dSoftSigmQuadLoss_dZ(data_y, act_dLdZ, A);
+		}
+
+		template <typename iMath>
+		static real_t loss(const realmtx_t& activations, const realmtx_t& data_y, iMath& m)noexcept {
+			static_assert(std::is_base_of<math::_i_math<real_t>, iMath>::value, "iMath should implement math::_i_math");
+			return m.loss_quadratic(activations, data_y);
+		}
+	};
+
+
+	//////////////////////////////////////////////////////////////////////////
+	//////////////////////////////////////////////////////////////////////////
+	//stepwise activation: y = 0|x<0 & 1|x>=0
+	template<typename RealT = d_interfaces::real_t, typename WeightsInitScheme = weights_init::He_Zhang<>>
+	class step : public _i_activation<RealT> {
+		step() = delete;
+		~step() = delete;
+	public:
+		typedef WeightsInitScheme weights_scheme;
+
+	public:
+		//apply f to each srcdest matrix element to compute activation values. The biases (if any) must be left untouched!
+		template <typename iMath>
+		static void f(realmtx_t& srcdest, iMath& m) noexcept {
+			static_assert(std::is_base_of<math::_i_math<real_t>, iMath>::value, "iMath should implement math::_i_math");
+			m.step(srcdest);
+		};
+		template <typename iMath>
+		static void df(realmtx_t& f_df, iMath& m) noexcept {
+			static_assert(std::is_base_of<math::_i_math<real_t>, iMath>::value, "iMath should implement math::_i_math");
+			NNTL_ASSERT(!f_df.emulatesBiases());
+			f_df.zeros();
+		}
+	};
 }
 }
