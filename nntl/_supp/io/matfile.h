@@ -76,8 +76,8 @@ namespace nntl_supp {
 			EmptyVariableHasBeenRead,
 			NoMemoryToCreateReadVariable,
 			WrongStateStructUnsaved,
-			WrongStateManualStructUnsaved
-
+			WrongStateManualStructUnsaved,
+			FailedToAssignDestinationVar //it can be used by calling code
 		};
 
 		//TODO: table lookup would be better here. But it's not essential
@@ -102,6 +102,7 @@ namespace nntl_supp {
 			case NoMemoryToCreateReadVariable: return NNTL_STRING("Variable has been read, but can't be created because of lack memory");
 			case WrongStateStructUnsaved: return NNTL_STRING("Wrong state, structure stack is not empty");
 			case WrongStateManualStructUnsaved: return NNTL_STRING("Wrong state, manual structure saving stack is not empty");
+			case FailedToAssignDestinationVar: return NNTL_STRING("Failed to assign destination variable");
 
 			default: NNTL_ASSERT(!"WTF?"); return NNTL_STRING("Unknown code.");
 			}

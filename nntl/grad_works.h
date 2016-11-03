@@ -328,15 +328,27 @@ namespace nntl {
 			//_flags_default();//same for flags
 		}
 
-		void pre_training_fprop(realmtx_t& weights) noexcept {
+		void pre_training_fprop(realmtxdef_t& weights) noexcept {
 			if (use_nesterov_momentum()) {
 				// (1)  vW`(t+1)= momentum*vW(t)
 				// (2)  W`(t+1) = W(t) - momentum*vW(t)
 				//				= W(t) - vW`(t+1)
+				auto& iM = get_iMath();
 				auto& iI = get_iInspect();
 				iI.fprop_preNesterovMomentum(m_Vw, m_momentum, weights);
-				get_iMath().evMulC_ip_Sub_ip(m_Vw, m_momentum, weights);
+				iM.evMulC_ip_Sub_ip(m_Vw, m_momentum, weights);
 				iI.fprop_postNesterovMomentum(m_Vw, weights);
+
+				//this might seems unnecessary, because weights will be normalized during apply_grad(), however note this:
+				//Nesterov momentum might change weights vectors significantly and if it'll make weight vector norm significantly bigger
+				// than max_norm, it may seriously affect preformance of an optimizer, that uses some function from
+				// weights (such as in Adam or RMSProp)
+				if (use_max_norm_regularization()) {
+					const bool bIgnoreBiases = m_flags[f_MaxNormRegIgnoreBias];
+					if (bIgnoreBiases) weights.hide_last_col();
+					iM.mCheck_normalize_rows(weights, m_maxWeightVecNorm);
+					if (bIgnoreBiases) weights.restore_last_col();
+				}
 			}
 		}
 
@@ -584,6 +596,7 @@ namespace nntl {
 			m_flags[f_L1RegIgnoreBias] = bIgnoreBiasWeights;
 			return *this;
 		}
+		const real_t L1()const noexcept { return m_L1; }
 		//L2 is just good)
 		self_t& L2(real_t l2, const bool bIgnoreBiasWeights = defRegularizersIgnoresBiasWeights)noexcept {
 			NNTL_ASSERT(l2 >= real_t(0.0));
@@ -593,6 +606,7 @@ namespace nntl {
 			m_flags[f_L2RegIgnoreBias] = bIgnoreBiasWeights;
 			return *this;
 		}
+		const real_t L2()const noexcept { return m_L2; }
 
 		const bool use_momentums()const noexcept { return m_flags[f_UseMomentum]; } // m_momentum > real_t(0.0);
 		const bool nesterov_momentum()const noexcept { return m_flags[f_UseNesterovMomentum]; }

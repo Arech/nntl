@@ -354,7 +354,7 @@ namespace nntl {
 				_check_err(ar.save_struct_begin(get_self()._layer_name(), false, bIgnoreLayersNesting), "on_fprop_begin: save_struct_begin");
 			}
 
-			void fprop_preNesterovMomentum(const realmtx_t& vW, const real_t momentum, const realmtx_t& W)const noexcept {
+			/*void fprop_preNesterovMomentum(const realmtx_t& vW, const real_t momentum, const realmtx_t& W)const noexcept {
 				if (bDoDump(m_curLayer)) {
 					_verbalize("fprop_preNesterovMomentum");
 					auto& ar = getArchive();
@@ -363,7 +363,7 @@ namespace nntl {
 					ar & serialization::make_nvp("f_preNM_momentum", momentum);
 					_check_err(ar.get_last_error(), "fprop_preNesterovMomentum: saving momentum");
 				}
-			}
+			}*/
 
 			void on_fprop_end(const realmtx_t& A)const noexcept {
 				_verbalize("on_fprop_end");
