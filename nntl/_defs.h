@@ -35,13 +35,15 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //with a compiler switch.
 
 //Microsoft compiler only definition
-#define nntl_deprecated(msg) __declspec(deprecated(msg))
+//#define nntl_deprecated(msg) __declspec(deprecated(msg))
+//This def should work cross-platform
+#define nntl_deprecated(msg) [[deprecated(msg)]]
 //use of #pragma deprecated () is more standard, but makes all uses of symbol even in derived classes deprecated
 // - clearly not what we need
 
 //if it breaks compilation because of non-standard definition of nntl_deprecated, just make it blank
 // (and remove subsequent pragma) and make sure there is no code for protected by this macro definitions
-#define nntl_interface nntl_deprecated("used for interface definition only. Never call it directly!")
+#define nntl_interface nntl_deprecated("is used for an interface definition only. Never call it directly!")
 #pragma warning(error:996)
 
 //__forceinline is MS-specific. Should branch on a compiler here

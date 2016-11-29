@@ -426,7 +426,7 @@ namespace nntl {
 			NNTL_ASSERT(real_t(0.) < dpa && dpa <= real_t(1.));
 			if (dpa <= real_t(+0.) || dpa > real_t(1.)) dpa = real_t(1.);
 			m_dropoutPercentActive = dpa;
-			if (!_check_init_dropout()) {
+			if (!get_self()._check_init_dropout()) {
 				NNTL_ASSERT(!"Failed to init dropout, probably no memory");
 				abort();
 			}
@@ -436,7 +436,7 @@ namespace nntl {
 
 	protected:
 		const bool _check_init_dropout()noexcept {
-			if (get_self().get_training_batch_size() > 0 && bDropout()) {
+			if (get_self().has_common_data() && get_self().get_training_batch_size() > 0 && get_self().bDropout()) {
 				NNTL_ASSERT(!m_dropoutMask.emulatesBiases());
 				return m_dropoutMask.resize(get_self().get_training_batch_size(), get_self().get_neurons_cnt());
 			}

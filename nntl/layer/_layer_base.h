@@ -65,6 +65,17 @@ namespace nntl {
 		std::forward<Func>(F)(l);
 	}
 
+	template<typename Func, typename LayerT> inline
+		std::enable_if_t<is_layer_pack<LayerT>::value> call_F_for_each_layer_down(Func&& F, LayerT& l)noexcept
+	{
+		l.for_each_layer_down(std::forward<Func>(F));
+	}
+	template<typename Func, typename LayerT> inline
+		std::enable_if_t<!is_layer_pack<LayerT>::value> call_F_for_each_layer_down(Func&& F, LayerT& l)noexcept
+	{
+		std::forward<Func>(F)(l);
+	}
+
 	//////////////////////////////////////////////////////////////////////////
 	//////////////////////////////////////////////////////////////////////////
 	// layer with ::grad_works_t type defined is expected to have m_gradientWorks member

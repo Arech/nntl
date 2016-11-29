@@ -135,7 +135,8 @@ namespace _impl {
 		_common_data_consumer()noexcept : m_pCommonData(nullptr) {}
 
 		//////////////////////////////////////////////////////////////////////////
-		// helpers to access common data 
+		// helpers to access common data
+		const bool has_common_data()const noexcept { return !!m_pCommonData; }
 		const common_data_t& get_common_data()const noexcept {
 			NNTL_ASSERT(m_pCommonData);
 			return *m_pCommonData;

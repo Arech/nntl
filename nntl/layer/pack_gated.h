@@ -155,6 +155,10 @@ namespace nntl {
 		void for_each_layer(_Func&& f)const noexcept {
 			call_F_for_each_layer(std::forward<_Func>(f), m_undLayer);
 		}
+		template<typename _Func>
+		void for_each_layer_down(_Func&& f)const noexcept {
+			call_F_for_each_layer_down(std::forward<_Func>(f), m_undLayer);
+		}
 
 		underlying_layer_t& underlying_layer()const noexcept { return m_undLayer; }
 		const gating_layer_t& gating_layer()const noexcept { return m_gatingLayer; }

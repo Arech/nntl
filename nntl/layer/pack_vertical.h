@@ -149,6 +149,13 @@ namespace nntl {
 				call_F_for_each_layer(std::forward<_Func>(func), l);
 			});
 		}
+		template<typename _Func>
+		void for_each_layer_down(_Func&& f)const noexcept {
+			utils::for_each_down(m_layers, [&func{ std::forward<_Func>(f) }](auto& l)noexcept {
+				call_F_for_each_layer_down(std::forward<_Func>(func), l);
+			});
+		}
+
 		//This will apply f to every layer, packed in tuple no matter whether it is a _pack_* kind of layer or no
 		template<typename _Func>
 		void for_each_packed_layer(_Func&& f)const noexcept {

@@ -82,10 +82,10 @@ namespace nntl {
 		real_t mulDecr, mulIncr, capLow, capHigh;
 
 		ILR()noexcept:mulDecr(real_t(0.0)), mulIncr(real_t(0.0)), capLow(real_t(0.0)), capHigh(real_t(0.0)) {}
-		ILR(real_t decr, real_t incr, real_t cLow, real_t cHigh)noexcept:mulDecr(decr), mulIncr(incr), capLow(cLow), capHigh(cHigh) {
+		ILR(const real_t decr, const real_t incr, const real_t cLow, const real_t cHigh)noexcept:mulDecr(decr), mulIncr(incr), capLow(cLow), capHigh(cHigh) {
 			NNTL_ASSERT((decr > 0 && decr < 1 && incr > 1 && cHigh > cLow && cLow > 0) || (decr == 0 && incr == 0 && cHigh == 0 && cLow == 0));
 		}
-		void set(real_t decr, real_t incr, real_t cLow, real_t cHigh)noexcept {
+		void set(const real_t decr, const real_t incr, const real_t cLow, const real_t cHigh)noexcept {
 			NNTL_ASSERT((decr > 0 && decr < 1 && incr > 1 && cHigh > cLow && cLow > 0) || (decr == 0 && incr == 0 && cHigh == 0 && cLow == 0));
 			mulDecr = decr;
 			mulIncr = incr;
@@ -93,7 +93,11 @@ namespace nntl {
 			capHigh = cHigh;
 		}
 		void clear()noexcept { set(real_t(0.0), real_t(0.0), real_t(0.0), real_t(0.0)); }
-		const bool bUseMe()const noexcept { return mulDecr > real_t(0.0); }
+		const bool bUseMe()const noexcept { 
+			NNTL_ASSERT((mulDecr > real_t(0.0) && mulIncr > real_t(0.0) && capLow > real_t(0.0) && capHigh > real_t(0.0))
+				|| (mulDecr == real_t(0.0) && mulIncr == real_t(0.0) && capLow == real_t(0.0) && capHigh == real_t(0.0)));
+			return mulDecr > real_t(0.0);
+		}
 
 		//////////////////////////////////////////////////////////////////////////
 		//Serialization support
@@ -168,7 +172,7 @@ namespace nntl {
 			// Steps (1)-(2) done during pre_training_fprop(), steps (3)-(4) - during apply_grad()
 
 			f_UseILR,
-			f_ApplyILRToMomentumVelocity,//Geoffrey Hinton said for momentum method, that it's good to calculate
+			f_ApplyILRToMomentum,//Geoffrey Hinton said for momentum method, that it's good to calculate
 			// individual learning rates based on agreement in signs of accumulated momentum velocity and current gradient value.
 			// However, this may lead to vanishing gradient gains and very small gradient value, when accumulated momentum
 			// velocity was pretty big. It would require significantly more time to decrease and reverse the velocity with
@@ -216,9 +220,6 @@ namespace nntl {
 
 		//////////////////////////////////////////////////////////////////////////
 		// some static constants to make code consistent
-		
-		static constexpr bool defApplyILR2MomentumVelocity = false;//true value for this setting may prevent setups with ILR,
-		//dropout & momentum to learn correctly.
 
 		static constexpr bool defRegularizersIgnoresBiasWeights = true;
 
@@ -255,14 +256,14 @@ namespace nntl {
 				if (use_momentums()) ar & NNTL_SERIALIZATION_NVP(m_Vw);
 				if (use_individual_learning_rates()) {
 					ar & NNTL_SERIALIZATION_NVP(m_ILRGain);
-					if (!use_momentums() | !m_flags[f_ApplyILRToMomentumVelocity]) ar & NNTL_SERIALIZATION_NVP(m_prevdLdW);
+					if (!use_momentums() | !m_flags[f_ApplyILRToMomentum]) ar & NNTL_SERIALIZATION_NVP(m_prevdLdW);
 				}
 			}
 		}
 
 	protected:
 		void _flags_default()noexcept {
-			m_flags.set(f_FirstRun).set(f_UseNesterovMomentum).set(f_ApplyILRToMomentumVelocity);
+			m_flags.set(f_FirstRun).set(f_UseNesterovMomentum).reset(f_ApplyILRToMomentum);
 		}
 
 	public:
@@ -304,7 +305,7 @@ namespace nntl {
 
 			if (use_individual_learning_rates()) {
 				if (!m_ILRGain.resize(weightsSize))return false;
-				if ((!use_momentums() | !m_flags[f_ApplyILRToMomentumVelocity]) && !m_prevdLdW.resize(weightsSize))return false;
+				if ((!use_momentums() | !m_flags[f_ApplyILRToMomentum]) && !m_prevdLdW.resize(weightsSize))return false;
 				m_ILRGain.ones();
 			}
 
@@ -316,7 +317,7 @@ namespace nntl {
 		void deinit() noexcept {
 			clean_common_data();
 			
-			//#TODO: current cleanup code is not compatible with multiple nnet::train() calls
+			//#TODO: current cleanup code is not compatible with sequential nnet::train() calls
 
 			m_Vw.clear();
 			m_optMtxA.clear();
@@ -443,14 +444,12 @@ namespace nntl {
 
 			const auto bUseMomentums = use_momentums();
 			if (use_individual_learning_rates()) {
-				const auto bUseVelocity = bUseMomentums & m_flags[f_ApplyILRToMomentumVelocity];
+				const auto bUseVelocity = bUseMomentums & m_flags[f_ApplyILRToMomentum];
+				NNTL_ASSERT(bUseVelocity || m_prevdLdW.size() == dLdW.size());
 				if (!bFirstRun) {
 					iM.apply_ILR(dLdW, bUseVelocity ? m_Vw : m_prevdLdW, m_ILRGain, m_ILR.mulDecr, m_ILR.mulIncr, m_ILR.capLow, m_ILR.capHigh);
 				}
-				if (!bUseVelocity) {
-					NNTL_ASSERT(dLdW.size() == m_prevdLdW.size());
-					dLdW.cloneTo(m_prevdLdW);
-				}
+				if (!bUseVelocity) dLdW.cloneTo(m_prevdLdW);
 			}
 
 			bool bApplydLdW2Weights = true;
@@ -530,9 +529,14 @@ namespace nntl {
 		}
 		const real_t learning_rate()const noexcept { return m_learningRate; }
 
-		self_t& set_ILR(real_t decr, real_t incr, real_t capLow, real_t capHigh) noexcept {
+		self_t& set_ILR(const real_t decr, const real_t incr, const real_t capLow, const real_t capHigh) noexcept {
 			m_ILR.set(decr, incr, capLow, capHigh);
 			m_flags[f_UseILR] = m_ILR.bUseMe();
+			return *this;
+		}
+		self_t& clear_ILR() noexcept {
+			m_ILR.clear();
+			m_flags[f_UseILR] = false;
 			return *this;
 		}
 		self_t& set_ILR(const ILR<real_t>& ilr) noexcept {
@@ -540,42 +544,54 @@ namespace nntl {
 			m_flags[f_UseILR] = m_ILR.bUseMe();
 			return *this;
 		}
-		self_t& momentum(real_t m, bool bApplyILRToMomentumVelocity = defApplyILR2MomentumVelocity)noexcept {
+		//static constexpr bool defApplyILR2MomentumVelocity = false;//true value for this setting may prevent setups with ILR,
+		//dropout & momentum to learn correctly.
+		self_t& applyILRToMomentum(const bool b)noexcept {
+			m_flags[f_ApplyILRToMomentum] = b;
+			if (!use_momentums() | !b) {
+				if (m_ILRGain.rows() > 0 && m_ILRGain.cols() > 0 && !m_prevdLdW.resize(m_ILRGain)) {
+					//#TODO: correct error return
+					STDCOUTL("Failed to resize m_prevdLdW");
+					abort();
+				}
+			}
+			return *this;
+		}
+
+		self_t& momentum(const real_t m)noexcept {
 			NNTL_ASSERT(m >= 0 && m < 1);
 			m_momentum = m;
 			m_flags[f_UseMomentum] = m_momentum > real_t(0.0);
 			m_flags.reset(f_UseNesterovMomentum);
-			m_flags[f_ApplyILRToMomentumVelocity] = bApplyILRToMomentumVelocity;
 			return *this;
 		}
-		self_t& nesterov_momentum(real_t m, bool bApplyILRToMomentumVelocity = defApplyILR2MomentumVelocity)noexcept {
+		self_t& nesterov_momentum(const real_t m)noexcept {
 			NNTL_ASSERT(m >= 0 && m < 1);
 			m_momentum = m;
 			m_flags[f_UseMomentum] = m_momentum > real_t(0.0);
 			m_flags.set(f_UseNesterovMomentum);
-			m_flags[f_ApplyILRToMomentumVelocity] = bApplyILRToMomentumVelocity;
 			return *this;
 		}
 
-		self_t& beta1(real_t c)noexcept {
+		self_t& beta1(const real_t c)noexcept {
 			NNTL_ASSERT(c > 0 && c < 1);
 			m_optBeta1 = c;
 			return *this;
 		}
 		const real_t beta1()const noexcept { return m_optBeta1; }
-		self_t& beta2(real_t c)noexcept {
+		self_t& beta2(const real_t c)noexcept {
 			NNTL_ASSERT(c > 0 && c < 1);
 			m_optBeta2 = c;
 			return *this;
 		}
 		const real_t beta2()const noexcept { return m_optBeta2; }
 
-		self_t& numeric_stabilizer(real_t n)noexcept {
+		self_t& numeric_stabilizer(const real_t n)noexcept {
 			NNTL_ASSERT(n >= 0 && n < real_t(1.));
 			m_numericStabilizerEps = n;
 			return *this;
 		}
-		self_t& set_type(GradType gt)noexcept {
+		self_t& set_type(const GradType gt)noexcept {
 			m_type = gt;
 			return *this;
 		}
@@ -588,7 +604,7 @@ namespace nntl {
 			return *this;
 		}
 		//L1 is good for sparse signals
-		self_t& L1(real_t l1, const bool bIgnoreBiasWeights = defRegularizersIgnoresBiasWeights)noexcept {
+		self_t& L1(const real_t l1, const bool bIgnoreBiasWeights = defRegularizersIgnoresBiasWeights)noexcept {
 			NNTL_ASSERT(l1 >= real_t(0.0));
 			m_L1 = l1;
 			m_actualL1 = math::sign(m_learningRate)*m_L1;
@@ -598,7 +614,7 @@ namespace nntl {
 		}
 		const real_t L1()const noexcept { return m_L1; }
 		//L2 is just good)
-		self_t& L2(real_t l2, const bool bIgnoreBiasWeights = defRegularizersIgnoresBiasWeights)noexcept {
+		self_t& L2(const real_t l2, const bool bIgnoreBiasWeights = defRegularizersIgnoresBiasWeights)noexcept {
 			NNTL_ASSERT(l2 >= real_t(0.0));
 			m_L2 = l2;
 			m_actualL2 = math::sign(m_learningRate)*m_L2;
@@ -614,6 +630,7 @@ namespace nntl {
 		const bool use_classical_momentum()const noexcept { return m_flags[f_UseMomentum] & (!m_flags[f_UseNesterovMomentum]); }
 
 		const bool use_individual_learning_rates()const noexcept { return m_flags[f_UseILR]; }  // m_ILR.bUseMe(); }
+		const bool applyILRToMomentum()const noexcept { return m_flags[f_ApplyILRToMomentum]; }
 
 		const bool use_max_norm_regularization()const noexcept { return m_flags[f_UseMaxNorm]; } // m_maxWeightVecNorm > real_t(0.0); }
 		const bool use_L1_regularization()const noexcept { return m_flags[f_UseL1]; }

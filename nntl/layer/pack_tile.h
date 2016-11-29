@@ -206,6 +206,11 @@ namespace nntl {
 			call_F_for_each_layer(std::forward<_Func>(f), m_tiledLayer);
 		}
 
+		template<typename _Func>
+		void for_each_layer_down(_Func&& f)const noexcept {
+			call_F_for_each_layer_down(std::forward<_Func>(f), m_tiledLayer);
+		}
+
 		//should return true, if the layer has a value to add to Loss function value (there's some regularizer attached)
 		bool hasLossAddendum()const noexcept { return m_tiledLayer.hasLossAddendum(); }
 

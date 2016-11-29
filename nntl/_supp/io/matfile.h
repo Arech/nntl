@@ -311,8 +311,9 @@ namespace nntl_supp {
 			return ec;
 		}
 
+
 		//////////////////////////////////////////////////////////////////////////
-		// use the following function for test purposes only
+		// use the following function only when you know what you're doing
 		void _drop_last_error()noexcept {
 			m_curVarName = nullptr;
 			_set_last_error(ErrorCode::Success);
@@ -418,7 +419,7 @@ namespace nntl_supp {
 				} else {
 					m_curVarName = t.name();
 					get_self() >> t.value();
-					NNTL_ASSERT(m_curVarName == nullptr);// m_curVarName must be cleaned by saver code if it succeded.
+					NNTL_ASSERT(m_curVarName == nullptr || get_last_error() != ErrorCode::Success);// m_curVarName must be cleaned by saver code if it succeded.
 														 //DON'T _set_last_error here, or it'll overwrite the value set by get_self() << t.const_value();
 				}
 			} else _set_last_error(ErrorCode::NoFileOpened);
@@ -441,7 +442,7 @@ namespace nntl_supp {
 						if (1 == r && 1 == c) {
 							m_structureStack.push(pNewStruct);
 							get_self() >> t.value();
-							NNTL_ASSERT(m_curVarName == nullptr);// m_curVarName must be cleaned by saver code if it succeded.
+							NNTL_ASSERT(m_curVarName == nullptr || get_last_error() != ErrorCode::Success);// m_curVarName must be cleaned by saver code if it succeded.
 																 //now save it to file
 							m_structureStack.pop();
 						} else  ec = ErrorCode::WrongVariableTypeHasBeenRead;
