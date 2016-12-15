@@ -61,6 +61,28 @@ namespace nntl {
 				static constexpr bool on_train_batchBegin(const bool _bDoDump, const vec_len_t batchIdx, const size_t epochIdx) noexcept {
 					return _bDoDump && 0 == batchIdx;
 				}
+				static constexpr bool on_train_calcErr(const size_t epochIdx, const bool bOnTrainSet) noexcept { return false; };
+			};
+
+			struct CalcErrByEpochNum : public EpochNum {
+				typedef EpochNum parent_t;
+				bool bDumpInitialErr;
+
+				void on_init_nnet(const size_t totalEpochs, const vec_len_t totalBatches)noexcept {
+					parent_t::on_init_nnet(totalEpochs, totalBatches);
+					bDumpInitialErr = std::any_of(m_epochsToDump.begin(), m_epochsToDump.end(), [](const auto& V)->bool {
+						return V == static_cast<size_t>(-1);
+					});
+				}
+
+				static constexpr bool on_train_epochBegin(const size_t epochIdx) noexcept { return false; }
+				static constexpr bool on_train_batchBegin(const bool _bDoDump, const vec_len_t batchIdx, const size_t epochIdx) noexcept {
+					return false;
+				}
+
+				const bool on_train_calcErr(const size_t epochIdx, const bool bOnTrainSet)const noexcept {
+					return bOnTrainSet && (epochIdx == static_cast<size_t>(-1) ? bDumpInitialErr : m_dumpEpochCond(epochIdx));
+				}
 			};
 
 			//useful to debug initial training steps
@@ -80,8 +102,8 @@ namespace nntl {
 				const bool on_train_batchBegin(const bool _bDoDump, const vec_len_t batchIdx, const size_t epochIdx) noexcept {
 					return batchesRun < maxBatches && !(batchesRun++ % stride);
 				}
+				static constexpr bool on_train_calcErr(const size_t epochIdx, const bool bOnTrainSet) noexcept { return false; };
 			};
-
 		}
 
 		
@@ -195,22 +217,40 @@ namespace nntl {
 				}
 			}
 
+			enum class _ToDump {
+				FProp=0,
+				BProp,
+				CalcErrTrainset,
+				CalcErrTestset
+			};
+
 			template<bool b = bSplitFiles>
-			std::enable_if_t<b> _make_file_name(char* n, const size_t ml, const bool bFprop)const noexcept {
+			std::enable_if_t<b> _make_file_name(char* n, const size_t ml, const _ToDump omode)const noexcept {
 				NNTL_ASSERT(m_pDirToDump);
 				if (!m_pDirToDump) _epic_fail("m_pDirToDump is not set!");
-				sprintf_s(n, ml, bFprop ? "%s/epoch%zd_%df.mat" : "%s/epoch%zd_%db.mat", m_pDirToDump, m_epochIdx + 1, m_batchIdx);
+				if (omode == _ToDump::FProp || omode == _ToDump::BProp) {
+					sprintf_s(n, ml, omode == _ToDump::FProp ? "%s/epoch%zd_%df.mat" : "%s/epoch%zd_%db.mat"
+						, m_pDirToDump, m_epochIdx + 1, m_batchIdx);
+				} else {
+					sprintf_s(n, ml, omode == _ToDump::CalcErrTrainset ? "%s/epoch%zd_train.mat" : "%s/epoch%zd_test.mat"
+						, m_pDirToDump, m_epochIdx + 1);
+				}
 			}
 			template<bool b = bSplitFiles>
-			std::enable_if_t<!b> _make_file_name(char* n, const size_t ml, const bool bFprop)const noexcept {
+			std::enable_if_t<!b> _make_file_name(char* n, const size_t ml, const _ToDump omode)const noexcept {
 				NNTL_ASSERT(m_pDirToDump);
 				if (!m_pDirToDump) _epic_fail("m_pDirToDump is not set!");
-				sprintf_s(n, ml, "%s/epoch%zd_%d.mat", m_pDirToDump, m_epochIdx + 1, m_batchIdx);
+				if (omode == _ToDump::FProp || omode == _ToDump::BProp) {
+					sprintf_s(n, ml, "%s/epoch%zd_%d.mat", m_pDirToDump, m_epochIdx + 1, m_batchIdx);
+				} else {
+					sprintf_s(n, ml, omode == _ToDump::CalcErrTrainset ? "%s/epoch%zd_train.mat" : "%s/epoch%zd_test.mat"
+						, m_pDirToDump, m_epochIdx + 1);
+				}
 			}
 
-			self_ref_t _open_archive(const bool bFprop=false)noexcept {
+			self_ref_t _open_archive(const _ToDump omode)noexcept {
 				char n[maxFileNameLength];
-				_make_file_name(n, maxFileNameLength, bFprop);
+				_make_file_name(n, maxFileNameLength, omode);
 				_check_err(get_self().getArchive().open(n, archive_t::FileOpenMode::UpdateDelete), "Opening file for updating");				
 				return get_self();
 			}
@@ -221,6 +261,8 @@ namespace nntl {
 			//default implementations
 			void on_train_batchBegin(const vec_len_t batchIdx) const noexcept {}
 			void on_train_batchEnd()const noexcept {}
+			void on_train_preCalcError(const bool bOnTrainSet)const noexcept {}
+			void on_train_postCalcError()const noexcept {}
 			void on_train_preFprop(const realmtx_t& data_x)const noexcept {}
 			void on_train_preBprop(const realmtx_t& data_y)const noexcept {}
 			void on_fprop_begin(const layer_index_t lIdx, const realmtx_t& prevAct, const bool bTrainingMode) const noexcept {}
@@ -256,6 +298,8 @@ namespace nntl {
 				NNTL_ASSERT(totalLayers && totalEpochs && totalBatches);
 				m_layersCount = totalLayers;
 				m_bDoDump = false;
+				m_epochIdx = -1;
+				m_batchIdx = -1;
 
 				//#exceptions STL
 				m_layerNames.clear();
@@ -281,11 +325,11 @@ namespace nntl {
 				m_bDoDump = m_condDump.on_train_epochBegin(epochIdx);
 			}
 			void train_batchBegin(const vec_len_t batchIdx) noexcept {
-				m_batchIdx = batchIdx;
 				m_bDoDump = m_condDump.on_train_batchBegin(m_bDoDump, batchIdx, m_epochIdx);
 				if (m_bDoDump) {
-					STDCOUTL("Going to dump the dataflow...");
-					get_self()._open_archive(true)
+					m_batchIdx = batchIdx;
+					STDCOUTL("Going to dump the training dataflow...");
+					get_self()._open_archive(_ToDump::FProp)
 						.on_train_batchBegin(batchIdx);
 				}
 			}
@@ -293,7 +337,7 @@ namespace nntl {
 			void train_preBprop(const realmtx_t& data_y) noexcept {
 				if (m_bDoDump) {
 					if (bSplitFiles) get_self()._close_archive()
-						._open_archive(false);
+						._open_archive(_ToDump::BProp);
 
 					get_self().on_train_preBprop(data_y);
 				}
@@ -303,9 +347,25 @@ namespace nntl {
 				if (m_bDoDump) {
 					get_self().on_train_batchEnd();
 					get_self()._close_archive();
+					m_bDoDump = false;
 				}
-				m_bDoDump = false;
 			}
+
+			void train_preCalcError(const bool bOnTrainSet) noexcept {
+				m_bDoDump = m_condDump.on_train_calcErr(m_epochIdx, bOnTrainSet);
+				if (m_bDoDump) {
+					STDCOUTL("Going to dump the calc error dataflow...");
+					get_self()._open_archive(bOnTrainSet ? _ToDump::CalcErrTrainset : _ToDump::CalcErrTestset);
+					get_self().on_train_preCalcError(bOnTrainSet);
+				}
+			};
+			void train_postCalcError()noexcept {
+				if (m_bDoDump) {
+					get_self().on_train_postCalcError();
+					get_self()._close_archive();
+					m_bDoDump = false;
+				}
+			};
 
 			//////////////////////////////////////////////////////////////////////////
 			// dumping functions implies that m_bDoDump is changed only during train_*() calls
@@ -313,7 +373,7 @@ namespace nntl {
 				//m_bDoDump = m_bDoDump && bTrainingMode;
 				//we shouldn't update m_bDoDump here, because it's already set by train_batchBegin(). bTrainingMode
 				// is guaranteed to be true when m_bDoDump==true
-				NNTL_ASSERT(!m_bDoDump || bTrainingMode);
+				//NNTL_ASSERT(!m_bDoDump || bTrainingMode);
 				m_curLayer.push(lIdx);
 				if (bDoDump(lIdx)) get_self().on_fprop_begin(lIdx, prevAct, bTrainingMode);
 			}
@@ -348,7 +408,7 @@ namespace nntl {
 			//NB: every _i_inspector's function implementation (they aren't staring with on_) should check if bDoDump() first
 			
 			void on_fprop_begin(const layer_index_t lIdx, const realmtx_t& prevAct, const bool bTrainingMode) const noexcept {
-				NNTL_ASSERT(bTrainingMode);
+				//NNTL_ASSERT(bTrainingMode);
 				_verbalize("on_fprop_begin");
 				auto& ar = getArchive();
 				_check_err(ar.save_struct_begin(get_self()._layer_name(), false, bIgnoreLayersNesting), "on_fprop_begin: save_struct_begin");
@@ -365,6 +425,15 @@ namespace nntl {
 				}
 			}*/
 
+			void fprop_makePreActivations(const realmtx_t& W, const realmtx_t& prevAct)const noexcept {
+				if (bDoDump(m_curLayer)) {
+					_verbalize("fprop_makePreActivations");
+					auto& ar = getArchive();
+					ar & serialization::make_nvp("W", W);
+					_check_err(ar.get_last_error(), "fprop_makePreActivations: saving W");
+				}
+			}
+
 			void on_fprop_end(const realmtx_t& A)const noexcept {
 				_verbalize("on_fprop_end");
 				auto& ar = getArchive();				
@@ -377,13 +446,14 @@ namespace nntl {
 			//////////////////////////////////////////////////////////////////////////
 			//////////////////////////////////////////////////////////////////////////
 
-			void on_bprop_begin(const layer_index_t lIdx, const realmtx_t& dLdA)const noexcept {
+			/*void on_bprop_begin(const layer_index_t lIdx, const realmtx_t& dLdA)const noexcept {
 				_verbalize("on_bprop_begin");
 				auto& ar = getArchive();
 				_check_err (ar.save_struct_begin(get_self()._layer_name(), bSplitFiles ? false : true, bIgnoreLayersNesting),"on_bprop_begin: save_struct_begin");
-				ar & NNTL_SERIALIZATION_NVP(dLdA);
-				_check_err(ar.get_last_error(),"on_bprop_begin: saving dLdA");
-			}
+
+				/ *ar & NNTL_SERIALIZATION_NVP(dLdA);
+				_check_err(ar.get_last_error(),"on_bprop_begin: saving dLdA");* /
+			}*/
 
 			/*void bprop_dLdZ(const realmtx_t& dLdZ) const noexcept {
 				if (bDoDump(m_curLayer)) {
@@ -394,15 +464,16 @@ namespace nntl {
 				}
 			}*/
 
-			void apply_grad_begin(const realmtx_t& W, const realmtx_t& dLdW)const noexcept {
+			/*void apply_grad_begin(const realmtx_t& W, const realmtx_t& dLdW)const noexcept {
 				if (bDoDump(m_curLayer)) {
 					_verbalize("apply_grad_begin");
 					auto& ar = getArchive();
 					ar & NNTL_SERIALIZATION_NVP(dLdW);
 					_check_err(ar.get_last_error(), "apply_grad_begin: saving dLdW");
 				}
-			}
-			void apply_grad_update(const realmtx_t& W, const realmtx_t& WUpd)const noexcept {
+			}*/
+
+			/*void apply_grad_update(const realmtx_t& W, const realmtx_t& WUpd)const noexcept {
 				if (bDoDump(m_curLayer)) {
 					_verbalize("apply_grad_update");
 					auto& ar = getArchive();
@@ -412,12 +483,21 @@ namespace nntl {
 					ar & serialization::make_nvp("a_preUpd_WUpd",WUpd);
 					_check_err(ar.get_last_error(), "apply_grad_update: saving weight updates");
 				}
-			}
+			}*/
 
-			void on_bprop_end(const realmtx_t& dLdAPrev) const noexcept {
+			/*void apply_grad_end(const realmtx_t& W)const noexcept {
+				if (bDoDump(m_curLayer)) {
+					_verbalize("apply_grad_end");
+					auto& ar = getArchive();
+					ar & serialization::make_nvp("a_W", W);
+					_check_err(ar.get_last_error(), "apply_grad_end: saving weights");
+				}
+			}*/
+
+			/*void on_bprop_end(const realmtx_t& dLdAPrev) const noexcept {
 				_verbalize("on_bprop_end");
 				_check_err(getArchive().save_struct_end(), "on_bprop_end: save_struct_end");
-			}
+			}*/
 		};
 
 		template<typename RealT, typename ArchiveT, typename CondDumpT = conds::EpochNum, size_t maxNnetDepth = 32>

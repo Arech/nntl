@@ -1328,6 +1328,7 @@ namespace math {
 			while (pA != pAE) {
 				const auto x = *pA;
 				*pA++ = real_t(1.0) / (real_t(1.0) + std::exp(-x));
+
 			}
 		}
 		void sigm_mt(realmtx_t& srcdest) noexcept {
@@ -1531,7 +1532,8 @@ namespace math {
 				const auto v = *pV;
 				/*if (v < real_t(+0.0)) *pV = (std::exp(v) - real_t(1.0))*alpha;
 				++pV;*/
-				*pV++ = v < real_t(0.) ? (std::exp(v) - real_t(1.0))*alpha : v;
+				//*pV++ = v < real_t(0.) ? (std::exp(v) - real_t(1.0))*alpha : v;
+				*pV++ = v < real_t(0.) ? math::expm1(v)*alpha : v;
 			}
 		}
 		void elu_mt(realmtx_t& srcdest, const real_t alpha) noexcept {
@@ -1585,7 +1587,8 @@ namespace math {
 				const auto v = *pV;
 				/*if (v < real_t(+0.0)) *pV = (std::exp(v) - real_t(1.0));
 				++pV;*/
-				*pV++ = v < real_t(0.0) ? (std::exp(v) - real_t(1.0)) : v;
+				//*pV++ = v < real_t(0.0) ? (std::exp(v) - real_t(1.0)) : v;
+				*pV++ = v < real_t(0.0) ? math::expm1(v) : v;
 			}
 		}
 		void elu_unitalpha_mt(realmtx_t& srcdest) noexcept {
@@ -1635,12 +1638,13 @@ namespace math {
 			NNTL_ASSERT(!srcdest.empty());
 			NNTL_ASSERT(alpha > real_t(0.0));
 			NNTL_ASSERT(b > real_t(1.0));
-			const real_t lbi = real_t(1.) / log(b);
+			const real_t lbi = real_t(1.) / std::log(b);
 			auto pV = srcdest.data() + er.elmBegin;
 			const auto pVE = pV + er.totalElements();
 			while (pV != pVE) {
 				const auto v = *pV;
-				*pV++ = v < real_t(0.0) ? (std::exp(v) - real_t(1.))*alpha : log(v + real_t(1.))*lbi;
+				//*pV++ = v < real_t(0.0) ? (std::exp(v) - real_t(1.))*alpha : log(v + real_t(1.))*lbi;
+				*pV++ = v < real_t(0.0) ? math::expm1(v)*alpha : math::log1p(v)*lbi;
 			}
 		}
 		void elogu_mt(realmtx_t& srcdest, const real_t& alpha, const real_t& b) noexcept {
@@ -1666,8 +1670,8 @@ namespace math {
 			NNTL_ASSERT(b > real_t(1.0));
 			NNTL_ASSERT(!f_df.empty());
 
-			const double _lb = log(double(b));
-			const real_t nllb = -static_cast<real_t>(log(_lb)), nlb = -static_cast<real_t>(_lb);
+			const double _lb = std::log(double(b));
+			const real_t nllb = -static_cast<real_t>(std::log(_lb)), nlb = -static_cast<real_t>(_lb);
 
 			auto ptrDF = f_df.data() + er.elmBegin;
 			const auto ptrDFE = ptrDF + er.totalElements();
@@ -1698,12 +1702,13 @@ namespace math {
 		static void _ielogu_ua_st(realmtx_t& srcdest, const real_t& b, const elms_range& er) noexcept {
 			NNTL_ASSERT(!srcdest.empty());
 			NNTL_ASSERT(b > real_t(1.0));
-			const real_t lbi = real_t(1.) / log(b);
+			const real_t lbi = real_t(1.) / std::log(b);
 			auto pV = srcdest.data() + er.elmBegin;
 			const auto pVE = pV + er.totalElements();
 			while (pV != pVE) {
 				const auto v = *pV;
-				*pV++ = v < real_t(0.0) ? (std::exp(v) - real_t(1.)) : log(v + real_t(1.))*lbi;
+				//*pV++ = v < real_t(0.0) ? (std::exp(v) - real_t(1.)) : log(v + real_t(1.))*lbi;
+				*pV++ = v < real_t(0.0) ? math::expm1(v) : math::log1p(v)*lbi;
 			}
 		}
 		void elogu_ua_mt(realmtx_t& srcdest, const real_t& b) noexcept {
@@ -1727,8 +1732,8 @@ namespace math {
 			NNTL_ASSERT(b > real_t(1.0));
 			NNTL_ASSERT(!f_df.empty());
 
-			const double _lb = log(double(b));
-			const real_t nllb = -static_cast<real_t>(log(_lb)), nlb = -static_cast<real_t>(_lb);
+			const double _lb = std::log(double(b));
+			const real_t nllb = -static_cast<real_t>(std::log(_lb)), nlb = -static_cast<real_t>(_lb);
 
 			auto ptrDF = f_df.data() + er.elmBegin;
 			const auto ptrDFE = ptrDF + er.totalElements();
@@ -1762,7 +1767,8 @@ namespace math {
 			const auto pVE = pV + er.totalElements();
 			while (pV != pVE) {
 				const auto v = *pV;
-				*pV++ = v < real_t(0.0) ? (std::exp(v) - real_t(1.))*alpha : log(v + real_t(1.));
+				//*pV++ = v < real_t(0.0) ? (std::exp(v) - real_t(1.))*alpha : log(v + real_t(1.));
+				*pV++ = v < real_t(0.0) ? math::expm1(v)*alpha : math::log1p(v);
 			}
 		}
 		void elogu_nb_mt(realmtx_t& srcdest, const real_t& alpha) noexcept {
@@ -1816,7 +1822,8 @@ namespace math {
 			const auto pVE = pV + er.totalElements();
 			while (pV != pVE) {
 				const auto v = *pV;
-				*pV++ = v < real_t(0.0) ? (std::exp(v) - real_t(1.)) : log(v + real_t(1.));
+				//*pV++ = v < real_t(0.0) ? (std::exp(v) - real_t(1.)) : log(v + real_t(1.));
+				*pV++ = v < real_t(0.0) ? math::expm1(v) : math::log1p(v);
 			}
 		}
 		void elogu_ua_nb_mt(realmtx_t& srcdest) noexcept {
@@ -1866,7 +1873,7 @@ namespace math {
 			NNTL_ASSERT(!srcdest.empty());
 			NNTL_ASSERT(b_neg > real_t(1.0));
 			NNTL_ASSERT(b_pos > real_t(1.0));
-			const real_t lbposi = real_t(1.) / log(b_pos), nlbnegi = real_t(-1.) / log(b_neg);
+			const real_t lbposi = real_t(1.) / std::log(b_pos), nlbnegi = real_t(-1.) / std::log(b_neg);
 			auto pV = srcdest.data() + er.elmBegin;
 			const auto pVE = pV + er.totalElements();
 			while (pV != pVE) {
@@ -1874,7 +1881,7 @@ namespace math {
 				const auto isNeg = v < real_t(0.0);
 				const auto lv = isNeg ? (real_t(1.) - v) : (v + real_t(1.));
 				const auto bv = isNeg ? nlbnegi : lbposi;
-				*pV++ = bv*log(lv);
+				*pV++ = bv*std::log(lv);
 			}
 		}
 		void loglogu_mt(realmtx_t& srcdest, const real_t& b_neg, const real_t& b_pos) noexcept {
@@ -1899,9 +1906,9 @@ namespace math {
 			NNTL_ASSERT(b_neg > real_t(1.0));
 			NNTL_ASSERT(b_pos > real_t(1.0));
 			NNTL_ASSERT(!f_df.empty());
-			const double _lbpos = log(double(b_pos)), _lbneg = log(double(b_neg));
-			const real_t nllbpos = -static_cast<real_t>(log(_lbpos)), nlbpos = -static_cast<real_t>(_lbpos);
-			const real_t nllbneg = -static_cast<real_t>(log(_lbneg)), lbneg = static_cast<real_t>(_lbneg);
+			const double _lbpos = std::log(double(b_pos)), _lbneg = std::log(double(b_neg));
+			const real_t nllbpos = -static_cast<real_t>(std::log(_lbpos)), nlbpos = -static_cast<real_t>(_lbpos);
+			const real_t nllbneg = -static_cast<real_t>(std::log(_lbneg)), lbneg = static_cast<real_t>(_lbneg);
 			auto ptrDF = f_df.data() + er.elmBegin;
 			const auto ptrDFE = ptrDF + er.totalElements();
 			while (ptrDF != ptrDFE) {
@@ -1929,7 +1936,7 @@ namespace math {
 		static void _iloglogu_nbn_st(realmtx_t& srcdest, const real_t& b_pos, const elms_range& er) noexcept {
 			NNTL_ASSERT(!srcdest.empty());
 			NNTL_ASSERT(b_pos > real_t(1.0));
-			const real_t lbposi = real_t(1.) / log(b_pos);
+			const real_t lbposi = real_t(1.) / std::log(b_pos);
 			auto pV = srcdest.data() + er.elmBegin;
 			const auto pVE = pV + er.totalElements();
 			while (pV != pVE) {
@@ -1938,7 +1945,8 @@ namespace math {
 				const auto lv = isNeg ? (real_t(1.) - v) : (v + real_t(1.));
 				const auto bv = isNeg ? real_t(-1.) : lbposi;
 				*pV++ = bv*log(lv);*/
-				*pV++ = v < real_t(0.0) ? -log(real_t(1.) - v) : lbposi*log(v + real_t(1.));
+				//*pV++ = v < real_t(0.0) ? -log(real_t(1.) - v) : lbposi*log(v + real_t(1.));
+				*pV++ = v < real_t(0.0) ? -math::log1p(-v) : lbposi*math::log1p(v);
 			}
 		}
 		void loglogu_nbn_mt(realmtx_t& srcdest, const real_t& b_pos) noexcept {
@@ -1961,8 +1969,8 @@ namespace math {
 		static void _idloglogu_nbn_st(realmtx_t& f_df, const real_t& b_pos, const elms_range& er) noexcept {
 			NNTL_ASSERT(b_pos > real_t(1.0));
 			NNTL_ASSERT(!f_df.empty());
-			const double _lbpos = log(double(b_pos));
-			const real_t nllbpos = -static_cast<real_t>(log(_lbpos)), nlbpos = -static_cast<real_t>(_lbpos);
+			const double _lbpos = std::log(double(b_pos));
+			const real_t nllbpos = -static_cast<real_t>(std::log(_lbpos)), nlbpos = -static_cast<real_t>(_lbpos);
 			auto ptrDF = f_df.data() + er.elmBegin;
 			const auto ptrDFE = ptrDF + er.totalElements();
 			while (ptrDF != ptrDFE) {
@@ -1989,7 +1997,7 @@ namespace math {
 		static void _iloglogu_nbp_st(realmtx_t& srcdest, const real_t& b_neg, const elms_range& er) noexcept {
 			NNTL_ASSERT(!srcdest.empty());
 			NNTL_ASSERT(b_neg > real_t(1.0));			
-			const real_t nlbnegi = real_t(-1.) / log(b_neg);
+			const real_t nlbnegi = real_t(-1.) / std::log(b_neg);
 			auto pV = srcdest.data() + er.elmBegin;
 			const auto pVE = pV + er.totalElements();
 			while (pV != pVE) {
@@ -1998,7 +2006,8 @@ namespace math {
 				const auto lv = isNeg ? (real_t(1.) - v) : (v + real_t(1.));
 				const auto bv = isNeg ? nlbnegi : lbposi;
 				*pV++ = bv*log(lv);*/
-				*pV++ = v < real_t(0.0) ? nlbnegi*log(real_t(1.) - v) : log(v + real_t(1.));
+				//*pV++ = v < real_t(0.0) ? nlbnegi*log(real_t(1.) - v) : log(v + real_t(1.));
+				*pV++ = v < real_t(0.0) ? nlbnegi*math::log1p(-v) : math::log1p(v);
 			}
 		}
 		void loglogu_nbp_mt(realmtx_t& srcdest, const real_t& b_neg) noexcept {
@@ -2021,8 +2030,8 @@ namespace math {
 		static void _idloglogu_nbp_st(realmtx_t& f_df, const real_t& b_neg, const elms_range& er) noexcept {
 			NNTL_ASSERT(b_neg > real_t(1.0));			
 			NNTL_ASSERT(!f_df.empty());
-			const double _lbneg = log(double(b_neg));
-			const real_t nllbneg = -static_cast<real_t>(log(_lbneg)), lbneg = static_cast<real_t>(_lbneg);
+			const double _lbneg = std::log(double(b_neg));
+			const real_t nllbneg = -static_cast<real_t>(std::log(_lbneg)), lbneg = static_cast<real_t>(_lbneg);
 			auto ptrDF = f_df.data() + er.elmBegin;
 			const auto ptrDFE = ptrDF + er.totalElements();
 			while (ptrDF != ptrDFE) {
@@ -2056,7 +2065,8 @@ namespace math {
 				const auto lv = isNeg ? (real_t(1.) - v) : (v + real_t(1.));
 				const auto bv = isNeg ? nlbnegi : lbposi;
 				*pV++ = bv*log(lv);*/
-				*pV++ = v < real_t(0.0) ? -log(real_t(1.) - v) : log(v + real_t(1.));
+				//*pV++ = v < real_t(0.0) ? -log(real_t(1.) - v) : log(v + real_t(1.));
+				*pV++ = v < real_t(0.0) ? -math::log1p(-v) : math::log1p(v);
 			}
 		}
 		void loglogu_nbn_nbp_mt(realmtx_t& srcdest) noexcept {
@@ -2432,10 +2442,11 @@ namespace math {
 				NNTL_ASSERT(a >= real_t(0.0) && a <= real_t(1.0));
 
 				if (y > real_t(0.0)) {
-					ql += (a == real_t(0.0) ? log_zero : log(a));
+					ql += (a == real_t(0.0) ? log_zero : std::log(a));
 				} else {
-					const auto oma = real_t(1.0) - a;
-					ql += (oma == real_t(0.0) ? log_zero : log(oma));
+					//const auto oma = real_t(1.0) - a;
+					//ql += (oma == real_t(0.0) ? log_zero : log(oma));
+					ql += (a == real_t(1.0) ? log_zero : math::log1p(-a));
 				}
 				NNTL_ASSERT(!isnan(ql));
 			}

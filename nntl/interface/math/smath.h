@@ -39,6 +39,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "smath_thr.h"
 #include <algorithm>
 #include <numeric>
+#include "../../utils/denormal_floats.h"
 
 namespace nntl {
 namespace math {
@@ -127,7 +128,9 @@ namespace math {
 
 	public:
 		~_SMath()noexcept {}
-		_SMath()noexcept : m_minTempStorageSize(0) {}
+		_SMath()noexcept : m_minTempStorageSize(0) {
+			global_denormalized_floats_mode();
+		}
 
 		self_ref_t get_self() noexcept {
 			static_assert(std::is_base_of<_SMath<RealT, iThreadsT, ThresholdsT, FinalPolymorphChild>, FinalPolymorphChild>::value

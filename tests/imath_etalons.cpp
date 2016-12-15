@@ -240,10 +240,11 @@ real_t loss_sigm_xentropy_ET(const realmtx_t& activations, const realmtx_t& data
 		NNTL_ASSERT(a >= real_t(0.0) && a <= real_t(1.0));
 
 		if (y > real_t(0.0)) {
-			ql += (a == real_t(0.0) ? log_zero : log(a));
+			ql += (a == real_t(0.0) ? log_zero : std::log(a));
 		} else {
-			const auto oma = real_t(1.0) - a;
-			ql += (oma == real_t(0.0) ? log_zero : log(oma));
+			//const auto oma = real_t(1.0) - a;
+			//ql += (oma == real_t(0.0) ? log_zero : log(oma));
+			ql += (a == real_t(1.0) ? log_zero : std::log1p(-a));
 		}
 		NNTL_ASSERT(!isnan(ql));
 	}
@@ -376,7 +377,7 @@ void AdaMax_ET(realmtx_t& dW, realmtx_t& Mt, realmtx_t& Ut, real_t& beta1t, cons
 
 //////////////////////////////////////////////////////////////////////////
 
-real_t rowvecs_renorm_ET(realmtx_t& m, real_t* pTmp)noexcept {
+real_t rowvecs_renorm_ET(realmtx_t& m, const real_t newNormSq, real_t* pTmp)noexcept {
 	//calculate current norms of row-vectors into pTmp
 	const auto mRows = m.rows(), mCols = m.cols();
 	for (vec_len_t r = 0; r < mRows; ++r) {
@@ -392,9 +393,9 @@ real_t rowvecs_renorm_ET(realmtx_t& m, real_t* pTmp)noexcept {
 
 	//test and renormalize
 	//const real_t newNorm = meanNorm - sqrt(math::real_t_limits<real_t>::eps_lower_n(meanNorm, rowvecs_renorm_MULT));
-	const real_t newNorm = meanNorm - 2*sqrt(nntl::math::real_t_limits<real_t>::eps_lower(meanNorm));
+	const real_t newNorm = newNormSq - 2*sqrt(nntl::math::real_t_limits<real_t>::eps_lower(newNormSq));
 	for (vec_len_t r = 0; r < mRows; ++r) {
-		if (pTmp[r] > meanNorm) {
+		if (pTmp[r] > newNormSq) {
 			const real_t normCoeff = sqrt(newNorm / pTmp[r]);
 			real_t nn = 0;
 			for (vec_len_t c = 0; c < mCols; ++c) {
@@ -402,7 +403,7 @@ real_t rowvecs_renorm_ET(realmtx_t& m, real_t* pTmp)noexcept {
 				m.set(r, c, newV);
 				nn += newV*newV;
 			}
-			EXPECT_TRUE(nn <= meanNorm);
+			EXPECT_TRUE(nn <= newNormSq);
 		}
 	}
 	return meanNorm;
@@ -477,7 +478,8 @@ void elu_ET(realmtx_t& f, const real_t alpha) {
 	const auto p = f.data();
 	const auto ne = f.numel_no_bias();
 	for (numel_cnt_t i = 0; i < ne; ++i) {
-		if (p[i] < real_t(0.)) p[i] = alpha*(std::exp(p[i]) - real_t(1.));
+		//if (p[i] < real_t(0.)) p[i] = alpha*(std::exp(p[i]) - real_t(1.));
+		if (p[i] < real_t(0.)) p[i] = alpha*std::expm1(p[i]);
 	}
 }
 //#TODO: probably it's better to make df value out of plain x value instead of f(x). Update this and related functions and tests
@@ -496,19 +498,21 @@ void elogu_ET(const realmtx_t& x, realmtx_t& f, const real_t& alpha, const real_
 	const auto px = x.data();
 	const auto dest = f.data();
 	const auto ne = x.numel_no_bias();
-	const auto ilb = real_t(1.) / log(b);
+	const auto ilb = real_t(1.) / std::log(b);
 	for (numel_cnt_t i = 0; i < ne; ++i) {
 		const auto xv = px[i];
 		if (xv < real_t(0.)) {
-			dest[i] = alpha*(std::exp(xv) - real_t(1.));
+			//dest[i] = alpha*(std::exp(xv) - real_t(1.));
+			dest[i] = alpha*std::expm1(xv);
 		} else {
-			dest[i] = log(xv + real_t(1.))*ilb;
+			//dest[i] = log(xv + real_t(1.))*ilb;
+			dest[i] = std::log1p(xv)*ilb;
 		}
 	}
 }
 void delogu_ET(const realmtx_t& x, realmtx_t& df, const real_t& alpha, const real_t& b) {
 	NNTL_ASSERT(df.size() == x.size_no_bias());
-	const auto ilb = real_t(1.) / log(b);
+	const auto ilb = real_t(1.) / std::log(b);
 	const auto px = x.data();
 	const auto dest = df.data();
 	const auto ne = x.numel_no_bias();
@@ -534,15 +538,17 @@ void loglogu_ET(const realmtx_t& x, realmtx_t& f, const real_t& b_neg, const rea
 	const auto dest = f.data();
 	const auto ne = x.numel_no_bias();
 
-	const auto ilbpos = real_t(1.) / log(b_pos);
-	const auto nilbneg = real_t(-1.) / log(b_neg);
+	const auto ilbpos = real_t(1.) / std::log(b_pos);
+	const auto nilbneg = real_t(-1.) / std::log(b_neg);
 
 	for (numel_cnt_t i = 0; i < ne; ++i) {
 		const auto xv = px[i];
 		if (xv < real_t(0.)) {
-			dest[i] = log(real_t(1.) - xv)*nilbneg;
+			//dest[i] = log(real_t(1.) - xv)*nilbneg;
+			dest[i] = std::log1p(-xv)*nilbneg;
 		} else {
-			dest[i] = log(xv + real_t(1.))*ilbpos;
+			//dest[i] = log(xv + real_t(1.))*ilbpos;
+			dest[i] = std::log1p(xv)*ilbpos;
 		}
 	}
 }
@@ -552,8 +558,8 @@ void dloglogu_ET(const realmtx_t& x, realmtx_t& df, const real_t& b_neg, const r
 	const auto dest = df.data();
 	const auto ne = x.numel_no_bias();
 
-	const auto ilbpos = real_t(1.) / log(b_pos);
-	const auto ilbneg = real_t(1.) / log(b_neg);
+	const auto ilbpos = real_t(1.) / std::log(b_pos);
+	const auto ilbneg = real_t(1.) / std::log(b_neg);
 
 	for (numel_cnt_t i = 0; i < ne; ++i) {
 		const auto xv = px[i];

@@ -387,9 +387,16 @@ namespace nntl {
 			//making initial report
 			opts.observer().on_training_start(samplesCount, td.test_x().rows(), train_x.cols_no_bias(), train_y.cols(), batchSize, m_LMR.totalParamsToLearn);
 			
-			if (m_bCalcFullLossValue) m_Layers.prepToCalcLossAddendum();			
-			_report_training_fragment<bPrioritizeThreads>(-1, _calcLoss(train_x, train_y), td
-				, std::chrono::nanoseconds(0), opts.observer());
+			if (m_bCalcFullLossValue) m_Layers.prepToCalcLossAddendum();
+			{
+				iI.train_preCalcError(true);
+				const auto lv = _calcLoss(train_x, train_y);
+				iI.train_postCalcError();
+				
+				iI.train_preCalcError(false);
+				_report_training_fragment<bPrioritizeThreads>(-1, lv, td, std::chrono::nanoseconds(0), opts.observer());
+				iI.train_postCalcError();
+			}
 
 			m_Layers.set_mode(0);//prepare for training (sets to batchSize, that's already stored in Layers)
 
@@ -448,7 +455,9 @@ namespace nntl {
 					if (bCalcLoss) {
 						if (!bOptFBErrCalcThisEpoch) {
 							if (m_bCalcFullLossValue) m_Layers.prepToCalcLossAddendum();
+							iI.train_preCalcError(true);
 							trainLoss = _calcLoss(train_x, train_y);
+							iI.train_postCalcError();
 						}
 						if (bCheckForDivergence && trainLoss >= opts.divergenceCheckThreshold())
 							return _set_last_error(ErrorCode::NNDiverged);
@@ -465,8 +474,12 @@ namespace nntl {
 								m_Layers.output_layer().get_activations().cloneTo(trr.output_activations);
 								pTestEvalRes = &opts.NNEvalFinalResults().testSet;
 							}
+							
+							iI.train_preCalcError(false);
 							_report_training_fragment<bPrioritizeThreads>(epochIdx, trainLoss, td
 								, epochPeriodEnds - epochPeriodBeginsAt, opts.observer(), bOptFBErrCalcThisEpoch, pTestEvalRes);
+							iI.train_postCalcError();
+
 							epochPeriodBeginsAt = epochPeriodEnds;//restarting period timer
 						}
 

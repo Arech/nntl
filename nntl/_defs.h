@@ -58,6 +58,10 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #define NNTL_STRINGIZE(s) #s
 
+#if !defined(NNTL_DENORMALS2ZERO) || NNTL_DENORMALS2ZERO!=0
+#define NNTL_DENORMALS2ZERO 1
+#endif
+
 
 //////////////////////////////////////////////////////////////////////////
 // debugging-specific tools

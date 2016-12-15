@@ -778,7 +778,8 @@ void check_rowvecs_renorm(iMath& iM, vec_len_t rowsCnt, vec_len_t colsCnt = 10) 
 	STDCOUTL("******* checking rowvecs_renorm() variations over " << rowsCnt << "x" << colsCnt << " matrix (" << dataSize << " elements) **************");
 
 	constexpr unsigned maxReps = TEST_PERF_REPEATS_COUNT;
-	const real_t scale = 5;
+	//#TODO: newNormSq might not be good here
+	const real_t scale = 5, newNormSq=1;
 	realmtx_t W(rowsCnt, colsCnt), srcW(rowsCnt, colsCnt), etW(rowsCnt, colsCnt);
 	ASSERT_TRUE(!W.isAllocationFailed() && !srcW.isAllocationFailed() && !etW.isAllocationFailed());
 	std::vector<real_t> tmp(rowsCnt);
@@ -794,32 +795,32 @@ void check_rowvecs_renorm(iMath& iM, vec_len_t rowsCnt, vec_len_t colsCnt = 10) 
 		rg.gen_matrix(srcW, scale);
 
 		srcW.cloneTo(etW);
-		const real_t meanNorm = rowvecs_renorm_ET(etW, &tmp[0]);
+		const real_t meanNorm = rowvecs_renorm_ET(etW, newNormSq, &tmp[0]);
 
 		srcW.cloneTo(W);
 		bt = steady_clock::now();
-		rowvecs_renorm_naive(W, meanNorm, &tmp[0]);
+		rowvecs_renorm_naive(W, newNormSq, &tmp[0]);
 		diffNaive += steady_clock::now() - bt;
 		//ASSERT_EQ(etW, W) << "rowvecs_renorm_naive";
 		ASSERT_MTX_EQ(etW, W, "rowvecs_renorm_naive");
 
 		srcW.cloneTo(W);
 		bt = steady_clock::now();
-		rowvecs_renorm_clmnw(W, meanNorm, &tmp[0]);
+		rowvecs_renorm_clmnw(W, newNormSq, &tmp[0]);
 		diffClmnw += steady_clock::now() - bt;
 		//ASSERT_EQ(etW, W) << "rowvecs_renorm_clmnw";
 		ASSERT_MTX_EQ(etW, W, "rowvecs_renorm_clmnw");
 
 		srcW.cloneTo(W);
 		bt = steady_clock::now();
-		rowvecs_renorm_clmnw2(W, meanNorm, &tmp[0]);
+		rowvecs_renorm_clmnw2(W, newNormSq, &tmp[0]);
 		diffClmnw2 += steady_clock::now() - bt;
 		//ASSERT_EQ(etW, W) << "rowvecs_renorm_clmnw2";
 		ASSERT_MTX_EQ(etW, W, "rowvecs_renorm_clmnw2");
 
 		srcW.cloneTo(W);
 		bt = steady_clock::now();
-		rowvecs_renorm_clmnw_part(W, meanNorm, &tmp[0], &ofs[0]);
+		rowvecs_renorm_clmnw_part(W, newNormSq, &tmp[0], &ofs[0]);
 		diffClmnwPart += steady_clock::now() - bt;
 		//ASSERT_EQ(etW, W) << "rowvecs_renorm_clmnw_part";
 		ASSERT_MTX_EQ(etW, W, "rowvecs_renorm_clmnw_part");
@@ -975,11 +976,12 @@ real_t sigm_loss_xentropy_naive(const realmtx_t& activations, const realmtx_t& d
 	constexpr auto log_zero = math::real_t_limits<real_t>::log_almost_zero;
 	real_t ql = 0;
 	for (numel_cnt_t i = 0; i < dataCnt; ++i) {
-		const auto a = ptrA[i], y = ptrY[i], oma = real_t(1.0) - a;
+		const auto a = ptrA[i], y = ptrY[i]; // , oma = real_t(1.0) - a;
 		NNTL_ASSERT(y == real_t(0.0) || y == real_t(1.0));
 		NNTL_ASSERT(a >= real_t(0.0) && a <= real_t(1.0));
 
-		ql += y*(a == real_t(0.0) ? log_zero : log(a)) + (real_t(1.0) - y)*(oma == real_t(0.0) ? log_zero : log(oma));
+		//ql += y*(a == real_t(0.0) ? log_zero : log(a)) + (real_t(1.0) - y)*(oma == real_t(0.0) ? log_zero : log(oma));
+		ql += y*(a == real_t(0.0) ? log_zero : std::log(a)) + (real_t(1.0) - y)*(a == real_t(1.0) ? log_zero : std::log1p(-a));
 		NNTL_ASSERT(!isnan(ql));
 	}
 	return -ql / activations.rows();
@@ -998,10 +1000,11 @@ real_t sigm_loss_xentropy_naive_part(const realmtx_t& activations, const realmtx
 		NNTL_ASSERT(a >= real_t(0.0) && a <= real_t(1.0));
 
 		if (y > real_t(0.0)) {
-			ql += (a == real_t(0.0) ? log_zero : log(a));
+			ql += (a == real_t(0.0) ? log_zero : std::log(a));
 		} else {
-			const auto oma = real_t(1.0) - a;
-			ql += (oma == real_t(0.0) ? log_zero : log(oma));
+			//const auto oma = real_t(1.0) - a;
+			//ql += (oma == real_t(0.0) ? log_zero : log(oma));
+			ql += (a == real_t(1.0) ? log_zero : std::log1p(-a));
 		}
 		NNTL_ASSERT(!isnan(ql));
 	}
@@ -1023,7 +1026,7 @@ real_t sigm_loss_xentropy_vec(const realmtx_t& activations, const realmtx_t& dat
 	}
 	for (numel_cnt_t i = 0; i < dataCnt; ++i) {
 		const auto y = ptrY[i];
-		ql += y*log(p1[i]) + (real_t(1.0) - y)*log(p2[i]);
+		ql += y*std::log(p1[i]) + (real_t(1.0) - y)*std::log(p2[i]);
 		NNTL_ASSERT(!isnan(ql));
 	}
 	return -ql / activations.rows();

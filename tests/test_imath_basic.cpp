@@ -861,7 +861,7 @@ void test_mCheck_normalize_rows(iMath& iM, vec_len_t rowsCnt, vec_len_t colsCnt 
 	constexpr unsigned maxReps = TEST_PERF_REPEATS_COUNT, testCorrRepCnt = TEST_CORRECTN_REPEATS_COUNT;
 
 	const real_t scale = 5;
-	real_t renormTo = 0;
+	const real_t newNormSq = 4*4;
 	realmtx_t W(rowsCnt, colsCnt), srcW(rowsCnt, colsCnt);
 	ASSERT_TRUE(!W.isAllocationFailed() && !srcW.isAllocationFailed());
 
@@ -879,22 +879,21 @@ void test_mCheck_normalize_rows(iMath& iM, vec_len_t rowsCnt, vec_len_t colsCnt 
 			rg.gen_matrix(srcW, scale);
 
 			srcW.cloneTo(etW);
-			auto renormVal = rowvecs_renorm_ET(etW, iM._get_thread_temp_raw_storage(etW.numel()));
-			renormTo += renormVal;
+			auto meanNorm = rowvecs_renorm_ET(etW, newNormSq, iM._get_thread_temp_raw_storage(etW.numel()));
+			ASSERT_LT(newNormSq, meanNorm) << "Mean norm should be greater than new norm";
 
 			srcW.cloneTo(W);
-			iM.mCheck_normalize_rows_st(W, renormVal);
+			iM.mCheck_normalize_rows_st(W, newNormSq);
 			ASSERT_REALMTX_NEAR(etW, W, "st failed correctness test", mCheck_normalize_rows_EPS<real_t>::eps);
 
 			srcW.cloneTo(W);
-			iM.mCheck_normalize_rows_mt(W, renormVal);
+			iM.mCheck_normalize_rows_mt(W, newNormSq);
 			ASSERT_REALMTX_NEAR(etW, W, "mt failed correctness test", mCheck_normalize_rows_EPS<real_t>::eps);
 
 			srcW.cloneTo(W);
-			iM.mCheck_normalize_rows(W, renormVal);
+			iM.mCheck_normalize_rows(W, newNormSq);
 			ASSERT_REALMTX_NEAR(etW, W, "() failed correctness test", mCheck_normalize_rows_EPS<real_t>::eps);
 		}
-		renormTo /= testCorrRepCnt;
 	}
 
 	tictoc tSt, tMt, tB;
@@ -905,17 +904,17 @@ void test_mCheck_normalize_rows(iMath& iM, vec_len_t rowsCnt, vec_len_t colsCnt 
 		
 		srcW.cloneTo(W);
 		tSt.tic();
-		iM.mCheck_normalize_rows_st(W, renormTo);
+		iM.mCheck_normalize_rows_st(W, newNormSq);
 		tSt.toc();
 
 		srcW.cloneTo(W);
 		tMt.tic();
-		iM.mCheck_normalize_rows_mt(W, renormTo);
+		iM.mCheck_normalize_rows_mt(W, newNormSq);
 		tMt.toc();
 
 		srcW.cloneTo(W);
 		tB.tic();
-		iM.mCheck_normalize_rows(W, renormTo);
+		iM.mCheck_normalize_rows(W, newNormSq);
 		tB.toc();
 	}
 	tSt.say("st");

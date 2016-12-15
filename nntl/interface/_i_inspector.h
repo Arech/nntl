@@ -99,6 +99,9 @@ namespace inspector {
 		nntl_interface void train_preFprop(const realmtx_t& data_x)const noexcept;
 		nntl_interface void train_preBprop(const realmtx_t& data_y)const noexcept;
 
+		//the following 2 functions are called during learning process only
+		nntl_interface void train_preCalcError(const bool bOnTrainSet)const noexcept;
+		nntl_interface void train_postCalcError()const noexcept;
 
 		//////////////////////////////////////////////////////////////////////////
 		// FPROP
@@ -176,6 +179,10 @@ namespace inspector {
 			//the following two functions are called during learning process only
 			void train_preFprop(const realmtx_t& data_x)const noexcept {}
 			void train_preBprop(const realmtx_t& data_y)const noexcept {}
+
+			//the following 2 functions are called during learning process only
+			void train_preCalcError(const bool bOnTrainSet)const noexcept {};
+			void train_postCalcError()const noexcept {};
 
 			//////////////////////////////////////////////////////////////////////////
 			// FPROP

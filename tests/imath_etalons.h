@@ -86,7 +86,7 @@ void AdaMax_ET(realmtx_t& dW, realmtx_t& Mt, realmtx_t& Ut, real_t& beta1t, cons
 
 real_t vSumAbs_ET(const realmtx_t& A)noexcept;
 real_t vSumSquares_ET(const realmtx_t& A)noexcept;
-real_t rowvecs_renorm_ET(realmtx_t& m, real_t* pTmp)noexcept;
+real_t rowvecs_renorm_ET(realmtx_t& m, const real_t newNormSq, real_t* pTmp)noexcept;
 
 void sigm_ET(realmtx_t& x);
 void dsigm_ET(realmtx_t& f_df);

@@ -41,6 +41,13 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //#define NNTL_CFG_DEFAULT_TYPE double
 #endif
 
+//if NNTL_CFG_CAREFULL_LOG_EXP is specified and set, nntl uses special std::log1p() and std::expm1() functions where possible
+// to gain some numeric stability
+#if !defined(NNTL_CFG_CAREFULL_LOG_EXP) || 0!=NNTL_CFG_CAREFULL_LOG_EXP
+#define NNTL_CFG_CAREFULL_LOG_EXP 1
+#endif // !NNTL_CFG_CAREFULL_LOG_EXP
+
+
 //TODO: there are faster implementations of stl vectors available. Find, evaluate and use them instead of std::vector
 //#include <vector>
 
@@ -76,7 +83,25 @@ namespace math {
 	typedef NNTL_CFG_DEFAULT_TYPE d_real_t;
 	static constexpr char* d_real_t_name = NNTL_STRINGIZE(NNTL_CFG_DEFAULT_TYPE);
 
+	//////////////////////////////////////////////////////////////////////////
+	//computes ln(x+1)
+	template <typename T> T log1p(T v)noexcept {
+#if NNTL_CFG_CAREFULL_LOG_EXP
+		return std::log1p(v);
+#else
+		return std::log(T(1.0) + v);
+#endif
+	}
+	//computes exp(x)-1
+	template <typename T> T expm1(T v)noexcept {
+#if NNTL_CFG_CAREFULL_LOG_EXP
+		return std::expm1(v);
+#else
+		return std::exp(v) - T(1.0);
+#endif
+	}
 
+	//////////////////////////////////////////////////////////////////////////
 	//thanks to http://stackoverflow.com/a/4609795
 	template <typename T> int sign(T val) {
 		return (T(+0.0) < val) - (val < T(-0.0));

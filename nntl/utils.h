@@ -33,6 +33,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include <type_traits>
 
+#include "utils/denormal_floats.h"
 #include "utils/tuple_iterations.h"
 #include "utils/own_or_use_ptr.h"
 #include "utils/scope_exit.h"
