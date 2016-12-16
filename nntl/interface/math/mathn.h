@@ -402,18 +402,44 @@ namespace math {
 			}, ridxsCnt);
 		}
 		
+		//////////////////////////////////////////////////////////////////////////
+		//#todo implement
+		/*void apply_max_norm(realmtxdef_t& W, const real_t& maxL2NormSquared, const bool bNormIncludesBias)noexcept {
+
+			NNTL_ASSERT(!W.empty() && maxL2NormSquared > real_t(0.));
+
+			//готовим временное хранилище для вычисленных норм
+			const auto mRows = W.rows();
+			auto pRowsNorm = get_self()._get_thread_temp_raw_storage(mRows);
+			//#todo _memset_rowrange()
+			memset(pRowsNorm, 0, sizeof(*pRowsNorm)*mRows);
+
+			//вычисляем нормы
+			if (!bNormIncludesBias) W.hide_last_col();
+			//#todo - _st версию
+			mrwL2NormSquared(W, pRowsNorm);
+			if (!bNormIncludesBias) W.restore_last_col();
+
+			//определяем масштабирующий коэффициент
+		}
+
+		//#todo reimplement using more generic and fast smath:: functions
+		void apply_max_norm_st(realmtxdef_t& W, const real_t& maxL2NormSquared, const bool bNormIncludesBias)noexcept {
+		}*/
+
 
 		//////////////////////////////////////////////////////////////////////////
 		// treat matrix as a set of row-vectors (matrices in col-major mode!). For each row-vector check, whether
 		// its length/norm is not longer, than predefined value. If it's longer, than rescale vector to this max length
 		// (for use in max-norm weights regularization)
-		void mCheck_normalize_rows(realmtx_t& A, const real_t maxNormSquared)noexcept {
+		// #TODO reimplement as apply_max_norm()
+		void mCheck_normalize_rows(realmtx_t& A, const real_t& maxL2NormSquared, const bool bNormIncludesBias)noexcept {
 			if (A.numel() < Thresholds_t::mCheck_normalize_rows) {
-				get_self().mCheck_normalize_rows_st(A, maxNormSquared);
-			} else get_self().mCheck_normalize_rows_mt(A, maxNormSquared);
+				get_self().mCheck_normalize_rows_st(A, maxL2NormSquared, bNormIncludesBias);
+			} else get_self().mCheck_normalize_rows_mt(A, maxL2NormSquared, bNormIncludesBias);
 		}
 		//static constexpr real_t sCheck_normalize_rows_MULT = real_t(32.0);
-		void mCheck_normalize_rows_st(realmtx_t& A, const real_t maxNormSquared)noexcept {
+		void mCheck_normalize_rows_st(realmtx_t& A, const real_t& maxNormSquared, const bool bNormIncludesBias)noexcept {
 			NNTL_ASSERT(!A.empty() && maxNormSquared > real_t(0.0));
 
 			const auto mRows = A.rows();
@@ -421,7 +447,7 @@ namespace math {
 			memset(pTmp, 0, sizeof(*pTmp)*mRows);
 
 			//calculate current norms of row-vectors into pTmp
-			const auto dataCnt = A.numel();
+			const auto dataCnt = A.numel() - (!bNormIncludesBias)*mRows;
 			real_t* pCol = A.data();
 			const auto pColE = pCol + dataCnt;
 			while (pCol != pColE) {
@@ -439,7 +465,8 @@ namespace math {
 			// that doesn't need.
 			// Making newNorm slightly less, than maxNormSquared to make sure the result will be less than max norm.
 			//const real_t newNorm = maxNormSquared - math::real_t_limits<real_t>::eps_lower_n(maxNormSquared, sCheck_normalize_rows_MULT);
-			const real_t newNorm = maxNormSquared - 2*sqrt(math::real_t_limits<real_t>::eps_lower(maxNormSquared));
+			// removed. it's not a big deal if resulting norm will be slightly bigger
+			const real_t newNorm = maxNormSquared;// -2 * sqrt(math::real_t_limits<real_t>::eps_lower(maxNormSquared));
 			auto pCurNorm = pTmp;
 			const auto pTmpE = pTmp + mRows;
 			while (pCurNorm != pTmpE) {
@@ -451,7 +478,7 @@ namespace math {
 			get_self().mrwMulByVec_st(A, pTmp);
 		}
 		//TODO: might be good to make separate _cw and _rw versions of this algo
-		void mCheck_normalize_rows_mt(realmtx_t& A, const real_t maxNormSquared)noexcept {
+		void mCheck_normalize_rows_mt(realmtx_t& A, const real_t& maxNormSquared, const bool bNormIncludesBias)noexcept {
 			NNTL_ASSERT(!A.empty() && maxNormSquared > real_t(0.0));
 
 			// 1. each thread will get it's own sequential set of columns (which means sequential underlying representation)
@@ -488,7 +515,7 @@ namespace math {
 						*pN++ += v*v;
 					}
 				}
-			}, mCols, 0, &threadsCnt);
+			}, mCols - (!bNormIncludesBias), 0, &threadsCnt);
 
 			//2. sum partial norms into total pTmp
 			const auto pRowNorm = pTmpStor;
@@ -499,7 +526,7 @@ namespace math {
 
 			// calc scaling coefficients
 			const auto pRowNormE = pRowNorm + mRows;
-			const real_t newNorm = maxNormSquared - 2*sqrt(math::real_t_limits<real_t>::eps_lower(maxNormSquared));
+			const real_t newNorm = maxNormSquared;// -2 * sqrt(math::real_t_limits<real_t>::eps_lower(maxNormSquared));
 			auto pCurNorm = pRowNorm;
 			while (pCurNorm != pRowNormE) {
 				const auto rowNorm = *pCurNorm;
@@ -1670,7 +1697,7 @@ namespace math {
 			NNTL_ASSERT(b > real_t(1.0));
 			NNTL_ASSERT(!f_df.empty());
 
-			const double _lb = std::log(double(b));
+			const ext_real_t _lb = std::log(ext_real_t(b));
 			const real_t nllb = -static_cast<real_t>(std::log(_lb)), nlb = -static_cast<real_t>(_lb);
 
 			auto ptrDF = f_df.data() + er.elmBegin;
@@ -1732,7 +1759,7 @@ namespace math {
 			NNTL_ASSERT(b > real_t(1.0));
 			NNTL_ASSERT(!f_df.empty());
 
-			const double _lb = std::log(double(b));
+			const ext_real_t _lb = std::log(ext_real_t(b));
 			const real_t nllb = -static_cast<real_t>(std::log(_lb)), nlb = -static_cast<real_t>(_lb);
 
 			auto ptrDF = f_df.data() + er.elmBegin;
@@ -1873,15 +1900,19 @@ namespace math {
 			NNTL_ASSERT(!srcdest.empty());
 			NNTL_ASSERT(b_neg > real_t(1.0));
 			NNTL_ASSERT(b_pos > real_t(1.0));
-			const real_t lbposi = real_t(1.) / std::log(b_pos), nlbnegi = real_t(-1.) / std::log(b_neg);
+			const real_t lbposi = real_t(ext_real_t(1.) / std::log(ext_real_t(b_pos)))
+				, nlbnegi = real_t(ext_real_t (-1.) / std::log(ext_real_t(b_neg)));
 			auto pV = srcdest.data() + er.elmBegin;
 			const auto pVE = pV + er.totalElements();
 			while (pV != pVE) {
 				const auto v = *pV;
-				const auto isNeg = v < real_t(0.0);
-				const auto lv = isNeg ? (real_t(1.) - v) : (v + real_t(1.));
-				const auto bv = isNeg ? nlbnegi : lbposi;
-				*pV++ = bv*std::log(lv);
+				//const auto isNeg = v < real_t(0.0);
+// 				const auto lv = isNeg ? (real_t(1.) - v) : (v + real_t(1.));
+// 				const auto bv = isNeg ? nlbnegi : lbposi;
+// 				*pV++ = bv*std::log(lv);
+
+				//*pV++ = (isNeg ? nlbnegi : lbposi)*math::log1p(isNeg ? -v : v);
+				*pV++ = (v < real_t(0.0) ? nlbnegi : lbposi)*math::log1p(std::fabs(v));//a bit faster
 			}
 		}
 		void loglogu_mt(realmtx_t& srcdest, const real_t& b_neg, const real_t& b_pos) noexcept {
@@ -1906,7 +1937,7 @@ namespace math {
 			NNTL_ASSERT(b_neg > real_t(1.0));
 			NNTL_ASSERT(b_pos > real_t(1.0));
 			NNTL_ASSERT(!f_df.empty());
-			const double _lbpos = std::log(double(b_pos)), _lbneg = std::log(double(b_neg));
+			const ext_real_t _lbpos = std::log(ext_real_t(b_pos)), _lbneg = std::log(ext_real_t(b_neg));
 			const real_t nllbpos = -static_cast<real_t>(std::log(_lbpos)), nlbpos = -static_cast<real_t>(_lbpos);
 			const real_t nllbneg = -static_cast<real_t>(std::log(_lbneg)), lbneg = static_cast<real_t>(_lbneg);
 			auto ptrDF = f_df.data() + er.elmBegin;
@@ -1925,6 +1956,7 @@ namespace math {
 			}, f_df.numel());
 		}
 		//////////////////////////////////////////////////////////////////////////
+		//#TODO code should be improved. And it's slower than a generic version.
 		void loglogu_nbn(realmtx_t& srcdest, const real_t& b_pos) noexcept {
 			if (srcdest.numel_no_bias() < Thresholds_t::loglogu_nbn) {
 				get_self().loglogu_nbn_st(srcdest, b_pos);
@@ -1936,7 +1968,7 @@ namespace math {
 		static void _iloglogu_nbn_st(realmtx_t& srcdest, const real_t& b_pos, const elms_range& er) noexcept {
 			NNTL_ASSERT(!srcdest.empty());
 			NNTL_ASSERT(b_pos > real_t(1.0));
-			const real_t lbposi = real_t(1.) / std::log(b_pos);
+			const real_t lbposi = real_t(ext_real_t(1.) / std::log(ext_real_t(b_pos)));
 			auto pV = srcdest.data() + er.elmBegin;
 			const auto pVE = pV + er.totalElements();
 			while (pV != pVE) {
@@ -1969,7 +2001,7 @@ namespace math {
 		static void _idloglogu_nbn_st(realmtx_t& f_df, const real_t& b_pos, const elms_range& er) noexcept {
 			NNTL_ASSERT(b_pos > real_t(1.0));
 			NNTL_ASSERT(!f_df.empty());
-			const double _lbpos = std::log(double(b_pos));
+			const ext_real_t _lbpos = std::log(ext_real_t(b_pos));
 			const real_t nllbpos = -static_cast<real_t>(std::log(_lbpos)), nlbpos = -static_cast<real_t>(_lbpos);
 			auto ptrDF = f_df.data() + er.elmBegin;
 			const auto ptrDFE = ptrDF + er.totalElements();
@@ -1997,7 +2029,7 @@ namespace math {
 		static void _iloglogu_nbp_st(realmtx_t& srcdest, const real_t& b_neg, const elms_range& er) noexcept {
 			NNTL_ASSERT(!srcdest.empty());
 			NNTL_ASSERT(b_neg > real_t(1.0));			
-			const real_t nlbnegi = real_t(-1.) / std::log(b_neg);
+			const real_t nlbnegi = real_t(ext_real_t (-1.) / std::log(ext_real_t(b_neg)));
 			auto pV = srcdest.data() + er.elmBegin;
 			const auto pVE = pV + er.totalElements();
 			while (pV != pVE) {
@@ -2030,7 +2062,7 @@ namespace math {
 		static void _idloglogu_nbp_st(realmtx_t& f_df, const real_t& b_neg, const elms_range& er) noexcept {
 			NNTL_ASSERT(b_neg > real_t(1.0));			
 			NNTL_ASSERT(!f_df.empty());
-			const double _lbneg = std::log(double(b_neg));
+			const ext_real_t _lbneg = std::log(ext_real_t(b_neg));
 			const real_t nllbneg = -static_cast<real_t>(std::log(_lbneg)), lbneg = static_cast<real_t>(_lbneg);
 			auto ptrDF = f_df.data() + er.elmBegin;
 			const auto ptrDFE = ptrDF + er.totalElements();
@@ -2065,7 +2097,9 @@ namespace math {
 				const auto lv = isNeg ? (real_t(1.) - v) : (v + real_t(1.));
 				const auto bv = isNeg ? nlbnegi : lbposi;
 				*pV++ = bv*log(lv);*/
+				
 				//*pV++ = v < real_t(0.0) ? -log(real_t(1.) - v) : log(v + real_t(1.));
+				
 				*pV++ = v < real_t(0.0) ? -math::log1p(-v) : math::log1p(v);
 			}
 		}

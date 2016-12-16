@@ -181,7 +181,7 @@ namespace nntl {
 			// (like in "no momentum" version)
 
 			f_UseMaxNorm,
-			f_MaxNormRegIgnoreBias,//make max-norm regularizer to ignore bias weights
+			f_NormIncludesBias,//if true, the max-norm parameter describes full norm of weight vector
 
 			f_UseL1,
 			f_L1RegIgnoreBias,
@@ -197,7 +197,7 @@ namespace nntl {
 		real_t m_momentum;
 		real_t m_optBeta1, m_optBeta2;
 		real_t m_numericStabilizerEps;
-		real_t m_maxWeightVecNorm;//coefficient of max-norm regularization ||W||2 <= c (see "Dropout: A Simple Way to Prevent Neural Networks from Overfitting".2014)
+		real_t m_WeightVecNormSqared;//coefficient of max-norm regularization ||W||2 <= c (see "Dropout: A Simple Way to Prevent Neural Networks from Overfitting".2014)
 		//hint: weights initialized from uniform distribution [-b,b]. It's second raw momentum is b^2/3, so the mean norm should
 		//be about <row_vector_length>*b^2/3
 
@@ -222,7 +222,7 @@ namespace nntl {
 		// some static constants to make code consistent
 
 		static constexpr bool defRegularizersIgnoresBiasWeights = true;
-		static constexpr bool defMaxNormIgnoresBiasWeights = false;
+		static constexpr bool defNormIncludesBias = false;
 
 
 		//////////////////////////////////////////////////////////////////////////
@@ -241,7 +241,7 @@ namespace nntl {
 				ar & NNTL_SERIALIZATION_NVP(m_optBeta1);
 				ar & NNTL_SERIALIZATION_NVP(m_optBeta2);
 				ar & NNTL_SERIALIZATION_NVP(m_numericStabilizerEps);
-				ar & NNTL_SERIALIZATION_NVP(m_maxWeightVecNorm);
+				ar & NNTL_SERIALIZATION_NVP(m_WeightVecNormSqared);
 				ar & NNTL_SERIALIZATION_NVP(m_L2);
 				ar & NNTL_SERIALIZATION_NVP(m_L1);
 				ar & NNTL_SERIALIZATION_NVP(m_type);
@@ -277,7 +277,7 @@ namespace nntl {
 
 		grad_works(const real_t lr) noexcept : m_momentum(real_t(0.0))
 			, m_optBeta1(real_t(0.9)), m_optBeta2(real_t(0.999))
-			, m_numericStabilizerEps(_impl::NUM_STAB_EPS<real_t>::value), m_maxWeightVecNorm(real_t(0.0))
+			, m_numericStabilizerEps(_impl::NUM_STAB_EPS<real_t>::value), m_WeightVecNormSqared(real_t(0.0))
 			, m_L1(real_t(0.0)), m_L2(real_t(0.0)), m_actualL1(real_t(0.0)), m_actualL2(real_t(0.0))
 			, m_optBeta1t(real_t(1.)), m_optBeta2t(real_t(1.))
 			, m_type(ClassicalConstant)
@@ -342,18 +342,17 @@ namespace nntl {
 				iI.fprop_postNesterovMomentum(m_Vw, weights);
 
 				//this might seems unnecessary, because weights will be normalized during apply_grad(), however note this:
-				//Nesterov momentum might change weights vectors significantly and if it'll make weight vector norm significantly bigger
-				// than max_norm, it may seriously affect preformance of an optimizer, that uses some function from
+				//Nesterov momentum might change weights vectors significantly and if it'll make a weight vector norm significantly bigger
+				// than a max_norm, it may seriously affect performance of an optimizer, that uses some function of the
 				// weights (such as in Adam or RMSProp)
+				// #todo should thoughtfully test this claim
+				// though, it seems grounded, => leave it here until tests
 				if (use_max_norm()) {
-					const bool bIgnoreBiases = m_flags[f_MaxNormRegIgnoreBias];
-					if (bIgnoreBiases) weights.hide_last_col();
-					iM.mCheck_normalize_rows(weights, m_maxWeightVecNorm);
-					if (bIgnoreBiases) weights.restore_last_col();
+					iM.mCheck_normalize_rows(weights, m_WeightVecNormSqared, m_flags[f_NormIncludesBias]);
 				}
 			}
 		}
-
+		
 		void apply_grad(realmtxdef_t& weights, realmtxdef_t& dLdW) noexcept {
 			auto& iM = get_iMath();
 			auto& iI = get_iInspect();
@@ -481,10 +480,7 @@ namespace nntl {
 			}
 
 			if (use_max_norm()) {
-				const bool bIgnoreBiases = m_flags[f_MaxNormRegIgnoreBias];
-				if (bIgnoreBiases) weights.hide_last_col();
-				iM.mCheck_normalize_rows(weights, m_maxWeightVecNorm);
-				if (bIgnoreBiases) weights.restore_last_col();
+				iM.mCheck_normalize_rows(weights, m_WeightVecNormSqared, m_flags[f_NormIncludesBias]);
 			}
 
 			iI.apply_grad_end(weights);
@@ -605,14 +601,19 @@ namespace nntl {
 		// In general: when there must be a big difference in weights (including bias) magnitude, it may make the things worse. When weights
 		// and bias are similar in magnitude - it helps. To detect such condition try to learn with double precision type. Usually
 		// double+max_norm(,false) works better or similar to float+max_norm(,true) - sign of numeric issues with MN
-		self_t& max_norm(const real_t mn, const bool bIgnoreBiasWeights = defMaxNormIgnoresBiasWeights)noexcept {
-			NNTL_ASSERT(mn >= real_t(0.0));
-			m_maxWeightVecNorm = mn;
-			m_flags[f_UseMaxNorm] = m_maxWeightVecNorm > real_t(0.0);
-			m_flags[f_MaxNormRegIgnoreBias] = bIgnoreBiasWeights;
+		
+		//bNormIncludesBias parameter toggles whether the mn parameter describes the max norm of weight vector only (excluding bias weight - false)
+		//or the max norm of a full weight vector (including bias - true). Anyway, full weight vector are scaled.
+		// bNormIncludesBias==false might offer a bit more numeric stability due to overall magnitude similarity between weigths
+		// (biases generally have different, mostly bigger, magnitudes)
+		self_t& max_norm(const real_t L2normSquared, const bool bNormIncludesBias = defNormIncludesBias)noexcept {
+			NNTL_ASSERT(L2normSquared >= real_t(0.0));
+			m_WeightVecNormSqared = L2normSquared;
+			m_flags[f_UseMaxNorm] = m_WeightVecNormSqared > real_t(0.0);
+			m_flags[f_NormIncludesBias] = bNormIncludesBias;
 			return *this;
 		}
-		const real_t max_norm()const noexcept { return m_maxWeightVecNorm; }
+		const real_t max_norm()const noexcept { return use_max_norm() ? m_WeightVecNormSqared : real_t(.0); }
 
 		//L1 is good for sparse signals
 		self_t& L1(const real_t l1, const bool bIgnoreBiasWeights = defRegularizersIgnoresBiasWeights)noexcept {
@@ -643,7 +644,7 @@ namespace nntl {
 		const bool use_individual_learning_rates()const noexcept { return m_flags[f_UseILR]; }  // m_ILR.bUseMe(); }
 		const bool applyILRToMomentum()const noexcept { return m_flags[f_ApplyILRToMomentum]; }
 
-		const bool use_max_norm()const noexcept { return m_flags[f_UseMaxNorm]; } // m_maxWeightVecNorm > real_t(0.0); }
+		const bool use_max_norm()const noexcept { return m_flags[f_UseMaxNorm]; }
 		const bool use_L1_regularization()const noexcept { return m_flags[f_UseL1]; }
 		const bool use_L2_regularization()const noexcept { return m_flags[f_UseL2]; }
 

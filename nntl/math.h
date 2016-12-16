@@ -41,12 +41,30 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //#define NNTL_CFG_DEFAULT_TYPE double
 #endif
 
+
+#if !defined(NNTL_DENORMALS2ZERO) || NNTL_DENORMALS2ZERO!=0
+#define NNTL_DENORMALS2ZERO 1
+#endif
+
+#if NNTL_DENORMALS2ZERO
+#pragma message("NNTL_DENORMALS2ZERO: denormalized floats WILL BE flushed to zero in global_denormalized_floats_mode()" )
+#else
+#pragma message("NNTL_DENORMALS2ZERO: global_denormalized_floats_mode() will leave handling of denormalized floats as it is" )
+#endif
+
+
 //if NNTL_CFG_CAREFULL_LOG_EXP is specified and set, nntl uses special std::log1p() and std::expm1() functions where possible
-// to gain some numeric stability
-#if !defined(NNTL_CFG_CAREFULL_LOG_EXP) || 0!=NNTL_CFG_CAREFULL_LOG_EXP
-#define NNTL_CFG_CAREFULL_LOG_EXP 1
+// to gain some numeric stability (therefore, more precise calculation) at the cost of
+// about 40% slowdown (measured for loglogu at my HW with /fp:precise)
+#if !defined(NNTL_CFG_CAREFULL_LOG_EXP) || 1!=NNTL_CFG_CAREFULL_LOG_EXP
+#define NNTL_CFG_CAREFULL_LOG_EXP 0
 #endif // !NNTL_CFG_CAREFULL_LOG_EXP
 
+#if NNTL_CFG_CAREFULL_LOG_EXP
+#pragma message("NNTL_CFG_CAREFULL_LOG_EXP: will use log1p()/expm1() to favor their precision over speed of log()/exp()")
+#else
+#pragma message("NNTL_CFG_CAREFULL_LOG_EXP: will NOT use log1p()/expm1() in favor of speed of log()/exp()")
+#endif
 
 //TODO: there are faster implementations of stl vectors available. Find, evaluate and use them instead of std::vector
 //#include <vector>
@@ -82,6 +100,9 @@ namespace math {
 
 	typedef NNTL_CFG_DEFAULT_TYPE d_real_t;
 	static constexpr char* d_real_t_name = NNTL_STRINGIZE(NNTL_CFG_DEFAULT_TYPE);
+
+	//real_t with extended precision for some temporarily calculations
+	typedef double ext_real_t;
 
 	//////////////////////////////////////////////////////////////////////////
 	//computes ln(x+1)

@@ -516,7 +516,8 @@ TEST(TestSMath, mrwMulByVec) {
 
 //////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////
-
+//#TODO this test might fail _mt() checks when identical source values are processed by different threads.
+//(they may return different indexes). It shouldn't be an issue for nntl, however it may annoy a user...
 void test_mrwIdxsOfMaxCorrectness(vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 	typedef std::vector<realmtx_t::vec_len_t> vec_t;
 	MTXSIZE_SCOPED_TRACE(rowsCnt, colsCnt, "mrwIdxsOfMax");

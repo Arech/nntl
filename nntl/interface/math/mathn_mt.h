@@ -139,8 +139,8 @@ namespace math {
 		// treat matrix as a set of row-vectors (matrices in col-major mode!). For each row-vector check, whether
 		// its length/norm is not longer, than predefined value. If it's longer, than rescale vector to this max length
 		// (for use in max-norm weights regularization)
-		void mCheck_normalize_rows(realmtx_t& A, const real_t maxNormSquared)noexcept {
-			mCheck_normalize_rows_mt(A, maxNormSquared);
+		void mCheck_normalize_rows(realmtx_t& A, const real_t& maxNormSquared, const bool bNormIncludesBias)noexcept {
+			mCheck_normalize_rows_mt(A, maxNormSquared, bNormIncludesBias);
 		}
 
 		//////////////////////////////////////////////////////////////////////////

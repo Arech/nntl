@@ -544,7 +544,7 @@ namespace math {
 		//////////////////////////////////////////////////////////////////////////
 		// Matrix RowWise operations
 		//////////////////////////////////////////////////////////////////////////
-		// divide each matrix A row by corresponding vector d element, A(i,:) = A(i,:) / d(i)
+		// divide each matrix A row by a corresponding vector d element, A(i,:) = A(i,:) / d(i)
 		void mrwDivideByVec(realmtx_t& A, const real_t*const pDiv)noexcept {
 			if (A.numel() < Thresholds_t::mrwDivideByVec) {
 				get_self().mrwDivideByVec_st(A, pDiv);
@@ -619,6 +619,18 @@ namespace math {
 			});
 		}
 
+		//////////////////////////////////////////////////////////////////////////
+		//////////////////////////////////////////////////////////////////////////
+		// compute squared L2norm of each matrix A row into a vector pNorm: pNorm(i) = norm(A(i,:));
+		// (rowwise sum of squares)
+		/* #todo implement using _processMtx_rw/_processMtx_cw
+		void mrwL2NormSquared(realmtx_t& A, real_t*const pNorm)noexcept {
+
+		}
+
+		void mrwL2NormSquared_st(realmtx_t& A, real_t*const pNorm, const rowcol_range*const pRCR = nullptr)noexcept {
+		}
+		*/
 
 		//////////////////////////////////////////////////////////////////////////
 		//////////////////////////////////////////////////////////////////////////

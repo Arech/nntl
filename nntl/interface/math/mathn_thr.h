@@ -193,13 +193,13 @@ namespace _impl {
 		static constexpr size_t elogu_ua_nb = 1150;//*
 		static constexpr size_t delogu_ua_nb = 1850;//*
 
-		static constexpr size_t loglogu = 1030;//*
-		static constexpr size_t dloglogu = 970;//*
-		static constexpr size_t loglogu_nbn = 1040;//*
+		static constexpr size_t loglogu = 600;//* 1100 for log(x)+1
+		static constexpr size_t dloglogu = 1000;//*
+		static constexpr size_t loglogu_nbn = 600;//*1040 for log(x)+1
 		static constexpr size_t dloglogu_nbn = 1000;//*
-		static constexpr size_t loglogu_nbp = 1040;//*
+		static constexpr size_t loglogu_nbp = 600;//*1040 for log(x)+1
 		static constexpr size_t dloglogu_nbp = 980;//*
-		static constexpr size_t loglogu_nbn_nbp = 1020;//*
+		static constexpr size_t loglogu_nbn_nbp = 600;//*1020 for log(x)+1
 		static constexpr size_t dloglogu_nbn_nbp = 8900;//*
 
 		static constexpr size_t softsign = 8000;//*

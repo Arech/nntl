@@ -599,6 +599,9 @@ real_t rowvecs_renorm_ET(realmtx_t& m, real_t* pTmp)noexcept {
 	}
 	return meanNorm;
 }*/
+
+/*
+ *dont need it to run anymore
 //slow
 void rowvecs_renorm_naive(realmtx_t& m, real_t maxLenSquared, real_t* pTmp)noexcept {
 	//calculate current norms of row-vectors into pTmp
@@ -795,7 +798,7 @@ void check_rowvecs_renorm(iMath& iM, vec_len_t rowsCnt, vec_len_t colsCnt = 10) 
 		rg.gen_matrix(srcW, scale);
 
 		srcW.cloneTo(etW);
-		const real_t meanNorm = rowvecs_renorm_ET(etW, newNormSq, &tmp[0]);
+		const real_t meanNorm = rowvecs_renorm_ET(etW, newNormSq, true, &tmp[0]);
 
 		srcW.cloneTo(W);
 		bt = steady_clock::now();
@@ -848,6 +851,7 @@ TEST(TestPerfDecisions, rowvecsRenorm) {
 	//check_rowvecs_renorm(iM, 10000,100);
 #endif
 }
+}*/
 
 //////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////
@@ -981,7 +985,7 @@ real_t sigm_loss_xentropy_naive(const realmtx_t& activations, const realmtx_t& d
 		NNTL_ASSERT(a >= real_t(0.0) && a <= real_t(1.0));
 
 		//ql += y*(a == real_t(0.0) ? log_zero : log(a)) + (real_t(1.0) - y)*(oma == real_t(0.0) ? log_zero : log(oma));
-		ql += y*(a == real_t(0.0) ? log_zero : std::log(a)) + (real_t(1.0) - y)*(a == real_t(1.0) ? log_zero : std::log1p(-a));
+		ql += y*(a == real_t(0.0) ? log_zero : std::log(a)) + (real_t(1.0) - y)*(a == real_t(1.0) ? log_zero : nntl::math::log1p(-a));
 		NNTL_ASSERT(!isnan(ql));
 	}
 	return -ql / activations.rows();
@@ -1004,7 +1008,7 @@ real_t sigm_loss_xentropy_naive_part(const realmtx_t& activations, const realmtx
 		} else {
 			//const auto oma = real_t(1.0) - a;
 			//ql += (oma == real_t(0.0) ? log_zero : log(oma));
-			ql += (a == real_t(1.0) ? log_zero : std::log1p(-a));
+			ql += (a == real_t(1.0) ? log_zero : nntl::math::log1p(-a));
 		}
 		NNTL_ASSERT(!isnan(ql));
 	}

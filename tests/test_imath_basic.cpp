@@ -850,9 +850,64 @@ TEST(TestMathN, evMulCipSubip) {
 //////////////////////////////////////////////////////////////////////////
 
 template<typename base_t> struct mCheck_normalize_rows_EPS {};
-template<> struct mCheck_normalize_rows_EPS<double> { static constexpr double eps = 1e-10; };
-template<> struct mCheck_normalize_rows_EPS<float> { static constexpr float eps = 8e-5f; };
+template<> struct mCheck_normalize_rows_EPS<double> { static constexpr double eps = 1e-12; };
+template<> struct mCheck_normalize_rows_EPS<float> { static constexpr float eps = 1e-6f; };
 
+void test_mCheck_normalize_rows(vec_len_t rowsCnt, vec_len_t colsCnt, const bool bNormIncludesBias) {
+	ASSERT_GT(int(colsCnt), 1) << "There must be at least 2 columns in weight matrix";
+
+	MTXSIZE_SCOPED_TRACE1(rowsCnt, colsCnt, "mCheck_normalize_rows, bNormIncludesBias=", real_t(bNormIncludesBias));
+
+	constexpr unsigned testCorrRepCnt = TEST_CORRECTN_REPEATS_COUNT;
+
+	const real_t scale = 3;
+	const real_t newNormSq = 1;//3*3/sqrt(colsCnt - (!bNormIncludesBias));
+	realmtx_t W(rowsCnt, colsCnt), srcW(rowsCnt, colsCnt), ones(rowsCnt,colsCnt);
+	ASSERT_TRUE(!W.isAllocationFailed() && !srcW.isAllocationFailed() && !ones.isAllocationFailed());
+	ones.ones();
+
+	iM.preinit(realmtx_t::sNumel(rowsCnt,iM.ithreads().workers_count()));
+	ASSERT_TRUE(iM.init());
+
+	d_interfaces::iRng_t rg;
+	rg.set_ithreads(iM.ithreads());
+
+	realmtx_t etW(rowsCnt, colsCnt);
+	ASSERT_TRUE(!etW.isAllocationFailed());
+
+	for (unsigned r = 0; r < testCorrRepCnt; ++r) {
+		rg.gen_matrix_gtz(srcW, scale);
+		iM.evAdd_ip(srcW, ones);//to make sure norms will be greater than 1
+
+		srcW.cloneTo(etW);
+		auto meanNorm = rowvecs_renorm_ET(etW, newNormSq, bNormIncludesBias, iM._get_thread_temp_raw_storage(rowsCnt));
+		ASSERT_LT(newNormSq, meanNorm) << "Mean norm should be greater than a new norm";
+
+		srcW.cloneTo(W);
+		iM.mCheck_normalize_rows_st(W, newNormSq, bNormIncludesBias);
+		ASSERT_REALMTX_NEAR(etW, W, "st failed correctness test", mCheck_normalize_rows_EPS<real_t>::eps);
+
+		srcW.cloneTo(W);
+		iM.mCheck_normalize_rows_mt(W, newNormSq, bNormIncludesBias);
+		ASSERT_REALMTX_NEAR(etW, W, "mt failed correctness test", mCheck_normalize_rows_EPS<real_t>::eps);
+
+		srcW.cloneTo(W);
+		iM.mCheck_normalize_rows(W, newNormSq, bNormIncludesBias);
+		ASSERT_REALMTX_NEAR(etW, W, "() failed correctness test", mCheck_normalize_rows_EPS<real_t>::eps);
+	}
+}
+
+TEST(TestMathN, mCheckNormalizeRows) {
+	const vec_len_t maxCols = 2*g_MinDataSizeDelta, maxRows = 2*g_MinDataSizeDelta;
+	for (vec_len_t r = 1; r < maxRows; ++r) {
+		for (vec_len_t c = 1; c < maxCols; ++c) {
+			ASSERT_NO_FATAL_FAILURE(test_mCheck_normalize_rows(r, c + 1, false));
+			ASSERT_NO_FATAL_FAILURE(test_mCheck_normalize_rows(r, c + 1, true));
+		}
+	}
+}
+
+/*
 template<typename iMath>
 void test_mCheck_normalize_rows(iMath& iM, vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 	const auto dataSize = realmtx_t::sNumel(rowsCnt, colsCnt);
@@ -935,6 +990,7 @@ TEST(TestMathN, mCheckNormalizeRows) {
 	}
 #endif // !TESTS_SKIP_LONGRUNNING
 }
+*/
 
 //////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////
