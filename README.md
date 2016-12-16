@@ -35,7 +35,7 @@ I wouldn't state the NNTL is the fastest CPU implementation of feedforward neura
 * Activation units for an output layer:
   * sigmoid with a **quadratic** and a **cross-entropy** (for binary target data) loss function
   * **softmax** with a cross-entropy loss function.
-  * SoftSigm unit with **quadratic** loss function.
+  * SoftSigm unit with a **quadratic** loss function.
 * Activation units for hidden layers:
   * **Sigm**oid
   * Rectified linear units (**ReLU**)
@@ -68,6 +68,7 @@ I wouldn't state the NNTL is the fastest CPU implementation of feedforward neura
   * one-hot vector classification via sigmoid or softmax activations
   * one dimensional binary classification via sigmoid activation
 * Debugging and baby-sitting a neural network learning process is implemented through a special interface which allows to monitor/dump any temporary variable or matrix you might want to examine during a training session (activation/preactivation values, weights, weigth updates and many more - and much more will be added as it'll be needed). The interface is easily extensible and incurs zero run-time cost if it isn't used (it is off by default). Dumping data to Matlab's `.mat` files is already available at the moment. See an example at test_inspectors.cpp.
+* Actually, I have left one real **gem** unpublished - a component that turns an architecture description process from the hell pain of writing tonns of extremely hard to maintain C++ code which defines layer objects and their relationships, into a real joy of drawing/updating something very similar to UML class diagramm. I'll upload it sometime later, but feel free to contact me to hurry up this process.
 
 ## The Pros and Cons
 ### Nuances
