@@ -48,6 +48,9 @@ namespace nntl {
 	//by convention layer_type_id_t can't be zero
 	typedef std::uint64_t layer_type_id_t;
 
+	//real_t with extended precision for some temporarily calculations
+	typedef double ext_real_t;
+
 	//see also NNTL_STRING macro
 	// by now some code such as file-related functions in _supp{} may be bounded to char only in strchar_t
 	//TODO: Don't think it is good idea to solve it now.

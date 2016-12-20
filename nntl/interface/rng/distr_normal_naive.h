@@ -40,6 +40,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 namespace nntl {
 namespace rng {
 
+	//attention! see comments to _i_rng::max()/_i_rng::min()
 	template <typename iRng>
 	struct distr_normal_naive {
 	public:

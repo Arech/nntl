@@ -72,6 +72,8 @@ namespace weights_init {
 	// according to He, Zhang et al. "Delving Deep into Rectifiers: Surpassing Human-Level Performance on 
 	// ImageNet Classification" 2015 the formula (sqrt(2/prevLayerNeurons) should define _standard_ deviation
 	// of gaussian zero-mean noise. Bias weights set to zero.
+	// This method initializes weights to make weight vectors norm -> sqrt(2)
+	// Generic form makes weigths norm -> scalingCoeff^2 * sqrt(paramCoeff)
 	template<unsigned int scalingCoeff1e6 = 1000000>
 	struct He_Zhang {
 		template <typename iRng_t>
@@ -81,9 +83,34 @@ namespace weights_init {
 
 			NNTL_ASSERT(!W.empty() && W.numel() > 0);
 
-			constexpr real_t scalingCoeff = real_t(scalingCoeff1e6) / real_t(1000000);
+			constexpr ext_real_t scalingCoeff = ext_real_t(scalingCoeff1e6) / ext_real_t(1000000);
+
 			const auto prevLayerNeuronsCnt = W.cols() - 1;
-			const real_t stdDev = scalingCoeff*sqrt(real_t(2.0) / prevLayerNeuronsCnt);
+			const real_t stdDev = real_t (scalingCoeff*std::sqrt(ext_real_t(2.) / prevLayerNeuronsCnt));
+
+			rng::distr_normal_naive<iRng_t> d(iR, real_t(0.0), stdDev);
+			d.gen_vector(W.data(), realmtx_t::sNumel(W.rows(), prevLayerNeuronsCnt));
+
+			auto pBiases = W.colDataAsVec(prevLayerNeuronsCnt);
+			std::fill(pBiases, pBiases + W.rows(), real_t(0.0));
+			return true;
+		}
+	};
+	//variant of He_Zhang, proper parametrized
+	template<unsigned int paramCoeff1e6 = 2000000, unsigned int scalingCoeff1e6 = 1000000>
+	struct He_Zhang2 {
+		template <typename iRng_t>
+		static bool init(typename iRng_t::realmtx_t& W, iRng_t& iR)noexcept {
+			typedef typename iRng_t::real_t real_t;
+			typedef typename iRng_t::realmtx_t realmtx_t;
+
+			NNTL_ASSERT(!W.empty() && W.numel() > 0);
+
+			constexpr ext_real_t paramCoeff = ext_real_t(paramCoeff1e6) / ext_real_t(1000000);
+			constexpr ext_real_t scalingCoeff = ext_real_t(scalingCoeff1e6) / ext_real_t(1000000);
+
+			const auto prevLayerNeuronsCnt = W.cols() - 1;
+			const real_t stdDev = real_t(scalingCoeff*std::sqrt(paramCoeff / prevLayerNeuronsCnt));
 
 			rng::distr_normal_naive<iRng_t> d(iR, real_t(0.0), stdDev);
 			d.gen_vector(W.data(), realmtx_t::sNumel(W.rows(), prevLayerNeuronsCnt));

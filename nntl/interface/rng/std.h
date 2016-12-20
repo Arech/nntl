@@ -79,6 +79,8 @@ namespace rng {
 		}
 		//generated_scalar_t operator()(generated_scalar_t lessThan)noexcept { return gen_i(lessThan); }
 
+		static int gen_int()noexcept { return static_cast<int>(_rand()); }
+
 		//////////////////////////////////////////////////////////////////////////
 		//generate FP value in range [0,a]
 		//static real_t gen_f(const real_t a)noexcept { return a*gen_f_norm(); }

@@ -37,8 +37,11 @@ namespace nntl {
 	namespace inspector {
 
 		namespace conds {
+
+			//dumps first batch of an epoch
 			struct EpochNum : public math::smatrix_td {
 				typedef std::vector<size_t> epochs_to_dump_t;
+				//static constexpr bool bNewBatch2NewFile = true;
 
 				vector_conditions m_dumpEpochCond;
 				epochs_to_dump_t m_epochsToDump;
@@ -64,6 +67,7 @@ namespace nntl {
 				static constexpr bool on_train_calcErr(const size_t epochIdx, const bool bOnTrainSet) noexcept { return false; };
 			};
 
+			//This function will dump first batch of specified epochs AND the training error calculation
 			struct CalcErrByEpochNum : public EpochNum {
 				typedef EpochNum parent_t;
 				bool bDumpInitialErr;
@@ -75,18 +79,30 @@ namespace nntl {
 					});
 				}
 
-				static constexpr bool on_train_epochBegin(const size_t epochIdx) noexcept { return false; }
-				static constexpr bool on_train_batchBegin(const bool _bDoDump, const vec_len_t batchIdx, const size_t epochIdx) noexcept {
-					return false;
-				}
-
 				const bool on_train_calcErr(const size_t epochIdx, const bool bOnTrainSet)const noexcept {
 					return bOnTrainSet && (epochIdx == static_cast<size_t>(-1) ? bDumpInitialErr : m_dumpEpochCond(epochIdx));
 				}
 			};
 
+			//This function will dump only the training error calculation for a specified epoch
+			struct CalcErrOnlyByEpochNum : public CalcErrByEpochNum {
+				static constexpr bool on_train_epochBegin(const size_t epochIdx) noexcept { return false; }
+				static constexpr bool on_train_batchBegin(const bool _bDoDump, const vec_len_t batchIdx, const size_t epochIdx) noexcept {
+					return false;
+				}
+			};
+
+			/*struct FullEpochNum : public EpochNum {
+				static constexpr bool bNewBatch2NewFile = false;
+				static constexpr bool on_train_batchBegin(const bool _bDoDump, const vec_len_t batchIdx, const size_t epochIdx) noexcept {
+					return _bDoDump;
+				}
+			};*/
+
 			//useful to debug initial training steps
 			struct FirstBatches : public math::smatrix_td {
+				//static constexpr bool bNewBatch2NewFile = true;
+
 				size_t batchesRun, maxBatches, stride;
 				
 
@@ -217,6 +233,16 @@ namespace nntl {
 				}
 			}
 
+			/*template<bool b = cond_dump_t::bNewBatch2NewFile>
+			std::enable_if_t<b, const char*> _make_var_name(const char* szBaseName, char* dest, const size_t ds)const noexcept {
+				return szBaseName;
+			}
+			template<bool b = cond_dump_t::bNewBatch2NewFile>
+			std::enable_if_t<!b, const char*> _make_var_name(const char* szBaseName, char* dest, const size_t ds)const noexcept {
+				sprintf_s(dest, ds, "%s_%d", szBaseName, m_batchIdx);
+				return dest;
+			}*/
+
 			enum class _ToDump {
 				FProp=0,
 				BProp,
@@ -229,10 +255,15 @@ namespace nntl {
 				NNTL_ASSERT(m_pDirToDump);
 				if (!m_pDirToDump) _epic_fail("m_pDirToDump is not set!");
 				if (omode == _ToDump::FProp || omode == _ToDump::BProp) {
-					sprintf_s(n, ml, omode == _ToDump::FProp ? "%s/epoch%zd_%df.mat" : "%s/epoch%zd_%db.mat"
-						, m_pDirToDump, m_epochIdx + 1, m_batchIdx);
+					//if (cond_dump_t::bNewBatch2NewFile) {
+						sprintf_s(n, ml, omode == _ToDump::FProp ? "%s/ep%03zd_%df.mat" : "%s/ep%03zd_%db.mat"
+							, m_pDirToDump, m_epochIdx + 1, m_batchIdx);
+// 					} else {
+// 						sprintf_s(n, ml, omode == _ToDump::FProp ? "%s/epoch%zdf.mat" : "%s/epoch%zdb.mat"
+// 							, m_pDirToDump, m_epochIdx + 1);
+// 					}
 				} else {
-					sprintf_s(n, ml, omode == _ToDump::CalcErrTrainset ? "%s/epoch%zd_train.mat" : "%s/epoch%zd_test.mat"
+					sprintf_s(n, ml, omode == _ToDump::CalcErrTrainset ? "%s/ep%03zd_train.mat" : "%s/ep%03zd_test.mat"
 						, m_pDirToDump, m_epochIdx + 1);
 				}
 			}
@@ -241,9 +272,13 @@ namespace nntl {
 				NNTL_ASSERT(m_pDirToDump);
 				if (!m_pDirToDump) _epic_fail("m_pDirToDump is not set!");
 				if (omode == _ToDump::FProp || omode == _ToDump::BProp) {
-					sprintf_s(n, ml, "%s/epoch%zd_%d.mat", m_pDirToDump, m_epochIdx + 1, m_batchIdx);
+					//if (cond_dump_t::bNewBatch2NewFile) {
+						sprintf_s(n, ml, "%s/ep%03zd_%d.mat", m_pDirToDump, m_epochIdx + 1, m_batchIdx);
+// 					} else {
+// 						sprintf_s(n, ml, "%s/epoch%zd.mat", m_pDirToDump, m_epochIdx + 1);
+// 					}
 				} else {
-					sprintf_s(n, ml, omode == _ToDump::CalcErrTrainset ? "%s/epoch%zd_train.mat" : "%s/epoch%zd_test.mat"
+					sprintf_s(n, ml, omode == _ToDump::CalcErrTrainset ? "%s/ep%03zd_train.mat" : "%s/ep%03zd_test.mat"
 						, m_pDirToDump, m_epochIdx + 1);
 				}
 			}
@@ -446,23 +481,27 @@ namespace nntl {
 			//////////////////////////////////////////////////////////////////////////
 			//////////////////////////////////////////////////////////////////////////
 
-			/*void on_bprop_begin(const layer_index_t lIdx, const realmtx_t& dLdA)const noexcept {
+			void on_bprop_begin(const layer_index_t lIdx, const realmtx_t& dLdA)const noexcept {
 				_verbalize("on_bprop_begin");
 				auto& ar = getArchive();
 				_check_err (ar.save_struct_begin(get_self()._layer_name(), bSplitFiles ? false : true, bIgnoreLayersNesting),"on_bprop_begin: save_struct_begin");
 
-				/ *ar & NNTL_SERIALIZATION_NVP(dLdA);
-				_check_err(ar.get_last_error(),"on_bprop_begin: saving dLdA");* /
-			}*/
+				ar & NNTL_SERIALIZATION_NVP(dLdA);
+				_check_err(ar.get_last_error(),"on_bprop_begin: saving dLdA");
+			}
+			void on_bprop_end(const realmtx_t& dLdAPrev) const noexcept {
+				_verbalize("on_bprop_end");
+				_check_err(getArchive().save_struct_end(), "on_bprop_end: save_struct_end");
+			}
 
-			/*void bprop_dLdZ(const realmtx_t& dLdZ) const noexcept {
+			void bprop_dLdZ(const realmtx_t& dLdZ) const noexcept {
 				if (bDoDump(m_curLayer)) {
 					_verbalize("bprop_dLdZ");
 					auto& ar = getArchive();
 					ar & NNTL_SERIALIZATION_NVP(dLdZ);
 					_check_err(ar.get_last_error(), "bprop_dLdZ: saving dLdZ");
 				}
-			}*/
+			}
 
 			/*void apply_grad_begin(const realmtx_t& W, const realmtx_t& dLdW)const noexcept {
 				if (bDoDump(m_curLayer)) {
@@ -492,11 +531,6 @@ namespace nntl {
 					ar & serialization::make_nvp("a_W", W);
 					_check_err(ar.get_last_error(), "apply_grad_end: saving weights");
 				}
-			}*/
-
-			/*void on_bprop_end(const realmtx_t& dLdAPrev) const noexcept {
-				_verbalize("on_bprop_end");
-				_check_err(getArchive().save_struct_end(), "on_bprop_end: save_struct_end");
 			}*/
 		};
 

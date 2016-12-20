@@ -99,11 +99,11 @@ namespace nntl {
 		void deinit()noexcept { }
 
 		void on_training_start(vec_len_t trainElements, vec_len_t testElements, vec_len_t inDim, vec_len_t outDim, vec_len_t batchSize, numel_cnt_t nLP)noexcept {
-			static constexpr strchar_t* szReportFmt = "Going to model f:%d->%d with %zd params on %d training samples (%d validation). BatchSize=%d";
+			static constexpr strchar_t* szReportFmt = "Going to model f:%d->%d with %zd params on %d training samples (%d validation). BatchSize=%d, batchCnt=%d";
 			static constexpr unsigned uBufSize = 192;
 
 			strchar_t szRep[uBufSize];
-			sprintf_s(szRep, uBufSize, szReportFmt, inDim, outDim, nLP, trainElements, testElements, batchSize);
+			sprintf_s(szRep, uBufSize, szReportFmt, inDim, outDim, nLP, trainElements, testElements, batchSize, trainElements / batchSize);
 			std::cout << szRep << std::endl;
 		}
 

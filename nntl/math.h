@@ -101,9 +101,6 @@ namespace math {
 	typedef NNTL_CFG_DEFAULT_TYPE d_real_t;
 	static constexpr char* d_real_t_name = NNTL_STRINGIZE(NNTL_CFG_DEFAULT_TYPE);
 
-	//real_t with extended precision for some temporarily calculations
-	typedef double ext_real_t;
-
 	//////////////////////////////////////////////////////////////////////////
 	//computes ln(x+1)
 	template <typename T> T log1p(T v)noexcept {

@@ -59,10 +59,12 @@ namespace rng {
 		generated_scalar_t gen_i(generated_scalar_t lessThan)noexcept {
 			//TODO: pray we'll never need it bigger (because we'll possible do need and this may break everything)
 			NNTL_ASSERT(lessThan <= INT32_MAX);
-			int v = m_rng.IRandom(0, static_cast<int>(lessThan-1));
+			int v = m_rng.IRandomX(0, static_cast<int>(lessThan-1));
 			NNTL_ASSERT(v != AFog::GEN_ERROR);
 			return static_cast<generated_scalar_t>(v);
 		}
+
+		int gen_int()noexcept { return m_rng.IRandom(min(), max()); }
 
 		//////////////////////////////////////////////////////////////////////////
 		//generate FP value in range [0,1]
