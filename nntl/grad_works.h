@@ -441,13 +441,17 @@ namespace nntl {
 				STDCOUTL("*** " << NNTL_FUNCTION << ": Wrong type of optimizer specified!");
 				abort();
 			}
+			iI.apply_grad_postOptimizer(dLdW, m_optMtxA, m_optMtxB, m_optBeta1t, m_optBeta2t);
 
 			const auto bUseMomentums = use_momentums();
 			if (use_individual_learning_rates()) {
 				const auto bUseVelocity = bUseMomentums & m_flags[f_ApplyILRToMomentum];
 				NNTL_ASSERT(bUseVelocity || m_prevdLdW.size() == dLdW.size());
 				if (!bFirstRun) {
-					iM.apply_ILR(dLdW, bUseVelocity ? m_Vw : m_prevdLdW, m_ILRGain, m_ILR.mulDecr, m_ILR.mulIncr, m_ILR.capLow, m_ILR.capHigh);
+					const auto& prevdLdW = bUseVelocity ? m_Vw : m_prevdLdW;
+					iI.apply_grad_preILR(dLdW, prevdLdW, m_ILRGain);
+					iM.apply_ILR(dLdW, prevdLdW, m_ILRGain, m_ILR.mulDecr, m_ILR.mulIncr, m_ILR.capLow, m_ILR.capHigh);
+					iI.apply_grad_postILR(dLdW, m_ILRGain);
 				}
 				if (!bUseVelocity) dLdW.cloneTo(m_prevdLdW);
 			}
@@ -647,6 +651,7 @@ namespace nntl {
 		const bool use_max_norm()const noexcept { return m_flags[f_UseMaxNorm]; }
 		const bool use_L1_regularization()const noexcept { return m_flags[f_UseL1]; }
 		const bool use_L2_regularization()const noexcept { return m_flags[f_UseL2]; }
+		const bool isFirstRun()const noexcept { return m_flags[f_FirstRun]; }
 
 	protected:
 

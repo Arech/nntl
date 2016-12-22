@@ -142,6 +142,12 @@ namespace inspector {
 
 		nntl_interface void apply_grad_preNesterovMomentum(const realmtx_t& vW, const realmtx_t& dLdW)const noexcept;
 		nntl_interface void apply_grad_postNesterovMomentum(const realmtx_t& vW)const noexcept;
+
+		nntl_interface void apply_grad_postOptimizer(const realmtx_t& dLdW, const realmtx_t& M1, const realmtx_t& M2
+			, const real_t& beta1t, const real_t& beta2t) const noexcept;
+
+		nntl_interface void apply_grad_preILR(const realmtx_t& dLdW, const realmtx_t& prevdLdW, const realmtx_t& Gain) const noexcept;
+		nntl_interface void apply_grad_postILR(const realmtx_t& dLdW, const realmtx_t& Gain) const noexcept;
 	};
 
 	namespace _impl {
@@ -220,6 +226,12 @@ namespace inspector {
 
 			void apply_grad_preNesterovMomentum(const realmtx_t& vW, const realmtx_t& dLdW)const noexcept {}
 			void apply_grad_postNesterovMomentum(const realmtx_t& vW)const noexcept {}
+
+			void apply_grad_postOptimizer(const realmtx_t& dLdW, const realmtx_t& M1, const realmtx_t& M2
+				, const real_t& beta1t, const real_t& beta2t) const noexcept {}
+
+			void apply_grad_preILR(const realmtx_t& dLdW, const realmtx_t& prevdLdW, const realmtx_t& Gain) const noexcept{}
+			void apply_grad_postILR(const realmtx_t& dLdW, const realmtx_t& Gain) const noexcept{}
 		};
 
 		//////////////////////////////////////////////////////////////////////////

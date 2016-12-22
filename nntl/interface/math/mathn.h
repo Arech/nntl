@@ -448,7 +448,7 @@ namespace math {
 
 			//calculate current norms of row-vectors into pTmp
 			const auto dataCnt = A.numel() - (!bNormIncludesBias)*mRows;
-			real_t* pCol = A.data();
+			const real_t* pCol = A.data();
 			const auto pColE = pCol + dataCnt;
 			while (pCol != pColE) {
 				const real_t* pElm = pCol;
@@ -503,7 +503,7 @@ namespace math {
 
 				//calculate current norms of row-vectors into pNorms				
 				const auto dataCnt = realmtx_t::sNumel(mRows, colsToProcess);
-				real_t* pCol = A.colDataAsVec(startingCol);
+				const real_t* pCol = A.colDataAsVec(startingCol);
 				const auto pColE = pCol + dataCnt;
 				while (pCol != pColE) {
 					const real_t* pElm = pCol;

@@ -72,8 +72,7 @@ namespace weights_init {
 	// according to He, Zhang et al. "Delving Deep into Rectifiers: Surpassing Human-Level Performance on 
 	// ImageNet Classification" 2015 the formula (sqrt(2/prevLayerNeurons) should define _standard_ deviation
 	// of gaussian zero-mean noise. Bias weights set to zero.
-	// This method initializes weights to make weight vectors norm -> sqrt(2)
-	// Generic form makes weigths norm -> scalingCoeff^2 * sqrt(paramCoeff)
+	// This method initializes weights to make weight vectors norm -> scalingCoeff^2 *sqrt(2)
 	template<unsigned int scalingCoeff1e6 = 1000000>
 	struct He_Zhang {
 		template <typename iRng_t>
@@ -96,7 +95,8 @@ namespace weights_init {
 			return true;
 		}
 	};
-	//variant of He_Zhang, proper parametrized
+	//variant of He_Zhang, properly parametrized (actually scalingCoeff1e6 is excessive, but let it be)
+	// Generic form makes weigths norm -> scalingCoeff^2 * sqrt(paramCoeff)
 	template<unsigned int paramCoeff1e6 = 2000000, unsigned int scalingCoeff1e6 = 1000000>
 	struct He_Zhang2 {
 		template <typename iRng_t>

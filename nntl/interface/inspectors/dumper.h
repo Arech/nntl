@@ -503,26 +503,26 @@ namespace nntl {
 				}
 			}
 
-			/*void apply_grad_begin(const realmtx_t& W, const realmtx_t& dLdW)const noexcept {
+			void apply_grad_begin(const realmtx_t& W, const realmtx_t& dLdW)const noexcept {
 				if (bDoDump(m_curLayer)) {
 					_verbalize("apply_grad_begin");
 					auto& ar = getArchive();
 					ar & NNTL_SERIALIZATION_NVP(dLdW);
 					_check_err(ar.get_last_error(), "apply_grad_begin: saving dLdW");
 				}
-			}*/
+			}
 
-			/*void apply_grad_update(const realmtx_t& W, const realmtx_t& WUpd)const noexcept {
+			void apply_grad_update(const realmtx_t& W, const realmtx_t& WUpd)const noexcept {
 				if (bDoDump(m_curLayer)) {
 					_verbalize("apply_grad_update");
 					auto& ar = getArchive();
-					ar & serialization::make_nvp("a_preUpd_W",W);
-					_check_err(ar.get_last_error(), "apply_grad_update: saving weights");
+					/*ar & serialization::make_nvp("a_WUpd_W",W);
+					_check_err(ar.get_last_error(), "apply_grad_update: saving weights");*/
 
-					ar & serialization::make_nvp("a_preUpd_WUpd",WUpd);
+					ar & serialization::make_nvp("a_WUpd",WUpd);
 					_check_err(ar.get_last_error(), "apply_grad_update: saving weight updates");
 				}
-			}*/
+			}
 
 			/*void apply_grad_end(const realmtx_t& W)const noexcept {
 				if (bDoDump(m_curLayer)) {
@@ -530,6 +530,28 @@ namespace nntl {
 					auto& ar = getArchive();
 					ar & serialization::make_nvp("a_W", W);
 					_check_err(ar.get_last_error(), "apply_grad_end: saving weights");
+				}
+			}*/
+			
+			void apply_grad_preILR(const realmtx_t& dLdW, const realmtx_t& prevdLdW, const realmtx_t& Gain) const noexcept {
+				if (bDoDump(m_curLayer)) {
+					_verbalize("apply_grad_preILR");
+					auto& ar = getArchive();
+					ar & serialization::make_nvp("dLdW_preILR", dLdW);
+					_check_err(ar.get_last_error(), "apply_grad_preILR: saving dLdW");
+					ar & serialization::make_nvp("Gain_preILR", Gain);
+					_check_err(ar.get_last_error(), "apply_grad_preILR: saving Gain");
+				}
+			}
+
+			/*void apply_grad_postILR(const realmtx_t& dLdW, const realmtx_t& Gain) const noexcept {
+				if (bDoDump(m_curLayer)) {
+					_verbalize("apply_grad_postILR");
+					auto& ar = getArchive();
+// 					ar & serialization::make_nvp("dLdW_postILR", dLdW);
+// 					_check_err(ar.get_last_error(), "apply_grad_postILR: saving dLdW");
+					ar & serialization::make_nvp("Gain_postILR", Gain);
+					_check_err(ar.get_last_error(), "apply_grad_postILR: saving Gain");
 				}
 			}*/
 		};

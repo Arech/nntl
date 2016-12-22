@@ -317,6 +317,8 @@ namespace nntl {
 			m_bActivationsValid = true;
 		}
 
+		void _cust_inspect(const realmtx_t& M)const noexcept{}
+
 		void _bprop(realmtx_t& dLdA, const realmtx_t& prevActivations, const bool bPrevLayerIsInput, realmtx_t& dLdAPrev)noexcept {
 			m_bActivationsValid = false;
 			auto& iI = get_self().get_iInspect();
@@ -360,6 +362,8 @@ namespace nntl {
 			//compute dL/dZ=dL/dA.*dA/dZ into dA/dZ
 			_Math.evMul_ip(dLdZ, dLdA);
 			iI.bprop_dLdZ(dLdZ);
+
+			get_self()._cust_inspect(dLdZ);
 
 			if (bUseDropout) {
 				//we must cancel activations that was dropped out by the mask (should they've been restored by activation_f_t::df())

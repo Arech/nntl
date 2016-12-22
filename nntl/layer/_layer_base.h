@@ -331,12 +331,12 @@ namespace nntl {
 
 		self_ref_t get_self() noexcept {
 			static_assert(std::is_base_of<_cpolym_layer_base, FinalPolymorphChild>::value
-				, "FinalPolymorphChild must derive from _layer_base<FinalPolymorphChild>");
+				, "FinalPolymorphChild must derive from _cpolym_layer_base<FinalPolymorphChild>");
 			return static_cast<self_ref_t>(*this);
 		}
 		self_cref_t get_self() const noexcept {
 			static_assert(std::is_base_of<_cpolym_layer_base, FinalPolymorphChild>::value
-				, "FinalPolymorphChild must derive from _layer_base<FinalPolymorphChild>");
+				, "FinalPolymorphChild must derive from _cpolym_layer_base<FinalPolymorphChild>");
 			return static_cast<self_cref_t>(*this);
 		}
 

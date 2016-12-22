@@ -253,6 +253,8 @@ namespace nntl {
 			m_bActivationsValid = true;
 		}
 
+		void _cust_inspect(const realmtx_t& M)const noexcept {}
+
 		void _bprop(const realmtx_t& data_y, const realmtx_t& prevActivations, const bool bPrevLayerIsInput, realmtx_t& dLdAPrev)noexcept {
 			m_bActivationsValid = false;
 			auto& iI = get_self().get_iInspect();
@@ -283,6 +285,8 @@ namespace nntl {
 				_Math.evClamp(dLdZ, m_dLdZRestrictLowerBnd, m_dLdZRestrictUpperBnd);
 				iI.bprop_postClampdLdZ(dLdZ, m_dLdZRestrictLowerBnd, m_dLdZRestrictUpperBnd);
 			}
+
+			get_self()._cust_inspect(dLdZ);
 
 			//compute dL/dW = 1/batchsize * (dL/dZ)` * Aprev
 			_Math.mScaledMulAtB_C(real_t(1.0) / real_t(dLdZ.rows()), dLdZ, prevActivations, m_dLdW);
