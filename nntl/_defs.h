@@ -49,6 +49,9 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //__forceinline is MS-specific. Should branch on a compiler here
 #define nntl_force_inline __forceinline
 
+//this is for testing whether the forceinline actually helps or hurts
+#define nntl_probably_force_inline __forceinline
+
 //alignment specifier. C++11 has standard alignas construct, but here is the method to quickly change it to
 // something else (like  __declspec(align(#)) ) if needed
 #define nntl_align(n) alignas(n)

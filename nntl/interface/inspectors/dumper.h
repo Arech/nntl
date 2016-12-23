@@ -494,14 +494,14 @@ namespace nntl {
 				_check_err(getArchive().save_struct_end(), "on_bprop_end: save_struct_end");
 			}
 
-			void bprop_dLdZ(const realmtx_t& dLdZ) const noexcept {
+			/*void bprop_dLdZ(const realmtx_t& dLdZ) const noexcept {
 				if (bDoDump(m_curLayer)) {
 					_verbalize("bprop_dLdZ");
 					auto& ar = getArchive();
 					ar & NNTL_SERIALIZATION_NVP(dLdZ);
 					_check_err(ar.get_last_error(), "bprop_dLdZ: saving dLdZ");
 				}
-			}
+			}*/
 
 			void apply_grad_begin(const realmtx_t& W, const realmtx_t& dLdW)const noexcept {
 				if (bDoDump(m_curLayer)) {
@@ -537,8 +537,8 @@ namespace nntl {
 				if (bDoDump(m_curLayer)) {
 					_verbalize("apply_grad_preILR");
 					auto& ar = getArchive();
-					ar & serialization::make_nvp("dLdW_preILR", dLdW);
-					_check_err(ar.get_last_error(), "apply_grad_preILR: saving dLdW");
+					/*ar & serialization::make_nvp("dLdW_preILR", dLdW);
+					_check_err(ar.get_last_error(), "apply_grad_preILR: saving dLdW");*/
 					ar & serialization::make_nvp("Gain_preILR", Gain);
 					_check_err(ar.get_last_error(), "apply_grad_preILR: saving Gain");
 				}

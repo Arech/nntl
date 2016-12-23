@@ -401,6 +401,68 @@ namespace math {
 				}*/
 			}, ridxsCnt);
 		}
+
+		//////////////////////////////////////////////////////////////////////////
+		//////////////////////////////////////////////////////////////////////////
+		// compute squared L2norm of each matrix A row into a vector pNormsVec: pNormsVec(i) = norm(A(i,:)) (rowwise sum of squares)
+		// ATTENTION! At this moment pNormsVec parameter is used for a description purpose only! It MUST be the result of
+		// the call to get_self()._get_thread_temp_raw_storage( A.rows()*m_threads.workers_count() ).
+		// 
+		void mrwL2NormSquared(const realmtx_t& A, real_t*const pNormsVec=nullptr)noexcept {
+			NNTL_ASSERT(pNormsVec == nullptr || pNormsVec == get_self()._get_thread_temp_raw_storage(realmtx_t::sNumel(A.rows(), m_threads.workers_count())));
+			return (A.cols() <= Thresholds_t::mrwL2NormSquared_mt_cw_ColsPerThread || A.numel() < Thresholds_t::mrwL2NormSquared)
+				? get_self().mrwL2NormSquared_st(A)
+				: get_self().mrwL2NormSquared_mt(A);
+		}
+
+		void mrwL2NormSquared_st(const realmtx_t& A, real_t*const pNormsVec=nullptr, const rowcol_range*const pRCR = nullptr)noexcept {
+			NNTL_ASSERT(pNormsVec == nullptr || pNormsVec == get_self()._get_thread_temp_raw_storage(A.rows()));
+			get_self()._imrwL2NormSquared_st(A, get_self()._get_thread_temp_raw_storage(A.rows()), pRCR ? *pRCR : rowcol_range(A));
+		}
+		// #todo implement using _processMtx_rw/_processMtx_cw and move a whole family to SMath::
+		void _imrwL2NormSquared_st(const realmtx_t& A, real_t*const pNormsVec, const rowcol_range& RCR)noexcept {
+			NNTL_ASSERT(pNormsVec);
+			NNTL_ASSERT(RCR.colBegin <= A.cols() && RCR.colEnd <= A.cols() && RCR.colBegin < RCR.colEnd);
+			
+			const auto mRows = A.rows();
+			NNTL_ASSERT(0 == RCR.rowBegin && mRows == RCR.rowEnd);
+
+			memset(pNormsVec, 0, sizeof(*pNormsVec)*mRows);
+
+			const auto dataCnt = realmtx_t::sNumel(mRows, RCR.totalCols());
+			const real_t* pCol = A.colDataAsVec(RCR.colBegin);
+			const auto pColE = pCol + dataCnt;
+			while (pCol != pColE) {
+				auto pElm = pCol;
+				pCol += mRows;
+				const auto pElmE = pCol;
+				auto pN = pNormsVec;
+				while (pElm != pElmE) {
+					const auto v = *pElm++;
+					*pN++ += v*v;
+				}
+			}
+		}
+		void mrwL2NormSquared_mt(const realmtx_t& A, real_t*const pNormsVec=nullptr)noexcept {
+			NNTL_ASSERT(!A.empty());
+			if (A.cols() <= Thresholds_t::mrwL2NormSquared_mt_cw_ColsPerThread) {
+				get_self().mrwL2NormSquared_st(A, pNormsVec);
+			} else {
+				const auto pTmpStor = get_self()._get_thread_temp_raw_storage(realmtx_t::sNumel(A.rows(), m_threads.workers_count()));
+				NNTL_ASSERT(pNormsVec == nullptr || pNormsVec == pTmpStor);
+
+				_processMtx_cw(A, Thresholds_t::mrwL2NormSquared_mt_cw_ColsPerThread
+					, [&A, this](const rowcol_range& RCR, real_t*const pVec)noexcept
+				{
+					get_self()._imrwL2NormSquared_st(A, pVec, RCR);
+				},
+					[this](realmtx_t& fin)noexcept
+				{
+					get_self().mrwSum_ip(fin);
+				}, pTmpStor);
+			}
+		}
+
 		
 		//////////////////////////////////////////////////////////////////////////
 		//#todo implement
@@ -427,39 +489,28 @@ namespace math {
 		void apply_max_norm_st(realmtxdef_t& W, const real_t& maxL2NormSquared, const bool bNormIncludesBias)noexcept {
 		}*/
 
+		
 
 		//////////////////////////////////////////////////////////////////////////
 		// treat matrix as a set of row-vectors (matrices in col-major mode!). For each row-vector check, whether
 		// its length/norm is not longer, than predefined value. If it's longer, than rescale vector to this max length
 		// (for use in max-norm weights regularization)
 		// #TODO reimplement as apply_max_norm()
-		void mCheck_normalize_rows(realmtx_t& A, const real_t& maxL2NormSquared, const bool bNormIncludesBias)noexcept {
+		void mCheck_normalize_rows(realmtxdef_t& A, const real_t& maxL2NormSquared, const bool bNormIncludesBias)noexcept {
 			if (A.numel() < Thresholds_t::mCheck_normalize_rows) {
 				get_self().mCheck_normalize_rows_st(A, maxL2NormSquared, bNormIncludesBias);
 			} else get_self().mCheck_normalize_rows_mt(A, maxL2NormSquared, bNormIncludesBias);
 		}
 		//static constexpr real_t sCheck_normalize_rows_MULT = real_t(32.0);
-		void mCheck_normalize_rows_st(realmtx_t& A, const real_t& maxNormSquared, const bool bNormIncludesBias)noexcept {
+		void mCheck_normalize_rows_st(realmtxdef_t& A, const real_t& maxNormSquared, const bool bNormIncludesBias)noexcept {
 			NNTL_ASSERT(!A.empty() && maxNormSquared > real_t(0.0));
 
 			const auto mRows = A.rows();
 			auto pTmp = get_self()._get_thread_temp_raw_storage(mRows);
-			memset(pTmp, 0, sizeof(*pTmp)*mRows);
-
-			//calculate current norms of row-vectors into pTmp
-			const auto dataCnt = A.numel() - (!bNormIncludesBias)*mRows;
-			const real_t* pCol = A.data();
-			const auto pColE = pCol + dataCnt;
-			while (pCol != pColE) {
-				const real_t* pElm = pCol;
-				pCol += mRows;
-				const auto pElmE = pCol;
-				auto pN = pTmp;
-				while (pElm != pElmE) {
-					const auto v = *pElm++;
-					*pN++ += v*v;
-				}
-			}
+			
+			if (!bNormIncludesBias) A.hide_last_col();
+			get_self().mrwL2NormSquared_st(A, pTmp);
+			if (!bNormIncludesBias) A.restore_last_col();
 
 			//Saving normalization coefficient into pTmp for those rows, that needs normalization, or ones for those, 
 			// that doesn't need.
@@ -478,63 +529,27 @@ namespace math {
 			get_self().mrwMulByVec_st(A, pTmp);
 		}
 		//TODO: might be good to make separate _cw and _rw versions of this algo
-		void mCheck_normalize_rows_mt(realmtx_t& A, const real_t& maxNormSquared, const bool bNormIncludesBias)noexcept {
+		void mCheck_normalize_rows_mt(realmtxdef_t& A, const real_t& maxNormSquared, const bool bNormIncludesBias)noexcept {
 			NNTL_ASSERT(!A.empty() && maxNormSquared > real_t(0.0));
-
-			// 1. each thread will get it's own sequential set of columns (which means sequential underlying representation)
-			//		and will find for that set norm (sum of squares) of their rowvectors.
-			// 2. master thread will sum these partial norms into total norms of whole rowvectors of original matrix and
-			//		calculate corresponding normalization coefficients.
-			// 3. then again each thread will apply these calculated normalization coefficients to their own sequential set of
-			//		columns.
-			
-			const auto mRows = A.rows(), mCols = A.cols();
+						
+			const auto mRows = A.rows();
 			const auto pTmpStor = get_self()._get_thread_temp_raw_storage(realmtx_t::sNumel(mRows, m_threads.workers_count()));
-			thread_id_t threadsCnt;
-			// 1.
-			m_threads.run([&A, pTmpStor](const par_range_t& r)noexcept {
-				const vec_len_t startingCol = static_cast<vec_len_t>(r.offset());
-				const vec_len_t colsToProcess = static_cast<vec_len_t>(r.cnt());
 
-				const auto mRows = A.rows();
-
-				real_t* pNorms = pTmpStor + realmtx_t::sNumel(mRows, r.tid());
-				memset(pNorms, 0, sizeof(*pNorms)*mRows);
-
-				//calculate current norms of row-vectors into pNorms				
-				const auto dataCnt = realmtx_t::sNumel(mRows, colsToProcess);
-				const real_t* pCol = A.colDataAsVec(startingCol);
-				const auto pColE = pCol + dataCnt;
-				while (pCol != pColE) {
-					const real_t* pElm = pCol;
-					pCol += mRows;
-					const auto pElmE = pCol;
-					auto pN = pNorms;
-					while (pElm != pElmE) {
-						const auto v = *pElm++;
-						*pN++ += v*v;
-					}
-				}
-			}, mCols - (!bNormIncludesBias), 0, &threadsCnt);
-
-			//2. sum partial norms into total pTmp
-			const auto pRowNorm = pTmpStor;
-			realmtx_t rowNormSummer;
-			rowNormSummer.useExternalStorage(pRowNorm, mRows, threadsCnt);
-			//TODO: _mt_rw version should also be considered here!
-			get_self().mrwSum_ip_st(rowNormSummer);
+			if (!bNormIncludesBias) A.hide_last_col();
+			get_self().mrwL2NormSquared_mt(A, pTmpStor);
+			if (!bNormIncludesBias) A.restore_last_col();
 
 			// calc scaling coefficients
-			const auto pRowNormE = pRowNorm + mRows;
+			const auto pRowNormE = pTmpStor + mRows;
 			const real_t newNorm = maxNormSquared;// -2 * sqrt(math::real_t_limits<real_t>::eps_lower(maxNormSquared));
-			auto pCurNorm = pRowNorm;
+			auto pCurNorm = pTmpStor;
 			while (pCurNorm != pRowNormE) {
 				const auto rowNorm = *pCurNorm;
 				*pCurNorm++ = rowNorm > maxNormSquared ? sqrt(newNorm / rowNorm) : real_t(1.0);
 			}
 
 			// 3. multiplying
-			get_self().mrwMulByVec(A, pRowNorm);
+			get_self().mrwMulByVec(A, pTmpStor);
 		}
 
 		//////////////////////////////////////////////////////////////////////////

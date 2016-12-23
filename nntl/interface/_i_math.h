@@ -138,8 +138,9 @@ namespace math {
 		// treat matrix as a set of row-vectors (matrices in col-major mode!). For each row-vector check, whether
 		// its length/norm is not longer, than predefined value. If it's longer, than rescale vector to this max length
 		// (for use in max-norm weights regularization)
-		nntl_interface void mCheck_normalize_rows(realmtx_t& W, const real_t& maxL2NormSquared, const bool bNormIncludesBias)noexcept;
+		nntl_interface void mCheck_normalize_rows(realmtxdef_t& W, const real_t& maxL2NormSquared, const bool bNormIncludesBias)noexcept;
 
+		nntl_interface void mrwL2NormSquared(const realmtx_t& A, real_t*const pNormsVec = nullptr)noexcept;
 		//nntl_interface void apply_max_norm(realmtxdef_t& W, const real_t& maxL2NormSquared, const bool bNormIncludesBias)noexcept;
 
 		//returns how many elements in two vectors has exactly the same value. Vectors must have the same length

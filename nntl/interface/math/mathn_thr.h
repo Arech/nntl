@@ -52,6 +52,10 @@ namespace _impl {
 		static constexpr size_t ewBinarize = 11000;
 
 		static constexpr size_t mExtractRows = 2000;
+
+		static constexpr size_t mrwL2NormSquared = 124000;
+		static constexpr vec_len_t mrwL2NormSquared_mt_cw_ColsPerThread = 3;
+
 		static constexpr size_t mCheck_normalize_rows = 124000;
 		static constexpr size_t evClamp = 9000;
 		static constexpr size_t make_dropout = 7000;
@@ -143,6 +147,10 @@ namespace _impl {
 		static constexpr size_t ewBinarize = 1100*19;
 
 		static constexpr size_t mExtractRows = 3100;
+
+		static constexpr size_t mrwL2NormSquared = 250000;
+		static constexpr vec_len_t mrwL2NormSquared_mt_cw_ColsPerThread = 3;
+
 		static constexpr size_t mCheck_normalize_rows = 250000;
 		static constexpr size_t evClamp = 14000;
 		static constexpr size_t make_dropout = 13000;//*

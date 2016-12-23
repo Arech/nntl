@@ -352,7 +352,7 @@ namespace math {
 		// have at least A.rows() elements)
 		// Columnwise
 		template<typename MtxT, typename VecValueT, typename mrwOperationT>
-		nntl_force_inline static void _mrwVecOperation_st_cw(MtxT& A, VecValueT*const pVec, vec_len_t colBegin
+		nntl_probably_force_inline static void _mrwVecOperation_st_cw(MtxT& A, VecValueT*const pVec, vec_len_t colBegin
 			, const rowcol_range& RCR, mrwOperationT&& F)noexcept
 		{
 			static_assert(std::is_same< smatrix<std::remove_const_t<VecValueT>>, std::remove_const_t<MtxT> >::value, "Types mismatch");
@@ -385,7 +385,7 @@ namespace math {
 		}*/
 		//Rowwise
 		template<typename MtxT, typename VecValueT, typename mrwOperationT>
-		nntl_force_inline static void _mrwVecOperation_st_rw(MtxT& A, VecValueT*const pVec, const rowcol_range& RCR, mrwOperationT&& F)noexcept {
+		nntl_probably_force_inline static void _mrwVecOperation_st_rw(MtxT& A, VecValueT*const pVec, const rowcol_range& RCR, mrwOperationT&& F)noexcept {
 			static_assert(std::is_same< smatrix<std::remove_const_t<VecValueT>>, std::remove_const_t<MtxT> >::value, "Types mismatch");
 			NNTL_ASSERT(!A.empty() && A.numel() > 0 && pVec);
 			const auto pA = A.colDataAsVec(RCR.colBegin); //A.data();
@@ -419,7 +419,7 @@ namespace math {
 		// Variation to update A without additional tmp vector
 		//LambdaF is void(*F)(const rowcol_range& RCR, const thread_id_t _tid)
 		template<typename LambdaF>
-		nntl_force_inline void _processMtx_cw(const realmtx_t& A, LambdaF&& Func)noexcept {
+		nntl_probably_force_inline void _processMtx_cw(const realmtx_t& A, LambdaF&& Func)noexcept {
 			NNTL_ASSERT(!A.empty() && A.numel() > 0);
 			//TODO: for some algorithms and datasizes it may be highly beneficial to make smart partitioning, that takes into account
 			//CPU cache size (will probably require more than workers_count() call to worker function, but each call will run significanly
@@ -436,7 +436,7 @@ namespace math {
 		// LambdaFinal is void(*FinFunc)(realmtx_t& fin), there fin is a matrix of size A.rows()*threadsUsed that store results (columnwise) of
 		// each F pVec computation
 		template<typename LambdaF, typename LambdaFinal>
-		nntl_force_inline void _processMtx_cw(const realmtx_t& A, const vec_len_t mt_cw_ColsPerThread, LambdaF&& Func, LambdaFinal&& FinFunc, real_t*const pTVec=nullptr)noexcept {
+		nntl_probably_force_inline void _processMtx_cw(const realmtx_t& A, const vec_len_t mt_cw_ColsPerThread, LambdaF&& Func, LambdaFinal&& FinFunc, real_t*const pTVec=nullptr)noexcept {
 			NNTL_ASSERT(!A.empty() && A.numel() > 0);
 			const auto rm = A.rows(), cm = A.cols();
 			NNTL_ASSERT(cm > mt_cw_ColsPerThread && mt_cw_ColsPerThread >= 3);//DON'T make it less than 3 or you'll run in troubles with size of temp mem!!!
@@ -464,7 +464,7 @@ namespace math {
 		// LambdaFinal is void(*FinFunc)(const realmtx_t& fin, ScndVecType*const pFullScndMtx), there fin and pFullScndMtx are matrices
 		// of size A.rows()*threadsUsed that store results (columnwise) of each F pVec computation
 		template<typename ScndVecType, typename LambdaF, typename LambdaFinal>
-		nntl_force_inline void _processMtx_cw(const realmtx_t& A, const vec_len_t mt_cw_ColsPerThread, LambdaF&& Func, LambdaFinal&& FinFunc)noexcept {
+		nntl_probably_force_inline void _processMtx_cw(const realmtx_t& A, const vec_len_t mt_cw_ColsPerThread, LambdaF&& Func, LambdaFinal&& FinFunc)noexcept {
 			NNTL_ASSERT(!A.empty() && A.numel() > 0);
 			const auto rm = A.rows(), cm = A.cols();
 			NNTL_ASSERT(cm > mt_cw_ColsPerThread && mt_cw_ColsPerThread >= 3);//DON'T make it less than 3 or you'll run in troubles with size of temp mem!!!
@@ -500,7 +500,7 @@ namespace math {
 		// Rowwise processing
 		//LambdaF is void (*Func) (const rowcol_range& RCR)
 		template<typename MtxT, typename LambdaF>
-		nntl_force_inline void _processMtx_rw(MtxT& A, LambdaF&& Func)noexcept {
+		nntl_probably_force_inline void _processMtx_rw(MtxT& A, LambdaF&& Func)noexcept {
 			NNTL_ASSERT(!A.empty() && A.numel() > 0);
 			m_threads.run([&A, &F{ std::forward<LambdaF>(Func) }](const par_range_t& pr) {
 				const auto ofs = static_cast<vec_len_t>(pr.offset());
@@ -619,18 +619,6 @@ namespace math {
 			});
 		}
 
-		//////////////////////////////////////////////////////////////////////////
-		//////////////////////////////////////////////////////////////////////////
-		// compute squared L2norm of each matrix A row into a vector pNorm: pNorm(i) = norm(A(i,:));
-		// (rowwise sum of squares)
-		/* #todo implement using _processMtx_rw/_processMtx_cw
-		void mrwL2NormSquared(realmtx_t& A, real_t*const pNorm)noexcept {
-
-		}
-
-		void mrwL2NormSquared_st(realmtx_t& A, real_t*const pNorm, const rowcol_range*const pRCR = nullptr)noexcept {
-		}
-		*/
 
 		//////////////////////////////////////////////////////////////////////////
 		//////////////////////////////////////////////////////////////////////////
@@ -892,7 +880,7 @@ namespace math {
 
 		//////////////////////////////////////////////////////////////////////////
 		//////////////////////////////////////////////////////////////////////////
-		// Calculate into first row of A rowwise sum of each row
+		// Calculates into the first row of A a sum of columns for each row.
 		void mrwSum_ip(realmtx_t& A)noexcept {
 			const auto cm = A.cols();
 			if (cm <= 1) return;

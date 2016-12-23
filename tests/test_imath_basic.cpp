@@ -862,7 +862,7 @@ void test_mCheck_normalize_rows(vec_len_t rowsCnt, vec_len_t colsCnt, const bool
 
 	const real_t scale = 3;
 	const real_t newNormSq = 1;//3*3/sqrt(colsCnt - (!bNormIncludesBias));
-	realmtx_t W(rowsCnt, colsCnt), srcW(rowsCnt, colsCnt), ones(rowsCnt,colsCnt);
+	realmtxdef_t W(rowsCnt, colsCnt), srcW(rowsCnt, colsCnt), ones(rowsCnt,colsCnt);
 	ASSERT_TRUE(!W.isAllocationFailed() && !srcW.isAllocationFailed() && !ones.isAllocationFailed());
 	ones.ones();
 
@@ -872,7 +872,7 @@ void test_mCheck_normalize_rows(vec_len_t rowsCnt, vec_len_t colsCnt, const bool
 	d_interfaces::iRng_t rg;
 	rg.set_ithreads(iM.ithreads());
 
-	realmtx_t etW(rowsCnt, colsCnt);
+	realmtxdef_t etW(rowsCnt, colsCnt);
 	ASSERT_TRUE(!etW.isAllocationFailed());
 
 	for (unsigned r = 0; r < testCorrRepCnt; ++r) {
