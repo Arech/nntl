@@ -60,9 +60,10 @@ namespace _impl {
 		static constexpr size_t evClamp = 9000;
 		static constexpr size_t make_dropout = 7000;
 
-		static constexpr size_t apply_ILR_st = 3035;
-		static constexpr size_t apply_ILR_mt_lo = 131000;
-		static constexpr size_t apply_ILR_mt_hi = 332000;
+		static constexpr size_t apply_ILR_st_vec = 2620/2;
+		static constexpr size_t apply_ILR_mt = 9000/2;
+		static constexpr size_t apply_ILR_mt_vec = 120000/2;
+		static constexpr size_t apply_ILR_mt_vec2 = 261000/2;
 
 		static constexpr size_t apply_momentum = 21300;
 
@@ -155,9 +156,10 @@ namespace _impl {
 		static constexpr size_t evClamp = 14000;
 		static constexpr size_t make_dropout = 13000;//*
 
-		static constexpr size_t apply_ILR_st = 3100;
-		static constexpr size_t apply_ILR_mt_lo = 240000;
-		static constexpr size_t apply_ILR_mt_hi = 1250000;
+		static constexpr size_t apply_ILR_st_vec = 2620; //*
+		static constexpr size_t apply_ILR_mt = 9000; //*
+		static constexpr size_t apply_ILR_mt_vec = 120000; //*
+		static constexpr size_t apply_ILR_mt_vec2 = 261000; //*
 
 		static constexpr size_t apply_momentum = 49000;
 

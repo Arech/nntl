@@ -143,7 +143,7 @@ namespace nntl {
 			}
 			void gen_vector_st(real_t* ptr, const size_t n, const real_t a)noexcept {
 				NNTL_ASSERT(m_pThreads);
-				const double scale = 2 * a;
+				const ext_real_t scale = 2 * a;
 				const auto pE = ptr + n;
 				while (ptr != pE) {
 					*ptr++ = static_cast<real_t>(scale*(m_Rngs[0].Random() - 0.5));
@@ -151,7 +151,7 @@ namespace nntl {
 			}
 			void gen_vector_mt(real_t* ptr, const size_t n, const real_t a)noexcept {
 				NNTL_ASSERT(m_pThreads);
-				const double scale = 2 * a;
+				const ext_real_t scale = 2 * a;
 				auto& rngs = m_Rngs;
 				m_pThreads->run([ptr,scale,&rngs](const par_range_t&r) {
 					auto& rg = rngs[r.tid()];
@@ -161,7 +161,38 @@ namespace nntl {
 						*p++ = static_cast<real_t>(scale*(rg.Random() - 0.5));
 					}
 				}, n);
-			}			
+			}
+
+			// matrix/vector generation (sequence of numbers drawn from uniform distribution in [neg,pos])
+			void gen_vector(real_t* ptr, const size_t n, const real_t neg, const real_t pos)noexcept {
+				NNTL_ASSERT(m_pThreads);
+				if (n < Thresholds_t::bnd_gen_vector) {
+					gen_vector_st(ptr, n, neg,pos);
+				} else gen_vector_mt(ptr, n, neg, pos);
+			}
+			void gen_vector_st(real_t* ptr, const size_t n, const real_t neg, const real_t pos)noexcept {
+				NNTL_ASSERT(m_pThreads);
+				const auto span = static_cast<ext_real_t>(pos - neg);
+				const auto rNeg = static_cast<ext_real_t>(neg);
+				const auto pE = ptr + n;
+				while (ptr != pE) {
+					*ptr++ = static_cast<real_t>(m_Rngs[0].Random()*span + rNeg);
+				}
+			}
+			void gen_vector_mt(real_t* ptr, const size_t n, const real_t neg, const real_t pos)noexcept {
+				NNTL_ASSERT(m_pThreads);
+				const auto span = static_cast<ext_real_t>(pos - neg);
+				const auto rNeg = static_cast<ext_real_t>(neg);
+				auto& rngs = m_Rngs;
+				m_pThreads->run([ptr, span,rNeg, &rngs](const par_range_t&r) {
+					auto& rg = rngs[r.tid()];
+					auto p = ptr + r.offset();
+					const auto pE = p + r.cnt();
+					while (p != pE) {
+						*p++ = static_cast<real_t>(span*rg.Random() + rNeg);
+					}
+				}, n);
+			}
 			
 			//////////////////////////////////////////////////////////////////////////
 			//generate vector with values in range [0,1]

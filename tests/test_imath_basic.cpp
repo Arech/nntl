@@ -147,13 +147,13 @@ void test_ewBinarize_ip_corr(vec_len_t rowsCnt, vec_len_t colsCnt = 10, const re
 		iM.ewBinarize_ip_st(A, frac);
 		ASSERT_MTX_EQ(A_ET, A, "st() failed correctness test");
 
-		A_orig.cloneTo(A);
+		/*A_orig.cloneTo(A);
 		iM.ex_ewBinarize_ip_st(A, frac);
 		ASSERT_MTX_EQ(A_ET, A, "ex_st() failed correctness test");
 
 		A_orig.cloneTo(A);
 		iM.ex2_ewBinarize_ip_st(A, frac);
-		ASSERT_MTX_EQ(A_ET, A, "ex2_st() failed correctness test");
+		ASSERT_MTX_EQ(A_ET, A, "ex2_st() failed correctness test");*/
 
 
 
@@ -1227,20 +1227,17 @@ TEST(TestMathN, applyMomentum) {
 
 //////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////
-template<typename iMath>
-void test_applyILR_perf(iMath& iM, vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
+
+void test_ApplyILR_corr(vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
+	MTXSIZE_SCOPED_TRACE(rowsCnt, colsCnt, "ApplyILR");
+	constexpr unsigned testCorrRepCnt = TEST_CORRECTN_REPEATS_COUNT;
+
 	const auto dataSize = realmtx_t::sNumel(rowsCnt, colsCnt);
-	STDCOUTL("******* testing apply_ILR() over " << rowsCnt << "x" << colsCnt << " matrix (" << dataSize << " elements) **************");
 
-	double tstNaive, tstVec, tmtNaive, tmtVec, tBest;
-	steady_clock::time_point bt;
-	nanoseconds diff;
-	constexpr unsigned maxReps = TEST_PERF_REPEATS_COUNT, testCorrRepCnt = TEST_CORRECTN_REPEATS_COUNT;
-
-	real_t decr = real_t(.9), incr = real_t(1/0.9), capH = real_t(9.9), capL = real_t(0.1);
+	real_t decr = real_t(.8), incr = real_t(1.3), capH = real_t(9.9), capL = real_t(0.1);
 
 	realmtx_t dW(rowsCnt, colsCnt), prevdW(rowsCnt, colsCnt), gain(rowsCnt, colsCnt);
-	ASSERT_TRUE(!dW.isAllocationFailed() && !prevdW.isAllocationFailed() && !gain.isAllocationFailed() );
+	ASSERT_TRUE(!dW.isAllocationFailed() && !prevdW.isAllocationFailed() && !gain.isAllocationFailed());
 
 	iM.preinit(dataSize);
 	ASSERT_TRUE(iM.init());
@@ -1251,121 +1248,62 @@ void test_applyILR_perf(iMath& iM, vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 
 	//////////////////////////////////////////////////////////////////////////
 	//testing correctness
-	{
-		realmtx_t dW2(rowsCnt, colsCnt), dW3(rowsCnt, colsCnt), gain2(rowsCnt, colsCnt), gain3(rowsCnt, colsCnt);
-		ASSERT_TRUE(!dW2.isAllocationFailed() && !dW3.isAllocationFailed() && !gain2.isAllocationFailed() && !gain3.isAllocationFailed());
+	realmtx_t dW2(rowsCnt, colsCnt), dW3(rowsCnt, colsCnt), gain2(rowsCnt, colsCnt), gain3(rowsCnt, colsCnt);
+	ASSERT_TRUE(!dW2.isAllocationFailed() && !dW3.isAllocationFailed() && !gain2.isAllocationFailed() && !gain3.isAllocationFailed());
 
-		for (unsigned r = 0; r < testCorrRepCnt; ++r) {
-			rg.gen_matrix(dW, 10);
-			dW.cloneTo(dW2);
-			dW.cloneTo(dW3);
-			rg.gen_matrix_gtz(gain, 10);
-			gain.cloneTo(gain2);
-			gain.cloneTo(gain3);
-
-			apply_ILR_ET(dW, prevdW, gain, decr, incr, capL, capH);
-
-			iM.apply_ILR_st_naive(dW2, prevdW, gain2, decr, incr, capL, capH);
-			ASSERT_MTX_EQ(dW2, dW, "apply_ILR_st_naive: wrong dLdW matrix content!");
-			ASSERT_MTX_EQ(gain2, gain, "apply_ILR_st_naive: wrong ILRGain matrix content!");
-
-			dW3.cloneTo(dW2);
-			gain3.cloneTo(gain2);
-			iM.apply_ILR_st_vec(dW2, prevdW, gain2, decr, incr, capL, capH);
-			ASSERT_MTX_EQ(dW2, dW, "apply_ILR_st_vec: wrong dLdW matrix content!");
-			ASSERT_MTX_EQ(gain2, gain, "apply_ILR_st_vec: wrong ILRGain matrix content!");
-
-			dW3.cloneTo(dW2);
-			gain3.cloneTo(gain2);
-			iM.apply_ILR_mt_naive(dW2, prevdW, gain2, decr, incr, capL, capH);
-			ASSERT_MTX_EQ(dW2, dW, "apply_ILR_mt_naive: wrong dLdW matrix content!");
-			ASSERT_MTX_EQ(gain2, gain, "apply_ILR_mt_naive: wrong ILRGain matrix content!");
-
-			dW3.cloneTo(dW2);
-			gain3.cloneTo(gain2);
-			iM.apply_ILR_mt_vec(dW2, prevdW, gain2, decr, incr, capL, capH);
-			ASSERT_MTX_EQ(dW2, dW, "apply_ILR_mt_vec: wrong dLdW matrix content!");
-			ASSERT_MTX_EQ(gain2, gain, "apply_ILR_mt_vec: wrong ILRGain matrix content!");
-
-			dW3.cloneTo(dW2);
-			gain3.cloneTo(gain2);
-			iM.apply_ILR(dW2, prevdW, gain2, decr, incr, capL, capH);
-			ASSERT_MTX_EQ(dW2, dW, "apply_ILR: wrong dLdW matrix content!");
-			ASSERT_MTX_EQ(gain2, gain, "apply_ILR: wrong ILRGain matrix content!");
-		}
-	}
-
-	//////////////////////////////////////////////////////////////////////////
-	//testing performance
-	utils::prioritize_workers<utils::PriorityClass::PerfTesting, iMath::ithreads_t> pw(iM.ithreads());
-	
-	if (dataSize < 180000*4/sizeof(real_t) ) {
-		diff = nanoseconds(0);
-		for (unsigned r = 0; r < maxReps; ++r) {
-			rg.gen_matrix(dW, 10);
-			rg.gen_matrix_gtz(gain, 10);
-			bt = steady_clock::now();
-			iM.apply_ILR_st_naive(dW, prevdW, gain, decr, incr, capL, capH);
-			diff += steady_clock::now() - bt;
-		}
-		STDCOUTL("st_naive:\t" << utils::duration_readable(diff, maxReps, &tstNaive));
-
-		diff = nanoseconds(0);
-		for (unsigned r = 0; r < maxReps; ++r) {
-			rg.gen_matrix(dW, 10);
-			rg.gen_matrix_gtz(gain, 10);
-			bt = steady_clock::now();
-			iM.apply_ILR_st_vec(dW, prevdW, gain, decr, incr, capL, capH);
-			diff += steady_clock::now() - bt;
-		}
-		STDCOUTL("st_vec:\t\t" << utils::duration_readable(diff, maxReps, &tstVec));
-	}
-
-	diff = nanoseconds(0);
-	for (unsigned r = 0; r < maxReps; ++r) {
+	for (unsigned r = 0; r < testCorrRepCnt; ++r) {
 		rg.gen_matrix(dW, 10);
-		rg.gen_matrix_gtz(gain, 10);
-		bt = steady_clock::now();
-		iM.apply_ILR_mt_naive(dW, prevdW, gain, decr, incr, capL, capH);
-		diff += steady_clock::now() - bt;
-	}
-	STDCOUTL("mt_naive:\t" << utils::duration_readable(diff, maxReps, &tmtNaive));
+		auto pDD = dW.data();
+		pDD[0] = 0;
+		pDD[rowsCnt - 1] = 0;
+		pDD[dataSize - rowsCnt + 1] = 0;
 
-	diff = nanoseconds(0);
-	for (unsigned r = 0; r < maxReps; ++r) {
-		rg.gen_matrix(dW, 10);
+		dW.cloneTo(dW2);
+		dW.cloneTo(dW3);
 		rg.gen_matrix_gtz(gain, 10);
-		bt = steady_clock::now();
-		iM.apply_ILR_mt_vec(dW, prevdW, gain, decr, incr, capL, capH);
-		diff += steady_clock::now() - bt;
-	}
-	STDCOUTL("mt_vec:\t\t" << utils::duration_readable(diff, maxReps, &tmtVec));
+		gain.cloneTo(gain2);
+		gain.cloneTo(gain3);
 
-	diff = nanoseconds(0);
-	for (unsigned r = 0; r < maxReps; ++r) {
-		rg.gen_matrix(dW, 10);
-		rg.gen_matrix_gtz(gain, 10);
-		bt = steady_clock::now();
-		iM.apply_ILR(dW, prevdW, gain, decr, incr, capL, capH);
-		diff += steady_clock::now() - bt;
-	}
-	STDCOUTL("best:\t\t" << utils::duration_readable(diff, maxReps, &tBest));
+		apply_ILR_ET(dW, prevdW, gain, decr, incr, capL, capH);
 
-	iM.deinit();
+		iM.apply_ILR_st_naive(dW2, prevdW, gain2, decr, incr, capL, capH);
+		ASSERT_MTX_EQ(dW2, dW, "apply_ILR_st_naive: wrong dLdW matrix content!");
+		ASSERT_MTX_EQ(gain2, gain, "apply_ILR_st_naive: wrong ILRGain matrix content!");
+
+		dW3.cloneTo(dW2);
+		gain3.cloneTo(gain2);
+		iM.apply_ILR_st_vec(dW2, prevdW, gain2, decr, incr, capL, capH);
+		ASSERT_MTX_EQ(dW2, dW, "apply_ILR_st_vec: wrong dLdW matrix content!");
+		ASSERT_MTX_EQ(gain2, gain, "apply_ILR_st_vec: wrong ILRGain matrix content!");
+
+		dW3.cloneTo(dW2);
+		gain3.cloneTo(gain2);
+		iM.apply_ILR_mt_naive(dW2, prevdW, gain2, decr, incr, capL, capH);
+		ASSERT_MTX_EQ(dW2, dW, "apply_ILR_mt_naive: wrong dLdW matrix content!");
+		ASSERT_MTX_EQ(gain2, gain, "apply_ILR_mt_naive: wrong ILRGain matrix content!");
+
+		dW3.cloneTo(dW2);
+		gain3.cloneTo(gain2);
+		iM.apply_ILR_mt_vec(dW2, prevdW, gain2, decr, incr, capL, capH);
+		ASSERT_MTX_EQ(dW2, dW, "apply_ILR_mt_vec: wrong dLdW matrix content!");
+		ASSERT_MTX_EQ(gain2, gain, "apply_ILR_mt_vec: wrong ILRGain matrix content!");
+
+		dW3.cloneTo(dW2);
+		gain3.cloneTo(gain2);
+		iM.apply_ILR(dW2, prevdW, gain2, decr, incr, capL, capH);
+		ASSERT_MTX_EQ(dW2, dW, "apply_ILR: wrong dLdW matrix content!");
+		ASSERT_MTX_EQ(gain2, gain, "apply_ILR: wrong ILRGain matrix content!");
+	}
 }
 
-TEST(TestMathN, ApplyILRPerf) {
-	typedef nntl::d_interfaces::iThreads_t def_threads_t;
-	typedef math::MathN<real_t, def_threads_t> iMB;
-	iMB iM;
-	NNTL_RUN_TEST2(iMB::Thresholds_t::apply_ILR_st, 10) test_applyILR_perf(iM, i, 10);
-	//NNTL_RUN_TEST4(iMB::Thresholds_t::apply_ILR_st, 60, 2, 10) test_applyILR_perf(iM, i, 10);
-	
-	NNTL_RUN_TEST2(iMB::Thresholds_t::apply_ILR_mt_lo, 100) test_applyILR_perf(iM, i, 100);	
-	//NNTL_RUN_TEST4(iMB::Thresholds_t::apply_ILR_mt_lo, 4, 1, 100) test_applyILR_perf(iM, i, 100);
-	
-	NNTL_RUN_TEST2(iMB::Thresholds_t::apply_ILR_mt_hi, 100) test_applyILR_perf(iM, i, 100);
-	//NNTL_RUN_TEST4(iMB::Thresholds_t::apply_ILR_mt_hi, 4, 1, 100) test_applyILR_perf(iM, i, 100);
+TEST(TestMathN, ApplyILR) {
+	constexpr unsigned rowsCnt = _baseRowsCnt;
+	const vec_len_t maxCols = g_MinDataSizeDelta, maxRows = rowsCnt + g_MinDataSizeDelta;
+	for (vec_len_t r = rowsCnt; r < maxRows; ++r) {
+		for (vec_len_t c = 1; c < maxCols; ++c) {
+			ASSERT_NO_FATAL_FAILURE(test_ApplyILR_corr(r, c));
+		}
+	}
 }
 
 //////////////////////////////////////////////////////////////////////////

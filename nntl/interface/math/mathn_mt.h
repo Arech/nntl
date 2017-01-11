@@ -79,8 +79,8 @@ namespace math {
 		
 		//////////////////////////////////////////////////////////////////////////
 		//binarize elements of real-valued matrix according to their relaion to frac
-		void ewBinarize_ip(realmtx_t& A, const real_t frac)noexcept {
-			base_class_t::ewBinarize_ip(A, frac);//shouldn't just run _mt version
+		void ewBinarize_ip(realmtx_t& A, const real_t& frac, const real_t& lBnd = real_t(0.), const real_t& uBnd = real_t(1.))noexcept {
+			base_class_t::ewBinarize_ip(A, frac, lBnd, uBnd);//shouldn't just run _mt version
 		}
 		//binarize elements of real-valued matrix according to their relaion to frac into other matrix
 		template<typename DestContainerT>
@@ -176,7 +176,7 @@ namespace math {
 		void apply_ILR(realmtx_t& dLdW, const realmtx_t& prevdLdW, realmtx_t& ILRGain,
 			const real_t decr, const real_t incr, const real_t capLow, const real_t capHigh)noexcept
 		{
-			apply_ILR_mt_naive(dLdW, prevdLdW, ILRGain, decr, incr, capLow, capHigh);
+			base_class_t::apply_ILR(dLdW, prevdLdW, ILRGain, decr, incr, capLow, capHigh);
 		}
 
 		//////////////////////////////////////////////////////////////////////////

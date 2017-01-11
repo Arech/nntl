@@ -73,6 +73,8 @@ namespace rng {
 		//////////////////////////////////////////////////////////////////////////
 		// matrix/vector generation (sequence of numbers drawn from uniform distribution in [-a,a])
 		nntl_interface void gen_vector(real_t* ptr, const size_t n, const real_t a)noexcept;
+		// matrix/vector generation (sequence of numbers drawn from uniform distribution in [neg,pos])
+		nntl_interface void gen_vector(real_t* ptr, const size_t n, const real_t neg, const real_t pos)noexcept;
 
 		//////////////////////////////////////////////////////////////////////////
 		//generate vector with values in range [0,1]

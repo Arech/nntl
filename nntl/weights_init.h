@@ -50,8 +50,8 @@ namespace weights_init {
 	// sizes are different, it's kind of compromise. Which means, that there might be other more suitable initialization schemes.
 	template<unsigned int scalingCoeff1e6 = 1000000>
 	struct Xavier {
-		template <typename iRng_t>
-		static bool init(typename iRng_t::realmtx_t& W, iRng_t& iR)noexcept {
+		template <typename iRng_t, typename iMath_t>
+		static bool init(typename iRng_t::realmtx_t& W, iRng_t& iR, iMath_t& iM)noexcept {
 			typedef typename iRng_t::real_t real_t;
 			NNTL_ASSERT(!W.empty() && W.numel() > 0);
 
@@ -75,8 +75,8 @@ namespace weights_init {
 	// This method initializes weights to make weight vectors norm -> scalingCoeff^2 *sqrt(2)
 	template<unsigned int scalingCoeff1e6 = 1000000>
 	struct He_Zhang {
-		template <typename iRng_t>
-		static bool init(typename iRng_t::realmtx_t& W, iRng_t& iR)noexcept {
+		template <typename iRng_t, typename iMath_t>
+		static bool init(typename iRng_t::realmtx_t& W, iRng_t& iR, iMath_t& iM)noexcept {
 			typedef typename iRng_t::real_t real_t;
 			typedef typename iRng_t::realmtx_t realmtx_t;
 
@@ -95,28 +95,30 @@ namespace weights_init {
 			return true;
 		}
 	};
-	//variant of He_Zhang, properly parametrized (actually scalingCoeff1e6 is excessive, but let it be)
-	// Generic form makes weigths norm -> scalingCoeff^2 * sqrt(paramCoeff)
-	template<unsigned int paramCoeff1e6 = 2000000, unsigned int scalingCoeff1e6 = 1000000>
+	//variant of He_Zhang, properly parametrized
+	// Generic form makes weigths norm -> sqrt(paramCoeff)
+	template<unsigned int paramCoeff1e6 = 2000000>
 	struct He_Zhang2 {
-		template <typename iRng_t>
-		static bool init(typename iRng_t::realmtx_t& W, iRng_t& iR)noexcept {
+		template <typename iRng_t, typename iMath_t>
+		static bool init(typename iRng_t::realmtx_t& W, iRng_t& iR, iMath_t& iM)noexcept {
 			typedef typename iRng_t::real_t real_t;
 			typedef typename iRng_t::realmtx_t realmtx_t;
 
 			NNTL_ASSERT(!W.empty() && W.numel() > 0);
 
 			constexpr ext_real_t paramCoeff = ext_real_t(paramCoeff1e6) / ext_real_t(1000000);
-			constexpr ext_real_t scalingCoeff = ext_real_t(scalingCoeff1e6) / ext_real_t(1000000);
+			//constexpr ext_real_t scalingCoeff = ext_real_t(scalingCoeff1e6) / ext_real_t(1000000);
 
 			const auto prevLayerNeuronsCnt = W.cols() - 1;
-			const real_t stdDev = real_t(scalingCoeff*std::sqrt(paramCoeff / prevLayerNeuronsCnt));
+			const real_t stdDev = real_t( /* scalingCoeff* */ std::sqrt(paramCoeff / prevLayerNeuronsCnt));
 
 			rng::distr_normal_naive<iRng_t> d(iR, real_t(0.0), stdDev);
+
 			d.gen_vector(W.data(), realmtx_t::sNumel(W.rows(), prevLayerNeuronsCnt));
 
 			auto pBiases = W.colDataAsVec(prevLayerNeuronsCnt);
 			std::fill(pBiases, pBiases + W.rows(), real_t(0.0));
+
 			return true;
 		}
 	};
@@ -132,8 +134,8 @@ namespace weights_init {
 	// the biases to 0.5 and rescaling the weights by 0.25."
 	template<int Biases1e6 = 0, unsigned int StdDev1e6=1000000, unsigned int NonZeroUnitsCount = 15>
 	struct Martens_SI {
-		template <typename iRng_t>
-		static bool init(typename iRng_t::realmtx_t& W, iRng_t& iR)noexcept {
+		template <typename iRng_t, typename iMath_t>
+		static bool init(typename iRng_t::realmtx_t& W, iRng_t& iR, iMath_t& iM)noexcept {
 			typedef typename iRng_t::real_t real_t;
 			typedef typename iRng_t::realmtx_t realmtx_t;
 			typedef realmtx_t::vec_len_t vec_len_t;
@@ -166,7 +168,8 @@ namespace weights_init {
 			d.gen_matrix(src);
 
 			auto pS = src.data();
-			//setting rowwise (I don't think we can significantly speed up this code and leave the same quality of randomness)
+			//setting rowwise (don't think we can significantly speed up this code and leave the same quality of randomness - but that's
+			// not a performance critical code)
 			for (vec_len_t r = 0; r < thisLayerNeuronsCnt; ++r) {
 				std::random_shuffle(pIdxs, pIdxsE, iR);
 				for (vec_len_t cIdx = 0; cIdx < NonZeroUnitsCount; ++cIdx) {

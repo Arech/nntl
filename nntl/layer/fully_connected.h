@@ -169,7 +169,7 @@ namespace nntl {
 				// initializing
 				if (!m_weights.resize(get_self().get_neurons_cnt(), get_incoming_neurons_cnt() + 1)) return ErrorCode::CantAllocateMemoryForWeights;
 
-				if (!activation_f_t::weights_scheme::init(m_weights, get_self().get_iRng()))return ErrorCode::CantInitializeWeights;
+				if (!activation_f_t::weights_scheme::init(m_weights, get_self().get_iRng(), get_self().get_iMath()))return ErrorCode::CantInitializeWeights;
 
 				m_bWeightsInitialized = true;
 			}

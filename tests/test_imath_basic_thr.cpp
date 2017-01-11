@@ -569,7 +569,7 @@ void test_ewBinarize_ip_perf(vec_len_t rowsCnt, vec_len_t colsCnt = 10, const re
 		iM.ewBinarize_ip_st(A, frac);
 		tSt.toc();
 
-		rg.gen_matrix_norm(A);
+		/*rg.gen_matrix_norm(A);
 		t1.tic();
 		iM.ex_ewBinarize_ip_st(A, frac);
 		t1.toc();
@@ -577,7 +577,7 @@ void test_ewBinarize_ip_perf(vec_len_t rowsCnt, vec_len_t colsCnt = 10, const re
 		rg.gen_matrix_norm(A);
 		t2.tic();
 		iM.ex2_ewBinarize_ip_st(A, frac);
-		t2.toc();
+		t2.toc();*/
 
 
 		rg.gen_matrix_norm(A);
@@ -585,7 +585,7 @@ void test_ewBinarize_ip_perf(vec_len_t rowsCnt, vec_len_t colsCnt = 10, const re
 		iM.ewBinarize_ip_st(A, frac);
 		dt.toc();
 
-		rg.gen_matrix_norm(A);
+		/*rg.gen_matrix_norm(A);
 		dt1.tic();
 		iM.ex_ewBinarize_ip_st(A, frac);
 		dt1.toc();
@@ -593,7 +593,7 @@ void test_ewBinarize_ip_perf(vec_len_t rowsCnt, vec_len_t colsCnt = 10, const re
 		rg.gen_matrix_norm(A);
 		dt2.tic();
 		iM.ex2_ewBinarize_ip_st(A, frac);
-		dt2.toc();
+		dt2.toc();*/
 
 
 		rg.gen_matrix_norm(A);
@@ -608,10 +608,10 @@ void test_ewBinarize_ip_perf(vec_len_t rowsCnt, vec_len_t colsCnt = 10, const re
 	}
 	tSt.say("st");
 	dt.say("st");
-	t1.say("ex");
-	dt1.say("ex");
-	t2.say("ex2");
-	dt2.say("ex2");
+	//t1.say("ex");
+	//dt1.say("ex");
+	//t2.say("ex2");
+	//dt2.say("ex2");
 
 
 
@@ -943,3 +943,90 @@ TEST(TestMathNThr, lossSigmXentropy) {
 	NNTL_RUN_TEST2(imath_basic_t::Thresholds_t::loss_sigm_xentropy, 1) test_loss_sigm_xentropy_perf(i, 1);
 }
 
+//////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////
+void test_ApplyILR_perf(vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
+	const auto dataSize = realmtx_t::sNumel(rowsCnt, colsCnt);
+	STDCOUTL("******* testing apply_ILR() over " << rowsCnt << "x" << colsCnt << " matrix (" << dataSize << " elements) **************");
+
+	constexpr unsigned maxReps = TEST_PERF_REPEATS_COUNT;
+	constexpr numel_cnt_t maxDataSizeForSt = 10000;
+
+	real_t decr = real_t(.8), incr = real_t(1.3), capH = real_t(9.9), capL = real_t(0.1);
+
+	realmtx_t dW(rowsCnt, colsCnt), prevdW(rowsCnt, colsCnt), gain(rowsCnt, colsCnt);
+	ASSERT_TRUE(!dW.isAllocationFailed() && !prevdW.isAllocationFailed() && !gain.isAllocationFailed());
+
+	iM.preinit(dataSize);
+	ASSERT_TRUE(iM.init());
+
+	d_interfaces::iRng_t rg;
+	rg.set_ithreads(iM.ithreads());
+	rg.gen_matrix(prevdW, 10);
+
+	
+	tictoc tStN, tStV, tMtN, tMtV, tB;
+	utils::prioritize_workers<utils::PriorityClass::PerfTesting, iThreads_t> pw(iM.ithreads());
+	
+	for (unsigned r = 0; r < maxReps; ++r) {
+		if (dataSize < maxDataSizeForSt) {
+			rg.gen_matrix(dW, 10);
+			rg.gen_matrix_gtz(gain, 10);
+			tStN.tic();
+			iM.apply_ILR_st_naive(dW, prevdW, gain, decr, incr, capL, capH);
+			tStN.toc();
+
+			rg.gen_matrix(dW, 10);
+			rg.gen_matrix_gtz(gain, 10);
+			tStV.tic();
+			iM.apply_ILR_st_vec(dW, prevdW, gain, decr, incr, capL, capH);
+			tStV.toc();
+		}
+
+		rg.gen_matrix(dW, 10);
+		rg.gen_matrix_gtz(gain, 10);
+		tMtN.tic();
+		iM.apply_ILR_mt_naive(dW, prevdW, gain, decr, incr, capL, capH);
+		tMtN.toc();
+
+		rg.gen_matrix(dW, 10);
+		rg.gen_matrix_gtz(gain, 10);
+		tMtV.tic();
+		iM.apply_ILR_mt_vec(dW, prevdW, gain, decr, incr, capL, capH);
+		tMtV.toc();
+
+		rg.gen_matrix(dW, 10);
+		rg.gen_matrix_gtz(gain, 10);
+		tB.tic();		
+		iM.apply_ILR(dW, prevdW, gain, decr, incr, capL, capH);
+		tB.toc();
+	}
+	tStN.say("st_naive");
+	tStV.say("st_vec");
+	tMtN.say("mt_naive");
+	tMtV.say("mt_vec");
+	tB.say("best");
+}
+TEST(TestMathNThr, ApplyILR) {
+	//vec is faster until about 2620, after that - naive
+	//NNTL_RUN_TEST4(2620, 3, 1, 10) test_ApplyILR_perf(i, 10);
+
+	//mt threshold is at about 9000 (on avg. By minimum thrsh it's lowered to about 8500
+	/*for (vec_len_t ci = 2; ci <= 24; ci += 2) {
+		NNTL_RUN_TEST4(9000, 3, 1, ci) test_ApplyILR_perf(i, ci);
+	}*/
+	//for mt vec is better up to approx 120000. Then naive rules up to 261000
+
+	/*for (size_t ds = 260000; ds <= 265000; ds += 1000) {
+		//for (vec_len_t ci = 2; ci <= 38; ci += 6) {
+			test_ApplyILR_perf(ds/10, 10);
+		//}
+	}*/
+
+//#ifndef TESTS_SKIP_LONGRUNNING
+	NNTL_RUN_TEST2(imath_basic_t::Thresholds_t::apply_ILR_st_vec, 10) test_ApplyILR_perf(i, 10);
+	NNTL_RUN_TEST2(imath_basic_t::Thresholds_t::apply_ILR_mt, 10) test_ApplyILR_perf(i, 10);
+	NNTL_RUN_TEST2(imath_basic_t::Thresholds_t::apply_ILR_mt_vec, 10) test_ApplyILR_perf(i, 10);
+	NNTL_RUN_TEST2(imath_basic_t::Thresholds_t::apply_ILR_mt_vec2, 10) test_ApplyILR_perf(i, 10);
+//#endif
+}

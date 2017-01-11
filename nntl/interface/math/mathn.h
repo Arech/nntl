@@ -249,22 +249,35 @@ namespace math {
 		// ElementWise operations
 		//////////////////////////////////////////////////////////////////////////
 		//binarize elements of real-valued matrix according to their relaion to frac
-		void ewBinarize_ip(realmtx_t& A, const real_t frac)noexcept {
+		void ewBinarize_ip(realmtx_t& A, const real_t& frac, const real_t& lBnd = real_t(0.), const real_t& uBnd = real_t(1.))noexcept {
 			if (A.numel() < Thresholds_t::ewBinarize_ip) {
-				get_self().ewBinarize_ip_st(A, frac);
-			} else get_self().ewBinarize_ip_mt(A, frac);
+				get_self().ewBinarize_ip_st(A, frac, lBnd, uBnd);
+			} else get_self().ewBinarize_ip_mt(A, frac, lBnd, uBnd);
 		}
-		static void ewBinarize_ip_st(realmtx_t& A, const real_t frac)noexcept {
+		static void ewBinarize_ip_st(realmtx_t& A, const real_t frac, const real_t lBnd = real_t(0.), const real_t uBnd = real_t(1.))noexcept {
 			auto pA = A.data();
 			const auto pAE = pA + A.numel();
 			while (pA != pAE) {
 				const auto v = *pA;
 				//NNTL_ASSERT(v >= real_t(0.0) && v <= real_t(1.0));
-				*pA++ = v > frac ? real_t(1.0) : real_t(0.0);
+				*pA++ = v > frac ? uBnd : lBnd;
 			}
 		}
+		void ewBinarize_ip_mt(realmtx_t& A, const real_t frac, const real_t lBnd = real_t(0.), const real_t uBnd = real_t(1.))noexcept {
+			auto pA = A.data();
+			m_threads.run([pA, frac, lBnd, uBnd](const par_range_t& r) {
+				auto p = pA + r.offset();
+				const auto pAE = p + r.cnt();
+				while (p != pAE) {
+					const auto v = *p;
+					//NNTL_ASSERT(v >= real_t(0.0) && v <= real_t(1.0));
+					*p++ = v > frac ? uBnd : lBnd;
+				}
+			}, A.numel());
+		}
+
 		//#TODO finish refactoring; find out which algo is better; move to base SMath class
-		struct _ew_BINARIZE_IP {
+		/*struct _ew_BINARIZE_IP {
 			const real_t frac;
 			_ew_BINARIZE_IP(const real_t f)noexcept:frac(f) {}
 
@@ -280,20 +293,8 @@ namespace math {
 		}
 		static void ex2_ewBinarize_ip_st(realmtx_t& A, const real_t frac)noexcept {
 			_ewOperation_st2(A, elms_range(A), _ew_BINARIZE_IP(frac));
-		}
+		}*/
 
-		void ewBinarize_ip_mt(realmtx_t& A, const real_t frac)noexcept {
-			auto pA = A.data();
-			m_threads.run([pA, frac](const par_range_t& r) {
-				auto p = pA + r.offset();
-				const auto pAE = p + r.cnt();
-				while (p != pAE) {
-					const auto v = *p;
-					//NNTL_ASSERT(v >= real_t(0.0) && v <= real_t(1.0));
-					*p++ = v > frac ? real_t(1.0) : real_t(0.0);
-				}
-			}, A.numel());
-		}
 		//////////////////////////////////////////////////////////////////////////
 		//binarize elements of real-valued matrix according to their relaion to frac into other matrix
 		template<typename DestContainerT>
@@ -670,13 +671,15 @@ namespace math {
 			const real_t decr, const real_t incr, const real_t capLow, const real_t capHigh)noexcept
 		{
 			const auto dataCnt = dLdW.numel();
-			if (dataCnt < Thresholds_t::apply_ILR_st) {
-				if (std::is_same<float, real_t>::value) {
+			if (dataCnt < Thresholds_t::apply_ILR_mt) {
+				if (dataCnt <= Thresholds_t::apply_ILR_st_vec) {
 					get_self().apply_ILR_st_vec(dLdW, prevdLdW, ILRGain, decr, incr, capLow, capHigh);
 				} else get_self().apply_ILR_st_naive(dLdW, prevdLdW, ILRGain, decr, incr, capLow, capHigh);
-			} else if (dataCnt < Thresholds_t::apply_ILR_mt_lo || dataCnt > Thresholds_t::apply_ILR_mt_hi) {
-				get_self().apply_ILR_mt_naive(dLdW, prevdLdW, ILRGain, decr, incr, capLow, capHigh);
-			} else get_self().apply_ILR_mt_vec(dLdW, prevdLdW, ILRGain, decr, incr, capLow, capHigh);
+			} else {
+				if (dataCnt <= Thresholds_t::apply_ILR_mt_vec || dataCnt >= Thresholds_t::apply_ILR_mt_vec2) {
+					get_self().apply_ILR_mt_vec(dLdW, prevdLdW, ILRGain, decr, incr, capLow, capHigh);
+				} else get_self().apply_ILR_mt_naive(dLdW, prevdLdW, ILRGain, decr, incr, capLow, capHigh);
+			}
 		}
 		static void apply_ILR_st_naive(realmtx_t& dLdW, const realmtx_t& prevdLdW, realmtx_t& ILRGain,
 			const real_t decr, const real_t incr, const real_t capLow, const real_t capHigh)noexcept
@@ -697,26 +700,18 @@ namespace math {
 				auto pG = pGain + i;
 				const real_t cond = prevdW[i] * (*pW);
 				auto g = *pG;
+				
 				/*if (cond > real_t(+0.0)) {
-					g *= incr;
-					if (g > capHigh) g = capHigh;
-				} else if (cond < real_t(-0.0)) {
-					g *= decr;
-					if (g < capLow) g = capLow;
-				}*/
-				/*g = cond > real_t(+0.0) 
-					? (g<capHigh ? g*incr : g)
-					: (cond < real_t(-0.0) ? (g>capLow ? g*decr : g) : g);*/
-				/*if (cond > real_t(+0.0)) {
-					g *= (g > capHigh ? real_t(1.) : incr);
-				} else if (cond < real_t(-0.0)) {
-					g *= (g < capLow ? real_t(1.) : decr);
-				}*/
-				if (cond > real_t(+0.0)) {
 					if (g < capHigh) g *= incr;
 				} else if (cond < real_t(-0.0)) {
 					if (g > capLow) g *= decr;
 				}
+				*/
+
+				const auto bUp = (cond > real_t(+0.0))&(g < capHigh)
+					, bDown = (cond < real_t(-0.0)) & (g > capLow);
+
+				g *= (!(bUp | bDown))*real_t(1.) + bUp*incr + bDown*decr;
 				*pG = g;
 				*pW *= g;
 			}
@@ -740,31 +735,22 @@ namespace math {
 					auto pG = pGain + i;
 					const auto cond = prevdW[i] * (*pW);
 					auto g = *pG;
+					
 					/*if (cond > real_t(+0.0)) {
-						g *= incr;
-						if (g > capHigh) g = capHigh;
-					} else if (cond < real_t(-0.0)) {
-						g *= decr;
-						if (g < capLow) g = capLow;
-					}*/
-					/*g = cond > real_t(+0.0)
-						? (g < capHigh ? g*incr : g)
-						: (cond < real_t(-0.0) ? (g > capLow ? g*decr : g) : g);*/
-					/*if (cond > real_t(+0.0)) {
-						g *= (g > capHigh ? real_t(1.) : incr);
-					} else if (cond < real_t(-0.0)) {
-						g *= (g < capLow ? real_t(1.) : decr);
-					}*/
-					if (cond > real_t(+0.0)) {
 						if (g < capHigh) g *= incr;
 					} else if (cond < real_t(-0.0)) {
 						if (g > capLow) g *= decr;
-					}
+					}*/
+					const auto bUp = (cond > real_t(+0.0))&(g < capHigh)
+						, bDown = (cond < real_t(-0.0)) & (g > capLow);
+
+					g *= (!(bUp | bDown))*real_t(1.) + bUp*incr + bDown*decr;
 					*pG = g;
 					*pW *= g;
 				}
 			}, dLdW.numel());
 		}
+
 		void apply_ILR_st_vec(realmtx_t& dLdW, const realmtx_t& prevdLdW, realmtx_t& ILRGain,
 			const real_t decr, const real_t incr, const real_t capLow, const real_t capHigh)noexcept
 		{
@@ -786,31 +772,23 @@ namespace math {
 				auto pG = pGain + i;
 				const auto cond = pCond[i];
 				auto g = *pG;
+
 				/*if (cond > real_t(+0.0)) {
-					g *= incr;
-					if (g > capHigh) g = capHigh;
-				} else if (cond < real_t(-0.0)) {
-					g *= decr;
-					if (g < capLow) g = capLow;
-				}*/
-				/*g = cond > real_t(+0.0)
-					? (g < capHigh ? g*incr : g)
-					: (cond < real_t(-0.0) ? (g > capLow ? g*decr : g) : g);*/
-				/*if (cond > real_t(+0.0)) {
-					g *= (g > capHigh ? real_t(1.) : incr);
-				} else if (cond < real_t(-0.0)) {
-					g *= (g < capLow ? real_t(1.) : decr);
-				}*/
-				if (cond > real_t(+0.0)) {
 					if (g < capHigh) g *= incr;
 				} else if (cond < real_t(-0.0)) {
 					if (g > capLow) g *= decr;
 				}
-				*pG = g;
+				*pG = g;*/
+
+				const auto bUp = (cond > real_t(+0.0))&(g < capHigh)
+					, bDown = (cond < real_t(-0.0)) & (g > capLow);
+
+				*pG *= (!(bUp | bDown))*real_t(1.) + bUp*incr + bDown*decr;
 			}
 
 			for (numel_cnt_t i = 0; i < dataCnt; ++i) pdW[i] *= pGain[i];
 		}
+
 		void apply_ILR_mt_vec(realmtx_t& dLdW, const realmtx_t& prevdLdW, realmtx_t& ILRGain,
 			const real_t decr, const real_t incr, const real_t capLow, const real_t capHigh)noexcept
 		{
@@ -839,27 +817,17 @@ namespace math {
 					auto pG = pGn + i;
 					const auto cond = pCond[i];
 					auto g = *pG;
+					
 					/*if (cond > real_t(+0.0)) {
-						g *= incr;
-						if (g > capHigh) g = capHigh;
-					} else if (cond < real_t(-0.0)) {
-						g *= decr;
-						if (g < capLow) g = capLow;
-					}*/
-					/*g = cond > real_t(+0.0)
-						? (g < capHigh ? g*incr : g)
-						: (cond < real_t(-0.0) ? (g > capLow ? g*decr : g) : g);*/
-					/*if (cond > real_t(+0.0)) {
-						g *= (g > capHigh ? real_t(1.) : incr);
-					} else if (cond < real_t(-0.0)) {
-						g *= (g < capLow ? real_t(1.) : decr);
-					}*/
-					if (cond > real_t(+0.0)) {
 						if (g < capHigh) g *= incr;
 					} else if (cond < real_t(-0.0)) {
 						if (g > capLow) g *= decr;
 					}
-					*pG = g;
+					*pG = g;*/
+					const auto bUp = (cond > real_t(+0.0))&(g < capHigh)
+						, bDown = (cond < real_t(-0.0)) & (g > capLow);
+
+					*pG *= (!(bUp | bDown))*real_t(1.) + bUp*incr + bDown*decr;
 				}
 
 				for (numel_cnt_t i = 0; i < cnt; ++i) pW[i] *= pGn[i];

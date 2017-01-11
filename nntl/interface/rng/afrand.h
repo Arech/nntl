@@ -73,10 +73,20 @@ namespace rng {
 		//////////////////////////////////////////////////////////////////////////
 		// matrix/vector generation (sequence from begin to end of numbers drawn from uniform distribution in [-a,a])
 		void gen_vector(real_t* ptr, const size_t n, const real_t a)noexcept {
-			const double scale = 2 * a;
+			const ext_real_t scale = 2 * a;
 			const auto pE = ptr + n;
 			while (ptr != pE) {
 				*ptr++ = static_cast<real_t>(scale*(m_rng.Random() - 0.5));
+			}
+		}
+
+		// matrix/vector generation (sequence of numbers drawn from uniform distribution in [neg,pos])
+		void gen_vector(real_t* ptr, const size_t n, const real_t neg, const real_t pos)noexcept {
+			const auto span = static_cast<ext_real_t>(pos - neg);
+			const auto rNeg = static_cast<ext_real_t>(neg);
+			const auto pE = ptr + n;
+			while (ptr != pE) {
+				*ptr++ = static_cast<real_t>(m_rng.Random()*span + rNeg);
 			}
 		}
 
