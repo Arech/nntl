@@ -327,7 +327,7 @@
     <ClInclude Include="..\nntl\utils\mixins.h">
       <Filter>nntl\utils</Filter>
     </ClInclude>
-    <ClInclude Include="..\nntl\grad_works.h">
+    <ClInclude Include="..\nntl\grad_works\grad_works.h">
       <Filter>nntl\grad_works</Filter>
     </ClInclude>
   </ItemGroup>
