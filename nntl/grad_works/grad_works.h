@@ -32,7 +32,8 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #pragma once
 
 #include <bitset>
-#include "common_nn_data.h"
+#include "../common_nn_data.h"
+#include "ILR.h"
 
 namespace nntl {
 
@@ -71,51 +72,6 @@ namespace nntl {
 			nntl_interface bool hasLossAddendum()const noexcept;
 		};
 	}
-
-	//////////////////////////////////////////////////////////////////////////
-	//GW namespace is for grad_works mixins and other stuff, that helps to implement gradient processing voodooo things
-	namespace GW {
-
-		template<typename RealT>
-		struct ILR {
-			typedef RealT real_t;
-
-			real_t mulDecr, mulIncr, capLow, capHigh;
-
-			ILR()noexcept:mulDecr(real_t(0.0)), mulIncr(real_t(0.0)), capLow(real_t(0.0)), capHigh(real_t(0.0)) {}
-			ILR(const real_t decr, const real_t incr, const real_t cLow, const real_t cHigh)noexcept : mulDecr(decr), mulIncr(incr), capLow(cLow), capHigh(cHigh) {
-				NNTL_ASSERT((decr > 0 && decr < 1 && incr > 1 && cHigh > cLow && cLow > 0) || (decr == 0 && incr == 0 && cHigh == 0 && cLow == 0));
-			}
-			void set(const real_t decr, const real_t incr, const real_t cLow, const real_t cHigh)noexcept {
-				NNTL_ASSERT((decr > 0 && decr < 1 && incr > 1 && cHigh > cLow && cLow > 0) || (decr == 0 && incr == 0 && cHigh == 0 && cLow == 0));
-				mulDecr = decr;
-				mulIncr = incr;
-				capLow = cLow;
-				capHigh = cHigh;
-			}
-			void clear()noexcept { set(real_t(0.0), real_t(0.0), real_t(0.0), real_t(0.0)); }
-			const bool bUseMe()const noexcept {
-				NNTL_ASSERT((mulDecr > real_t(0.0) && mulIncr > real_t(0.0) && capLow > real_t(0.0) && capHigh > real_t(0.0))
-					|| (mulDecr == real_t(0.0) && mulIncr == real_t(0.0) && capLow == real_t(0.0) && capHigh == real_t(0.0)));
-				return mulDecr > real_t(0.0);
-			}
-
-			//////////////////////////////////////////////////////////////////////////
-			//Serialization support
-		private:
-			friend class boost::serialization::access;
-			template<class Archive>
-			void serialize(Archive & ar, const unsigned int version) {
-				ar & NNTL_SERIALIZATION_NVP(mulDecr);
-				ar & NNTL_SERIALIZATION_NVP(mulIncr);
-				ar & NNTL_SERIALIZATION_NVP(capLow);
-				ar & NNTL_SERIALIZATION_NVP(capHigh);
-			}
-		};
-
-
-	}
-
 
 	template<typename InterfacesT>
 	class grad_works 
@@ -211,7 +167,7 @@ namespace nntl {
 		
 		std::bitset<f_LAST_Total> m_flags;
 
-		GW::ILR<real_t> m_ILR;
+		GW::ILR_range<real_t> m_ILR;
 
 		realmtx_t m_Vw, m_ILRGain, m_prevdLdW;
 		realmtx_t m_optMtxA, m_optMtxB;//some optimizers require additional memory.
@@ -543,7 +499,7 @@ namespace nntl {
 			m_flags[f_UseILR] = false;
 			return *this;
 		}
-		self_t& set_ILR(const GW::ILR<real_t>& ilr) noexcept {
+		self_t& set_ILR(const GW::ILR_range<real_t>& ilr) noexcept {
 			m_ILR = ilr;
 			m_flags[f_UseILR] = m_ILR.bUseMe();
 			return *this;

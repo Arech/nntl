@@ -330,6 +330,9 @@
     <ClInclude Include="..\nntl\grad_works\grad_works.h">
       <Filter>nntl\grad_works</Filter>
     </ClInclude>
+    <ClInclude Include="..\nntl\grad_works\ILR.h">
+      <Filter>nntl\grad_works</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="stdafx.cpp">
