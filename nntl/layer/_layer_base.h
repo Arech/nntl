@@ -35,7 +35,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "../interfaces.h"
 #include "../serialization/serialization.h"
 
-#include "../grad_works.h"
+#include "../grad_works/grad_works.h"
 #include "_init_layers.h"
 
 namespace nntl {
