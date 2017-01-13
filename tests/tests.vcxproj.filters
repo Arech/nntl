@@ -64,6 +64,9 @@
     <Filter Include="nntl\interface\inspectors">
       <UniqueIdentifier>{5524ca42-1709-4474-bddb-1124a4a6ba9b}</UniqueIdentifier>
     </Filter>
+    <Filter Include="nntl\grad_works">
+      <UniqueIdentifier>{632ece8d-fedb-481f-bd5c-ec49e1fbc6d8}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <Text Include="ReadMe.txt" />
@@ -148,9 +151,6 @@
       <Filter>nntl\utils</Filter>
     </ClInclude>
     <ClInclude Include="..\nntl\training_observer.h">
-      <Filter>nntl</Filter>
-    </ClInclude>
-    <ClInclude Include="..\nntl\grad_works.h">
       <Filter>nntl</Filter>
     </ClInclude>
     <ClInclude Include="..\nntl\utils\prioritize_workers.h">
@@ -326,6 +326,9 @@
     </ClInclude>
     <ClInclude Include="..\nntl\utils\mixins.h">
       <Filter>nntl\utils</Filter>
+    </ClInclude>
+    <ClInclude Include="..\nntl\grad_works.h">
+      <Filter>nntl\grad_works</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

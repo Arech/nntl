@@ -260,7 +260,6 @@ namespace _MixinsConcept {
 
 		static constexpr size_t TotalOpts = get_cumsum<mixin_opts_cnt>::value;
 
-		//std::bitset<TotalOpts> m_opts;
 		binary_options_storage<mixin_opts_ofs, TotalOpts> m_opts;
 
 	protected:

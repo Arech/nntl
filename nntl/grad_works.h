@@ -37,86 +37,89 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 namespace nntl {
 
 	namespace _impl {
-
 		//////////////////////////////////////////////////////////////////////////
 		// numeric stabilizer eps value for double and float calculations
 		template <typename real_t> struct NUM_STAB_EPS{};
 		template<> struct NUM_STAB_EPS<float> { static constexpr float value = 1e-8f; };
 		template<> struct NUM_STAB_EPS<double> { static constexpr double value = 1e-8; };
 
+		//////////////////////////////////////////////////////////////////////////
+		//grad_works interface - very unstable at this point / only core stable functions included
+		template<typename RealT>
+		struct _i_grad_works : public math::smatrix_td {
+			typedef RealT real_t;
+			typedef math::smatrix<real_t> realmtx_t;
+			typedef math::smatrix_deform<real_t> realmtxdef_t;
+
+			template<typename common_data_t>//actually common_data_t is well defined and templated here only for convenience
+			nntl_interface bool init(const common_data_t& cd, const mtx_size_t& weightsSize)noexcept;
+			nntl_interface void deinit()noexcept;
+
+			nntl_interface auto learning_rate(const real_t learningRate)noexcept;
+			nntl_interface const real_t learning_rate()const noexcept;
+
+			nntl_interface void pre_training_fprop(realmtx_t& weights)noexcept;
+
+			//dLdW can have any values on output (use it for temporary calculations if needed)
+			nntl_interface void apply_grad(realmtxdef_t& weights, realmtxdef_t& dLdW)noexcept;
+
+			//returns a loss function summand, that's caused by this layer (for example, L2 regularizer adds term
+			// l2Coefficient*Sum(weights.^2) )
+			nntl_interface real_t lossAddendum(const realmtxdef_t& weights)const noexcept;
+
+			//should return true, if the layer has a value to add to Loss function value (there's some regularizer attached)
+			nntl_interface bool hasLossAddendum()const noexcept;
+		};
 	}
 
-	template<typename RealT>
-	struct _i_grad_works {
-		typedef RealT real_t;
-		typedef math::smatrix<real_t> realmtx_t;
-		typedef math::smatrix_deform<real_t> realmtxdef_t;
-		typedef typename realmtx_t::vec_len_t vec_len_t;
-		typedef typename realmtx_t::numel_cnt_t numel_cnt_t;
-		typedef typename realmtx_t::mtx_size_t mtx_size_t;
+	//////////////////////////////////////////////////////////////////////////
+	//GW namespace is for grad_works mixins and other stuff, that helps to implement gradient processing voodooo things
+	namespace GW {
 
-		template<typename grad_init_t>
-		nntl_interface bool init(const grad_init_t& ind)noexcept;
-		nntl_interface void deinit()noexcept;
+		template<typename RealT>
+		struct ILR {
+			typedef RealT real_t;
 
-		nntl_interface auto learning_rate(const real_t learningRate)noexcept;
-		nntl_interface const real_t learning_rate()const noexcept;
+			real_t mulDecr, mulIncr, capLow, capHigh;
 
-		nntl_interface void pre_training_fprop(realmtx_t& weights)noexcept;
+			ILR()noexcept:mulDecr(real_t(0.0)), mulIncr(real_t(0.0)), capLow(real_t(0.0)), capHigh(real_t(0.0)) {}
+			ILR(const real_t decr, const real_t incr, const real_t cLow, const real_t cHigh)noexcept : mulDecr(decr), mulIncr(incr), capLow(cLow), capHigh(cHigh) {
+				NNTL_ASSERT((decr > 0 && decr < 1 && incr > 1 && cHigh > cLow && cLow > 0) || (decr == 0 && incr == 0 && cHigh == 0 && cLow == 0));
+			}
+			void set(const real_t decr, const real_t incr, const real_t cLow, const real_t cHigh)noexcept {
+				NNTL_ASSERT((decr > 0 && decr < 1 && incr > 1 && cHigh > cLow && cLow > 0) || (decr == 0 && incr == 0 && cHigh == 0 && cLow == 0));
+				mulDecr = decr;
+				mulIncr = incr;
+				capLow = cLow;
+				capHigh = cHigh;
+			}
+			void clear()noexcept { set(real_t(0.0), real_t(0.0), real_t(0.0), real_t(0.0)); }
+			const bool bUseMe()const noexcept {
+				NNTL_ASSERT((mulDecr > real_t(0.0) && mulIncr > real_t(0.0) && capLow > real_t(0.0) && capHigh > real_t(0.0))
+					|| (mulDecr == real_t(0.0) && mulIncr == real_t(0.0) && capLow == real_t(0.0) && capHigh == real_t(0.0)));
+				return mulDecr > real_t(0.0);
+			}
 
-		//dLdW can have any values on output (use it for temporary calculations if needed)
-		nntl_interface void apply_grad(realmtxdef_t& weights, realmtxdef_t& dLdW)noexcept;
-
-		//returns a loss function summand, that's caused by this layer (for example, L2 regularizer adds term
-		// l2Coefficient*Sum(weights.^2) )
-		nntl_interface real_t lossAddendum(const realmtxdef_t& weights)const noexcept;
-
-		//should return true, if the layer has a value to add to Loss function value (there's some regularizer attached)
-		nntl_interface bool hasLossAddendum()const noexcept;
-	};
-
-	template<typename RealT>
-	struct ILR {
-		typedef RealT real_t;
-
-		real_t mulDecr, mulIncr, capLow, capHigh;
-
-		ILR()noexcept:mulDecr(real_t(0.0)), mulIncr(real_t(0.0)), capLow(real_t(0.0)), capHigh(real_t(0.0)) {}
-		ILR(const real_t decr, const real_t incr, const real_t cLow, const real_t cHigh)noexcept:mulDecr(decr), mulIncr(incr), capLow(cLow), capHigh(cHigh) {
-			NNTL_ASSERT((decr > 0 && decr < 1 && incr > 1 && cHigh > cLow && cLow > 0) || (decr == 0 && incr == 0 && cHigh == 0 && cLow == 0));
-		}
-		void set(const real_t decr, const real_t incr, const real_t cLow, const real_t cHigh)noexcept {
-			NNTL_ASSERT((decr > 0 && decr < 1 && incr > 1 && cHigh > cLow && cLow > 0) || (decr == 0 && incr == 0 && cHigh == 0 && cLow == 0));
-			mulDecr = decr;
-			mulIncr = incr;
-			capLow = cLow;
-			capHigh = cHigh;
-		}
-		void clear()noexcept { set(real_t(0.0), real_t(0.0), real_t(0.0), real_t(0.0)); }
-		const bool bUseMe()const noexcept { 
-			NNTL_ASSERT((mulDecr > real_t(0.0) && mulIncr > real_t(0.0) && capLow > real_t(0.0) && capHigh > real_t(0.0))
-				|| (mulDecr == real_t(0.0) && mulIncr == real_t(0.0) && capLow == real_t(0.0) && capHigh == real_t(0.0)));
-			return mulDecr > real_t(0.0);
-		}
-
-		//////////////////////////////////////////////////////////////////////////
-		//Serialization support
-	private:
-		friend class boost::serialization::access;
-		template<class Archive>
-		void serialize(Archive & ar, const unsigned int version) {
-			ar & NNTL_SERIALIZATION_NVP(mulDecr);
-			ar & NNTL_SERIALIZATION_NVP(mulIncr);
-			ar & NNTL_SERIALIZATION_NVP(capLow);
-			ar & NNTL_SERIALIZATION_NVP(capHigh);
-		}
-	};
+			//////////////////////////////////////////////////////////////////////////
+			//Serialization support
+		private:
+			friend class boost::serialization::access;
+			template<class Archive>
+			void serialize(Archive & ar, const unsigned int version) {
+				ar & NNTL_SERIALIZATION_NVP(mulDecr);
+				ar & NNTL_SERIALIZATION_NVP(mulIncr);
+				ar & NNTL_SERIALIZATION_NVP(capLow);
+				ar & NNTL_SERIALIZATION_NVP(capHigh);
+			}
+		};
 
 
-	// this class gathers all code about gradient application
+	}
+
+
 	template<typename InterfacesT>
 	class grad_works 
-		: public _i_grad_works<typename InterfacesT::iMath_t::real_t>
+		: public _impl::_i_grad_works<typename InterfacesT::iMath_t::real_t>
 		, public _impl::_common_data_consumer<InterfacesT>
 	{
 	public:
@@ -125,7 +128,7 @@ namespace nntl {
 
 		using _impl::_common_data_consumer<InterfacesT>::real_t;
 
-		//this definition should be local to a grad_works class definition. Other derivations of _i_grad_works could
+		//this definition should be local to a grad_works class definition. Other derivations of _impl::_i_grad_works could
 		//have other optimizers implemented.
 		enum GradType {
 			ClassicalConstant,//classical method, just applying learning rate (done during bprop earlier) to dLdW to update weights
@@ -208,7 +211,7 @@ namespace nntl {
 		
 		std::bitset<f_LAST_Total> m_flags;
 
-		ILR<real_t> m_ILR;
+		GW::ILR<real_t> m_ILR;
 
 		realmtx_t m_Vw, m_ILRGain, m_prevdLdW;
 		realmtx_t m_optMtxA, m_optMtxB;//some optimizers require additional memory.
@@ -287,7 +290,7 @@ namespace nntl {
 		}
 
 		//template<typename grad_init_t>
-		bool init(const common_data_t& cd, const typename realmtx_t::mtx_size_t& weightsSize)noexcept {
+		bool init(const common_data_t& cd, const mtx_size_t& weightsSize)noexcept {
 			//TODO: there must be some flag that prevents resetting of the data state between distinct calls to nnet.train()
 			//(which causes init/deinit cycle)
 
@@ -540,7 +543,7 @@ namespace nntl {
 			m_flags[f_UseILR] = false;
 			return *this;
 		}
-		self_t& set_ILR(const ILR<real_t>& ilr) noexcept {
+		self_t& set_ILR(const GW::ILR<real_t>& ilr) noexcept {
 			m_ILR = ilr;
 			m_flags[f_UseILR] = m_ILR.bUseMe();
 			return *this;
