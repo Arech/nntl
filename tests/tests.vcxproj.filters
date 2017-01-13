@@ -324,6 +324,9 @@
     <ClInclude Include="..\nntl\utils\denormal_floats.h">
       <Filter>nntl\utils</Filter>
     </ClInclude>
+    <ClInclude Include="..\nntl\utils\mixins.h">
+      <Filter>nntl\utils</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="stdafx.cpp">

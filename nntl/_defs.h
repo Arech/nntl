@@ -87,3 +87,24 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //#define NNTL_ASSERT(a) _ASSERT_AND_INVOKE_WATSON(a)
 
 #endif // defined(_DEBUG) || defined(DEBUG)
+
+#define NNTL_TYPEDEFS_SELF() typedef self_t& self_ref_t; \
+typedef const self_t& self_cref_t;
+
+//shortcuts for get_self() methods
+//NB: ensure the self_t is defined and macro is placed under a correct visibility scope
+#define NNTL_METHODS_SELF_CHECKED(cond, msg) \
+NNTL_TYPEDEFS_SELF() \
+self_ref_t get_self() noexcept { \
+  static_assert(cond, msg); \
+  return static_cast<self_ref_t>(*this); \
+} \
+self_cref_t get_self() const noexcept { \
+  static_assert(cond, msg); \
+  return static_cast<self_cref_t>(*this); \
+}
+
+#define NNTL_METHODS_SELF() \
+NNTL_TYPEDEFS_SELF() \
+self_ref_t get_self() noexcept { return static_cast<self_ref_t>(*this); } \
+self_cref_t get_self() const noexcept {  return static_cast<self_cref_t>(*this); }

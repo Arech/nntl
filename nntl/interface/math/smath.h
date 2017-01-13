@@ -57,9 +57,8 @@ namespace math {
 
 	public:
 		typedef FinalPolymorphChild self_t;
-		typedef FinalPolymorphChild& self_ref_t;
-		typedef const FinalPolymorphChild& self_cref_t;
-		typedef FinalPolymorphChild* self_ptr_t;
+		NNTL_METHODS_SELF_CHECKED( (std::is_base_of<_SMath<RealT, iThreadsT, ThresholdsT, FinalPolymorphChild>, FinalPolymorphChild>::value)
+			, "FinalPolymorphChild must derive from _SMath<RealT, iThreadsT, FinalPolymorphChild>" );
 
 		typedef RealT real_t;
 		typedef smatrix<real_t> realmtx_t;
@@ -130,17 +129,6 @@ namespace math {
 		~_SMath()noexcept {}
 		_SMath()noexcept : m_minTempStorageSize(0) {
 			global_denormalized_floats_mode();
-		}
-
-		self_ref_t get_self() noexcept {
-			static_assert(std::is_base_of<_SMath<RealT, iThreadsT, ThresholdsT, FinalPolymorphChild>, FinalPolymorphChild>::value
-				, "FinalPolymorphChild must derive from _SMath<RealT, iThreadsT, FinalPolymorphChild>");
-			return static_cast<self_ref_t>(*this);
-		}
-		self_cref_t get_self() const noexcept {
-			static_assert(std::is_base_of<_SMath<RealT, iThreadsT, ThresholdsT, FinalPolymorphChild>, FinalPolymorphChild>::value
-				, "FinalPolymorphChild must derive from _SMath<RealT, iThreadsT, FinalPolymorphChild>");
-			return static_cast<self_cref_t>(*this);
 		}
 
 		// use with care, it's kind of "internal memory" of the class object. Don't know, if really 

@@ -277,9 +277,7 @@ namespace inspector {
 		class _bwlist : public _base<RealT> {
 		public:
 			typedef FinalChildT self_t;
-			typedef FinalChildT& self_ref_t;
-			typedef const FinalChildT& self_cref_t;
-			typedef FinalChildT* self_ptr_t;
+			NNTL_METHODS_SELF_CHECKED((std::is_base_of<_bwlist, FinalChildT>::value), "FinalChildT must derive from _bwlist");
 
 			typedef std::vector<layer_type_id_t> layer_types_list_t;
 			typedef std::vector<layer_index_t> layer_idx_list_t;
@@ -295,17 +293,6 @@ namespace inspector {
 
 
 			bool m_bWhiteList;
-
-
-		public:
-			self_ref_t get_self() noexcept {
-				static_assert(std::is_base_of<_bwlist, FinalChildT>::value, "FinalChildT must derive from _bwlist");
-				return static_cast<self_ref_t>(*this);
-			}
-			self_cref_t get_self() const noexcept {
-				static_assert(std::is_base_of<_bwlist, FinalChildT>::value, "FinalChildT must derive from _bwlist");
-				return static_cast<self_cref_t>(*this);
-			}
 
 		private:
 			self_ref_t _addToList(const layer_type_id_t& t)noexcept {

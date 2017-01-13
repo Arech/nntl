@@ -129,20 +129,8 @@ namespace rng {
 	struct rng_helper : public _i_rng<RealT> {
 	protected:
 		typedef FinalPolymorphChild self_t;
-		typedef FinalPolymorphChild& self_ref_t;
-		typedef const FinalPolymorphChild& self_cref_t;
-		typedef FinalPolymorphChild* self_ptr_t;
-
-		self_ref_t get_self() noexcept {
-			static_assert(std::is_base_of<rng_helper<real_t, FinalPolymorphChild>, FinalPolymorphChild>::value
-				, "FinalPolymorphChild must derive from _i_rng_helper<RealT,FinalPolymorphChild>");
-			return static_cast<self_ref_t>(*this);
-		}
-		self_cref_t get_self() const noexcept {
-			static_assert(std::is_base_of<rng_helper<real_t, FinalPolymorphChild>, FinalPolymorphChild>::value
-				, "FinalPolymorphChild must derive from _i_rng_helper<RealT,FinalPolymorphChild>");
-			return static_cast<self_cref_t>(*this);
-		}
+		NNTL_METHODS_SELF_CHECKED((std::is_base_of<rng_helper<real_t, FinalPolymorphChild>, FinalPolymorphChild>::value)
+			, "FinalPolymorphChild must derive from _i_rng_helper<RealT,FinalPolymorphChild>");
 
 	public:
 		generated_scalar_t operator()(generated_scalar_t lessThan)noexcept { return get_self().gen_i(lessThan); }

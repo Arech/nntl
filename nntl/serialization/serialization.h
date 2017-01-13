@@ -96,16 +96,7 @@ namespace serialization {
 	class simple_archive {
 	public:
 		typedef FinalChildT self_t;
-		typedef self_t& self_ref_t;
-
-		self_ref_t get_self()noexcept { 
-			static_assert(std::is_base_of<simple_archive, FinalChildT>::value, "FinalChildT must inherit from simple_archive");
-			return static_cast<self_ref_t>(*this);
-		}
-		const self_ref_t get_self()const noexcept { 
-			static_assert(std::is_base_of<simple_archive, FinalChildT>::value, "FinalChildT must inherit from simple_archive");
-			return static_cast<const self_ref_t>(*this);
-		}
+		NNTL_METHODS_SELF_CHECKED((std::is_base_of<simple_archive, FinalChildT>::value), "FinalChildT must inherit from simple_archive");
 
 		~simple_archive()noexcept {}
 		simple_archive() noexcept {}

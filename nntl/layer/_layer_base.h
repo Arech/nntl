@@ -295,9 +295,8 @@ namespace nntl {
 		//////////////////////////////////////////////////////////////////////////
 		//typedefs
 		typedef FinalPolymorphChild self_t;
-		typedef FinalPolymorphChild& self_ref_t;
-		typedef const FinalPolymorphChild& self_cref_t;
-		typedef FinalPolymorphChild* self_ptr_t;
+		NNTL_METHODS_SELF_CHECKED((std::is_base_of<_cpolym_layer_base, FinalPolymorphChild>::value)
+			, "FinalPolymorphChild must derive from _cpolym_layer_base<FinalPolymorphChild>");
 
 		//layer name could be used for example to name Matlab's variables,
 		//so there must be some reasonable limit. Don't overcome this limit!
@@ -327,17 +326,6 @@ namespace nntl {
 		~_cpolym_layer_base()noexcept {}
 		_cpolym_layer_base(const char* pCustName=nullptr)noexcept : m_bTraining(false), m_bActivationsValid(false) {
 			set_custom_name(pCustName);
-		}
-
-		self_ref_t get_self() noexcept {
-			static_assert(std::is_base_of<_cpolym_layer_base, FinalPolymorphChild>::value
-				, "FinalPolymorphChild must derive from _cpolym_layer_base<FinalPolymorphChild>");
-			return static_cast<self_ref_t>(*this);
-		}
-		self_cref_t get_self() const noexcept {
-			static_assert(std::is_base_of<_cpolym_layer_base, FinalPolymorphChild>::value
-				, "FinalPolymorphChild must derive from _cpolym_layer_base<FinalPolymorphChild>");
-			return static_cast<self_cref_t>(*this);
 		}
 
 		static constexpr const char* get_default_name()noexcept { return self_t::_defName; }

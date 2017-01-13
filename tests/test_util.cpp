@@ -42,6 +42,8 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "../nntl/utils/prioritize_workers.h"
 #include "../nntl/utils/options.h"
 
+#include "../nntl/utils/mixins.h"
+
 using namespace nntl;
 #ifdef NNTL_DEBUG
 constexpr unsigned TEST_PERF_REPEATS_COUNT = 10;
@@ -134,4 +136,225 @@ TEST(TestMatfile, Options) {
 	hbo.m_binary_options[o2] = false;
 	ASSERT_TRUE(!utils::binary_option(hbo, o2));
 	ASSERT_TRUE(!utils::binary_option<true>(hbo, o2));
+}
+
+//////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////
+
+namespace _MixinsConcept {
+	using namespace utils::mixins;
+	using namespace indexed;
+
+	typedef void mixinTestCfgT;
+
+	//////////////////////////////////////////////////////////////////////////
+	template<typename _FC, typename _CfgT, size_t MixinIdx>
+	class Mixin1 {
+	private:
+		typedef _FC self_t;
+		NNTL_METHODS_SELF();
+		NNTL_METHODS_MIXIN_OPTIONS(MixinIdx);
+
+	public:
+		enum OptsList {
+			f_elFirst = 0,
+			f_Opt2,
+			f_elLast,
+
+			opts_total
+		};
+
+		void f1() {
+			STDCOUTL("Calling " << get_self()._hello() << " from f1. MixinIdx=" << MixinIdx);
+		}
+
+	private:
+		void _checkInt() const {
+			for (size_t i = f_elFirst + 1; i < f_elLast; ++i) {
+				ASSERT_TRUE(!get_opt(i)) << "unexpected " << i;
+			}
+		}
+
+	public:
+		void M1_check_preAct() const {
+			ASSERT_TRUE(!get_opt(f_elFirst) && !get_opt(f_elLast)) << "unexpected";
+			_checkInt();
+		}
+		void M1_make_act() {
+			set_opt(f_elFirst, true).set_opt(f_elLast, true);
+		}
+		void M1_make_redo() {
+			set_opt(f_elFirst, false).set_opt(f_elLast, false);
+		}
+		void M1_check_postAct()const {
+			ASSERT_TRUE(get_opt(f_elFirst) && get_opt(f_elLast)) << "unexpected";
+			_checkInt();
+		}
+	};
+
+	template<typename _FC, typename _CfgT, size_t MixinIdx>
+	class Mixin2 {
+	private:
+		typedef _FC self_t;
+		NNTL_METHODS_SELF();
+		NNTL_METHODS_MIXIN_OPTIONS(MixinIdx);
+
+	public:
+		enum OptsList {
+			f_elFirst = 0,
+			f_elLast,
+
+			opts_total
+		};
+
+		void f2() {
+			STDCOUTL("Calling " << get_self()._hello() << " from f2. MixinIdx=" << MixinIdx);
+		}
+
+	private:
+		void _checkInt() const {
+			for (size_t i = f_elFirst + 1; i < f_elLast; ++i) {
+				ASSERT_TRUE(!get_opt(i)) << "unexpected " << i;
+			}
+		}
+
+	public:
+		void M2_check_preAct()const {
+			ASSERT_TRUE(!get_opt(f_elFirst) && !get_opt(f_elLast)) << "unexpected";
+			_checkInt();
+		}
+		void M2_make_act() {
+			set_opt(f_elFirst, true).set_opt(f_elLast, true);
+		}
+		void M2_make_redo() {
+			set_opt(f_elFirst, false).set_opt(f_elLast, false);
+		}
+		void M2_check_postAct()const {
+			ASSERT_TRUE(get_opt(f_elFirst) && get_opt(f_elLast)) << "unexpected";
+			_checkInt();
+		}
+	};
+
+	template<typename prmT, template<typename, typename, size_t> class... MixinsT>
+	class MainCl : public MixinsT< MainCl<prmT, MixinsT...>, mixinTestCfgT, ref_index<MixinsT, sizeof...(MixinsT), sizeof...(MixinsT), MixinsT...>::value >...
+	{
+	private:
+		typedef MainCl<prmT, MixinsT...> self_t;
+		NNTL_METHODS_SELF();
+
+	public:
+		enum OptsList {
+			f_elFirst = 0,
+			f_el2,
+			f_el3,
+			f_el4,
+			f_elLast,
+			opts_total
+		};
+
+		static constexpr size_t mixins_count = sizeof...(MixinsT);
+
+		typedef make_mixin_vec<MainCl<prmT, MixinsT...>, mixinTestCfgT, MixinsT...> mixins_tvec;
+		typedef make_mixin_options_count_vec_c<mixins_tvec, self_t> mixin_opts_cnt;
+		typedef make_cumsum_vec_c<mixin_opts_cnt> mixin_opts_ofs;
+
+		static constexpr size_t TotalOpts = get_cumsum<mixin_opts_cnt>::value;
+
+		//std::bitset<TotalOpts> m_opts;
+		binary_options_storage<mixin_opts_ofs, TotalOpts> m_opts;
+
+	protected:
+		NNTL_METHODS_MIXIN_ROOT_OPTIONS();
+
+	protected:
+		void _checkInt()const {
+			for (size_t i = f_elFirst + 1; i < f_elLast; ++i) {
+				ASSERT_TRUE(!get_opt(i)) << "unexpected " << i;
+			}
+		}
+
+	public:
+		void check_preAct() const {
+			ASSERT_TRUE(!get_opt(f_elFirst) && !get_opt(f_elLast)) << "unexpected";
+			_checkInt();
+		}
+		void make_act() {
+			set_opt(f_elFirst, true).set_opt(f_elLast, true);
+		}
+		void make_redo() {
+			set_opt(f_elFirst, false).set_opt(f_elLast, false);
+		}
+		void check_postAct()const {
+			ASSERT_TRUE(get_opt(f_elFirst) && get_opt(f_elLast)) << "unexpected";
+			_checkInt();
+		}
+
+		const char* _hello()const {
+			return "hello()";
+		}
+
+		static void print() {
+			STDCOUTL("There are " << TotalOpts << " opts:");
+
+			STDCOUTL("root total=" << (boost::mpl::at_c<mixin_opts_cnt, 0>::type::value));
+			STDCOUTL("M1 total=" << (boost::mpl::at_c<mixin_opts_cnt, 1>::type::value));
+			STDCOUTL("M2 total=" << (boost::mpl::at_c<mixin_opts_cnt, 2>::type::value));
+
+			STDCOUTL("\nOffsets are:");
+			STDCOUTL("root =" << (boost::mpl::at_c<mixin_opts_ofs, 0>::type::value));
+			STDCOUTL("M1 =" << (boost::mpl::at_c<mixin_opts_ofs, 1>::type::value));
+			STDCOUTL("M2 =" << (boost::mpl::at_c<mixin_opts_ofs, 2>::type::value));
+		}
+	};
+}
+
+TEST(TestUtils, MixinsConcept) {
+	_MixinsConcept::MainCl<int, _MixinsConcept::Mixin1, _MixinsConcept::Mixin2> obj;
+
+	obj.f1();
+	obj.f2();
+	decltype(obj)::print();
+
+	obj.check_preAct();
+	obj.M1_check_preAct();
+	obj.M2_check_preAct();
+
+	obj.make_act();
+
+	obj.check_postAct();
+	obj.M1_check_preAct();
+	obj.M2_check_preAct();
+
+	obj.make_redo();
+
+	obj.check_preAct();
+	obj.M1_check_preAct();
+	obj.M2_check_preAct();
+
+
+	obj.M1_make_act();
+
+	obj.check_preAct();
+	obj.M1_check_postAct();
+	obj.M2_check_preAct();
+
+
+	obj.M1_make_redo();
+
+	obj.check_preAct();
+	obj.M1_check_preAct();
+	obj.M2_check_preAct();
+
+
+	obj.M2_make_act();
+
+	obj.check_preAct();
+	obj.M1_check_preAct();
+	obj.M2_check_postAct();
+
+	obj.M2_make_redo();
+
+	obj.check_preAct();
+	obj.M1_check_preAct();
+	obj.M2_check_preAct();
 }

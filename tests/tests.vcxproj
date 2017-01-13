@@ -230,6 +230,7 @@
     <ClInclude Include="..\nntl\nnet_train_opts.h" />
     <ClInclude Include="..\nntl\train_data.h" />
     <ClInclude Include="..\nntl\utils\denormal_floats.h" />
+    <ClInclude Include="..\nntl\utils\mixins.h" />
     <ClInclude Include="..\nntl\utils\vector_conditions.h" />
     <ClInclude Include="..\nntl\utils\chrono.h" />
     <ClInclude Include="..\nntl\utils\matlab.h" />
