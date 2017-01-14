@@ -255,7 +255,7 @@ namespace _MixinsConcept {
 		static constexpr size_t mixins_count = sizeof...(MixinsT);
 
 		typedef make_mixin_vec<MainCl<prmT, MixinsT...>, mixinTestCfgT, MixinsT...> mixins_tvec;
-		typedef make_mixin_options_count_vec_c<mixins_tvec, self_t> mixin_opts_cnt;
+		typedef make_mixin_options_count_vec_c<mixins_tvec, opts_total> mixin_opts_cnt;
 		typedef make_cumsum_vec_c<mixin_opts_cnt> mixin_opts_ofs;
 
 		static constexpr size_t TotalOpts = get_cumsum<mixin_opts_cnt>::value;

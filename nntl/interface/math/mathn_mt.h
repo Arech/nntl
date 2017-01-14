@@ -35,6 +35,8 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 // imath_basic version with multithreaded only functions (no mt/st branching code)
 // It's at max about 0.5-1.0% slower, than tuned version on a sufficiently large data sizes with double
 
+// #todo this is probably not an acceptable solution at all. It offers no real benefits over a plain MathN class and probably should be removed
+
 #include "mathn.h"
 
 namespace nntl {
@@ -60,7 +62,6 @@ namespace math {
 // 		}
 
 		void mrwIdxsOfMax(const realmtx_t& m, vec_len_t* pDest)noexcept {
-			//shouldn't just run _mt version
 			base_class_t::mrwIdxsOfMax(m, pDest);
 		}
 

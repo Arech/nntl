@@ -47,11 +47,13 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #define NNTL_METHODS_MIXIN_OPTIONS(mixinIdx) \
 static_assert(mixinIdx > 0, "MixinIdx must be positive! Zero is reserved for a root class"); \
 private: \
-constexpr bool get_opt(const size_t oIdx)const { return get_self().m_opts.get<mixinIdx>(oIdx); 	} \
+const bool get_opt(const size_t oIdx)const { return get_self().m_opts.get<mixinIdx>(oIdx); 	} \
 auto& set_opt(const size_t oIdx, const bool b) { get_self().m_opts.set<mixinIdx>(oIdx, b); return *this; }
 
+//set_opt() (for mixins and for the root) MUST return *this, and not a get_self()!
+
 #define NNTL_METHODS_MIXIN_ROOT_OPTIONS() protected: \
-constexpr bool get_opt(const size_t oIdx)const { return get_self().m_opts.get<0>(oIdx); } \
+const bool get_opt(const size_t oIdx)const { return get_self().m_opts.get<0>(oIdx); } \
 auto& set_opt(const size_t oIdx, const bool b) { get_self().m_opts.set<0>(oIdx, b); return *this; } \
 private:
 
@@ -123,10 +125,10 @@ namespace mixins {
 		};
 	};
 
-	template<typename Mixin_Seq, typename RootT>
+	template<typename Mixin_Seq, std::size_t RootTotalOpts>
 	using make_mixin_options_count_vec_c = typename boost::mpl::fold<
 		Mixin_Seq
-		, boost::mpl::vector_c<std::size_t, RootT::opts_total>
+		, boost::mpl::vector_c<std::size_t, RootTotalOpts>
 		, lf_options_count2seq
 	>::type;
 
@@ -157,15 +159,26 @@ namespace mixins {
 
 	template<typename Opts_Ofs, std::size_t N>
 	class binary_options_storage : protected std::bitset<N>{
+	protected:
+		typedef std::bitset<N> base_class_t;
+
 	public:
 		template<size_t mixinIdx>
-		constexpr bool get(const size_t oIdx)const {
+		const bool get(const size_t oIdx)const {//we could do this func constexpr, but there's no point of that
 			return (*this)[oIdx + boost::mpl::at_c<Opts_Ofs, mixinIdx>::type::value];
 		}
 
 		template<size_t mixinIdx>
 		void set(const size_t oIdx, const bool b) {
 			(*this)[oIdx + boost::mpl::at_c<Opts_Ofs, mixinIdx>::type::value] = b;
+		}
+
+		//Serialization support
+	private:
+		friend class boost::serialization::access;
+		template<class Archive>
+		void serialize(Archive & ar, const unsigned int version) {
+			ar & *(static_cast<base_class_t*>(this));
 		}
 	};
 
