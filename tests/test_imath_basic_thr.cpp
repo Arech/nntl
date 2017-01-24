@@ -67,8 +67,8 @@ TEST(TestMathNThr, dSigmQuadLoss_dZ) {
 	const auto fmt = [](const realmtx_t& data_y, realmtx_t& act_dLdZ) { iM.dSigmQuadLoss_dZ_mt(data_y, act_dLdZ); };
 	const auto fb = [](const realmtx_t& data_y, realmtx_t& act_dLdZ) { iM.dSigmQuadLoss_dZ(data_y, act_dLdZ); };
 
-	NNTL_RUN_TEST2(imath_basic_t::Thresholds_t::dSigmQuadLoss_dZ, 100) {
-		test_dLdZ_perf<true>(fst, fmt, fb, "dSigmQuadLoss_dZ", i, 100);
+	NNTL_RUN_TEST2(imath_basic_t::Thresholds_t::dSigmQuadLoss_dZ, 1) {
+		test_dLdZ_perf<true>(fst, fmt, fb, "dSigmQuadLoss_dZ", i, 1);
 	}
 }
 
@@ -398,6 +398,27 @@ TEST(TestMathNThr, DSoftSigm) {
 
 	NNTL_RUN_TEST2(imath_basic_t::Thresholds_t::dsoftsigm, 10) {
 		test_f_x_perf(fst, fmt, fb, "dsoftsigm", i, 10);
+	}
+}
+
+TEST(TestMathNThr, dSoftSigmQuadLoss_dZ) {
+	constexpr real_t alpha = real_t(2.);
+	const auto fst = [alpha](const realmtx_t& data_y, realmtx_t& act_dLdZ) { iM.dSoftSigmQuadLoss_dZ_st(data_y, act_dLdZ, alpha); };
+	const auto fmt = [alpha](const realmtx_t& data_y, realmtx_t& act_dLdZ) { iM.dSoftSigmQuadLoss_dZ_mt(data_y, act_dLdZ, alpha); };
+	const auto fb = [alpha](const realmtx_t& data_y, realmtx_t& act_dLdZ) { iM.dSoftSigmQuadLoss_dZ(data_y, act_dLdZ, alpha); };
+
+	NNTL_RUN_TEST2(imath_basic_t::Thresholds_t::dSoftSigmQuadLoss_dZ, 1) {
+		test_dLdZ_perf<true>(fst, fmt, fb, "dSoftSigmQuadLoss_dZ", i, 1);
+	}
+}
+TEST(TestMathNThr, dSoftSigmXEntropyLoss_dZ) {
+	constexpr real_t alpha = real_t(2.);
+	const auto fst = [alpha](const realmtx_t& data_y, realmtx_t& act_dLdZ) { iM.dSoftSigmXEntropyLoss_dZ_st(data_y, act_dLdZ, alpha); };
+	const auto fmt = [alpha](const realmtx_t& data_y, realmtx_t& act_dLdZ) { iM.dSoftSigmXEntropyLoss_dZ_mt(data_y, act_dLdZ, alpha); };
+	const auto fb = [alpha](const realmtx_t& data_y, realmtx_t& act_dLdZ) { iM.dSoftSigmXEntropyLoss_dZ(data_y, act_dLdZ, alpha); };
+
+	NNTL_RUN_TEST2(imath_basic_t::Thresholds_t::dSoftSigmXEntropyLoss_dZ, 1) {
+		test_dLdZ_perf<true>(fst, fmt, fb, "dSoftSigmXEntropyLoss_dZ", i, 1);
 	}
 }
 
@@ -900,9 +921,9 @@ TEST(TestMathNThr, LossSoftmaxXentropy) {
 
 //////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////
-void test_loss_sigm_xentropy_perf(vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
+void test_loss_xentropy_perf(vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 	const auto dataSize = realmtx_t::sNumel(rowsCnt, colsCnt);
-	STDCOUTL("**** testing loss_sigm_xentropy() over " << rowsCnt << "x" << colsCnt << " matrix (" << dataSize << " elements) ****");
+	STDCOUTL("**** testing loss_xentropy() over " << rowsCnt << "x" << colsCnt << " matrix (" << dataSize << " elements) ****");
 	constexpr unsigned maxReps = TEST_PERF_REPEATS_COUNT;
 
 	const real_t frac = .5;
@@ -921,17 +942,17 @@ void test_loss_sigm_xentropy_perf(vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 	for (unsigned r = 0; r < maxReps; ++r) {
 		rg.gen_matrix_norm(A);		rg.gen_matrix_norm(Y); iM.ewBinarize_ip(Y, frac);
 		tSt.tic();
-		loss += iM.loss_sigm_xentropy_st(A, Y);
+		loss += iM.loss_xentropy_st(A, Y);
 		tSt.toc();
 
 		rg.gen_matrix_norm(A);		rg.gen_matrix_norm(Y); iM.ewBinarize_ip(Y, frac);
 		tMt.tic();
-		loss += iM.loss_sigm_xentropy_mt(A, Y);
+		loss += iM.loss_xentropy_mt(A, Y);
 		tMt.toc();
 
 		rg.gen_matrix_norm(A);		rg.gen_matrix_norm(Y); iM.ewBinarize_ip(Y, frac);
 		tB.tic();
-		loss += iM.loss_sigm_xentropy(A, Y);
+		loss += iM.loss_xentropy(A, Y);
 		tB.toc();
 	}
 	tSt.say("st");
@@ -940,7 +961,7 @@ void test_loss_sigm_xentropy_perf(vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 	STDCOUTL("l=" << loss);
 }
 TEST(TestMathNThr, lossSigmXentropy) {
-	NNTL_RUN_TEST2(imath_basic_t::Thresholds_t::loss_sigm_xentropy, 1) test_loss_sigm_xentropy_perf(i, 1);
+	NNTL_RUN_TEST2(imath_basic_t::Thresholds_t::loss_xentropy, 1) test_loss_xentropy_perf(i, 1);
 }
 
 //////////////////////////////////////////////////////////////////////////

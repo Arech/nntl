@@ -156,7 +156,7 @@ namespace activation {
 		template <typename iMath>
 		static real_t loss(const realmtx_t& activations, const realmtx_t& data_y, iMath& m)noexcept {
 			static_assert(std::is_base_of<math::_i_math<real_t>, iMath>::value, "iMath should implement math::_i_math");
-			return m.loss_sigm_xentropy(activations, data_y);
+			return m.loss_xentropy(activations, data_y);
 		}
 	};
 
@@ -513,7 +513,6 @@ namespace activation {
 	template<typename RealT, typename WeightsInitScheme = weights_init::He_Zhang<>>
 	using softsigm_ua = softsigm<RealT, 1000, WeightsInitScheme>;
 
-
 	//////////////////////////////////////////////////////////////////////////
 	template<typename RealT, unsigned int A1e3 = 1000, typename WeightsInitScheme = weights_init::He_Zhang<>>
 	class softsigm_quad_loss : public softsigm<RealT, A1e3, WeightsInitScheme>, public _i_activation_loss<RealT> {
@@ -533,6 +532,23 @@ namespace activation {
 		}
 	};
 
+	template<typename RealT, unsigned int A1e3 = 1000, typename WeightsInitScheme = weights_init::He_Zhang<>>
+	class softsigm_xentropy_loss : public softsigm<RealT, A1e3, WeightsInitScheme>, public _i_activation_loss<RealT> {
+		softsigm_xentropy_loss() = delete;
+		~softsigm_xentropy_loss() = delete;
+	public:
+		template <typename iMath>
+		static void dLdZ(const realmtx_t& data_y, realmtx_t& act_dLdZ, iMath& m)noexcept {
+			static_assert(std::is_base_of<math::_i_math<real_t>, iMath>::value, "iMath should implement math::_i_math");
+			m.dSoftSigmXEntropyLoss_dZ(data_y, act_dLdZ, A);
+		}
+
+		template <typename iMath>
+		static real_t loss(const realmtx_t& activations, const realmtx_t& data_y, iMath& m)noexcept {
+			static_assert(std::is_base_of<math::_i_math<real_t>, iMath>::value, "iMath should implement math::_i_math");
+			return m.loss_xentropy(activations, data_y);
+		}
+	};
 
 	//////////////////////////////////////////////////////////////////////////
 	//////////////////////////////////////////////////////////////////////////

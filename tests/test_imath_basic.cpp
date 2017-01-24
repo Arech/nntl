@@ -80,11 +80,11 @@ constexpr unsigned TEST_CORRECTN_REPEATS_COUNT = 60, _baseRowsCnt = 300;
 //////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////
 
-template<typename base_t> struct loss_sigm_xentropy_EPS {};
-template<> struct loss_sigm_xentropy_EPS<double> { static constexpr double eps = 1e-10; };
-template<> struct loss_sigm_xentropy_EPS<float> { static constexpr float eps = 7e-5f; };
-void test_loss_sigm_xentropy(vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
-	MTXSIZE_SCOPED_TRACE(rowsCnt, colsCnt, "loss_sigm_xentropy");
+template<typename base_t> struct loss_xentropy_EPS {};
+template<> struct loss_xentropy_EPS<double> { static constexpr double eps = 1e-10; };
+template<> struct loss_xentropy_EPS<float> { static constexpr float eps = 7e-5f; };
+void test_loss_xentropy(vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
+	MTXSIZE_SCOPED_TRACE(rowsCnt, colsCnt, "loss_xentropy");
 	constexpr unsigned testCorrRepCnt = TEST_CORRECTN_REPEATS_COUNT;
 	const real_t frac = .5;
 	realmtx_t A(rowsCnt, colsCnt), Y(rowsCnt, colsCnt);
@@ -100,28 +100,28 @@ void test_loss_sigm_xentropy(vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 		rg.gen_matrix_norm(Y);
 		iM.ewBinarize_ip(Y, frac);
 
-		real_t loss, etLoss = loss_sigm_xentropy_ET(A, Y);
+		real_t loss, etLoss = loss_xentropy_ET(A, Y);
 
-		loss = iM.loss_sigm_xentropy_st(A, Y);
-		ASSERT_NEAR(etLoss, loss, loss_sigm_xentropy_EPS<real_t>::eps);
+		loss = iM.loss_xentropy_st(A, Y);
+		ASSERT_NEAR(etLoss, loss, loss_xentropy_EPS<real_t>::eps);
 
-		loss = iM.loss_sigm_xentropy_mt(A, Y);
-		ASSERT_NEAR(etLoss, loss, loss_sigm_xentropy_EPS<real_t>::eps);
+		loss = iM.loss_xentropy_mt(A, Y);
+		ASSERT_NEAR(etLoss, loss, loss_xentropy_EPS<real_t>::eps);
 
-		loss = iM.loss_sigm_xentropy(A, Y);
-		ASSERT_NEAR(etLoss, loss, loss_sigm_xentropy_EPS<real_t>::eps);
+		loss = iM.loss_xentropy(A, Y);
+		ASSERT_NEAR(etLoss, loss, loss_xentropy_EPS<real_t>::eps);
 	}
 }
 
 TEST(TestMathN, lossSigmXentropy) {
 	const numel_cnt_t elmsMax = g_MinDataSizeDelta;
 	for (numel_cnt_t e = 1; e < elmsMax; ++e) {
-		ASSERT_NO_FATAL_FAILURE(test_loss_sigm_xentropy(static_cast<vec_len_t>(e), 1));
+		ASSERT_NO_FATAL_FAILURE(test_loss_xentropy(static_cast<vec_len_t>(e), 1));
 	}
 	constexpr unsigned rowsCnt = _baseRowsCnt;
 	const vec_len_t maxCols = g_MinDataSizeDelta, maxRows = rowsCnt + g_MinDataSizeDelta;
 	for (vec_len_t r = rowsCnt; r < maxRows; ++r) {
-		for (vec_len_t c = 1; c < maxCols; ++c) ASSERT_NO_FATAL_FAILURE(test_loss_sigm_xentropy(r, c));
+		for (vec_len_t c = 1; c < maxCols; ++c) ASSERT_NO_FATAL_FAILURE(test_loss_xentropy(r, c));
 	}
 }
 

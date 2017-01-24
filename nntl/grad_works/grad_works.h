@@ -73,7 +73,7 @@ namespace nntl {
 		};
 	}
 
-	// on type of ILR (GW::AILR or GW::AILR_dummy) must be passed as MixinsT
+	// on type of ILR (GW::ILR or GW::ILR_dummy) must be passed as MixinsT
 	// #todo: split other _grad_works functionality into corresponding mixins
 	template<typename FinalT, typename InterfacesT, template<typename, typename, size_t> class... MixinsT>
 	class _grad_works
@@ -592,6 +592,6 @@ namespace nntl {
 	};
 
 	template<typename InterfacesT>
-	using grad_works = grad_works_f<InterfacesT, GW::AILR>;
+	using grad_works = grad_works_f<InterfacesT, GW::ILR>;
 
 }

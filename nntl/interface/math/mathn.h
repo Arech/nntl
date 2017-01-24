@@ -771,7 +771,7 @@ namespace math {
 			for (numel_cnt_t i = 0; i < dataCnt; ++i) {
 				auto pG = pGain + i;
 				const auto cond = pCond[i];
-				auto g = *pG;
+				const auto g = *pG;
 
 				/*if (cond > real_t(+0.0)) {
 					if (g < capHigh) g *= incr;
@@ -816,7 +816,7 @@ namespace math {
 				for (numel_cnt_t i = 0; i < cnt; ++i) {
 					auto pG = pGn + i;
 					const auto cond = pCond[i];
-					auto g = *pG;
+					const auto g = *pG;
 					
 					/*if (cond > real_t(+0.0)) {
 						if (g < capHigh) g *= incr;
@@ -1225,7 +1225,7 @@ namespace math {
 		}
 
 		//////////////////////////////////////////////////////////////////////////
-		//finding elementwise absolute values dest = .abs(src);
+		//finding elementwise absolute values dest = abs(src);
 		void evAbs(realmtx_t& dest, const realmtx_t& src)noexcept {
 			if (src.numel() < Thresholds_t::evAbs) {
 				get_self().evAbs_st(dest, src);
@@ -1237,7 +1237,7 @@ namespace math {
 			const auto pS = src.data();
 			auto pD = dest.data();
 			const auto dataCnt = src.numel();
-			for (numel_cnt_t i = 0; i < dataCnt; ++i)  pD[i] = abs(pS[i]);
+			for (numel_cnt_t i = 0; i < dataCnt; ++i)  pD[i] = std::abs(pS[i]);
 		}
 		void evAbs_mt(realmtx_t& dest, const realmtx_t& src)noexcept {
 			NNTL_ASSERT(dest.size() == src.size());
@@ -1247,7 +1247,7 @@ namespace math {
 			m_threads.run([pS, pD](const par_range_t& r) {
 				const auto ofs = r.offset();
 				const auto im = ofs + r.cnt();
-				for (numel_cnt_t i = ofs; i < im; ++i)  pD[i] = abs(pS[i]);
+				for (numel_cnt_t i = ofs; i < im; ++i)  pD[i] = std::abs(pS[i]);
 			}, src.numel());
 		}
 		//////////////////////////////////////////////////////////////////////////
@@ -1263,7 +1263,7 @@ namespace math {
 			real_t ret(0.0);
 			auto p = A.data();
 			const auto pE = p + A.numel();
-			while (p != pE) ret += abs(*p++);
+			while (p != pE) ret += std::abs(*p++);
 			return ret;
 		}
 		real_t vSumAbs_mt(const realmtx_t& A)noexcept {
@@ -1274,7 +1274,7 @@ namespace math {
 				real_t ret(0.0);
 				auto p = pA + r.offset();
 				const auto pE = p + r.cnt();
-				while (p != pE) ret += abs(*p++);
+				while (p != pE) ret += std::abs(*p++);
 				return ret;
 			}, _reduce_final_sum, A.numel());
 		}
@@ -2136,7 +2136,7 @@ namespace math {
 			const auto pVE = pV + er.totalElements();
 			while (pV != pVE) {
 				const auto v = *pV;
-				*pV++ = v/(a+abs(v));
+				*pV++ = v/(a+std::abs(v));
 			}
 		}
 		void softsign_mt(realmtx_t& srcdest, const real_t& a) noexcept {
@@ -2163,7 +2163,7 @@ namespace math {
 			while (ptrDF != ptrDFE) {
 				const auto v = *ptrDF;
 				NNTL_ASSERT(real_t(-1.) <= v && v <= real_t(1.));
-				const auto s = real_t(1.) - abs(v);
+				const auto s = real_t(1.) - std::abs(v);
 				*ptrDF++ = s*s;
 			}
 		}
@@ -2192,7 +2192,7 @@ namespace math {
 			while (ptrDF != ptrDFE) {
 				const auto v = *ptrDF;
 				NNTL_ASSERT(real_t(-1.) <= v && v <= real_t(1.));
-				const auto s = real_t(1.) - abs(v);
+				const auto s = real_t(1.) - std::abs(v);
 				*ptrDF++ = ainv*s*s;
 			}
 		}
@@ -2222,7 +2222,7 @@ namespace math {
 			const auto pVE = pV + er.totalElements();
 			while (pV != pVE) {
 				const auto v = *pV;
-				*pV++ = real_t(.5) + real_t(.5)* v / (a + abs(v));
+				*pV++ = real_t(.5) + real_t(.5)* v / (a + std::abs(v));
 			}
 		}
 		void softsigm_mt(realmtx_t& srcdest, const real_t& a) noexcept {
@@ -2251,7 +2251,7 @@ namespace math {
 			while (ptrDF != ptrDFE) {
 				const auto v = *ptrDF;
 				NNTL_ASSERT(real_t(0.) <= v && v <= real_t(1.));
-				const auto s = real_t(.5) - abs(v - real_t(.5));
+				const auto s = real_t(.5) - std::abs(v - real_t(.5));
 				*ptrDF++ = dainv*s*s;
 			}
 		}
@@ -2267,7 +2267,7 @@ namespace math {
 		//////////////////////////////////////////////////////////////////////////
 		//dL/dZ = (err===a-y)*dSoftSigm/dZ
 		// because activations comes from the output layer, expecting no biases there
-		void dSoftSigmQuadLoss_dZ(const realmtx_t& data_y, realmtx_t& act_dLdZ, const real_t& a) {
+		void dSoftSigmQuadLoss_dZ(const realmtx_t& data_y, realmtx_t& act_dLdZ, const real_t& a)noexcept {
 			if (act_dLdZ.numel() < Thresholds_t::dSoftSigmQuadLoss_dZ) {
 				get_self().dSoftSigmQuadLoss_dZ_st(data_y, act_dLdZ, a);
 			} else get_self().dSoftSigmQuadLoss_dZ_mt(data_y, act_dLdZ, a);
@@ -2276,10 +2276,10 @@ namespace math {
 		//that will lead to necessity of negation of error in back propagation algorithm. To get rid of that negation,
 		// we'll define error as nn.a{n}-y. This won't bother loss calculation, because it is either squares error
 		// (conventional quadratic loss function) or doesn't use that error definition at all (crossentropy error)
-		void dSoftSigmQuadLoss_dZ_st(const realmtx_t& data_y, realmtx_t& act_dLdZ, const real_t& a, const elms_range*const pER = nullptr) {
+		void dSoftSigmQuadLoss_dZ_st(const realmtx_t& data_y, realmtx_t& act_dLdZ, const real_t& a, const elms_range*const pER = nullptr)noexcept {
 			get_self()._idSoftSigmQuadLoss_dZ_st(data_y, act_dLdZ, a, pER ? *pER : elms_range(act_dLdZ));
 		}
-		static void _idSoftSigmQuadLoss_dZ_st(const realmtx_t& data_y, realmtx_t& act_dLdZ, const real_t& a, const elms_range& er) {
+		static void _idSoftSigmQuadLoss_dZ_st(const realmtx_t& data_y, realmtx_t& act_dLdZ, const real_t& a, const elms_range& er)noexcept {
 			NNTL_ASSERT(!act_dLdZ.emulatesBiases() && !data_y.emulatesBiases());
 			NNTL_ASSERT(act_dLdZ.size() == data_y.size());
 			NNTL_ASSERT(a > real_t(0.0));
@@ -2293,11 +2293,11 @@ namespace math {
 				NNTL_ASSERT(real_t(0.) <= av && av <= real_t(1.));
 				const auto y = *pY++;
 				NNTL_ASSERT(real_t(0.) <= y && y <= real_t(1.));
-				const auto s = real_t(.5) - abs(av - real_t(.5));
+				const auto s = real_t(.5) - std::abs(av - real_t(.5));
 				*pSD++ = (av - y)*dainv*s*s;
 			}
 		}
-		void dSoftSigmQuadLoss_dZ_mt(const realmtx_t& data_y, realmtx_t& act_dLdZ, const real_t& a) {
+		void dSoftSigmQuadLoss_dZ_mt(const realmtx_t& data_y, realmtx_t& act_dLdZ, const real_t& a)noexcept {
 			NNTL_ASSERT(!act_dLdZ.emulatesBiases() && !data_y.emulatesBiases());
 			NNTL_ASSERT(act_dLdZ.size() == data_y.size());
 			NNTL_ASSERT(a > real_t(0.0));
@@ -2306,6 +2306,48 @@ namespace math {
 			}, act_dLdZ.numel());
 		}
 
+		//////////////////////////////////////////////////////////////////////////
+		//calculates derivative of cross-entropy loss function for softsigm neurons wrt total neuron input Z (=Aprev_layer*W), dL/dZ
+		//////////////////////////////////////////////////////////////////////////
+		// L = -y*log(a)-(1-y)log(1-a) (dL/dz = dL/dA * dA/dZ = (a-y)/(a*(1-a)) * dA/dZ )
+		// dL/dZ = (a-y)/(a*(1-a)) * dSoftSigm/dZ
+		// because activations comes from the output layer, expecting no biases there
+		void dSoftSigmXEntropyLoss_dZ(const realmtx_t& data_y, realmtx_t& act_dLdZ, const real_t& a)noexcept {
+			if (act_dLdZ.numel() < Thresholds_t::dSoftSigmXEntropyLoss_dZ) {
+				get_self().dSoftSigmXEntropyLoss_dZ_st(data_y, act_dLdZ, a);
+			} else get_self().dSoftSigmXEntropyLoss_dZ_mt(data_y, act_dLdZ, a);
+		}
+		void dSoftSigmXEntropyLoss_dZ_st(const realmtx_t& data_y, realmtx_t& act_dLdZ, const real_t& a, const elms_range*const pER = nullptr)noexcept {
+			get_self()._idSoftSigmXEntropyLoss_dZ_st(data_y, act_dLdZ, a, pER ? *pER : elms_range(act_dLdZ));
+		}
+		static void _idSoftSigmXEntropyLoss_dZ_st(const realmtx_t& data_y, realmtx_t& act_dLdZ, const real_t& a, const elms_range& er)noexcept {
+			NNTL_ASSERT(!act_dLdZ.emulatesBiases() && !data_y.emulatesBiases());
+			NNTL_ASSERT(act_dLdZ.size() == data_y.size());
+			NNTL_ASSERT(a > real_t(0.0));
+
+			const auto dainv = real_t(2.) / a;
+			auto pY = data_y.data() + er.elmBegin;
+			auto pSD = act_dLdZ.data() + er.elmBegin;
+			const auto pSDE = pSD + er.totalElements();
+			while (pSD != pSDE) {
+				const auto av = *pSD;
+				NNTL_ASSERT(real_t(0.) <= av && av <= real_t(1.));
+				const auto y = *pY++;
+				NNTL_ASSERT(real_t(0.) <= y && y <= real_t(1.));
+
+				const auto s = real_t(.5) - std::abs(av - real_t(.5));
+				//#numstab
+				*pSD++ = (av - y)*((s*s*dainv) / (av*(real_t(1.) - av)));
+			}
+		}
+		void dSoftSigmXEntropyLoss_dZ_mt(const realmtx_t& data_y, realmtx_t& act_dLdZ, const real_t& a)noexcept {
+			NNTL_ASSERT(!act_dLdZ.emulatesBiases() && !data_y.emulatesBiases());
+			NNTL_ASSERT(act_dLdZ.size() == data_y.size());
+			NNTL_ASSERT(a > real_t(0.0));
+			m_threads.run([&data_y, &act_dLdZ, &a, this](const par_range_t& r) {
+				get_self()._idSoftSigmXEntropyLoss_dZ_st(data_y, act_dLdZ, a, elms_range(r));
+			}, act_dLdZ.numel());
+		}
 
 
 		//////////////////////////////////////////////////////////////////////////
@@ -2437,17 +2479,17 @@ namespace math {
 		}
 
 		//////////////////////////////////////////////////////////////////////////
-		// cross entropy function for sigmoid (applicable ONLY for binary data_y and sigmoid activation function)
-		// L = -y*log(a)-(1-y)log(1-a), dL/dz = dL/dA * dA/dZ = (a-y)
-		real_t loss_sigm_xentropy(const realmtx_t& activations, const realmtx_t& data_y)noexcept {
-			if (activations.numel() < Thresholds_t::loss_sigm_xentropy) {
-				return get_self().loss_sigm_xentropy_st(activations, data_y);
-			} else return get_self().loss_sigm_xentropy_mt(activations, data_y);
+		// cross entropy function (applicable ONLY for binary data_y and sigmoid activation function)
+		// L = -y*log(a)-(1-y)log(1-a) (dL/dz = dL/dA * dA/dZ = (a-y)/(a*(1-a)) * dA/dZ )
+		real_t loss_xentropy(const realmtx_t& activations, const realmtx_t& data_y)noexcept {
+			if (activations.numel() < Thresholds_t::loss_xentropy) {
+				return get_self().loss_xentropy_st(activations, data_y);
+			} else return get_self().loss_xentropy_mt(activations, data_y);
 		}
-		real_t loss_sigm_xentropy_st(const realmtx_t& activations, const realmtx_t& data_y, const elms_range*const pER = nullptr)noexcept {
-			return -get_self()._iloss_sigm_xentropy_st(activations, data_y, pER ? *pER : elms_range(activations)) / activations.rows();
+		real_t loss_xentropy_st(const realmtx_t& activations, const realmtx_t& data_y, const elms_range*const pER = nullptr)noexcept {
+			return -get_self()._iloss_xentropy_st(activations, data_y, pER ? *pER : elms_range(activations)) / activations.rows();
 		}
-		static real_t _iloss_sigm_xentropy_st(const realmtx_t& activations, const realmtx_t& data_y, const elms_range& er)noexcept {
+		static real_t _iloss_xentropy_st(const realmtx_t& activations, const realmtx_t& data_y, const elms_range& er)noexcept {
 			NNTL_ASSERT(activations.size() == data_y.size() && !activations.empty() && !data_y.empty());
 			const auto ptrA = activations.data(), ptrY = data_y.data();
 			constexpr auto log_zero = math::real_t_limits<real_t>::log_almost_zero;
@@ -2469,9 +2511,9 @@ namespace math {
 			}
 			return ql;
 		}
-		real_t loss_sigm_xentropy_mt(const realmtx_t& activations, const realmtx_t& data_y)noexcept {
+		real_t loss_xentropy_mt(const realmtx_t& activations, const realmtx_t& data_y)noexcept {
 			return -m_threads.reduce([&activations, &data_y, this](const par_range_t& pr)->real_t {
-				return get_self()._iloss_sigm_xentropy_st(activations, data_y, elms_range(pr));
+				return get_self()._iloss_xentropy_st(activations, data_y, elms_range(pr));
 			}, _reduce_final_sum, activations.numel()) / activations.rows();
 		}
 
@@ -2674,7 +2716,7 @@ namespace math {
 				const auto pW = pdW + i;
 				const auto pF = prmsF + i;
 				const auto w = *pW;
-				const auto ema = (*pF)*emaDecay + abs(w)*_1_emaDecay;
+				const auto ema = (*pF)*emaDecay + std::abs(w)*_1_emaDecay;
 				*pF = ema;
 				*pW = learningRate*(w / (ema + numericStabilizer));
 			}
@@ -2698,7 +2740,7 @@ namespace math {
 					const auto pW = pdW + i;
 					const auto pF = prmsF + i;
 					const auto w = *pW;
-					const auto ema = (*pF)*emaDecay + abs(w)*_1_emaDecay;
+					const auto ema = (*pF)*emaDecay + std::abs(w)*_1_emaDecay;
 					*pF = ema;
 					*pW = learningRate*(w / (ema + numericStabilizer));
 				}
@@ -2820,7 +2862,7 @@ namespace math {
 				const auto g = *pdW;
 				const auto m = (*pMt)*beta1 + g*ombeta1;
 				*pMt++ = m;
-				const auto u = std::max({abs(g),beta2*(*pUt)});
+				const auto u = std::max({std::abs(g),beta2*(*pUt)});
 				*pUt++ = u;
 				*pdW++ = alphat*m / (u + numericStabilizer);
 			}

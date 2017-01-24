@@ -122,7 +122,8 @@ namespace _impl {
 		static constexpr size_t softsigm = 15000;
 		static constexpr size_t dsoftsigm = 15000;
 
-		static constexpr size_t dSoftSigmQuadLoss_dZ = 14000;
+		static constexpr size_t dSoftSigmQuadLoss_dZ = 10000;
+		static constexpr size_t dSoftSigmXEntropyLoss_dZ = 5000;
 
 		static constexpr size_t step = 132000;
 
@@ -132,7 +133,7 @@ namespace _impl {
 		static constexpr size_t softmax = 3000;//not tested
 
 		static constexpr size_t loss_quadratic = 24400;
-		static constexpr size_t loss_sigm_xentropy = 800;
+		static constexpr size_t loss_xentropy = 800;
 		static constexpr size_t loss_softmax_xentropy = 1100;
 
 		static constexpr size_t RMSProp_Hinton = 2940;
@@ -218,7 +219,8 @@ namespace _impl {
 		static constexpr size_t softsigm = 6700;//*
 		static constexpr size_t dsoftsigm = 11500;//*
 
-		static constexpr size_t dSoftSigmQuadLoss_dZ = 10000;
+		static constexpr size_t dSoftSigmQuadLoss_dZ = 9900;
+		static constexpr size_t dSoftSigmXEntropyLoss_dZ = 4800;
 
 		static constexpr size_t step = 500000;
 
@@ -228,7 +230,7 @@ namespace _impl {
 		static constexpr size_t softmax = 5000;//not tested
 
 		static constexpr size_t loss_quadratic = 49600;
-		static constexpr size_t loss_sigm_xentropy = 750;
+		static constexpr size_t loss_xentropy = 750;
 		static constexpr size_t loss_softmax_xentropy = 1000;
 
 		static constexpr size_t RMSProp_Hinton = 8100;

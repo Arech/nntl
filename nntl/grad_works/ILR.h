@@ -32,53 +32,16 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #pragma once
 
+#include "ILR_Props.h"
 #include "../utils/mixins.h"
 
 namespace nntl {
 namespace GW { //GW namespace is for grad_works mixins and other stuff, that helps to implement gradient processing voodooo things
 
-	template<typename RealT>
-	struct ILR_range {
-		typedef RealT real_t;
-
-		real_t mulDecr, mulIncr, capLow, capHigh;
-
-		ILR_range()noexcept:mulDecr(real_t(0.0)), mulIncr(real_t(0.0)), capLow(real_t(0.0)), capHigh(real_t(0.0)) {}
-		ILR_range(const real_t decr, const real_t incr, const real_t cLow, const real_t cHigh)noexcept : mulDecr(decr), mulIncr(incr), capLow(cLow), capHigh(cHigh) {
-			NNTL_ASSERT((decr > 0 && decr < 1 && incr > 1 && cHigh > cLow && cLow > 0) || (decr == 0 && incr == 0 && cHigh == 0 && cLow == 0));
-		}
-		void set(const real_t decr, const real_t incr, const real_t cLow, const real_t cHigh)noexcept {
-			NNTL_ASSERT((decr > 0 && decr < 1 && incr > 1 && cHigh > cLow && cLow > 0) || (decr == 0 && incr == 0 && cHigh == 0 && cLow == 0));
-			mulDecr = decr;
-			mulIncr = incr;
-			capLow = cLow;
-			capHigh = cHigh;
-		}
-		void clear()noexcept { set(real_t(0.0), real_t(0.0), real_t(0.0), real_t(0.0)); }
-		const bool bUseMe()const noexcept {
-			NNTL_ASSERT((mulDecr > real_t(0.0) && mulIncr > real_t(0.0) && capLow > real_t(0.0) && capHigh > real_t(0.0))
-				|| (mulDecr == real_t(0.0) && mulIncr == real_t(0.0) && capLow == real_t(0.0) && capHigh == real_t(0.0)));
-			return mulDecr > real_t(0.0);
-		}
-
-		//////////////////////////////////////////////////////////////////////////
-		//Serialization support
-	private:
-		friend class boost::serialization::access;
-		template<class Archive>
-		void serialize(Archive & ar, const unsigned int version) {
-			ar & NNTL_SERIALIZATION_NVP(mulDecr);
-			ar & NNTL_SERIALIZATION_NVP(mulIncr);
-			ar & NNTL_SERIALIZATION_NVP(capLow);
-			ar & NNTL_SERIALIZATION_NVP(capHigh);
-		}
-	};
-
-	//////////////////////////////////////////////////////////////////////////
 	//////////////////////////////////////////////////////////////////////////
 	// dummy mixin that silently disables ILR
 	template<typename _FC, typename RealT, size_t MixinIdx>
-	class AILR_dummy : private math::smatrix_td {
+	class ILR_dummy : private math::smatrix_td {
 	private:
 		typedef _FC self_t;
 		NNTL_METHODS_SELF();
@@ -86,6 +49,9 @@ namespace GW { //GW namespace is for grad_works mixins and other stuff, that hel
 
 		typedef RealT real_t;
 		typedef math::smatrix<real_t> realmtx_t;
+
+	public:
+		typedef ILR_Dummy_props<void> IlrProps_t;
 
 	public:
 		enum OptsList {
@@ -107,13 +73,16 @@ namespace GW { //GW namespace is for grad_works mixins and other stuff, that hel
 		// 
 		//static constexpr bool use_individual_learning_rates()const noexcept { return false; }
 		//static constexpr bool applyILRToMomentum()const noexcept { return false; }
+		template<typename... ArgsT>
+		self_ref_t set_ILR(ArgsT... args) noexcept { return get_self(); }
+		self_ref_t applyILRToMomentum(const bool b)noexcept { return get_self(); }
 	};
 
 	//////////////////////////////////////////////////////////////////////////
 	//////////////////////////////////////////////////////////////////////////
 	//Adaptive Individual Learning Rates (or just ILR)
 	template<typename _FC, typename RealT, size_t MixinIdx>
-	class AILR : private math::smatrix_td {
+	class ILR : private math::smatrix_td {
 	private:
 		typedef _FC self_t;
 		NNTL_METHODS_SELF();
@@ -122,9 +91,11 @@ namespace GW { //GW namespace is for grad_works mixins and other stuff, that hel
 		typedef RealT real_t;
 		typedef math::smatrix<real_t> realmtx_t;
 
-	//public:
+	public:
+		typedef ILR_props<real_t> IlrProps_t;
+
 	private:
-		ILR_range<real_t> m_ILR;
+		IlrProps_t m_ILR;
 
 		realmtx_t m_ILRGain, m_prevdLdW;
 
@@ -193,12 +164,12 @@ namespace GW { //GW namespace is for grad_works mixins and other stuff, that hel
 		const bool use_individual_learning_rates()const noexcept { return get_opt(f_UseILR); }
 		const bool applyILRToMomentum()const noexcept { return get_opt(f_ApplyILRToMomentum); }
 
-		self_ref_t set_ILR(const real_t decr, const real_t incr, const real_t capLow, const real_t capHigh) noexcept {
+		self_ref_t set_ILR(const real_t& decr, const real_t& incr, const real_t& capLow, const real_t& capHigh) noexcept {
 			m_ILR.set(decr, incr, capLow, capHigh);
 			set_opt(f_UseILR, m_ILR.bUseMe());
 			return get_self();
 		}
-		self_ref_t set_ILR(const GW::ILR_range<real_t>& ilr) noexcept {
+		self_ref_t set_ILR(const IlrProps_t& ilr) noexcept {
 			m_ILR = ilr;
 			set_opt(f_UseILR, m_ILR.bUseMe());
 			return get_self();
@@ -221,7 +192,6 @@ namespace GW { //GW namespace is for grad_works mixins and other stuff, that hel
 			}
 			return get_self();
 		}
-
 	};
 
 }

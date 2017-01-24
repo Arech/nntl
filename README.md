@@ -35,7 +35,7 @@ I wouldn't state the NNTL is the fastest CPU implementation of feedforward neura
 * Activation units for an output layer:
   * sigmoid with a **quadratic** and a **cross-entropy** (for binary target data) loss function
   * **softmax** with a cross-entropy loss function.
-  * SoftSigm unit with a **quadratic** loss function.
+  * SoftSigm unit with a **quadratic** and a **cross-entropy** (for binary target data) loss function.
 * Activation units for hidden layers:
   * **Sigm**oid
   * Rectified linear units (**ReLU**)

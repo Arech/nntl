@@ -264,7 +264,8 @@ namespace math {
 		nntl_interface void softsigm(realmtx_t& srcdest, const real_t& a) noexcept;
 		nntl_interface void dsoftsigm(realmtx_t& f_df, const real_t& a) noexcept;
 
-		nntl_interface void dSoftSigmQuadLoss_dZ(const realmtx_t& data_y, realmtx_t& act_dLdZ, const real_t& a);
+		nntl_interface void dSoftSigmQuadLoss_dZ(const realmtx_t& data_y, realmtx_t& act_dLdZ, const real_t& a)noexcept;
+		nntl_interface void dSoftSigmXEntropyLoss_dZ(const realmtx_t& data_y, realmtx_t& act_dLdZ, const real_t& a)noexcept;
 
 		nntl_interface void step(realmtx_t& srcdest) noexcept;
 
@@ -284,7 +285,7 @@ namespace math {
 		
 		// cross entropy function for sigmoid (applicable ONLY for binary data_y)
 		// L = sum( -y*log(a)-(1-y)log(1-a) )/activations.rows(), dL/dz=a-y
-		nntl_interface real_t loss_sigm_xentropy(const realmtx_t& activations, const realmtx_t& data_y)noexcept;
+		nntl_interface real_t loss_xentropy(const realmtx_t& activations, const realmtx_t& data_y)noexcept;
 
 		// cross entropy function for softmax (applicable for data_y in range [0,1])
 		// L = sum( -y*log(a) )/activations.rows(), dL/dz=a-y

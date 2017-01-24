@@ -115,8 +115,31 @@ namespace nntl {
 			return !_train_x.empty() && !_train_y.empty() && _train_x.rows() == _train_y.rows()
 				&& !_test_x.empty() && !_test_y.empty() && _test_x.rows() == _test_y.rows()
 				&& _train_y.cols() == _test_y.cols()
-				&& _train_x.emulatesBiases() && _test_x.emulatesBiases();
+				&& _train_x.cols() == _test_x.cols()
+				&& !_train_y.emulatesBiases() && !_test_y.emulatesBiases()
+				&& _train_x.emulatesBiases() && _test_x.emulatesBiases()
+				&& !_train_x.bDontManageStorage() && !_test_x.bDontManageStorage()
+				&& !_train_y.bDontManageStorage() && !_test_y.bDontManageStorage()
+				;
 				//&& (noBiasEmulationNecessary ^ _train_x.emulatesBiases()) && (noBiasEmulationNecessary ^ _test_x.emulatesBiases());
+		}
+
+		const bool replace_Y_will_succeed(const mtx_t& _train_y, const mtx_t& _test_y)noexcept
+		{
+			return !_train_y.empty() && _train_y.rows() == m_train_y.rows()
+				&& !_test_y.empty() && _test_y.rows() == m_test_y.rows()
+				&& _train_y.cols() == _test_y.cols()
+				&& !_train_y.emulatesBiases() && !_test_y.emulatesBiases()
+				&& !_train_y.bDontManageStorage() && !_test_y.bDontManageStorage()
+				;
+		}
+
+		const bool replace_Y(mtx_t&& _train_y, mtx_t&& _test_y)noexcept {
+			if (!replace_Y_will_succeed(_train_y, _test_y)) return false;
+
+			m_train_y = std::move(_train_y);
+			m_test_y = std::move(_test_y);
+			return true;
 		}
 	};
 }

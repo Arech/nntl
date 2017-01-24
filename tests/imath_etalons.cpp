@@ -167,7 +167,7 @@ void evAbs_ET(realmtx_t& dest, const realmtx_t& src)noexcept {
 	const auto pS = src.data();
 	auto pD = dest.data();
 	const auto dataCnt = src.numel();
-	for (numel_cnt_t i = 0; i < dataCnt; ++i)  pD[i] = abs(pS[i]);
+	for (numel_cnt_t i = 0; i < dataCnt; ++i)  pD[i] = std::abs(pS[i]);
 }
 
 void evAdd_ip_ET(realmtx_t& A, const realmtx_t& B)noexcept {
@@ -227,7 +227,7 @@ void evSub_ip_ET(realmtx_t& A, const realmtx_t& B)noexcept {
 	for (numel_cnt_t i = 0; i < dataCnt; ++i) pA[i] -= pB[i];
 }
 
-real_t loss_sigm_xentropy_ET(const realmtx_t& activations, const realmtx_t& data_y)noexcept {
+real_t loss_xentropy_ET(const realmtx_t& activations, const realmtx_t& data_y)noexcept {
 	NNTL_ASSERT(activations.size() == data_y.size() && !activations.empty() && !data_y.empty());
 	const auto dataCnt = activations.numel();
 	const auto ptrA = activations.data(), ptrY = data_y.data();
@@ -279,7 +279,7 @@ void ModProp_ET(realmtx_t& dW, realmtx_t& rmsF, const real_t learningRate, const
 	const auto _1_emaDecay = 1 - emaDecay;
 	const auto dataCnt = dW.numel();
 	for (numel_cnt_t i = 0; i < dataCnt; ++i) {
-		const auto rms = prmsF[i] * emaDecay + abs(pdW[i])*_1_emaDecay;
+		const auto rms = prmsF[i] * emaDecay + std::abs(pdW[i])*_1_emaDecay;
 		prmsF[i] = rms;
 		pdW[i] *= learningRate / (rms + numericStabilizer);
 	}
@@ -370,7 +370,7 @@ void AdaMax_ET(realmtx_t& dW, realmtx_t& Mt, realmtx_t& Ut, real_t& beta1t, cons
 	for (numel_cnt_t i = 0; i < ne; ++i) {
 		const auto g = pDw[i];
 		pMt[i] = beta1*pMt[i] + ombeta1*g;
-		pUt[i] = std::max({ beta2*pUt[i] ,abs(g) });
+		pUt[i] = std::max({ beta2*pUt[i] ,std::abs(g) });
 		pDw[i] = alphat*pMt[i] / (pUt[i] + numericStabilizer);
 	}
 }
@@ -413,7 +413,7 @@ real_t vSumAbs_ET(const realmtx_t& A)noexcept {
 	const auto dataCnt = A.numel();
 	const auto p = A.data();
 	real_t ret(0);
-	for (numel_cnt_t i = 0; i < dataCnt; ++i) ret += abs(p[i]);
+	for (numel_cnt_t i = 0; i < dataCnt; ++i) ret += std::abs(p[i]);
 	return ret;
 }
 
@@ -587,7 +587,7 @@ void softsign_ET(const realmtx_t& x, realmtx_t& f, const real_t& a) {
 	const auto ne = x.numel_no_bias();
 	for (numel_cnt_t i = 0; i < ne; ++i) {
 		const auto xv = px[i];
-		dest[i] = xv / (a + abs(xv));
+		dest[i] = xv / (a + std::abs(xv));
 	}
 }
 void dsoftsign_ET(const realmtx_t& x, realmtx_t& df, const real_t& a) {
@@ -598,7 +598,7 @@ void dsoftsign_ET(const realmtx_t& x, realmtx_t& df, const real_t& a) {
 
 	for (numel_cnt_t i = 0; i < ne; ++i) {
 		const auto xv = px[i];
-		const auto d = a + abs(xv);
+		const auto d = a + std::abs(xv);
 		dest[i] = a / (d*d);
 	}
 }
@@ -611,7 +611,7 @@ void softsigm_ET(const realmtx_t& x, realmtx_t& f, const real_t& a) {
 	const auto ne = x.numel_no_bias();
 	for (numel_cnt_t i = 0; i < ne; ++i) {
 		const auto xv = px[i];
-		dest[i] = real_t(.5) + xv / (real_t(2.)*(a + abs(xv)));
+		dest[i] = real_t(.5) + xv / (real_t(2.)*(a + std::abs(xv)));
 	}
 }
 void dsoftsigm_ET(const realmtx_t& x, realmtx_t& df, const real_t& a) {
@@ -622,7 +622,7 @@ void dsoftsigm_ET(const realmtx_t& x, realmtx_t& df, const real_t& a) {
 
 	for (numel_cnt_t i = 0; i < ne; ++i) {
 		const auto xv = px[i];
-		const auto d = a + abs(xv);
+		const auto d = a + std::abs(xv);
 		dest[i] = a / (real_t(2.)* d*d);
 	}
 }

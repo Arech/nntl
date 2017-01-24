@@ -259,7 +259,7 @@ namespace math {
 		}
 		
 		//////////////////////////////////////////////////////////////////////////
-		//finding elementwise absolute values dest = .abs(src);
+		//finding elementwise absolute values dest = (src);
 		void evAbs(realmtx_t& dest, const realmtx_t& src)noexcept {
 			evAbs_mt(dest, src);
 		}
@@ -377,8 +377,11 @@ namespace math {
 			dsoftsigm_mt(f_df, a);
 		}
 
-		void dSoftSigmQuadLoss_dZ(const realmtx_t& data_y, realmtx_t& act_dLdZ, const real_t& a) {
-			dSoftSigmQuadLoss_dZ(data_y, act_dLdZ, a);
+		void dSoftSigmQuadLoss_dZ(const realmtx_t& data_y, realmtx_t& act_dLdZ, const real_t& a)noexcept {
+			dSoftSigmQuadLoss_dZ_mt(data_y, act_dLdZ, a);
+		}
+		void dSoftSigmXEntropyLoss_dZ(const realmtx_t& data_y, realmtx_t& act_dLdZ, const real_t& a)noexcept {
+			dSoftSigmXEntropyLoss_dZ_mt(data_y, act_dLdZ, a);
 		}
 
 		void step(realmtx_t& srcdest) noexcept {
@@ -401,8 +404,8 @@ namespace math {
 
 		// cross entropy function for sigmoid (applicable ONLY for binary data_y and sigmoid activation function)
 		// L = -y*log(a)-(1-y)log(1-a), dL/dz = dL/dA * dA/dZ = (a-y)
-		real_t loss_sigm_xentropy(const realmtx_t& activations, const realmtx_t& data_y)noexcept {
-			return loss_sigm_xentropy_mt(activations, data_y);
+		real_t loss_xentropy(const realmtx_t& activations, const realmtx_t& data_y)noexcept {
+			return loss_xentropy_mt(activations, data_y);
 		}
 
 		real_t loss_softmax_xentropy(const realmtx_t& activations, const realmtx_t& data_y)noexcept {
