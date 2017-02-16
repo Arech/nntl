@@ -363,14 +363,14 @@ namespace nntl {
 			_Math.evMul_ip(dLdZ, dLdA);
 			iI.bprop_dLdZ(dLdZ);
 
-			get_self()._cust_inspect(dLdZ);
-
 			if (bUseDropout) {
 				//we must cancel activations that was dropped out by the mask (should they've been restored by activation_f_t::df())
 				//and restore the scale of dA/dZ according to 1/p
 				//because the true scaled_dA/dZ = 1/p * computed_dA/dZ (same for dL/dZ)
 				_Math.evMul_ip(dLdZ, m_dropoutMask);
 			}
+
+			get_self()._cust_inspect(dLdZ);
 
 			//compute dL/dW = 1/batchsize * (dL/dZ)` * Aprev
 			// BTW: even if some of neurons of this layer could have been "disabled" by a dropout (therefore their

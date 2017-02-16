@@ -50,10 +50,12 @@ namespace math {
 	// ALL functions of _i_math interface must be tested for ST vs. MT performance and be adjusted accordingly
 
 	// this class uses some routines from OpenBLAS to implement _i_math
-	template <typename RealT, typename iThreadsT, typename ThresholdsT, typename FinalPolymorphChild>
+	template <typename RealT, typename iThreadsT, typename ThresholdsT, typename FinalPolymorphChild, typename bindingBlasT = b_OpenBLAS>
 	class _MathN : public _SMath<RealT, iThreadsT, ThresholdsT, FinalPolymorphChild>, public _i_math<RealT> {
 	public:
 		typedef _SMath<RealT, iThreadsT, ThresholdsT, FinalPolymorphChild> base_class_t;
+		typedef bindingBlasT b_BLAS_t;
+
 		using base_class_t::real_t;
 		using base_class_t::realmtx_t;
 		using base_class_t::realmtxdef_t;
@@ -1288,7 +1290,7 @@ namespace math {
 			const auto acols = A.cols();
 			NNTL_ASSERT(acols == B.rows() && A.rows() == C.rows() && B.cols() == C.cols());
 
-			b_OpenBLAS::gemm(false, false, A.rows(), C.cols(), acols, real_t(1.0), A.data(), A.rows(), B.data(), B.rows(),
+			b_BLAS_t::gemm(false, false, A.rows(), C.cols(), acols, real_t(1.0), A.data(), A.rows(), B.data(), B.rows(),
 				real_t(0.0), C.data(), C.rows());
 		}
 		//////////////////////////////////////////////////////////////////////////
@@ -1300,7 +1302,7 @@ namespace math {
 			const auto ccols = C.cols_no_bias();
 			NNTL_ASSERT(A.cols() == B.cols() && A.rows() == C.rows() && B.rows() == ccols);
 
-			b_OpenBLAS::gemm(false, true, A.rows(), ccols, A.cols(), real_t(1.0), A.data(), A.rows(), B.data(), ccols,
+			b_BLAS_t::gemm(false, true, A.rows(), ccols, A.cols(), real_t(1.0), A.data(), A.rows(), B.data(), ccols,
 				real_t(0.0), C.data(), C.rows());
 		}
 		//////////////////////////////////////////////////////////////////////////
@@ -1313,9 +1315,61 @@ namespace math {
 			const auto arows = A.rows();
 			NNTL_ASSERT(arows == B.rows() && acols == C.rows() && B.cols() == C.cols());
 
-			b_OpenBLAS::gemm(true, false, acols, B.cols(), arows, alpha, A.data(), arows, B.data(), arows,
+			b_BLAS_t::gemm(true, false, acols, B.cols(), arows, alpha, A.data(), arows, B.data(), arows,
 				real_t(0.0), C.data(), acols);
 		}
+
+
+		//////////////////////////////////////////////////////////////////////////
+		//Elements of SVD (singular value decomposition)
+		// mSVD_Orthogonalize_ss(A) performs SVD of m*n matrix A and returns in A same sized corresponding orthogonal matrix of singular vectors
+		//		returns true if SVD was successful
+		//		Restrictions: MUST NOT use the math object's local storage (the function is intended to be used during
+		//			the weight initialization phase when the local storage is generally not initialized yet)
+		bool mSVD_Orthogonalize_ss(realmtx_t& A)noexcept {
+			const auto m = A.rows(), n = A.cols();
+			const bool bGetU = m >= n;
+			const auto minmn = bGetU ? n : m;
+
+			std::vector<real_t> S(2 * minmn);
+
+			const auto r = b_BLAS_t::gesvd(bGetU ? 'O' : 'N', bGetU ? 'N' : 'O', m, n
+				, A.data(), m, &S[0], static_cast<real_t*>(nullptr), m, static_cast<real_t*>(nullptr), n, &S[minmn]);
+
+			NNTL_ASSERT(0 == r || !"b_BLAS_t::gesvd failed!");
+			NNTL_ASSERT(get_self()._mIsOrthogonal(A, bGetU) || !"SVD returned non orthogonal matrix!");
+			return 0 == r;
+		}
+
+		template<typename base_t> struct _mIsOrthogonal_defEps {};
+		template<> struct _mIsOrthogonal_defEps<double> { static constexpr double eps = 1e-11; };
+		template<> struct _mIsOrthogonal_defEps<float> { static constexpr float eps = 1e-5f; };
+		// This function checks whether A is orthogonal, i.e. A'*A is identity matrix.
+		// Not optimized, FOR DEBUG PURPOSES ONLY!
+		static bool _mIsOrthogonal(const realmtx_t& A,  bool bFirstTransposed = true, const real_t epsV = _mIsOrthogonal_defEps<real_t>::eps)noexcept {
+			NNTL_ASSERT(!A.empty());
+			const vec_len_t opArows = bFirstTransposed ? A.cols() : A.rows()
+				, opAcols = bFirstTransposed ? A.rows() : A.cols()
+				, ldab = bFirstTransposed ? opAcols : opArows;
+			realmtx_t ICand(opArows, opArows);
+
+			b_BLAS_t::gemm(bFirstTransposed, !bFirstTransposed, opArows, opArows, opAcols
+				, real_t(1.), A.data(), ldab, A.data(), ldab,
+				real_t(0.0), ICand.data(), opArows);
+
+			bool r = true;
+			for (vec_len_t ri = 0; ri < opArows; ++ri) {
+				for (vec_len_t ci = 0; ci < opArows; ++ci) {
+					if ( std::abs(real_t(ri==ci) - ICand.get(ri,ci)) > epsV  ) {
+						r = false;
+						break;
+					}
+				}
+				if (!r) break;
+			}
+			return r;
+		}
+
 
 		//////////////////////////////////////////////////////////////////////////
 		// sigmoid function

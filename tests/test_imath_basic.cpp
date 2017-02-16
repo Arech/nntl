@@ -50,6 +50,12 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include "../nntl/_test/functions.h"
 
+#if NNTL_MATLAB_AVAILABLE
+#include "../nntl/_supp/io/matfile.h"
+//using namespace nntl_supp;
+#endif
+
+
 using namespace nntl;
 using namespace nntl::utils;
 
@@ -3392,3 +3398,109 @@ TEST(TestMathN, dSigmQuadLoss_dZ) {
 		}
 	}
 }
+
+#if NNTL_MATLAB_AVAILABLE
+
+TEST(TestMathN, _mIsOrthogonal) {
+	{
+		SCOPED_TRACE("Random matrix shouldb't be orthogonal");
+
+		realmtx_t M(20, 30);
+		d_interfaces::iRng_t rg;
+		rg.set_ithreads(iM.ithreads());
+
+		rg.gen_matrix(M, 5);
+		ASSERT_FALSE(iM._mIsOrthogonal(M, true));
+		ASSERT_FALSE(iM._mIsOrthogonal(M, false));
+	}
+	{
+		SCOPED_TRACE("Pregenerated orthogonal matrices");
+		const char *const pFileName = "./test_data/test_orthogonal.mat";
+
+		nntl_supp::imatfile<> mf;
+		ASSERT_EQ(mf.ErrorCode::Success, mf.open(pFileName));
+
+		realmtx_t O1;
+		mf >> serialization::make_nvp("O1", O1);
+		ASSERT_EQ(mf.ErrorCode::Success, mf.get_last_error()) << mf.get_last_error_str();
+		ASSERT_TRUE(iM._mIsOrthogonal(O1, true));
+		ASSERT_FALSE(iM._mIsOrthogonal(O1, false));
+
+		realmtx_t O2;
+		mf >> serialization::make_nvp("O2", O2);
+		ASSERT_EQ(mf.ErrorCode::Success, mf.get_last_error()) << mf.get_last_error_str();
+		ASSERT_TRUE(iM._mIsOrthogonal(O2, false));
+		ASSERT_FALSE(iM._mIsOrthogonal(O2, true));
+	}
+}
+
+TEST(TestMathN, mSVD_Orthogonalize_ss) {
+	const char *const pFileName = "./test_data/test_orthogonal.mat";
+
+	nntl_supp::imatfile<> mf;
+	ASSERT_EQ(mf.ErrorCode::Success, mf.open(pFileName));
+
+	{
+		SCOPED_TRACE("Pregenerated matrix rows>cols");
+
+		realmtx_t mO, W1;
+
+		mf >> serialization::make_nvp("W1", W1);
+		ASSERT_EQ(mf.ErrorCode::Success, mf.get_last_error()) << mf.get_last_error_str();
+		ASSERT_FALSE(iM._mIsOrthogonal(W1, true));
+		ASSERT_FALSE(iM._mIsOrthogonal(W1, false));
+
+		mf >> serialization::make_nvp("O1", mO);
+		ASSERT_EQ(mf.ErrorCode::Success, mf.get_last_error()) << mf.get_last_error_str();
+		ASSERT_TRUE(iM._mIsOrthogonal(mO, true));
+		ASSERT_FALSE(iM._mIsOrthogonal(mO, false));
+
+		ASSERT_EQ(W1.size(), mO.size());
+		ASSERT_GT(W1.rows(), W1.cols());
+
+		ASSERT_TRUE(iM.mSVD_Orthogonalize_ss(W1));
+		ASSERT_TRUE(iM._mIsOrthogonal(W1, true));
+		ASSERT_FALSE(iM._mIsOrthogonal(W1, false));
+	}
+
+	{
+		SCOPED_TRACE("Pregenerated matrix rows<cols");
+
+		realmtx_t mO, W2;
+
+		mf >> serialization::make_nvp("W2", W2);
+		ASSERT_EQ(mf.ErrorCode::Success, mf.get_last_error()) << mf.get_last_error_str();
+		ASSERT_FALSE(iM._mIsOrthogonal(W2, true));
+		ASSERT_FALSE(iM._mIsOrthogonal(W2, false));
+
+		mf >> serialization::make_nvp("O2", mO);
+		ASSERT_EQ(mf.ErrorCode::Success, mf.get_last_error()) << mf.get_last_error_str();
+		ASSERT_TRUE(iM._mIsOrthogonal(mO, false));
+		ASSERT_FALSE(iM._mIsOrthogonal(mO, true));
+
+		ASSERT_EQ(W2.size(), mO.size());
+		ASSERT_LT(W2.rows(), W2.cols());
+
+		ASSERT_TRUE(iM.mSVD_Orthogonalize_ss(W2));
+		ASSERT_TRUE(iM._mIsOrthogonal(W2, false));
+		ASSERT_FALSE(iM._mIsOrthogonal(W2, true));
+	}
+}
+
+#else
+TEST(TestMathN, _mIsOrthogonal) {
+	realmtx_t M(20, 30);
+	d_interfaces::iRng_t rg;
+	rg.set_ithreads(iM.ithreads());
+
+	rg.gen_matrix(M, 5);
+	ASSERT_FALSE(iM._mIsOrthogonal(M, true));
+	ASSERT_FALSE(iM._mIsOrthogonal(M, false));
+
+	ADD_FAILURE() << "Unfortunately, this test requires a working Matlab support";
+}
+
+TEST(TestMathN, mSVD_Orthogonalize_ss) {
+	GTEST_FAIL() << "Unfortunately, this test requires a working Matlab support";
+}
+#endif

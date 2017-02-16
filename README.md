@@ -48,7 +48,8 @@ I wouldn't state the NNTL is the fastest CPU implementation of feedforward neura
 * Neuron weights initialization schemes:
   * According to **Xavier** et al. "Understanding the difficulty of training deep feedforward neural networks" 2010 (so called "Xavier initialization" - good for sigmoids)
   * According to **He, Zhang** et al. "Delving Deep into Rectifiers: Surpassing Human-Level Performance on ImageNet Classification" 2015 (amazing for ReLU family units)
-  * According to **Martens** "Deep learning via Hessian-free optimization" 2010 and Sutskever, Martens et al. "On the importance of initialization and momentum in deep learning" 2013 (so called "Sparse initialization" or SI - for sigmoids)
+  * Sparse initialization according to **Martens** "Deep learning via Hessian-free optimization" 2010 and Sutskever, Martens et al. "On the importance of initialization and momentum in deep learning" 2013
+  * **Orthogonal initialization** according to Andrew M. Saxe et al. "Exact solutions to the nonlinear dynamics of learning in deep linear neural networks", 2013, arxiv:1312.6120
 * Optimizers:
   * "classical" constant learning rate
   * **RMSProp** as Geoffrey Hinton introduced it in the "Neural Networks for Machine Learning" course, lecture 6

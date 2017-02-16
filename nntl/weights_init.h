@@ -191,5 +191,45 @@ namespace weights_init {
 	template <unsigned int NonZeroUnitsCount = 15>
 	using Martens_SI_tanh = Martens_SI<500000, 250000, NonZeroUnitsCount>;
 
+	//////////////////////////////////////////////////////////////////////////
+	// Orthogonal Initialization as introduiced in
+	// "Exact solutions to the nonlinear dynamics of learning in deep linear neural networks", Andrew M. Saxe,
+	// James L. McClelland, Surya Ganguli, 2013, arxiv:1312.6120
+	// Based on https://github.com/Lasagne/Lasagne/blob/master/lasagne/init.py
+	// Gain1e3 is a scaling factor for the weights. Set this to
+	// - 1000000*1.0 for linear and sigmoid units, and to 
+	// - 1000000*sqrt(2) for rectified linear units, and 
+	// - 1000000*sqrt(2 / (1 + alpha**2)) for leaky rectified linear units with leakiness ``alpha``.
+	// Other transfer functions may need different factors.
+	template<unsigned int Gain1e6 = 1000000>
+	struct OrthoInit {
+		template <typename iRng_t, typename iMath_t>
+		static bool init(typename iRng_t::realmtx_t& W, iRng_t& iR, iMath_t& iM)noexcept {
+			typedef typename iRng_t::real_t real_t;
+			typedef typename iRng_t::realmtx_t realmtx_t;
+			typedef realmtx_t::vec_len_t vec_len_t;
+
+			NNTL_ASSERT(!W.empty() && W.numel() > 0);
+
+			rng::distr_normal_naive<iRng_t> d(iR, real_t(0.0), real_t(1.));
+
+			constexpr unsigned maxTries = 5;
+			bool bOk = false;
+			for (unsigned i = 0; i < maxTries; ++i) {
+				d.gen_matrix(W);
+				if (iM.mSVD_Orthogonalize_ss(W)) {
+					bOk = true;
+					break;
+				}
+			}
+			if (bOk && Gain1e6 != 1000000) {
+				iM.evMulC_ip(W, real_t(Gain1e6) / real_t(1000000));
+			}
+			return bOk;
+		}
+	};
+
+	using OrthoInit_u = OrthoInit<>;
+
 }
 }

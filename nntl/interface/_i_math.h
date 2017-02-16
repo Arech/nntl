@@ -217,11 +217,24 @@ namespace math {
 
 		//////////////////////////////////////////////////////////////////////////
 		//C = A * B, - matrix multiplication
+		//////////////////////////////////////////////////////////////////////////
 		nntl_interface void mMulAB_C(const realmtx_t& A, const realmtx_t& B, realmtx_t& C)noexcept;
 		//matrix multiplication C(no bias) = A * B` (B transposed). C could have emulated biases (they will be left untouched)
 		nntl_interface void mMulABt_Cnb(const realmtx_t& A, const realmtx_t& B, realmtx_t& C)noexcept;
 		//C = a*(A` * B) - matrix multiplication of transposed A times B with result normalization
 		nntl_interface void mScaledMulAtB_C(real_t alpha, const realmtx_t& A, const realmtx_t& B, realmtx_t& C)noexcept;
+
+		//////////////////////////////////////////////////////////////////////////
+		//Elements of SVD (singular value decomposition)
+		//////////////////////////////////////////////////////////////////////////
+		// mSVD_Orthogonalize_ss(A) performs SVD of m*n matrix A and returns in A same sized corresponding orthogonal matrix of singular vectors
+		//		returns true if SVD was successful
+		//		Restrictions: MUST NOT use the math object's local storage (the function is intended to be used during
+		//			the weight initialization phase when the local storage is generally not initialized yet)
+		nntl_interface bool mSVD_Orthogonalize_ss(realmtx_t& A)noexcept;
+		// This function checks whether A is orthogonal, i.e. A'*A is identity matrix.
+		// Could be not optimized, use FOR DEBUG PURPOSES ONLY!
+		nntl_interface bool _mIsOrthogonal(const realmtx_t& A, bool bFirstTransposed, const real_t epsV)noexcept;
 
 		//////////////////////////////////////////////////////////////////////////
 		// divide each matrix A row by corresponding vector d element, A(i,:) = A(i,:) / d(i)

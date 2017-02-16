@@ -532,6 +532,7 @@ namespace activation {
 		}
 	};
 
+	//NB: http://neuralnetworksanddeeplearning.com/chap3.html
 	template<typename RealT, unsigned int A1e3 = 1000, typename WeightsInitScheme = weights_init::He_Zhang<>>
 	class softsigm_xentropy_loss : public softsigm<RealT, A1e3, WeightsInitScheme>, public _i_activation_loss<RealT> {
 		softsigm_xentropy_loss() = delete;

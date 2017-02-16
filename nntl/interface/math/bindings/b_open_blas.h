@@ -35,14 +35,19 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //TODO: function definitions (like dgemm()) conflicts with similar function definitions in ACML. It builds successfully, but
 //links to wrong library and access violation happens in run-time.
 
+#include <complex>
+#define lapack_complex_float std::complex<float>
+#define lapack_complex_double std::complex<double>
+#include <lapacke.h>
+
 #pragma comment(lib,"libopenblas.dll.a")
 
 //what else to do to use OpenBLAS:
-// -in Solution's VC++ Directories property page set Library Directories to point to a folder with libopenblas.dll.a file
-// -copy correct libopenblas.dll and another dlls that libopenblas.dll requires to debug/release solution folder
-// -there might be a need to change cblas.h function declarations to include __cdecl keyword. Following functions have to
-// be updated (take into account your basic data type - be it float or double):
-// cblas_dgemm, 
+// -in the Solution's VC++ Directories property page set parameter Library Directories to point to a folder with the libopenblas.dll.a file
+// -copy correct libopenblas.dll and another dlls that the libopenblas.dll require to the debug/release solution's folder
+// -if you're going to use any calling convetion except for __cdecl, then most likely, you'll have to update function declarations
+//		within the cblas.h and other blas's .h files included to contain the __cdecl keyword (it's absent for some reason).
+//		Check the b_OpenBLAS:: methods to find out which function definitions should be changed.
 
 
 //http://www.christophlassner.de/using-blas-from-c-with-row-major-data.html
@@ -63,7 +68,10 @@ namespace math {
 
 	// wrapper around BLAS API. Should at least isolate from double/float differences
 	// Also, we are going to use ColMajor ordering in all math libraries (most of them use it by default)
-	// EXPECTING data in COL-MAJOR mode!
+	// EXPECTING data to be in COL-MAJOR mode!
+	// 
+	// NB: Leading dimension is the number of elements in major dimension. We're using Col-Major ordering,
+	// therefore it is the number of ROWs of a matrix
 	struct b_OpenBLAS {
 
 		//TODO: beware that sz_t type used as substitution of blasint can overflow blasint and silencing conversion warnings here can make it difficult to debug!
@@ -95,7 +103,16 @@ namespace math {
 		//////////////////////////////////////////////////////////////////////////
 		//////////////////////////////////////////////////////////////////////////
 		// LEVEL 3
-		// GEMM C=a*`A`*`B`+b*C
+		// GEMM C := alpha*op(A)*op(B) + beta*C
+		// https://software.intel.com/en-us/node/520775
+		// where:
+		// op(X) is one of op(X) = X, or op(X) = XT, or op(X) = XH,
+		// alpha and beta are scalars,
+		// A, B and C are matrices :
+		// op(A) is an m - by - k matrix,
+		// op(B) is a k - by - n matrix,
+		// C is an m - by - n matrix.
+		// 
 		// M - Specifies the number of rows of the matrix op(A) and of the matrix C. The value of m must be at least zero.
 		// N - Specifies the number of columns of the matrix op(B) and the number of columns of the matrix C. The value of n must be at least zero.
 		// K - Specifies the number of columns of the matrix op(A) and the number of rows of the matrix op(B). The value of k must be at least zero.
@@ -137,8 +154,35 @@ namespace math {
 
 		//////////////////////////////////////////////////////////////////////////
 		//////////////////////////////////////////////////////////////////////////
+		// LAPACKE
+
+		// ?gesvd
+		// https://software.intel.com/en-us/node/521150
+		template<typename sz_t, typename fl_t>
+		static typename std::enable_if_t< std::is_same< std::remove_pointer_t<fl_t>, double>::value, int>
+			gesvd(/*int matrix_layout,*/ const char jobu, const char jobvt,
+				const sz_t m, const sz_t n, fl_t* A,
+				const sz_t lda, fl_t* S, fl_t* U, const sz_t ldu,
+				fl_t* Vt, const sz_t ldvt, fl_t* superb)
+		{
+			return static_cast<int>(LAPACKE_dgesvd(LAPACK_COL_MAJOR, jobu, jobvt, static_cast<lapack_int>(m), static_cast<lapack_int>(n)
+				, A, static_cast<lapack_int>(lda), S, U, static_cast<lapack_int>(ldu), Vt, static_cast<lapack_int>(ldvt), superb));
+		}
+		template<typename sz_t, typename fl_t>
+		static typename std::enable_if_t< std::is_same< std::remove_pointer_t<fl_t>, float>::value, int>
+			gesvd(/*int matrix_layout,*/ const char jobu, const char jobvt,
+				const sz_t m, const sz_t n, fl_t* A,
+				const sz_t lda, fl_t* S, fl_t* U, const sz_t ldu,
+				fl_t* Vt, const sz_t ldvt, fl_t* superb)
+		{
+			return static_cast<int>(LAPACKE_sgesvd(LAPACK_COL_MAJOR, jobu, jobvt, static_cast<lapack_int>(m), static_cast<lapack_int>(n)
+				, A, static_cast<lapack_int>(lda), S, U, static_cast<lapack_int>(ldu), Vt, static_cast<lapack_int>(ldvt), superb));
+		}
+
+
+		//////////////////////////////////////////////////////////////////////////
+		//////////////////////////////////////////////////////////////////////////
 		// Extensions
-		
 
 		// The omatcopy routine performs scaling and out-of-place transposition/copying of matrices. A transposition 
 		// operation can be a normal matrix copy, a transposition, a conjugate transposition, or just a conjugation.
