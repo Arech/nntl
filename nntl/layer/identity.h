@@ -32,9 +32,15 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #pragma once
 
 // layer_identity defines a layer that just passes it's incoming neurons as activation neurons without any processing.
-// Can be used to pass a source data unmodified to upper feature detectors.
-// layer_identity_gate can also serve as a gating source for layer_pack_gated.
-// It's intended to be used within a layer_pack_horizontal (and can't/shouldn't be used elsewhere)
+// Can be used to pass a source data unmodified to some upper feature detectors.
+// 
+// layer_identity_gate can also serve as a gating source for the layer_pack_gated / _pack_horizontal_gated.
+// 
+// Also, be aware that if the drop_samples() of layer_identity/layer_identity_gate gets called, then the mask
+// passed to the drop_samples() does NOT get passed to the donoring/lower layer. This is an intentional behavior and it won't hurt
+// you provided you've assembled right NN architecture.
+// 
+// Both classes (layer_identity/layer_identity_gate) are intended to be used within a layer_pack_horizontal (and can't/shouldn't be used elsewhere)
 
 #include <type_traits>
 
@@ -68,6 +74,12 @@ namespace nntl {
 		}
 		const mtx_size_t get_activations_size()const noexcept { return m_activations.size(); }
 
+		const bool is_activations_shared()const noexcept {
+			const auto r = _base_class::is_activations_shared();
+			NNTL_ASSERT(!r || m_activations.bDontManageStorage());//shared activations can't manage their own storage
+			return r;
+		}
+
 		// pNewActivationStorage MUST be specified (we're expecting to be encapsulated into a layer_pack_horizontal)
 		ErrorCode init(_layer_init_data_t& lid, real_t* pNewActivationStorage)noexcept {
 			NNTL_ASSERT(pNewActivationStorage);
@@ -76,8 +88,7 @@ namespace nntl {
 			if (ErrorCode::Success != ec) return ec;
 
 			NNTL_ASSERT(get_self().get_neurons_cnt());
-			m_activations.useExternalStorage(pNewActivationStorage
-				, get_self().get_max_fprop_batch_size(), get_self().get_neurons_cnt() + 1, true);
+			m_activations.useExternalStorage(pNewActivationStorage, get_self().get_biggest_batch_size(), get_self().get_neurons_cnt() + 1, true);
 			return ec;
 		}
 
@@ -88,35 +99,40 @@ namespace nntl {
 		void initMem(real_t* ptr, numel_cnt_t cnt)noexcept {}
 
 		// pNewActivationStorage MUST be specified (we're expecting to be encapsulated into layer_pack_horizontal)
-		void set_mode(vec_len_t batchSize, real_t* pNewActivationStorage)noexcept {
+		void set_batch_size(const vec_len_t batchSize, real_t*const pNewActivationStorage)noexcept {
+			NNTL_ASSERT(batchSize > 0);
 			NNTL_ASSERT(pNewActivationStorage);
 
 			m_bActivationsValid = false;
-			m_bTraining = batchSize == 0;
+			NNTL_ASSERT(batchSize <= get_self().get_biggest_batch_size());
 
-			NNTL_ASSERT(m_activations.emulatesBiases() && m_activations.bDontManageStorage() && get_self().get_neurons_cnt());
+			NNTL_ASSERT(m_activations.emulatesBiases() && get_self().is_activations_shared() && get_self().get_neurons_cnt());
 			//m_neurons_cnt + 1 for biases
-			m_activations.useExternalStorage(pNewActivationStorage
-				, m_bTraining ? get_self().get_training_batch_size() : batchSize, get_self().get_neurons_cnt() + 1, true);
+			m_activations.useExternalStorage(pNewActivationStorage, batchSize, get_self().get_neurons_cnt() + 1, true);
 			//should not restore biases here, because for compound layers its a job for their fprop() implementation
 		}
 	protected:
 
 		void _fprop(const realmtx_t& prevActivations)noexcept {
 			NNTL_ASSERT(prevActivations.size() == m_activations.size());
-			NNTL_ASSERT(m_activations.bDontManageStorage());
+			NNTL_ASSERT(get_self().is_activations_shared());
 			NNTL_ASSERT(prevActivations.test_biases_ok());
 
 			auto& iI = get_self().get_iInspect();
-			iI.fprop_begin(get_self().get_layer_idx(), prevActivations, m_bTraining);
+			iI.fprop_begin(get_self().get_layer_idx(), prevActivations, get_self().isTrainingMode());
+
+			//restoring biases, should they were altered in drop_samples()
+			if (m_activations.isHoleyBiases() && !get_self().is_activations_shared()) {
+				m_activations.set_biases();
+			}
 
 			// just copying the data from prevActivations to m_activations
 			// We must copy the data, because layer_pack_horizontal uses its own storage for activations, therefore
 			// we can't just use the m_activations as an alias to prevActivations - we have to physically copy the data
 			// to a new storage within layer_pack_horizontal activations
-			//const bool r = prevActivations.cloneTo(m_activations);
+			//const bool r = prevActivations.clone_to(m_activations);
 			// we mustn't touch the bias column!
-			const bool r = prevActivations.copy_data_skip_bias(m_activations);
+			const auto r = prevActivations.copy_data_skip_bias(m_activations);
 			NNTL_ASSERT(r);
 
 			iI.fprop_end(m_activations);
@@ -138,6 +154,7 @@ namespace nntl {
 		std::enable_if_t<_impl::is_layer_wrapper<LowerLayerWrapper>::value, const unsigned>
 			bprop(realmtx_t& dLdA, const LowerLayerWrapper& lowerLayer, realmtx_t& dLdAPrev)noexcept
 		{
+			NNTL_ASSERT(m_bActivationsValid);
 			m_bActivationsValid = false;
 			auto& iI = get_self().get_iInspect();
 			iI.bprop_begin(get_self().get_layer_idx(), dLdA);
@@ -149,6 +166,23 @@ namespace nntl {
 			return 0;//indicating that dL/dA for a previous layer is actually in the dLdA parameter (not in the dLdAPrev)
 		}
 
+		static constexpr bool is_trivial_drop_samples()noexcept { return true; }
+
+		void drop_samples(const realmtx_t& mask, const bool bBiasesToo)noexcept {
+			NNTL_ASSERT(m_bActivationsValid);
+			NNTL_ASSERT(get_self().is_drop_samples_mbc());
+			NNTL_ASSERT(!get_self().is_activations_shared() || !bBiasesToo);
+			NNTL_ASSERT(!mask.emulatesBiases() && 1 == mask.cols() && m_activations.rows()==mask.rows() && mask.isBinary());
+			NNTL_ASSERT(m_activations.emulatesBiases());
+
+			m_activations.hide_last_col();
+			get_self().get_iMath().mrwMulByVec(m_activations, mask.data());
+			m_activations.restore_last_col();
+
+			if (bBiasesToo) {
+				m_activations.copy_biases_from(mask.data());
+			}
+		}
 
 		//////////////////////////////////////////////////////////////////////////
 		// other funcs
@@ -186,6 +220,8 @@ namespace nntl {
 		//////////////////////////////////////////////////////////////////////////
 		//members section (in "biggest first" order)
 	protected:
+		//gate matrix doesn't have a bias column, therefore we can't directly use m_activations variable and
+		// should create a separate alias to the activation storage.
 		realmtxdef_t m_gate;
 
 	public:
@@ -196,7 +232,10 @@ namespace nntl {
 		static constexpr const char _defName[] = "idg";
 
 		//////////////////////////////////////////////////////////////////////////
-		const realmtx_t& get_gate()const noexcept { return m_gate; }
+		const realmtx_t& get_gate()const noexcept {
+			NNTL_ASSERT(m_bActivationsValid);
+			return m_gate;
+		}
 		const vec_len_t get_gate_width()const noexcept { return get_self().get_neurons_cnt(); }
 
 		// pNewActivationStorage MUST be specified (we're expecting to be encapsulated into a layer_pack_horizontal)
@@ -207,8 +246,7 @@ namespace nntl {
 			if (ErrorCode::Success != ec) return ec;
 
 			NNTL_ASSERT(get_self().get_neurons_cnt());
-			m_gate.useExternalStorage(pNewActivationStorage
-				, get_self().get_max_fprop_batch_size(), get_self().get_neurons_cnt(), false);
+			m_gate.useExternalStorage(pNewActivationStorage, get_self().get_biggest_batch_size(), get_self().get_neurons_cnt(), false);
 			return ec;
 		}
 
@@ -217,13 +255,12 @@ namespace nntl {
 			_base_class::deinit();
 		}
 		// pNewActivationStorage MUST be specified (we're expecting to be encapsulated into layer_pack_horizontal)
-		void set_mode(vec_len_t batchSize, real_t* pNewActivationStorage)noexcept {
+		void set_batch_size(const vec_len_t batchSize, real_t*const pNewActivationStorage)noexcept {
+			NNTL_ASSERT(batchSize > 0);
 			NNTL_ASSERT(pNewActivationStorage);
-			_base_class::set_mode(batchSize, pNewActivationStorage);
+			_base_class::set_batch_size(batchSize, pNewActivationStorage);
 
-			NNTL_ASSERT(m_bTraining == (batchSize == 0));
-			m_gate.useExternalStorage(pNewActivationStorage
-				, m_bTraining ? get_self().get_training_batch_size() : batchSize, get_self().get_neurons_cnt(), false);
+			m_gate.useExternalStorage(pNewActivationStorage, batchSize, get_self().get_neurons_cnt(), false);
 		}
 
 	private:

@@ -196,6 +196,7 @@ namespace weights_init {
 	// "Exact solutions to the nonlinear dynamics of learning in deep linear neural networks", Andrew M. Saxe,
 	// James L. McClelland, Surya Ganguli, 2013, arxiv:1312.6120
 	// Based on https://github.com/Lasagne/Lasagne/blob/master/lasagne/init.py
+	// I'm not sure though their implementation is correct, however I'm not sure I can improve it either
 	// Gain1e3 is a scaling factor for the weights. Set this to
 	// - 1000000*1.0 for linear and sigmoid units, and to 
 	// - 1000000*sqrt(2) for rectified linear units, and 

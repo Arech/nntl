@@ -82,23 +82,22 @@ TEST(TestLayerPackTile, ComparativeNonSpecialX) {
 
 	//saving layers weights to reuse in comparison
 	realmtx_t AundW, AundOrigW, AtlfcW, AundAct, AlptAct, AoutpAct, AoutpW;
-	Aund.get_weights().cloneTo(AundW);
-	AundW.cloneTo(AundOrigW);
-	Atlfc.get_weights().cloneTo(AtlfcW);
-	Aoutp.get_weights().cloneTo(AoutpW);
+	Aund.get_weights().clone_to(AundW);
+	AundW.clone_to(AundOrigW);
+	Atlfc.get_weights().clone_to(AtlfcW);
+	Aoutp.get_weights().clone_to(AoutpW);
 
-	Alp.set_mode(0);
+	Ann.___get_common_data().set_training_mode(true);
+	Alp.set_batch_size(batchSize);
 	Alp.fprop(_train_x);
 
 	//saving activations for comparison
-	ASSERT_TRUE(Aund.get_activations().cloneTo(AundAct));
-	ASSERT_TRUE(Alpt.get_activations().cloneTo(AlptAct));
-	ASSERT_TRUE(Aoutp.get_activations().cloneTo(AoutpAct));
+	ASSERT_TRUE(Aund.get_activations().clone_to(AundAct));
+	ASSERT_TRUE(Alpt.get_activations().clone_to(AlptAct));
+	ASSERT_TRUE(Aoutp.get_activations().clone_to(AoutpAct));
 
 	//doing bprop
 	Alp.bprop(_train_y, Attd.a_dLdA);
-	//ASSERT_MTX_EQ(AundAct, static_cast<const realmtx_t&>(Aund.get_activations()), "bprop has modified the AundAct!");
-	//ASSERT_MTX_EQ(AlptAct, static_cast<const realmtx_t&>(Alpt.get_activations()), "bprop has modified the AlptAct!");
 
 	//////////////////////////////////////////////////////////////////////////
 	//////////////////////////////////////////////////////////////////////////
@@ -129,16 +128,17 @@ TEST(TestLayerPackTile, ComparativeNonSpecialX) {
 	//setting the same layer weights
 	ASSERT_TRUE(Bund.set_weights(std::move(AundW)));
 
-	AtlfcW.cloneTo(AundW);
+	AtlfcW.clone_to(AundW);
 	ASSERT_TRUE(Blfc1.set_weights(std::move(AundW)));
-	AtlfcW.cloneTo(AundW);
+	AtlfcW.clone_to(AundW);
 	ASSERT_TRUE(Blfc2.set_weights(std::move(AundW)));
 	ASSERT_TRUE(Blfc3.set_weights(std::move(AtlfcW)));
 
 	ASSERT_TRUE(Boutp.set_weights(std::move(AoutpW)));
 
 	// doing fprop
-	Blp.set_mode(0);
+	Bnn.___get_common_data().set_training_mode(true);
+	Blp.set_batch_size(batchSize);
 	Blp.fprop(_train_x);
 
 	//comparing activations
@@ -155,15 +155,7 @@ TEST(TestLayerPackTile, ComparativeNonSpecialX) {
 
 	//doing bprop
 	Blp.bprop(_train_y, Bttd.a_dLdA);
-
-	//comparing activations and weights
-	/*ASSERT_MTX_EQ(AundAct, static_cast<const realmtx_t&>(Bund.get_activations()), "Underlying level post-bprop activations comparison failed!");
-	ASSERT_REALMTX_NEAR(AlptAct,
-		static_cast<const realmtx_t&>(Blph.get_activations()),
-		"Tiled layer post-bprop activations comparison failed!",
-		TestLayerPackTile_EPS<real_t>::eps);*/
-
-
+	
 	ASSERT_REALMTX_NEAR(Aund.get_weights(), Bund.get_weights(),
 		"Underlying layer post-bprop weights comparison failed!",
 		TestLayerPackTile_EPS<real_t>::eps);

@@ -57,14 +57,14 @@ I wouldn't state the NNTL is the fastest CPU implementation of feedforward neura
   * **RProp** (using a sign of a gradient)
   * my own slightly mad modification of the RMSProp (probably, someone is also invented it, don't know), which I call a ModProp, that uses an abs() of a gradient in EMA instead of a square as in the RMSProp. It's slightly faster, than the RMSProp, because it eliminates the need of squaring and square rooting. Sometimes it helps to learn weights when no other technique helps (it may be related to some specific properties of the data I used, but anyway, it might be helpful to try).
   * **Adam** and **AdaMax** (Kingma, Ba "Adam: A Method for Stochastic Optimization" 2014). I've added a numeric stabilizer coefficient to the latter method (it's absent in the original description, though it probably should be there). It's possible to turn it off completely if necessary to get the AdaMax exactly as described in the paper.
-* Classical **momentum** / **Nesterov momentum** (a.k.a. Nesterov Accelerated Gradient or NAG for short)
+* Classical **momentum** and **Nesterov momentum** (a.k.a. Nesterov Accelerated Gradient or NAG for short)
 * Regularizers:
   * **Dropout** (actually, it's so called "inverted dropout" where activations is scaled only at a training time; during a testing activations/weights with and without dropout remains the same).
   * **L1** and **L2** (weight decay) regularizers.
-  * Constraint for a total length of a neuron incoming weight vector - so called **max-norm** regularization. Once a neuron weights grow too much, they are getting scaled so their norm will fit into a some predefined value (Srivastava, Hinton, et.al "Dropout: A Simple Way to Prevent Neural Networks from Overfitting" 2014)
+  * Constraint for a total length of a neuron's incoming weight vector - so called **max-norm** regularization. Once a neuron weights grow too much, they are getting scaled so their norm will fit into a some predefined value (Srivastava, Hinton, et.al "Dropout: A Simple Way to Prevent Neural Networks from Overfitting" 2014)
   * Constraints for a magnitude of derivative of a loss function in an output layer (idea taken from the aforementioned “Generating Sequences With Recurrent Neural Networks” (2013) by Alex Graves)
 * Individual Adaptive Learning Rates (an ILR in code) based on a agreement in signs of a current and a previous gradient or a momentum velocity.
-* Early stopping, learning rates decay, momentum modification and etc.. Any tuning of learning variables you would like during actual training process.
+* Early stopping, learning rates decay, momentum modification and etc.. Any tuning of learning variables you may require during an actual training process is possible.
 * Tasks supported out of the box (i.e. all you need to do to be able to work with this tasks is to assemble a proper architecture from components provided; other tasks, such as regression, however, may require some special components coding - please, submit your solutions):
   * one-hot vector classification via sigmoid or softmax activations
   * one dimensional binary classification via sigmoid activation

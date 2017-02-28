@@ -146,28 +146,28 @@ void test_ewBinarize_ip_corr(vec_len_t rowsCnt, vec_len_t colsCnt = 10, const re
 	for (unsigned r = 0; r < testCorrRepCnt; ++r) {
 		rg.gen_matrix_norm(A_orig);
 
-		A_orig.cloneTo(A_ET);
+		A_orig.clone_to(A_ET);
 		ewBinarize_ip_ET(A_ET, frac);
 
-		A_orig.cloneTo(A);
+		A_orig.clone_to(A);
 		iM.ewBinarize_ip_st(A, frac);
 		ASSERT_MTX_EQ(A_ET, A, "st() failed correctness test");
 
-		/*A_orig.cloneTo(A);
+		/*A_orig.clone_to(A);
 		iM.ex_ewBinarize_ip_st(A, frac);
 		ASSERT_MTX_EQ(A_ET, A, "ex_st() failed correctness test");
 
-		A_orig.cloneTo(A);
+		A_orig.clone_to(A);
 		iM.ex2_ewBinarize_ip_st(A, frac);
 		ASSERT_MTX_EQ(A_ET, A, "ex2_st() failed correctness test");*/
 
 
 
-		A_orig.cloneTo(A);
+		A_orig.clone_to(A);
 		iM.ewBinarize_ip_mt(A, frac);
 		ASSERT_MTX_EQ(A_ET, A, "mt() failed correctness test");
 
-		A_orig.cloneTo(A);
+		A_orig.clone_to(A);
 		iM.ewBinarize_ip(A, frac);
 		ASSERT_MTX_EQ(A_ET, A, "() failed correctness test");
 	}
@@ -351,18 +351,18 @@ void test_softmax(vec_len_t rowsCnt, vec_len_t colsCnt) {
 		if (bHasBiases) rg.gen_matrix_no_bias(A_orig, 5);
 		else rg.gen_matrix(A_orig, 5);
 
-		A_orig.cloneTo(A_ET);
+		A_orig.clone_to(A_ET);
 		softmax_ET(A_ET, iM._get_thread_temp_raw_storage(maxSoftmaxMemSize));
 		
-		A_orig.cloneTo(A);
+		A_orig.clone_to(A);
 		iM.softmax_st(A);
 		ASSERT_REALMTX_NEAR(A_ET, A, "st() failed", softmax_EPS<real_t>::eps);
 
-		A_orig.cloneTo(A);
+		A_orig.clone_to(A);
 		iM.softmax_mt(A);
 		ASSERT_REALMTX_NEAR(A_ET, A, "mt() failed", softmax_EPS<real_t>::eps);
 
-		A_orig.cloneTo(A);
+		A_orig.clone_to(A);
 		iM.softmax(A);
 		ASSERT_REALMTX_NEAR(A_ET, A, "() failed", softmax_EPS<real_t>::eps);
 	}
@@ -573,19 +573,19 @@ void test_evAddScaledSign_ip(iMath& iM, vec_len_t rowsCnt, vec_len_t colsCnt = 1
 
 		for (unsigned r = 0; r < testCorrRepCnt; ++r) {
 			rg.gen_matrix(A, 2);
-			A.cloneTo(A2);
-			A.cloneTo(A3);
+			A.clone_to(A2);
+			A.clone_to(A3);
 
 			evAddScaledSign_ip_ET(A2, scaleCoeff, B);
 
 			iM.evAddScaledSign_ip_st(A, scaleCoeff, B);
 			ASSERT_MTX_EQ(A2, A, "evAddScaledSign_ip_st failed correctness test");
 
-			A3.cloneTo(A);
+			A3.clone_to(A);
 			iM.evAddScaledSign_ip_mt(A, scaleCoeff, B);
 			ASSERT_MTX_EQ(A2, A, "evAddScaledSign_ip_mt failed correctness test");
 
-			A3.cloneTo(A);
+			A3.clone_to(A);
 			iM.evAddScaledSign_ip(A, scaleCoeff, B);
 			ASSERT_MTX_EQ(A2, A, "evAddScaledSign_ip failed correctness test");
 		}
@@ -650,19 +650,19 @@ void test_evAddScaled_ip(iMath& iM, vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 
 		for (unsigned r = 0; r < testCorrRepCnt; ++r) {
 			rg.gen_matrix(A, 2);
-			A.cloneTo(A2);
-			A.cloneTo(A3);
+			A.clone_to(A2);
+			A.clone_to(A3);
 
 			evAddScaled_ip_ET(A2, scaleCoeff, B);
 
 			iM.evAddScaled_ip_st(A, scaleCoeff, B);
 			ASSERT_MTX_EQ(A2, A, "evAddScaled_ip_st failed correctness test");
 
-			A3.cloneTo(A);
+			A3.clone_to(A);
 			iM.evAddScaled_ip_mt(A, scaleCoeff, B);
 			ASSERT_MTX_EQ(A2, A, "evAddScaled_ip_mt failed correctness test");
 
-			A3.cloneTo(A);
+			A3.clone_to(A);
 			iM.evAddScaled_ip(A, scaleCoeff, B);
 			ASSERT_MTX_EQ(A2, A, "evAddScaled_ip failed correctness test");
 		}
@@ -724,19 +724,19 @@ void test_evAdd_ip(iMath& iM, vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 
 		for (unsigned r = 0; r < testCorrRepCnt; ++r) {
 			rg.gen_matrix(A, 2);
-			A.cloneTo(A2);
-			A.cloneTo(A3);
+			A.clone_to(A2);
+			A.clone_to(A3);
 
 			evAdd_ip_ET(A2, B);
 
 			iM.evAdd_ip_st(A, B);
 			ASSERT_MTX_EQ(A2, A, "evAdd_ip_st failed correctness test");
 
-			A3.cloneTo(A);
+			A3.clone_to(A);
 			iM.evAdd_ip_mt(A, B);
 			ASSERT_MTX_EQ(A2, A, "evAdd_ip_mt failed correctness test");
 
-			A3.cloneTo(A);
+			A3.clone_to(A);
 			iM.evAdd_ip(A, B);
 			ASSERT_MTX_EQ(A2, A, "evAdd_ip failed correctness test");
 		}
@@ -794,10 +794,10 @@ void test_evMulCipSubip(iMath& iM, vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 	rg.set_ithreads(iM.ithreads());
 	rg.gen_matrix(vW2, 2);
 	rg.gen_matrix(W2, 2);
-	vW2.cloneTo(vW);
-	W2.cloneTo(W);
-	vW2.cloneTo(vW3);
-	W2.cloneTo(W3);
+	vW2.clone_to(vW);
+	W2.clone_to(W);
+	vW2.clone_to(vW3);
+	W2.clone_to(W3);
 
 	for (unsigned r = 0; r < testCorrRepCnt; ++r) {
 		evCMulSub_ET(iM, vW3, momentum, W3);
@@ -813,10 +813,10 @@ void test_evMulCipSubip(iMath& iM, vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 
 // 	rg.gen_matrix(vW2, 2);
 // 	rg.gen_matrix(W2, 2);
-// 	vW2.cloneTo(vW);
-// 	W2.cloneTo(W);
-// 	vW2.cloneTo(vW3);
-// 	W2.cloneTo(W3);
+// 	vW2.clone_to(vW);
+// 	W2.clone_to(W);
+// 	vW2.clone_to(vW3);
+// 	W2.clone_to(W3);
 
 	tictoc tst, tmt, tb;
 	//testing performance
@@ -885,19 +885,19 @@ void test_mCheck_normalize_rows(vec_len_t rowsCnt, vec_len_t colsCnt, const bool
 		rg.gen_matrix_gtz(srcW, scale);
 		iM.evAdd_ip(srcW, ones);//to make sure norms will be greater than 1
 
-		srcW.cloneTo(etW);
+		srcW.clone_to(etW);
 		auto meanNorm = rowvecs_renorm_ET(etW, newNormSq, bNormIncludesBias, iM._get_thread_temp_raw_storage(rowsCnt));
 		ASSERT_LT(newNormSq, meanNorm) << "Mean norm should be greater than a new norm";
 
-		srcW.cloneTo(W);
+		srcW.clone_to(W);
 		iM.mCheck_normalize_rows_st(W, newNormSq, bNormIncludesBias);
 		ASSERT_REALMTX_NEAR(etW, W, "st failed correctness test", mCheck_normalize_rows_EPS<real_t>::eps);
 
-		srcW.cloneTo(W);
+		srcW.clone_to(W);
 		iM.mCheck_normalize_rows_mt(W, newNormSq, bNormIncludesBias);
 		ASSERT_REALMTX_NEAR(etW, W, "mt failed correctness test", mCheck_normalize_rows_EPS<real_t>::eps);
 
-		srcW.cloneTo(W);
+		srcW.clone_to(W);
 		iM.mCheck_normalize_rows(W, newNormSq, bNormIncludesBias);
 		ASSERT_REALMTX_NEAR(etW, W, "() failed correctness test", mCheck_normalize_rows_EPS<real_t>::eps);
 	}
@@ -939,19 +939,19 @@ void test_mCheck_normalize_rows(iMath& iM, vec_len_t rowsCnt, vec_len_t colsCnt 
 		for (unsigned r = 0; r < testCorrRepCnt; ++r) {
 			rg.gen_matrix(srcW, scale);
 
-			srcW.cloneTo(etW);
+			srcW.clone_to(etW);
 			auto meanNorm = rowvecs_renorm_ET(etW, newNormSq, iM._get_thread_temp_raw_storage(etW.numel()));
 			ASSERT_LT(newNormSq, meanNorm) << "Mean norm should be greater than new norm";
 
-			srcW.cloneTo(W);
+			srcW.clone_to(W);
 			iM.mCheck_normalize_rows_st(W, newNormSq);
 			ASSERT_REALMTX_NEAR(etW, W, "st failed correctness test", mCheck_normalize_rows_EPS<real_t>::eps);
 
-			srcW.cloneTo(W);
+			srcW.clone_to(W);
 			iM.mCheck_normalize_rows_mt(W, newNormSq);
 			ASSERT_REALMTX_NEAR(etW, W, "mt failed correctness test", mCheck_normalize_rows_EPS<real_t>::eps);
 
-			srcW.cloneTo(W);
+			srcW.clone_to(W);
 			iM.mCheck_normalize_rows(W, newNormSq);
 			ASSERT_REALMTX_NEAR(etW, W, "() failed correctness test", mCheck_normalize_rows_EPS<real_t>::eps);
 		}
@@ -963,17 +963,17 @@ void test_mCheck_normalize_rows(iMath& iM, vec_len_t rowsCnt, vec_len_t colsCnt 
 	for (unsigned r = 0; r < maxReps; ++r) {
 		rg.gen_matrix(srcW, scale);
 		
-		srcW.cloneTo(W);
+		srcW.clone_to(W);
 		tSt.tic();
 		iM.mCheck_normalize_rows_st(W, newNormSq);
 		tSt.toc();
 
-		srcW.cloneTo(W);
+		srcW.clone_to(W);
 		tMt.tic();
 		iM.mCheck_normalize_rows_mt(W, newNormSq);
 		tMt.toc();
 
-		srcW.cloneTo(W);
+		srcW.clone_to(W);
 		tB.tic();
 		iM.mCheck_normalize_rows(W, newNormSq);
 		tB.toc();
@@ -1091,26 +1091,26 @@ void test_evSub_ip(iMath& iM, vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 
 		for (unsigned r = 0; r < testCorrRepCnt; ++r) {
 			rg.gen_matrix(A, 2);
-			A.cloneTo(A2);
-			A.cloneTo(A3);
+			A.clone_to(A2);
+			A.clone_to(A3);
 
 			evSub_ip_ET(A2, B);
 
 			iM.evSub_ip_st_naive(A, B);
 			ASSERT_MTX_EQ(A2, A, "evSub_ip_st_naive failed correctness test");
 
-			A3.cloneTo(A);
+			A3.clone_to(A);
 			iM.evSub_ip_mt_naive(A, B);
 			ASSERT_MTX_EQ(A2, A, "evSub_ip_mt_naive failed correctness test");
 
 			/*iM.evSub_ip_st_vec(A, B);
 			ASSERT_MTX_EQ(A2, A, "evSub_ip_st_vec failed correctness test");
 
-			A3.cloneTo(A);
+			A3.clone_to(A);
 			iM.evSub_ip_mt_vec(A, B);
 			ASSERT_MTX_EQ(A2, A, "evSub_ip_mt_vec failed correctness test");*/
 
-			A3.cloneTo(A);
+			A3.clone_to(A);
 			iM.evSub_ip(A, B);
 			ASSERT_MTX_EQ(A2, A, "evSub_ip failed correctness test");
 		}
@@ -1185,19 +1185,19 @@ void test_apply_momentum(iMath& iM, vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 
 		for (unsigned r = 0; r < testCorrRepCnt; ++r) {
 			rg.gen_matrix(vW, 2);
-			vW.cloneTo(vW2);
-			vW.cloneTo(vW3);
+			vW.clone_to(vW2);
+			vW.clone_to(vW3);
 
 			apply_momentum_ET(vW2, momentum, dW);
 
 			iM.apply_momentum_st(vW, momentum, dW);
 			ASSERT_MTX_EQ(vW2, vW, "apply_momentum_st failed correctness test");
 
-			vW3.cloneTo(vW);
+			vW3.clone_to(vW);
 			iM.apply_momentum_mt(vW,momentum, dW);
 			ASSERT_MTX_EQ(vW2, vW, "apply_momentum_mt failed correctness test");
 
-			vW3.cloneTo(vW);
+			vW3.clone_to(vW);
 			iM.apply_momentum(vW, momentum, dW);
 			ASSERT_MTX_EQ(vW2, vW, "apply_momentum failed correctness test");
 		}
@@ -1264,11 +1264,11 @@ void test_ApplyILR_corr(vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 		pDD[rowsCnt - 1] = 0;
 		pDD[dataSize - rowsCnt + 1] = 0;
 
-		dW.cloneTo(dW2);
-		dW.cloneTo(dW3);
+		dW.clone_to(dW2);
+		dW.clone_to(dW3);
 		rg.gen_matrix_gtz(gain, 10);
-		gain.cloneTo(gain2);
-		gain.cloneTo(gain3);
+		gain.clone_to(gain2);
+		gain.clone_to(gain3);
 
 		apply_ILR_ET(dW, prevdW, gain, decr, incr, capL, capH);
 
@@ -1276,26 +1276,26 @@ void test_ApplyILR_corr(vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 		ASSERT_MTX_EQ(dW2, dW, "apply_ILR_st_naive: wrong dLdW matrix content!");
 		ASSERT_MTX_EQ(gain2, gain, "apply_ILR_st_naive: wrong ILRGain matrix content!");
 
-		dW3.cloneTo(dW2);
-		gain3.cloneTo(gain2);
+		dW3.clone_to(dW2);
+		gain3.clone_to(gain2);
 		iM.apply_ILR_st_vec(dW2, prevdW, gain2, decr, incr, capL, capH);
 		ASSERT_MTX_EQ(dW2, dW, "apply_ILR_st_vec: wrong dLdW matrix content!");
 		ASSERT_MTX_EQ(gain2, gain, "apply_ILR_st_vec: wrong ILRGain matrix content!");
 
-		dW3.cloneTo(dW2);
-		gain3.cloneTo(gain2);
+		dW3.clone_to(dW2);
+		gain3.clone_to(gain2);
 		iM.apply_ILR_mt_naive(dW2, prevdW, gain2, decr, incr, capL, capH);
 		ASSERT_MTX_EQ(dW2, dW, "apply_ILR_mt_naive: wrong dLdW matrix content!");
 		ASSERT_MTX_EQ(gain2, gain, "apply_ILR_mt_naive: wrong ILRGain matrix content!");
 
-		dW3.cloneTo(dW2);
-		gain3.cloneTo(gain2);
+		dW3.clone_to(dW2);
+		gain3.clone_to(gain2);
 		iM.apply_ILR_mt_vec(dW2, prevdW, gain2, decr, incr, capL, capH);
 		ASSERT_MTX_EQ(dW2, dW, "apply_ILR_mt_vec: wrong dLdW matrix content!");
 		ASSERT_MTX_EQ(gain2, gain, "apply_ILR_mt_vec: wrong ILRGain matrix content!");
 
-		dW3.cloneTo(dW2);
-		gain3.cloneTo(gain2);
+		dW3.clone_to(dW2);
+		gain3.clone_to(gain2);
 		iM.apply_ILR(dW2, prevdW, gain2, decr, incr, capL, capH);
 		ASSERT_MTX_EQ(dW2, dW, "apply_ILR: wrong dLdW matrix content!");
 		ASSERT_MTX_EQ(gain2, gain, "apply_ILR: wrong ILRGain matrix content!");
@@ -1475,11 +1475,11 @@ void test_modprop_perf(iMath& iM, vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 
 		for (unsigned r = 0; r < testCorrRepCnt; ++r) {
 			rg.gen_matrix(dW, 10);
-			dW.cloneTo(dW2);
-			dW.cloneTo(dW3);
+			dW.clone_to(dW2);
+			dW.clone_to(dW3);
 			rg.gen_matrix_gtz(rms, 10);
-			rms.cloneTo(rms2);
-			rms.cloneTo(rms3);
+			rms.clone_to(rms2);
+			rms.clone_to(rms3);
 
 			ModProp_ET(dW2, rms2, lr, emaCoeff, numStab);
 
@@ -1487,14 +1487,14 @@ void test_modprop_perf(iMath& iM, vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 			ASSERT_MTX_EQ(dW2, dW, "ModProp_st: wrong dW");
 			ASSERT_MTX_EQ(rms2, rms, "ModProp_st: wrong rms");
 
-			dW3.cloneTo(dW);
-			rms3.cloneTo(rms);
+			dW3.clone_to(dW);
+			rms3.clone_to(rms);
 			iM.ModProp_mt(dW, rms, lr, emaCoeff, numStab);
 			ASSERT_MTX_EQ(dW2, dW, "ModProp_mt: wrong dW");
 			ASSERT_MTX_EQ(rms2, rms, "ModProp_mt: wrong rms");
 
-			dW3.cloneTo(dW);
-			rms3.cloneTo(rms);
+			dW3.clone_to(dW);
+			rms3.clone_to(rms);
 			iM.ModProp(dW, rms, lr, emaCoeff, numStab);
 			ASSERT_MTX_EQ(dW2, dW, "ModProp: wrong dW");
 			ASSERT_MTX_EQ(rms2, rms, "ModProp: wrong rms");
@@ -1566,19 +1566,19 @@ void test_rprop_perf(iMath& iM, vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 
 		for (unsigned r = 0; r < testCorrRepCnt; ++r) {
 			rg.gen_matrix(dW, 10);
-			dW.cloneTo(dW2);
-			dW.cloneTo(dW3);
+			dW.clone_to(dW2);
+			dW.clone_to(dW3);
 
 			RProp_ET(dW2, lr);
 
 			iM.RProp_st(dW, lr);
 			ASSERT_MTX_EQ(dW2, dW, "RProp_st: wrong dW");
 
-			dW3.cloneTo(dW);
+			dW3.clone_to(dW);
 			iM.RProp_mt(dW, lr);
 			ASSERT_MTX_EQ(dW2, dW, "RProp_mt: wrong dW");
 
-			dW3.cloneTo(dW);
+			dW3.clone_to(dW);
 			iM.RProp(dW, lr);
 			ASSERT_MTX_EQ(dW2, dW, "RProp: wrong dW");
 		}
@@ -1651,14 +1651,14 @@ void test_rmspropgraves_perf(iMath& iM, vec_len_t rowsCnt, vec_len_t colsCnt = 1
 
 		for (unsigned r = 0; r < testCorrRepCnt; ++r) {
 			rg.gen_matrix(dW, 10);
-			dW.cloneTo(dW2);
-			dW.cloneTo(dW3);
+			dW.clone_to(dW2);
+			dW.clone_to(dW3);
 			evSquare_ET(rms, dW);
-			rms.cloneTo(rms2);
-			rms.cloneTo(rms3);
-			dW.cloneTo(rmsG);
-			rmsG.cloneTo(rmsG2);
-			rmsG.cloneTo(rmsG3);
+			rms.clone_to(rms2);
+			rms.clone_to(rms3);
+			dW.clone_to(rmsG);
+			rmsG.clone_to(rmsG2);
+			rmsG.clone_to(rmsG3);
 
 			RMSProp_Graves_ET(dW2, rms2, rmsG2, lr, emaCoeff, numStab);
 
@@ -1667,17 +1667,17 @@ void test_rmspropgraves_perf(iMath& iM, vec_len_t rowsCnt, vec_len_t colsCnt = 1
 			ASSERT_MTX_EQ(rms2, rms, "RMSProp_Graves_st: wrong rms");
 			ASSERT_MTX_EQ(rmsG2, rmsG, "RMSProp_Graves_st: wrong rmsG");
 
-			dW3.cloneTo(dW);
-			rms3.cloneTo(rms);
-			rmsG3.cloneTo(rmsG);
+			dW3.clone_to(dW);
+			rms3.clone_to(rms);
+			rmsG3.clone_to(rmsG);
 			iM.RMSProp_Graves_mt(dW, rms, rmsG, lr, emaCoeff, numStab);
 			ASSERT_MTX_EQ(dW2, dW, "RMSProp_Graves_mt: wrong dW");
 			ASSERT_MTX_EQ(rms2, rms, "RMSProp_Graves_mt: wrong rms");
 			ASSERT_MTX_EQ(rmsG2, rmsG, "RMSProp_Graves_mt: wrong rmsG");
 
-			dW3.cloneTo(dW);
-			rms3.cloneTo(rms);
-			rmsG3.cloneTo(rmsG);
+			dW3.clone_to(dW);
+			rms3.clone_to(rms);
+			rmsG3.clone_to(rmsG);
 			iM.RMSProp_Graves(dW, rms, rmsG, lr, emaCoeff, numStab);
 			ASSERT_MTX_EQ(dW2, dW, "RMSProp_Graves: wrong dW");
 			ASSERT_MTX_EQ(rms2, rms, "RMSProp_Graves: wrong rms");
@@ -1749,11 +1749,11 @@ void test_rmsprophinton_perf(iMath& iM, vec_len_t rowsCnt, vec_len_t colsCnt = 1
 
 		for (unsigned r = 0; r < testCorrRepCnt; ++r) {
 			rg.gen_matrix(dW, 10);
-			dW.cloneTo(dW2);
-			dW.cloneTo(dW3);
+			dW.clone_to(dW2);
+			dW.clone_to(dW3);
 			evSquare_ET(rms, dW);
-			rms.cloneTo(rms2);
-			rms.cloneTo(rms3);
+			rms.clone_to(rms2);
+			rms.clone_to(rms3);
 
 			RMSProp_Hinton_ET(dW2, rms2, lr, emaCoeff, numStab);
 
@@ -1761,14 +1761,14 @@ void test_rmsprophinton_perf(iMath& iM, vec_len_t rowsCnt, vec_len_t colsCnt = 1
 			ASSERT_MTX_EQ(dW2, dW, "RMSProp_Hinton_st: wrong dW");
 			ASSERT_MTX_EQ(rms2, rms, "RMSProp_Hinton_st: wrong rms");
 
-			dW3.cloneTo(dW);
-			rms3.cloneTo(rms);
+			dW3.clone_to(dW);
+			rms3.clone_to(rms);
 			iM.RMSProp_Hinton_mt(dW, rms, lr, emaCoeff, numStab);
 			ASSERT_MTX_EQ(dW2, dW, "RMSProp_Hinton_mt: wrong dW");
 			ASSERT_MTX_EQ(rms2, rms, "RMSProp_Hinton_mt: wrong rms");
 
-			dW3.cloneTo(dW);
-			rms3.cloneTo(rms);
+			dW3.clone_to(dW);
+			rms3.clone_to(rms);
 			iM.RMSProp_Hinton(dW, rms, lr, emaCoeff, numStab);
 			ASSERT_MTX_EQ(dW2, dW, "RMSProp_Hinton: wrong dW");
 			ASSERT_MTX_EQ(rms2, rms, "RMSProp_Hinton: wrong rms");
@@ -1843,7 +1843,7 @@ void test_Adam_corr(const size_t epochs, const vec_len_t maxRowsCnt, const vec_l
 			
 			for (size_t e = 0; e < epochs; ++e) {
 				rg.gen_matrix(dW_ET, real_t(3.0));
-				ASSERT_TRUE(dW_ET.cloneTo(dW_st)); ASSERT_TRUE(dW_ET.cloneTo(dW_mt)); ASSERT_TRUE(dW_ET.cloneTo(dW_));
+				ASSERT_TRUE(dW_ET.clone_to(dW_st)); ASSERT_TRUE(dW_ET.clone_to(dW_mt)); ASSERT_TRUE(dW_ET.clone_to(dW_));
 				
 				Adam_ET(dW_ET, Mt_ET, Vt_ET, beta1t_ET, beta2t_ET, learningRate, beta1, beta2, numStab);
 
@@ -1903,7 +1903,7 @@ void test_AdaMax_corr(const size_t epochs, const vec_len_t maxRowsCnt, const vec
 
 			for (size_t e = 0; e < epochs; ++e) {
 				rg.gen_matrix(dW_ET, real_t(3.0));
-				ASSERT_TRUE(dW_ET.cloneTo(dW_st)); ASSERT_TRUE(dW_ET.cloneTo(dW_mt)); ASSERT_TRUE(dW_ET.cloneTo(dW_));
+				ASSERT_TRUE(dW_ET.clone_to(dW_st)); ASSERT_TRUE(dW_ET.clone_to(dW_mt)); ASSERT_TRUE(dW_ET.clone_to(dW_));
 
 				AdaMax_ET(dW_ET, Mt_ET, Vt_ET, beta1t_ET, learningRate, beta1, beta2, numStab);
 
@@ -1958,11 +1958,11 @@ void test_make_dropout_perf(iMath& iM, vec_len_t rowsCnt, vec_len_t colsCnt = 10
 		for (unsigned r = 0; r < testCorrRepCnt; ++r) {
 			rg.gen_matrix_no_bias(act, 5);
 			ASSERT_TRUE(act.test_biases_ok());
-			act.cloneTo(act2);
-			act.cloneTo(act3);
+			act.clone_to(act2);
+			act.clone_to(act3);
 			rg.gen_matrix_norm(dm);
-			dm.cloneTo(dm2);
-			dm.cloneTo(dm3);
+			dm.clone_to(dm2);
+			dm.clone_to(dm3);
 
 			make_dropout_ET(act2, dfrac, dm2);
 			ASSERT_TRUE(act2.test_biases_ok());
@@ -1971,14 +1971,14 @@ void test_make_dropout_perf(iMath& iM, vec_len_t rowsCnt, vec_len_t colsCnt = 10
 			ASSERT_MTX_EQ(act2, act, "make_dropout_st: wrong act");
 			ASSERT_MTX_EQ(dm2, dm, "make_dropout_st: wrong dm");
 
-			act3.cloneTo(act);
-			dm3.cloneTo(dm);
+			act3.clone_to(act);
+			dm3.clone_to(dm);
 			iM.make_dropout_mt(act, dfrac, dm);
 			ASSERT_MTX_EQ(act2, act, "make_dropout_mt: wrong act");
 			ASSERT_MTX_EQ(dm2, dm, "make_dropout_mt: wrong dm");
 
-			act3.cloneTo(act);
-			dm3.cloneTo(dm);
+			act3.clone_to(act);
+			dm3.clone_to(dm);
 			iM.make_dropout(act, dfrac, dm);
 			ASSERT_MTX_EQ(act2, act, "make_dropout: wrong act");
 			ASSERT_MTX_EQ(dm2, dm, "make_dropout: wrong dm");
@@ -2310,12 +2310,12 @@ TEST(TestMathN, mMulABt_Cnb) {
 	ErrCode ec = reader.read(NNTL_STRING("./test_data/mtx4-2.json"), etA);
 	ASSERT_EQ(ErrCode::Success, ec) << "Error code description: " << reader.get_last_error_string();
 	ASSERT_TRUE(!etA.empty());
-	etA.cloneTo(A);
+	etA.clone_to(A);
 
 	ec = reader.read(NNTL_STRING("./test_data/mtx3-2.json"), etB);
 	ASSERT_EQ(ErrCode::Success, ec) << "Error code description: " << reader.get_last_error_string();
 	ASSERT_TRUE(!etB.empty());
-	etB.cloneTo(B);
+	etB.clone_to(B);
 
 	ec = reader.read(NNTL_STRING("./test_data/mtx4-3.json"), etC);
 	ASSERT_EQ(ErrCode::Success, ec) << "Error code description: " << reader.get_last_error_string();
@@ -2350,12 +2350,12 @@ TEST(TestMathN, mMulABt_Cnb_biased) {
 	ErrCode ec = reader.read(NNTL_STRING("./test_data/mtx4-2.json"), etA);
 	ASSERT_EQ(ErrCode::Success, ec) << "Error code description: " << reader.get_last_error_string();
 	ASSERT_TRUE(!etA.empty());
-	etA.cloneTo(A);
+	etA.clone_to(A);
 
 	ec = reader.read(NNTL_STRING("./test_data/mtx3-2.json"), etB);
 	ASSERT_EQ(ErrCode::Success, ec) << "Error code description: " << reader.get_last_error_string();
 	ASSERT_TRUE(!etB.empty());
-	etB.cloneTo(B);
+	etB.clone_to(B);
 
 	ec = reader.read(NNTL_STRING("./test_data/mtx4-3.json"), etC);
 	ASSERT_EQ(ErrCode::Success, ec) << "Error code description: " << reader.get_last_error_string();
@@ -2403,7 +2403,7 @@ void test_evMul_ip(iMath& iM, vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 	rg.set_ithreads(iM.ithreads());
 	rg.gen_matrix(etM, 5);
 	rg.gen_matrix(etB, 5);
-	ASSERT_TRUE(etB.cloneTo(B));
+	ASSERT_TRUE(etB.clone_to(B));
 	auto ptrEtM = etM.data(), ptrDest = etDest.data(), ptretB=etB.data();
 	for (unsigned i = 0; i < dataSize; ++i) ptrDest[i] = ptrEtM[i]* ptretB[i];
 
@@ -2412,11 +2412,11 @@ void test_evMul_ip(iMath& iM, vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 
 	//////////////////////////////////////////////////////////////////////////
 	//single threaded naive
-	ASSERT_TRUE(etM.cloneTo(m));
+	ASSERT_TRUE(etM.clone_to(m));
 	iM.evMul_ip_st_naive(m, B);
 	diff = nanoseconds(0);
 	for (unsigned r = 0; r < maxReps; ++r) {
-		ASSERT_TRUE(etM.cloneTo(m));
+		ASSERT_TRUE(etM.clone_to(m));
 		bt = steady_clock::now();
 		iM.evMul_ip_st_naive(m, B);
 		diff += steady_clock::now() - bt;
@@ -2427,11 +2427,11 @@ void test_evMul_ip(iMath& iM, vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 
 	//////////////////////////////////////////////////////////////////////////
 	//multi threaded naive
-	ASSERT_TRUE(etM.cloneTo(m));
+	ASSERT_TRUE(etM.clone_to(m));
 	iM.evMul_ip_mt_naive(m, B);
 	diff = nanoseconds(0);
 	for (unsigned r = 0; r < maxReps; ++r) {
-		ASSERT_TRUE(etM.cloneTo(m));
+		ASSERT_TRUE(etM.clone_to(m));
 		bt = steady_clock::now();
 		iM.evMul_ip_mt_naive(m, B);
 		diff += steady_clock::now() - bt;
@@ -2442,11 +2442,11 @@ void test_evMul_ip(iMath& iM, vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 
 	//////////////////////////////////////////////////////////////////////////
 	//single threaded vectorized
-	/*ASSERT_TRUE(etM.cloneTo(m));
+	/*ASSERT_TRUE(etM.clone_to(m));
 	iM.evMul_ip_st_vec(m, B);
 	diff = nanoseconds(0);
 	for (unsigned r = 0; r < maxReps; ++r) {
-		ASSERT_TRUE(etM.cloneTo(m));
+		ASSERT_TRUE(etM.clone_to(m));
 		bt = steady_clock::now();
 		iM.evMul_ip_st_vec(m, B);
 		diff += steady_clock::now() - bt;
@@ -2457,11 +2457,11 @@ void test_evMul_ip(iMath& iM, vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 
 	//////////////////////////////////////////////////////////////////////////
 	//multi threaded vectorized
-	ASSERT_TRUE(etM.cloneTo(m));
+	ASSERT_TRUE(etM.clone_to(m));
 	iM.evMul_ip_mt_vec(m, B);
 	diff = nanoseconds(0);
 	for (unsigned r = 0; r < maxReps; ++r) {
-		ASSERT_TRUE(etM.cloneTo(m));
+		ASSERT_TRUE(etM.clone_to(m));
 		bt = steady_clock::now();
 		iM.evMul_ip_mt_vec(m, B);
 		diff += steady_clock::now() - bt;
@@ -2473,11 +2473,11 @@ void test_evMul_ip(iMath& iM, vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 
 	//////////////////////////////////////////////////////////////////////////
 	//best guess
-	ASSERT_TRUE(etM.cloneTo(m));
+	ASSERT_TRUE(etM.clone_to(m));
 	iM.evMul_ip(m, B);
 	diff = nanoseconds(0);
 	for (unsigned r = 0; r < maxReps; ++r) {
-		ASSERT_TRUE(etM.cloneTo(m));
+		ASSERT_TRUE(etM.clone_to(m));
 		bt = steady_clock::now();
 		iM.evMul_ip(m, B);
 		diff += steady_clock::now() - bt;
@@ -2524,7 +2524,7 @@ void test_evMulC_ip(iMath& iM, vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 	//single threaded naive
 	diff = nanoseconds(0);
 	for (unsigned r = 0; r < maxReps; ++r) {
-		ASSERT_TRUE(etM.cloneTo(m));
+		ASSERT_TRUE(etM.clone_to(m));
 		bt = steady_clock::now();
 		iM.evMulC_ip_st_naive(m,mulC);
 		diff += steady_clock::now() - bt;
@@ -2536,7 +2536,7 @@ void test_evMulC_ip(iMath& iM, vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 	//multi threaded naive
 	diff = nanoseconds(0);
 	for (unsigned r = 0; r < maxReps; ++r) {
-		ASSERT_TRUE(etM.cloneTo(m));
+		ASSERT_TRUE(etM.clone_to(m));
 		bt = steady_clock::now();
 		iM.evMulC_ip_mt_naive(m, mulC);
 		diff += steady_clock::now() - bt;
@@ -2548,7 +2548,7 @@ void test_evMulC_ip(iMath& iM, vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 	//single threaded vectorized
 	diff = nanoseconds(0);
 	for (unsigned r = 0; r < maxReps; ++r) {
-		ASSERT_TRUE(etM.cloneTo(m));
+		ASSERT_TRUE(etM.clone_to(m));
 		bt = steady_clock::now();
 		iM.evMulC_ip_st_vec(m, mulC);
 		diff += steady_clock::now() - bt;
@@ -2560,7 +2560,7 @@ void test_evMulC_ip(iMath& iM, vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 	//multi threaded vectorized
 	diff = nanoseconds(0);
 	for (unsigned r = 0; r < maxReps; ++r) {
-		ASSERT_TRUE(etM.cloneTo(m));
+		ASSERT_TRUE(etM.clone_to(m));
 		bt = steady_clock::now();
 		iM.evMulC_ip_mt_vec(m, mulC);
 		diff += steady_clock::now() - bt;
@@ -2572,7 +2572,7 @@ void test_evMulC_ip(iMath& iM, vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 	//best guess
 	diff = nanoseconds(0);
 	for (unsigned r = 0; r < maxReps; ++r) {
-		ASSERT_TRUE(etM.cloneTo(m));
+		ASSERT_TRUE(etM.clone_to(m));
 		bt = steady_clock::now();
 		iM.evMulC_ip(m, mulC);
 		diff += steady_clock::now() - bt;
@@ -2685,32 +2685,32 @@ void test_elu_corr(vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 		rg.gen_matrix_no_bias(src, 2);
 		ASSERT_TRUE(src.test_biases_ok());
 
-		src.cloneTo(F_ET);
+		src.clone_to(F_ET);
 		elu_ET(F_ET, alpha);
 		ASSERT_TRUE(F_ET.test_biases_ok());
-		src.cloneTo(FU_ET);
+		src.clone_to(FU_ET);
 		elu_unitalpha_ET(FU_ET);
 		ASSERT_TRUE(FU_ET.test_biases_ok());
 		//ASSERT_TRUE(FU_ET != F_ET);
 
-		src.cloneTo(F);
+		src.clone_to(F);
 		iM.elu_st(F, alpha);
 		ASSERT_MTX_EQ(F, F_ET, "elu_st() failed");
-		src.cloneTo(F);
+		src.clone_to(F);
 		iM.elu_unitalpha_st(F);
 		ASSERT_MTX_EQ(F, FU_ET, "elu_unitalpha_st() failed");
 
-		src.cloneTo(F);
+		src.clone_to(F);
 		iM.elu_mt(F, alpha);
 		ASSERT_MTX_EQ(F, F_ET, "elu_mt() failed");
-		src.cloneTo(F);
+		src.clone_to(F);
 		iM.elu_unitalpha_mt(F);
 		ASSERT_MTX_EQ(F, FU_ET, "elu_unitalpha_mt() failed");
 
-		src.cloneTo(F);
+		src.clone_to(F);
 		iM.elu(F, alpha);
 		ASSERT_MTX_EQ(F, F_ET, "elu() failed");
-		src.cloneTo(F);
+		src.clone_to(F);
 		iM.elu_unitalpha(F);
 		ASSERT_MTX_EQ(F, FU_ET, "elu_unitalpha() failed");
 	}
@@ -2735,30 +2735,30 @@ void test_delu_corr(vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 	for (unsigned r = 0; r < testCorrRepCnt; ++r) {
 		rg.gen_matrix(F, 2);
 		
-		F.cloneTo(df_ET);
+		F.clone_to(df_ET);
 		delu_ET(df_ET, alpha);
 
-		F.cloneTo(dfU_ET);
+		F.clone_to(dfU_ET);
 		delu_unitalpha_ET(dfU_ET);
 
-		F.cloneTo(f_df);
+		F.clone_to(f_df);
 		iM.delu_st(f_df, alpha);
 		ASSERT_MTX_EQ(df_ET, f_df, "delu_st() failed");
-		F.cloneTo(f_df);
+		F.clone_to(f_df);
 		iM.delu_unitalpha_st(f_df);
 		ASSERT_MTX_EQ(dfU_ET, f_df, "delu_unitalpha_st() failed");
 
-		F.cloneTo(f_df);
+		F.clone_to(f_df);
 		iM.delu_mt(f_df, alpha);
 		ASSERT_MTX_EQ(df_ET, f_df, "delu_mt() failed");
-		F.cloneTo(f_df);
+		F.clone_to(f_df);
 		iM.delu_unitalpha_mt(f_df);
 		ASSERT_MTX_EQ(dfU_ET, f_df, "delu_unitalpha_mt() failed");
 
-		F.cloneTo(f_df);
+		F.clone_to(f_df);
 		iM.delu(f_df, alpha);
 		ASSERT_MTX_EQ(df_ET, f_df, "delu() failed");
-		F.cloneTo(f_df);
+		F.clone_to(f_df);
 		iM.delu_unitalpha(f_df);
 		ASSERT_MTX_EQ(dfU_ET, f_df, "delu_unitalpha() failed");
 	}
@@ -2806,44 +2806,44 @@ void test_elogu_corr(vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 		ASSERT_TRUE(FUANB_ET.test_biases_ok());
 
 
-		X.cloneTo(F);
+		X.clone_to(F);
 		iM.elogu_st(F, alpha, b);
 		ASSERT_REALMTX_NEAR(F, F_ET, "elogu_st() failed", elogu_EPS<real_t>::eps);
-		X.cloneTo(F);
+		X.clone_to(F);
 		iM.elogu_ua_st(F, b);
 		ASSERT_REALMTX_NEAR(F, FUA_ET, "elogu_ua_st() failed", elogu_EPS<real_t>::eps);
-		X.cloneTo(F);
+		X.clone_to(F);
 		iM.elogu_nb_st(F, alpha);
 		ASSERT_REALMTX_NEAR(F, FNB_ET, "elogu_nb_st() failed", elogu_EPS<real_t>::eps);
-		X.cloneTo(F);
+		X.clone_to(F);
 		iM.elogu_ua_nb_st(F);
 		ASSERT_REALMTX_NEAR(F, FUANB_ET, "elogu_ua_nb_st() failed", elogu_EPS<real_t>::eps);
 
 
-		X.cloneTo(F);
+		X.clone_to(F);
 		iM.elogu_mt(F, alpha, b);
 		ASSERT_REALMTX_NEAR(F, F_ET, "elogu_mt() failed", elogu_EPS<real_t>::eps);
-		X.cloneTo(F);
+		X.clone_to(F);
 		iM.elogu_ua_mt(F, b);
 		ASSERT_REALMTX_NEAR(F, FUA_ET, "elogu_ua_mt() failed", elogu_EPS<real_t>::eps);
-		X.cloneTo(F);
+		X.clone_to(F);
 		iM.elogu_nb_mt(F, alpha);
 		ASSERT_REALMTX_NEAR(F, FNB_ET, "elogu_nb_mt() failed", elogu_EPS<real_t>::eps);
-		X.cloneTo(F);
+		X.clone_to(F);
 		iM.elogu_ua_nb_mt(F);
 		ASSERT_REALMTX_NEAR(F, FUANB_ET, "elogu_ua_nb_mt() failed", elogu_EPS<real_t>::eps);
 
 
-		X.cloneTo(F);
+		X.clone_to(F);
 		iM.elogu(F, alpha, b);
 		ASSERT_REALMTX_NEAR(F, F_ET, "elogu() failed", elogu_EPS<real_t>::eps);
-		X.cloneTo(F);
+		X.clone_to(F);
 		iM.elogu_ua(F, b);
 		ASSERT_REALMTX_NEAR(F, FUA_ET, "elogu_ua() failed", elogu_EPS<real_t>::eps);
-		X.cloneTo(F);
+		X.clone_to(F);
 		iM.elogu_nb(F, alpha);
 		ASSERT_REALMTX_NEAR(F, FNB_ET, "elogu_nb() failed", elogu_EPS<real_t>::eps);
-		X.cloneTo(F);
+		X.clone_to(F);
 		iM.elogu_ua_nb(F);
 		ASSERT_REALMTX_NEAR(F, FUANB_ET, "elogu_ua_nb() failed", elogu_EPS<real_t>::eps);
 	}
@@ -2884,60 +2884,60 @@ void test_delogu_corr(vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 		elogu_ET(X, F, alpha, b);
 		ASSERT_TRUE(F.test_biases_ok());
 
-		ASSERT_TRUE(F.cloneTo_no_bias(DF));
+		ASSERT_TRUE(F.clone_to_no_bias(DF));
 		iM.delogu_st(DF, alpha, b);
 		ASSERT_REALMTX_NEAR(df_ET, DF, "delogu_st() failed", delogu_EPS<real_t>::eps);
 
-		ASSERT_TRUE(F.cloneTo_no_bias(DF));
+		ASSERT_TRUE(F.clone_to_no_bias(DF));
 		iM.delogu_mt(DF, alpha, b);
 		ASSERT_REALMTX_NEAR(df_ET, DF, "delogu_mt() failed", delogu_EPS<real_t>::eps);
 
-		ASSERT_TRUE(F.cloneTo_no_bias(DF));
+		ASSERT_TRUE(F.clone_to_no_bias(DF));
 		iM.delogu(DF, alpha, b);
 		ASSERT_REALMTX_NEAR(df_ET, DF, "delogu() failed", delogu_EPS<real_t>::eps);
 
 		elogu_ua_ET(X, F, b);
 		ASSERT_TRUE(F.test_biases_ok());
 		
-		ASSERT_TRUE(F.cloneTo_no_bias(DF));
+		ASSERT_TRUE(F.clone_to_no_bias(DF));
 		iM.delogu_ua_st(DF, b);
 		ASSERT_REALMTX_NEAR(dfUA_ET, DF, "delogu_ua_st() failed", delogu_EPS<real_t>::eps);
 		
-		ASSERT_TRUE(F.cloneTo_no_bias(DF));
+		ASSERT_TRUE(F.clone_to_no_bias(DF));
 		iM.delogu_ua_mt(DF, b);
 		ASSERT_REALMTX_NEAR(dfUA_ET, DF, "delogu_ua_mt() failed", delogu_EPS<real_t>::eps);
 		
-		ASSERT_TRUE(F.cloneTo_no_bias(DF));
+		ASSERT_TRUE(F.clone_to_no_bias(DF));
 		iM.delogu_ua(DF, b);
 		ASSERT_REALMTX_NEAR(dfUA_ET, DF, "delogu_ua() failed", delogu_EPS<real_t>::eps);
 
 		elogu_nb_ET(X, F, alpha);
 		ASSERT_TRUE(F.test_biases_ok());
 		
-		ASSERT_TRUE(F.cloneTo_no_bias(DF));
+		ASSERT_TRUE(F.clone_to_no_bias(DF));
 		iM.delogu_nb_st(DF, alpha);
 		ASSERT_REALMTX_NEAR(dfNB_ET, DF, "delogu_nb_st() failed", delogu_EPS<real_t>::eps);
 		
-		ASSERT_TRUE(F.cloneTo_no_bias(DF));
+		ASSERT_TRUE(F.clone_to_no_bias(DF));
 		iM.delogu_nb_mt(DF, alpha);
 		ASSERT_REALMTX_NEAR(dfNB_ET, DF, "delogu_nb_mt() failed", delogu_EPS<real_t>::eps);
 		
-		ASSERT_TRUE(F.cloneTo_no_bias(DF));
+		ASSERT_TRUE(F.clone_to_no_bias(DF));
 		iM.delogu_nb(DF, alpha);
 		ASSERT_REALMTX_NEAR(dfNB_ET, DF, "delogu_nb() failed", delogu_EPS<real_t>::eps);
 
 		elogu_ua_nb_ET(X, F);
 		ASSERT_TRUE(F.test_biases_ok());
 		
-		ASSERT_TRUE(F.cloneTo_no_bias(DF));
+		ASSERT_TRUE(F.clone_to_no_bias(DF));
 		iM.delogu_ua_nb_st(DF);
 		ASSERT_REALMTX_NEAR(dfUANB_ET, DF, "delogu_ua_nb_st() failed", delogu_EPS<real_t>::eps);
 		
-		ASSERT_TRUE(F.cloneTo_no_bias(DF));
+		ASSERT_TRUE(F.clone_to_no_bias(DF));
 		iM.delogu_ua_nb_mt(DF);
 		ASSERT_REALMTX_NEAR(dfUANB_ET, DF, "delogu_ua_nb_mt() failed", delogu_EPS<real_t>::eps);
 		
-		ASSERT_TRUE(F.cloneTo_no_bias(DF));
+		ASSERT_TRUE(F.clone_to_no_bias(DF));
 		iM.delogu_ua_nb(DF);
 		ASSERT_REALMTX_NEAR(dfUANB_ET, DF, "delogu_ua_nb() failed", delogu_EPS<real_t>::eps);
 	}
@@ -2983,44 +2983,44 @@ void test_loglogu_corr(vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 		ASSERT_TRUE(FUANB_ET.test_biases_ok());
 
 
-		X.cloneTo(F);
+		X.clone_to(F);
 		iM.loglogu_st(F, b_neg, b_pos);
 		ASSERT_REALMTX_NEAR(F, F_ET, "loglogu_st() failed", loglogu_EPS<real_t>::eps);
-		X.cloneTo(F);
+		X.clone_to(F);
 		iM.loglogu_nbn_st(F, b_pos);
 		ASSERT_REALMTX_NEAR(F, FUA_ET, "loglogu_nbn_st() failed", loglogu_EPS<real_t>::eps);
-		X.cloneTo(F);
+		X.clone_to(F);
 		iM.loglogu_nbp_st(F, b_neg);
 		ASSERT_REALMTX_NEAR(F, FNB_ET, "loglogu_nbp_st() failed", loglogu_EPS<real_t>::eps);
-		X.cloneTo(F);
+		X.clone_to(F);
 		iM.loglogu_nbn_nbp_st(F);
 		ASSERT_REALMTX_NEAR(F, FUANB_ET, "loglogu_nbn_nbp_st() failed", loglogu_EPS<real_t>::eps);
 
 
-		X.cloneTo(F);
+		X.clone_to(F);
 		iM.loglogu_mt(F, b_neg, b_pos);
 		ASSERT_REALMTX_NEAR(F, F_ET, "loglogu_mt() failed", loglogu_EPS<real_t>::eps);
-		X.cloneTo(F);
+		X.clone_to(F);
 		iM.loglogu_nbn_mt(F, b_pos);
 		ASSERT_REALMTX_NEAR(F, FUA_ET, "loglogu_nbn_mt() failed", loglogu_EPS<real_t>::eps);
-		X.cloneTo(F);
+		X.clone_to(F);
 		iM.loglogu_nbp_mt(F, b_neg);
 		ASSERT_REALMTX_NEAR(F, FNB_ET, "loglogu_nbp_mt() failed", loglogu_EPS<real_t>::eps);
-		X.cloneTo(F);
+		X.clone_to(F);
 		iM.loglogu_nbn_nbp_mt(F);
 		ASSERT_REALMTX_NEAR(F, FUANB_ET, "loglogu_nbn_nbp_mt() failed", loglogu_EPS<real_t>::eps);
 
 
-		X.cloneTo(F);
+		X.clone_to(F);
 		iM.loglogu(F, b_neg, b_pos);
 		ASSERT_REALMTX_NEAR(F, F_ET, "loglogu() failed", loglogu_EPS<real_t>::eps);
-		X.cloneTo(F);
+		X.clone_to(F);
 		iM.loglogu_nbn(F, b_pos);
 		ASSERT_REALMTX_NEAR(F, FUA_ET, "loglogu_nbn() failed", loglogu_EPS<real_t>::eps);
-		X.cloneTo(F);
+		X.clone_to(F);
 		iM.loglogu_nbp(F, b_neg);
 		ASSERT_REALMTX_NEAR(F, FNB_ET, "loglogu_nbp() failed", loglogu_EPS<real_t>::eps);
-		X.cloneTo(F);
+		X.clone_to(F);
 		iM.loglogu_nbn_nbp(F);
 		ASSERT_REALMTX_NEAR(F, FUANB_ET, "loglogu_nbn_nbp() failed", loglogu_EPS<real_t>::eps);
 	}
@@ -3061,60 +3061,60 @@ void test_dloglogu_corr(vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 		loglogu_ET(X, F, b_neg, b_pos);
 		ASSERT_TRUE(F.test_biases_ok());
 
-		ASSERT_TRUE(F.cloneTo_no_bias(DF));
+		ASSERT_TRUE(F.clone_to_no_bias(DF));
 		iM.dloglogu_st(DF, b_neg, b_pos);
 		ASSERT_REALMTX_NEAR(df_ET, DF, "dloglogu_st() failed", dloglogu_EPS<real_t>::eps);
 
-		ASSERT_TRUE(F.cloneTo_no_bias(DF));
+		ASSERT_TRUE(F.clone_to_no_bias(DF));
 		iM.dloglogu_mt(DF, b_neg, b_pos);
 		ASSERT_REALMTX_NEAR(df_ET, DF, "dloglogu_mt() failed", dloglogu_EPS<real_t>::eps);
 
-		ASSERT_TRUE(F.cloneTo_no_bias(DF));
+		ASSERT_TRUE(F.clone_to_no_bias(DF));
 		iM.dloglogu(DF, b_neg, b_pos);
 		ASSERT_REALMTX_NEAR(df_ET, DF, "dloglogu() failed", dloglogu_EPS<real_t>::eps);
 
 		loglogu_nbn_ET(X, F, b_pos);
 		ASSERT_TRUE(F.test_biases_ok());
 
-		ASSERT_TRUE(F.cloneTo_no_bias(DF));
+		ASSERT_TRUE(F.clone_to_no_bias(DF));
 		iM.dloglogu_nbn_st(DF, b_pos);
 		ASSERT_REALMTX_NEAR(dfUA_ET, DF, "dloglogu_nbn_st() failed", dloglogu_EPS<real_t>::eps);
 
-		ASSERT_TRUE(F.cloneTo_no_bias(DF));
+		ASSERT_TRUE(F.clone_to_no_bias(DF));
 		iM.dloglogu_nbn_mt(DF, b_pos);
 		ASSERT_REALMTX_NEAR(dfUA_ET, DF, "dloglogu_nbn_mt() failed", dloglogu_EPS<real_t>::eps);
 
-		ASSERT_TRUE(F.cloneTo_no_bias(DF));
+		ASSERT_TRUE(F.clone_to_no_bias(DF));
 		iM.dloglogu_nbn(DF, b_pos);
 		ASSERT_REALMTX_NEAR(dfUA_ET, DF, "dloglogu_nbn() failed", dloglogu_EPS<real_t>::eps);
 
 		loglogu_nbp_ET(X, F, b_neg);
 		ASSERT_TRUE(F.test_biases_ok());
 
-		ASSERT_TRUE(F.cloneTo_no_bias(DF));
+		ASSERT_TRUE(F.clone_to_no_bias(DF));
 		iM.dloglogu_nbp_st(DF, b_neg);
 		ASSERT_REALMTX_NEAR(dfNB_ET, DF, "dloglogu_nbp_st() failed", dloglogu_EPS<real_t>::eps);
 
-		ASSERT_TRUE(F.cloneTo_no_bias(DF));
+		ASSERT_TRUE(F.clone_to_no_bias(DF));
 		iM.dloglogu_nbp_mt(DF, b_neg);
 		ASSERT_REALMTX_NEAR(dfNB_ET, DF, "dloglogu_nbp_mt() failed", dloglogu_EPS<real_t>::eps);
 
-		ASSERT_TRUE(F.cloneTo_no_bias(DF));
+		ASSERT_TRUE(F.clone_to_no_bias(DF));
 		iM.dloglogu_nbp(DF, b_neg);
 		ASSERT_REALMTX_NEAR(dfNB_ET, DF, "dloglogu_nbp() failed", dloglogu_EPS<real_t>::eps);
 
 		loglogu_nbn_nbp_ET(X, F);
 		ASSERT_TRUE(F.test_biases_ok());
 
-		ASSERT_TRUE(F.cloneTo_no_bias(DF));
+		ASSERT_TRUE(F.clone_to_no_bias(DF));
 		iM.dloglogu_nbn_nbp_st(DF);
 		ASSERT_REALMTX_NEAR(dfUANB_ET, DF, "dloglogu_nbn_nbp_st() failed", dloglogu_EPS<real_t>::eps);
 
-		ASSERT_TRUE(F.cloneTo_no_bias(DF));
+		ASSERT_TRUE(F.clone_to_no_bias(DF));
 		iM.dloglogu_nbn_nbp_mt(DF);
 		ASSERT_REALMTX_NEAR(dfUANB_ET, DF, "dloglogu_nbn_nbp_mt() failed", dloglogu_EPS<real_t>::eps);
 
-		ASSERT_TRUE(F.cloneTo_no_bias(DF));
+		ASSERT_TRUE(F.clone_to_no_bias(DF));
 		iM.dloglogu_nbn_nbp(DF);
 		ASSERT_REALMTX_NEAR(dfUANB_ET, DF, "dloglogu_nbn_nbp() failed", dloglogu_EPS<real_t>::eps);
 	}
@@ -3155,24 +3155,24 @@ void test_softsign_corr(vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 		softsign_ET(X, FUA_ET, ua);
 		ASSERT_TRUE(FUA_ET.test_biases_ok());
 		
-		X.cloneTo(F);
+		X.clone_to(F);
 		iM.softsign_st(F, a);
 		ASSERT_REALMTX_NEAR(F, F_ET, "softsign_st() failed", softsign_EPS<real_t>::eps);
-		X.cloneTo(F);
+		X.clone_to(F);
 		iM.softsign_st(F, ua);
 		ASSERT_REALMTX_NEAR(F, FUA_ET, "softsign_st(ua) failed", softsign_EPS<real_t>::eps);
 
-		X.cloneTo(F);
+		X.clone_to(F);
 		iM.softsign_mt(F, a);
 		ASSERT_REALMTX_NEAR(F, F_ET, "softsign_mt() failed", softsign_EPS<real_t>::eps);
-		X.cloneTo(F);
+		X.clone_to(F);
 		iM.softsign_mt(F, ua);
 		ASSERT_REALMTX_NEAR(F, FUA_ET, "softsign_mt(ua) failed", softsign_EPS<real_t>::eps);
 
-		X.cloneTo(F);
+		X.clone_to(F);
 		iM.softsign(F, a);
 		ASSERT_REALMTX_NEAR(F, F_ET, "softsign() failed", softsign_EPS<real_t>::eps);
-		X.cloneTo(F);
+		X.clone_to(F);
 		iM.softsign(F, ua);
 		ASSERT_REALMTX_NEAR(F, FUA_ET, "softsign(ua) failed", softsign_EPS<real_t>::eps);
 	}
@@ -3209,30 +3209,30 @@ void test_dsoftsign_corr(vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 		softsign_ET(X, F, a);
 		ASSERT_TRUE(F.test_biases_ok());
 
-		ASSERT_TRUE(F.cloneTo_no_bias(DF));
+		ASSERT_TRUE(F.clone_to_no_bias(DF));
 		iM.dsoftsign_st(DF, a);
 		ASSERT_REALMTX_NEAR(df_ET, DF, "dsoftsign_st() failed", dsoftsign_EPS<real_t>::eps);
 
-		ASSERT_TRUE(F.cloneTo_no_bias(DF));
+		ASSERT_TRUE(F.clone_to_no_bias(DF));
 		iM.dsoftsign_mt(DF, a);
 		ASSERT_REALMTX_NEAR(df_ET, DF, "dsoftsign_mt() failed", dsoftsign_EPS<real_t>::eps);
 
-		ASSERT_TRUE(F.cloneTo_no_bias(DF));
+		ASSERT_TRUE(F.clone_to_no_bias(DF));
 		iM.dsoftsign(DF, a);
 		ASSERT_REALMTX_NEAR(df_ET, DF, "dsoftsign() failed", dsoftsign_EPS<real_t>::eps);
 
 		softsign_ET(X, F, ua);
 		ASSERT_TRUE(F.test_biases_ok());
 
-		ASSERT_TRUE(F.cloneTo_no_bias(DF));
+		ASSERT_TRUE(F.clone_to_no_bias(DF));
 		iM.dsoftsign_ua_st(DF);
 		ASSERT_REALMTX_NEAR(dfUA_ET, DF, "dsoftsign_ua_st() failed", dsoftsign_EPS<real_t>::eps);
 
-		ASSERT_TRUE(F.cloneTo_no_bias(DF));
+		ASSERT_TRUE(F.clone_to_no_bias(DF));
 		iM.dsoftsign_ua_mt(DF);
 		ASSERT_REALMTX_NEAR(dfUA_ET, DF, "dsoftsign_ua_mt() failed", dsoftsign_EPS<real_t>::eps);
 
-		ASSERT_TRUE(F.cloneTo_no_bias(DF));
+		ASSERT_TRUE(F.clone_to_no_bias(DF));
 		iM.dsoftsign_ua(DF);
 		ASSERT_REALMTX_NEAR(dfUA_ET, DF, "dsoftsign_ua() failed", dsoftsign_EPS<real_t>::eps);
 	}
@@ -3310,8 +3310,8 @@ void test_loss_quadratic(iMath& iM, vec_len_t rowsCnt, vec_len_t colsCnt=10) {
 	rg.set_ithreads(iM.ithreads());
 	rg.gen_matrix(etA, 5);
 	rg.gen_matrix(etY, 5);
-	ASSERT_TRUE(etA.cloneTo(A));
-	ASSERT_TRUE(etY.cloneTo(Y));
+	ASSERT_TRUE(etA.clone_to(A));
+	ASSERT_TRUE(etY.clone_to(Y));
 	ASSERT_TRUE(etA == A && etY==Y);
 	auto ptrEtA = etA.data(), ptrEtY = etY.data();
 

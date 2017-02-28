@@ -69,7 +69,8 @@ namespace math {
 
 		//typedef std::vector<vec_len_t> vector_of_vec_len_t;
 
-		typedef s_rowcol_range<real_t> rowcol_range;
+		//typedef s_rowcol_range<real_t> rowcol_range;
+		typedef s_rowcol_range rowcol_range;
 		typedef s_elems_range<real_t> elms_range;
 		// here's small guide for using rowcol_range/elms_range :
 		// Every function that should be multithreaded should have 3 (!!!) functions:
@@ -163,11 +164,14 @@ namespace math {
 		//////////////////////////////////////////////////////////////////////////
 		// Math Methods
 	protected:
+
+		//Copies pRCR->totalRows() elements from a column of A, starting at row=(pRCR->rowBegin) col=(pRCR->colBegin) element.
 		template<typename T_>
 		nntl_force_inline static void _memcpy_rowcol_range(T_* dest, const smatrix<T_>& A, const rowcol_range*const pRCR)noexcept {
 			const T_* src;
 			size_t rm;
 			if (pRCR) {
+				NNTL_ASSERT(pRCR->can_apply(A));
 				dest += pRCR->rowBegin;
 				src = A.colDataAsVec(pRCR->colBegin) + pRCR->rowBegin;
 				rm = pRCR->totalRows();
@@ -199,7 +203,7 @@ namespace math {
 
 			//size_t mtxRows - size_t by intention!
 			template<typename VecBaseT, typename MtxBaseT>
-			static VecBaseT rw_beforeInnerLoop(VecBaseT& vecElm, MtxBaseT*& pFirstMtxElm, const size_t mtxRows
+			static VecBaseT rw_initVecElm(VecBaseT& vecElm, MtxBaseT*& pFirstMtxElm, const size_t mtxRows
 				, const vec_len_t colBegin, const vec_len_t r)noexcept 
 			{ return vecElm; }
 		};
@@ -208,7 +212,7 @@ namespace math {
 
 			//size_t mtxRows - size_t by intention!
 			template<typename VecBaseT, typename MtxBaseT>
-			static VecBaseT rw_beforeInnerLoop(VecBaseT& vecElm, MtxBaseT*& pFirstMtxElm, const size_t mtxRows
+			static VecBaseT rw_initVecElm(VecBaseT& vecElm, MtxBaseT*& pFirstMtxElm, const size_t mtxRows
 				, const vec_len_t colBegin, const vec_len_t r)noexcept
 			{
 				const auto v = *pFirstMtxElm;
@@ -218,18 +222,18 @@ namespace math {
 		};
 		struct _mrwHlpr_rw_Dont_UpdVecElm {
 			template<typename BaseT>
-			static void rw_afterInnerLoop(BaseT& vecElm, BaseT& v, const vec_len_t r)noexcept {}
+			static void rw_updVecElm(BaseT& vecElm, BaseT& v, const vec_len_t r)noexcept {}
 		};
 		struct _mrwHlpr_rw_UpdVecElm {
 			template<typename BaseT>
-			static void rw_afterInnerLoop(BaseT& vecElm, BaseT& v, const vec_len_t r)noexcept {
+			static void rw_updVecElm(BaseT& vecElm, BaseT& v, const vec_len_t r)noexcept {
 				vecElm = v;
 			}
 		};
 		struct _mrwHlpr_simpleLoops {
-			void beforeMainLoop(const vec_len_t colBegin, const vec_len_t mtxRows)noexcept {};
+			void initOperation(const vec_len_t colBegin, const vec_len_t mtxRows)noexcept {};
 
-			void cw_afterInnerLoop(const size_t mtxRows)noexcept {};
+			void cw_toNextCol(const size_t mtxRows)noexcept {};
 		};
 
 		//////////////////////////////////////////////////////////////////////////
@@ -279,7 +283,7 @@ namespace math {
 			static constexpr vec_len_t rw_FirstColumnIdx = 1;
 
 			template<typename VecBaseT, typename MtxBaseT>
-			VecBaseT rw_beforeInnerLoop(VecBaseT& vecElm, MtxBaseT*& pFirstMtxElm, const size_t mtxRows
+			VecBaseT rw_initVecElm(VecBaseT& vecElm, MtxBaseT*& pFirstMtxElm, const size_t mtxRows
 				, const vec_len_t colBegin, const vec_len_t r)noexcept 
 			{
 				_maxColumnIdx = colBegin;
@@ -289,11 +293,11 @@ namespace math {
 			}
 
 			template<typename BaseT, bool B = bSaveMaxOnUpdate>
-			std::enable_if_t<!B> rw_afterInnerLoop(BaseT& vecElm, BaseT& v, const vec_len_t r)noexcept {
+			std::enable_if_t<!B> rw_updVecElm(BaseT& vecElm, BaseT& v, const vec_len_t r)noexcept {
 				pDest[r] = _maxColumnIdx;
 			}
 			template<typename BaseT, bool B = bSaveMaxOnUpdate>
-			std::enable_if_t<B> rw_afterInnerLoop(BaseT& vecElm, BaseT& v, const vec_len_t r)noexcept {
+			std::enable_if_t<B> rw_updVecElm(BaseT& vecElm, BaseT& v, const vec_len_t r)noexcept {
 				pDest[r] = _maxColumnIdx;
 				vecElm = v;
 			}
@@ -304,6 +308,15 @@ namespace math {
 				vecElm += mtxElm;
 			}
 		};
+
+		//Binary/bitwise OR
+		struct _mrw_BinaryOR : public _mrwHlpr_rw_InitVecElmByMtxElm, public _mrwHlpr_rw_UpdVecElm, public _mrwHlpr_simpleLoops {
+			template<_OperationType OpType, typename BaseT>
+			static void op(const BaseT& mtxElm, BaseT& vecElm, const vec_len_t r, const vec_len_t c, const size_t mtxRows)noexcept {
+				vecElm |= mtxElm;
+			}
+		};
+
 
 		//#TODO: !!!!!!!!! Actually, proper and usually more effective way to pass simple and small solver objects BY VALUE.
 		//Test it here!
@@ -350,18 +363,18 @@ namespace math {
 			colBegin += RCR.colBegin;
 			NNTL_ASSERT(colBegin <= RCR.colEnd);
 			auto pA = A.colDataAsVec(colBegin);
-			F.beforeMainLoop(colBegin, A.rows());
+			F.initOperation(colBegin, A.rows());
 			for (auto c = colBegin; c < RCR.colEnd; ++c) {
 				for (vec_len_t r = RCR.rowBegin; r < RCR.rowEnd; ++r) {//FOR cycle with offset calculation is generally faster than WHILE,
 					const auto pV = pVec + r;//because usually compiler can unfold a cycle into many instructions
 					const auto pElm = pA + r;//In WHILE setup with mrwOperationT::op(*pA++, *pV++) it can't
 					//and calculating offsets is faster than mrwOperationT::op(*pA++, *pV++);
-					//static call mrwOperationT::op vs. object call F.op doesn't make any difference in asm 
-					// code (at the moment of testing), but the object call allows to create far more generic algorithms
+					//static call-style mrwOperationT::op() vs. object call-style F.op() doesn't make any difference in asm 
+					// code (at the moment of testing), but object call-style permits far more generic algorithms creation
 					F.op<mrw_cw>(*pElm, *pV, r, c, rm);
 				}
 				pA += rm;
-				F.cw_afterInnerLoop(rm);
+				F.cw_toNextCol(rm);
 			}
 		}
 
@@ -378,16 +391,16 @@ namespace math {
 			NNTL_ASSERT(!A.empty() && A.numel() > 0 && pVec);
 			const auto pA = A.colDataAsVec(RCR.colBegin); //A.data();
 			const size_t rm = A.rows();
-			F.beforeMainLoop(RCR.colBegin, A.rows());
+			F.initOperation(RCR.colBegin, A.rows());
 			for (vec_len_t r = RCR.rowBegin; r < RCR.rowEnd; ++r) {
 				const auto pV = pVec + r;
 				auto pElm = pA + r;
-				auto v = F.rw_beforeInnerLoop(*pV, pElm, rm, RCR.colBegin, r);
+				auto v = F.rw_initVecElm(*pV, pElm, rm, RCR.colBegin, r);
 				for (vec_len_t c = RCR.colBegin + mrwOperationT::rw_FirstColumnIdx; c < RCR.colEnd; ++c) {
 					F.op<mrw_rw>(*pElm, v, r, c, rm);
 					pElm += rm;
 				}
-				F.rw_afterInnerLoop<VecValueT>(*pV, v, r);
+				F.rw_updVecElm<VecValueT>(*pV, v, r);
 			}
 		}
 
@@ -406,8 +419,8 @@ namespace math {
 		// colwise processing
 		// Variation to update A without additional tmp vector
 		//LambdaF is void(*F)(const rowcol_range& RCR, const thread_id_t _tid)
-		template<typename LambdaF>
-		nntl_probably_force_inline void _processMtx_cw(const realmtx_t& A, LambdaF&& Func)noexcept {
+		template<typename VT, typename LambdaF>
+		nntl_probably_force_inline void _processMtx_cw(const smatrix<VT>& A, LambdaF&& Func)noexcept {
 			NNTL_ASSERT(!A.empty() && A.numel() > 0);
 			//TODO: for some algorithms and datasizes it may be highly beneficial to make smart partitioning, that takes into account
 			//CPU cache size (will probably require more than workers_count() call to worker function, but each call will run significanly
@@ -423,24 +436,25 @@ namespace math {
 		// as F destination
 		// LambdaFinal is void(*FinFunc)(realmtx_t& fin), there fin is a matrix of size A.rows()*threadsUsed that store results (columnwise) of
 		// each F pVec computation
-		template<typename LambdaF, typename LambdaFinal>
-		nntl_probably_force_inline void _processMtx_cw(const realmtx_t& A, const vec_len_t mt_cw_ColsPerThread, LambdaF&& Func, LambdaFinal&& FinFunc, real_t*const pTVec=nullptr)noexcept {
+		template<typename VT, typename LambdaF, typename LambdaFinal>
+		nntl_probably_force_inline void _processMtx_cw(const smatrix<VT>& A, const vec_len_t mt_cw_ColsPerThread, LambdaF&& Func, LambdaFinal&& FinFunc, VT*const pTVec=nullptr)noexcept {
 			NNTL_ASSERT(!A.empty() && A.numel() > 0);
 			const auto rm = A.rows(), cm = A.cols();
 			NNTL_ASSERT(cm > mt_cw_ColsPerThread && mt_cw_ColsPerThread >= 3);//DON'T make it less than 3 or you'll run in troubles with size of temp mem!!!
 			const auto threadsToUse = _howMuchThreadsNeededForCols(mt_cw_ColsPerThread, cm);
-			const auto pTmpMem = pTVec ? pTVec : get_self()._get_thread_temp_raw_storage(realmtx_t::sNumel(rm, threadsToUse));
+			static_assert(sizeof(VT) == sizeof(real_t),"Mismatching type sizes will lead to wrong malloc");
+			const auto pTmpMem = pTVec ? pTVec : reinterpret_cast<VT*>(get_self()._get_thread_temp_raw_storage(smatrix<VT>::sNumel(rm, threadsToUse)));
 			thread_id_t threadsUsed = 0;
 			//TODO: for some algorithms and datasizes it may be highly beneficial to make smart partitioning, that takes into account
-			//CPU cache size (will probably require more than workers_count() call to worker function, but each call will run significanly
+			//CPU cache size (will probably require more than workers_count() calls to worker function, but each call will run significanly
 			// faster, due to correct cache use)
 			m_threads.run([&A, pTmpMem, rm, &F{ std::forward<LambdaF>(Func) }](const par_range_t& pr) {
 				const auto colBeg = static_cast<vec_len_t>(pr.offset());
-				auto pVec = pTmpMem + realmtx_t::sNumel(rm, pr.tid());
+				auto pVec = pTmpMem + smatrix<VT>::sNumel(rm, pr.tid());
 				std::forward<LambdaF>(F)(rowcol_range(A, colBeg, colBeg + static_cast<vec_len_t>(pr.cnt())), pVec);
 			}, cm, threadsToUse, &threadsUsed);
 			NNTL_ASSERT(threadsToUse == threadsUsed);
-			realmtx_t fin;
+			smatrix<VT> fin;
 			fin.useExternalStorage(pTmpMem, rm, threadsUsed);
 			//FinFunc(static_cast<const MtxT&>(fin));
 			std::forward<LambdaFinal>(FinFunc)(fin);
@@ -451,14 +465,15 @@ namespace math {
 		// vectors of length A.rows() to serve as F destination
 		// LambdaFinal is void(*FinFunc)(const realmtx_t& fin, ScndVecType*const pFullScndMtx), there fin and pFullScndMtx are matrices
 		// of size A.rows()*threadsUsed that store results (columnwise) of each F pVec computation
-		template<typename ScndVecType, typename LambdaF, typename LambdaFinal>
-		nntl_probably_force_inline void _processMtx_cw(const realmtx_t& A, const vec_len_t mt_cw_ColsPerThread, LambdaF&& Func, LambdaFinal&& FinFunc)noexcept {
+		template<typename ScndVecType, typename VT, typename LambdaF, typename LambdaFinal>
+		nntl_probably_force_inline void _processMtx_cw(const smatrix<VT>& A, const vec_len_t mt_cw_ColsPerThread, LambdaF&& Func, LambdaFinal&& FinFunc)noexcept {
 			NNTL_ASSERT(!A.empty() && A.numel() > 0);
 			const auto rm = A.rows(), cm = A.cols();
 			NNTL_ASSERT(cm > mt_cw_ColsPerThread && mt_cw_ColsPerThread >= 3);//DON'T make it less than 3 or you'll run in troubles with size of temp mem!!!
 			const auto threadsToUse = _howMuchThreadsNeededForCols(mt_cw_ColsPerThread, cm);
 
-			const auto elemsCnt = realmtx_t::sNumel(rm, threadsToUse);
+			static_assert(sizeof(VT) == sizeof(real_t), "Mismatching type sizes will lead to wrong malloc");
+			const auto elemsCnt = smatrix<VT>::sNumel(rm, threadsToUse);
 			const auto pTmpMem = get_self()._get_thread_temp_raw_storage(elemsCnt 
 				+ static_cast<numel_cnt_t>(ceil((real_t(sizeof(ScndVecType)) / sizeof(real_t))*elemsCnt)));
 
@@ -470,7 +485,7 @@ namespace math {
 			//CPU cache size (will probably require more than workers_count() call to worker function, but each call will run significanly
 			// faster, due to correct cache use)
 			m_threads.run([&A, pMainVec, pScndVec, rm, &F{ std::forward<LambdaF>(Func) }](const par_range_t& pr) {
-				const auto _tmpElmOffset = realmtx_t::sNumel(rm, pr.tid());
+				const auto _tmpElmOffset = smatrix<VT>::sNumel(rm, pr.tid());
 				auto pVec = pMainVec + _tmpElmOffset;
 				auto pSVec = pScndVec + _tmpElmOffset;
 				const auto colBeg = static_cast<vec_len_t>(pr.offset());
@@ -478,7 +493,7 @@ namespace math {
 			}, cm, threadsToUse, &threadsUsed);
 			NNTL_ASSERT(threadsToUse == threadsUsed);
 
-			realmtx_t fin;
+			smatrix<VT> fin;
 			fin.useExternalStorage(pMainVec, rm, threadsUsed);
 			//FinFunc(static_cast<const MtxT&>(fin), pScndVec);
 			std::forward<LambdaFinal>(FinFunc)(fin, pScndVec);
@@ -862,7 +877,7 @@ namespace math {
 			_processMtx_cw(A, Thresholds_t::mrwMax_mt_cw_ColsPerThread, [&A, this](const rowcol_range& RCR, real_t*const pVec) {
 				get_self().mrwMax_st(A, pVec, &RCR);
 			}, [pMax, this](const realmtx_t& fin) {
-				get_self().mrwMax(fin, pMax);
+				get_self().mrwMax_st(fin, pMax);
 			});
 		}
 
@@ -933,12 +948,11 @@ namespace math {
 				get_self().mrwSum_st(A, pVec);
 			}else get_self().mrwSum_mt(A, pVec);
 		}
-		//TODO: how are we going to branch code when pRCR is present? Desperately NEED run-time profiler!!!
+		//#TODO: how are we going to branch code when pRCR is present? Desperately NEED run-time profiler!!!
 		void mrwSum_st(const realmtx_t& A, real_t*const pVec, const rowcol_range*const pRCR = nullptr)noexcept {
 			NNTL_ASSERT(!A.empty() && A.numel() > 0 && pVec);
-			if (A.cols() == 1) {
+			if (A.cols() == 1 || (pRCR && pRCR->colBegin == pRCR->colEnd)) {
 				_memcpy_rowcol_range(pVec, A, pRCR);
-				//memcpy(pVec, A.data(), A.byte_size());
 			} else {
 				if (A.numel() < Thresholds_t::mrwSum_st) {
 					get_self().mrwSum_st_rw(A, pVec, pRCR);
@@ -962,7 +976,8 @@ namespace math {
 		}
 		static void mrwSum_st_cw(const realmtx_t& A, real_t*const pVec, const rowcol_range*const pRCR = nullptr)noexcept {
 			NNTL_ASSERT(!A.empty() && A.numel() > 0 && A.cols() > 1 && pVec);
-			memset(pVec, 0, sizeof(*pVec)*A.rows());
+			//memset(pVec, 0, sizeof(*pVec)*A.rows());
+			_memset_rowrange(pVec, real_t(0.), A.rows(), pRCR);
 			_mrwVecOperation_st_cw(A, pVec, 0, pRCR ? *pRCR : rowcol_range(A), _mrw_SUM());
 		}
 		void mrwSum_mt_rw(const realmtx_t& A, real_t*const pVec)noexcept {
@@ -977,9 +992,129 @@ namespace math {
 			_processMtx_cw(A, Thresholds_t::mrwSum_mt_cw_colsPerThread, [&A, this](const rowcol_range& RCR, real_t*const pVec) {
 				get_self().mrwSum_st(A, pVec, &RCR);
 			}, [pVec, this](const realmtx_t& fin) {
-				get_self().mrwSum(fin, pVec);
+				get_self().mrwSum_st(fin, pVec);
 			});
 		}
+
+		//////////////////////////////////////////////////////////////////////////
+		//////////////////////////////////////////////////////////////////////////
+		// performs rowwise binary OR operation over the matrix A into a pVec.
+		// A should contain only zeros and ones. Resulting column vector pVec contains 1 if corresponding row has at least single 1
+		// and zero otherwise.
+		// Heavily based on mrwSum
+		void mrwOr(const realmtx_t& A, real_t*const pVec)noexcept {
+			NNTL_ASSERT(A.isBinary());
+			typedef real_t_limits<real_t>::similar_FWI_t similar_FWI_t;
+			mrwBinaryOR(reinterpret_cast<const smatrix<similar_FWI_t>&>(A), reinterpret_cast<similar_FWI_t*const>(pVec));
+		}
+		void mrwOr_st(const realmtx_t& A, real_t*const pVec)noexcept {
+			NNTL_ASSERT(A.isBinary());
+			typedef real_t_limits<real_t>::similar_FWI_t similar_FWI_t;
+			mrwBinaryOR_st(reinterpret_cast<const smatrix<similar_FWI_t>&>(A), reinterpret_cast<similar_FWI_t*const>(pVec));
+		}
+		void mrwOr_st_cw(const realmtx_t& A, real_t*const pVec)noexcept {
+			NNTL_ASSERT(A.isBinary());
+			typedef real_t_limits<real_t>::similar_FWI_t similar_FWI_t;
+			mrwBinaryOR_st_cw(reinterpret_cast<const smatrix<similar_FWI_t>&>(A), reinterpret_cast<similar_FWI_t*const>(pVec));
+		}
+		void mrwOr_st_rw(const realmtx_t& A, real_t*const pVec)noexcept {
+			NNTL_ASSERT(A.isBinary());
+			typedef real_t_limits<real_t>::similar_FWI_t similar_FWI_t;
+			mrwBinaryOR_st_rw(reinterpret_cast<const smatrix<similar_FWI_t>&>(A), reinterpret_cast<similar_FWI_t*const>(pVec));
+		}
+		void mrwOr_mt(const realmtx_t& A, real_t*const pVec)noexcept {
+			NNTL_ASSERT(A.isBinary());
+			typedef real_t_limits<real_t>::similar_FWI_t similar_FWI_t;
+			mrwBinaryOR_mt(reinterpret_cast<const smatrix<similar_FWI_t>&>(A), reinterpret_cast<similar_FWI_t*const>(pVec));
+		}
+		void mrwOr_mt_cw(const realmtx_t& A, real_t*const pVec)noexcept {
+			NNTL_ASSERT(A.isBinary());
+			typedef real_t_limits<real_t>::similar_FWI_t similar_FWI_t;
+			mrwBinaryOR_mt_cw(reinterpret_cast<const smatrix<similar_FWI_t>&>(A), reinterpret_cast<similar_FWI_t*const>(pVec));
+		}
+		void mrwOr_mt_rw(const realmtx_t& A, real_t*const pVec)noexcept {
+			NNTL_ASSERT(A.isBinary());
+			typedef real_t_limits<real_t>::similar_FWI_t similar_FWI_t;
+			mrwBinaryOR_mt_rw(reinterpret_cast<const smatrix<similar_FWI_t>&>(A), reinterpret_cast<similar_FWI_t*const>(pVec));
+		}
+
+		template<typename BaseT>
+		void mrwBinaryOR(const smatrix<BaseT>& A, BaseT*const pVec)noexcept {
+			NNTL_ASSERT(!A.emulatesBiases());
+			/*if (A.numel() < Thresholds_t::mrwBinaryOR) {
+				get_self().mrwBinaryOR_st(A, pVec);
+			} else get_self().mrwBinaryOR_mt(A, pVec);*/
+			//stick to probably most universal version until a profiler is ready
+			get_self().mrwBinaryOR_st_cw(A, pVec);
+		}
+		//#TODO: how are we going to branch code when pRCR is present? Desperately NEED run-time profiler!!!
+		template<typename BaseT>
+		void mrwBinaryOR_st(const smatrix<BaseT>& A, BaseT*const pVec, const rowcol_range*const pRCR = nullptr)noexcept {
+			NNTL_ASSERT(!A.empty() && A.numel() > 0 && pVec);
+			if (A.cols() == 1 || (pRCR && pRCR->colBegin == pRCR->colEnd)) {
+				_memcpy_rowcol_range(pVec, A, pRCR);
+			} else {
+				/*if (A.numel() < Thresholds_t::mrwBinaryOR_st) {
+					get_self().mrwBinaryOR_st_rw(A, pVec, pRCR);
+				} else get_self().mrwBinaryOR_st_cw(A, pVec, pRCR);*/
+				//stick to probably most universal version until a profiler is ready
+				get_self().mrwBinaryOR_st_cw(A, pVec, pRCR);
+			}
+		}
+		template<typename BaseT>
+		void mrwBinaryOR_mt(const smatrix<BaseT>& A, BaseT*const pVec)noexcept {
+			NNTL_ASSERT(!A.empty() && A.numel() > 0 && pVec);
+			const auto cm = A.cols();
+			if (cm == 1) {
+				memcpy(pVec, A.data(), A.byte_size());
+			} else {
+				if (cm <= std::max(Thresholds_t::mrwBinaryOR_mt_cw_colsPerThread, m_threads.workers_count())) {
+					get_self().mrwBinaryOR_mt_rw(A, pVec);
+				} else get_self().mrwBinaryOR_mt_cw(A, pVec);
+			}
+		}
+		template<typename BaseT>
+		static void mrwBinaryOR_st_rw(const smatrix<BaseT>& A, BaseT*const pVec, const rowcol_range*const pRCR = nullptr)noexcept {
+			NNTL_ASSERT(!A.empty() && A.numel() > 0 && pVec);
+			if (A.cols() == 1 || (pRCR && pRCR->colBegin == pRCR->colEnd)) {
+				_memcpy_rowcol_range(pVec, A, pRCR);
+			} else {
+				_mrwVecOperation_st_rw(A, pVec, pRCR ? *pRCR : rowcol_range(A), _mrw_BinaryOR());
+			}
+		}
+		template<typename BaseT>
+		static void mrwBinaryOR_st_cw(const smatrix<BaseT>& A, BaseT*const pVec, const rowcol_range*const pRCR = nullptr)noexcept {
+			NNTL_ASSERT(!A.empty() && A.numel() > 0 && pVec);
+			if (A.cols() == 1 || (pRCR && pRCR->colBegin == pRCR->colEnd)) {
+				_memcpy_rowcol_range(pVec, A, pRCR);
+			} else {
+				//memset(pVec, 0, sizeof(*pVec)*A.rows());
+				_memset_rowrange(pVec, BaseT(0.), A.rows(), pRCR);
+				_mrwVecOperation_st_cw(A, pVec, 0, pRCR ? *pRCR : rowcol_range(A), _mrw_BinaryOR());
+			}
+		}
+		template<typename BaseT>
+		void mrwBinaryOR_mt_rw(const smatrix<BaseT>& A, BaseT*const pVec)noexcept {
+			NNTL_ASSERT(!A.empty() && A.numel() > 0 && pVec);
+			if (A.cols() == 1) {
+				memcpy(pVec, A.data(), A.byte_size());
+			} else {
+				_processMtx_rw(A, [&A, pVec, this](const rowcol_range& RCR) {
+					get_self().mrwBinaryOR_st(A, pVec, &RCR);
+				});
+			}
+		}
+		template<typename BaseT>
+		void mrwBinaryOR_mt_cw(const smatrix<BaseT>& A, BaseT*const pVec)noexcept {
+			NNTL_ASSERT(!A.empty() && A.numel() > 0 && A.cols() > Thresholds_t::mrwBinaryOR_mt_cw_colsPerThread && pVec);
+			//will sum partial matrices into temp memory, and then sum it to pVec
+			_processMtx_cw(A, Thresholds_t::mrwBinaryOR_mt_cw_colsPerThread, [&A, this](const rowcol_range& RCR, BaseT*const pVec) {
+				get_self().mrwBinaryOR_st(A, pVec, &RCR);
+			}, [pVec, this](const smatrix<BaseT>& fin) {
+				get_self().mrwBinaryOR_st(fin, pVec);
+			});
+		}
+
 
 		//////////////////////////////////////////////////////////////////////////
 		//////////////////////////////////////////////////////////////////////////

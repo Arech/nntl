@@ -174,7 +174,7 @@ namespace nntl {
 
 			utils::for_each_up(m_layers, [&](auto& lyr)noexcept {
 				if (ErrorCode::Success == ec) {
-					lid.clean();
+					lid.clean_using();
 					ec = lyr.init(lid);
 					if (ErrorCode::Success == ec) {
 						LMR.updateLayerReq(lid);
@@ -222,10 +222,9 @@ namespace nntl {
 			return m_lossAddendum;
 		}
 
-		// batchSize==0 puts all layers into training mode with batchSize predefined by init()::lid.training_batch_size
-		// any bs>0 puts layers into evaluation/testing mode with that batchSize. bs must be <= init()::lid.max_fprop_batch_size
-		void set_mode(vec_len_t batchSize = 0)noexcept {
-			utils::for_each_up(m_layers, [=](auto& lyr)noexcept { lyr.set_mode(batchSize); });
+		void set_batch_size(const vec_len_t batchSize)noexcept {
+			NNTL_ASSERT(batchSize > 0);
+			utils::for_each_up(m_layers, [=](auto& lyr)noexcept { lyr.set_batch_size(batchSize); });
 		}
 
 		void fprop(const realmtx_t& data_x)const noexcept {

@@ -118,6 +118,8 @@ namespace nntl {
 			}
 		}
 
+		//NB: first/last means only the first or the last ELEMENT of the m_phl_tuple. It has nothing in common with neurons range.
+		//Neurons range determined by PHLs of m_phl_tuple only.
 		first_layer_t& first_layer()const noexcept { return std::get<0>(m_phl_tuple).l; }
 		last_layer_t& last_layer()const noexcept { return std::get<phl_count - 1>(m_phl_tuple).l; }
 		
@@ -152,6 +154,12 @@ namespace nntl {
 			return m_activations;
 		}
 		const mtx_size_t get_activations_size()const noexcept { return m_activations.size(); }
+
+		const bool is_activations_shared()const noexcept {
+			const auto r = _base_class::is_activations_shared();
+			NNTL_ASSERT(!r || m_activations.bDontManageStorage());//shared activations can't manage their own storage
+			return r;
+		}
 		
 		//and apply function _Func(auto& layer) to each underlying (non-pack) layer here
 		template<typename _Func>
@@ -189,6 +197,25 @@ namespace nntl {
 			return la;
 		}
 
+	protected:
+		template<typename InnerLayerT>
+		std::enable_if_t<_impl::layer_has_OuterLayerCustomFlag1Eval<InnerLayerT, decltype(m_phl_tuple), _layer_init_data_t>::value,bool>
+			call_layers_OuterLayerCustomFlag1Eval(const InnerLayerT& lyr, const _layer_init_data_t& origLid)noexcept
+		{
+			const auto v = lyr.OuterLayerCustomFlag1Eval(m_phl_tuple, origLid);
+			//STDCOUTL("OuterLayerCustomFlag1Eval for " << lyr.get_layer_name_str() << " returned " << v);
+			return v;
+		}
+
+		template<typename InnerLayerT>
+		std::enable_if_t<!_impl::layer_has_OuterLayerCustomFlag1Eval<InnerLayerT, decltype(m_phl_tuple), _layer_init_data_t>::value, constexpr bool>
+			call_layers_OuterLayerCustomFlag1Eval(const InnerLayerT& lyr, const _layer_init_data_t&)noexcept
+		{
+			//return ((STDCOUTL("returning default for " << lyr.get_layer_name_str())), false);
+			return false;
+		}
+
+	public:
 		//////////////////////////////////////////////////////////////////////////
 		ErrorCode init(_layer_init_data_t& lid, real_t* pNewActivationStorage = nullptr)noexcept {
 			auto ec = _base_class::init(lid, pNewActivationStorage);
@@ -199,13 +226,14 @@ namespace nntl {
 				if (!bSuccessfullyInitialized) get_self().deinit();
 			});
 
+			const auto biggestBatchSize = get_self().get_biggest_batch_size();
+
 			//allocating m_activations
 			NNTL_ASSERT(m_activations.emulatesBiases());
 			if (pNewActivationStorage) {
-				m_activations.useExternalStorage(pNewActivationStorage
-					, get_self().get_max_fprop_batch_size(), get_self().get_neurons_cnt() + 1, true);
+				m_activations.useExternalStorage(pNewActivationStorage, biggestBatchSize, get_self().get_neurons_cnt() + 1, true);
 			} else {
-				if (!m_activations.resize(get_self().get_max_fprop_batch_size(), get_self().get_neurons_cnt()))
+				if (!m_activations.resize(biggestBatchSize, get_self().get_neurons_cnt()))
 					return ErrorCode::CantAllocateMemoryForActivations;
 			}
 
@@ -213,18 +241,24 @@ namespace nntl {
 			// - we can't pass dLdA & dLdAPrev to these layers, because they could also be compound and may require
 			//		a far bigger matrix sizes than dLdA allows. Therefore we must calculate the biggest max_dLdA_numel 
 			//		for these layers (including dLdAPrev!!!) and allocate 2 corresponding matrices to be used as dLdA & dLdAPrev.
-			//		Ours max_dLdA_numel should be set to [batchSize, neuronsCount]
-			// - We should aggregate layers initMem() requirements and add them to ours
+			//		However, ours .max_dLdA_numel should be set to a normal value for a simple layer [batchSize, neuronsCount]
+			// - We should aggregate (by max()) layer's initMem() requirements and add them to ours
+			NNTL_ASSERT(0 == lid.max_dLdA_numel && 0 == lid.maxMemFPropRequire && 0 == lid.maxMemTrainingRequire);
+
+			_layer_init_data_t origLid = lid;
+
+			const auto bLidActShSp = lid.bActivationsShareSpace;
+			lid.bActivationsShareSpace = true;
 
 			layer_index_t failedLayerIdx = 0;
-			NNTL_ASSERT(0 == lid.max_dLdA_numel && 0 == lid.maxMemFPropRequire && 0 == lid.maxMemBPropRequire);
 			auto initD = lid.dupe();
-			auto& act = m_activations;
 			neurons_count_t firstNeuronOfs = 0, maxIncNeuronsCnt = 0;//we need maxIncNeuronsCnt to calculate the biggest possible internal dLdAPrev
-			get_self().for_each_packed_layer([&](auto& l)noexcept {
+			get_self().for_each_packed_layer([&, &act = m_activations](auto& l)noexcept {
 				if (ErrorCode::Success == ec) {
-					initD.clean();
 					maxIncNeuronsCnt = std::max(maxIncNeuronsCnt, l.get_incoming_neurons_cnt());
+
+					initD.clean_using(lid);//we must propagate any IN flags set in the .lid variable to the layer being initialized.
+					initD.bLPH_CustomFlag1 = call_layers_OuterLayerCustomFlag1Eval(l, origLid);
 					ec = l.init(initD, act.colDataAsVec(firstNeuronOfs));
 					if (ErrorCode::Success == ec) {
 						lid.update(initD);
@@ -232,31 +266,33 @@ namespace nntl {
 					} else failedLayerIdx = l.get_layer_idx();
 				}
 			});
-			NNTL_ASSERT(firstNeuronOfs + 1 == act.cols());
+			NNTL_ASSERT(firstNeuronOfs + 1 == m_activations.cols());
+			lid.bActivationsShareSpace = bLidActShSp;
 
 			if (ErrorCode::Success == ec) {
-				//appending training requirements for this (top-level) layer
+				//Now we should append our own training requirements (reqs of this (top-level) LPH layer)
 
-				//we'll need a column-vector of length m_max_fprop_batch_size to store a data column of previous layer activation,
+				//we'll need a column-vector of length biggestBatchSize to store a data column of previous layer activation,
 				// that will be substituted by biases for fprop() of one inner layer
-				lid.maxMemFPropRequire += get_self().get_max_fprop_batch_size();
+				lid.maxMemFPropRequire += biggestBatchSize;
 
 				if (get_self().get_training_batch_size() > 0) {
+					const auto& _training_batch_size = get_self().get_training_batch_size();
 					//adding backprop requirements
-					// saving max_dLdA_numel, gathered from inner layers and substituting it for this layer max_dLdA_numel
+					// saving lid.max_dLdA_numel, gathered from inner layers and substituting it for this layer's max_dLdA_numel
 					m_layers_max_dLdA_numel = std::max(lid.max_dLdA_numel
-						, realmtx_t::sNumel(get_self().get_training_batch_size(), maxIncNeuronsCnt));
+						, realmtx_t::sNumel(_training_batch_size, maxIncNeuronsCnt));
 					//The first argument of max() - lid.max_dLdA_numel - describes the biggest dLdA size, the second
 					//argument (realmtx_t::sNumel(get_self().get_training_batch_size(), maxIncNeuronsCnt)) describes the biggest
 					// dLdAPrev.
 
-					//The biggest "outside" dLdA is limited to activation matrix size (we can't send dLdA passed as bprop() argument
-					//to encapsulated layer's bprop()
-					lid.max_dLdA_numel = realmtx_t::sNumel(get_self().get_training_batch_size(), get_self().get_neurons_cnt());
+					//The biggest "outside" dLdA is limited to the ours activation matrix size (we can't send dLdA passed as bprop() argument
+					//to encapsulated layer's bprop())
+					lid.max_dLdA_numel = realmtx_t::sNumel(_training_batch_size, get_self().get_neurons_cnt());
 					
 					//reserving memory (additional to what encapsulated layers require) for two inner dLdA matrices
-					// AND a column-vector of length m_max_fprop_batch_size to store a data column of previous layer activation
-					lid.maxMemBPropRequire += get_self().get_max_fprop_batch_size() + 2 * m_layers_max_dLdA_numel;
+					// AND a column-vector of length biggestBatchSize to store a data column of previous layer activation
+					lid.maxMemTrainingRequire += biggestBatchSize + 2 * m_layers_max_dLdA_numel;
 				}
 			}
 
@@ -278,10 +314,11 @@ namespace nntl {
 
 		void initMem(real_t* ptr, numel_cnt_t cnt)noexcept {
 			//for fprop()
-			NNTL_ASSERT(ptr && cnt >= get_self().get_max_fprop_batch_size());
+			const auto _biggest_batch_size = static_cast<numel_cnt_t>(get_self().get_biggest_batch_size());
+			NNTL_ASSERT(ptr && cnt >= _biggest_batch_size);
 			m_pTmpBiasStorage = ptr;
-			ptr += get_self().get_max_fprop_batch_size();
-			cnt -= get_self().get_max_fprop_batch_size();
+			ptr += _biggest_batch_size;
+			cnt -= _biggest_batch_size;
 
 			if (get_self().get_training_batch_size() > 0) {
 				NNTL_ASSERT(cnt >= 2 * m_layers_max_dLdA_numel);
@@ -293,48 +330,35 @@ namespace nntl {
 			}
 
 			get_self().for_each_packed_layer([=](auto& l) {l.initMem(ptr, cnt); });
-
 		}
 
-		void set_mode(vec_len_t batchSize, real_t* pNewActivationStorage = nullptr)noexcept {
+		void set_batch_size(const vec_len_t batchSize, real_t*const pNewActivationStorage = nullptr)noexcept {
+			NNTL_ASSERT(batchSize > 0 && batchSize <= get_self().get_biggest_batch_size());
 			NNTL_ASSERT(m_activations.emulatesBiases());
-			// now we must resize m_activations and update activations of inner layers with set_mode variation
+			// now we must resize m_activations and update activations of inner layers with set_batch_size variation
 			m_bActivationsValid = false;
-			m_bTraining = batchSize == 0;
 
-			const auto _training_batch_size = get_self().get_training_batch_size();
 			bool bRestoreBiases;
-
 			if (pNewActivationStorage) {
 				NNTL_ASSERT(m_activations.bDontManageStorage());
 				//m_neurons_cnt + 1 for biases
-				m_activations.useExternalStorage(pNewActivationStorage
-					, m_bTraining ? _training_batch_size : batchSize, get_self().get_neurons_cnt() + 1, true);
+				m_activations.useExternalStorage(pNewActivationStorage, batchSize, get_self().get_neurons_cnt() + 1, true);
 				//should not restore biases here, because for compound layers its a job for their fprop() implementation
 				bRestoreBiases = false;
 			} else {
 				NNTL_ASSERT(!m_activations.bDontManageStorage());
-
-				const auto _max_fprop_batch_size = get_self().get_max_fprop_batch_size();
-				if (m_bTraining) {//training mode, batch size is predefined
-					m_activations.deform_rows(_training_batch_size);
-					bRestoreBiases = _training_batch_size != _max_fprop_batch_size;
-				} else {//evaluation mode, just make sure the batchSize is less then or equal to m_max_fprop_batch_size
-					NNTL_ASSERT(batchSize <= _max_fprop_batch_size);
-					m_activations.deform_rows(batchSize);
-					bRestoreBiases = batchSize != _max_fprop_batch_size;
-				}
+				m_activations.deform_rows(batchSize);
+				bRestoreBiases = batchSize != get_self().get_biggest_batch_size();
 			}
 
-			auto& act = m_activations;
 			neurons_count_t firstNeuronOfs = 0;
-			get_self().for_each_packed_layer([batchSize, &act, &firstNeuronOfs](auto& lyr)noexcept {
+			get_self().for_each_packed_layer([batchSize, &act = m_activations, &firstNeuronOfs](auto& lyr)noexcept {
 				//we're just setting memory to store activation values of inner layers here.
 				//there's no need to play with biases here.
-				lyr.set_mode(batchSize, act.colDataAsVec(firstNeuronOfs));
+				lyr.set_batch_size(batchSize, act.colDataAsVec(firstNeuronOfs));
 				firstNeuronOfs += lyr.get_neurons_cnt();
 			});
-			NNTL_ASSERT(firstNeuronOfs + 1 == act.cols());
+			NNTL_ASSERT(firstNeuronOfs + 1 == m_activations.cols());
 
 			if (bRestoreBiases) m_activations.set_biases();			
 			NNTL_ASSERT(pNewActivationStorage || m_activations.test_biases_ok());
@@ -344,13 +368,16 @@ namespace nntl {
 		void fprop(const LowerLayer& lowerLayer)noexcept {
 			static_assert(std::is_base_of<_i_layer_fprop<real_t>, LowerLayer>::value, "Template parameter LowerLayer must implement _i_layer_fprop");
 			auto& iI = get_self().get_iInspect();
-			iI.fprop_begin(get_self().get_layer_idx(), lowerLayer.get_activations(), m_bTraining);
+			iI.fprop_begin(get_self().get_layer_idx(), lowerLayer.get_activations(), get_self().isTrainingMode());
+
+			//restoring biases, should they were altered in drop_samples()
+			if (m_activations.isHoleyBiases() && !get_self().is_activations_shared()) {
+				m_activations.set_biases();
+			}
 
 			NNTL_ASSERT(lowerLayer.get_activations().test_biases_ok());
 
-			const auto pTmpBiasStorage = m_pTmpBiasStorage;
-			const auto& act = lowerLayer.get_activations();
-			utils::for_each_up(m_phl_tuple, [&act, pTmpBiasStorage](const auto& phl) {
+			utils::for_each_up(m_phl_tuple, [&act = lowerLayer.get_activations(), pTmpBiasStorage = m_pTmpBiasStorage](const auto& phl) {
 				phl.l.fprop(_impl::trainable_partial_layer_wrapper<LowerLayer>(act, pTmpBiasStorage, phl));
 			});
 			
@@ -376,11 +403,14 @@ namespace nntl {
 		template <typename LowerLayer>
 		const unsigned bprop(realmtx_t& dLdA, const LowerLayer& lowerLayer, realmtx_t& dLdAPrev)noexcept {
 			static_assert(std::is_base_of<_i_layer_trainable, LowerLayer>::value, "Template parameter LowerLayer must implement _i_layer_trainable");
+
+			NNTL_ASSERT(m_bActivationsValid);
 			m_bActivationsValid = false;
+
 			auto& iI = get_self().get_iInspect();
 			iI.bprop_begin(get_self().get_layer_idx(), dLdA);
 
-			NNTL_ASSERT(m_bTraining);
+			NNTL_ASSERT(get_self().isTrainingMode());
 			NNTL_ASSERT(lowerLayer.get_activations().test_biases_ok());
 			//NNTL_ASSERT(m_activations.test_biases_ok());
 			NNTL_ASSERT(dLdA.size() == m_activations.size_no_bias());
@@ -389,14 +419,17 @@ namespace nntl {
 			// We'll copy corresponding parts of dLdA into m_innerdLdA and on inner layer.bprop() return we'll ADD corresponding dLdA to dLdAPrev passed
 			if (!std::is_base_of<m_layer_input, LowerLayer>::value) dLdAPrev.zeros();
 			
-			auto& _Math = get_self().get_iMath();
-			const auto _training_batch_size = get_self().get_training_batch_size();
-			neurons_count_t firstNeuronOfs = 0;
-			//the order of traversing m_phl_tuple is not important, because it's kind a 'parallel' work
-			utils::for_each_up(m_phl_tuple, 
-				[&firstNeuronOfs, &lowerLayer, &dLdA, &dLdAPrev, _training_batch_size, &_Math, this](const auto& phl)
+			neurons_count_t firstNeuronOfs = get_self().get_neurons_cnt();
+			
+			//The order of traversing is EXTREMELY IMPORTANT for gating layers, for example (they might expect a gating layer to be
+			// processed first during fprop() and last during bprop()). Therefore we must go backwards here!
+			utils::for_each_down(m_phl_tuple, [&firstNeuronOfs, &lowerLayer, &dLdA, &dLdAPrev
+				, _training_batch_size = get_self().get_training_batch_size(), &_Math = get_self().get_iMath(), this](const auto& phl)
 			{
 				auto& lyr = phl.l;
+
+				NNTL_ASSERT(firstNeuronOfs >= lyr.get_neurons_cnt());
+				firstNeuronOfs -= lyr.get_neurons_cnt();
 				
 				constexpr bool bLowerLayerIsInput = std::is_base_of<m_layer_input, LowerLayer>::value;
 
@@ -430,15 +463,46 @@ namespace nntl {
 					_Math.vAdd_ip(dLdAPrev.colDataAsVec(phl.m_offset), switchMtxs ? m_innerdLdAPrev.data() : m_innerdLdA.data()
 						, realmtx_t::sNumel(_training_batch_size, phl.m_count));
 				}
-
-				firstNeuronOfs += lyr.get_neurons_cnt();
 			});
-			NNTL_ASSERT(firstNeuronOfs == m_activations.cols_no_bias());
+			NNTL_ASSERT(firstNeuronOfs == 0);
 			NNTL_ASSERT(lowerLayer.get_activations().test_biases_ok());
 
 			iI.bprop_end(dLdAPrev);
 			return 1;
 		}
+
+		//////////////////////////////////////////////////////////////////////////
+
+		const bool is_trivial_drop_samples()const noexcept {
+			bool b = true;
+			get_self().for_each_packed_layer([&b](const auto& l) {
+				b = b & l.is_trivial_drop_samples();
+			});
+			return b;
+		}
+
+		void drop_samples(const realmtx_t& mask, const bool bBiasesToo)noexcept {
+			NNTL_ASSERT(m_bActivationsValid);
+			NNTL_ASSERT(get_self().is_drop_samples_mbc());
+			NNTL_ASSERT(!get_self().is_activations_shared() || !bBiasesToo);
+			NNTL_ASSERT(!mask.emulatesBiases() && 1 == mask.cols() && m_activations.rows() == mask.rows() && mask.isBinary());
+			NNTL_ASSERT(m_activations.emulatesBiases());
+
+			if (is_trivial_drop_samples()) {//there should be NO get_self() in front of is_trivial_drop_samples() call. Or it may break LPHG (or may not)
+				m_activations.hide_last_col();
+				get_self().get_iMath().mrwMulByVec(m_activations, mask.data());
+				m_activations.restore_last_col();
+			} else {
+				get_self().for_each_packed_layer([&mask](auto& l) {
+					l.drop_samples(mask, false);
+				});
+			}
+			if (bBiasesToo) {
+				//applying bias mask to biases
+				m_activations.copy_biases_from(mask.data());
+			}
+		}
+
 
 	private:
 		//support for boost::serialization

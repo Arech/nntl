@@ -41,6 +41,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "../nntl/utils/tictoc.h"
 
 #include "simple_math_etalons.h"
+#include "imath_etalons.h"
 #include "common_routines.h"
 
 using namespace nntl;
@@ -705,3 +706,106 @@ TEST(TestSMathThr, mrwSum) {
 //////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////
 
+void test_mrwOr_perf(vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
+	STDCOUTL("**** testing mrwOr() variations over " << rowsCnt << "x" << colsCnt << " matrix (" << realmtx_t::sNumel(rowsCnt, colsCnt) << " elements) ****");
+	constexpr unsigned maxReps = TEST_PERF_REPEATS_COUNT;
+	realmtx_t A(rowsCnt, colsCnt);
+	std::vector<real_t> vec_test(rowsCnt);
+	ASSERT_TRUE(!A.isAllocationFailed());
+	iM.preinit(A.numel());
+	ASSERT_TRUE(iM.init());
+	d_interfaces::iRng_t rg;
+	rg.set_ithreads(iM.ithreads());
+	const real_t binFrac = real_t(0.5);
+	tictoc tStCw, tStRw, tSt, tMtCw, tMtRw, tMt, tB;
+	utils::prioritize_workers<utils::PriorityClass::PerfTesting, iThreads_t> pw(iM.ithreads());
+	for (unsigned r = 0; r < maxReps; ++r) {
+		if (colsCnt > 1) {
+			rg.gen_matrix_norm(A);
+			ewBinarize_ip_ET(A, binFrac);
+			tStCw.tic();
+			iM.mrwOr_st_cw(A, &vec_test[0]);
+			tStCw.toc();
+
+			rg.gen_matrix_norm(A);
+			ewBinarize_ip_ET(A, binFrac);
+			tStRw.tic();
+			iM.mrwOr_st_rw(A, &vec_test[0]);
+			tStRw.toc();
+		}
+
+		rg.gen_matrix_norm(A);
+		ewBinarize_ip_ET(A, binFrac);
+		tSt.tic();
+		iM.mrwOr_st(A, &vec_test[0]);
+		tSt.toc();
+
+		if (colsCnt > SMath_t::Thresholds_t::mrwBinaryOR_mt_cw_colsPerThread) {
+			rg.gen_matrix_norm(A);
+			ewBinarize_ip_ET(A, binFrac);
+			tMtCw.tic();
+			iM.mrwOr_mt_cw(A, &vec_test[0]);
+			tMtCw.toc();
+		}
+
+		if (colsCnt > 1) {
+			rg.gen_matrix_norm(A);
+			ewBinarize_ip_ET(A, binFrac);
+			tMtRw.tic();
+			iM.mrwOr_mt_rw(A, &vec_test[0]);
+			tMtRw.toc();
+		}
+
+		rg.gen_matrix_norm(A);
+		ewBinarize_ip_ET(A, binFrac);
+		tMt.tic();
+		iM.mrwOr_mt(A, &vec_test[0]);
+		tMt.toc();
+
+		rg.gen_matrix_norm(A);
+		ewBinarize_ip_ET(A, binFrac);
+		tB.tic();
+		iM.mrwOr(A, &vec_test[0]);
+		tB.toc();
+	}
+	tStCw.say("st_cw");
+	tStRw.say("st_rw");
+	tSt.say("st");
+	tMtCw.say("mt_cw");
+	tMtRw.say("mt_rw");
+	tMt.say("mt");
+	tB.say("best");
+}
+TEST(TestSMathThr, mrwOr) {
+	//it is not a way to find out the best execution route
+	/*std::array<vec_len_t, 4> ccols = { 2, 10,100,500 };
+	std::array<numel_cnt_t, 7> dsize = {20000, 50000, 100000, 500000, 1000000, 5000000, 10000000};
+
+	for (const auto& ds : dsize) {
+		for (const auto& cc : ccols) {
+			NNTL_RUN_TEST2(ds, cc) test_mrwOr_perf(i, cc);
+		}
+	}*/
+
+	NNTL_RUN_TEST2(SMath_t::Thresholds_t::mrwBinaryOR, 2) test_mrwOr_perf(i, 2);
+	NNTL_RUN_TEST2(SMath_t::Thresholds_t::mrwBinaryOR, 10) test_mrwOr_perf(i, 10);
+//	NNTL_RUN_TEST2(SMath_t::Thresholds_t::mrwBinaryOR, 100) test_mrwOr_perf(i, 100);
+//	NNTL_RUN_TEST2(SMath_t::Thresholds_t::mrwBinaryOR, 500) test_mrwOr_perf(i, 500);
+
+/*
+	const unsigned maxCols = iM.ithreads().workers_count();
+	for (unsigned c = 2; c <= maxCols; ++c) test_mrwOr_perf(300, c);
+
+#ifndef TESTS_SKIP_LONGRUNNING
+	for (unsigned r = 400; r <= 1000; r += 100) {
+		test_mrwOr_perf(r, 6);
+		test_mrwOr_perf(r, 10);
+		test_mrwOr_perf(r, 30);
+	}
+	test_mrwOr_perf(3000, 300);
+	test_mrwOr_perf(300, 3000);
+	
+	test_mrwOr_perf(100000, 10);
+	test_mrwOr_perf(10, 100000);
+#endif*/
+}

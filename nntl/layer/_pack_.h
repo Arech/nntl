@@ -123,6 +123,7 @@ namespace nntl {
 				// #todo: this flag should be turned ON for all layer activations INCLUDING input layer.
 				
 				NNTL_ASSERT(phl.m_offset + phl.m_count <= underlyingLayerAct.cols_no_bias());
+				// activation matrix (m_act) are NOT expected to be changed from the outside, therefore trick with const_cast<> should do no harm.
 				m_act.useExternalStorage(
 					const_cast<real_t*>(underlyingLayerAct.colDataAsVec(phl.m_offset)), underlyingLayerAct.rows(), phl.m_count + 1, true
 					);
@@ -150,5 +151,15 @@ namespace nntl {
 		// specialization recognizes types that do have a nested ::wrapped_layer_t member:
 		template< class T >
 		struct is_layer_wrapper<T, std::void_t<typename T::wrapped_layer_t>> : std::true_type {};
+
+		//////////////////////////////////////////////////////////////////////////
+		// Helper for the LPH to recognize if a LayerT class has .OuterLayerCustomFlag1Eval(const PhlsTupleT&) function to calculate bLPH_CustomFlag1 var
+		template<class, class, class, class = std::void_t<>>
+		struct layer_has_OuterLayerCustomFlag1Eval : std::false_type {};
+
+		template<class LayerT, class PhlsTupleT, class LayerInitDataT>
+		struct layer_has_OuterLayerCustomFlag1Eval<LayerT, PhlsTupleT, LayerInitDataT
+			, std::void_t<decltype(std::declval<LayerT>()
+				.OuterLayerCustomFlag1Eval(std::declval<const PhlsTupleT&>(),std::declval<const LayerInitDataT&>()))>> : std::true_type {};
 	}
 }

@@ -32,14 +32,14 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #pragma once
 
 // layer_pack_gated is a layer wrapper, that uses underlying layer activation values as it's own activation values
-// when a value of special gating neuron (incapsulated in a layer obeying _i_layer_gate interface) is 1,
-// or uses zeros as activation values if the value of gating neuron is 0.
-// Learning process (backpropagation) is also controlled by the gating neuron. When it is closed, no information flows
-// down to underlying level and therefore it doesn't update its weights (I guess, it is effectively trains the layer
-// on only a subset of original data that is "opened" by the gate)
+// when a value of external (to the layer_pack_gated object) gating neuron (incapsulated in an other layer obeying _i_layer_gate interface) is 1,
+// and uses zeros as activation values otherwise (if the value of the gating neuron is 0).
+// Learning process (backpropagation) is controlled by the gating neuron. When it is closed, no information flows
+// down to the underlying layer and therefore it doesn't update its weights. It effectively trains the underlying layer only
+// on a subset of the original dataset that is "opened" by the gate.
 // 
 //											 | | | | | | | |
-//			|--------------layer_pack_gated-----------------------|
+//			|--------------layer_pack_gated(LPG)------------------|
 //			|								 | | | | | | | |	  |
 //			|		  gate--->(0 or 1)MUL    \ | | | | | | /      |
 //			|			|		          |--underlying_layer--|  |
@@ -49,14 +49,29 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //	   |	-------------------------------------------------------
 //	   |									  |  |  |  |  | 
 //
-// layer_pack_gated has the same number of neurons and incoming neurons, as underlying_layer.
-// Gating neuron is implemented as a layer, obeying _i_layer_gate inteface. This layer must have a single neuron
-// and is passed by reference during layer_pack_gated construction. The only requirement is that gating
-// neuron (layer) must be processed by NN earlier, than corresponding layer_pack_gated (i.e. is must receive
-// a smaller layer_index during preinit() phase)
-// Usually layer_pack_gated is used in conjunction with layer_identity_gate (to pass gating neuron value from layer_input)
-// and layer_pack_horizontal to assemble NN architecture.
+// layer_pack_gated has the same number of neurons and incoming neurons, as the underlying_layer.
+// The underlying_layer object should be instantiated and passed to the layer_pack_gated constructor only (i.e. it mustn't be a part
+// of a layers stack).
+// Gating neuron is implemented as a layer, obeying _i_layer_gate interface, such as layer_identity_gate.
+// This layer must have a single neuron and it is passed by reference during layer_pack_gated construction.
+// The only requirement is that the gating neuron (layer) must be processed by NN earlier, than the corresponding
+// layer_pack_gated (i.e. gating neuron/layer must receive a smaller layer_index during preinit() phase)
+// 
 // Look for examples in unit tests.
+//
+// Implementation discussion:
+// In order to emulate an absence of a data sample, the data sample bias unit must also be affected by the gating value.
+// Biases in NNTL are implemented as
+// a last column of an activation matrix and that brings some issues into a straightforward implementation of gating. 
+// Being a part of an activation matrix, biases are not actually a semantic part of a layer and aren't expected to be managed
+// by the layer itself. Biases are just added to the activation matrix to make an upper layer's life easier.
+// Therefore an extra care must be taken when the gating is about to be applied to the bias column.
+// A LPG must apply gating values to a bias column iff:
+// - the LPG is a single/sole layer <==> i.e. it doesn't share its activations space with other layers
+//		(It's not the same as the layer is given pNewActivationStorage - it can be given it in some other cases while it's still
+//			a single layer, for example in layer_pack_tile setup)
+// - the LPG is the last (rightmost) layer in 2-layers layer_pack_horizontal (LPH), provided that the first layer is its gating layer
+// In all other cases LPG must not touch a bit in a bias column.
 // 
 
 #include "_pack_.h"
@@ -106,14 +121,19 @@ namespace nntl {
 		underlying_layer_t& m_undLayer;
 		const gating_layer_t& m_gatingLayer;
 		
-		// gating matrix has the same size as activations of m_undLayer (EXcluding biases).
-		// Each row of the mask has either a value of one, provided that a corresponding gating
-		// neuron "is opened", or the value of zero in the other case
+		// gating matrix is 1 column binary matrix that has the same number of rows as there are activations of m_undLayer
+		// It is allocated when we had to binarize the gate OR we'd have the .drop_samples() called. Else it's just an alias to the gate
 		realmtxdef_t m_gatingMask;
 
 	private:
 		layer_index_t m_layerIdx;
 
+	protected:
+
+		bool m_bApplyGateToBiases;
+
+	private:
+		bool m_bIsDropSamplesMightBeCalled;//taken from init()
 
 		//////////////////////////////////////////////////////////////////////////
 		//
@@ -145,8 +165,8 @@ namespace nntl {
 		~_layer_pack_gated()noexcept {}
 		_layer_pack_gated(UnderlyingLayer& ulayer, const GatingLayer& glayer, const char* pCustomName = nullptr)noexcept 
 			: _base_class(pCustomName), m_undLayer(ulayer), m_gatingLayer(glayer), m_layerIdx(0)
+			, m_bApplyGateToBiases(false), m_bIsDropSamplesMightBeCalled(false)
 		{
-			//gating mask works on biases also, but we shouldn't emulate them (causes unnecessary calls to fill_biases())
 			m_gatingMask.dont_emulate_biases();
 		}
 
@@ -167,12 +187,14 @@ namespace nntl {
 		const neurons_count_t get_neurons_cnt() const noexcept { return m_undLayer.get_neurons_cnt(); }
 		const neurons_count_t get_incoming_neurons_cnt()const noexcept { return  m_undLayer.get_incoming_neurons_cnt(); }
 
-		const realmtxdef_t& get_activations()const noexcept { 
-			NNTL_ASSERT(m_bActivationsValid);
-			return m_undLayer.get_activations();
-		}
+		const realmtxdef_t& get_activations()const noexcept { return m_undLayer.get_activations(); }
 		const mtx_size_t get_activations_size()const noexcept { return m_undLayer.get_activations_size(); }
+		const bool is_activations_shared()const noexcept { return m_undLayer.is_activations_shared(); }
 
+	protected:
+		const bool is_drop_samples_mbc()const noexcept { return m_bIsDropSamplesMightBeCalled; }
+
+	public:
 		//////////////////////////////////////////////////////////////////////////
 		// helpers to access common data 
 		// #todo this implies, that the following functions are described in _i_layer interface. It's not the case at this moment.
@@ -182,6 +204,8 @@ namespace nntl {
 		iInspect_t& get_iInspect()const noexcept { return m_undLayer.get_iInspect(); }
 		const vec_len_t get_max_fprop_batch_size()const noexcept { return m_undLayer.get_max_fprop_batch_size(); }
 		const vec_len_t get_training_batch_size()const noexcept { return m_undLayer.get_training_batch_size(); }
+		const vec_len_t get_biggest_batch_size()const noexcept { return m_undLayer.get_biggest_batch_size(); }
+		const bool isTrainingMode()const noexcept { return m_undLayer.isTrainingMode(); }
 
 		//////////////////////////////////////////////////////////////////////////
 		// btw, in most cases we just pass function request to underlying layer. There are only two exceptions:
@@ -200,10 +224,44 @@ namespace nntl {
 		}
 
 		//////////////////////////////////////////////////////////////////////////
+		template<typename PhlsTupleT>
+		bool OuterLayerCustomFlag1Eval(const PhlsTupleT& lphTuple, const _layer_init_data_t& lphLid)const noexcept {
+			return !lphLid.bActivationsShareSpace  //this ensures, that the parent LPH doesn't share it's own activation space
+				&& 2 == std::tuple_size<PhlsTupleT>::value  //the following tests for the only case when we're allowed to update a bias column
+				//&& &m_gatingLayer == &(std::get<0>(lphTuple).l)
+				//&& this == &(std::get<1>(lphTuple).l);
+ 				&& reinterpret_cast<const void*>(&m_gatingLayer) == reinterpret_cast<const void*>(&(std::get<0>(lphTuple).l))
+ 				&& reinterpret_cast<const void*>(this) == reinterpret_cast<const void*>(&(std::get<1>(lphTuple).l));
+			//we're doing type-less pointer base comparision, because actual types of layers stored in tuple may differ from
+			//what we're having in variables.
+		}
+
+	protected:
+		//we must allocate gating mask IFF we must binarize gate or we expect drop_samples() to be called
+		const bool _bAllocateGatingMask()const noexcept {
+			return sbBinarizeGate || is_drop_samples_mbc();
+		}
+
+	public:
+		//////////////////////////////////////////////////////////////////////////
 		ErrorCode init(_layer_init_data_t& lid, real_t* pNewActivationStorage = nullptr)noexcept {
 			_base_class::init();
 			NNTL_ASSERT(1 == m_gatingLayer.get_gate_width());
+
+			//we're allowed to apply gate to the bias column IFF, we don't share our activation space (in that case bias column might
+			// contain activation values of other layers), or if we do, we're actually inside a LPH, that doesn't share it's activations,
+			// the size of the LPH is 2 and we're on the second place, while the first place is occupied by our gating layer
+			// (The .OuterLayerCustomFlag1Eval() function defines the value of lid.bLPH_CustomFlag1)
+			m_bApplyGateToBiases = !lid.bActivationsShareSpace || lid.bLPH_CustomFlag1;
+
+			m_bIsDropSamplesMightBeCalled = lid.bDropSamplesMightBeCalled;
+			const bool bOrig_LphFlag1 = lid.bLPH_CustomFlag1;
+			lid.bDropSamplesMightBeCalled = true;
+			lid.bLPH_CustomFlag1 = m_bApplyGateToBiases;//if we're working over another LPG, it'll help it to make a right decision.
 			auto ec = m_undLayer.init(lid, pNewActivationStorage);
+			lid.bDropSamplesMightBeCalled = m_bIsDropSamplesMightBeCalled;
+			lid.bLPH_CustomFlag1 = bOrig_LphFlag1;
+
 			if (ErrorCode::Success != ec) return ec;
 
 			//must be called after m_undLayer.init() because see get_iInspect() implementation
@@ -213,27 +271,22 @@ namespace nntl {
 			utils::scope_exit onExit([&bSuccessfullyInitialized, this]() {
 				if (!bSuccessfullyInitialized) get_self().deinit();
 			});
-
-			//we must resize gatingMask here to the size of underlying_layer activations, however gatingMask mustn't
-			//have an emulated bias column
-			//NNTL_ASSERT(m_undLayer.get_activations().emulatesBiases()); //every layer except an output MUST have biases
-			NNTL_ASSERT(!m_gatingMask.emulatesBiases());
-			const mtx_size_t uas = m_undLayer.get_activations_size();
-			NNTL_ASSERT(uas != realmtx_t::mtx_size_t(0, 0) && uas.second > 1);
-			if (m_gatingMask.resize(uas.first, uas.second - 1)) {
-				if (sbBinarizeGate) {
-					//we'll use iMath internal memory storage for binarized source matrix, therefore we must notify iMath about it
-					get_self().get_iMath().preinit(
-						realmtx_t::sNumel(get_self().get_max_fprop_batch_size(), m_gatingLayer.get_gate_width())
-					);
-				}
-			}else return ErrorCode::CantAllocateMemoryForGatingMask;
+			
+			NNTL_ASSERT(!m_gatingMask.emulatesBiases() && m_gatingMask.empty());
+			// we're to allocate m_gatingMask IFF we had to binarize gate values OR we expect .drop_samples() to be called
+			if (_bAllocateGatingMask()) {
+				if (!m_gatingMask.resize(m_undLayer.get_activations_size().first, m_gatingLayer.get_gate_width()))
+					return ErrorCode::CantAllocateMemoryForGatingMask;
+			} //else //we'll use it as an alias to the gate
+			
 
 			bSuccessfullyInitialized = true;
 			return ec;
 		}
 
 		void deinit() noexcept {
+			m_bApplyGateToBiases = false;
+			m_bIsDropSamplesMightBeCalled = false;
 			m_undLayer.deinit();
 			m_gatingMask.clear();
 			_base_class::deinit();
@@ -243,81 +296,55 @@ namespace nntl {
 			m_undLayer.initMem(ptr, cnt);
 		}
 
-		void set_mode(vec_len_t batchSize, real_t* pNewActivationStorage = nullptr)noexcept {
-			m_bActivationsValid = false;
-			m_bTraining = 0==batchSize;
+		void set_batch_size(const vec_len_t batchSize, real_t*const pNewActivationStorage = nullptr)noexcept {
+			NNTL_ASSERT(batchSize > 0);
 
-			m_undLayer.set_mode(batchSize, pNewActivationStorage);
+			m_undLayer.set_batch_size(batchSize, pNewActivationStorage);
 
-			//NNTL_ASSERT(m_undLayer.get_activations().emulatesBiases());
 			NNTL_ASSERT(!m_gatingMask.emulatesBiases());
-			//we must deform the mask to fit new underlying activations size
-			const mtx_size_t uas = m_undLayer.get_activations_size();
-			NNTL_ASSERT(uas.second > 1);
-			m_gatingMask.deform_rows(uas.first);
-			NNTL_ASSERT(m_gatingMask.size() == mtx_size_t(uas.first, uas.second-1));
+			if (_bAllocateGatingMask()) {
+				NNTL_ASSERT(!m_gatingMask.empty() && !m_gatingMask.bDontManageStorage());
+				//we must deform the mask to fit new underlying activations size
+				NNTL_ASSERT(batchSize == m_undLayer.get_activations_size().first);
+				m_gatingMask.deform_rows(batchSize);
+				NNTL_ASSERT(m_gatingMask.cols() == 1);
+			} else {
+				NNTL_ASSERT(m_gatingMask.empty() || m_gatingMask.bDontManageStorage());
+			}
 		}
 
 		//////////////////////////////////////////////////////////////////////////
 		// gating functions
 	protected:
-		//construct a mask of ones and zeros based on gating neuron. The mask has to have a size of activations units of
-		//underlying layer. It has ones for a rows of activations that are allowed by gating neuron and zeros for forbidden
-		// rows. The mask is applied to activations and dLdA with a simple inplace elementwise multiplication.
+		//construct a mask of ones and zeros based on gating neuron.The mask is applied to activations and dLdA
 		template<bool bg= sbBinarizeGate>
-		std::enable_if_t<!bg,self_ref_t> make_gating_mask()noexcept {
-			NNTL_ASSERT(1 == m_gatingLayer.get_gate_width());
-			NNTL_ASSERT(1 == m_gatingLayer.get_gate().cols());
+		std::enable_if_t<!bg,const realmtx_t&> make_gating_mask()noexcept {
+			NNTL_ASSERT(1 == m_gatingLayer.get_gate_width() && m_gatingLayer.get_gate().isBinary());
 			NNTL_ASSERT(!m_gatingMask.emulatesBiases());
-			get_self().get_iMath().mCloneCol(m_gatingLayer.get_gate(), m_gatingMask);
-			return get_self();
+
+			if (_bAllocateGatingMask()) {
+				NNTL_ASSERT(!m_gatingMask.empty() && !m_gatingMask.bDontManageStorage());
+				NNTL_ASSERT(m_gatingLayer.get_gate().size() == m_gatingMask.size() && m_gatingMask.rows() == m_undLayer.get_activations().rows());
+				m_gatingLayer.get_gate().copy_to(m_gatingMask);
+			} else {
+				NNTL_ASSERT(m_gatingMask.empty() || m_gatingMask.bDontManageStorage());
+				//we won't update the gate here, it's just an alias, therefore const_cast is safe
+				m_gatingMask.useExternalStorage(const_cast<realmtx_t&>(m_gatingLayer.get_gate()));
+			}
+			return m_gatingMask;
 		}
 
 		template<bool bg= sbBinarizeGate>
-		std::enable_if_t<bg, self_ref_t> make_gating_mask()noexcept {
+		std::enable_if_t<bg, const realmtx_t&> make_gating_mask()noexcept {
+			NNTL_ASSERT(_bAllocateGatingMask());
 			NNTL_ASSERT(1 == m_gatingLayer.get_gate_width());
-			NNTL_ASSERT(!m_gatingMask.emulatesBiases());
+			NNTL_ASSERT(!m_gatingMask.emulatesBiases() && !m_gatingMask.empty() && !m_gatingMask.bDontManageStorage());
+			NNTL_ASSERT(m_gatingMask.size() == m_gatingLayer.get_gate().size() && m_gatingMask.rows() == m_undLayer.get_activations().rows());
 
-			auto& origGate = m_gatingLayer.get_gate();
-			NNTL_ASSERT(1 == origGate.cols());
+			get_self().get_iMath().ewBinarize(m_gatingMask, m_gatingLayer.get_gate(), sBinarizeFrac);
 
-			auto& iM = get_self().get_iMath();
-			auto pTmpStor = iM._get_thread_temp_raw_storage(origGate.numel());
-			NNTL_ASSERT(pTmpStor);
-			
-			realmtx_t gate(pTmpStor, origGate);
-			iM.ewBinarize(gate, origGate, sBinarizeFrac);
-
-			//iM.mCloneCols(gate, m_gatingMask, &m_gatingMask.cols());
-			iM.mCloneCol(gate, m_gatingMask);
-			return get_self();
-		}
-
-		//applies gating mask to a matrix.
-		//A must either have a size of underlying activations matrix, or a size of dL/dA (which has one column less than
-		// underlying activations)
-		void apply_gating_mask(realmtxdef_t& A) noexcept {
-			NNTL_ASSERT(!A.empty() && !m_gatingMask.empty());
-			NNTL_ASSERT(A.rows() == m_gatingMask.rows());
-			NNTL_ASSERT(m_gatingMask.cols() > 0);
-			NNTL_ASSERT( (A.cols() == m_gatingMask.cols() && !A.emulatesBiases()) 
-				|| (A.cols() == (m_gatingMask.cols() + 1) && A.emulatesBiases()));
-			NNTL_ASSERT(!m_gatingMask.emulatesBiases());
-
-			const bool bHideBiases = A.cols() == (m_gatingMask.cols() + 1);
-			if (bHideBiases) A.hide_last_col();
-
-			NNTL_ASSERT(A.size() == m_gatingMask.size());
-			get_self().get_iMath().evMul_ip(A, m_gatingMask);
-
-			if (bHideBiases) A.restore_last_col();
-		}
-
-		void finish_fprop()noexcept {
-			get_self()
-				.make_gating_mask<>()
-				.apply_gating_mask(*const_cast<realmtxdef_t*>(&m_undLayer.get_activations()));
-			m_bActivationsValid = true;
+			NNTL_ASSERT(m_gatingMask.isBinary());
+			return m_gatingMask;
 		}
 
 	public:
@@ -325,13 +352,19 @@ namespace nntl {
 		void fprop(const LowerLayer& lowerLayer)noexcept {
 			static_assert(std::is_base_of<_i_layer_fprop<real_t>, LowerLayer>::value, "Template parameter LowerLayer must implement _i_layer_fprop");
 			auto& iI = get_self().get_iInspect();
-			iI.fprop_begin(get_self().get_layer_idx(), lowerLayer.get_activations(), m_bTraining);
+			iI.fprop_begin(get_self().get_layer_idx(), lowerLayer.get_activations(), get_self().isTrainingMode());
 
 			NNTL_ASSERT(lowerLayer.get_activations().test_biases_ok());
 			m_undLayer.fprop(lowerLayer);
-			NNTL_ASSERT(m_gatingMask.size() == m_undLayer.get_activations().size_no_bias());
-			get_self().finish_fprop();
-			NNTL_ASSERT(lowerLayer.get_activations().test_biases_ok());
+			NNTL_ASSERT(!_bAllocateGatingMask() || (!m_gatingMask.empty() && m_gatingMask.rows() == m_undLayer.get_activations().rows()));
+			
+			m_undLayer.drop_samples(get_self().make_gating_mask<>(), m_bApplyGateToBiases);
+
+			//ensure the bias column has correct flags
+			NNTL_ASSERT((m_bApplyGateToBiases && m_undLayer.get_activations().isHoleyBiases() 
+				&& !m_undLayer.is_activations_shared() && m_undLayer.get_activations().test_biases_holey()
+				) || (!m_bApplyGateToBiases && !m_undLayer.get_activations().isHoleyBiases()
+					&& (m_undLayer.is_activations_shared() || m_undLayer.get_activations().test_biases_strict())));
 
 			iI.fprop_end(m_undLayer.get_activations());
 		}
@@ -339,22 +372,53 @@ namespace nntl {
 		template <typename LowerLayer>
 		const unsigned bprop(realmtxdef_t& dLdA, const LowerLayer& lowerLayer, realmtxdef_t& dLdAPrev)noexcept {
 			static_assert(std::is_base_of<_i_layer_trainable<real_t>, LowerLayer>::value, "Template parameter LowerLayer must implement _i_layer_trainable");
-			m_bActivationsValid = false;
+			
 			auto& iI = get_self().get_iInspect();
 			iI.bprop_begin(get_self().get_layer_idx(), dLdA);
 
 			NNTL_ASSERT(lowerLayer.get_activations().test_biases_ok());
-			NNTL_ASSERT(m_gatingMask.size() == m_undLayer.get_activations().size_no_bias());
+			NNTL_ASSERT(m_gatingMask.rows() == m_undLayer.get_activations().rows());
+			NNTL_ASSERT(m_undLayer.is_activations_shared() || m_undLayer.get_activations().test_biases_ok());
 			NNTL_ASSERT(m_undLayer.get_activations().size_no_bias() == dLdA.size());
 			NNTL_ASSERT((std::is_base_of<m_layer_input, LowerLayer>::value) || dLdAPrev.size() == lowerLayer.get_activations().size_no_bias());
 
-			get_self().apply_gating_mask(dLdA);
+			// we must zero the dLdA entries for activations that was removed by the gating mask during fprop()
+			NNTL_ASSERT(!dLdA.empty() && !dLdA.emulatesBiases() && !m_gatingMask.empty() && !m_gatingMask.emulatesBiases());
+			NNTL_ASSERT(dLdA.rows() == m_gatingMask.rows() && 1 == m_gatingMask.cols());
+			NNTL_ASSERT(m_gatingMask.size() == m_gatingLayer.get_gate().size() && m_gatingMask.rows() == m_undLayer.get_activations().rows()); //this assert also checks whether the gate is still usable
+			NNTL_ASSERT(m_gatingMask.isBinary());
+			//get_self().get_iMath().evMul_ip(dLdA, m_gatingMask);
+			get_self().get_iMath().mrwMulByVec(dLdA, m_gatingMask.data());
+
 			const unsigned ret = m_undLayer.bprop(dLdA, lowerLayer, dLdAPrev);
 			NNTL_ASSERT(lowerLayer.get_activations().test_biases_ok());
 
 			iI.bprop_end(ret ? dLdAPrev : dLdA);
 			return ret;
 		}
+
+		static constexpr bool is_trivial_drop_samples()noexcept { return false; }
+
+		void drop_samples(const realmtx_t& mask, const bool bBiasesToo)noexcept {
+			NNTL_ASSERT(get_self().is_drop_samples_mbc() && _bAllocateGatingMask());
+			//it should not be possible when we're aren't allowed to update biases, while getting a request to update them...
+			NNTL_ASSERT(m_bApplyGateToBiases || !bBiasesToo);
+			NNTL_ASSERT(m_gatingMask.isBinary());
+			
+			//update our mask
+			NNTL_ASSERT(mask.size()==m_gatingMask.size() && mask.isBinary());
+			get_self().get_iMath().evMul_ip(m_gatingMask, mask);
+
+			//apply to the underlying layer
+			m_undLayer.drop_samples(m_gatingMask, bBiasesToo);
+
+			//ensure the bias column has correct flags
+			NNTL_ASSERT((m_bApplyGateToBiases && m_undLayer.get_activations().isHoleyBiases()
+				&& !m_undLayer.is_activations_shared() && m_undLayer.get_activations().test_biases_holey()
+				) || (!m_bApplyGateToBiases && !m_undLayer.get_activations().isHoleyBiases()
+					&& (m_undLayer.is_activations_shared() || m_undLayer.get_activations().test_biases_strict())));
+		}
+
 
 	private:
 		//support for boost::serialization

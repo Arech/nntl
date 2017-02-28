@@ -1,4 +1,4 @@
-function export_2bin( S, fname, bDropUnknown )
+function export_2bin( S, fname, bDropUnknown)
 %EXPORT_STRUCT_2BIN Export 2D matrix or struct to NNTL binary file
 % (see nntl/_supp/io/binfile.h for specifications)
 
@@ -75,7 +75,7 @@ function dtId=data_type(className)
 switch(className)
 	case 'double'
 		dtId=0;
-	case 'float'
+	case 'single'
 		dtId=1;
 		
 	otherwise

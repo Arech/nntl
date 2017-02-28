@@ -88,7 +88,7 @@ TEST(TestMathNThr, DSigm) {
 	const auto fb = [](realmtx_t& F_DF) {iM.dsigm(F_DF); };
 
 	NNTL_RUN_TEST2(imath_basic_t::Thresholds_t::dsigm, 100) {
-		test_f_x_perf<true>(fst, fmt, fb, "dsigm", i, 100);
+		test_f_x_perf<0>(fst, fmt, fb, "dsigm", i, 100);
 	}
 }
 
@@ -368,7 +368,7 @@ TEST(TestMathNThr, DSoftSign) {
 	const auto fb = [alpha](realmtx_t& F_DF) {iM.dsoftsign(F_DF, alpha); };
 
 	NNTL_RUN_TEST2(imath_basic_t::Thresholds_t::dsoftsign, 10) {
-		test_f_x_perf(fst, fmt, fb, "dsoftsign", i, 10);
+		test_f_x_perf<1000>(fst, fmt, fb, "dsoftsign", i, 10);
 	}
 }
 TEST(TestMathNThr, DSoftSign_ua) {
@@ -377,7 +377,7 @@ TEST(TestMathNThr, DSoftSign_ua) {
 	const auto fb = [](realmtx_t& F_DF) {iM.dsoftsign_ua(F_DF); };
 
 	NNTL_RUN_TEST2(imath_basic_t::Thresholds_t::dsoftsign_ua, 10) {
-		test_f_x_perf(fst, fmt, fb, "dsoftsign_ua", i, 10);
+		test_f_x_perf<1000>(fst, fmt, fb, "dsoftsign_ua", i, 10);
 	}
 }
 TEST(TestMathNThr, SoftSigm) {
@@ -397,7 +397,7 @@ TEST(TestMathNThr, DSoftSigm) {
 	const auto fb = [alpha](realmtx_t& F_DF) {iM.dsoftsigm(F_DF, alpha); };
 
 	NNTL_RUN_TEST2(imath_basic_t::Thresholds_t::dsoftsigm, 10) {
-		test_f_x_perf(fst, fmt, fb, "dsoftsigm", i, 10);
+		test_f_x_perf<0>(fst, fmt, fb, "dsoftsigm", i, 10);
 	}
 }
 
@@ -454,7 +454,7 @@ void test_adam_perf(const size_t epochs, vec_len_t rowsCnt, vec_len_t colsCnt = 
 
 		for (size_t e = 0; e < epochs; ++e) {
 			rg.gen_matrix(dW_st, real_t(3.0));
-			ASSERT_TRUE(dW_st.cloneTo(dW_mt)); ASSERT_TRUE(dW_st.cloneTo(dW_));
+			ASSERT_TRUE(dW_st.clone_to(dW_mt)); ASSERT_TRUE(dW_st.clone_to(dW_));
 
 			tSt.tic();
 			iM.Adam_st(dW_st, Mt_st, Vt_st, beta1t_st, beta2t_st, learningRate, beta1, beta2, numStab);
@@ -526,7 +526,7 @@ void test_adamax_perf(const size_t epochs, vec_len_t rowsCnt, vec_len_t colsCnt 
 
 		for (size_t e = 0; e < epochs; ++e) {
 			rg.gen_matrix(dW_st, real_t(3.0));
-			ASSERT_TRUE(dW_st.cloneTo(dW_mt)); ASSERT_TRUE(dW_st.cloneTo(dW_));
+			ASSERT_TRUE(dW_st.clone_to(dW_mt)); ASSERT_TRUE(dW_st.clone_to(dW_));
 
 			tSt.tic();
 			iM.AdaMax_st(dW_st, Mt_st, Vt_st, beta1t_st, learningRate, beta1, beta2, numStab);

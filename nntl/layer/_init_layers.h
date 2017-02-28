@@ -57,26 +57,7 @@ namespace nntl {
 		template< class T >
 		struct m_prop_input_marker<T, std::void_t<typename std::enable_if< std::is_base_of<m_layer_input,T>::value >::type > > : m_layer_input {};
 
-		/*class init_layer_index {
-		protected:
-			layer_index_t _idx;
-			init_layer_index*const m_pUpdOnDelete;
-
-		public:
-			~init_layer_index()noexcept{
-				if (m_pUpdOnDelete) {
-					m_pUpdOnDelete->_idx = _idx;
-					//m_pUpdOnDelete = nullptr;
-				}
-			}
-			init_layer_index()noexcept : _idx(0), m_pUpdOnDelete(nullptr) {}
-			init_layer_index(init_layer_index& other)noexcept : _idx(other._idx), m_pUpdOnDelete(&other) {}
-
-			layer_index_t newIndex()noexcept {
-				return _idx++;
-			}
-		};*/
-
+		//////////////////////////////////////////////////////////////////////////
 		class init_layer_index {
 		protected:
 			layer_index_t& _idx;
@@ -175,7 +156,7 @@ namespace nntl {
 
 
 		//////////////////////////////////////////////////////////////////////////
-		// This structure is passed to a _i_layer.init() during initialization phase.
+		// This structure is passed to a _i_layer::init() during initialization phase.
 		// OUT marks variables that should be filled/returned by a layer if applicable. Most of this variables are used to
 		// find out how many shared memory real_t's should be allocated by a nnet object during initialization phase
 		// and passed to the layer.initMem().
@@ -187,40 +168,95 @@ namespace nntl {
 
 			IN const common_data_t& commonData;
 
-			//fprop and bprop may use different batch sizes during single training session (for example, fprop()/bprop()
-			// uses small batch size during learning process, but whole data_x.rows() during fprop() for loss function
-			// computation. Therefore to reduce memory consumption during evaluating and learning, we will demark fprop()
-			// memory requirements from bprop() mem reqs.
+			// Here are some insights about how the memory handling is organized in NNTL in order to achieve minimum memory requirements.
+			// There are three "types" of memory:
+			// 1. There are memory regions that must be independent of everything else and store values as long as they are needed.
+			//		For example, activation values should be stored almost all the time layer object exists. This type of memory can't be
+			//		optimized and shared between layer objects. Therefore, it's "private" memory.
+			// 2. However, some memory are needed only to hold temporary computations during some functions execution. Be it a kind
+			//		of mathematical function (like a softmax, that requires some storage to hold rowwise max values 
+			//		of pre-activations) or a fprop() or a bprop() functions that may require some temporary data like a computed dL/dW matrix
+			//		for their work.
+			//		In this case it makes sense:
+			//		a) to allow iMath's object to have it's own temporary storage (see _i_math::preinit() and _i_math::init() functions and their
+			//			implementations), and
+			//		b) to share temporary memory storage between different layers. The only guarantee this shared memory could issue is that
+			//			the memory will be left intact only during fprop() or bprop() execution.
+			//
+			// We'll discuss next how 2.b type of memory is organized.
+			// 
+			// fprop and bprop could use different batch sizes during a single training session. For example, during
+			// the learning process fprop()/bprop() could use a small batch size, however a whole data_x.rows() of a source dataset 
+			// could be necessary for fprop() for a loss function value computation. Therefore to reduce memory consumption
+			// during nnet evaluating and learning, it makes sense to distinguish how much memory is required to evaluate nnet, from how much
+			// memory is required for the training.
+			// During the init() phase, layer gets a reference to common_data_t structure via _layer_init_data::commonData. These structure
+			// contains description of maximum number of data rows for evaluating nnet and training nnet. Using this information, the layer
+			// should calculate how much shared memory (in number of real_t elements) it would require in both cases. The layer returns this
+			// numbers in _layer_init_data::maxMemFPropRequire and _layer_init_data::maxMemTrainingRequire variables.
+			// Then the .initMem() function gets called with a pointer to shared memory and a **maximum** total available elements in it
+			// (max of _layer_init_data::maxMemFPropRequire and _layer_init_data::maxMemTrainingRequire). The layer then should "save"
+			// this pointer, for example, by redistributing it among necessary matrices via realmtx_t::useExternalStorage()
+			// After that the .set_batch_size() function gets called that defines the batch_size for all subsequent calls to fprop()/bprop().
+			// This gives the layer an opportunity to update sizes of it's internal variables.
+			// Only then the .fprop()/.bprop() functions could be called (with the same batch_size, that was specified during .set_batch_size()). When
+			// a new batch_size will be necessary, .set_batch_size() must be called at first.
+			//
 			OUT numel_cnt_t maxMemFPropRequire;// total size of <real_t> array to be passed to layer.initMem() in order to compute fprop()
-			OUT numel_cnt_t maxMemBPropRequire;// same for bprop - that's how much <real_t>s must be addressed by pointer passed to .initMem() in order to bprop() works
+			OUT numel_cnt_t maxMemTrainingRequire;// same for bprop - that's how much <real_t>s must be addressed by pointer passed to .initMem() in order to bprop() to work
 			OUT numel_cnt_t max_dLdA_numel;//Biggest size of dLdA matrix (numel) that could be passed into a layer for bprop()
 			// We can always calculate this variable by knowing the batchSize and the layer's neurons count, aren't we?
-			//NOOO!!! It's not the case for compound layers!!! We need this variable!
+			// NOOO!!! It's not the case for compound layers, especially such as layer_pack_tile, that hides it's m_tiledLayer
+			// completely from the stack !!! We need this variable!
 			OUT numel_cnt_t nParamsToLearn;//total number of parameters, that layer has to learn during training
+
+			IN bool bDropSamplesMightBeCalled; //this flag allows the layer to prepare for future drop_samples() calls
+			IN bool bActivationsShareSpace; //This flag indicates that the layer's activation matrix (that is given by pNewActivationStorage)
+			//lies next to some other (activation) matrices in memory, therefore layer must NOT touch a bias column in all cases except it
+			//was ordered by a call to drop_samples(...,true) (applies to gating layers - the only type of layers now, that can
+			// change the bias column)
+			IN bool bLPH_CustomFlag1;//this flag is set by LPH on demand of the layer that is going to be initialized and it is intended to
+			//propagate to the layer some info, related to the LPH architecture.
+			// layer_pack_gated uses it to find out whether it and its gate are the only "citizens" of the LPH
 
 			OUT bool bHasLossAddendum;//to be set by layer.init()
 			OUT bool bOutputDifferentDuringTraining;//set by layer.init() to note that the layer output (fprop results)
 			// differs in the training and testing mode for the same data_x and parameters (for example, due to a dropout)
 
 			_layer_init_data(const common_data_t& cd) noexcept : commonData(cd) {
-				//clean(); //not necessary here because the struct is reused
+				//clean(); //not necessary here because the struct is almost always reused and cleaned before each use.
 			}
 
-			//this function must be called on the object before it is passed to layer.init()
-			//i.e. _i_layer.init() expects the object to be clean()'ed
-			void clean()noexcept {
+		protected:
+			void _clean()noexcept {
 				maxMemFPropRequire = 0;
-				maxMemBPropRequire = 0;
+				maxMemTrainingRequire = 0;
 				max_dLdA_numel = 0;
 				nParamsToLearn = 0;
 				bHasLossAddendum = false;
 				bOutputDifferentDuringTraining = false;
 			}
+			
+		public:
+			//this function must be called on the object before it is passed to layer.init()
+			//i.e. _i_layer.init() expects the object to be clean()'ed
+			void clean_using(const _layer_init_data& o)noexcept {
+				_clean();
+				bDropSamplesMightBeCalled = o.bDropSamplesMightBeCalled;
+				bActivationsShareSpace = o.bActivationsShareSpace;
+				bLPH_CustomFlag1 = o.bLPH_CustomFlag1;
+			}
+			void clean_using(const bool& bDropSamplesMBC = false, const bool& bActShareSp = false, const bool& bLph1=false)noexcept {
+				_clean();
+				bDropSamplesMightBeCalled = bDropSamplesMBC;
+				bActivationsShareSpace = bActShareSp;
+				bLPH_CustomFlag1 = bLph1;
+			}
 
 			//used by compound layers to gather data from layers encapsulated into them.
 			void update(const _layer_init_data& o)noexcept {
 				maxMemFPropRequire = std::max(maxMemFPropRequire, o.maxMemFPropRequire);
-				maxMemBPropRequire = std::max(maxMemBPropRequire, o.maxMemBPropRequire);
+				maxMemTrainingRequire = std::max(maxMemTrainingRequire, o.maxMemTrainingRequire);
 				max_dLdA_numel = std::max(max_dLdA_numel, o.max_dLdA_numel);
 				nParamsToLearn += o.nParamsToLearn;
 				bHasLossAddendum |= o.bHasLossAddendum;
@@ -270,7 +306,7 @@ namespace nntl {
 
 			template<typename _layer_init_data_t>
 			void updateLayerReq(const _layer_init_data_t& lid)noexcept {
-				return updateLayerReq(lid.maxMemFPropRequire, lid.maxMemBPropRequire, lid.max_dLdA_numel
+				return updateLayerReq(lid.maxMemFPropRequire, lid.maxMemTrainingRequire, lid.max_dLdA_numel
 					, lid.nParamsToLearn, lid.bHasLossAddendum, lid.bOutputDifferentDuringTraining);
 			}
 		};

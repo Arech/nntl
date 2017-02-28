@@ -145,6 +145,10 @@ namespace math {
 		static double eps_lower_n(double v, double n)noexcept {
 			return n*eps_lower(v);
 		}
+
+		typedef std::uint64_t similar_FWI_t;
+		static_assert(sizeof(double) == sizeof(similar_FWI_t),"Wrong type sizes!");
+
 	};
 	template <> struct real_t_limits<float> {
 		//natural log of closest to zero but non zero (realmin) value
@@ -165,6 +169,9 @@ namespace math {
 		static float eps_lower_n(float v, float n)noexcept {
 			return n*eps_lower(v);
 		}
+
+		typedef std::uint32_t similar_FWI_t;
+		static_assert(sizeof(float) == sizeof(similar_FWI_t), "Wrong type sizes!");
 	};
 }
 }

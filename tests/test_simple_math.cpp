@@ -41,6 +41,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "../nntl/_supp/io/matfile.h"
 
 #include "simple_math_etalons.h"
+#include "imath_etalons.h"
 #include "common_routines.h"
 
 using namespace nntl;
@@ -416,36 +417,36 @@ void test_mrwDivideByVec_corr(vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 	rg.set_ithreads(iM.ithreads());
 	for (unsigned rr = 0; rr < testCorrRepCnt; ++rr) {
 		rg.gen_matrix(A, 10);
-		A.cloneTo(A3);
+		A.clone_to(A3);
 		rg.gen_vector(&vDiv[0], rowsCnt, 5);
 
 		mrwDivideByVec_ET(A, &vDiv[0]);
 
-		A3.cloneTo(A2);
+		A3.clone_to(A2);
 		iM.mrwDivideByVec_st_cw(A2, &vDiv[0]);
 		ASSERT_MTX_EQ(A, A2, "st_cw() failed");
 
-		A3.cloneTo(A2);
+		A3.clone_to(A2);
 		iM.mrwDivideByVec_st_rw(A2, &vDiv[0]);
 		ASSERT_MTX_EQ(A, A2, "st_rw() failed");
 
-		A3.cloneTo(A2);
+		A3.clone_to(A2);
 		iM.mrwDivideByVec_st(A2, &vDiv[0]);
 		ASSERT_MTX_EQ(A, A2, "st() failed");
 
-		A3.cloneTo(A2);
+		A3.clone_to(A2);
 		iM.mrwDivideByVec_mt_cw(A2, &vDiv[0]);
 		ASSERT_MTX_EQ(A, A2, "mt_cw() failed");
 				
-		A3.cloneTo(A2);
+		A3.clone_to(A2);
 		iM.mrwDivideByVec_mt_rw(A2, &vDiv[0]);
 		ASSERT_MTX_EQ(A, A2, "mt_rw() failed");
 
-		A3.cloneTo(A2);
+		A3.clone_to(A2);
 		iM.mrwDivideByVec_mt(A2, &vDiv[0]);
 		ASSERT_MTX_EQ(A, A2, "mt() failed");
 
-		A3.cloneTo(A2);
+		A3.clone_to(A2);
 		iM.mrwDivideByVec(A2, &vDiv[0]);
 		ASSERT_MTX_EQ(A, A2, "() failed");
 	}
@@ -472,36 +473,36 @@ void test_mrwMulByVec_corr(vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 	rg.set_ithreads(iM.ithreads());
 	for (unsigned rr = 0; rr < testCorrRepCnt; ++rr) {
 		rg.gen_matrix(A, 10);
-		A.cloneTo(A3);
+		A.clone_to(A3);
 		rg.gen_vector(&vMul[0], rowsCnt, 5);
 
 		mrwMulByVec_ET(A, &vMul[0]);
 
-		A3.cloneTo(A2);
+		A3.clone_to(A2);
 		iM.mrwMulByVec_st_cw(A2, &vMul[0]);
 		ASSERT_MTX_EQ(A, A2, "st_cw() failed");
 						
-		A3.cloneTo(A2);
+		A3.clone_to(A2);
 		iM.mrwMulByVec_st_rw(A2, &vMul[0]);
 		ASSERT_MTX_EQ(A, A2, "st_rw() failed");
 				
-		A3.cloneTo(A2);
+		A3.clone_to(A2);
 		iM.mrwMulByVec_st(A2, &vMul[0]);
 		ASSERT_MTX_EQ(A, A2, "st() failed");
 
-		A3.cloneTo(A2);
+		A3.clone_to(A2);
 		iM.mrwMulByVec_mt_cw(A2, &vMul[0]);
 		ASSERT_MTX_EQ(A, A2, "mt_cw() failed");
 
-		A3.cloneTo(A2);
+		A3.clone_to(A2);
 		iM.mrwMulByVec_mt_rw(A2, &vMul[0]);
 		ASSERT_MTX_EQ(A, A2, "mt_rw() failed");
 
-		A3.cloneTo(A2);
+		A3.clone_to(A2);
 		iM.mrwMulByVec_mt(A2, &vMul[0]);
 		ASSERT_MTX_EQ(A, A2, "mt() failed");
 
-		A3.cloneTo(A2);
+		A3.clone_to(A2);
 		iM.mrwMulByVec(A2, &vMul[0]);
 		ASSERT_MTX_EQ(A, A2, "() failed");
 	}
@@ -664,43 +665,43 @@ void test_mrwSumIp_corr(vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 	rg.set_ithreads(iM.ithreads());
 	for (unsigned rr = 0; rr < testCorrRepCnt; ++rr) {
 		rg.gen_matrix(A, 10);
-		A.cloneTo(A3);
+		A.clone_to(A3);
 
 		mrwSum_ip_ET(A);
 
 		if (colsCnt>1) {
-			A3.cloneTo(A2);
+			A3.clone_to(A2);
 			iM.mrwSum_ip_st_cw(A2);
 			ASSERT_REALMTX_NEAR(A, A2, "st_cw() failed", mrwSumIp_EPS<real_t>::eps);
 		}
 
-		A3.cloneTo(A2);
+		A3.clone_to(A2);
 		iM.mrwSum_ip_st_rw(A2);
 		ASSERT_REALMTX_NEAR(A, A2, "st_rw() failed", mrwSumIp_EPS<real_t>::eps);
 
-		A3.cloneTo(A2);
+		A3.clone_to(A2);
 		iM.mrwSum_ip_st_rw_small(A2);
 		ASSERT_REALMTX_NEAR(A, A2, "st_rw_small() failed", mrwSumIp_EPS<real_t>::eps);
 
-		A3.cloneTo(A2);
+		A3.clone_to(A2);
 		iM.mrwSum_ip_st(A2);
 		ASSERT_REALMTX_NEAR(A, A2, "st() failed", mrwSumIp_EPS<real_t>::eps);
 
 		if (colsCnt > SMath_t::Thresholds_t::mrwSum_mt_cw_colsPerThread) {//mrwSum, not _ip_! because it's just a thunk to mrwSum_mt_cw
-			A3.cloneTo(A2);
+			A3.clone_to(A2);
 			iM.mrwSum_ip_mt_cw(A2);
 			ASSERT_REALMTX_NEAR(A, A2, "mt_cw() failed", mrwSumIp_EPS<real_t>::eps);
 		}
 
-		A3.cloneTo(A2);
+		A3.clone_to(A2);
 		iM.mrwSum_ip_mt_rw(A2);
 		ASSERT_REALMTX_NEAR(A, A2, "mt_rw() failed", mrwSumIp_EPS<real_t>::eps);
 
-		A3.cloneTo(A2);
+		A3.clone_to(A2);
 		iM.mrwSum_ip_mt(A2);
 		ASSERT_REALMTX_NEAR(A, A2, "mt() failed", mrwSumIp_EPS<real_t>::eps);
 
-		A3.cloneTo(A2);
+		A3.clone_to(A2);
 		iM.mrwSum_ip(A2);
 		ASSERT_REALMTX_NEAR(A, A2, "() failed", mrwSumIp_EPS<real_t>::eps);
 	}
@@ -774,5 +775,72 @@ TEST(TestSMath, mrwSum) {
 		, maxRows = rowsCnt + g_MinDataSizeDelta;
 	for (vec_len_t r = rowsCnt; r < maxRows; ++r) {
 		for (vec_len_t c = 1; c < maxCols; ++c) ASSERT_NO_FATAL_FAILURE(test_mrwSum_corr(r, c));
+	}
+}
+
+//////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////
+
+void test_mrwOr_corr(vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
+	MTXSIZE_SCOPED_TRACE(rowsCnt, colsCnt, "mrwOr");
+	constexpr unsigned testCorrRepCnt = TEST_CORRECTN_REPEATS_COUNT;
+	realmtx_t A(rowsCnt, colsCnt);
+	ASSERT_TRUE(!A.isAllocationFailed());
+	iM.preinit(A.numel());
+	ASSERT_TRUE(iM.init());
+	std::vector<real_t> vec_et(rowsCnt), vec_test(rowsCnt);
+	d_interfaces::iRng_t rg;
+	rg.set_ithreads(iM.ithreads());
+	const real_t binFrac = real_t(.5);
+	for (unsigned rr = 0; rr < testCorrRepCnt; ++rr) {
+		rg.gen_matrix_norm(A);
+		ewBinarize_ip_ET(A, binFrac);
+		ASSERT_TRUE(A.isBinary());
+
+		mrwBinaryOR_ET(A, &vec_et[0]);
+
+		if (colsCnt > 1) {
+			std::fill(vec_test.begin(), vec_test.end(), std::numeric_limits<real_t>::infinity());
+			iM.mrwOr_st_cw(A, &vec_test[0]);
+			_ASSERT_VECTOR_EQ(vec_et, vec_test, "st_cw() failed");
+
+			std::fill(vec_test.begin(), vec_test.end(), std::numeric_limits<real_t>::infinity());
+			iM.mrwOr_st_rw(A, &vec_test[0]);
+			_ASSERT_VECTOR_EQ(vec_et, vec_test, "st_rw() failed");
+		}
+
+		std::fill(vec_test.begin(), vec_test.end(), std::numeric_limits<real_t>::infinity());
+		iM.mrwOr_st(A, &vec_test[0]);
+		_ASSERT_VECTOR_EQ(vec_et, vec_test, "st() failed");
+
+		if (colsCnt > SMath_t::Thresholds_t::mrwBinaryOR_mt_cw_colsPerThread) {
+			std::fill(vec_test.begin(), vec_test.end(), std::numeric_limits<real_t>::infinity());
+			iM.mrwOr_mt_cw(A, &vec_test[0]);
+			_ASSERT_VECTOR_EQ(vec_et, vec_test, "mt_cw() failed");
+		}
+
+		if (colsCnt > 1) {
+			std::fill(vec_test.begin(), vec_test.end(), std::numeric_limits<real_t>::infinity());
+			iM.mrwOr_mt_rw(A, &vec_test[0]);
+			_ASSERT_VECTOR_EQ(vec_et, vec_test, "mt_rw() failed");
+		}
+
+		std::fill(vec_test.begin(), vec_test.end(), std::numeric_limits<real_t>::infinity());
+		iM.mrwOr_mt(A, &vec_test[0]);
+		_ASSERT_VECTOR_EQ(vec_et, vec_test, "mt() failed");
+
+		std::fill(vec_test.begin(), vec_test.end(), std::numeric_limits<real_t>::infinity());
+		iM.mrwOr(A, &vec_test[0]);
+		_ASSERT_VECTOR_EQ(vec_et, vec_test, "() failed");
+	}
+}
+TEST(TestSMath, mrwOr) {
+	constexpr unsigned rowsCnt = _baseRowsCnt;
+	const vec_len_t maxCols = g_MinDataSizeDelta*SMath_t::Thresholds_t::mrwBinaryOR_mt_cw_colsPerThread
+		, maxRows = rowsCnt + g_MinDataSizeDelta;
+	for (vec_len_t r = rowsCnt; r < maxRows; ++r) {
+		for (vec_len_t c = 1; c < maxCols; ++c) {
+			ASSERT_NO_FATAL_FAILURE(test_mrwOr_corr(r, c));
+		}
 	}
 }

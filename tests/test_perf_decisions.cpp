@@ -382,8 +382,8 @@ void check_evCMulSub(iMath& iM, vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 	rg.set_ithreads(iM.ithreads());
 	rg.gen_matrix(vW2, 2);
 	rg.gen_matrix(W2, 2);
-	vW2.cloneTo(vW);
-	W2.cloneTo(W);
+	vW2.clone_to(vW);
+	W2.clone_to(W);
 
 	utils::prioritize_workers<utils::PriorityClass::PerfTesting, iMath::ithreads_t> pw(iM.ithreads());
 
@@ -797,31 +797,31 @@ void check_rowvecs_renorm(iMath& iM, vec_len_t rowsCnt, vec_len_t colsCnt = 10) 
 	for (unsigned r = 0; r < maxReps; ++r) {
 		rg.gen_matrix(srcW, scale);
 
-		srcW.cloneTo(etW);
+		srcW.clone_to(etW);
 		const real_t meanNorm = rowvecs_renorm_ET(etW, newNormSq, true, &tmp[0]);
 
-		srcW.cloneTo(W);
+		srcW.clone_to(W);
 		bt = steady_clock::now();
 		rowvecs_renorm_naive(W, newNormSq, &tmp[0]);
 		diffNaive += steady_clock::now() - bt;
 		//ASSERT_EQ(etW, W) << "rowvecs_renorm_naive";
 		ASSERT_MTX_EQ(etW, W, "rowvecs_renorm_naive");
 
-		srcW.cloneTo(W);
+		srcW.clone_to(W);
 		bt = steady_clock::now();
 		rowvecs_renorm_clmnw(W, newNormSq, &tmp[0]);
 		diffClmnw += steady_clock::now() - bt;
 		//ASSERT_EQ(etW, W) << "rowvecs_renorm_clmnw";
 		ASSERT_MTX_EQ(etW, W, "rowvecs_renorm_clmnw");
 
-		srcW.cloneTo(W);
+		srcW.clone_to(W);
 		bt = steady_clock::now();
 		rowvecs_renorm_clmnw2(W, newNormSq, &tmp[0]);
 		diffClmnw2 += steady_clock::now() - bt;
 		//ASSERT_EQ(etW, W) << "rowvecs_renorm_clmnw2";
 		ASSERT_MTX_EQ(etW, W, "rowvecs_renorm_clmnw2");
 
-		srcW.cloneTo(W);
+		srcW.clone_to(W);
 		bt = steady_clock::now();
 		rowvecs_renorm_clmnw_part(W, newNormSq, &tmp[0], &ofs[0]);
 		diffClmnwPart += steady_clock::now() - bt;
@@ -1633,33 +1633,33 @@ void test_ActPrmVsNonprm_perf(vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 	for (unsigned r = 0; r < maxReps; ++r) {
 			rg.gen_matrix(XSrc, real_t(5.0));
 
-			XSrc.cloneTo(X);
+			XSrc.clone_to(X);
 			tA1.tic();
 			AType::f(X);
 			tA1.toc();
 
-			XSrc.cloneTo(X);
+			XSrc.clone_to(X);
 			tB1.tic();
 			BType::f(X);
 			tB1.toc();
 
-			XSrc.cloneTo(X);
+			XSrc.clone_to(X);
 			tA2.tic();
 			AType::f(X);
 			tA2.toc();
 
-			XSrc.cloneTo(X);
+			XSrc.clone_to(X);
 			tB2.tic();
 			BType::f(X);
 			tB2.toc();
 
-			XSrc.cloneTo(X);
+			XSrc.clone_to(X);
 			tA3.tic();
 			AType::f(X);
 			tA3.toc();
-			X.cloneTo(TV);
+			X.clone_to(TV);
 
-			XSrc.cloneTo(X);
+			XSrc.clone_to(X);
 			tB3.tic();
 			BType::f(X);
 			tB3.toc();

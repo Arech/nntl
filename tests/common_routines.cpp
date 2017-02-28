@@ -103,8 +103,8 @@ void makeTdForGatedSetup(const train_data<real_t>& td, train_data<real_t>& tdGat
 		makeDataXForGatedSetup(td.test_x(), td.test_y(), iR, iM, bBinarize, gatesCnt, nt);
 	}
 	
-	td.train_y().cloneTo(ntry);
-	td.test_y().cloneTo(nty);
+	td.train_y().clone_to(ntry);
+	td.test_y().clone_to(nty);
 
 	ASSERT_TRUE(tdGated.absorb(std::move(ntr), std::move(ntry), std::move(nt), std::move(nty)));
 }

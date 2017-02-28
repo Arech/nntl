@@ -156,7 +156,7 @@ namespace GW { //GW namespace is for grad_works mixins and other stuff, that hel
 					get_self().get_iMath().apply_ILR(dLdW, prevdLdW, m_ILRGain, m_ILR.mulDecr, m_ILR.mulIncr, m_ILR.capLow, m_ILR.capHigh);
 					iI.apply_grad_postILR(dLdW, m_ILRGain);
 				}
-				if (!bUseVelocity) dLdW.cloneTo(m_prevdLdW);
+				if (!bUseVelocity) dLdW.clone_to(m_prevdLdW);
 			}
 		}
 

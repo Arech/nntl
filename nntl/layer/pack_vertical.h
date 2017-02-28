@@ -76,16 +76,16 @@ namespace nntl {
 
 		static constexpr size_t layers_count = sizeof...(Layrs);
 		static_assert(layers_count > 1, "For vertical pack with a single inner layer use that layer instead");
-		typedef typename std::remove_reference<typename std::tuple_element<0, _layers>::type>::type first_layer_t;
-		typedef typename std::remove_reference<typename std::tuple_element<layers_count - 1, _layers>::type>::type last_layer_t;
-		//fprop() moves from first to last layer.
+		typedef typename std::remove_reference<typename std::tuple_element<0, _layers>::type>::type lowmost_layer_t;
+		typedef typename std::remove_reference<typename std::tuple_element<layers_count - 1, _layers>::type>::type topmost_layer_t;
+		//fprop() goes from the lowmost_layer_t to the topmost_layer_t layer.
 
 		//the first layer mustn't be input layer, the last - can't be output layer
-		static_assert(!std::is_base_of<m_layer_input, first_layer_t>::value, "First layer can't be the input layer!");
-		static_assert(!std::is_base_of<m_layer_output, last_layer_t>::value, "Last layer can't be the output layer!");
+		static_assert(!std::is_base_of<m_layer_input, lowmost_layer_t>::value, "First layer can't be the input layer!");
+		static_assert(!std::is_base_of<m_layer_output, topmost_layer_t>::value, "Last layer can't be the output layer!");
 
-		typedef typename first_layer_t::_layer_init_data_t _layer_init_data_t;
-		typedef typename first_layer_t::common_data_t common_data_t;
+		typedef typename lowmost_layer_t::_layer_init_data_t _layer_init_data_t;
+		typedef typename lowmost_layer_t::common_data_t common_data_t;
 
 	protected:
 		//we need 2 matrices for bprop()
@@ -97,6 +97,8 @@ namespace nntl {
 	private:
 		layer_index_t m_layerIdx;
 
+	protected:
+		
 		//////////////////////////////////////////////////////////////////////////
 		//
 	protected:
@@ -115,13 +117,15 @@ namespace nntl {
 			utils::for_eachwp_up(m_layers, initializer);
 		}
 
-		first_layer_t& first_layer()const noexcept { return std::get<0>(m_layers); }
-		last_layer_t& last_layer()const noexcept { return std::get<layers_count - 1>(m_layers); }
+		//first layer is lowmost layer
+		lowmost_layer_t& lowmost_layer()const noexcept { return std::get<0>(m_layers); }
+		//last layer is topmost layer
+		topmost_layer_t& topmost_layer()const noexcept { return std::get<layers_count - 1>(m_layers); }
 
 	public:
 		~_layer_pack_vertical()noexcept {}
 		_layer_pack_vertical(const char* pCustomName, Layrs&... layrs)noexcept 
-			: _base_class(pCustomName), m_layers(layrs...), m_layerIdx(0) 
+			: _base_class(pCustomName), m_layers(layrs...), m_layerIdx(0)
 		{
 			//#todo this better be done with a single static_assert in the class scope
 			utils::for_each_up(m_layers, [](auto& l)noexcept {
@@ -134,12 +138,14 @@ namespace nntl {
 		//////////////////////////////////////////////////////////////////////////
 		// helpers to access common data 
 		// #todo this implies, that the following functions are described in _i_layer interface. It's not the case at this moment.
-		const common_data_t& get_common_data()const noexcept { return first_layer().get_common_data(); }
-		iMath_t& get_iMath()const noexcept { return first_layer().get_iMath(); }
-		iRng_t& get_iRng()const noexcept { return first_layer().get_iRng(); }
-		iInspect_t& get_iInspect()const noexcept { return first_layer().get_iInspect(); }
-		const vec_len_t get_max_fprop_batch_size()const noexcept { return first_layer().get_max_fprop_batch_size(); }
-		const vec_len_t get_training_batch_size()const noexcept { return first_layer().get_training_batch_size(); }
+		const common_data_t& get_common_data()const noexcept { return lowmost_layer().get_common_data(); }
+		iMath_t& get_iMath()const noexcept { return lowmost_layer().get_iMath(); }
+		iRng_t& get_iRng()const noexcept { return lowmost_layer().get_iRng(); }
+		iInspect_t& get_iInspect()const noexcept { return lowmost_layer().get_iInspect(); }
+		const vec_len_t get_max_fprop_batch_size()const noexcept { return lowmost_layer().get_max_fprop_batch_size(); }
+		const vec_len_t get_training_batch_size()const noexcept { return lowmost_layer().get_training_batch_size(); }
+		const vec_len_t get_biggest_batch_size()const noexcept { return lowmost_layer().get_biggest_batch_size(); }
+		const bool isTrainingMode()const noexcept { return lowmost_layer().isTrainingMode(); }
 		
 		//////////////////////////////////////////////////////////////////////////
 		//and apply function _Func(auto& layer) to each underlying (non-pack) layer here
@@ -163,14 +169,14 @@ namespace nntl {
 		}
 
 		const layer_index_t get_layer_idx() const noexcept { return m_layerIdx; }
-		const neurons_count_t get_neurons_cnt() const noexcept { return get_self().last_layer().get_neurons_cnt(); }
-		const neurons_count_t get_incoming_neurons_cnt()const noexcept { return  get_self().first_layer().get_incoming_neurons_cnt(); }
+		const neurons_count_t get_neurons_cnt() const noexcept { return get_self().topmost_layer().get_neurons_cnt(); }
+		const neurons_count_t get_incoming_neurons_cnt()const noexcept { return  get_self().lowmost_layer().get_incoming_neurons_cnt(); }
 
-		const realmtxdef_t& get_activations()const noexcept { 
-			NNTL_ASSERT(m_bActivationsValid);
-			return get_self().last_layer().get_activations();
-		}
-		const mtx_size_t get_activations_size()const noexcept { return get_self().last_layer().get_activations_size(); }
+		const realmtxdef_t& get_activations()const noexcept { return get_self().topmost_layer().get_activations(); }
+		const mtx_size_t get_activations_size()const noexcept { return get_self().topmost_layer().get_activations_size(); }
+		const bool is_activations_shared()const noexcept { return get_self().topmost_layer().is_activations_shared(); }
+
+		const bool is_drop_samples_mbc()const noexcept { return get_self().topmost_layer().is_drop_samples_mbc(); }
 
 		//should return true, if the layer has a value to add to Loss function value (there's some regularizer attached)
 		bool hasLossAddendum()const noexcept {
@@ -185,15 +191,18 @@ namespace nntl {
 			return la;
 		}
 
-		void set_mode(vec_len_t batchSize, real_t* pNewActivationStorage = nullptr)noexcept {
-			m_bActivationsValid = false;
-			m_bTraining = 0 == batchSize;
-			utils::for_each_exc_last_up(m_layers, [batchSize](auto& lyr)noexcept {
-				lyr.set_mode(batchSize);
-			});
-			get_self().last_layer().set_mode(batchSize, pNewActivationStorage);
+		//////////////////////////////////////////////////////////////////////////
+		//in order to pass correct initialization values to underlying topmost layer, we must define a .OuterLayerCustomFlag1Eval()
+
+		template<typename PhlsTupleT>
+		std::enable_if_t< _impl::layer_has_OuterLayerCustomFlag1Eval<topmost_layer_t, PhlsTupleT, _layer_init_data_t>::value, bool>
+			OuterLayerCustomFlag1Eval(const PhlsTupleT& lphTuple, const _layer_init_data_t& lphLid)const noexcept
+		{
+			return topmost_layer().OuterLayerCustomFlag1Eval(lphTuple, lphLid);
 		}
 
+		//////////////////////////////////////////////////////////////////////////
+		//
 		ErrorCode init(_layer_init_data_t& lid, real_t* pNewActivationStorage = nullptr)noexcept {
 			_base_class::init();
 			ErrorCode ec = ErrorCode::Success;
@@ -207,11 +216,12 @@ namespace nntl {
 			//we must initialize encapsulated layers and find out their initMem() requirements. Things to consider:
 			// - we'll be passing dLdA and dLdAPrev arguments of bprop() down to layer stack, therefore we must
 			//		propagate/return max() of layer's max_dLdA_numel as ours lid.max_dLdA_numel.
-			// - layers will be called sequentially and so will be used the shared memory.
+			// - layers will be called sequentially, therefore they are safe to use a shared memory.
 			auto initD = lid.dupe();
-			utils::for_each_exc_last_up(m_layers, [&](auto& l)noexcept {
+			utils::for_each_exc_last_up(m_layers, [&ec, &initD, &lid, &failedLayerIdx](auto& l)noexcept {
 				if (ErrorCode::Success == ec) {
-					initD.clean();
+					initD.clean_using(); // there are currently no IN flags/variables in _layer_init_data_t structure,
+					// that must be propagated to every layer in a stack, therefore we're using the default clean_using() form.
 					ec = l.init(initD);
 					if (ErrorCode::Success == ec) {
 						lid.update(initD);
@@ -220,11 +230,11 @@ namespace nntl {
 			});
 			//doubling the code by intention, because some layers can be incompatible with pNewActivationStorage specification
 			if (ErrorCode::Success == ec) {
-				initD.clean();
-				ec = get_self().last_layer().init(initD, pNewActivationStorage);
+				initD.clean_using(lid);//we must propagate any IN flags set in the .lid variable to the topmost layer being initialized.
+				ec = get_self().topmost_layer().init(initD, pNewActivationStorage);
 				if (ErrorCode::Success == ec) {
 					lid.update(initD);
-				} else failedLayerIdx = get_self().last_layer().get_layer_idx();
+				} else failedLayerIdx = get_self().topmost_layer().get_layer_idx();
 			}
 
 			//must be called after first inner layer initialization complete - see our get_iInspect() implementation
@@ -241,10 +251,19 @@ namespace nntl {
 		}
 
 		void initMem(real_t* ptr, numel_cnt_t cnt)noexcept {
-			//we'd just pass the pointer data down to layer stack
+			//we'd just pass the pointer data down to the layer stack
 			get_self().for_each_packed_layer([=](auto& l) {l.initMem(ptr, cnt); });
 		}
 
+		void set_batch_size(const vec_len_t batchSize, real_t*const pNewActivationStorage = nullptr)noexcept {
+			NNTL_ASSERT(batchSize > 0);
+			utils::for_each_exc_last_up(m_layers, [batchSize](auto& lyr)noexcept {
+				lyr.set_batch_size(batchSize);
+			});
+			get_self().topmost_layer().set_batch_size(batchSize, pNewActivationStorage);
+		}
+
+		//////////////////////////////////////////////////////////////////////////
 		//variation of fprop for normal layer
 		template <typename LowerLayer>
 		std::enable_if_t<!_impl::is_layer_wrapper<LowerLayer>::value> fprop(const LowerLayer& lowerLayer)noexcept
@@ -257,10 +276,10 @@ namespace nntl {
 		std::enable_if_t<_impl::is_layer_wrapper<LowerLayerWrapper>::value> fprop(const LowerLayerWrapper& lowerLayer)noexcept
 		{
 			auto& iI = get_self().get_iInspect();
-			iI.fprop_begin(get_self().get_layer_idx(), lowerLayer.get_activations(), m_bTraining);
+			iI.fprop_begin(get_self().get_layer_idx(), lowerLayer.get_activations(), get_self().isTrainingMode());
 
 			NNTL_ASSERT(lowerLayer.get_activations().test_biases_ok());
-			get_self().first_layer().fprop(lowerLayer);
+			get_self().lowmost_layer().fprop(lowerLayer);
 			utils::for_eachwp_up(m_layers, [](auto& lcur, auto& lprev, const bool)noexcept {
 				NNTL_ASSERT(lprev.get_activations().test_biases_ok());
 				lcur.fprop(lprev);
@@ -268,19 +287,18 @@ namespace nntl {
 			});
 			NNTL_ASSERT(lowerLayer.get_activations().test_biases_ok());
 
-			m_bActivationsValid = true;
 			iI.fprop_end(get_self().get_activations());
 		}
 
 		template <typename LowerLayer>
 		const unsigned bprop(realmtxdef_t& dLdA, const LowerLayer& lowerLayer, realmtxdef_t& dLdAPrev)noexcept {
 			static_assert(std::is_base_of<_i_layer_trainable, LowerLayer>::value, "Template parameter LowerLayer must implement _i_layer_trainable");
-			m_bActivationsValid = false;
+
 			auto& iI = get_self().get_iInspect();
 			iI.bprop_begin(get_self().get_layer_idx(), dLdA);
 
 			NNTL_ASSERT(lowerLayer.get_activations().test_biases_ok());
-			NNTL_ASSERT(dLdA.size() == last_layer().get_activations().size_no_bias());
+			NNTL_ASSERT(dLdA.size() == topmost_layer().get_activations().size_no_bias());
 			NNTL_ASSERT( (std::is_base_of<m_layer_input, LowerLayer>::value) || dLdAPrev.size() == lowerLayer.get_activations().size_no_bias());
 
 			realmtxdefptr_array_t a_dLdA = { &dLdA, &dLdAPrev };
@@ -303,7 +321,7 @@ namespace nntl {
 			if (std::is_base_of<m_layer_input, LowerLayer>::value) {
 				a_dLdA[nextMtxIdx]->deform(0, 0);
 			}else a_dLdA[nextMtxIdx]->deform_like_no_bias(lowerLayer.get_activations());
-			const unsigned bAlternate = get_self().first_layer().bprop(*a_dLdA[mtxIdx], lowerLayer, *a_dLdA[nextMtxIdx]);
+			const unsigned bAlternate = get_self().lowmost_layer().bprop(*a_dLdA[mtxIdx], lowerLayer, *a_dLdA[nextMtxIdx]);
 			NNTL_ASSERT(1 == bAlternate || 0 == bAlternate);
 			mtxIdx ^= bAlternate;
 
@@ -311,6 +329,14 @@ namespace nntl {
 
 			iI.bprop_end(mtxIdx ? dLdAPrev : dLdA);
 			return mtxIdx;
+		}
+		
+		//#TODO we should adopt topmost_layer().is_trivial_drop_samples() function signature here, but it look like non-trivial
+		//to detect if the constexpr attribute was used.
+		const bool is_trivial_drop_samples() const noexcept { return get_self().topmost_layer().is_trivial_drop_samples(); }
+
+		void drop_samples(const realmtx_t& mask, const bool bBiasesToo)noexcept {
+			get_self().topmost_layer().drop_samples(mask, bBiasesToo);
 		}
 
 	private:

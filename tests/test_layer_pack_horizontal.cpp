@@ -187,19 +187,19 @@ void test_same_layers(train_data<real_t>& td, uint64_t rngSeed) {
 	_impl::layers_mem_requirements lmr;
 	
 	iRng.seed64(rngSeed-1);
-	lid.clean();
+	lid.clean_using();
 	auto ec = Ainp.init(lid);
 	ASSERT_EQ(ec, _nnet_errs::ErrorCode::Success) << "Failed to initialize Ainp";
 	lmr.updateLayerReq(lid);
 	
 	iRng.seed64(rngSeed);
-	lid.clean();
+	lid.clean_using();
 	ec = Aund.init(lid);
 	ASSERT_EQ(ec, _nnet_errs::ErrorCode::Success) << "Failed to initialize Aund";
 	lmr.updateLayerReq(lid);
 
 	iRng.seed64(rngSeed+1);
-	lid.clean();
+	lid.clean_using();
 	ec = Aint.init(lid);
 	ASSERT_EQ(ec, _nnet_errs::ErrorCode::Success) << "Failed to initialize Aint";
 	lmr.updateLayerReq(lid);
@@ -241,19 +241,19 @@ void test_same_layers(train_data<real_t>& td, uint64_t rngSeed) {
 	lmr.zeros();
 
 	iRng.seed64(rngSeed-1);
-	lid.clean();
+	lid.clean_using();
 	ec = Binp.init(lid);
 	ASSERT_EQ(ec, _nnet_errs::ErrorCode::Success) << "Failed to initialize Binp";
 	lmr.updateLayerReq(lid);
 
 	iRng.seed64(rngSeed);
-	lid.clean();
+	lid.clean_using();
 	ec = Bund.init(lid);
 	ASSERT_EQ(ec, _nnet_errs::ErrorCode::Success) << "Failed to initialize Bund";
 	lmr.updateLayerReq(lid);
 
 	iRng.seed64(rngSeed + 1);
-	lid.clean();
+	lid.clean_using();
 	ec = lpHor.init(lid);
 	ASSERT_EQ(ec, _nnet_errs::ErrorCode::Success) << "Failed to initialize lpHor";
 	lmr.updateLayerReq(lid);
@@ -287,18 +287,19 @@ void test_same_layers(train_data<real_t>& td, uint64_t rngSeed) {
 	//only the first layer weighs will be the same as Aint, because we cant reinit rng during lpHor.init(). We'll set Bifcl2 weights by hand
 	ASSERT_EQ(Aint.get_weights().size(), Bifcl2.get_weights().size());
 	realmtx_t tmpMtx;
-	Aint.get_weights().cloneTo(tmpMtx);
+	Aint.get_weights().clone_to(tmpMtx);
 	Bifcl2.set_weights(std::move(tmpMtx));
 
 	//////////////////////////////////////////////////////////////////////////
 	// doing and checking forward pass
-	
-	utils::for_each_up(AlayersTuple, [](auto& lyr)noexcept { lyr.set_mode(0); });
+	CD.set_training_mode(true);
+
+	utils::for_each_up(AlayersTuple, [trainSamplesCnt](auto& lyr)noexcept { lyr.set_batch_size(trainSamplesCnt); });
 	Ainp.fprop(trainX);
 	Aund.fprop(Ainp);
 	Aint.fprop(Aund);
 
-	utils::for_each_up(BlayersTuple, [](auto& lyr)noexcept { lyr.set_mode(0); });
+	utils::for_each_up(BlayersTuple, [trainSamplesCnt](auto& lyr)noexcept { lyr.set_batch_size(trainSamplesCnt); });
 	Binp.fprop(trainX);
 	Bund.fprop(Binp);
 	lpHor.fprop(Bund);
@@ -356,6 +357,24 @@ TEST(TestLayerPackHorizontal, SameLayers) {
 	ASSERT_NO_FATAL_FAILURE(test_same_layers(td, 0));
 	ASSERT_NO_FATAL_FAILURE(test_same_layers(td, std::time(0)));
 }
+
+/*
+TEST(TestLayerPackHorizontal, layer_has_LPHCustomFlagEval) {
+	LFC<> lfc(10);
+	layer_identity_gate<> lig;
+
+	auto lpg = make_layer_pack_gated(lfc, lig);
+
+	auto lph = make_layer_pack_horizontal(make_PHL(lig, 0, 1), make_PHL(lpg, 1, 2));
+
+	static_assert(_impl::layer_has_LPHCustomFlagEval<decltype(lpg), decltype(lph)::_phl_tuple>::value, "Wrong LPG");
+	static_assert(!_impl::layer_has_LPHCustomFlagEval<decltype(lfc), decltype(lph)::_phl_tuple>::value, "Wrong LFC");
+	
+// 	ASSERT_TRUE((_impl::layer_has_LPHCustomFlagEval<decltype(lpg), decltype(lph)::_phl_tuple>::value));
+// 	ASSERT_FALSE((_impl::layer_has_LPHCustomFlagEval<decltype(lfc), decltype(lph)::_phl_tuple>::value));
+
+}
+*/
 
 
 /*

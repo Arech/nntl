@@ -92,19 +92,19 @@ namespace math {
 				pNum += mtxRows;
 			}
 
-			void beforeMainLoop(const vec_len_t colBegin, const vec_len_t mtxRows)noexcept {
+			void initOperation(const vec_len_t colBegin, const vec_len_t mtxRows)noexcept {
 				//adjusting matrix data pointer to the beginning of colBegin column
 				pNumerator += realmtx_t::sNumel(mtxRows, colBegin);
 			};
 
-			void cw_afterInnerLoop(const size_t mtxRows)noexcept {
+			void cw_toNextCol(const size_t mtxRows)noexcept {
 				//proceeding to next column
 				pNumerator += mtxRows;
 			};
 
 			static constexpr vec_len_t rw_FirstColumnIdx = 0;
 			template<typename VecBaseT, typename MtxBaseT>
-			VecBaseT rw_beforeInnerLoop(VecBaseT& vecElm, MtxBaseT*& pFirstMtxElm, const size_t mtxRows
+			VecBaseT rw_initVecElm(VecBaseT& vecElm, MtxBaseT*& pFirstMtxElm, const size_t mtxRows
 				, const vec_len_t colBegin, const vec_len_t r)noexcept
 			{
 				pNum = pNumerator + r;
@@ -329,7 +329,7 @@ namespace math {
 		//extract rows with indexes specified by Contnr ridxs into dest.
 		template<typename SeqIt>
 		void mExtractRows(const realmtx_t& src, SeqIt ridxsItBegin, const numel_cnt_t ridxsCnt, realmtx_t& dest)noexcept {
-			if (dest.numel() < Thresholds_t::mExtractRows) {
+			if (dest.cols()<2 || dest.numel() < Thresholds_t::mExtractRows) {
 				get_self().mExtractRows_st_naive(src, ridxsItBegin, ridxsCnt, dest);
 			} else get_self().mExtractRows_mt_naive(src, ridxsItBegin, ridxsCnt, dest);
 		}
@@ -379,29 +379,19 @@ namespace math {
 
 				auto pSrc = src.data();
 				auto pDest = dest.data() + rOfs;
-				const auto pDestEnd = pDest + dest.numel();//BUGBUG!! dest.numel() is a bug probably 
+				const auto pDestEnd = pDest + dest.numel();
 				auto pThreadRI = ridxsItBegin + rOfs;
 
 				while (pDest != pDestEnd) {
 					auto pRI = pThreadRI;
-					auto destCur = pDest;// [c*destRows];
+					auto destCur = pDest;
 					pDest += destRows;
 					const auto destEnd = destCur + rCnt;
-					//const auto thisBeg = &pSrc[c*srcRows];
 					while (destCur != destEnd) {
 						*destCur++ = *(pSrc + *pRI++);
 					}
 					pSrc += srcRows;
 				}
-				/*for (numel_cnt_t c = 0; c < destCols; ++c) {
-					auto pRI = pThreadRI;
-					auto destCur = &pDest[c*destRows];
-					const auto destEnd = destCur + rCnt;
-					const auto thisBeg = &pSrc[c*srcRows];
-					while (destCur != destEnd) {
-						*destCur++ = *(thisBeg + *pRI++);
-					}
-				}*/
 			}, ridxsCnt);
 		}
 

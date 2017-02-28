@@ -372,7 +372,7 @@ namespace nntl {
 			case RMSProp_Graves:
 				if (bFirstRun) {
 					iM.evSquare(m_optMtxA, dLdW);
-					dLdW.cloneTo(m_optMtxB);
+					dLdW.clone_to(m_optMtxB);
 					iM.evMulC_ip(dLdW, m_learningRate);
 				} else iM.RMSProp_Graves(dLdW, m_optMtxA, m_optMtxB, m_learningRate, m_optBeta1, m_numericStabilizerEps);
 				break;

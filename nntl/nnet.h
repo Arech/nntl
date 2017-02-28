@@ -166,7 +166,7 @@ namespace nntl {
 			if (pTestEvalRes) {
 				//saving training results
 				pTestEvalRes->lossValue = testLoss;
-				m_Layers.output_layer().get_activations().cloneTo(pTestEvalRes->output_activations);
+				m_Layers.output_layer().get_activations().clone_to(pTestEvalRes->output_activations);
 			}
 
 			obs.inspect_results(epoch, td.test_y(), true, *this);
@@ -183,7 +183,7 @@ namespace nntl {
 
 		void _fprop(const realmtx_t& data_x)noexcept {
 			//preparing for evaluation
-			m_Layers.set_mode(data_x.rows());
+			set_mode_and_batch_size(data_x.rows());
 			m_Layers.fprop(data_x);
 		}
 		real_t _calcLoss(const realmtx_t& data_x, const realmtx_t& data_y, const bool bDropFProp = false) noexcept {
@@ -230,7 +230,7 @@ namespace nntl {
 				m_failedLayerIdx = le.second;
 				return le.first;
 			}
-			NNTL_ASSERT(m_LMR.maxSingledLdANumel > 0);//there must be at least room to store dL/dA
+			NNTL_ASSERT(m_LMR.maxSingledLdANumel > 0);
 			
 			if (!get_iMath().init()) return ErrorCode::CantInitializeIMath;
 
@@ -306,6 +306,13 @@ namespace nntl {
 			m_pTmpStor.clear();
 		}
 		
+		void set_mode_and_batch_size(const vec_len_t bs)noexcept {
+			const bool bIsTraining = bs == 0;
+			auto& cd = get_common_data();
+			cd.set_training_mode(bIsTraining);
+			m_Layers.set_batch_size(bIsTraining ? cd.training_batch_size() : bs);
+		}
+
 	public:
 
 		template <bool bPrioritizeThreads = true, typename TrainOptsT, typename OnEpochEndCbT = NNetCB_OnEpochEnd_Dummy>
@@ -398,7 +405,7 @@ namespace nntl {
 				iI.train_postCalcError();
 			}
 
-			m_Layers.set_mode(0);//prepare for training (sets to batchSize, that's already stored in Layers)
+			set_mode_and_batch_size(0);//prepare for training (sets to batchSize, that's already stored in Layers)
 
 			nnet_eval_results<real_t>* pTestEvalRes = nullptr;
 
@@ -442,7 +449,7 @@ namespace nntl {
 						if (bOptFBErrCalcThisEpoch) {
 							if (m_bCalcFullLossValue) m_Layers.prepToCalcLossAddendum();
 							trainLoss = _calcLoss(batch_x, batch_y, true);
-							//we don't need to call m_Layers.set_mode(0) here because we did not do fprop() in _calcLoss()
+							//we don't need to call set_mode_and_batch_size(0) here because we did not do fprop() in _calcLoss()
 							if (bInspectEpoch) opts.observer().inspect_results(epochIdx, train_y, false, *this);
 						}
 
@@ -471,7 +478,7 @@ namespace nntl {
 								trr.lossValue = trainLoss;
 								//we can call output_layer().get_activations() here because for the last epoch
 								// bOptFBErrCalcThisEpoch is always ==false
-								m_Layers.output_layer().get_activations().cloneTo(trr.output_activations);
+								m_Layers.output_layer().get_activations().clone_to(trr.output_activations);
 								pTestEvalRes = &opts.NNEvalFinalResults().testSet;
 							}
 							
@@ -484,7 +491,7 @@ namespace nntl {
 						}
 
 						if (bInspectEpoch || !bOptFBErrCalcThisEpoch)
-							m_Layers.set_mode(0);//restoring training mode after _calcLoss()
+							set_mode_and_batch_size(0);//restoring training mode after _calcLoss()
 					}
 
 					iI.train_epochEnd();
@@ -524,7 +531,7 @@ namespace nntl {
 			if (m_bCalcFullLossValue && !bUseOldLossAddendum) m_Layers.prepToCalcLossAddendum();
 
 			res.lossValue = _calcLoss(data_x, data_y);
-			m_Layers.output_layer().get_activations().cloneTo(res.output_activations);
+			m_Layers.output_layer().get_activations().clone_to(res.output_activations);
 			return _set_last_error(ec);
 		}
 
@@ -549,10 +556,13 @@ namespace nntl {
 		{
 			return _init(biggestFprop, batchSize, bMiniBatch, train_x_cols, train_y_cols, pTtd);
 		}
+
+		//for unit-testing only!
+		common_data_t& ___get_common_data()noexcept { return get_common_data(); }
 	
 	};
 
-	template <typename LayersPack>
+	/*template <typename LayersPack>
 	inline constexpr nnet<LayersPack> make_nnet(LayersPack& lp)noexcept { return nnet<LayersPack>(lp); }
 
 	template <typename LayersPack>
@@ -582,6 +592,38 @@ namespace nntl {
 	template <typename LayersPack>
 	inline constexpr nnet<LayersPack> make_nnet(LayersPack& lp, typename LayersPack::iInspect_t& iI, typename LayersPack::iMath_t& iM, typename LayersPack::iRng_t& iR)noexcept {
 		return nnet<LayersPack>(lp, &iI, &iM, &iR);
+	}*/
+
+	template <template<typename> class NnT = nnet, typename LayersPack = void>
+	inline constexpr NnT<LayersPack> make_nnet(LayersPack& lp)noexcept { return NnT<LayersPack>(lp); }
+
+	template <template<typename> class NnT = nnet, typename LayersPack = void>
+	inline constexpr NnT<LayersPack> make_nnet(LayersPack& lp, typename LayersPack::iRng_t& iR)noexcept {
+		return NnT<LayersPack>(lp, nullptr, nullptr, &iR);
+	}
+	template <template<typename> class NnT = nnet, typename LayersPack = void>
+	inline constexpr NnT<LayersPack> make_nnet(LayersPack& lp, typename LayersPack::iMath_t& iM)noexcept {
+		return NnT<LayersPack>(lp, nullptr, &iM);
+	}
+	template <template<typename> class NnT = nnet, typename LayersPack = void>
+	inline constexpr NnT<LayersPack> make_nnet(LayersPack& lp, typename LayersPack::iMath_t& iM, typename LayersPack::iRng_t& iR)noexcept {
+		return NnT<LayersPack>(lp, nullptr, &iM, &iR);
+	}
+
+	template <template<typename> class NnT = nnet, typename LayersPack = void>
+	inline constexpr NnT<LayersPack> make_nnet(LayersPack& lp, typename LayersPack::iInspect_t& iI)noexcept { return NnT<LayersPack>(lp, &iI); }
+
+	template <template<typename> class NnT = nnet, typename LayersPack = void>
+	inline constexpr NnT<LayersPack> make_nnet(LayersPack& lp, typename LayersPack::iInspect_t& iI, typename LayersPack::iRng_t& iR)noexcept {
+		return NnT<LayersPack>(lp, &iI, nullptr, &iR);
+	}
+	template <template<typename> class NnT = nnet, typename LayersPack = void>
+	inline constexpr NnT<LayersPack> make_nnet(LayersPack& lp, typename LayersPack::iInspect_t& iI, typename LayersPack::iMath_t& iM)noexcept {
+		return NnT<LayersPack>(lp, &iI, &iM);
+	}
+	template <template<typename> class NnT = nnet, typename LayersPack = void>
+	inline constexpr NnT<LayersPack> make_nnet(LayersPack& lp, typename LayersPack::iInspect_t& iI, typename LayersPack::iMath_t& iM, typename LayersPack::iRng_t& iR)noexcept {
+		return NnT<LayersPack>(lp, &iI, &iM, &iR);
 	}
 
 }

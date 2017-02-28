@@ -105,6 +105,7 @@ TEST(Simple, PlainFFN) {
 // I got 1.66% validation error rate at 30 epochs, which is pretty good result for this kind of NN according
 // to http://yann.lecun.com/exdb/mnist/index.html. There were no signs of overfitting, so longer learning could
 // lead to even better results.
+// btw, dropout is in fact make things worse here. Try disabling it by setting dropoutRate to 0 or 1.
 TEST(Simple, NotSoPlainFFN) {
 	train_data<real_t> td;
 	reader_t reader;

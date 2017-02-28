@@ -54,18 +54,18 @@ void test_dLdZ_corr(FET&& fet, FST&& fst, FMT&& fmt, FB&& fb, const char* descr,
 			rg.gen_matrix(Y, real_t(5.));
 		}
 
-		ASrc.cloneTo(dLdZ_ET);
+		ASrc.clone_to(dLdZ_ET);
 		(std::forward<FET>(fet))(Y, dLdZ_ET);
 
-		ASrc.cloneTo(A);
+		ASrc.clone_to(A);
 		(std::forward<FST>(fst))(Y, A);
 		ASSERT_MTX_EQ(dLdZ_ET, A, "_st");
 
-		ASrc.cloneTo(A);
+		ASrc.clone_to(A);
 		(std::forward<FMT>(fmt))(Y, A);
 		ASSERT_MTX_EQ(dLdZ_ET, A, "_mt");
 
-		ASrc.cloneTo(A);
+		ASrc.clone_to(A);
 		(std::forward<FB>(fb))(Y, A);
 		ASSERT_MTX_EQ(dLdZ_ET, A, "()");
 	}
@@ -97,21 +97,21 @@ void test_f_x_corr(FET&& fet, FST&& fst, FMT&& fmt, FB&& fb, const char* descr, 
 		}
 		ASSERT_TRUE(!XHasBiases || XSrc.test_biases_ok());
 
-		XSrc.cloneTo(X_ET);
+		XSrc.clone_to(X_ET);
 		(std::forward<FET>(fet))(X_ET);
 		ASSERT_TRUE(!XHasBiases || X_ET.test_biases_ok());
 
-		XSrc.cloneTo(X);
+		XSrc.clone_to(X);
 		(std::forward<FST>(fst))(X);
 		ASSERT_TRUE(!XHasBiases || X.test_biases_ok());
 		ASSERT_MTX_EQ(X_ET, X, "_st");
 
-		XSrc.cloneTo(X);
+		XSrc.clone_to(X);
 		(std::forward<FMT>(fmt))(X);
 		ASSERT_TRUE(!XHasBiases || X.test_biases_ok());
 		ASSERT_MTX_EQ(X_ET, X, "_mt");
 
-		XSrc.cloneTo(X);
+		XSrc.clone_to(X);
 		(std::forward<FB>(fb))(X);
 		ASSERT_TRUE(!XHasBiases || X.test_biases_ok());
 		ASSERT_MTX_EQ(X_ET, X, "()");
@@ -148,17 +148,17 @@ void test_f_x_xbasedET_corr(FET&& fet, FST&& fst, FMT&& fmt, FB&& fb, const char
 		(std::forward<FET>(fet))(X, F_ET);
 		ASSERT_TRUE(!XHasBiases || F_ET.test_biases_ok());
 
-		X.cloneTo(F);
+		X.clone_to(F);
 		(std::forward<FST>(fst))(F);
 		ASSERT_TRUE(!XHasBiases || F.test_biases_ok());
 		ASSERT_REALMTX_NEAR(F_ET, F, "_st", EPST::eps);
 
-		X.cloneTo(F);
+		X.clone_to(F);
 		(std::forward<FMT>(fmt))(F);
 		ASSERT_TRUE(!XHasBiases || F.test_biases_ok());
 		ASSERT_REALMTX_NEAR(F_ET, F, "_mt", EPST::eps);
 
-		X.cloneTo(F);
+		X.clone_to(F);
 		(std::forward<FB>(fb))(F);
 		ASSERT_TRUE(!XHasBiases || F.test_biases_ok());
 		ASSERT_REALMTX_NEAR(F_ET, F, "()", EPST::eps);
@@ -188,15 +188,15 @@ void test_df_x_xbasedET_corr(FET&& fet, DFET&& dfet, DFST&& dfst, DFMT&& dfmt, D
 		(std::forward<FET>(fet))(X, F);
 		ASSERT_TRUE(F.test_biases_ok());
 
-		F.cloneTo_no_bias(DF);
+		F.clone_to_no_bias(DF);
 		(std::forward<DFST>(dfst))(DF);
 		ASSERT_REALMTX_NEAR(df_ET, DF, "_st", EPST::eps);
 
-		F.cloneTo_no_bias(DF);
+		F.clone_to_no_bias(DF);
 		(std::forward<DFMT>(dfmt))(DF);
 		ASSERT_REALMTX_NEAR(df_ET, DF, "_mt", EPST::eps);
 
-		F.cloneTo_no_bias(DF);
+		F.clone_to_no_bias(DF);
 		(std::forward<DFB>(dfb))(DF);
 		ASSERT_REALMTX_NEAR(df_ET, DF, "()", EPST::eps);
 	}
@@ -206,7 +206,8 @@ void test_df_x_xbasedET_corr(FET&& fet, DFET&& dfet, DFST&& dfst, DFMT&& dfmt, D
 //////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////// 
 
-template<bool XValuesNorm = false, typename FST, typename FMT, typename FB>
+//if XValuesSpan1e3==0, then gen_matrix_norm() is used
+template<unsigned XValuesSpan1e3 = 10000, typename FST, typename FMT, typename FB>
 void test_f_x_perf(FST&& fst, FMT&& fmt, FB&& fb, const char* descr, vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 	const auto dataSize = realmtx_t::sNumel(rowsCnt, colsCnt);
 	STDCOUTL("**** testing " << descr << "() over " << rowsCnt << "x" << colsCnt << " matrix (" << dataSize << " elements) ****");
@@ -220,31 +221,31 @@ void test_f_x_perf(FST&& fst, FMT&& fmt, FB&& fb, const char* descr, vec_len_t r
 	tictoc tSt, tMt, tB, tSt2, tMt2;
 	utils::prioritize_workers<utils::PriorityClass::PerfTesting, imath_basic_t::ithreads_t> pw(iM.ithreads());
 	for (unsigned r = 0; r < maxReps; ++r) {
-		if (XValuesNorm) {
-			rg.gen_matrix_norm(XSrc);
-		} else rg.gen_matrix(XSrc, real_t(5.));
+		if (XValuesSpan1e3) {
+			rg.gen_matrix(XSrc, real_t(XValuesSpan1e3)/real_t(1e3));
+		} else rg.gen_matrix_norm(XSrc);
 
-		XSrc.cloneTo(X);
+		XSrc.clone_to(X);
 		tSt.tic();
 		(std::forward<FST>(fst))(X);
 		tSt.toc();
 
-		XSrc.cloneTo(X);
+		XSrc.clone_to(X);
 		tMt.tic();
 		(std::forward<FMT>(fmt))(X);
 		tMt.toc();
 
-		XSrc.cloneTo(X);
+		XSrc.clone_to(X);
 		tSt2.tic();
 		(std::forward<FST>(fst))(X);
 		tSt2.toc();
 
-		XSrc.cloneTo(X);
+		XSrc.clone_to(X);
 		tMt2.tic();
 		(std::forward<FMT>(fmt))(X);
 		tMt2.toc();
 
-		XSrc.cloneTo(X);
+		XSrc.clone_to(X);
 		tB.tic();
 		(std::forward<FB>(fb))(X);
 		tB.toc();
@@ -281,27 +282,27 @@ void test_dLdZ_perf(FST&& fst, FMT&& fmt, FB&& fb, const char* descr, vec_len_t 
 			rg.gen_matrix(Y, real_t(5.));
 		}
 
-		ASrc.cloneTo(A);
+		ASrc.clone_to(A);
 		tSt.tic();
 		(std::forward<FST>(fst))(Y, A);
 		tSt.toc();
 
-		ASrc.cloneTo(A);
+		ASrc.clone_to(A);
 		tMt.tic();
 		(std::forward<FMT>(fmt))(Y, A);
 		tMt.toc();
 
-		ASrc.cloneTo(A);
+		ASrc.clone_to(A);
 		tSt2.tic();
 		(std::forward<FST>(fst))(Y, A);
 		tSt2.toc();
 
-		ASrc.cloneTo(A);
+		ASrc.clone_to(A);
 		tMt2.tic();
 		(std::forward<FMT>(fmt))(Y, A);
 		tMt2.toc();
 
-		ASrc.cloneTo(A);
+		ASrc.clone_to(A);
 		tB.tic();
 		(std::forward<FB>(fb))(Y, A);
 		tB.toc();

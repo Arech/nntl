@@ -114,12 +114,18 @@ namespace nntl {
 		};
 		static constexpr const char _defName[] = "outp";
 
-		//constexpr const bool is_output_layer()const noexcept { return true; }
+		// Class assumes, that the content of the m_activations matrix on the beginning of the bprop() is the same as it was on exit from fprop().
+		// Don't change it outside of the class!
 		const realmtxdef_t& get_activations()const noexcept {
 			NNTL_ASSERT(m_bActivationsValid);
 			return m_activations;
 		}
 		const mtx_size_t get_activations_size()const noexcept { return m_activations.size(); }
+		const bool is_activations_shared()const noexcept {
+			const auto r = _base_class::is_activations_shared();
+			NNTL_ASSERT(!r || m_activations.bDontManageStorage());//shared activations can't manage their own storage
+			return r;
+		}
 
 		//#TODO: move all generic fullyconnected stuff into a special base class!
 
@@ -168,9 +174,11 @@ namespace nntl {
 			}
 
 			lid.nParamsToLearn = m_weights.numel();
+			
+			const auto biggestBatchSize = get_self().get_biggest_batch_size();
 
 			NNTL_ASSERT(!m_activations.emulatesBiases());
-			if (!m_activations.resize(get_self().get_max_fprop_batch_size(), get_self().get_neurons_cnt())) return ErrorCode::CantAllocateMemoryForActivations;
+			if (!m_activations.resize(biggestBatchSize, get_self().get_neurons_cnt())) return ErrorCode::CantAllocateMemoryForActivations;
 
 			//Math interface may have to operate on the following matrices:
 			// m_weights, m_dLdW - (m_neurons_cnt, get_incoming_neurons_cnt() + 1)
@@ -184,12 +192,10 @@ namespace nntl {
 
 			if (get_self().get_training_batch_size() > 0) {
 				//There's no dLdA coming into the output layer, therefore leave max_dLdA_numel it zeroed
-				//lid.max_dLdA_numel = 0; ///realmtx_t::sNumel(get_self().get_training_batch_size(), get_self().get_neurons_cnt());
+				//lid.max_dLdA_numel = 0;
 				
-				// we'll need 1 temporarily matrix for bprop(): for dL/dW [m_neurons_cnt x get_incoming_neurons_cnt()+1]
-				lid.maxMemBPropRequire = m_weights.numel();
-// 				lid.maxMemBPropRequire = realmtx_t::sNumel(get_self().get_training_batch_size(), get_self().get_neurons_cnt())
-// 					+ m_weights.numel();
+				// we'll need 1 temporarily matrix for bprop(): dL/dW [m_neurons_cnt x get_incoming_neurons_cnt()+1]
+				lid.maxMemTrainingRequire = m_weights.numel();
 			}
 
 			if (!m_gradientWorks.init(get_self().get_common_data(), m_weights.size()))return ErrorCode::CantInitializeGradWorks;
@@ -203,45 +209,36 @@ namespace nntl {
 		void deinit()noexcept {
 			m_gradientWorks.deinit();
 			m_activations.clear();
-			//m_dLdZ.clear();
 			m_dLdW.clear();
 			_base_class::deinit();
 		}
 
 		void initMem(real_t* ptr, numel_cnt_t cnt)noexcept {
 			if (get_self().get_training_batch_size() > 0) {
-// 				m_dLdZ.useExternalStorage(ptr, get_self().get_training_batch_size(), m_activations.cols_no_bias());
-// 				m_dLdW.useExternalStorage(ptr + m_dLdZ.numel(), m_weights);
-// 				NNTL_ASSERT(!m_dLdZ.emulatesBiases() && !m_dLdW.emulatesBiases());
-// 				NNTL_ASSERT(cnt >= m_dLdZ.numel() + m_dLdW.numel());
-
 				NNTL_ASSERT(ptr && cnt >= m_weights.numel());
 				m_dLdW.useExternalStorage(ptr, m_weights);
 				NNTL_ASSERT(!m_dLdW.emulatesBiases());
 			}
 		}
 
-		void set_mode(vec_len_t batchSize)noexcept {
+		void set_batch_size(const vec_len_t batchSize)noexcept {
+			NNTL_ASSERT(batchSize > 0 && batchSize <= get_self().get_biggest_batch_size());
 			m_bActivationsValid = false;
-			m_bTraining = batchSize == 0;
+
 			NNTL_ASSERT(!m_activations.emulatesBiases());
-			if (m_bTraining) {
-				m_activations.deform_rows(get_self().get_training_batch_size());
-			} else {
-				NNTL_ASSERT(batchSize <= get_self().get_max_fprop_batch_size());
-				m_activations.deform_rows(batchSize);
-			}
+			m_activations.deform_rows(batchSize);
 		}
+
 	protected:
 		void _fprop(const realmtx_t& prevActivations)noexcept {
 			auto& iI = get_self().get_iInspect();
-			iI.fprop_begin(get_self().get_layer_idx(), prevActivations, m_bTraining);
+			iI.fprop_begin(get_self().get_layer_idx(), prevActivations, get_self().isTrainingMode());
 
 			NNTL_ASSERT(m_activations.rows() == prevActivations.rows());
 			NNTL_ASSERT(prevActivations.cols() == m_weights.cols());
 
 			//might be necessary for Nesterov momentum application
-			if (m_bTraining) m_gradientWorks.pre_training_fprop(m_weights);
+			if (get_self().isTrainingMode()) m_gradientWorks.pre_training_fprop(m_weights);
 
 			auto& _Math = get_self().get_iMath();
 			iI.fprop_makePreActivations(m_weights, prevActivations);
@@ -256,13 +253,15 @@ namespace nntl {
 		void _cust_inspect(const realmtx_t& M)const noexcept {}
 
 		void _bprop(const realmtx_t& data_y, const realmtx_t& prevActivations, const bool bPrevLayerIsInput, realmtx_t& dLdAPrev)noexcept {
+			NNTL_ASSERT(m_bActivationsValid);
 			m_bActivationsValid = false;
+
 			auto& iI = get_self().get_iInspect();
 			iI.bprop_begin(get_self().get_layer_idx(), data_y);
 
 			data_y.assert_storage_does_not_intersect(dLdAPrev);
 			dLdAPrev.assert_storage_does_not_intersect(m_dLdW);
-			NNTL_ASSERT(m_bTraining);
+			NNTL_ASSERT(get_self().isTrainingMode());
 			NNTL_ASSERT(!m_dLdW.emulatesBiases());
 			NNTL_ASSERT(m_activations.size() == data_y.size());
 			//NNTL_ASSERT(m_dLdZ.size() == m_activations.size());
@@ -320,6 +319,20 @@ namespace nntl {
 			NNTL_ASSERT(lowerLayer.get_activations().test_biases_ok());
 			return 1;
 		}
+
+		static constexpr bool is_trivial_drop_samples()noexcept {
+			static_assert(false, "layer_output doesn't support the drop_samples()");
+			return false;
+		}
+
+		void drop_samples(const realmtx_t& mask, const bool bBiasesToo)noexcept {
+			static_assert(false, "layer_output doesn't support the drop_samples()");
+		}
+
+		/*void drop_activations(const realmtx_t& mask)noexcept {
+			static_assert(false, "There's no sense in drop_activations() for an output layer!");
+		}
+		static constexpr bool drop_activations_is_trivial()noexcept { return false; }*/
 
 		//////////////////////////////////////////////////////////////////////////
 

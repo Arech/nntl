@@ -49,3 +49,5 @@ void mrwSum_ET(const realmtx_t& src, real_t* pVec)noexcept;
 
 void mCloneCols_ET(const realmtx_t& srcCols, realmtx_t& dest, const vec_len_t*const pColSpec)noexcept;
 void mCloneCol_ET(const realmtx_t& srcCol, realmtx_t& dest)noexcept;
+
+void mrwBinaryOR_ET(const realmtx_t& A, real_t* pVec)noexcept;

@@ -59,6 +59,8 @@ namespace _impl {
 		vec_len_t m_max_fprop_batch_size;//The biggest samples count for fprop(), usually this is data_x.rows()
 		vec_len_t m_training_batch_size;//Fixed samples count for bprop(), usually it is a batchSize
 
+		bool m_bInTraining;
+
 		//////////////////////////////////////////////////////////////////////////
 		// methods
 	public:
@@ -69,10 +71,10 @@ namespace _impl {
 			deinit();
 		}
 		common_nn_data()noexcept : m_pMath(nullptr), m_pRng(nullptr), m_pInspect(nullptr)
-			, m_max_fprop_batch_size(0), m_training_batch_size(0)
+			, m_max_fprop_batch_size(0), m_training_batch_size(0), m_bInTraining(false)
 		{}
 		common_nn_data(iMath_t& im, iRng_t& ir, iInspect_t& iI)noexcept : m_pMath(&im), m_pRng(&ir), m_pInspect(&iI)
-			, m_max_fprop_batch_size(0), m_training_batch_size(0)
+			, m_max_fprop_batch_size(0), m_training_batch_size(0), m_bInTraining(false)
 		{}
 
 		void setInterfacesFrom(const common_nn_data& other)noexcept {
@@ -92,7 +94,11 @@ namespace _impl {
 			NNTL_ASSERT(fbs >= bbs);//essential assumption
 			m_max_fprop_batch_size = fbs;
 			m_training_batch_size = bbs;
+			m_bInTraining = false;
 		}
+
+		void set_training_mode(bool bTraining)noexcept { m_bInTraining = bTraining; }
+		const bool is_training_mode()const noexcept { return m_bInTraining; }
 
 		iMath_t& iMath()const noexcept { NNTL_ASSERT(m_pMath); return *m_pMath; }
 		iRng_t& iRng()const noexcept { NNTL_ASSERT(m_pRng); return *m_pRng; }
@@ -106,6 +112,11 @@ namespace _impl {
 			//NNTL_ASSERT(m_training_batch_size >= 0);//batch size could be 0 to run fprop() only
 			NNTL_ASSERT(m_pMath && m_pRng && m_pInspect);//must be preinitialized!
 			return m_training_batch_size;
+		}
+		const vec_len_t biggest_batch_size()const noexcept {
+			NNTL_ASSERT(m_pMath && m_pRng && m_pInspect);//must be preinitialized!
+			NNTL_ASSERT(m_max_fprop_batch_size > 0);
+			return std::max(m_training_batch_size, m_max_fprop_batch_size);
 		}
 
 		const bool is_initialized()const noexcept {
@@ -161,6 +172,15 @@ namespace _impl {
 			NNTL_ASSERT(m_pCommonData);
 			return m_pCommonData->training_batch_size();
 		}
+		const typename iMath_t::vec_len_t get_biggest_batch_size()const noexcept {
+			NNTL_ASSERT(m_pCommonData);
+			return m_pCommonData->biggest_batch_size();
+		}
+		const bool isTrainingMode()const noexcept {
+			NNTL_ASSERT(m_pCommonData);
+			return m_pCommonData->is_training_mode();
+		}
+		
 	};
 
 	//////////////////////////////////////////////////////////////////////////

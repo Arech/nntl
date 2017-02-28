@@ -71,6 +71,10 @@ namespace math {
 			static constexpr size_t mrwSum_st = 24000;
 			static constexpr vec_len_t mrwSum_mt_cw_colsPerThread = 3;
 
+			static constexpr size_t mrwBinaryOR = 5000;
+			//static constexpr size_t mrwBinaryOR_st = 24000;
+			static constexpr vec_len_t mrwBinaryOR_mt_cw_colsPerThread = 3;
+
 			static constexpr vec_len_t mCloneCols = 2;
 			static constexpr vec_len_t mCloneCol = 2;
 
@@ -107,6 +111,10 @@ namespace math {
 			static constexpr size_t mrwSum = 10000;
 			static constexpr size_t mrwSum_st = 24000*19/10;
 			static constexpr vec_len_t mrwSum_mt_cw_colsPerThread = 3;
+
+			static constexpr size_t mrwBinaryOR = 10000;
+			//static constexpr size_t mrwBinaryOR_st = 24000 * 19 / 10;
+			static constexpr vec_len_t mrwBinaryOR_mt_cw_colsPerThread = 3;
 
 			static constexpr vec_len_t mCloneCols = 2;
 			static constexpr vec_len_t mCloneCol = 2;

@@ -232,3 +232,22 @@ void mCloneCol_ET(const realmtx_t& srcCol, realmtx_t& dest)noexcept {
 		pD += _r;
 	}
 }
+
+//////////////////////////////////////////////////////////////////////////
+// Performs binary OR operation over rows of matrix A and return result to pVec
+void mrwBinaryOR_ET(const realmtx_t& A, real_t* pVec)noexcept {
+	NNTL_ASSERT(!A.empty() && A.numel() > 0 && !A.emulatesBiases() && A.isBinary());
+	NNTL_ASSERT(pVec);
+
+	const auto cm = A.cols(), rm = A.rows();
+	memset(pVec, 0, rm * sizeof(real_t));
+
+	for (vec_len_t c = 0; c < cm; ++c) {
+		for (vec_len_t r = 0; r < rm; ++r) {
+			const auto v = A.get(r, c);
+			if (v != 0) {
+				pVec[r] = real_t(1.);
+			}
+		}
+	}
+}
