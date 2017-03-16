@@ -183,6 +183,12 @@ namespace nntl {
 				std::forward<_Func>(func)(phl.l);
 			});
 		}		
+		template<typename _Func>
+		void for_each_packed_layer_down(_Func&& f)const noexcept {
+			utils::for_each_down(m_phl_tuple, [&func{ std::forward<_Func>(f) }](auto& phl)noexcept {
+				std::forward<_Func>(func)(phl.l);
+			});
+		}
 
 		//should return true, if the layer has a value to add to Loss function value (there's some regularizer attached)
 		bool hasLossAddendum()const noexcept {
@@ -197,7 +203,7 @@ namespace nntl {
 			return la;
 		}
 
-	protected:
+	/*protected:
 		template<typename InnerLayerT>
 		std::enable_if_t<_impl::layer_has_OuterLayerCustomFlag1Eval<InnerLayerT, decltype(m_phl_tuple), _layer_init_data_t>::value,bool>
 			call_layers_OuterLayerCustomFlag1Eval(const InnerLayerT& lyr, const _layer_init_data_t& origLid)noexcept
@@ -213,7 +219,7 @@ namespace nntl {
 		{
 			//return ((STDCOUTL("returning default for " << lyr.get_layer_name_str())), false);
 			return false;
-		}
+		}*/
 
 	public:
 		//////////////////////////////////////////////////////////////////////////
@@ -258,7 +264,7 @@ namespace nntl {
 					maxIncNeuronsCnt = std::max(maxIncNeuronsCnt, l.get_incoming_neurons_cnt());
 
 					initD.clean_using(lid);//we must propagate any IN flags set in the .lid variable to the layer being initialized.
-					initD.bLPH_CustomFlag1 = call_layers_OuterLayerCustomFlag1Eval(l, origLid);
+					//initD.bLPH_CustomFlag1 = call_layers_OuterLayerCustomFlag1Eval(l, origLid);
 					ec = l.init(initD, act.colDataAsVec(firstNeuronOfs));
 					if (ErrorCode::Success == ec) {
 						lid.update(initD);
@@ -276,7 +282,7 @@ namespace nntl {
 				// that will be substituted by biases for fprop() of one inner layer
 				lid.maxMemFPropRequire += biggestBatchSize;
 
-				if (get_self().get_training_batch_size() > 0) {
+				if (get_self().isTrainingPossible()) {
 					const auto& _training_batch_size = get_self().get_training_batch_size();
 					//adding backprop requirements
 					// saving lid.max_dLdA_numel, gathered from inner layers and substituting it for this layer's max_dLdA_numel
@@ -320,7 +326,7 @@ namespace nntl {
 			ptr += _biggest_batch_size;
 			cnt -= _biggest_batch_size;
 
-			if (get_self().get_training_batch_size() > 0) {
+			if (get_self().isTrainingPossible()) {
 				NNTL_ASSERT(cnt >= 2 * m_layers_max_dLdA_numel);
 				m_innerdLdA.useExternalStorage(ptr, m_layers_max_dLdA_numel, false);
 				ptr += m_layers_max_dLdA_numel;
@@ -332,10 +338,11 @@ namespace nntl {
 			get_self().for_each_packed_layer([=](auto& l) {l.initMem(ptr, cnt); });
 		}
 
-		void set_batch_size(const vec_len_t batchSize, real_t*const pNewActivationStorage = nullptr)noexcept {
+		void on_batch_size_change(real_t*const pNewActivationStorage = nullptr)noexcept {
+			const vec_len_t batchSize = get_self().getCurBatchSize();
 			NNTL_ASSERT(batchSize > 0 && batchSize <= get_self().get_biggest_batch_size());
 			NNTL_ASSERT(m_activations.emulatesBiases());
-			// now we must resize m_activations and update activations of inner layers with set_batch_size variation
+			// now we must resize m_activations and update activations of inner layers with on_batch_size_change variation
 			m_bActivationsValid = false;
 
 			bool bRestoreBiases;
@@ -352,10 +359,10 @@ namespace nntl {
 			}
 
 			neurons_count_t firstNeuronOfs = 0;
-			get_self().for_each_packed_layer([batchSize, &act = m_activations, &firstNeuronOfs](auto& lyr)noexcept {
+			get_self().for_each_packed_layer([&act = m_activations, &firstNeuronOfs](auto& lyr)noexcept {
 				//we're just setting memory to store activation values of inner layers here.
 				//there's no need to play with biases here.
-				lyr.set_batch_size(batchSize, act.colDataAsVec(firstNeuronOfs));
+				lyr.on_batch_size_change(act.colDataAsVec(firstNeuronOfs));
 				firstNeuronOfs += lyr.get_neurons_cnt();
 			});
 			NNTL_ASSERT(firstNeuronOfs + 1 == m_activations.cols());
@@ -370,6 +377,8 @@ namespace nntl {
 			auto& iI = get_self().get_iInspect();
 			iI.fprop_begin(get_self().get_layer_idx(), lowerLayer.get_activations(), get_self().isTrainingMode());
 
+			NNTL_ASSERT(m_activations.rows() == get_self().getCurBatchSize());
+
 			//restoring biases, should they were altered in drop_samples()
 			if (m_activations.isHoleyBiases() && !get_self().is_activations_shared()) {
 				m_activations.set_biases();
@@ -378,7 +387,7 @@ namespace nntl {
 			NNTL_ASSERT(lowerLayer.get_activations().test_biases_ok());
 
 			utils::for_each_up(m_phl_tuple, [&act = lowerLayer.get_activations(), pTmpBiasStorage = m_pTmpBiasStorage](const auto& phl) {
-				phl.l.fprop(_impl::trainable_partial_layer_wrapper<LowerLayer>(act, pTmpBiasStorage, phl));
+				phl.l.fprop(_impl::trainable_partial_layer_wrapper<LowerLayer>(act, pTmpBiasStorage, phl.coord));
 			});
 			
 			NNTL_ASSERT(lowerLayer.get_activations().test_biases_ok());
@@ -410,6 +419,7 @@ namespace nntl {
 			auto& iI = get_self().get_iInspect();
 			iI.bprop_begin(get_self().get_layer_idx(), dLdA);
 
+			NNTL_ASSERT(m_activations.rows() == get_self().getCurBatchSize());
 			NNTL_ASSERT(get_self().isTrainingMode());
 			NNTL_ASSERT(lowerLayer.get_activations().test_biases_ok());
 			//NNTL_ASSERT(m_activations.test_biases_ok());
@@ -424,7 +434,7 @@ namespace nntl {
 			//The order of traversing is EXTREMELY IMPORTANT for gating layers, for example (they might expect a gating layer to be
 			// processed first during fprop() and last during bprop()). Therefore we must go backwards here!
 			utils::for_each_down(m_phl_tuple, [&firstNeuronOfs, &lowerLayer, &dLdA, &dLdAPrev
-				, _training_batch_size = get_self().get_training_batch_size(), &_Math = get_self().get_iMath(), this](const auto& phl)
+				, _training_batch_size = get_self().getCurBatchSize(), &_Math = get_self().get_iMath(), this](const auto& phl)
 			{
 				auto& lyr = phl.l;
 
@@ -449,19 +459,19 @@ namespace nntl {
 				//setting up the m_innerdLdAPrev
 				if (bLowerLayerIsInput) {
 					m_innerdLdAPrev.deform(0, 0);
-				}else m_innerdLdAPrev.deform(_training_batch_size, phl.m_count);
+				}else m_innerdLdAPrev.deform(_training_batch_size, phl.coord.m_count);
 				NNTL_ASSERT(bLowerLayerIsInput || m_innerdLdAPrev.rows() == dLdAPrev.rows());
 
 				const auto switchMtxs = lyr.bprop( m_innerdLdA,
-					_impl::trainable_partial_layer_wrapper<LowerLayer>(lowerLayer.get_activations(), m_pTmpBiasStorage, phl)
+					_impl::trainable_partial_layer_wrapper<LowerLayer>(lowerLayer.get_activations(), m_pTmpBiasStorage, phl.coord)
 					, m_innerdLdAPrev);
 
 				if (!bLowerLayerIsInput) {
-					NNTL_ASSERT(switchMtxs ? m_innerdLdAPrev.size() == realmtx_t::mtx_size_t(_training_batch_size, phl.m_count)
-						: m_innerdLdA.size() == realmtx_t::mtx_size_t(_training_batch_size, phl.m_count));
+					NNTL_ASSERT(switchMtxs ? m_innerdLdAPrev.size() == realmtx_t::mtx_size_t(_training_batch_size, phl.coord.m_count)
+						: m_innerdLdA.size() == realmtx_t::mtx_size_t(_training_batch_size, phl.coord.m_count));
 					//saving m_innerdLdAPrev to dLdAPrev
-					_Math.vAdd_ip(dLdAPrev.colDataAsVec(phl.m_offset), switchMtxs ? m_innerdLdAPrev.data() : m_innerdLdA.data()
-						, realmtx_t::sNumel(_training_batch_size, phl.m_count));
+					_Math.vAdd_ip(dLdAPrev.colDataAsVec(phl.coord.m_offset), switchMtxs ? m_innerdLdAPrev.data() : m_innerdLdA.data()
+						, realmtx_t::sNumel(_training_batch_size, phl.coord.m_count));
 				}
 			});
 			NNTL_ASSERT(firstNeuronOfs == 0);

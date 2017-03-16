@@ -39,8 +39,8 @@ namespace inspector {
 	template<typename RealT>
 	class dummy final : public _impl::_base<RealT> {
 	public:
-		~dummy() {}
-		dummy() {}
+		~dummy() noexcept {}
+		dummy()noexcept {}
 	};
 
 	template< class, class = std::void_t<> >

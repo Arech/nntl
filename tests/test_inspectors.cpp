@@ -71,7 +71,7 @@ TEST(TestInspectors, StdcoutI) {
 	//redefining InterfacesT
 	typedef inspector::stdcout<real_t> myInspector;
 	//typedef inspector::dummy<real_t> myInspector;
-	struct myIntf : public d_int_nI {
+	struct myIntf : public d_int_nI<real_t>{
 		typedef myInspector iInspect_t;
 	};
 	//and related layer's template params
@@ -111,7 +111,7 @@ TEST(TestInspectors, DumperMat) {
 	
 	//redefining InterfacesT
 	typedef inspector::dumper<real_t, nntl_supp::omatfileEx<>> myInspector;
-	struct myIntf : public d_int_nI {
+	struct myIntf : public d_int_nI<real_t> {
 		typedef myInspector iInspect_t;
 	};
 	//and related layer's template params

@@ -54,6 +54,7 @@ namespace math {
 		typedef uint64_t numel_cnt_t;
 		
 		typedef std::pair<const vec_len_t, const vec_len_t> mtx_size_t;
+		typedef std::pair<vec_len_t, vec_len_t> mtx_coords_t;
 	};
 
 	//////////////////////////////////////////////////////////////////////////
@@ -286,6 +287,17 @@ namespace math {
 			m_bHoleyBiases = true;
 			NNTL_ASSERT(test_biases_holey());
 		}
+		void copy_biases_from(const smatrix& src)noexcept {
+			NNTL_ASSERT(m_bEmulateBiases && !empty() && src.emulatesBiases() && !src.empty());
+
+			m_bHoleyBiases = src.isHoleyBiases();
+			if (m_bHoleyBiases) {
+				memcpy(colDataAsVec(m_cols - 1), src.colDataAsVec(src.cols() - 1), static_cast<numel_cnt_t>(rows()) * sizeof(value_type));
+			}else fill_column_with(m_cols - 1, value_type(1.0));			
+			
+			NNTL_ASSERT(test_biases_ok());
+		}
+
 // 		void _holey_biases()noexcept {
 // 			NNTL_ASSERT(!empty());//this concept applies to non-empty matrices only
 // 			m_bHoleyBiases = true;
@@ -305,7 +317,7 @@ namespace math {
 			return m_bHoleyBiases ? test_biases_holey() : test_biases_strict();
 		}
 		const bool test_biases_strict()const noexcept {
-			NNTL_ASSERT(!m_bHoleyBiases);
+			NNTL_ASSERT(emulatesBiases() && !m_bHoleyBiases);
 			const auto ne = numel();
 			auto pS = &m_pData[ne - m_rows];
 			const auto pE = m_pData + ne;
@@ -318,7 +330,7 @@ namespace math {
 			return cond;
 		}
 		const bool test_biases_holey()const noexcept {
-			NNTL_ASSERT(m_bHoleyBiases);
+			NNTL_ASSERT(emulatesBiases() && m_bHoleyBiases);
 
 			const auto ne = numel();
 			auto pS = &m_pData[ne - m_rows];
@@ -427,6 +439,13 @@ namespace math {
 			NNTL_ASSERT(r < m_rows && c < m_cols);
 			return m_pData[r + sNumel(m_rows, c)];
 		}
+		value_type& get(const vec_len_t r, const vec_len_t c) noexcept {
+			NNTL_ASSERT(!empty());
+			NNTL_ASSERT(r < m_rows && c < m_cols);
+			return m_pData[r + sNumel(m_rows, c)];
+		}
+		const value_type& get(const mtx_coords_t& crd)const noexcept { return get(crd.first, crd.second); }
+		value_type& get(const mtx_coords_t& crd) noexcept { return get(crd.first, crd.second); }
 
 		void clear()noexcept {
 			_free();

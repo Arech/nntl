@@ -101,10 +101,28 @@ void test_loss_xentropy(vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 	d_interfaces::iRng_t rg;
 	rg.set_ithreads(iM.ithreads());
 
+	auto pA = A.data();
+	auto pY = Y.data();
+	const auto anum = A.numel();
 	for (unsigned r = 0; r < testCorrRepCnt; ++r) {
 		rg.gen_matrix_norm(A);
 		rg.gen_matrix_norm(Y);
 		iM.ewBinarize_ip(Y, frac);
+
+		pA[0] = real_t(0.);
+		pY[0] = real_t(0.);
+		if (anum > 1) {
+			pA[1] = real_t(1.);
+			pY[1] = real_t(1.);
+			if (anum > 2) {
+				pA[2] = real_t(0.);
+				pY[2] = real_t(1.);
+				if (anum > 3) {
+					pA[3] = real_t(1.);
+					pY[3] = real_t(0.);
+				}
+			}
+		}
 
 		real_t loss, etLoss = loss_xentropy_ET(A, Y);
 
@@ -119,7 +137,7 @@ void test_loss_xentropy(vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 	}
 }
 
-TEST(TestMathN, lossSigmXentropy) {
+TEST(TestMathN, lossXentropy) {
 	const numel_cnt_t elmsMax = g_MinDataSizeDelta;
 	for (numel_cnt_t e = 1; e < elmsMax; ++e) {
 		ASSERT_NO_FATAL_FAILURE(test_loss_xentropy(static_cast<vec_len_t>(e), 1));
@@ -490,7 +508,7 @@ TEST(TestMathN, vSumAbs) {
 
 template<typename base_t> struct vSumSquares_EPS {};
 template<> struct vSumSquares_EPS<double> { static constexpr double eps = 1e-10; };
-template<> struct vSumSquares_EPS<float> { static constexpr float eps = .2f; };
+template<> struct vSumSquares_EPS<float> { static constexpr float eps = .5f; };
 template<typename iMath>
 void test_vSumSquares(iMath& iM, vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 	const auto dataSize = realmtx_t::sNumel(rowsCnt, colsCnt);
@@ -2203,8 +2221,8 @@ TEST(TestMathN, mExtractRowsCorrectness) {
 
 	rg.gen_vector_gtz(&vec[0], vec.size(), rowsCnt - 1);
 
-	iM.mExtractRows_st_naive(src, vec.begin(), extrCnt, destSt);
-	iM.mExtractRows_mt_naive(src, vec.begin(), extrCnt, destMt);
+	iM.mExtractRows_st_naive(src, vec.begin(), destSt);
+	iM.mExtractRows_mt_naive(src, vec.begin(), destMt);
 
 	ASSERT_EQ(destSt, destMt);
 	for (vec_len_t r = 0; r < extrCnt; ++r) {
@@ -2240,26 +2258,26 @@ void test_mExtractRows_perf(iMath& iM, vec_len_t rowsCnt, vec_len_t extrCnt, vec
 	//testing performance
 	utils::prioritize_workers<utils::PriorityClass::PerfTesting, iMath::ithreads_t> pw(iM.ithreads());
 
-	iM.mExtractRows_st_naive(src, vec.begin(), extrCnt, dest);
+	iM.mExtractRows_st_naive(src, vec.begin(), dest);
 	bt = steady_clock::now();
 	for (unsigned r = 0; r < maxReps; ++r) {
-		iM.mExtractRows_st_naive(src, vec.begin(), extrCnt, dest);
+		iM.mExtractRows_st_naive(src, vec.begin(), dest);
 	}
 	diff = steady_clock::now() - bt;
 	STDCOUTL("st_naive:\t" << utils::duration_readable(diff, maxReps, &tstNaive));
 
-	iM.mExtractRows_mt_naive(src, vec.begin(), extrCnt, dest);
+	iM.mExtractRows_mt_naive(src, vec.begin(), dest);
 	bt = steady_clock::now();
 	for (unsigned r = 0; r < maxReps; ++r) {
-		iM.mExtractRows_mt_naive(src, vec.begin(), extrCnt, dest);
+		iM.mExtractRows_mt_naive(src, vec.begin(), dest);
 	}
 	diff = steady_clock::now() - bt;
 	STDCOUTL("mt_naive:\t" << utils::duration_readable(diff, maxReps, &tmtNaive));
 
-	iM.mExtractRows(src, vec.begin(), extrCnt, dest);
+	iM.mExtractRows(src, vec.begin(), dest);
 	bt = steady_clock::now();
 	for (unsigned r = 0; r < maxReps; ++r) {
-		iM.mExtractRows(src, vec.begin(), extrCnt, dest);
+		iM.mExtractRows(src, vec.begin(), dest);
 	}
 	diff = steady_clock::now() - bt;
 	STDCOUTL("best:\t\t" << utils::duration_readable(diff, maxReps, &tBest));
@@ -3345,28 +3363,6 @@ void test_loss_quadratic(iMath& iM, vec_len_t rowsCnt, vec_len_t colsCnt=10) {
 	ASSERT_EQ(Y, etY);
 	ASSERT_NEAR(etQuadLoss, quadLoss, loss_quadratic_EPS<real_t>::eps);
 	STDCOUTL("mt_naive:\t" << utils::duration_readable(diff, maxReps, &tmtNaive));
-
-	/*//////////////////////////////////////////////////////////////////////////
-	//single threaded vectorized
-	diff = nanoseconds(0);
-	bt = steady_clock::now();
-	for (unsigned r = 0; r < maxReps; ++r) quadLoss = iM.loss_quadratic_st_vec(A,Y);
-	diff += steady_clock::now() - bt;
-	ASSERT_EQ(A, etA);
-	ASSERT_EQ(Y, etY);
-	ASSERT_NEAR(etQuadLoss, quadLoss, loss_quadratic_EPS<real_t>::eps);
-	STDCOUTL("st_vec:\t\t" << utils::duration_readable(diff, maxReps, &tstVect));
-	
-	//////////////////////////////////////////////////////////////////////////
-	//multi threaded vectorized
-	diff = nanoseconds(0);
-	bt = steady_clock::now();
-	for (unsigned r = 0; r < maxReps; ++r) quadLoss = iM.loss_quadratic_mt_vec(A,Y);
-	diff += steady_clock::now() - bt;
-	ASSERT_EQ(A, etA);
-	ASSERT_EQ(Y, etY);
-	ASSERT_NEAR(etQuadLoss, quadLoss, loss_quadratic_EPS<real_t>::eps);
-	STDCOUTL("mt_vec:\t\t" << utils::duration_readable(diff, maxReps, &tmtVect));*/
 
 	//////////////////////////////////////////////////////////////////////////
 	//best guess

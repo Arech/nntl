@@ -75,35 +75,13 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 namespace nntl {
 namespace math {
 
-	//////////////////////////////////////////////////////////////////////////
-	// _basic_types is DEPRECATED and will be removed in future. Use correct template parameters where applicable.
-	// 
-	//class to store various math type definitions. May need to be rewritten to support different math libs.
-	//NNTL basic types is defined with _ty suffix. Aliases (typedefs) to this types defines with _t or _t_ (if collision 
-	// with standard types possible) suffix
-	/*struct _basic_types {
-		//basic data type for nn inputs, weights and so on.
-		//change to any suitable type
-		typedef NNTL_CFG_DEFAULT_TYPE real_ty;
-		static constexpr char* real_ty_name = NNTL_STRINGIZE(NNTL_CFG_DEFAULT_TYPE);
-
-		//matrix of real_ty, colMajor order, because many math libs uses it by default
-		//TODO: specialization for the case of 1D data (such as binary classification results) may provide some performance gain
-		//DEPRECATED typedef. Use smatrix class directly
-		typedef smatrix<real_ty> realmtx_ty;
-
-		//DEPRECATED typedef. Use smatrix_deform class directly
-		typedef smatrix_deform<real_ty> realmtxdef_ty;
-		static_assert(std::is_base_of<realmtx_ty, realmtxdef_ty>::value, "realmtxdef_ty must be derived from realmtx_ty!");
-				
-	};*/
-
 	typedef NNTL_CFG_DEFAULT_TYPE d_real_t;
 	static constexpr char* d_real_t_name = NNTL_STRINGIZE(NNTL_CFG_DEFAULT_TYPE);
 
 	//////////////////////////////////////////////////////////////////////////
 	//computes ln(x+1)
 	template <typename T> T log1p(T v)noexcept {
+		NNTL_ASSERT(v >= T(-1.));
 #if NNTL_CFG_CAREFULL_LOG_EXP
 		return std::log1p(v);
 #else
@@ -118,6 +96,32 @@ namespace math {
 		return std::exp(v) - T(1.0);
 #endif
 	}
+
+#pragma float_control(push)
+#pragma float_control(precise, on)
+
+	template <typename T> T log_eps(T v)noexcept {
+		NNTL_ASSERT(v >= T(0.));
+		return std::log(v + std::numeric_limits<T>::min());
+	}
+
+	template <typename T> T log1p_eps(T v)noexcept {
+		NNTL_ASSERT(v >= T(-1.));
+//#if NNTL_CFG_CAREFULL_LOG_EXP
+//		return std::log1p(v + std::numeric_limits<T>::epsilon());
+		//we can't use is, because we have to add epsilon() to move v out of -1 (worst case scenario), however the error near v==0
+		//becomes too big;
+//#else
+#if NNTL_CFG_CAREFULL_LOG_EXP
+#pragma message("Warning! nntl::math::log1p_eps() will NOT use std::log1p(), error is too large")
+#endif
+		return std::log((T(1.0) + v) + std::numeric_limits<T>::min());
+//#endif
+	}
+
+#pragma float_control(pop)
+	
+
 
 	//////////////////////////////////////////////////////////////////////////
 	//thanks to http://stackoverflow.com/a/4609795

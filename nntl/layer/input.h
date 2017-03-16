@@ -100,8 +100,7 @@ namespace nntl {
 
 
 		void initMem(real_t* ptr, numel_cnt_t cnt)noexcept {}
-		void set_batch_size(const vec_len_t batchSize)noexcept {
-			NNTL_ASSERT(batchSize > 0);
+		void on_batch_size_change()noexcept {
 			m_bActivationsValid = false;
 		}
 

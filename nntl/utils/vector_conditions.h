@@ -51,6 +51,7 @@ namespace nntl {
 		vector_conditions()noexcept {}
 		vector_conditions(size_t maxEpoch, const bool& defVal=true)noexcept:m_flgEvalPerf(maxEpoch, defVal) {
 			NNTL_ASSERT(maxEpoch > 0);
+			verbose(maxEpoch - 1);
 		}
 		vector_conditions(size_t maxEpoch,size_t stride)noexcept : m_flgEvalPerf(maxEpoch, false) {
 			NNTL_ASSERT(maxEpoch > 0);

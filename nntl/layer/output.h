@@ -36,7 +36,11 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 namespace nntl {
 
 	template<typename ActivFunc, typename GradWorks, typename FinalPolymorphChild>
-	class _layer_output : public m_layer_output, public _layer_base<typename GradWorks::interfaces_t, FinalPolymorphChild> {
+	class _layer_output 
+		: public m_layer_output
+		, public m_layer_learnable
+		, public _layer_base<typename GradWorks::interfaces_t, FinalPolymorphChild>
+	{
 	private:
 		typedef _layer_base<typename GradWorks::interfaces_t, FinalPolymorphChild> _base_class;
 
@@ -190,7 +194,7 @@ namespace nntl {
 				, realmtx_t::sNumel(get_self().get_training_batch_size(), get_incoming_neurons_cnt() + 1)
 			}));
 
-			if (get_self().get_training_batch_size() > 0) {
+			if (get_self().isTrainingPossible()) {
 				//There's no dLdA coming into the output layer, therefore leave max_dLdA_numel it zeroed
 				//lid.max_dLdA_numel = 0;
 				
@@ -214,14 +218,15 @@ namespace nntl {
 		}
 
 		void initMem(real_t* ptr, numel_cnt_t cnt)noexcept {
-			if (get_self().get_training_batch_size() > 0) {
+			if (get_self().isTrainingPossible()) {
 				NNTL_ASSERT(ptr && cnt >= m_weights.numel());
 				m_dLdW.useExternalStorage(ptr, m_weights);
 				NNTL_ASSERT(!m_dLdW.emulatesBiases());
 			}
 		}
 
-		void set_batch_size(const vec_len_t batchSize)noexcept {
+		void on_batch_size_change()noexcept {
+			const vec_len_t batchSize = get_self().getCurBatchSize();
 			NNTL_ASSERT(batchSize > 0 && batchSize <= get_self().get_biggest_batch_size());
 			m_bActivationsValid = false;
 
@@ -234,6 +239,7 @@ namespace nntl {
 			auto& iI = get_self().get_iInspect();
 			iI.fprop_begin(get_self().get_layer_idx(), prevActivations, get_self().isTrainingMode());
 
+			NNTL_ASSERT(m_activations.rows() == get_self().getCurBatchSize());
 			NNTL_ASSERT(m_activations.rows() == prevActivations.rows());
 			NNTL_ASSERT(prevActivations.cols() == m_weights.cols());
 
@@ -267,7 +273,8 @@ namespace nntl {
 			//NNTL_ASSERT(m_dLdZ.size() == m_activations.size());
 			NNTL_ASSERT(m_dLdW.size() == m_weights.size());
 			NNTL_ASSERT(bPrevLayerIsInput || prevActivations.emulatesBiases());//input layer in batch mode may have biases included, but no emulatesBiases() set
-			NNTL_ASSERT(mtx_size_t(get_self().get_training_batch_size(), get_self().get_incoming_neurons_cnt() + 1) == prevActivations.size());
+			NNTL_ASSERT(m_activations.rows() == get_self().getCurBatchSize());
+			NNTL_ASSERT(mtx_size_t(get_self().getCurBatchSize(), get_self().get_incoming_neurons_cnt() + 1) == prevActivations.size());
 			NNTL_ASSERT(bPrevLayerIsInput || dLdAPrev.size() == prevActivations.size_no_bias());
 
 			auto& _Math = get_self().get_iMath();
@@ -289,6 +296,7 @@ namespace nntl {
 
 			//compute dL/dW = 1/batchsize * (dL/dZ)` * Aprev
 			_Math.mScaledMulAtB_C(real_t(1.0) / real_t(dLdZ.rows()), dLdZ, prevActivations, m_dLdW);
+			iI.bprop_dLdW(dLdZ, prevActivations, m_dLdW);
 
 			if (!bPrevLayerIsInput) {
 				NNTL_ASSERT(!m_weights.emulatesBiases());

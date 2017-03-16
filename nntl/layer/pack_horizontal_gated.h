@@ -33,8 +33,6 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 // this is a gated version of layer_pack_horizontal, that allows to selectively turn on/off output
 // and learning for a horizontal pack of feature detectors based on their corresponding gates values.
-// One may think of this pack as an optimized version of a set of individual layer_pack_gated's, that
-// concatenates gates values and their corresponding feature detectors outputs into a single activation matrix.
 // 
 // For example: let's imagine one have 3 optional feature sets for a problem. How to process them?
 // One could make the following source data vector: {g1,g2,g3,x1,x2,x3} where g1,g2 and g3 are binary gate values
@@ -91,8 +89,8 @@ namespace nntl {
 
 		static constexpr bool is_biasGatingMask_anAlias = 1 == gated_layers_count;
 
-		//we need to store a mask passed to drop_samples() to apply it later to dLdA columns, that corresponds to a gating layer
-		//It's a single column matrix
+		//if we expect drop_samples() to be called on us, we have to store a mask passed to drop_samples() to apply
+		// it later to dLdA columns, that corresponds to the gating layer. It's a single column matrix
 		realmtxdef_t m_dropSamplesGatingMask;
 
 		bool m_bDropSamplesWasCalled;
@@ -111,6 +109,7 @@ namespace nntl {
 		template<> struct _defNameS<true> { static constexpr const char n[] = "lphg"; };
 		template<> struct _defNameS<false> { static constexpr const char n[] = "lphgfi"; };
 	public:
+		//#BUGBUG this trick doesn't work, _defName remains NULLed!
 		static constexpr const char _defName[sizeof(_defNameS<sbBinarizeGate>::n)] = _defNameS<sbBinarizeGate>::n;
 
 		~_layer_pack_horizontal_gated()noexcept {}
@@ -128,7 +127,7 @@ namespace nntl {
 		const gating_layer_t& gating_layer()const noexcept { return get_self().first_layer(); }
 
 		//#TODO returns a loss function summand, that's caused by this layer. Should take gating mask into account (and
-		//that's a real trouble)
+		//that's a bit of issue)
 		//real_t lossAddendum()const noexcept {
 			//#BUGBUG loss values could depend on activation values, therefore depend on gating mask value.
 			//Though we can skip this little(?) bug now
@@ -201,10 +200,10 @@ namespace nntl {
 			_base_class::deinit();
 		}
 
-		void set_batch_size(const vec_len_t batchSize, real_t*const pNewActivationStorage = nullptr)noexcept {
-			NNTL_ASSERT(batchSize > 0);
-			_base_class::set_batch_size(batchSize, pNewActivationStorage);
+		void on_batch_size_change(real_t*const pNewActivationStorage = nullptr)noexcept {
+			_base_class::on_batch_size_change(pNewActivationStorage);
 
+			const vec_len_t batchSize = get_self().getCurBatchSize();
 			if (_bAllocateGatingMask()) {
 				NNTL_ASSERT(!m_gatingMask.empty() && !m_gatingMask.bDontManageStorage());
 				//we must deform the mask to fit new underlying activations size
@@ -240,6 +239,8 @@ namespace nntl {
 					NNTL_ASSERT(!m_biasGatingMask.bDontManageStorage());
 					NNTL_ASSERT(m_biasGatingMask.rows() == m_gatingMask.rows() && 1 == m_biasGatingMask.cols());
 					//now we must create m_biasGatingMask using m_gatingMask
+					//safe to use OR here, because there will be only two types of bit patterns, that corresponds to
+					// real_t(1.) and real_t(0.). The later one actually consists of zero bits.
 					get_self().get_iMath().mrwOr(m_gatingMask, m_biasGatingMask.data());
 				}
 				NNTL_ASSERT(m_biasGatingMask.isBinary());
@@ -275,9 +276,8 @@ namespace nntl {
 		template<bool bg = sbBinarizeGate>
 		std::enable_if_t<bg, self_ref_t> make_gating_mask()noexcept {
 			NNTL_ASSERT(_bAllocateGatingMask());
-
 			const auto& gate = get_self().gating_layer().get_gate();
-			NNTL_ASSERT(gate.isBinary());
+
 			NNTL_ASSERT(get_self().gating_layer().get_gate_width() == gate.cols() && gate.cols() == gated_layers_count);
 			NNTL_ASSERT(gate.rows() == get_activations().rows());
 			NNTL_ASSERT(!m_gatingMask.emulatesBiases());
@@ -311,6 +311,8 @@ namespace nntl {
 				//we must also apply mask to corresponding dLdA columns
 				ind_dLdA.useExternalStorage(dLdA.data(), dLdA.rows(), ofs, false);
 				iM.mrwMulByVec(ind_dLdA, m_dropSamplesGatingMask.data());
+			} else {
+				NNTL_ASSERT(!m_bDropSamplesWasCalled || m_bIsGatedDropSamplesMightBeCalled);
 			}
 
 			utils::for_each_exc_first_up(m_phl_tuple

@@ -32,14 +32,92 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include "stdafx.h"
 
+//to get rid of '... decorated name length exceeded, name was truncated'
+#pragma warning( disable : 4503 )
+
 #include "../nntl/math.h"
 #include "../nntl/nntl.h"
 #include "../nntl/_supp/io/binfile.h"
 #include "../nntl/_test/test_weights_init.h"
 #include "asserts.h"
 #include "common_routines.h"
+#include "nn_base_arch.h"
 
 using namespace nntl;
+
+template<typename ArchPrmsT>
+struct GC_LPT : public nntl_tests::NN_base_arch_td<ArchPrmsT> {
+	myLFC lBase;
+	LPT<decltype(lBase), 3, false> lFinal;
+
+	~GC_LPT()noexcept {}
+	GC_LPT(const ArchPrms_t& Prms)noexcept
+		: lBase(50, Prms.learningRate, Prms.dropoutAlivePerc, "lBase")
+		, lFinal(lBase, "lFinal")
+	{}
+};
+//This test should be run multiple times to test variuos gate "positions". gradcheck() routine could be updated to handle
+//it automatically, but that require too much precious time I've already run out of.
+TEST(TestLayerPackTile, GradCheck) {
+	typedef double real_t;
+	typedef nntl_tests::NN_base_params<real_t, nntl::inspector::GradCheck<real_t>> ArchPrms_t;
+
+	nntl::train_data<real_t> td;
+	readTd(td);
+
+	ArchPrms_t Prms(td);
+	Prms.lUnderlay_nc = 300;
+	nntl_tests::NN_arch<GC_LPT<ArchPrms_t>> nnArch(Prms);
+
+	auto ec = nnArch.warmup(td, 10, 100);
+	ASSERT_EQ(decltype(nnArch)::ErrorCode_t::Success, ec) << "Reason: " << nnArch.NN.get_error_str(ec);
+
+	gradcheck_settings<real_t> ngcSetts;
+	ngcSetts.evalSetts.bIgnoreZerodLdWInUndelyingLayer = true;
+	ngcSetts.evalSetts.dLdW_setts.relErrFailThrsh = real_t(5e-3);//numeric errors stacks up significantly
+	ASSERT_TRUE(nnArch.NN.gradcheck(td.train_x(), td.train_y(), 10, ngcSetts));
+}
+
+template<typename ArchPrmsT>
+struct GC_LPT_LPV : public nntl_tests::NN_base_arch_td<ArchPrmsT> {
+	myLFC l1;
+	myLFC l2;
+	LPV<decltype(l1), decltype(l2)> lBase;
+	LPT<decltype(lBase), 3, false> lFinal;
+
+	~GC_LPT_LPV()noexcept {}
+	GC_LPT_LPV(const ArchPrms_t& Prms)noexcept
+		: l1(50, Prms.learningRate, Prms.dropoutAlivePerc, "l1")
+		, l2(70, Prms.learningRate, Prms.dropoutAlivePerc, "l2")
+		, lBase("lBase", l1, l2)
+		, lFinal(lBase, "lFinal")
+	{}
+};
+//This test should be run multiple times to test variuos gate "positions". gradcheck() routine could be updated to handle
+//it automatically, but that require too much precious time I've already run out of.
+TEST(TestLayerPackTile, GradCheck_LPV) {
+	typedef double real_t;
+	typedef nntl_tests::NN_base_params<real_t, nntl::inspector::GradCheck<real_t>> ArchPrms_t;
+
+	nntl::train_data<real_t> td;
+	readTd(td);
+
+	ArchPrms_t Prms(td);
+	Prms.lUnderlay_nc = 300;
+	nntl_tests::NN_arch<GC_LPT_LPV<ArchPrms_t>> nnArch(Prms);
+
+	auto ec = nnArch.warmup(td, 10, 100);
+	ASSERT_EQ(decltype(nnArch)::ErrorCode_t::Success, ec) << "Reason: " << nnArch.NN.get_error_str(ec);
+
+	gradcheck_settings<real_t> ngcSetts;
+	ngcSetts.evalSetts.bIgnoreZerodLdWInUndelyingLayer = true;
+	ngcSetts.evalSetts.dLdW_setts.relErrFailThrsh = real_t(5e-3);//numeric errors stacks up significantly
+	ASSERT_TRUE(nnArch.NN.gradcheck(td.train_x(), td.train_y(), 10, ngcSetts));
+}
+
+
+
+//////////////////////////////////////////////////////////////////////////
 
 template<typename base_t> struct TestLayerPackTile_EPS {};
 template<> struct TestLayerPackTile_EPS <double> { static constexpr double eps = 1e-15; };
@@ -77,8 +155,7 @@ TEST(TestLayerPackTile, ComparativeNonSpecialX) {
 	//////////////////////////////////////////////////////////////////////////
 	// initializing layers with a help from nn object
 
-	_impl::_tmp_train_data<decltype(Ann)::layers_pack_t> Attd;
-	auto ec = Ann.___init(batchSize, batchSize, false, _train_x.cols(), _train_y.cols(), &Attd);
+	auto ec = Ann.___init(batchSize, batchSize, false);
 
 	//saving layers weights to reuse in comparison
 	realmtx_t AundW, AundOrigW, AtlfcW, AundAct, AlptAct, AoutpAct, AoutpW;
@@ -87,8 +164,8 @@ TEST(TestLayerPackTile, ComparativeNonSpecialX) {
 	Atlfc.get_weights().clone_to(AtlfcW);
 	Aoutp.get_weights().clone_to(AoutpW);
 
-	Ann.___get_common_data().set_training_mode(true);
-	Alp.set_batch_size(batchSize);
+	Ann.___get_common_data().set_mode_and_batch_size(true, batchSize);
+	Alp.on_batch_size_change();
 	Alp.fprop(_train_x);
 
 	//saving activations for comparison
@@ -97,7 +174,7 @@ TEST(TestLayerPackTile, ComparativeNonSpecialX) {
 	ASSERT_TRUE(Aoutp.get_activations().clone_to(AoutpAct));
 
 	//doing bprop
-	Alp.bprop(_train_y, Attd.a_dLdA);
+	Alp.bprop(_train_y);
 
 	//////////////////////////////////////////////////////////////////////////
 	//////////////////////////////////////////////////////////////////////////
@@ -106,7 +183,7 @@ TEST(TestLayerPackTile, ComparativeNonSpecialX) {
 	layer_input<> Binp(_train_x.cols_no_bias());
 	FCL Bund(tiledLayerIncomingNeurons * K, lr);//underlying layer to test dLdA correctness
 
-	FCL Blfc1(tiledLayerNeurons, lr / K), Blfc2(tiledLayerNeurons, lr / K), Blfc3(tiledLayerNeurons, lr / K);
+	FCL Blfc1(tiledLayerNeurons, lr), Blfc2(tiledLayerNeurons, lr), Blfc3(tiledLayerNeurons, lr);
 	auto Blph = make_layer_pack_horizontal(
 		make_PHL(Blfc1, 0 * tiledLayerIncomingNeurons, tiledLayerIncomingNeurons),
 		make_PHL(Blfc2, 1 * tiledLayerIncomingNeurons, tiledLayerIncomingNeurons),
@@ -122,8 +199,7 @@ TEST(TestLayerPackTile, ComparativeNonSpecialX) {
 	//////////////////////////////////////////////////////////////////////////
 	// initializing layers with a help from nn object
 
-	_impl::_tmp_train_data<decltype(Bnn)::layers_pack_t> Bttd;
-	ec = Bnn.___init(batchSize, batchSize, false, _train_x.cols(), _train_y.cols(), &Bttd);
+	ec = Bnn.___init(batchSize, batchSize, false);
 
 	//setting the same layer weights
 	ASSERT_TRUE(Bund.set_weights(std::move(AundW)));
@@ -137,8 +213,8 @@ TEST(TestLayerPackTile, ComparativeNonSpecialX) {
 	ASSERT_TRUE(Boutp.set_weights(std::move(AoutpW)));
 
 	// doing fprop
-	Bnn.___get_common_data().set_training_mode(true);
-	Blp.set_batch_size(batchSize);
+	Bnn.___get_common_data().set_mode_and_batch_size(true, batchSize);
+	Blp.on_batch_size_change();
 	Blp.fprop(_train_x);
 
 	//comparing activations
@@ -154,7 +230,7 @@ TEST(TestLayerPackTile, ComparativeNonSpecialX) {
 		TestLayerPackTile_EPS<real_t>::eps);
 
 	//doing bprop
-	Blp.bprop(_train_y, Bttd.a_dLdA);
+	Blp.bprop(_train_y);
 	
 	ASSERT_REALMTX_NEAR(Aund.get_weights(), Bund.get_weights(),
 		"Underlying layer post-bprop weights comparison failed!",

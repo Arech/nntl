@@ -38,7 +38,9 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 namespace nntl {
 
 	template<typename ActivFunc, typename GradWorks, typename FinalPolymorphChild>
-	class _layer_fully_connected : public _layer_base<typename GradWorks::interfaces_t, FinalPolymorphChild>
+	class _layer_fully_connected 
+		: public m_layer_learnable
+		, public _layer_base<typename GradWorks::interfaces_t, FinalPolymorphChild>
 	{
 	private:
 		typedef _layer_base<typename GradWorks::interfaces_t, FinalPolymorphChild> _base_class;
@@ -73,6 +75,8 @@ namespace nntl {
 
 		realmtxdef_t m_dLdW;//doesn't guarantee to retain it's value between usage in different code flows;
 		// may share memory with some other data structure. Must be deformable for grad_works_t
+
+		unsigned m_nTiledTimes;
 
 	public:
 		grad_works_t m_gradientWorks;
@@ -117,7 +121,7 @@ namespace nntl {
 		)noexcept
 			: _base_class(_neurons_cnt, pCustomName), m_activations(), m_weights(), m_bWeightsInitialized(false)
 				, m_gradientWorks(learningRate)
-				, m_dropoutMask(), m_dropoutPercentActive(dpa)
+				, m_dropoutMask(), m_dropoutPercentActive(dpa), m_nTiledTimes(0)
 		{
 			if (m_dropoutPercentActive <= real_t(+0.) || m_dropoutPercentActive > real_t(1.)) m_dropoutPercentActive = real_t(1.);
 			m_activations.will_emulate_biases();
@@ -167,6 +171,8 @@ namespace nntl {
 				if (!bSuccessfullyInitialized) get_self().deinit();
 			});
 			
+			m_nTiledTimes = lid.nTiledTimes;
+
 			NNTL_ASSERT(!m_weights.emulatesBiases());
 			if (m_bWeightsInitialized) {
 				//just double check everything is fine
@@ -206,7 +212,7 @@ namespace nntl {
 				,realmtx_t::sNumel(get_self().get_training_batch_size(), get_incoming_neurons_cnt() + 1)
 			}));
 
-			if (get_self().get_training_batch_size() > 0) {
+			if (get_self().isTrainingPossible()) {
 				//it'll be training session, therefore must allocate necessary supplementary matrices and form temporary memory reqs.
  				if(!_check_init_dropout()) return ErrorCode::CantAllocateMemoryForDropoutMask;
 
@@ -230,21 +236,22 @@ namespace nntl {
 			m_dropoutMask.clear();
 			m_dLdW.clear();
 			_base_class::deinit();
+			m_nTiledTimes = 0;
 		}
 
 		void initMem(real_t* ptr, numel_cnt_t cnt)noexcept {
-			if (get_self().get_training_batch_size() > 0) {
+			if (get_self().isTrainingPossible()) {
 				NNTL_ASSERT(ptr && cnt >= m_weights.numel());
 				m_dLdW.useExternalStorage(ptr, m_weights);
 				NNTL_ASSERT(!m_dLdW.emulatesBiases());
 			}
 		}
 		
-		void set_batch_size(const vec_len_t batchSize, real_t*const pNewActivationStorage = nullptr)noexcept {
-			NNTL_ASSERT(batchSize > 0);
+		void on_batch_size_change(real_t*const pNewActivationStorage = nullptr)noexcept {
 			NNTL_ASSERT(m_activations.emulatesBiases());
 			m_bActivationsValid = false;
 
+			const vec_len_t batchSize = get_self().getCurBatchSize();
 			const auto _biggest_batch_size = get_self().get_biggest_batch_size();
 			NNTL_ASSERT(batchSize <= _biggest_batch_size);
 
@@ -281,6 +288,7 @@ namespace nntl {
 				m_activations.set_biases();
 			}
 
+			NNTL_ASSERT(m_activations.rows() == get_self().getCurBatchSize());
 			NNTL_ASSERT(prevActivations.test_biases_ok());
 			NNTL_ASSERT(m_activations.rows() == prevActivations.rows());
 			NNTL_ASSERT(prevActivations.cols() == m_weights.cols());
@@ -346,7 +354,8 @@ namespace nntl {
 			NNTL_ASSERT(m_dLdW.size() == m_weights.size());
 
 			NNTL_ASSERT(bPrevLayerIsInput || prevActivations.emulatesBiases());//input layer in batch mode may have biases included, but no emulatesBiases() set
-			NNTL_ASSERT(mtx_size_t(get_self().get_training_batch_size(), get_incoming_neurons_cnt() + 1) == prevActivations.size());
+			NNTL_ASSERT(m_activations.rows() == get_self().getCurBatchSize());
+			NNTL_ASSERT(mtx_size_t(get_self().getCurBatchSize(), get_incoming_neurons_cnt() + 1) == prevActivations.size());
 			NNTL_ASSERT(bPrevLayerIsInput || dLdAPrev.size() == prevActivations.size_no_bias());//in vanilla simple BP we shouldn't calculate dLdAPrev for the first layer			
 
 			auto& _Math = get_self().get_iMath();
@@ -395,7 +404,9 @@ namespace nntl {
 			// (dLdW(i's neuron,j's lower layer neuron) = Sum_over_batch( dLdZ(i)*Aprev(j) ) ), it's almost impossible
 			// to get some element of dLdW equals to zero, because it'll require that dLdZ entries for some neuron over the
 			// whole batch were set to zero.
-			_Math.mScaledMulAtB_C(real_t(1.0) / real_t(dLdZ.rows()), dLdZ, prevActivations, m_dLdW);
+			NNTL_ASSERT(m_nTiledTimes > 0);
+			_Math.mScaledMulAtB_C(real_t(m_nTiledTimes) / real_t(dLdZ.rows()), dLdZ, prevActivations, m_dLdW);
+			iI.bprop_dLdW(dLdZ, prevActivations, m_dLdW);
 
 			if (!bPrevLayerIsInput) {
 				NNTL_ASSERT(!m_weights.emulatesBiases());
@@ -475,7 +486,7 @@ namespace nntl {
 	protected:
 		const bool _check_init_dropout()noexcept {
 			NNTL_ASSERT(get_self().has_common_data());
-			if (get_self().get_training_batch_size() > 0 && get_self().bDropout()) {
+			if (get_self().isTrainingPossible() && get_self().bDropout()) {
 				//condition means if (there'll be a training session) and (we're going to use dropout)
 				NNTL_ASSERT(!m_dropoutMask.emulatesBiases());
 				if (m_dropoutMask.empty()) {
@@ -486,7 +497,7 @@ namespace nntl {
 				if (get_self().isTrainingMode()) {
 					//change size to fit m_activations
 					m_dropoutMask.deform_rows(m_activations.rows());
-				}//else will be changed during set_batch_size()
+				}//else will be changed during on_batch_size_change()
 			}
 			return true;
 		}

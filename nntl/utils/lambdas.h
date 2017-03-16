@@ -29,49 +29,41 @@ CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
 OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
-
 #pragma once
 
-// rng helper, that converts uniform distribution to normal (gaussian) distribution
-// This code for non-performance critical use only!
-
-#include <random>
+#include <type_traits>
 
 namespace nntl {
-namespace rng {
+namespace utils {
 
-	//attention! see comments to _i_rng::max()/_i_rng::min()
-	template <typename iRng>
-	struct distr_normal_naive {
-	public:
-		typedef iRng iRng_t;
-		typedef typename iRng_t::real_t real_t;
-		typedef typename iRng_t::realmtx_t realmtx_t;
+	//////////////////////////////////////////////////////////////////////////
+	// y_combinator concept to make recursive lambdas possible
+	// thanks to http://stackoverflow.com/documentation/c%2b%2b/572/lambdas/8508/recursive-lambdas#t=201703101123559331192
+	template <class F>
+	struct y_combinator {
+		F f; // the lambda will be stored here
 
-	protected:
-		iRng_t& m_iR;
-		std::normal_distribution<real_t> m_distr;
-
-	public:
-		~distr_normal_naive() {}
-		distr_normal_naive(iRng_t& iR, real_t mn = real_t(0.0), real_t stdev = real_t(1.0))noexcept
-			: m_iR(iR), m_distr(mn, stdev) {}
-
-		void gen_vector(real_t* ptr, const size_t n)noexcept {
-			const auto pE = ptr + n;
-			while (ptr != pE) *ptr++ = m_distr(m_iR);
-		}
-
-		void gen_matrix(realmtx_t& m)noexcept {
-			NNTL_ASSERT(!m.empty() && m.numel() > 0);
-			gen_vector(m.data(), m.numel());
-		}
-
-		void gen_matrix_no_bias(realmtx_t& m)noexcept {
-			NNTL_ASSERT(!m.empty() && m.numel_no_bias() > 0);
-			gen_vector(m.data(), m.numel_no_bias());
+			 // a forwarding operator():
+		template <class... Args>
+		decltype(auto) operator()(Args&&... args) const {
+			// we pass ourselves to f, then the arguments.
+			// the lambda should take the first argument as `auto&& recurse` or similar.
+			return f(*this, std::forward<Args>(args)...);
 		}
 	};
+	// helper function that deduces the type of the lambda:
+	template <class F>
+	y_combinator<std::decay_t<F>> make_y_combinator(F&& f) {
+		return{ std::forward<F>(f) };
+	}
+	// (Be aware that in C++17 we can do better than a `make_` function)
+
+	//example
+	/*auto gcd = make_y_combinator(
+		[](auto&& gcd, int a, int b) {
+		return b == 0 ? a : gcd(b, a%b);
+	}
+	);*/
 
 }
 }

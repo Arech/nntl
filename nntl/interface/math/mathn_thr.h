@@ -133,7 +133,9 @@ namespace _impl {
 		static constexpr size_t softmax = 3000;//not tested
 
 		static constexpr size_t loss_quadratic = 24400;
-		static constexpr size_t loss_xentropy = 800;
+		static constexpr size_t loss_quadratic_ns = 20000;
+		static constexpr size_t loss_xentropy = 1000;// 800;
+		static constexpr size_t loss_xentropy_ns = 1000;
 		static constexpr size_t loss_softmax_xentropy = 1100;
 
 		static constexpr size_t RMSProp_Hinton = 2940;
@@ -230,7 +232,9 @@ namespace _impl {
 		static constexpr size_t softmax = 5000;//not tested
 
 		static constexpr size_t loss_quadratic = 49600;
-		static constexpr size_t loss_xentropy = 750;
+		static constexpr size_t loss_quadratic_ns = 45000;
+		static constexpr size_t loss_xentropy = 1000;//750;
+		static constexpr size_t loss_xentropy_ns = 1000;//750;
 		static constexpr size_t loss_softmax_xentropy = 1000;
 
 		static constexpr size_t RMSProp_Hinton = 8100;

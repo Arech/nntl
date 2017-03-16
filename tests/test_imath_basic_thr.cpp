@@ -960,8 +960,49 @@ void test_loss_xentropy_perf(vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 	tB.say("best");
 	STDCOUTL("l=" << loss);
 }
-TEST(TestMathNThr, lossSigmXentropy) {
+/*
+void test_loss_xentropy_perf_ns(vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
+	const auto dataSize = realmtx_t::sNumel(rowsCnt, colsCnt);
+	STDCOUTL("**** testing loss_xentropy_ns() over " << rowsCnt << "x" << colsCnt << " matrix (" << dataSize << " elements) ****");
+	constexpr unsigned maxReps = TEST_PERF_REPEATS_COUNT;
+
+	const real_t frac = .5;
+	realmtx_t A(rowsCnt, colsCnt), Y(rowsCnt, colsCnt);
+	real_t loss = 0;
+	ASSERT_TRUE(!A.isAllocationFailed() && !Y.isAllocationFailed());
+
+	iM.preinit(dataSize);
+	ASSERT_TRUE(iM.init());
+
+	d_interfaces::iRng_t rg;
+	rg.set_ithreads(iM.ithreads());
+
+	tictoc tSt, tMt, tB;
+	utils::prioritize_workers<utils::PriorityClass::PerfTesting, iThreads_t> pw(iM.ithreads());
+	for (unsigned r = 0; r < maxReps; ++r) {
+		rg.gen_matrix_norm(A);		rg.gen_matrix_norm(Y); iM.ewBinarize_ip(Y, frac);
+		tSt.tic();
+		loss += iM.loss_xentropy_ns_st(A, Y);
+		tSt.toc();
+
+		rg.gen_matrix_norm(A);		rg.gen_matrix_norm(Y); iM.ewBinarize_ip(Y, frac);
+		tMt.tic();
+		loss += iM.loss_xentropy_ns_mt(A, Y);
+		tMt.toc();
+
+		rg.gen_matrix_norm(A);		rg.gen_matrix_norm(Y); iM.ewBinarize_ip(Y, frac);
+		tB.tic();
+		loss += iM.loss_xentropy_ns(A, Y);
+		tB.toc();
+	}
+	tSt.say("st");
+	tMt.say("mt");
+	tB.say("best");
+	STDCOUTL("l=" << loss);
+}*/
+TEST(TestMathNThr, lossXentropy) {
 	NNTL_RUN_TEST2(imath_basic_t::Thresholds_t::loss_xentropy, 1) test_loss_xentropy_perf(i, 1);
+	//NNTL_RUN_TEST2(imath_basic_t::Thresholds_t::loss_xentropy_ns, 1) test_loss_xentropy_perf_ns(i, 1);
 }
 
 //////////////////////////////////////////////////////////////////////////

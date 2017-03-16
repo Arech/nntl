@@ -27,9 +27,8 @@ I wouldn't state the NNTL is the fastest CPU implementation of feedforward neura
     * layer_**identity** allows one to pass an incoming data to upper layers unmodified
     * layer_**identity_gate** passes incoming neurons up to a layer stack while allowing *_gated layer types to use them as a gating source.
   * compound layers (these layer types allows to encapsulate other layers in some way to produce more sophisticated architectures):
-    * layer_**pack_gated** helps to deal with an optional source data and allows to train a feature detector that is specialized only on the optional part of a data.
     * layer_**pack_horizontal** is designed to feed different sequential (and possibly overlapping) ranges of underlying neurons to a corresponding different layers. For example, this allows one to build a set of feature detectors each of which is specialized on a specific subset of data features.
-    * layer_**pack_horizontal_gated** adds a gating ability to a layer_pack_horizontal. It allows one to build a set of feature detectors for an optional data.
+    * layer_**pack_horizontal_gated** helps to deal with optional source data sets and allows to train feature detectors that are specialized only on optional parts of the data.
     * layer_**pack_tile** allows to process different sequential subsets of neurons by a single layer producing different output for each subset. It's kind a 'predecessor' of a convolutional layer, that implies strong regularization by a network architecture means.
     * layer_**pack_vertical** helps to build a vertical stack of layers that is represented as a single (compound) layer.
 * Activation units for an output layer:

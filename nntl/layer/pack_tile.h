@@ -150,7 +150,7 @@ namespace nntl {
 		realmtxdef_t m_activations, m_innerActivations, m_innerLowerLayerActivations;
 		//m_innerActivations is a matrix of size [k*m,a+1] to receive output from m_tiledLayer. It's content then transformed
 		//		into [m,k*a+1] m_activations matrix.
-		//		We're allocating additional matrix and will pass it into m_tiledLayer's init()/set_batch_size() instead of using
+		//		We're allocating additional matrix and will pass it into m_tiledLayer's init()/on_batch_size_change() instead of using
 		//			m_tiledLayer's own activations to anticipate inplace activation matrix transformation (which is not
 		//			implemented yet). This should make it clear that activation matrix could be transformed.
 		//			WTFIT???
@@ -215,17 +215,20 @@ namespace nntl {
 			return r;
 		}
 
+		//////////////////////////////////////////////////////////////////////////
 		//and apply function _Func(auto& layer) to each underlying (non-pack) layer here
 		template<typename _Func>
 		void for_each_layer(_Func&& f)const noexcept {
 			call_F_for_each_layer(std::forward<_Func>(f), m_tiledLayer);
 		}
-
 		template<typename _Func>
 		void for_each_layer_down(_Func&& f)const noexcept {
 			call_F_for_each_layer_down(std::forward<_Func>(f), m_tiledLayer);
 		}
+		template<typename _Func> void for_each_packed_layer(_Func&& f)const noexcept { std::forward<_Func>(f)(m_tiledLayer); }
+		template<typename _Func> void for_each_packed_layer_down(_Func&& f)const noexcept { std::forward<_Func>(f)(m_tiledLayer); }
 
+		//////////////////////////////////////////////////////////////////////////
 		//should return true, if the layer has a value to add to Loss function value (there's some regularizer attached)
 		bool hasLossAddendum()const noexcept { return m_tiledLayer.hasLossAddendum(); }
 
@@ -288,6 +291,7 @@ namespace nntl {
 			_layer_init_data_t initD(m_innerCD);
 			initD.clean_using(lid);
 			initD.bActivationsShareSpace = false;
+			initD.nTiledTimes *= tiles_count;
 			ec = m_tiledLayer.init(initD, m_innerActivations.data());
 			if (ErrorCode::Success != ec)return ec;
 			lid.update(initD);
@@ -327,10 +331,11 @@ namespace nntl {
 			m_tiledLayer.initMem(ptr, cnt);
 		}
 
-		void set_batch_size(const vec_len_t batchSize, real_t*const pNewActivationStorage = nullptr)noexcept {
+		void on_batch_size_change(real_t*const pNewActivationStorage = nullptr)noexcept {
+			const vec_len_t batchSize = get_self().getCurBatchSize();
 			NNTL_ASSERT(batchSize > 0);
 			NNTL_ASSERT(m_activations.emulatesBiases());
-			// now we must resize m_activations and update activations of inner layers with set_batch_size variation
+			// now we must resize m_activations and update activations of inner layers with on_batch_size_change variation
 			m_bActivationsValid = false;
 			const auto _biggest_batch_size = get_self().get_biggest_batch_size();
 			NNTL_ASSERT(batchSize <= _biggest_batch_size);
@@ -367,8 +372,9 @@ namespace nntl {
 			}
 
 			//changing the mode of m_tiledLayer.
-			m_innerCD.set_training_mode(get_self().isTrainingMode());
-			m_tiledLayer.set_batch_size(tiledRowsCnt, m_innerActivations.data());
+			//m_innerCD.set_training_mode(get_self().isTrainingMode());
+			m_innerCD.set_mode_and_batch_size(get_self().isTrainingMode(), tiledRowsCnt);
+			m_tiledLayer.on_batch_size_change(m_innerActivations.data());
 		}
 
 		////////////////////////////////////////////////////////////////////////////
@@ -381,6 +387,7 @@ namespace nntl {
 			auto& iI = get_self().get_iInspect();
 			iI.fprop_begin(get_self().get_layer_idx(), lowerLayer.get_activations(), get_self().isTrainingMode());
 
+			NNTL_ASSERT(m_activations.rows() == get_self().getCurBatchSize());
 			//restoring biases, should they were altered in drop_samples()
 			if (m_activations.isHoleyBiases() && !get_self().is_activations_shared()) {
 				m_activations.set_biases();
@@ -411,6 +418,7 @@ namespace nntl {
 			auto& iI = get_self().get_iInspect();
 			iI.fprop_begin(get_self().get_layer_idx(), lowerLayer.get_activations(), get_self().isTrainingMode());
 
+			NNTL_ASSERT(m_activations.rows() == get_self().getCurBatchSize());
 			auto& llAct = lowerLayer.get_activations();
 			NNTL_ASSERT(llAct.test_biases_ok());
 			NNTL_ASSERT(llAct.size() == realmtx_t::mtx_size_t(m_activations.rows()
@@ -443,6 +451,7 @@ namespace nntl {
 			auto& iI = get_self().get_iInspect();
 			iI.bprop_begin(get_self().get_layer_idx(), dLdA);
 
+			NNTL_ASSERT(m_activations.rows() == get_self().getCurBatchSize());
 			NNTL_ASSERT(get_self().isTrainingMode());
 			//we'd use m_innerLowerLayerActivations instead of lowerLayer.get_activations()
 			NNTL_ASSERT(m_innerLowerLayerActivations.test_biases_ok());

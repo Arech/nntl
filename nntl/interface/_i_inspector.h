@@ -130,11 +130,11 @@ namespace inspector {
 		nntl_interface void bprop_postCancelDropout(const realmtx_t& Act) const noexcept;
 		
 		nntl_interface void bprop_predLdZOut(const realmtx_t& Act, const realmtx_t& data_y) const noexcept;
-
 		nntl_interface void bprop_predAdZ(const realmtx_t& Act) const noexcept;
 		nntl_interface void bprop_dAdZ(const realmtx_t& dAdZ) const noexcept;
 		nntl_interface void bprop_dLdZ(const realmtx_t& dLdZ) const noexcept;
 		nntl_interface void bprop_postClampdLdZ(const realmtx_t& dLdZ,const real_t& Ub, const real_t& Lb) const noexcept;
+		nntl_interface void bprop_dLdW(const realmtx_t& dLdZ, const realmtx_t& prevAct, const realmtx_t& dLdW) const noexcept;
 
 		nntl_interface void apply_grad_begin(const realmtx_t& W, const realmtx_t& dLdW)const noexcept;
 		nntl_interface void apply_grad_end(const realmtx_t& W)const noexcept;
@@ -218,6 +218,7 @@ namespace inspector {
 			void bprop_dAdZ(const realmtx_t& dAdZ) const noexcept{}
 			void bprop_dLdZ(const realmtx_t& dLdZ) const noexcept{}
 			void bprop_postClampdLdZ(const realmtx_t& dLdZ, const real_t& Ub, const real_t& Lb) const noexcept{}
+			void bprop_dLdW(const realmtx_t& dLdZ, const realmtx_t& prevAct, const realmtx_t& dLdW) const noexcept {}
 
 			void apply_grad_begin(const realmtx_t& W, const realmtx_t& dLdW)const noexcept {}
 			void apply_grad_end(const realmtx_t& W)const noexcept {}
@@ -266,6 +267,11 @@ namespace inspector {
 			}
 			operator value_t()const noexcept {
 				return top();
+			}
+
+			//checks whether the previous entry is the same as current
+			bool bUpperLayerDifferent()const noexcept {
+				return size() < 2 || _base_class::top() != *std::prev(_base_class::_Get_container().end(), 2);
 			}
 
 		};

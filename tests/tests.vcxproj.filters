@@ -255,9 +255,6 @@
     <ClInclude Include="..\nntl\layer\identity.h">
       <Filter>nntl\layer</Filter>
     </ClInclude>
-    <ClInclude Include="..\nntl\layer\pack_gated.h">
-      <Filter>nntl\layer</Filter>
-    </ClInclude>
     <ClInclude Include="..\nntl\layer\_pack_traits.h">
       <Filter>nntl\layer</Filter>
     </ClInclude>
@@ -336,6 +333,18 @@
     <ClInclude Include="..\nntl\grad_works\ILR_Props.h">
       <Filter>nntl\grad_works</Filter>
     </ClInclude>
+    <ClInclude Include="nn_base_arch.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\nntl\utils\lambdas.h">
+      <Filter>nntl\utils</Filter>
+    </ClInclude>
+    <ClInclude Include="..\nntl\interface\inspectors\gradcheck.h">
+      <Filter>nntl\interface\inspectors</Filter>
+    </ClInclude>
+    <ClInclude Include="..\nntl\utils\gradcheck.h">
+      <Filter>nntl\utils</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="stdafx.cpp">
@@ -395,9 +404,6 @@
     <ClCompile Include="test_layer_pack_horizontal.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="test_layer_pack_gated.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
     <ClCompile Include="test_layer_pack_horizontal_gated.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
@@ -408,6 +414,9 @@
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="test_inspectors.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="test_layer_pack_vertical.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>

@@ -32,6 +32,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #pragma once
 
 #include "../nntl/nntl.h"
+#include "../nntl/_supp/io/binfile.h"
 
 #define MNIST_FILE_DEBUG "../data/mnist200_100.bin"
 #define MNIST_FILE_RELEASE  "../data/mnist60000.bin"
@@ -47,7 +48,19 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 void seqFillMtx(realmtx_t& m);
 
-void readTd(nntl::train_data<real_t>& td, const char* pFile = MNIST_FILE);
+template<typename real_t>
+void readTd(nntl::train_data<real_t>& td, const char* pFile = MNIST_FILE){
+	typedef nntl_supp::binfile reader_t;
+
+	SCOPED_TRACE("readTd");
+	reader_t reader;
+
+	STDCOUTL("Reading datafile '" << pFile << "'...");
+	reader_t::ErrorCode rec = reader.read(NNTL_STRING(pFile), td);
+	ASSERT_EQ(reader_t::ErrorCode::Success, rec) << "Error code description: " << reader.get_last_error_str();
+	ASSERT_TRUE(td.train_x().emulatesBiases());
+	ASSERT_TRUE(td.test_x().emulatesBiases());
+}
 
 void _allowMask(const realmtx_t& srcMask, realmtx_t& mask, const realmtx_t& data_y, const vec_len_t c);
 

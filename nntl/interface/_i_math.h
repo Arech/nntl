@@ -81,7 +81,7 @@ namespace math {
 
 		//extract ridxsCnt rows with indexes specified by sequential iterator ridxsItBegin into dest matrix.
 		template<typename SeqIt>
-		nntl_interface void mExtractRows(const realmtx_t& src, SeqIt ridxsItBegin, const numel_cnt_t ridxsCnt, realmtx_t& dest)noexcept;
+		nntl_interface void mExtractRows(const realmtx_t& src, SeqIt ridxsItBegin, realmtx_t& dest)noexcept;
 
 		//binarize elements of real-valued matrix according to their relaion to frac
 		nntl_interface void ewBinarize_ip(realmtx_t& A, const real_t& frac, const real_t& lBnd = real_t(0.), const real_t& uBnd = real_t(1.))noexcept;

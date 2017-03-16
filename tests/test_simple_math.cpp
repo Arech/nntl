@@ -533,7 +533,7 @@ void test_mrwIdxsOfMaxCorrectness(vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 	vec_t vec_et(rowsCnt), vec_test(rowsCnt);
 
 	for (unsigned tr = 0; tr < testCorrRepCnt; ++tr) {
-		rg.gen_matrix(A, 1000);
+		rg.gen_matrix(A, 1000000);
 		mrwMax_ET(A, nullptr, &vec_et[0]);
 
 		std::fill(vec_test.begin(), vec_test.end(), vec_t::value_type(-1));
@@ -601,7 +601,7 @@ void test_mrwMax_corr(vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 	vec_t vec_et(rowsCnt), vec_test(rowsCnt);
 
 	for (unsigned tr = 0; tr < testCorrRepCnt; ++tr) {
-		rg.gen_matrix(A, 1000);
+		rg.gen_matrix(A, 1000000);
 		mrwMax_ET(A, &vec_et[0]);
 
 		std::fill(vec_test.begin(), vec_test.end(), std::numeric_limits<real_t>::lowest());

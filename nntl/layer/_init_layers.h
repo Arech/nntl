@@ -43,6 +43,15 @@ namespace nntl {
 	struct m_layer_input {};
 	struct m_layer_output {};
 
+	//this class marks a layer as learnable. It must provide get_weights/set_weights() functions as well as compute dL/dW during bprop()
+	struct m_layer_learnable {};
+
+	template<typename LayerT>
+	struct is_layer_learnable : public std::is_base_of<m_layer_learnable, LayerT> {};
+
+	template<typename LayerT>
+	struct is_layer_output : public std::is_base_of<m_layer_output, LayerT> {};
+
 	//when a layer is derived from this class, it is expected to be used inside of some layer_pack_* objects and it
 	// doesn't have a neurons count specified in constructor. Instead, compound layer (or it's support objects) specifies
 	// the number of neurons during their construction via _set_neurons_cnt().
@@ -129,11 +138,11 @@ namespace nntl {
 				static_assert(!std::is_base_of<m_layer_input, PHLT::phl_original_t>::value && !std::is_base_of<m_layer_output, PHLT::phl_original_t>::value,
 					"No input/output layers is allowed within _layer_pack_horizontal");
 				
-				NNTL_ASSERT(m_pPHLCheckStorage && phl.m_count && phl.m_offset < _incNeurons && (phl.m_offset + phl.m_count) <= _incNeurons);
-				const auto pBeg = m_pPHLCheckStorage + phl.m_offset;
-				std::fill(pBeg, pBeg + phl.m_count, char(1));
+				NNTL_ASSERT(m_pPHLCheckStorage && phl.coord.m_count && phl.coord.m_offset < _incNeurons && (phl.coord.m_offset + phl.coord.m_count) <= _incNeurons);
+				const auto pBeg = m_pPHLCheckStorage + phl.coord.m_offset;
+				std::fill(pBeg, pBeg + phl.coord.m_count, char(1));
 
-				phl.l._preinit_layer(m_ILI, phl.m_count);
+				phl.l._preinit_layer(m_ILI, phl.coord.m_count);
 			}
 
 			bool PHLCheck()noexcept {
@@ -191,17 +200,18 @@ namespace nntl {
 			// during nnet evaluating and learning, it makes sense to distinguish how much memory is required to evaluate nnet, from how much
 			// memory is required for the training.
 			// During the init() phase, layer gets a reference to common_data_t structure via _layer_init_data::commonData. These structure
-			// contains description of maximum number of data rows for evaluating nnet and training nnet. Using this information, the layer
+			// contains description of maximum number of data rows for evaluating nnet and for training nnet. Using this information, the layer
 			// should calculate how much shared memory (in number of real_t elements) it would require in both cases. The layer returns this
 			// numbers in _layer_init_data::maxMemFPropRequire and _layer_init_data::maxMemTrainingRequire variables.
 			// Then the .initMem() function gets called with a pointer to shared memory and a **maximum** total available elements in it
 			// (max of _layer_init_data::maxMemFPropRequire and _layer_init_data::maxMemTrainingRequire). The layer then should "save"
 			// this pointer, for example, by redistributing it among necessary matrices via realmtx_t::useExternalStorage()
-			// After that the .set_batch_size() function gets called that defines the batch_size for all subsequent calls to fprop()/bprop().
-			// This gives the layer an opportunity to update sizes of it's internal variables.
-			// Only then the .fprop()/.bprop() functions could be called (with the same batch_size, that was specified during .set_batch_size()). When
-			// a new batch_size will be necessary, .set_batch_size() must be called at first.
-			//
+			// After that, the nnet object sets the new batch size in the shared common_data_t structure and calls layer's
+			// .on_batch_size_change() function to allow layer update sizes of it's internal variables.
+			// Only then the .fprop()/.bprop() functions could be called (with the same batch_size, that was found during
+			// last call to .on_batch_size_change()). When a new batch_size will be necessary, the nnet object will set it in common_data_t
+			// and call .on_batch_size_change() once more.
+			
 			OUT numel_cnt_t maxMemFPropRequire;// total size of <real_t> array to be passed to layer.initMem() in order to compute fprop()
 			OUT numel_cnt_t maxMemTrainingRequire;// same for bprop - that's how much <real_t>s must be addressed by pointer passed to .initMem() in order to bprop() to work
 			OUT numel_cnt_t max_dLdA_numel;//Biggest size of dLdA matrix (numel) that could be passed into a layer for bprop()
@@ -210,14 +220,13 @@ namespace nntl {
 			// completely from the stack !!! We need this variable!
 			OUT numel_cnt_t nParamsToLearn;//total number of parameters, that layer has to learn during training
 
+			IN unsigned nTiledTimes;
+
 			IN bool bDropSamplesMightBeCalled; //this flag allows the layer to prepare for future drop_samples() calls
 			IN bool bActivationsShareSpace; //This flag indicates that the layer's activation matrix (that is given by pNewActivationStorage)
 			//lies next to some other (activation) matrices in memory, therefore layer must NOT touch a bias column in all cases except it
 			//was ordered by a call to drop_samples(...,true) (applies to gating layers - the only type of layers now, that can
 			// change the bias column)
-			IN bool bLPH_CustomFlag1;//this flag is set by LPH on demand of the layer that is going to be initialized and it is intended to
-			//propagate to the layer some info, related to the LPH architecture.
-			// layer_pack_gated uses it to find out whether it and its gate are the only "citizens" of the LPH
 
 			OUT bool bHasLossAddendum;//to be set by layer.init()
 			OUT bool bOutputDifferentDuringTraining;//set by layer.init() to note that the layer output (fprop results)
@@ -233,6 +242,10 @@ namespace nntl {
 				maxMemTrainingRequire = 0;
 				max_dLdA_numel = 0;
 				nParamsToLearn = 0;
+				nTiledTimes = 1;
+				
+				bDropSamplesMightBeCalled = false;
+				bActivationsShareSpace = false;
 				bHasLossAddendum = false;
 				bOutputDifferentDuringTraining = false;
 			}
@@ -244,13 +257,16 @@ namespace nntl {
 				_clean();
 				bDropSamplesMightBeCalled = o.bDropSamplesMightBeCalled;
 				bActivationsShareSpace = o.bActivationsShareSpace;
-				bLPH_CustomFlag1 = o.bLPH_CustomFlag1;
+				nTiledTimes = o.nTiledTimes;
 			}
-			void clean_using(const bool& bDropSamplesMBC = false, const bool& bActShareSp = false, const bool& bLph1=false)noexcept {
+			void clean_using(const bool& bDropSamplesMBC = false, const bool& bActShareSp = false)noexcept {
 				_clean();
 				bDropSamplesMightBeCalled = bDropSamplesMBC;
 				bActivationsShareSpace = bActShareSp;
-				bLPH_CustomFlag1 = bLph1;
+			}
+			void clean_passing(const _layer_init_data& o)noexcept {
+				_clean();
+				nTiledTimes = o.nTiledTimes;
 			}
 
 			//used by compound layers to gather data from layers encapsulated into them.

@@ -125,6 +125,18 @@ namespace math {
 			}
 			return ret;
 		}
+		static real_t _reduce_final_sum_ns(real_t* _ptr, const range_t _cnt)noexcept {
+			NNTL_ASSERT(_ptr && _cnt > 0);
+			const auto pE = _ptr + _cnt;
+			real_t ret(0.), C(0.), Y, T;
+			while (_ptr != pE) {
+				Y = *_ptr++ - C;
+				T = ret + Y;
+				C = T - ret - Y;
+				ret = T;
+			}
+			return ret;
+		}
 
 	public:
 		~_SMath()noexcept {}

@@ -139,6 +139,7 @@ namespace nntl {
 
 		static constexpr size_t TotalOpts = utils::mixins::get_cumsum<mixin_opts_cnt>::value;
 
+		//#TODO move it out of the class
 		//this definition should be local to a _grad_works class definition. Other derivations of _impl::_i_grad_works could
 		//have other optimizers implemented.
 		enum GradType {
@@ -302,7 +303,7 @@ namespace nntl {
 		}
 
 		void pre_training_fprop(realmtxdef_t& weights) noexcept {
-			if (use_nesterov_momentum()) {
+			if (use_nesterov_momentum() && !isLearningBlocked()) {
 				// (1)  vW`(t+1)= momentum*vW(t)
 				// (2)  W`(t+1) = W(t) - momentum*vW(t)
 				//				= W(t) - vW`(t+1)
@@ -325,12 +326,14 @@ namespace nntl {
 		}
 		
 		void apply_grad(realmtxdef_t& weights, realmtxdef_t& dLdW) noexcept {
+			NNTL_ASSERT(dLdW.size() == weights.size());
+
 			auto& iM = get_iMath();
 			auto& iI = get_iInspect();
 
 			iI.apply_grad_begin(weights, dLdW);
 
-			NNTL_ASSERT(dLdW.size() == weights.size());
+			if (isLearningBlocked()) return; //do nothing, leave the state intact
 
 			const bool bFirstRun = get_opt(f_FirstRun);
 			set_opt(f_FirstRun,false);

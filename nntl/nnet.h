@@ -36,17 +36,18 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include "errors.h"
 #include "_nnet_errs.h"
-
 #include "utils.h"
-
 #include "train_data.h"
 
 #include "nnet_train_opts.h"
-//#include "interfaces.h"
 #include "common_nn_data.h"
+//#include "utils\lambdas.h"
+
+#include "interface/inspectors/gradcheck.h"
 
 namespace nntl {
 
+	//dummy callback for .train() function.
 	struct NNetCB_OnEpochEnd_Dummy {
 		template<typename _nnet, typename _opts>
 		constexpr const bool operator()(_nnet& nn, _opts& opts, const size_t epochIdx)const {
@@ -54,20 +55,6 @@ namespace nntl {
 			return true;
 		}
 	};
-
-	namespace _impl {		
-		template<typename LayersT>
-		struct _tmp_train_data {
-			typename LayersT::realmtx_t _batch_x, _batch_y;
-
-			//dLdA is loss function derivative wrt activations. For the top level it's usually called an 'error' and defined like (data_y-a).
-			// We use slightly more generalized approach and name it appropriately. It's computed by _i_activation_loss::dloss
-			// and most time (for quadratic or crossentropy loss) it is (a-data_y) (we reverse common definition to get rid
-			// of negation in dL/dA = -error for error=data_y-a)
-			typename LayersT::realmtxdef_array_t a_dLdA;
-		};
-	}
-
 
 	//////////////////////////////////////////////////////////////////////////
 	template <typename LayersPack>
@@ -83,8 +70,6 @@ namespace nntl {
 
 		typedef typename iMath_t::realmtx_t realmtx_t;
 		typedef typename iMath_t::realmtxdef_t realmtxdef_t;
-
-		typedef typename layers_pack_t::realmtxdef_array_t realmtxdef_array_t;
 		
 		typedef train_data<real_t> train_data_t;
 
@@ -96,6 +81,8 @@ namespace nntl {
 		_impl::layers_mem_requirements m_LMR;
 
 		std::vector<real_t> m_pTmpStor;
+
+		realmtx_t m_batch_x, m_batch_y;
 
 		layer_index_t m_failedLayerIdx;
 
@@ -200,20 +187,20 @@ namespace nntl {
 
 		const bool _is_initialized(const vec_len_t biggestFprop, const vec_len_t batchSize)const noexcept {
 			return !m_bRequireReinit && get_common_data().is_initialized()
-				&& biggestFprop<= get_common_data().max_fprop_batch_size()
-				&& (0 == batchSize || batchSize == get_common_data().training_batch_size());
+				&& biggestFprop <= get_common_data().max_fprop_batch_size()
+				&& batchSize <= get_common_data().training_batch_size();
+				//&& (0 == batchSize || batchSize == get_common_data().training_batch_size());
 		}
 
 		//batchSize==0 means that _init is called for use in fprop scenario only
-		ErrorCode _init(const vec_len_t biggestFprop, vec_len_t batchSize = 0
-			, const bool bMiniBatch = false, const vec_len_t train_x_cols = 0, const vec_len_t train_y_cols = 0
-			, _impl::_tmp_train_data<layers_pack_t>* pTtd = nullptr)noexcept
-		{
-			NNTL_ASSERT((batchSize == 0 && pTtd == nullptr) || (batchSize != 0 && pTtd != nullptr));
+		ErrorCode _init(const vec_len_t biggestFprop, vec_len_t batchSize = 0, const bool bMiniBatch = false)noexcept {
 			if (_is_initialized(biggestFprop, batchSize)) {
-				_processTmpStor(bMiniBatch, train_x_cols, train_y_cols, batchSize, pTtd);
+				//_processTmpStor(bMiniBatch, train_x_cols, train_y_cols, batchSize, pTtd);
+				//looks like the call above is actually a bug. If the nnet is initalized, no work should be done with its memory
+				
 				return ErrorCode::Success;
 			}
+
 			//#TODO we must be sure here that no internal objects settings will be hurt during deinit phase
 			_deinit();
 			
@@ -234,19 +221,19 @@ namespace nntl {
 			
 			if (!get_iMath().init()) return ErrorCode::CantInitializeIMath;
 
-			const numel_cnt_t totalTempMemSize = _totalTrainingMemSize(bMiniBatch, batchSize, train_x_cols, train_y_cols);
+			const numel_cnt_t totalTempMemSize = _totalTrainingMemSize(bMiniBatch, batchSize);
 			//m_pTmpStor.reset(new(std::nothrow)real_t[totalTempMemSize]);
 			//if (nullptr == m_pTmpStor.get()) return ErrorCode::CantAllocateMemoryForTempData;
 			m_pTmpStor.resize(totalTempMemSize);
 			
-			const auto _memUsed = _processTmpStor(bMiniBatch, train_x_cols, train_y_cols, batchSize, pTtd);
+			const auto _memUsed = _processTmpStor(bMiniBatch, batchSize);
 			NNTL_ASSERT(totalTempMemSize == _memUsed);
 
 			bInitFinished = true;
 			return ErrorCode::Success;
 		}
-		const numel_cnt_t _totalTrainingMemSize(const bool bMiniBatch, const vec_len_t batchSize
-			, const vec_len_t train_x_cols, const vec_len_t train_y_cols)noexcept
+		const numel_cnt_t _totalTrainingMemSize(const bool bMiniBatch, const vec_len_t batchSize)noexcept
+			//, const vec_len_t train_x_cols, const vec_len_t train_y_cols)noexcept
 		{
 			// here is how we gonna spread temp buffers:
 			// 1. LMR.maxMemLayerTrainingRequire goes into m_Layers.initMem() to be used during fprop() or bprop() computations
@@ -254,15 +241,18 @@ namespace nntl {
 			//		"outgoing" i.e. for lower layer). This matrices will be used during bprop() by m_Layers.bprop()
 			// 3. In minibatch version, there will be 2 additional matrices sized (batchSize, train_x.cols()) and (batchSize, train_y.cols())
 			//		to handle _batch_x and _batch_y data
-			//return m_tmd.LMR.maxMemLayerTrainingRequire + m_tmd.a_dLdA.size()*LMR.maxSingledLdANumel
 			
- 			return m_LMR.maxMemLayerTrainingRequire
-				+ std::tuple_size<decltype(_impl::_tmp_train_data<layers_pack_t>::a_dLdA)>::value*m_LMR.maxSingledLdANumel
- 				+ (bMiniBatch ? (realmtx_t::sNumel(batchSize, train_x_cols) + realmtx_t::sNumel(batchSize, train_y_cols)) : 0);
+			const vec_len_t train_x_cols = vec_len_t(1) + m_Layers.input_layer().get_neurons_cnt()//1 for bias column
+				, train_y_cols = m_Layers.output_layer().get_neurons_cnt();
+
+			return m_LMR.maxMemLayerTrainingRequire
+				+ (batchSize > 0 
+					? m_Layers.m_a_dLdA.size()*m_LMR.maxSingledLdANumel
+					+ (bMiniBatch ? (realmtx_t::sNumel(batchSize, train_x_cols) + realmtx_t::sNumel(batchSize, train_y_cols)) : 0)
+					: 0);
 		}
 
-		numel_cnt_t _processTmpStor(const bool bMiniBatch, const vec_len_t train_x_cols, const vec_len_t train_y_cols
-			,const vec_len_t batchSize, _impl::_tmp_train_data<layers_pack_t>* pTtd)noexcept
+		numel_cnt_t _processTmpStor(const bool bMiniBatch, const vec_len_t batchSize)noexcept
 		{
 			NNTL_ASSERT(m_pTmpStor.size() > 0);
 			//auto tempMemStorage = m_pTmpStor.get();
@@ -271,25 +261,29 @@ namespace nntl {
 
 			numel_cnt_t spreadTempMemSize = 0;
 
-			if (pTtd) {
+			if (batchSize > 0) {
+// 				const vec_len_t train_x_cols = 1 + m_Layers.input_layer().get_neurons_cnt()//1 for bias column
+// 					, train_y_cols = m_Layers.output_layer().get_neurons_cnt();
+
 				//3. _batch_x and _batch_y if necessary
 				if (bMiniBatch) {
-					NNTL_ASSERT(train_x_cols && train_y_cols && batchSize);
-					pTtd->_batch_x.useExternalStorage(&tempMemStorage[spreadTempMemSize], batchSize, train_x_cols);
-					spreadTempMemSize += pTtd->_batch_x.numel();
-					pTtd->_batch_y.useExternalStorage(&tempMemStorage[spreadTempMemSize], batchSize, train_y_cols);
-					spreadTempMemSize += pTtd->_batch_y.numel();
+					NNTL_ASSERT(batchSize);
+					m_batch_x.useExternalStorage(&tempMemStorage[spreadTempMemSize], batchSize, m_Layers.input_layer().get_neurons_cnt() + 1, true);
+					spreadTempMemSize += m_batch_x.numel();
+					m_batch_y.useExternalStorage(&tempMemStorage[spreadTempMemSize], batchSize, m_Layers.output_layer().get_neurons_cnt());
+					spreadTempMemSize += m_batch_y.numel();
 				}
 
 				//2. dLdA
-				for (unsigned i = 0; i < pTtd->a_dLdA.size(); ++i) {
-					pTtd->a_dLdA[i].useExternalStorage(&tempMemStorage[spreadTempMemSize], m_LMR.maxSingledLdANumel);
+				//#TODO: better move it to m_Layers
+				for(auto& m : m_Layers.m_a_dLdA){
+					m.useExternalStorage(&tempMemStorage[spreadTempMemSize], m_LMR.maxSingledLdANumel);
 					spreadTempMemSize += m_LMR.maxSingledLdANumel;
 				}
 			}
 
 			// 1.
-			if (m_LMR.maxMemLayerTrainingRequire > 0) {
+			if (m_LMR.maxMemLayerTrainingRequire > 0) {//m_LMR.maxMemLayerTrainingRequire is a max(for fprop() and for bprop() reqs)
 				m_Layers.initMem(&tempMemStorage[spreadTempMemSize], m_LMR.maxMemLayerTrainingRequire);
 				spreadTempMemSize += m_LMR.maxMemLayerTrainingRequire;
 			}
@@ -303,14 +297,17 @@ namespace nntl {
 			get_iMath().deinit();
 			m_bRequireReinit = false;
 			m_LMR.zeros();
+			m_batch_x.clear();
+			m_batch_y.clear();
 			m_pTmpStor.clear();
 		}
 		
 		void set_mode_and_batch_size(const vec_len_t bs)noexcept {
 			const bool bIsTraining = bs == 0;
 			auto& cd = get_common_data();
-			cd.set_training_mode(bIsTraining);
-			m_Layers.set_batch_size(bIsTraining ? cd.training_batch_size() : bs);
+			//cd.set_training_mode(bIsTraining);
+			cd.set_mode_and_batch_size(bIsTraining, bIsTraining ? cd.training_batch_size() : bs);
+			m_Layers.on_batch_size_change();
 		}
 
 	public:
@@ -353,9 +350,7 @@ namespace nntl {
 			m_bCalcFullLossValue = opts.calcFullLossValue();
 			//////////////////////////////////////////////////////////////////////////
 			// perform layers initialization, gather temp memory requirements, then allocate and spread temp buffers
-			_impl::_tmp_train_data<layers_pack_t> ttd;
-			auto ec = _init(bTrainSetBigger ? samplesCount : td.test_x().rows(), batchSize, bMiniBatch,
-				train_x.cols(), train_y.cols(), &ttd);
+			auto ec = _init(bTrainSetBigger ? samplesCount : td.test_x().rows(), batchSize, bMiniBatch);
 			if (ErrorCode::Success != ec) return _set_last_error(ec);
 
 			//scheduling deinitialization with scope_exit to forget about return statements
@@ -367,12 +362,14 @@ namespace nntl {
 
 			if (m_bCalcFullLossValue) m_bCalcFullLossValue = m_LMR.bHasLossAddendum;
 
-			realmtx_t& batch_x = bMiniBatch ? ttd._batch_x : td.train_x_mutable();
-			realmtx_t& batch_y = bMiniBatch ? ttd._batch_y : td.train_y_mutable();
+			realmtx_t& batch_x = bMiniBatch ? m_batch_x : td.train_x_mutable();
+			realmtx_t& batch_y = bMiniBatch ? m_batch_y : td.train_y_mutable();
+			NNTL_ASSERT(batch_x.emulatesBiases() && !batch_y.emulatesBiases());
 
 			std::vector<vec_len_t> vRowIdxs(bMiniBatch ? samplesCount : 0);
 			if (bMiniBatch) {
-				for (size_t i = 0; i < samplesCount; ++i) vRowIdxs[i] = static_cast<decltype(vRowIdxs)::value_type>(i);
+				std::iota(vRowIdxs.begin(), vRowIdxs.end(), 0);
+				//for (size_t i = 0; i < samplesCount; ++i) vRowIdxs[i] = static_cast<decltype(vRowIdxs)::value_type>(i);
 			}
 
 			//////////////////////////////////////////////////////////////////////////
@@ -438,8 +435,8 @@ namespace nntl {
 						iI.train_batchBegin(batchIdx);
 
 						if (bMiniBatch) {
-							get_iMath().mExtractRows(train_x, vRowIdxIt, batchSize, batch_x);
-							get_iMath().mExtractRows(train_y, vRowIdxIt, batchSize, batch_y);
+							get_iMath().mExtractRows(train_x, vRowIdxIt, batch_x);
+							get_iMath().mExtractRows(train_y, vRowIdxIt, batch_y);
 							vRowIdxIt += batchSize;
 						}
 
@@ -454,7 +451,7 @@ namespace nntl {
 						}
 
 						iI.train_preBprop(batch_y);
-						m_Layers.bprop(batch_y, ttd.a_dLdA);
+						m_Layers.bprop(batch_y);
 
 						iI.train_batchEnd();
 					}
@@ -544,17 +541,410 @@ namespace nntl {
 			ec = eval(td.test_x(), td.test_y(), res.testSet, true);
 			return ec;
 		}
+		
+		//////////////////////////////////////////////////////////////////////////
+		// numeric gradient check
+		// 
+		
+	protected:
+
+		struct GradCheckFunctor {
+			nnet& m_nn;
+			const gradcheck_settings<real_t>& m_ngcSetts;
+
+			layer_index_t m_failedLayerIdx;			
+			_impl::gradcheck_mode m_mode;
+
+			//there's no need to make these objects global besides getting rid of memory reallocations, so let it be
+			std::vector<neurons_count_t> m_grpIdx, m_subgrpIdxs;
+
+			_impl::gradcheck_dataHolder<real_t> m_data;
+
+			const layer_index_t m_outputLayerIdx;
+
+			//////////////////////////////////////////////////////////////////////////
+			//affected state vars
+			const vec_len_t m__origBatchSize;
+			const bool m__bOrigInTraining;
+			const bool m__bOrigCalcFullLossValue;
+			
+			//////////////////////////////////////////////////////////////////////////
+		public:
+			~GradCheckFunctor()noexcept{
+				m_nn.get_iInspect().gc_deinit();
+
+				m_nn.m_bCalcFullLossValue = m__bOrigCalcFullLossValue;
+				m_nn.get_common_data().set_mode_and_batch_size(m__bOrigInTraining, m__origBatchSize);
+				m_nn.m_Layers.on_batch_size_change();
+				m_nn._unblockLearning();
+			}
+			GradCheckFunctor(nnet& n, const gradcheck_settings<real_t>& ngcSetts)noexcept
+				: m_nn(n), m_ngcSetts(ngcSetts), m_outputLayerIdx(n.m_Layers.output_layer().get_layer_idx())
+				//saving nnet mode & affected state
+				, m__bOrigInTraining(n.get_common_data().is_training_mode())
+				, m__bOrigCalcFullLossValue(n.m_bCalcFullLossValue)
+				, m__origBatchSize(n.get_common_data().get_cur_batch_size())
+			{
+				NNTL_ASSERT(m_ngcSetts.evalSetts.dLdA_setts.relErrWarnThrsh <= m_ngcSetts.evalSetts.dLdA_setts.relErrFailThrsh);
+				NNTL_ASSERT(m_ngcSetts.evalSetts.dLdW_setts.relErrWarnThrsh <= m_ngcSetts.evalSetts.dLdW_setts.relErrFailThrsh);
+				m_nn.get_iInspect().gc_init(m_ngcSetts.stepSize);
+
+				m_nn._blockLearning();
+				m_nn.m_bCalcFullLossValue = true;
+			}
+			//////////////////////////////////////////////////////////////////////////
+
+			bool performCheck(const vec_len_t batchSize, const realmtx_t& data_x, const realmtx_t& data_y)noexcept {
+				m_data.init(batchSize, data_x, data_y);
+				
+				bool bRet = false;
+				if (m_ngcSetts.bVerbose) {
+					STDCOUTL(std::endl<< "Performing layerwise gradient check in online mode (check dL/dA and so on)");
+				}
+				_launchCheck(_impl::gradcheck_mode::online, 1);
+				if (!m_failedLayerIdx) {
+					if (m_ngcSetts.bVerbose) {
+						STDCOUTL(std::endl << "Performing layerwise gradient check in batch mode (check dL/dW and so on)");
+					}
+					_launchCheck(_impl::gradcheck_mode::batch, batchSize);
+					bRet = !m_failedLayerIdx;
+				}
+
+				m_data.deinit();
+				return bRet;
+			}
+
+			layer_index_t getFailedLayerIdx()const noexcept { return m_failedLayerIdx; }
+			
+			template<typename LayerT>
+			void operator()(LayerT& lyr) noexcept {
+				if (m_failedLayerIdx) return;//do nothing, check has already been failed.
+
+				//calling internal layers at first if applicable
+				_checkInnerLayers(lyr);
+
+				if (m_failedLayerIdx) return;//do nothing, check has already been failed.
+
+				switch (m_mode) {
+				case nntl::_impl::gradcheck_mode::batch:
+					_doCheckdLdW(lyr);
+					break;
+
+				case nntl::_impl::gradcheck_mode::online:
+					//we should skip output_layer dLdA checks, because actually we don't compute dL/dA for it. We proceed
+					//straight to the dL/dZ in output_layer...
+					// It's not very good idea (to skip output layer check) for the sake of purity, but if there's a bug in it,
+					// we most likely encounter wrong dL/dA in underlying layers, therefore it seems acceptable solution.
+					{
+						const auto lidx = lyr.get_layer_idx();
+						if (lidx != m_outputLayerIdx) {
+							if (m_ngcSetts.bVerbose) STDCOUT(lyr.get_layer_name_str() << ": ");
+							_checkdLdA(lidx, lyr.get_neurons_cnt());
+						}
+					}
+					break;
+
+				default:
+					NNTL_ASSERT(!"WTF?");
+					break;
+				}
+			}
+
+		protected:
+			template<typename LayerT>
+			std::enable_if_t<is_layer_learnable<LayerT>::value> _doCheckdLdW(LayerT& lyr) noexcept {
+				if (m_ngcSetts.bVerbose) STDCOUT(lyr.get_layer_name_str() << ": ");
+				_checkdLdW(lyr.get_layer_idx(), lyr.get_neurons_cnt(), lyr.get_incoming_neurons_cnt());
+			}
+			template<typename LayerT>
+			std::enable_if_t<!is_layer_learnable<LayerT>::value> _doCheckdLdW(LayerT& lyr) const noexcept {}
+
+			void _reset()noexcept {
+				m_failedLayerIdx = 0;
+				m_nn.get_iInspect().gc_reset();
+			}
+			void _setMode(_impl::gradcheck_mode mode)noexcept {
+				_reset();
+				m_mode = mode;
+			}
+			void _launchCheck(_impl::gradcheck_mode mode, const vec_len_t batchSize)noexcept {
+				_setMode(mode);
+				m_data.prepateToBatchSize(batchSize);
+				m_nn.get_common_data().set_mode_and_batch_size(true, batchSize);
+				m_nn.m_Layers.on_batch_size_change();
+				m_nn.m_Layers.for_each_packed_layer_exc_input_down(*this);
+			}
+
+			template<typename LayerT>
+			std::enable_if_t<is_layer_pack<LayerT>::value> _checkInnerLayers(LayerT& lyr)noexcept {
+				lyr.for_each_packed_layer_down(*this);
+			}
+			template<typename LayerT>
+			std::enable_if_t<!is_layer_pack<LayerT>::value> _checkInnerLayers(LayerT& lyr)noexcept {}
+			
+			void _checkdLdA(const layer_index_t& lIdx, const neurons_count_t neuronsCnt)noexcept {
+				const auto checkNeuronsCnt = m_ngcSetts.groupSetts.countToCheck(neuronsCnt);
+				if (m_ngcSetts.bVerbose) STDCOUTL( checkNeuronsCnt << " dL/dA values out of total " << neuronsCnt << "... ");
+
+				m_grpIdx.resize(neuronsCnt);
+				std::iota(m_grpIdx.begin(), m_grpIdx.end(), neurons_count_t(0));
+				std::random_shuffle(m_grpIdx.begin(), m_grpIdx.end(), m_nn.get_iRng());
+				//m_nn.get_iRng().gen_vector_gtz(&m_grpIdx[0], checkNeuronsCnt, neuronsCnt - 1);
+				
+				const neurons_count_t maxZerodLdA = (checkNeuronsCnt*m_ngcSetts.evalSetts.dLdA_setts.percOfZeros) / 100;
+				neurons_count_t zerodLdA = 0;
+				const auto doubleSs = m_ngcSetts.stepSize * 2;
+				auto& iI = m_nn.get_iInspect();
+				for (neurons_count_t i = 0; i < checkNeuronsCnt; ++i) {
+					if (m_failedLayerIdx) break;
+
+					auto neurIdx = m_grpIdx[i];
+
+					m_data.nextBatch(m_nn.get_iRng(), m_nn.get_iMath());
+
+					const mtx_coords_t coords(0, neurIdx);
+					iI.gc_prep_check_layer(lIdx, _impl::gradcheck_paramsGroup::dLdA, coords);
+
+					iI.gc_set_phase(_impl::gradcheck_phase::df_numeric_minus);
+					const real_t LossMinus = _calcLossF();
+
+					iI.gc_set_phase(_impl::gradcheck_phase::df_numeric_plus);
+					const real_t dLnum = (_calcLossF() - LossMinus) / doubleSs;
+					
+					iI.gc_set_phase(_impl::gradcheck_phase::df_analitical);
+					m_nn.m_Layers.fprop(m_data.batchX());
+					m_nn.m_Layers.bprop(m_data.batchY());
+					const real_t dLan = iI.get_analitical_value();
+
+					_checkErr(lIdx, dLan, dLnum, coords, maxZerodLdA, zerodLdA);
+				}
+				if (!m_failedLayerIdx){
+					if (m_ngcSetts.evalSetts.dLdA_setts.percOfZeros >= 100 && maxZerodLdA == zerodLdA) {
+						STDCOUTL("Warning: all dL/dA was zeroed. It's normal for a setups with LPHG, but error for others");
+					}
+					if(m_ngcSetts.bVerbose) STDCOUTL("Passed.");
+				}
+			}
+
+			void _checkWeight(const layer_index_t& lIdx, const mtx_coords_t& coords
+				, const neurons_count_t& maxZerodLdW, neurons_count_t& zerodLdW) noexcept
+			{
+				const auto doubleSs = m_ngcSetts.stepSize * 2;
+				auto& iI = m_nn.get_iInspect();
+
+				m_data.nextBatch(m_nn.get_iRng(), m_nn.get_iMath());
+
+				iI.gc_prep_check_layer(lIdx, _impl::gradcheck_paramsGroup::dLdW, coords);
+
+				iI.gc_set_phase(_impl::gradcheck_phase::df_numeric_minus);
+				const real_t LossMinus = _calcLossF();
+
+				iI.gc_set_phase(_impl::gradcheck_phase::df_numeric_plus);
+				const real_t dLnum = (_calcLossF() - LossMinus) / doubleSs;
+
+				iI.gc_set_phase(_impl::gradcheck_phase::df_analitical);
+				m_nn.m_Layers.fprop(m_data.batchX());
+				m_nn.m_Layers.bprop(m_data.batchY());
+				const real_t dLan = iI.get_analitical_value();
+
+				_checkErr(lIdx, dLan, dLnum, coords, maxZerodLdW, zerodLdW);
+			}
+
+			void _checkdLdW(const layer_index_t& lIdx, const neurons_count_t neuronsCnt, const neurons_count_t incNeuronsCnt)noexcept
+			{
+				const auto checkNeuronsCnt = m_ngcSetts.groupSetts.countToCheck(neuronsCnt);
+				const auto checkIncWeightsCnt = m_ngcSetts.subgroupSetts.countToCheck(incNeuronsCnt);
+				if (m_ngcSetts.bVerbose) STDCOUTL("dL/dW: " << checkNeuronsCnt << " neurons (out of total " << neuronsCnt
+					<< ") with " << checkIncWeightsCnt << " incoming weights (total " << incNeuronsCnt << ")...");
+				
+				m_grpIdx.resize(neuronsCnt);
+				std::iota(m_grpIdx.begin(), m_grpIdx.end(), neurons_count_t(0));
+				std::random_shuffle(m_grpIdx.begin(), m_grpIdx.end(), m_nn.get_iRng());
+				//m_nn.get_iRng().gen_vector_gtz(&m_grpIdx[0], checkNeuronsCnt, neuronsCnt - 1);
+
+				m_subgrpIdxs.resize(incNeuronsCnt);
+				std::iota(m_subgrpIdxs.begin(), m_subgrpIdxs.end(), neurons_count_t(0));
+
+				const neurons_count_t maxZerodLdW = (checkNeuronsCnt*(checkIncWeightsCnt + 1)*m_ngcSetts.evalSetts.dLdW_setts.percOfZeros) / 100;
+				neurons_count_t zerodLdW = 0;
+
+				//prev layer neurons weights
+				for (neurons_count_t i = 0; i < checkNeuronsCnt; ++i) {
+					if (m_failedLayerIdx) break;
+					auto neurIdx = m_grpIdx[i];
+
+					std::random_shuffle(m_subgrpIdxs.begin(), m_subgrpIdxs.end(), m_nn.get_iRng());
+					//m_nn.get_iRng().gen_vector_gtz(&m_subgrpIdxs[0], checkIncWeightsCnt, incNeuronsCnt - 1);
+
+					for (neurons_count_t j = 0; j < checkIncWeightsCnt; ++j) {
+						if (m_failedLayerIdx) break;
+						_checkWeight(lIdx, mtx_coords_t(neurIdx, m_subgrpIdxs[j]), maxZerodLdW, zerodLdW);
+					}
+				}
+				if (!m_failedLayerIdx){
+					if (m_ngcSetts.bVerbose) STDCOUTL("Bias weights in dL/dW: " << checkNeuronsCnt 
+						<< " biases (out of total " << neuronsCnt << ")...");
+
+					//bias weights
+					//m_nn.get_iRng().gen_vector_gtz(&m_grpIdx[0], checkNeuronsCnt, neuronsCnt - 1);
+					std::random_shuffle(m_grpIdx.begin(), m_grpIdx.end(), m_nn.get_iRng());
+					for (neurons_count_t i = 0; i < checkNeuronsCnt; ++i) {
+						if (m_failedLayerIdx) break;
+						_checkWeight(lIdx, mtx_coords_t(m_grpIdx[i], incNeuronsCnt), maxZerodLdW, zerodLdW);
+					}
+				}				
+
+				if (!m_failedLayerIdx){
+					if (m_ngcSetts.evalSetts.dLdW_setts.percOfZeros >= 100 && maxZerodLdW == zerodLdW) {
+						STDCOUTL("Warning: all dL/dW was zeroed. It can be OK for a setups with LPHG, but it's an error for others");
+					}
+					if( m_ngcSetts.bVerbose) STDCOUTL("Passed.");
+				}
+			}
+
+			void _checkErr(const layer_index_t& lIdx, const real_t& dLan, const real_t& dLnum, const mtx_coords_t& coords
+				, const neurons_count_t& maxZerodL, neurons_count_t& zerodL)noexcept
+			{
+				const char* checkName;
+				const real_t* warnThrsh, *failThrsh;
+				const auto grp = m_nn.get_iInspect().gc_getCurParamsGroup();
+				switch (grp){
+				case _impl::gradcheck_paramsGroup::dLdA:
+					checkName = "dL/dA";
+					warnThrsh = &m_ngcSetts.evalSetts.dLdA_setts.relErrWarnThrsh;
+					failThrsh = &m_ngcSetts.evalSetts.dLdA_setts.relErrFailThrsh;
+					break;
+
+				case _impl::gradcheck_paramsGroup::dLdW:
+					checkName = "dL/dW";
+					warnThrsh = &m_ngcSetts.evalSetts.dLdW_setts.relErrWarnThrsh;
+					failThrsh = &m_ngcSetts.evalSetts.dLdW_setts.relErrFailThrsh;
+					break;
+
+				default:
+					NNTL_ASSERT(!"WTF??");
+					_fail(lIdx, "Unexpected parameter group passed", coords);
+					return;
+				}
+
+				if (0 == dLan && 0 == dLnum) {
+					if (!(grp == _impl::gradcheck_paramsGroup::dLdW && lIdx == 1 && m_ngcSetts.evalSetts.bIgnoreZerodLdWInUndelyingLayer)) {
+						if (++zerodL > maxZerodL) {
+							char _s[128];
+							sprintf_s(_s, "Too many (%d of max %d) of %s equal to zero. If it is acceptable, adjust gradcheck_settings::evalSetts.percOfZerodLdA", zerodL, maxZerodL, checkName);
+							_fail(lIdx, _s, coords);
+						}
+					}//yes, this is ugly hack to get rid of underlying layer's kinks
+				} else {
+					const real_t relErr = std::abs(dLan - dLnum) / std::max(std::abs(dLan), std::abs(dLnum));
+					NNTL_ASSERT(!std::isnan(relErr) && !std::isinf(relErr));
+
+					if (relErr > *warnThrsh) {
+						if (relErr < *failThrsh) {
+							char _s[128];
+							sprintf_s(_s, "Relative error = %g (thrsh %g). Probably not an error.", relErr, *warnThrsh);
+							_warn(_s, coords);
+						} else {
+							char _s[128];
+							sprintf_s(_s, "Relative error = %g (thrsh %g). Gradient might be wrong!", relErr, *failThrsh);
+							_fail(lIdx, _s, coords);
+						}
+					}
+				}
+			}
+
+			void _say_final(const mtx_coords_t& coords)const noexcept {
+				STDCOUT(" coordinates: (" << coords.first << ", " << coords.second << "). Following data rows were used in the batch: ");
+				for (const auto& r : m_data.curBatchIdxs()) {
+					STDCOUT(r << ",");
+				}
+				STDCOUT(std::endl);
+			}
+
+			void _warn(const char* reason, const mtx_coords_t& coords)const noexcept {
+				STDCOUT("Warning: " << reason << std::endl << "Entry");
+				_say_final(coords);
+			}
+
+			void _fail(const layer_index_t lIdx, const char* reason, const mtx_coords_t& coords)noexcept {
+				m_failedLayerIdx = lIdx;
+				STDCOUT("FAILED!" << std::endl << reason << std::endl << "Failed entry ");
+				_say_final(coords);
+			}
+
+			const real_t _calcLossF()noexcept {
+				m_nn.m_Layers.prepToCalcLossAddendum();//cleanup cached loss version to always recalculate it from scratch, because we aren't interested in any cheats here.
+				m_nn.m_Layers.fprop(m_data.batchX());
+				return m_nn._calcLoss(m_data.batchX(), m_data.batchY(), true);
+			}
+		};
+
+	public:
+
+		// Safe to call during training phase (from the onEpochEndCB-functor parameter passed to .train())
+		// Does not affect the nnet state (besides changing RNG state)
+		// If the gradient check fails assert message is shown and returns false
+		// Requires the iInspect_t to be derived from inspectors::GradCheck<>
+		// Read http://cs231n.github.io/neural-networks-3/#gradcheck before using this function.
+		// NB: Most of our loss functions implementations are very simple and therefore numerically unstable.
+		// The first and the only real use a value of loss function is actually here, in .gradcheck().
+		// #todo stabilize loss functions computations
+		bool gradcheck(const realmtx_t& data_x, const realmtx_t& data_y
+			, const vec_len_t batchSize = 5
+			, const gradcheck_settings<real_t>& ngcSetts = gradcheck_settings<real_t>())noexcept
+		{
+			static_assert(inspector::is_gradcheck_inspector<iInspect_t>::value
+				, "In order to perform numeric gradient check derive nnet's inspector from inspectors::GradCheck!");
+
+			NNTL_ASSERT(batchSize > 0);
+			if (0 == batchSize) {
+				STDCOUTL("batchSize must be at least 1");
+				return false;
+			}
+
+			NNTL_ASSERT(data_x.cols() == m_Layers.input_layer().get_neurons_cnt() + 1 && data_x.rows() >= batchSize);
+			NNTL_ASSERT(data_y.cols() == m_Layers.output_layer().get_neurons_cnt() && data_y.rows() >= batchSize);
+			NNTL_ASSERT(data_x.rows() == data_y.rows());
+			if (
+				!(data_x.cols() == m_Layers.input_layer().get_neurons_cnt() + 1 && data_x.rows() >= batchSize)
+				|| !(data_y.cols() == m_Layers.output_layer().get_neurons_cnt() && data_y.rows() >= batchSize)
+				|| !(data_x.rows() == data_y.rows())
+				)
+			{
+				STDCOUTL("Wrong data sizes passed to " << NNTL_FUNCTION);
+				return false;
+			}
+
+			if (!std::is_same<real_t,double>::value) {
+				STDCOUTL("*** warning: it's significantly better to perform gradient check with double floating point precision.");
+			}
+			//////////////////////////////////////////////////////////////////////////
+			const auto ec = _init(batchSize, batchSize, false);
+			if (ErrorCode::Success != ec) {
+				STDCOUTL("Failed to init nnet object for gradcheck. Reason: " << get_error_str(ec));
+				return false;
+			}			
+			
+			//walking over each and every layer in the stack and checking the gradients
+			GradCheckFunctor gcf(*this, ngcSetts);
+
+			bool bOk = gcf.performCheck(batchSize, data_x, data_y);
+			if (bOk) {
+				STDCOUTL("Gradient checks passed!");
+			}else{
+				STDCOUTL("**** Gradient check failed within a layer with idx = " << gcf.getFailedLayerIdx());
+			}
+			return bOk;
+		}
 
 
 		//////////////////////////////////////////////////////////////////////////
+		//////////////////////////////////////////////////////////////////////////
 		// use this function for unit-tesing only
 		//batchSize==0 means that _init is called for use in fprop scenario only
-		ErrorCode ___init(const vec_len_t biggestFprop
-			, vec_len_t batchSize = 0, const bool bMiniBatch = false
-			, const vec_len_t train_x_cols = 0, const vec_len_t train_y_cols = 0
-			, _impl::_tmp_train_data<layers_pack_t>* pTtd = nullptr)noexcept
+		ErrorCode ___init(const vec_len_t biggestFprop, vec_len_t batchSize = 0, const bool bMiniBatch = false)noexcept
 		{
-			return _init(biggestFprop, batchSize, bMiniBatch, train_x_cols, train_y_cols, pTtd);
+			return _init(biggestFprop, batchSize, bMiniBatch);
 		}
 
 		//for unit-testing only!

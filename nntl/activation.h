@@ -121,7 +121,7 @@ namespace activation {
 		}
 	};
 
-	template<typename RealT, typename WeightsInitScheme = weights_init::Martens_SI_sigm<>>
+	template<typename RealT, typename WeightsInitScheme = weights_init::Martens_SI_sigm<>, bool bNumericStable = false>
 	class sigm_quad_loss : public sigm<RealT, WeightsInitScheme>, public _i_activation_loss<RealT> {
 		sigm_quad_loss() = delete;
 		~sigm_quad_loss() = delete;
@@ -132,14 +132,19 @@ namespace activation {
 			m.dSigmQuadLoss_dZ(data_y, act_dLdZ);
 		}
 
-		template <typename iMath>
-		static real_t loss(const realmtx_t& activations, const realmtx_t& data_y, iMath& m)noexcept {
+		template <typename iMath, bool bNS = bNumericStable>
+		static std::enable_if_t<!bNS, real_t> loss(const realmtx_t& activations, const realmtx_t& data_y, iMath& m)noexcept {
 			static_assert(std::is_base_of<math::_i_math<real_t>, iMath>::value, "iMath should implement math::_i_math");
 			return m.loss_quadratic(activations, data_y);
 		}
+		template <typename iMath, bool bNS = bNumericStable>
+		static std::enable_if_t<bNS, real_t> loss(const realmtx_t& activations, const realmtx_t& data_y, iMath& m)noexcept {
+			static_assert(std::is_base_of<math::_i_math<real_t>, iMath>::value, "iMath should implement math::_i_math");
+			return m.loss_quadratic_ns(activations, data_y);
+		}
 	};
 
-	template<typename RealT, typename WeightsInitScheme = weights_init::Martens_SI_sigm<>>
+	template<typename RealT, typename WeightsInitScheme = weights_init::Martens_SI_sigm<>, bool bNumericStable = false>
 	class sigm_xentropy_loss : public sigm<RealT, WeightsInitScheme>, public _i_activation_loss<RealT> {
 		sigm_xentropy_loss() = delete;
 		~sigm_xentropy_loss() = delete;
@@ -153,10 +158,16 @@ namespace activation {
 			m.evSub_ip(act_dLdZ, data_y);
 		}
 
-		template <typename iMath>
-		static real_t loss(const realmtx_t& activations, const realmtx_t& data_y, iMath& m)noexcept {
+		template <typename iMath, bool bNS = bNumericStable>
+		static std::enable_if_t<!bNS, real_t> loss(const realmtx_t& activations, const realmtx_t& data_y, iMath& m)noexcept {
 			static_assert(std::is_base_of<math::_i_math<real_t>, iMath>::value, "iMath should implement math::_i_math");
 			return m.loss_xentropy(activations, data_y);
+		}
+
+		template <typename iMath, bool bNS = bNumericStable>
+		static std::enable_if_t<bNS, real_t> loss(const realmtx_t& activations, const realmtx_t& data_y, iMath& m)noexcept {
+			static_assert(std::is_base_of<math::_i_math<real_t>, iMath>::value, "iMath should implement math::_i_math");
+			return m.loss_xentropy_ns(activations, data_y);
 		}
 	};
 
@@ -514,7 +525,9 @@ namespace activation {
 	using softsigm_ua = softsigm<RealT, 1000, WeightsInitScheme>;
 
 	//////////////////////////////////////////////////////////////////////////
-	template<typename RealT, unsigned int A1e3 = 1000, typename WeightsInitScheme = weights_init::He_Zhang<>>
+	//bNumericStable selects slightly more stable loss function implementation (usually drops relative error by the factor of 2)
+	// use it for numeric gradient checks. Useless for usual nnet training
+	template<typename RealT, unsigned int A1e3 = 1000, typename WeightsInitScheme = weights_init::He_Zhang<>, bool bNumericStable=false>
 	class softsigm_quad_loss : public softsigm<RealT, A1e3, WeightsInitScheme>, public _i_activation_loss<RealT> {
 		softsigm_quad_loss() = delete;
 		~softsigm_quad_loss() = delete;
@@ -525,15 +538,20 @@ namespace activation {
 			m.dSoftSigmQuadLoss_dZ(data_y, act_dLdZ, A);
 		}
 
-		template <typename iMath>
-		static real_t loss(const realmtx_t& activations, const realmtx_t& data_y, iMath& m)noexcept {
+		template <typename iMath, bool bNS = bNumericStable>
+		static std::enable_if_t<!bNS,real_t> loss(const realmtx_t& activations, const realmtx_t& data_y, iMath& m)noexcept {
 			static_assert(std::is_base_of<math::_i_math<real_t>, iMath>::value, "iMath should implement math::_i_math");
 			return m.loss_quadratic(activations, data_y);
+		}
+		template <typename iMath, bool bNS = bNumericStable>
+		static std::enable_if_t<bNS, real_t> loss(const realmtx_t& activations, const realmtx_t& data_y, iMath& m)noexcept {
+			static_assert(std::is_base_of<math::_i_math<real_t>, iMath>::value, "iMath should implement math::_i_math");
+			return m.loss_quadratic_ns(activations, data_y);
 		}
 	};
 
 	//NB: http://neuralnetworksanddeeplearning.com/chap3.html
-	template<typename RealT, unsigned int A1e3 = 1000, typename WeightsInitScheme = weights_init::He_Zhang<>>
+	template<typename RealT, unsigned int A1e3 = 1000, typename WeightsInitScheme = weights_init::He_Zhang<>, bool bNumericStable = false>
 	class softsigm_xentropy_loss : public softsigm<RealT, A1e3, WeightsInitScheme>, public _i_activation_loss<RealT> {
 		softsigm_xentropy_loss() = delete;
 		~softsigm_xentropy_loss() = delete;
@@ -543,11 +561,17 @@ namespace activation {
 			static_assert(std::is_base_of<math::_i_math<real_t>, iMath>::value, "iMath should implement math::_i_math");
 			m.dSoftSigmXEntropyLoss_dZ(data_y, act_dLdZ, A);
 		}
-
-		template <typename iMath>
-		static real_t loss(const realmtx_t& activations, const realmtx_t& data_y, iMath& m)noexcept {
+		
+		template <typename iMath, bool bNS = bNumericStable>
+		static std::enable_if_t<!bNS, real_t> loss(const realmtx_t& activations, const realmtx_t& data_y, iMath& m)noexcept {
 			static_assert(std::is_base_of<math::_i_math<real_t>, iMath>::value, "iMath should implement math::_i_math");
 			return m.loss_xentropy(activations, data_y);
+		}
+
+		template <typename iMath, bool bNS = bNumericStable>
+		static std::enable_if_t<bNS, real_t> loss(const realmtx_t& activations, const realmtx_t& data_y, iMath& m)noexcept {
+			static_assert(std::is_base_of<math::_i_math<real_t>, iMath>::value, "iMath should implement math::_i_math");
+			return m.loss_xentropy_ns(activations, data_y);
 		}
 	};
 

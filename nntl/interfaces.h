@@ -39,8 +39,10 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 namespace nntl {
 
+	template<typename RealT>
 	struct d_int_nI {
-		typedef math::d_real_t real_t;
+		//typedef math::d_real_t real_t;
+		typedef RealT real_t;
 
 		typedef threads::Std<real_t, math::smatrix_td::numel_cnt_t> iThreads_t;
 
@@ -50,10 +52,15 @@ namespace nntl {
 	};
 
 	//default interfaces definition
-	struct d_interfaces :public d_int_nI {
+	struct d_interfaces :public d_int_nI<math::d_real_t> {
 		typedef inspector::dummy<real_t> iInspect_t;
 	};
 
+	template<typename RealT>//, typename InspectorT = inspector::dummy<RealT>>
+	struct dt_interfaces :public d_int_nI<RealT> {
+		typedef inspector::dummy<real_t> iInspect_t;
+		//typedef InspectorT iInspect_t;
+	};
 
 	template<typename InterfacesT>
 	struct interfaces_td {

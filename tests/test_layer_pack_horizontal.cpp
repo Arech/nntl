@@ -32,30 +32,21 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include "stdafx.h"
 
+//to get rid of '... decorated name length exceeded, name was truncated'
+#pragma warning( disable : 4503 )
+
 #include "../nntl/math.h"
 #include "../nntl/nntl.h"
 #include "../nntl/_supp/io/binfile.h"
 #include "../nntl/_test/test_weights_init.h"
 #include "asserts.h"
 
+#include "common_routines.h"
+#include "nn_base_arch.h"
+
 using namespace nntl;
 typedef nntl_supp::binfile reader_t;
 
-// template<int rngSeed=0>
-// using test_weights_init_scheme = test_weights_init::Xavier<rngSeed>;
-
-
-#define MNIST_FILE_DEBUG "../data/mnist200_100.bin"
-#define MNIST_FILE_RELEASE  "../data/mnist60000.bin"
-
-#if defined(TESTS_SKIP_NNET_LONGRUNNING)
-//ALWAYS run debug build with similar relations of data sizes:
-// if release will run in minibatches - make sure, there will be at least 2 minibatches)
-// if release will use different data sizes for train/test - make sure, debug will also run on different datasizes
-#define MNIST_FILE MNIST_FILE_DEBUG
-#else
-#define MNIST_FILE MNIST_FILE_RELEASE
-#endif // _DEBUG
 
 //this is just to make sure it'll compile within nnet object
 TEST(TestLayerPackHorizontal, Simple) {
@@ -180,7 +171,8 @@ void test_same_layers(train_data<real_t>& td, uint64_t rngSeed) {
 	utils::for_eachwp_up(AlayersTuple, _impl::_preinit_layers(alc));
 
 	typedef _impl::common_nn_data<d_interfaces> common_data_t;
-	common_data_t CD(iMath, iRng, iInsp);
+	bool bUNUSED = false;
+	common_data_t CD(iMath, iRng, iInsp, bUNUSED);
 
 	CD.init(evalSamplesCnt, trainSamplesCnt);
 	_impl::_layer_init_data<common_data_t> lid(CD);
@@ -292,14 +284,14 @@ void test_same_layers(train_data<real_t>& td, uint64_t rngSeed) {
 
 	//////////////////////////////////////////////////////////////////////////
 	// doing and checking forward pass
-	CD.set_training_mode(true);
+	CD.set_mode_and_batch_size(true, trainSamplesCnt);
 
-	utils::for_each_up(AlayersTuple, [trainSamplesCnt](auto& lyr)noexcept { lyr.set_batch_size(trainSamplesCnt); });
+	utils::for_each_up(AlayersTuple, [](auto& lyr)noexcept { lyr.on_batch_size_change(); });
 	Ainp.fprop(trainX);
 	Aund.fprop(Ainp);
 	Aint.fprop(Aund);
 
-	utils::for_each_up(BlayersTuple, [trainSamplesCnt](auto& lyr)noexcept { lyr.set_batch_size(trainSamplesCnt); });
+	utils::for_each_up(BlayersTuple, [](auto& lyr)noexcept { lyr.on_batch_size_change(); });
 	Binp.fprop(trainX);
 	Bund.fprop(Binp);
 	lpHor.fprop(Bund);
@@ -358,24 +350,6 @@ TEST(TestLayerPackHorizontal, SameLayers) {
 	ASSERT_NO_FATAL_FAILURE(test_same_layers(td, std::time(0)));
 }
 
-/*
-TEST(TestLayerPackHorizontal, layer_has_LPHCustomFlagEval) {
-	LFC<> lfc(10);
-	layer_identity_gate<> lig;
-
-	auto lpg = make_layer_pack_gated(lfc, lig);
-
-	auto lph = make_layer_pack_horizontal(make_PHL(lig, 0, 1), make_PHL(lpg, 1, 2));
-
-	static_assert(_impl::layer_has_LPHCustomFlagEval<decltype(lpg), decltype(lph)::_phl_tuple>::value, "Wrong LPG");
-	static_assert(!_impl::layer_has_LPHCustomFlagEval<decltype(lfc), decltype(lph)::_phl_tuple>::value, "Wrong LFC");
-	
-// 	ASSERT_TRUE((_impl::layer_has_LPHCustomFlagEval<decltype(lpg), decltype(lph)::_phl_tuple>::value));
-// 	ASSERT_FALSE((_impl::layer_has_LPHCustomFlagEval<decltype(lfc), decltype(lph)::_phl_tuple>::value));
-
-}
-*/
-
 
 /*
 TEST(TestLayerPackHorizontal, InnerLayersIntersectsTestCheck) {
@@ -404,4 +378,133 @@ TEST(TestLayerPackHorizontal, InnerLayersIntersectsTestCheck) {
 	ASSERT_TRUE(lph2.isInnerLayersIntersects());
 	layer_output<> lo2(1);
 	auto lp2 = make_layers(li2, lph2, lo2);
+}*/
+
+//////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////
+
+//just a single LPH with 2 fully connected layers side-by-side (their receptive fields doesn't intersects)
+template<typename ArchPrmsT>
+struct GC_LPH_NO : public nntl_tests::NN_base_arch_td<ArchPrmsT> {
+	myLFC l1;
+	myLFC l2;
+	LPH<PHL<decltype(l1)>, PHL<decltype(l2)>> lFinal;
+
+	~GC_LPH_NO()noexcept {}
+	GC_LPH_NO(const ArchPrms_t& Prms)noexcept
+		: l1(50, Prms.learningRate, Prms.dropoutAlivePerc, "l1")
+		, l2(70, Prms.learningRate, Prms.dropoutAlivePerc, "l2")
+		, lFinal("lFinal"
+			, make_PHL(l1, 0, Prms.lUnderlay_nc / 2)
+			, make_PHL(l2, Prms.lUnderlay_nc / 2, Prms.lUnderlay_nc - (Prms.lUnderlay_nc / 2))//to get rid of integer division rounding
+		)
+	{}
+};
+TEST(TestLayerPackHorizontal, GradCheck_nonoverlapping) {
+	typedef double real_t;
+	typedef nntl_tests::NN_base_params<real_t, nntl::inspector::GradCheck<real_t>> ArchPrms_t;
+
+	nntl::train_data<real_t> td;
+	readTd(td);
+
+	ArchPrms_t Prms(td);
+	nntl_tests::NN_arch<GC_LPH_NO<ArchPrms_t>> nnArch(Prms);
+
+	auto ec = nnArch.warmup(td, 5, 200);
+	ASSERT_EQ(decltype(nnArch)::ErrorCode_t::Success, ec) << "Reason: " << nnArch.NN.get_error_str(ec);
+
+	gradcheck_settings<real_t> ngcSetts;
+	ngcSetts.evalSetts.bIgnoreZerodLdWInUndelyingLayer = true;
+	ngcSetts.evalSetts.dLdW_setts.relErrFailThrsh = real_t(5e-3);//numeric errors due to dLdAPrev addition in LPH stacks up significantly
+	ASSERT_TRUE(nnArch.NN.gradcheck(td.train_x(), td.train_y(), 10, ngcSetts));
+}
+
+template<typename ArchPrmsT>
+struct GC_LPH_OVR : public nntl_tests::NN_base_arch_td<ArchPrmsT> {
+	myLFC l1;
+	myLFC l2;
+	myLFC l3;
+	LPH<PHL<decltype(l1)>, PHL<decltype(l2)>, PHL<decltype(l3)>> lFinal;
+
+	~GC_LPH_OVR()noexcept {}
+	GC_LPH_OVR(const ArchPrms_t& Prms)noexcept
+		: l1(50, Prms.learningRate, Prms.dropoutAlivePerc, "l1")
+		, l2(70, Prms.learningRate, Prms.dropoutAlivePerc, "l2")
+		, l3(90, Prms.learningRate, Prms.dropoutAlivePerc, "l3")
+		, lFinal("lFinal"
+			, make_PHL(l1, 0, Prms.lUnderlay_nc - 1)
+			, make_PHL(l2, 1, Prms.lUnderlay_nc - 1)
+			, make_PHL(l3, 0, Prms.lUnderlay_nc)
+		)
+	{}
+};
+TEST(TestLayerPackHorizontal, GradCheck_overlapping) {
+	typedef double real_t;
+	typedef nntl_tests::NN_base_params<real_t, nntl::inspector::GradCheck<real_t>> ArchPrms_t;
+
+	nntl::train_data<real_t> td;
+	readTd(td);
+
+	ArchPrms_t Prms(td);
+	nntl_tests::NN_arch<GC_LPH_OVR<ArchPrms_t>> nnArch(Prms);
+
+	auto ec = nnArch.warmup(td, 5, 200);
+	ASSERT_EQ(decltype(nnArch)::ErrorCode_t::Success, ec) << "Reason: " << nnArch.NN.get_error_str(ec);
+
+	gradcheck_settings<real_t> ngcSetts;
+	ngcSetts.evalSetts.dLdW_setts.relErrFailThrsh = real_t(5e-3);//numeric errors due to dLdAPrev addition in LPH stacks up significantly
+	ngcSetts.evalSetts.bIgnoreZerodLdWInUndelyingLayer = true;
+	ASSERT_TRUE(nnArch.NN.gradcheck(td.train_x(), td.train_y(), 10, ngcSetts));
+}
+//////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////
+/*
+
+template<typename real_t, bool bNumStab>
+struct GC_LPH_params_ovr_ns : public nntl_tests::NN_base_params<real_t, nntl::inspector::GradCheck<real_t>> {
+private:
+	typedef nntl_tests::NN_base_params<real_t, nntl::inspector::GradCheck<real_t>> _base_class_t;
+public:
+	typedef nntl::activation::softsigm_quad_loss<real_t, 1000, weights_init::He_Zhang<>, bNumStab> myOutputActivation;
+	GC_LPH_params_ovr_ns(const nntl::train_data<real_t>& td) noexcept : _base_class_t(td) {}
+};
+
+TEST(TestLayerPackHorizontal, GradCheck_overlapping_ns) {
+	typedef double real_t;
+	const size_t rngSeed = std::time(0);
+
+	nntl::train_data<real_t> td;
+	readTd(td);
+
+	gradcheck_settings<real_t> ngcSetts;
+	ngcSetts.evalSetts.dLdW_setts.relErrWarnThrsh = real_t(5e-7);
+	ngcSetts.evalSetts.dLdA_setts.relErrWarnThrsh = real_t(5e-8);
+	ngcSetts.evalSetts.dLdW_setts.relErrFailThrsh = real_t(5e-3);
+	ngcSetts.evalSetts.bIgnoreZerodLdWInUndelyingLayer = true;
+
+	{
+		typedef GC_LPH_params_ovr_ns<real_t, false> ArchPrms_t;
+
+		ArchPrms_t Prms(td);
+		nntl_tests::NN_arch<GC_LPH_OVR<ArchPrms_t>> nnArch(Prms);
+
+		nnArch.NN.get_iRng().seed64(rngSeed);
+
+		auto ec = nnArch.warmup(td, 5, 200);
+		ASSERT_EQ(decltype(nnArch)::ErrorCode_t::Success, ec) << "Reason: " << nnArch.NN.get_error_str(ec);
+		ASSERT_TRUE(nnArch.NN.gradcheck(td.train_x(), td.train_y(), 10, ngcSetts));
+	}
+
+	{
+		typedef GC_LPH_params_ovr_ns<real_t, true> ArchPrms_t;
+
+		ArchPrms_t Prms(td);
+		nntl_tests::NN_arch<GC_LPH_OVR<ArchPrms_t>> nnArch(Prms);
+
+		nnArch.NN.get_iRng().seed64(rngSeed);
+
+		auto ec = nnArch.warmup(td, 5, 200);
+		ASSERT_EQ(decltype(nnArch)::ErrorCode_t::Success, ec) << "Reason: " << nnArch.NN.get_error_str(ec);
+		ASSERT_TRUE(nnArch.NN.gradcheck(td.train_x(), td.train_y(), 10, ngcSetts));
+	}
 }*/

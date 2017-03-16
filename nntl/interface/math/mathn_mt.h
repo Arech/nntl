@@ -74,8 +74,8 @@ namespace math {
 		//////////////////////////////////////////////////////////////////////////
 		//extract rows with indexes specified by Contnr ridxs into dest.
 		template<typename SeqIt>
-		void mExtractRows(const realmtx_t& src, SeqIt ridxsItBegin, const numel_cnt_t ridxsCnt, realmtx_t& dest)noexcept {
-			mExtractRows_mt_naive(src, ridxsItBegin, ridxsCnt, dest);
+		void mExtractRows(const realmtx_t& src, SeqIt ridxsItBegin, realmtx_t& dest)noexcept {
+			mExtractRows_mt_naive(src, ridxsItBegin, dest);
 		}
 		
 		//////////////////////////////////////////////////////////////////////////
@@ -308,11 +308,11 @@ namespace math {
 		//////////////////////////////////////////////////////////////////////////
 		// d(ReLU)/dZ
 		void drelu(realmtx_t& f_df) noexcept {
-			drelu(f_df);
+			base_class_t::drelu(f_df);
 		}
 
 		void leakyrelu(realmtx_t& srcdest, const real_t leak) noexcept {
-			leakyrelu(srcdest, leak);
+			base_class_t::leakyrelu(srcdest, leak);
 		}
 		void dleakyrelu(realmtx_t& f_df, const real_t leak) noexcept {
 			dleakyrelu_mt(f_df, leak);

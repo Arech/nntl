@@ -146,6 +146,8 @@ namespace nntl {
 		const vec_len_t get_training_batch_size()const noexcept { return lowmost_layer().get_training_batch_size(); }
 		const vec_len_t get_biggest_batch_size()const noexcept { return lowmost_layer().get_biggest_batch_size(); }
 		const bool isTrainingMode()const noexcept { return lowmost_layer().isTrainingMode(); }
+		const bool isTrainingPossible()const noexcept { return lowmost_layer().isTrainingPossible(); }
+		const vec_len_t getCurBatchSize()const noexcept { return lowmost_layer().getCurBatchSize(); }
 		
 		//////////////////////////////////////////////////////////////////////////
 		//and apply function _Func(auto& layer) to each underlying (non-pack) layer here
@@ -166,6 +168,10 @@ namespace nntl {
 		template<typename _Func>
 		void for_each_packed_layer(_Func&& f)const noexcept {
 			utils::for_each_up(m_layers, std::forward<_Func>(f));
+		}
+		template<typename _Func>
+		void for_each_packed_layer_down(_Func&& f)const noexcept {
+			utils::for_each_down(m_layers, std::forward<_Func>(f));
 		}
 
 		const layer_index_t get_layer_idx() const noexcept { return m_layerIdx; }
@@ -220,7 +226,7 @@ namespace nntl {
 			auto initD = lid.dupe();
 			utils::for_each_exc_last_up(m_layers, [&ec, &initD, &lid, &failedLayerIdx](auto& l)noexcept {
 				if (ErrorCode::Success == ec) {
-					initD.clean_using(); // there are currently no IN flags/variables in _layer_init_data_t structure,
+					initD.clean_passing(lid); // there are currently no IN flags/variables in _layer_init_data_t structure,
 					// that must be propagated to every layer in a stack, therefore we're using the default clean_using() form.
 					ec = l.init(initD);
 					if (ErrorCode::Success == ec) {
@@ -255,12 +261,11 @@ namespace nntl {
 			get_self().for_each_packed_layer([=](auto& l) {l.initMem(ptr, cnt); });
 		}
 
-		void set_batch_size(const vec_len_t batchSize, real_t*const pNewActivationStorage = nullptr)noexcept {
-			NNTL_ASSERT(batchSize > 0);
-			utils::for_each_exc_last_up(m_layers, [batchSize](auto& lyr)noexcept {
-				lyr.set_batch_size(batchSize);
+		void on_batch_size_change(real_t*const pNewActivationStorage = nullptr)noexcept {
+			utils::for_each_exc_last_up(m_layers, [](auto& lyr)noexcept {
+				lyr.on_batch_size_change();
 			});
-			get_self().topmost_layer().set_batch_size(batchSize, pNewActivationStorage);
+			get_self().topmost_layer().on_batch_size_change(pNewActivationStorage);
 		}
 
 		//////////////////////////////////////////////////////////////////////////

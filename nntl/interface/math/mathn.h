@@ -323,76 +323,63 @@ namespace math {
 			}, A.numel());
 		}
 
-
-
 		//////////////////////////////////////////////////////////////////////////
 		//extract rows with indexes specified by Contnr ridxs into dest.
 		template<typename SeqIt>
-		void mExtractRows(const realmtx_t& src, SeqIt ridxsItBegin, const numel_cnt_t ridxsCnt, realmtx_t& dest)noexcept {
+		void mExtractRows(const realmtx_t& src, SeqIt ridxsItBegin, realmtx_t& dest)noexcept {
 			if (dest.cols()<2 || dest.numel() < Thresholds_t::mExtractRows) {
-				get_self().mExtractRows_st_naive(src, ridxsItBegin, ridxsCnt, dest);
-			} else get_self().mExtractRows_mt_naive(src, ridxsItBegin, ridxsCnt, dest);
+				get_self().mExtractRows_st_naive(src, ridxsItBegin, dest);
+			} else get_self().mExtractRows_mt_naive(src, ridxsItBegin, dest);
 		}
 		template<typename SeqIt>
-		static void mExtractRows_st_naive(const realmtx_t& src, SeqIt ridxsItBegin, const numel_cnt_t ridxsCnt, realmtx_t& dest)noexcept {
+		static void _imExtractRows_st_naive(const realmtx_t& src, SeqIt ridxsItBegin, realmtx_t& dest, const elms_range& er)noexcept {
 			NNTL_ASSERT(!dest.empty() && !src.empty());
 			src.assert_storage_does_not_intersect(dest);
 			static_assert(std::is_same<vec_len_t, SeqIt::value_type>::value, "Contnr type should contain vec_len_t data");
 
 			const numel_cnt_t destRows = dest.rows(), srcRows = src.rows();
-			NNTL_ASSERT(dest.cols() == src.cols() && destRows == ridxsCnt && ridxsCnt <= srcRows);
+			NNTL_ASSERT(dest.cols() == src.cols() && destRows <= srcRows && !(src.emulatesBiases() ^ dest.emulatesBiases()));
+			NNTL_ASSERT(er.elmBegin <= destRows && er.elmEnd <= destRows && er.elmBegin <= er.elmEnd);
+
+			const auto rCnt = er.totalElements();
 
 			//TODO: accessing data in sequential order could provide some performance gains. However
 			//it requires the content of [ridxsItBegin,ridxsItBegin+ridxsCnt) to be sorted. Therefore, testing is required
 			// to decide whether it's all worth it
 
 			auto pSrc = src.data();
-			auto pDest = dest.data();
+			auto pDest = dest.data() + er.elmBegin;
 			const auto pDestEnd = pDest + dest.numel();
+			auto pThreadRI = ridxsItBegin + er.elmBegin;
 
 			while (pDest != pDestEnd) {
-				auto pRI = ridxsItBegin;
+				auto pRI = pThreadRI;
 				auto destCur = pDest;
 				pDest += destRows;
-				const auto destEnd = destCur + ridxsCnt;
+				const auto destEnd = destCur + rCnt;
 				while (destCur != destEnd) {
-					*destCur++ = *(pSrc + *pRI++);
+					const auto& idx = *pRI++;
+					NNTL_ASSERT(idx < srcRows);
+					//*destCur++ = *(pSrc + *pRI++);
+					*destCur++ = *(pSrc + idx);
 				}
 				pSrc += srcRows;
 			}
 		}
 		template<typename SeqIt>
-		void mExtractRows_mt_naive(const realmtx_t& src, SeqIt ridxsItBegin, const numel_cnt_t ridxsCnt, realmtx_t& dest)noexcept {
+		static void mExtractRows_st_naive(const realmtx_t& src, SeqIt ridxsItBegin, realmtx_t& dest, const elms_range*const pER = nullptr)noexcept {
+			_imExtractRows_st_naive(src, ridxsItBegin, dest, pER ? *pER : elms_range(0, dest.rows()));
+		}
+		template<typename SeqIt>
+		void mExtractRows_mt_naive(const realmtx_t& src, SeqIt ridxsItBegin, realmtx_t& dest)noexcept {
 			NNTL_ASSERT(!dest.empty() && !src.empty());
 			src.assert_storage_does_not_intersect(dest);
 			static_assert(std::is_same<vec_len_t, SeqIt::value_type>::value, "Contnr type should contain vec_len_t data");
-			NNTL_ASSERT(dest.cols() == src.cols() && dest.rows() == ridxsCnt && ridxsCnt <= src.rows());
+			NNTL_ASSERT(dest.cols() == src.cols() && dest.rows() <= src.rows());
 
 			m_threads.run([&src, &dest, ridxsItBegin](const par_range_t& r) {
-				const numel_cnt_t destRows = dest.rows(), srcRows = src.rows();
-				const auto rOfs = r.offset();
-				const auto rCnt = r.cnt();
-
-				//TODO: accessing data in sequential order could provide some performance gains. However
-				//it requires the content of [ridxsItBegin,ridxsItBegin+ridxsCnt) to be sorted. Therefore, testing is required
-				// to decide whether it's all worth it
-
-				auto pSrc = src.data();
-				auto pDest = dest.data() + rOfs;
-				const auto pDestEnd = pDest + dest.numel();
-				auto pThreadRI = ridxsItBegin + rOfs;
-
-				while (pDest != pDestEnd) {
-					auto pRI = pThreadRI;
-					auto destCur = pDest;
-					pDest += destRows;
-					const auto destEnd = destCur + rCnt;
-					while (destCur != destEnd) {
-						*destCur++ = *(pSrc + *pRI++);
-					}
-					pSrc += srcRows;
-				}
-			}, ridxsCnt);
+				_imExtractRows_st_naive(src, ridxsItBegin, dest, elms_range(r));
+			}, dest.rows());
 		}
 
 		//////////////////////////////////////////////////////////////////////////
@@ -2491,41 +2478,70 @@ namespace math {
 				return get_self().loss_quadratic_st_naive(activations, data_y);
 			} else return get_self().loss_quadratic_mt_naive(activations, data_y);
 		}
-		static real_t loss_quadratic_st_naive(const realmtx_t& activations, const realmtx_t& data_y)noexcept {
-			NNTL_ASSERT(activations.size() == data_y.size() && !activations.empty() && !data_y.empty());
-			const auto dataCnt = activations.numel();
-			const auto ptrA = activations.data(), ptrY = data_y.data();
-			real_t ql(0.0);
-			for (numel_cnt_t i = 0; i < dataCnt; ++i) {
-				const real_t e = ptrA[i] - ptrY[i];
-				ql += e*e;
-			}
-			return ql / (2 * activations.rows());
-		}
-		real_t loss_quadratic_mt_naive(const realmtx_t& activations, const realmtx_t& data_y)noexcept {
+
+		static real_t _iloss_quadratic_st_naive(const realmtx_t& activations, const realmtx_t& data_y, const elms_range& er)noexcept {
 			NNTL_ASSERT(activations.size() == data_y.size() && !activations.empty() && !data_y.empty());
 
 			const auto pA = activations.data();
 			const auto pY = data_y.data();
+			real_t ret(0.0);
+			for (numel_cnt_t i = er.elmBegin; i < er.elmEnd; ++i) {
+				const real_t e = pA[i] - pY[i];
+				ret += e*e;
+			}
+			return ret;
+		}
 
-			real_t ql = m_threads.reduce([pA,pY](const par_range_t& r)->real_t {
-				const auto ofs = r.offset();
-				const numel_cnt_t im = ofs + r.cnt();
-				real_t ret(0.0);
-				for (numel_cnt_t i = ofs; i < im; ++i) {
-					const real_t e = pA[i] - pY[i];
-					ret += e*e;
-				}
-				return ret;
+		static real_t loss_quadratic_st_naive(const realmtx_t& activations, const realmtx_t& data_y, const elms_range*const pER = nullptr)noexcept {
+			return _iloss_quadratic_st_naive(activations, data_y, pER ? *pER : elms_range(activations)) / (2 * activations.rows());
+		}
+		real_t loss_quadratic_mt_naive(const realmtx_t& activations, const realmtx_t& data_y)noexcept {
+			real_t ql = m_threads.reduce([&activations, &data_y](const par_range_t& r)->real_t {
+				return _iloss_quadratic_st_naive(activations, data_y, elms_range(r));
 			}, _reduce_final_sum, activations.numel());
-
 			return ql / (2 * activations.rows());
 		}
 
 		//////////////////////////////////////////////////////////////////////////
-		// cross entropy function (applicable ONLY for binary data_y and sigmoid activation function)
+		//numerically stabilized
+		real_t loss_quadratic_ns(const realmtx_t& activations, const realmtx_t& data_y)noexcept {
+			if (activations.numel() < Thresholds_t::loss_quadratic_ns) {
+				return get_self().loss_quadratic_st_naive_ns(activations, data_y);
+			} else return get_self().loss_quadratic_mt_naive_ns(activations, data_y);
+		}
+
+		static real_t _iloss_quadratic_st_naive_ns(const realmtx_t& activations, const realmtx_t& data_y, const elms_range& er)noexcept {
+			NNTL_ASSERT(activations.size() == data_y.size() && !activations.empty() && !data_y.empty());
+
+			const auto pA = activations.data();
+			const auto pY = data_y.data();
+			real_t sum(0.0), C(0.), Y, T;
+			//for KahanSum() see https://msdn.microsoft.com/en-us/library/aa289157(v=vs.71).aspx
+			for (numel_cnt_t i = er.elmBegin; i < er.elmEnd; ++i) {
+				const real_t e = pA[i] - pY[i];
+				const auto e2 = e*e;
+				Y = e2 - C;
+				T = sum + Y;
+				C = T - sum - Y;
+				sum = T;
+			}
+			return sum;
+		}
+
+		static real_t loss_quadratic_st_naive_ns(const realmtx_t& activations, const realmtx_t& data_y, const elms_range*const pER = nullptr)noexcept {
+			return _iloss_quadratic_st_naive_ns(activations, data_y, pER ? *pER : elms_range(activations)) / (2 * activations.rows());
+		}
+		real_t loss_quadratic_mt_naive_ns(const realmtx_t& activations, const realmtx_t& data_y)noexcept {
+			real_t ql = m_threads.reduce([&activations, &data_y](const par_range_t& r)->real_t {
+				return _iloss_quadratic_st_naive_ns(activations, data_y, elms_range(r));
+			}, _reduce_final_sum_ns, activations.numel());
+			return ql / (2 * activations.rows());
+		}
+
+		//////////////////////////////////////////////////////////////////////////
+		// cross entropy function (applicable ONLY for binary data_y and sigmoid-style activation function)
 		// L = -y*log(a)-(1-y)log(1-a) (dL/dz = dL/dA * dA/dZ = (a-y)/(a*(1-a)) * dA/dZ )
-		real_t loss_xentropy(const realmtx_t& activations, const realmtx_t& data_y)noexcept {
+		/*real_t loss_xentropy(const realmtx_t& activations, const realmtx_t& data_y)noexcept {
 			if (activations.numel() < Thresholds_t::loss_xentropy) {
 				return get_self().loss_xentropy_st(activations, data_y);
 			} else return get_self().loss_xentropy_mt(activations, data_y);
@@ -2559,7 +2575,93 @@ namespace math {
 			return -m_threads.reduce([&activations, &data_y, this](const par_range_t& pr)->real_t {
 				return get_self()._iloss_xentropy_st(activations, data_y, elms_range(pr));
 			}, _reduce_final_sum, activations.numel()) / activations.rows();
+		}*/
+		//////////////////////////////////////////////////////////////////////////
+		// cross entropy function (applicable ONLY for binary data_y and sigmoid-style activation function)
+		// L = -y*log(a)-(1-y)log(1-a) (dL/dz = dL/dA * dA/dZ = (a-y)/(a*(1-a)) * dA/dZ )
+		real_t loss_xentropy(const realmtx_t& activations, const realmtx_t& data_y)noexcept {
+			if (activations.numel() < Thresholds_t::loss_xentropy) {
+				return get_self().loss_xentropy_st(activations, data_y);
+			} else return get_self().loss_xentropy_mt(activations, data_y);
 		}
+		real_t loss_xentropy_st(const realmtx_t& activations, const realmtx_t& data_y, const elms_range*const pER = nullptr)noexcept {
+			return -get_self()._iloss_xentropy_st(activations, data_y, pER ? *pER : elms_range(activations)) / activations.rows();
+		}
+		static real_t _iloss_xentropy_st(const realmtx_t& activations, const realmtx_t& data_y, const elms_range& er)noexcept {
+			NNTL_ASSERT(activations.size() == data_y.size() && !activations.empty() && !data_y.empty());
+			const auto ptrA = activations.data(), ptrY = data_y.data();
+			real_t ql = 0;
+			for (numel_cnt_t i = er.elmBegin; i < er.elmEnd; ++i) {
+				const auto y = ptrY[i];
+				const auto a = ptrA[i];
+				NNTL_ASSERT(y == real_t(0.0) || y == real_t(1.0));
+				NNTL_ASSERT(a >= real_t(0.0) && a <= real_t(1.0));
+
+				if (y > real_t(0.0)) {
+					ql += math::log_eps(a);
+				} else {
+					//const auto oma = real_t(1.0) - a;
+					//ql += (oma == real_t(0.0) ? log_zero : log(oma));
+#if NNTL_CFG_CAREFULL_LOG_EXP
+					ql += (a == real_t(1.0) ? math::real_t_limits<real_t>::log_almost_zero : math::log1p(-a));
+#else
+					ql += math::log1p_eps(-a);
+#endif
+				}
+				NNTL_ASSERT(!isnan(ql));
+			}
+			return ql;
+		}
+		real_t loss_xentropy_mt(const realmtx_t& activations, const realmtx_t& data_y)noexcept {
+			return -m_threads.reduce([&activations, &data_y, this](const par_range_t& pr)->real_t {
+				return get_self()._iloss_xentropy_st(activations, data_y, elms_range(pr));
+			}, _reduce_final_sum, activations.numel()) / activations.rows();
+		}
+		//////////////////////////////////////////////////////////////////////////
+		real_t loss_xentropy_ns(const realmtx_t& activations, const realmtx_t& data_y)noexcept {
+			if (activations.numel() < Thresholds_t::loss_xentropy_ns) {
+				return get_self().loss_xentropy_ns_st(activations, data_y);
+			} else return get_self().loss_xentropy_ns_mt(activations, data_y);
+		}
+		real_t loss_xentropy_ns_st(const realmtx_t& activations, const realmtx_t& data_y, const elms_range*const pER = nullptr)noexcept {
+			return -get_self()._iloss_xentropy_ns_st(activations, data_y, pER ? *pER : elms_range(activations)) / activations.rows();
+		}
+		static real_t _iloss_xentropy_ns_st(const realmtx_t& activations, const realmtx_t& data_y, const elms_range& er)noexcept {
+			NNTL_ASSERT(activations.size() == data_y.size() && !activations.empty() && !data_y.empty());
+			const auto ptrA = activations.data(), ptrY = data_y.data();
+			real_t sum(0.), C(0.), Y, T, ev;
+			for (numel_cnt_t i = er.elmBegin; i < er.elmEnd; ++i) {
+				const auto y = ptrY[i];
+				const auto a = ptrA[i];
+				NNTL_ASSERT(y == real_t(0.0) || y == real_t(1.0));
+				NNTL_ASSERT(a >= real_t(0.0) && a <= real_t(1.0));
+
+				if (y > real_t(0.0)) {
+					ev= math::log_eps(a);
+				} else {
+					//const auto oma = real_t(1.0) - a;
+					//sum += (oma == real_t(0.0) ? log_zero : log(oma));
+#if NNTL_CFG_CAREFULL_LOG_EXP
+					ev = (a == real_t(1.0) ? math::real_t_limits<real_t>::log_almost_zero : math::log1p(-a));
+#else
+					ev = math::log1p_eps(-a);
+#endif
+				}
+				Y = ev - C;
+				T = sum + Y;
+				C = T - sum - Y;
+				sum = T;
+				NNTL_ASSERT(!isnan(sum));
+			}
+			return sum;
+		}
+		real_t loss_xentropy_ns_mt(const realmtx_t& activations, const realmtx_t& data_y)noexcept {
+			return -m_threads.reduce([&activations, &data_y, this](const par_range_t& pr)->real_t {
+				return get_self()._iloss_xentropy_ns_st(activations, data_y, elms_range(pr));
+			}, _reduce_final_sum_ns, activations.numel()) / activations.rows();
+		}
+
+
 
 		//////////////////////////////////////////////////////////////////////////
 		// cross entropy function for softmax (applicable for data_y in range [0,1])

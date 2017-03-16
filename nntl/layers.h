@@ -90,11 +90,21 @@ namespace nntl {
 		//////////////////////////////////////////////////////////////////////////
 	protected:
 		_layers m_layers;
+
+	public:
+		//dLdA is loss function derivative wrt activations. For the top level it's usually called an 'error' and defined like (data_y-a).
+		// We use slightly more generalized approach and name it appropriately. It's computed by _i_activation_loss::dloss
+		// and most time (for quadratic or crossentropy loss) it is (a-data_y) (we reverse common definition to get rid
+		// of negation in dL/dA = -error for error=data_y-a)
+		realmtxdef_array_t m_a_dLdA;
+
+	protected:
 		real_t m_lossAddendum;//cached value of a part of loss function addendum, that's based on regularizers properties,
 		//such as L2 or L1 regularization. It doesn't depend on data_y or nnet activation and calculated during 
 		// layer.lossAddendum() calls.
 		//TODO: is it possible for lossAddendum() to depend on data_y or nnet activation??? Do we have the right to
 		// cache this value in general case?
+
 	private:
 		layer_index_t m_totalLayersCount;
 
@@ -112,7 +122,8 @@ namespace nntl {
 		//////////////////////////////////////////////////////////////////////////
 	public:
 		~layers()noexcept {}
-		layers(Layrs&... layrs) noexcept : m_layers(layrs...), m_lossAddendum(0.0), m_totalLayersCount(0){
+		layers(Layrs&... layrs) noexcept : m_layers(layrs...), m_lossAddendum(0.0), m_totalLayersCount(0)
+		{
 			//iterate over layers and check whether they i_layer derived and set their indexes
 			_impl::_preinit_layers pil(m_totalLayersCount);
 			utils::for_eachwp_up(m_layers, pil);
@@ -159,13 +170,17 @@ namespace nntl {
 		void for_each_packed_layer_exc_input(_Func&& f)noexcept {
 			utils::for_each_exc_first_up(m_layers, std::forward<_Func>(f));
 		}
+		template<typename _Func>
+		void for_each_packed_layer_exc_input_down(_Func&& f)noexcept {
+			utils::for_each_exc_first_down(m_layers, std::forward<_Func>(f));
+		}
 
 		input_layer_t& input_layer()const noexcept { return std::get<0>(m_layers); }
 		output_layer_t& output_layer()const noexcept { return std::get<layers_count-1>(m_layers); }
 		preoutput_layer_t& preoutput_layer()const noexcept { return std::get<layers_count - 2>(m_layers); }
 
 		//perform layers initialization before training begins.
-		layer_error_t init(const common_data_t& cd, _impl::layers_mem_requirements& LMR)const noexcept
+		layer_error_t init(const common_data_t& cd, _impl::layers_mem_requirements& LMR) noexcept
 		{
 			ErrorCode ec = ErrorCode::Success;
 			layer_index_t failedLayerIdx = 0;
@@ -187,10 +202,11 @@ namespace nntl {
 			return layer_error_t(ec, failedLayerIdx);
 		}
 
-		void deinit()const noexcept {
+		void deinit() noexcept {
 			utils::for_each_up(m_layers, [](auto& lyr)noexcept {
 				lyr.deinit();
 			});
+			for (auto& m : m_a_dLdA) { m.clear(); }
 		}
 
 		void initMem(real_t* ptr, numel_cnt_t cnt)noexcept {
@@ -222,12 +238,11 @@ namespace nntl {
 			return m_lossAddendum;
 		}
 
-		void set_batch_size(const vec_len_t batchSize)noexcept {
-			NNTL_ASSERT(batchSize > 0);
-			utils::for_each_up(m_layers, [=](auto& lyr)noexcept { lyr.set_batch_size(batchSize); });
+		void on_batch_size_change()noexcept {
+			utils::for_each_up(m_layers, [](auto& lyr)noexcept { lyr.on_batch_size_change(); });
 		}
 
-		void fprop(const realmtx_t& data_x)const noexcept {
+		void fprop(const realmtx_t& data_x) noexcept {
 			NNTL_ASSERT(data_x.test_biases_ok());
 
 			input_layer().fprop(data_x);
@@ -239,28 +254,28 @@ namespace nntl {
 			});
 		}
 
-		void bprop(const realmtx_t& data_y, realmtxdef_array_t& a_dLdA)const noexcept {
-			NNTL_ASSERT(a_dLdA.size() == 2);
+		void bprop(const realmtx_t& data_y) noexcept {
+			NNTL_ASSERT(m_a_dLdA.size() == 2);
 			
 			if (2 == layers_count) {
-				a_dLdA[0].deform(0,0);
-			} else a_dLdA[0].deform_like_no_bias(preoutput_layer().get_activations());
+				m_a_dLdA[0].deform(0,0);
+			} else m_a_dLdA[0].deform_like_no_bias(preoutput_layer().get_activations());
 
-			output_layer().bprop(data_y, preoutput_layer(), a_dLdA[0]);
+			output_layer().bprop(data_y, preoutput_layer(), m_a_dLdA[0]);
 			unsigned mtxIdx = 0;
 
-			utils::for_eachwn_downbp(m_layers, [&mtxIdx, &a_dLdA](auto& lcur, auto& lprev, const bool bPrevIsFirstLayer)noexcept {
+			utils::for_eachwn_downbp(m_layers, [&mtxIdx, &_a_dLdA = m_a_dLdA](auto& lcur, auto& lprev, const bool bPrevIsFirstLayer)noexcept {
 				const unsigned nextMtxIdx = mtxIdx ^ 1;
 				if (bPrevIsFirstLayer) {
 					//TODO: for IBP we'd need a normal matrix
-					a_dLdA[nextMtxIdx].deform(0, 0);
+					_a_dLdA[nextMtxIdx].deform(0, 0);
 				} else {
-					a_dLdA[nextMtxIdx].deform_like_no_bias(lprev.get_activations());
+					_a_dLdA[nextMtxIdx].deform_like_no_bias(lprev.get_activations());
 				}
 				
 				NNTL_ASSERT(lprev.get_activations().test_biases_ok());
-				NNTL_ASSERT(a_dLdA[mtxIdx].size() == lcur.get_activations().size_no_bias());
-				const unsigned bAlternate = lcur.bprop(a_dLdA[mtxIdx], lprev, a_dLdA[nextMtxIdx]);
+				NNTL_ASSERT(_a_dLdA[mtxIdx].size() == lcur.get_activations().size_no_bias());
+				const unsigned bAlternate = lcur.bprop(_a_dLdA[mtxIdx], lprev, _a_dLdA[nextMtxIdx]);
 				NNTL_ASSERT(1 == bAlternate || 0 == bAlternate);
 				NNTL_ASSERT(lprev.get_activations().test_biases_ok());
 

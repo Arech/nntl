@@ -95,6 +95,23 @@ namespace utils {
 	inline void for_each_down(const Tuple& t, F&& f) noexcept {
 		_for_each_down_impl <std::tuple_size<Tuple>::value - 1, Tuple, F>::for_each(t, std::forward<F>(f));
 	}
+	//////////////////////////////////////////////////////////////////////////
+	template<int I, class Tuple, typename F> struct _for_each_exc_first_down_impl {
+		static void for_each(const Tuple& t, F&& f) noexcept {
+			std::forward<F>(f)(std::get<I>(t));
+			_for_each_exc_first_down_impl <I - 1, Tuple, F>::for_each(t, std::forward<F>(f));
+		}
+	};
+	template<class Tuple, typename F> struct _for_each_exc_first_down_impl <1, Tuple, F> {
+		static void for_each(const Tuple& t, F&& f)noexcept {
+			std::forward<F>(f)(std::get<1>(t));
+		}
+	};
+	template<class Tuple, typename F>
+	inline void for_each_exc_first_down(const Tuple& t, F&& f) noexcept {
+		static_assert(std::tuple_size<Tuple>::value > 1, "Tuple must have at least two elements!");
+		_for_each_exc_first_down_impl <std::tuple_size<Tuple>::value - 1, Tuple, F>::for_each(t, std::forward<F>(f));
+	}
 
 	//////////////////////////////////////////////////////////////////////////
 	//////////////////////////////////////////////////////////////////////////

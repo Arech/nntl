@@ -34,13 +34,10 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include "../nntl/math.h"
 #include "../nntl/nntl.h"
-#include "../nntl/_supp/io/binfile.h"
 #include "asserts.h"
 #include "common_routines.h"
 
 using namespace nntl;
-typedef nntl_supp::binfile reader_t;
-
 
 void seqFillMtx(realmtx_t& m) {
 	NNTL_ASSERT(!m.empty() && m.numel_no_bias());
@@ -52,16 +49,7 @@ void seqFillMtx(realmtx_t& m) {
 }
 
 
-void readTd(train_data<real_t>& td, const char* pFile) {
-	SCOPED_TRACE("readTd");
-	reader_t reader;
 
-	STDCOUTL("Reading datafile '" << pFile << "'...");
-	reader_t::ErrorCode rec = reader.read(NNTL_STRING(pFile), td);
-	ASSERT_EQ(reader_t::ErrorCode::Success, rec) << "Error code description: " << reader.get_last_error_str();
-	ASSERT_TRUE(td.train_x().emulatesBiases());
-	ASSERT_TRUE(td.test_x().emulatesBiases());
-}
 
 //copies srcMask element into mask element if corresponding column element of data_y is nonzero. Column to use is selected by c
 void _allowMask(const realmtx_t& srcMask, realmtx_t& mask, const realmtx_t& data_y, const vec_len_t c) {

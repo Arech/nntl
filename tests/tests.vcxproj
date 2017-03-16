@@ -187,6 +187,7 @@
     <ClInclude Include="..\nntl\grad_works\ILR_Props.h" />
     <ClInclude Include="..\nntl\interface\inspectors\dummy.h" />
     <ClInclude Include="..\nntl\interface\inspectors\dumper.h" />
+    <ClInclude Include="..\nntl\interface\inspectors\gradcheck.h" />
     <ClInclude Include="..\nntl\interface\inspectors\stdcout.h" />
     <ClInclude Include="..\nntl\interface\math\mathn_mt.h" />
     <ClInclude Include="..\nntl\interface\math\mathn_thr.h" />
@@ -201,7 +202,6 @@
     <ClInclude Include="..\nntl\interface\_i_inspector.h" />
     <ClInclude Include="..\nntl\interface\_i_rng.h" />
     <ClInclude Include="..\nntl\layer\identity.h" />
-    <ClInclude Include="..\nntl\layer\pack_gated.h" />
     <ClInclude Include="..\nntl\layer\pack_horizontal.h" />
     <ClInclude Include="..\nntl\layer\pack_horizontal_gated.h" />
     <ClInclude Include="..\nntl\layer\pack_tile.h" />
@@ -232,6 +232,8 @@
     <ClInclude Include="..\nntl\nnet_train_opts.h" />
     <ClInclude Include="..\nntl\train_data.h" />
     <ClInclude Include="..\nntl\utils\denormal_floats.h" />
+    <ClInclude Include="..\nntl\utils\gradcheck.h" />
+    <ClInclude Include="..\nntl\utils\lambdas.h" />
     <ClInclude Include="..\nntl\utils\mixins.h" />
     <ClInclude Include="..\nntl\utils\vector_conditions.h" />
     <ClInclude Include="..\nntl\utils\chrono.h" />
@@ -261,6 +263,7 @@
     <ClInclude Include="asserts.h" />
     <ClInclude Include="common_routines.h" />
     <ClInclude Include="imath_etalons.h" />
+    <ClInclude Include="nn_base_arch.h" />
     <ClInclude Include="simple_math_etalons.h" />
     <ClInclude Include="stdafx.h" />
     <ClInclude Include="targetver.h" />
@@ -273,10 +276,10 @@
     <ClCompile Include="test_imath_basic.cpp" />
     <ClCompile Include="test_imath_basic_thr.cpp" />
     <ClCompile Include="test_inspectors.cpp" />
-    <ClCompile Include="test_layer_pack_gated.cpp" />
     <ClCompile Include="test_layer_pack_horizontal.cpp" />
     <ClCompile Include="test_layer_pack_horizontal_gated.cpp" />
     <ClCompile Include="test_layer_pack_tile.cpp" />
+    <ClCompile Include="test_layer_pack_vertical.cpp" />
     <ClCompile Include="test_matfile.cpp" />
     <ClCompile Include="test_nnet.cpp" />
     <ClCompile Include="test_perf_decisions.cpp" />

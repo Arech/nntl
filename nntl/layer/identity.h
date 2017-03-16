@@ -34,7 +34,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 // layer_identity defines a layer that just passes it's incoming neurons as activation neurons without any processing.
 // Can be used to pass a source data unmodified to some upper feature detectors.
 // 
-// layer_identity_gate can also serve as a gating source for the layer_pack_gated / _pack_horizontal_gated.
+// layer_identity_gate can also serve as a gating source for the layer_pack_horizontal_gated.
 // 
 // Also, be aware that if the drop_samples() of layer_identity/layer_identity_gate gets called, then the mask
 // passed to the drop_samples() does NOT get passed to the donoring/lower layer. This is an intentional behavior and it won't hurt
@@ -99,11 +99,10 @@ namespace nntl {
 		void initMem(real_t* ptr, numel_cnt_t cnt)noexcept {}
 
 		// pNewActivationStorage MUST be specified (we're expecting to be encapsulated into layer_pack_horizontal)
-		void set_batch_size(const vec_len_t batchSize, real_t*const pNewActivationStorage)noexcept {
-			NNTL_ASSERT(batchSize > 0);
+		void on_batch_size_change(real_t*const pNewActivationStorage)noexcept {
 			NNTL_ASSERT(pNewActivationStorage);
-
 			m_bActivationsValid = false;
+			const vec_len_t batchSize = get_self().getCurBatchSize();
 			NNTL_ASSERT(batchSize <= get_self().get_biggest_batch_size());
 
 			NNTL_ASSERT(m_activations.emulatesBiases() && get_self().is_activations_shared() && get_self().get_neurons_cnt());
@@ -117,6 +116,7 @@ namespace nntl {
 			NNTL_ASSERT(prevActivations.size() == m_activations.size());
 			NNTL_ASSERT(get_self().is_activations_shared());
 			NNTL_ASSERT(prevActivations.test_biases_ok());
+			NNTL_ASSERT(m_activations.rows() == get_self().getCurBatchSize());
 
 			auto& iI = get_self().get_iInspect();
 			iI.fprop_begin(get_self().get_layer_idx(), prevActivations, get_self().isTrainingMode());
@@ -155,6 +155,7 @@ namespace nntl {
 			bprop(realmtx_t& dLdA, const LowerLayerWrapper& lowerLayer, realmtx_t& dLdAPrev)noexcept
 		{
 			NNTL_ASSERT(m_bActivationsValid);
+			NNTL_ASSERT(m_activations.rows() == get_self().getCurBatchSize());
 			m_bActivationsValid = false;
 			auto& iI = get_self().get_iInspect();
 			iI.bprop_begin(get_self().get_layer_idx(), dLdA);
@@ -255,11 +256,11 @@ namespace nntl {
 			_base_class::deinit();
 		}
 		// pNewActivationStorage MUST be specified (we're expecting to be encapsulated into layer_pack_horizontal)
-		void set_batch_size(const vec_len_t batchSize, real_t*const pNewActivationStorage)noexcept {
-			NNTL_ASSERT(batchSize > 0);
+		void on_batch_size_change(real_t*const pNewActivationStorage)noexcept {
 			NNTL_ASSERT(pNewActivationStorage);
-			_base_class::set_batch_size(batchSize, pNewActivationStorage);
+			_base_class::on_batch_size_change(pNewActivationStorage);
 
+			const vec_len_t batchSize = get_self().getCurBatchSize();
 			m_gate.useExternalStorage(pNewActivationStorage, batchSize, get_self().get_neurons_cnt(), false);
 		}
 

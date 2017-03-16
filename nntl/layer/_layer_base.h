@@ -43,7 +43,7 @@ namespace nntl {
 	//////////////////////////////////////////////////////////////////////////
 	//////////////////////////////////////////////////////////////////////////
 	//each layer_pack_* layer is expected to have a special typedef self_t LayerPack_t
-	// and it must implement for_each_layer() function
+	// and it must implement for_each_layer() and for_each_packed_layer() function families
 
 	//recognizer of layer_pack_* classes
 	// primary template handles types that have no nested ::LayerPack_t member:
@@ -203,16 +203,16 @@ namespace nntl {
 		nntl_interface static constexpr layer_type_id_t get_layer_type_id()noexcept;
 
 		// ATTN: more specific and non-templated version available for this function, see _layer_base for an example
-		// On the pNewActivationStorage see comments to the set_batch_size(). Layers that should never be on the top of a stack of layers
+		// On the pNewActivationStorage see comments to the on_batch_size_change(). Layers that should never be on the top of a stack of layers
 		// inside of compound layers, should totally omit this parameter to break compilation.
 		// For the _layer_init_data_t parameter see the _impl::_layer_init_data<>.
 		template<typename _layer_init_data_t>
 		nntl_interface ErrorCode init(_layer_init_data_t& lid, real_t* pNewActivationStorage = nullptr)noexcept;
-		//If the layer was given a pNewActivationStorage (during the init() or set_batch_size()), then it MUST NOT touch a bit
+		//If the layer was given a pNewActivationStorage (during the init() or on_batch_size_change()), then it MUST NOT touch a bit
 		// in the bias column of the activation storage during bprop()/fprop() and everywhere else.
 		// In general - if the layer allocates activation matrix by itself (when the pNewActivationStorage==nullptr),
 		//					then it also allocates and sets up biases. Also, during execution of
-		//					set_batch_size(), the layer has to restore its bias column, had the activation matrix been resized/deformed.
+		//					on_batch_size_change(), the layer has to restore its bias column, had the activation matrix been resized/deformed.
 		//					And that are the only things the layer is allowed to do with biases!
 		//			  - if the layer is given pNewActivationStorage, then it uses it supposing there's a space for a bias column,
 		//					however, layer must never touch data in that column.
@@ -226,8 +226,8 @@ namespace nntl {
 		// Resetting of biases is not required at this case, however.
 		// Layers, that should never be a part of other compound layers, should totally omit this parameter
 		// from function signature (not recommended use-case, however)
-		nntl_interface void set_batch_size(const vec_len_t batchSize, real_t*const pNewActivationStorage = nullptr)noexcept;
-		//If the layer was given a pNewActivationStorage (during the init() or set_batch_size()), then it MUST NOT touch a bit
+		nntl_interface void on_batch_size_change(real_t*const pNewActivationStorage = nullptr)noexcept;
+		//If the layer was given a pNewActivationStorage (during the init() or on_batch_size_change()), then it MUST NOT touch a bit
 		// in the bias column of the activation storage during fprop() and everywhere else.
 		// For more information about how memory storage is organized, see discussion in _init_layers.h::_layer_init_data{}
 
@@ -429,8 +429,7 @@ namespace nntl {
 		//It is NOT the same as statemed 'Are we to expect the activation matrix with removed samples (and probably biases too)?'
 		//For a gating class (such as LPG or LPHG) it shows whether they could have their .drop_samples() called by an some upped
 		// gating class. However, activations of these classes MAY contain zeroed samples due to their gates work.
-
-
+		
 	private:
 		static constexpr const char _defName[] = "_base";
 

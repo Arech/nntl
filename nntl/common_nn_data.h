@@ -47,17 +47,27 @@ namespace _impl {
 	// make sure that non-const reference/pointer to the instance would have extremely restricted usage.
 	template<typename InterfacesT>
 	struct common_nn_data : public math::smatrix_td, public interfaces_td<InterfacesT> {
-		//////////////////////////////////////////////////////////////////////////
-		//members
+	public:
+		static constexpr bool bAllowToBlockLearning = inspector::is_gradcheck_inspector<iInspect_t>::value;
+
 	protected:
+		//////////////////////////////////////////////////////////////////////////
 		//same for every train() session
 		iMath_t* m_pMath;
 		iRng_t* m_pRng;
 		iInspect_t* m_pInspect;
 
+		bool* m_pbNotLearningNow; //this is a special flag intended to block any internal state change during
+		// normal learning process - useful to perform numeric gradient check while leaving the state intact.
+		// It's not used if the nnet's inspector is not derived from inspector::GradCheck<>
+		// Using a pointer to make sure every common_nn_data struct have the same value.
+
+		//////////////////////////////////////////////////////////////////////////
 		//could be different in different train() sessions.
 		vec_len_t m_max_fprop_batch_size;//The biggest samples count for fprop(), usually this is data_x.rows()
 		vec_len_t m_training_batch_size;//Fixed samples count for bprop(), usually it is a batchSize
+
+		vec_len_t m_cur_batch_size;
 
 		bool m_bInTraining;
 
@@ -68,25 +78,30 @@ namespace _impl {
 			m_pMath = nullptr;
 			m_pRng = nullptr;
 			m_pInspect = nullptr;
+			m_pbNotLearningNow = nullptr;
 			deinit();
 		}
-		common_nn_data()noexcept : m_pMath(nullptr), m_pRng(nullptr), m_pInspect(nullptr)
-			, m_max_fprop_batch_size(0), m_training_batch_size(0), m_bInTraining(false)
+		common_nn_data()noexcept : m_pMath(nullptr), m_pRng(nullptr), m_pInspect(nullptr), m_pbNotLearningNow(nullptr)
+			, m_max_fprop_batch_size(0), m_training_batch_size(0), m_cur_batch_size(0), m_bInTraining(false)
 		{}
-		common_nn_data(iMath_t& im, iRng_t& ir, iInspect_t& iI)noexcept : m_pMath(&im), m_pRng(&ir), m_pInspect(&iI)
-			, m_max_fprop_batch_size(0), m_training_batch_size(0), m_bInTraining(false)
+		common_nn_data(iMath_t& im, iRng_t& ir, iInspect_t& iI, bool& bNLNf)noexcept 
+			: m_pMath(&im), m_pRng(&ir), m_pInspect(&iI), m_pbNotLearningNow(&bNLNf)
+			, m_max_fprop_batch_size(0), m_training_batch_size(0), m_cur_batch_size(0), m_bInTraining(false)
 		{}
 
 		void setInterfacesFrom(const common_nn_data& other)noexcept {
-			NNTL_ASSERT(!m_pMath && !m_pRng && !m_pInspect);
-			m_pMath = &other.iMath();
-			m_pRng = &other.iRng();
-			m_pInspect = &other.iInspect();
+			NNTL_ASSERT(!m_pMath && !m_pRng && !m_pInspect && !m_pbNotLearningNow);
+			m_pMath = other.m_pMath;
+			m_pRng = other.m_pRng;
+			m_pInspect = other.m_pInspect;
+			m_pbNotLearningNow = other.m_pbNotLearningNow;
+			NNTL_ASSERT(m_pMath && m_pRng && m_pInspect && m_pbNotLearningNow);
 		}
 
 		void deinit()noexcept {
 			m_max_fprop_batch_size = 0;
 			m_training_batch_size = 0;
+			m_cur_batch_size = 0;
 		}
 		void init(vec_len_t fbs, vec_len_t bbs)noexcept {
 			NNTL_ASSERT(m_pMath && m_pRng && m_pInspect);//must be preinitialized!
@@ -94,15 +109,33 @@ namespace _impl {
 			NNTL_ASSERT(fbs >= bbs);//essential assumption
 			m_max_fprop_batch_size = fbs;
 			m_training_batch_size = bbs;
+			m_cur_batch_size = 0;
 			m_bInTraining = false;
 		}
+
+		//////////////////////////////////////////////////////////////////////////
+		iMath_t& iMath()const noexcept { NNTL_ASSERT(m_pMath); return *m_pMath; }
+		iRng_t& iRng()const noexcept { NNTL_ASSERT(m_pRng); return *m_pRng; }
+		iInspect_t& iInspect()const noexcept { NNTL_ASSERT(m_pInspect); return *m_pInspect; }
+
+		template<bool B = bAllowToBlockLearning>
+		std::enable_if_t<B, const bool> isLearningBlocked()const noexcept { NNTL_ASSERT(m_pbNotLearningNow); return *m_pbNotLearningNow; }
+		template<bool B = bAllowToBlockLearning>
+		std::enable_if_t<!B, const bool> isLearningBlocked()const noexcept { return false; }
 
 		void set_training_mode(bool bTraining)noexcept { m_bInTraining = bTraining; }
 		const bool is_training_mode()const noexcept { return m_bInTraining; }
 
-		iMath_t& iMath()const noexcept { NNTL_ASSERT(m_pMath); return *m_pMath; }
-		iRng_t& iRng()const noexcept { NNTL_ASSERT(m_pRng); return *m_pRng; }
-		iInspect_t& iInspect()const noexcept { NNTL_ASSERT(m_pInspect); return *m_pInspect; }
+		void set_mode_and_batch_size(const bool bTraining, const vec_len_t BatchSize)noexcept {
+			NNTL_ASSERT(m_pMath && m_pRng && m_pInspect);//must be preinitialized!
+			NNTL_ASSERT(m_max_fprop_batch_size > 0 && BatchSize > 0 && BatchSize <= m_max_fprop_batch_size);
+			NNTL_ASSERT(!bTraining || BatchSize <= m_training_batch_size);
+			m_bInTraining = bTraining;
+			m_cur_batch_size = BatchSize;
+		}
+
+		const vec_len_t get_cur_batch_size()const noexcept { return m_cur_batch_size; }
+
 		const vec_len_t max_fprop_batch_size()const noexcept {
 			NNTL_ASSERT(m_pMath && m_pRng && m_pInspect);//must be preinitialized!
 			NNTL_ASSERT(m_max_fprop_batch_size > 0);
@@ -119,6 +152,10 @@ namespace _impl {
 			return std::max(m_training_batch_size, m_max_fprop_batch_size);
 		}
 
+		const bool is_training_possible()const noexcept {
+			return training_batch_size() > 0;
+		}
+
 		const bool is_initialized()const noexcept {
 			NNTL_ASSERT(m_pMath && m_pRng && m_pInspect);//must be preinitialized!
 			return m_max_fprop_batch_size > 0;
@@ -131,6 +168,8 @@ namespace _impl {
 	class _common_data_consumer : public interfaces_td<InterfacesT> {
 	public:
 		typedef common_nn_data<interfaces_t> common_data_t;
+
+		static constexpr bool bAllowToBlockLearning = inspector::is_gradcheck_inspector<iInspect_t>::value;
 
 	protected:
 		const common_data_t* m_pCommonData;
@@ -152,18 +191,18 @@ namespace _impl {
 			NNTL_ASSERT(m_pCommonData);
 			return *m_pCommonData;
 		}
-		iMath_t& get_iMath()const noexcept {
+		iMath_t& get_iMath()const noexcept { NNTL_ASSERT(m_pCommonData); return m_pCommonData->iMath(); }
+		iRng_t& get_iRng()const noexcept { NNTL_ASSERT(m_pCommonData); return m_pCommonData->iRng(); }
+		iInspect_t& get_iInspect()const noexcept { NNTL_ASSERT(m_pCommonData); return m_pCommonData->iInspect(); }
+
+		template<bool B = bAllowToBlockLearning>
+		std::enable_if_t<B, const bool> isLearningBlocked()const noexcept {
 			NNTL_ASSERT(m_pCommonData);
-			return m_pCommonData->iMath();
+			return m_pCommonData->isLearningBlocked();
 		}
-		iRng_t& get_iRng()const noexcept {
-			NNTL_ASSERT(m_pCommonData);
-			return m_pCommonData->iRng();
-		}
-		iInspect_t& get_iInspect()const noexcept {
-			NNTL_ASSERT(m_pCommonData);
-			return m_pCommonData->iInspect();
-		}
+		template<bool B = bAllowToBlockLearning>
+		std::enable_if_t<!B, const bool> isLearningBlocked() const noexcept { return false; }
+
 		const typename iMath_t::vec_len_t get_max_fprop_batch_size()const noexcept {
 			NNTL_ASSERT(m_pCommonData);
 			return m_pCommonData->max_fprop_batch_size();
@@ -176,11 +215,21 @@ namespace _impl {
 			NNTL_ASSERT(m_pCommonData);
 			return m_pCommonData->biggest_batch_size();
 		}
+
 		const bool isTrainingMode()const noexcept {
 			NNTL_ASSERT(m_pCommonData);
 			return m_pCommonData->is_training_mode();
 		}
+
+		const bool isTrainingPossible()const noexcept {
+			NNTL_ASSERT(m_pCommonData);
+			return m_pCommonData->is_training_possible();
+		}
 		
+		const typename iMath_t::vec_len_t getCurBatchSize()const noexcept {
+			NNTL_ASSERT(m_pCommonData);
+			return m_pCommonData->get_cur_batch_size();
+		}
 	};
 
 	//////////////////////////////////////////////////////////////////////////
@@ -206,11 +255,13 @@ namespace _impl {
 		using _base_class::vec_len_t;
 		using _base_class::numel_cnt_t;
 		using _base_class::mtx_size_t;
+		using _base_class::mtx_coords_t;
 
 		typedef common_nn_data<interfaces_t> common_data_t;
 
 	protected:
 		const bool bOwnMath, bOwnRng, bOwnInspect;
+		bool m_bLearningBlockedFlag;
 
 	private:
 		void _make_Inspector(iInspect_t* pI)noexcept {
@@ -246,14 +297,11 @@ namespace _impl {
 			if (bOwnMath) delete m_pMath;
 			if (bOwnRng) delete m_pRng;
 			if (bOwnInspect) delete m_pInspect;
-			m_pMath = nullptr;
-			m_pRng = nullptr;
-			m_pInspect = nullptr;
 		}
 
 		template<typename PInspT = std::nullptr_t, typename PMathT = std::nullptr_t, typename PRngT = std::nullptr_t>
 		interfaces_keeper(PInspT pI = nullptr, PMathT pM = nullptr, PRngT pR = nullptr)noexcept
-			: bOwnMath(!pM), bOwnRng(!pR), bOwnInspect(!pI)
+			: bOwnMath(!pM), bOwnRng(!pR), bOwnInspect(!pI), m_bLearningBlockedFlag(false)
 		{
 			_make_Math(pM);
 			NNTL_ASSERT(m_pMath);
@@ -261,7 +309,7 @@ namespace _impl {
 			NNTL_ASSERT(m_pRng);
 			_make_Inspector(pI);
 			NNTL_ASSERT(m_pInspect);
-
+			m_pbNotLearningNow = &m_bLearningBlockedFlag;
 		}
 
 		
@@ -275,6 +323,22 @@ namespace _impl {
 		iMath_t& get_iMath()const noexcept { NNTL_ASSERT(m_pMath); return *m_pMath; }
 		iRng_t& get_iRng()const noexcept { NNTL_ASSERT(m_pRng); return *m_pRng; }
 		iInspect_t& get_iInspect()const noexcept { NNTL_ASSERT(m_pInspect); return *m_pInspect; }
+
+	protected:
+		template<bool B = bAllowToBlockLearning>
+		std::enable_if_t<B, void> _blockLearning() noexcept { m_bLearningBlockedFlag = true; }
+		template<bool B = bAllowToBlockLearning>
+		std::enable_if_t<B, void> _unblockLearning() noexcept { m_bLearningBlockedFlag = false; }
+
+		template<bool B = bAllowToBlockLearning>
+		std::enable_if_t<!B, static void> _blockLearning() noexcept {
+			static_assert(false, "this feature is designed to be used with a numeric gradient check!");
+		}
+		template<bool B = bAllowToBlockLearning>
+		std::enable_if_t<!B, static void> _unblockLearning() noexcept {
+			static_assert(false, "this feature is designed to be used with a numeric gradient check!");
+		}
+
 	};
 }
 }
