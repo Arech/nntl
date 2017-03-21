@@ -81,7 +81,7 @@ namespace math {
 
 		//extract ridxsCnt rows with indexes specified by sequential iterator ridxsItBegin into dest matrix.
 		template<typename SeqIt>
-		nntl_interface void mExtractRows(const realmtx_t& src, SeqIt ridxsItBegin, realmtx_t& dest)noexcept;
+		nntl_interface void mExtractRows(const realmtx_t& src, const SeqIt& ridxsItBegin, realmtx_t& dest)noexcept;
 
 		//binarize elements of real-valued matrix according to their relaion to frac
 		nntl_interface void ewBinarize_ip(realmtx_t& A, const real_t& frac, const real_t& lBnd = real_t(0.), const real_t& uBnd = real_t(1.))noexcept;
@@ -295,10 +295,12 @@ namespace math {
 		//loss functions
 		// quadratic loss == SUM_OVER_ALL((activations-data_y)^2)/(2*activations.rows())
 		nntl_interface real_t loss_quadratic(const realmtx_t& activations, const realmtx_t& data_y)noexcept;
+		nntl_interface real_t loss_quadratic_ns(const realmtx_t& activations, const realmtx_t& data_y)noexcept;
 		
 		// cross entropy function for sigmoid (applicable ONLY for binary data_y)
 		// L = sum( -y*log(a)-(1-y)log(1-a) )/activations.rows(), dL/dz=a-y
 		nntl_interface real_t loss_xentropy(const realmtx_t& activations, const realmtx_t& data_y)noexcept;
+		nntl_interface real_t loss_xentropy_ns(const realmtx_t& activations, const realmtx_t& data_y)noexcept;
 
 		// cross entropy function for softmax (applicable for data_y in range [0,1])
 		// L = sum( -y*log(a) )/activations.rows(), dL/dz=a-y

@@ -31,6 +31,8 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 #pragma once
 
+#include "dataHolder.h"
+
 namespace nntl {
 
 	namespace _impl {
@@ -198,97 +200,4 @@ namespace nntl {
 		{}
 	};
 
-	namespace _impl {
-
-		template<typename RealT>
-		class gradcheck_dataHolder : public nntl::math::smatrix_td {
-		public:
-			typedef RealT real_t;
-			typedef nntl::math::smatrix<real_t> realmtx_t;
-			typedef nntl::math::smatrix_deform<real_t> realmtxdef_t;
-
-		protected:
-			const realmtx_t* m_pDataX;
-			const realmtx_t* m_pDataY;
-
-			realmtxdef_t m_batchX, m_batchY;
-
-			std::vector<vec_len_t> m_rowsIdxs, m_curBatchIdxs;
-
-			vec_len_t m_lastUsedRow;
-
-		public:
-			~gradcheck_dataHolder()noexcept {
-				deinit();
-			}
-			gradcheck_dataHolder()noexcept : m_pDataX(nullptr), m_pDataY(nullptr) {
-				m_batchX.will_emulate_biases();
-				m_batchY.dont_emulate_biases();
-			}
-
-			const std::vector<vec_len_t>& curBatchIdxs()const noexcept { 
-				NNTL_ASSERT(m_curBatchIdxs.size() > 0);
-				return m_curBatchIdxs;
-			}
-
-			const realmtx_t& batchX()const noexcept {
-				NNTL_ASSERT(!m_batchX.empty() && m_batchX.numel() > 0);
-				return m_batchX;
-			}
-			const realmtx_t& batchY()const noexcept {
-				NNTL_ASSERT(!m_batchY.empty() && m_batchY.numel() > 0);
-				return m_batchY;
-			}
-
-			void deinit()noexcept {
-				m_batchX.clear();
-				m_batchY.clear();
-				m_rowsIdxs.clear();
-				m_curBatchIdxs.clear();
-				m_pDataX = nullptr;
-				m_pDataY = nullptr;
-			}
-			void init(const vec_len_t maxBatchSize, const realmtx_t& data_x, const realmtx_t& data_y)noexcept {
-				NNTL_ASSERT(maxBatchSize > 0 && maxBatchSize <= data_x.rows() && data_x.rows() == data_y.rows());
-				NNTL_ASSERT(data_x.emulatesBiases() && !data_y.emulatesBiases());
-				NNTL_ASSERT(m_batchX.empty() && m_batchY.empty());
-				NNTL_ASSERT(m_batchX.emulatesBiases() && !m_batchY.emulatesBiases());
-
-				m_pDataX = &data_x;
-				m_pDataY = &data_y;
-				m_batchX.resize(maxBatchSize, data_x.cols_no_bias());
-				m_batchY.resize(maxBatchSize, data_y.cols());
-
-				m_rowsIdxs.resize(data_x.rows());
-				std::iota(m_rowsIdxs.begin(), m_rowsIdxs.end(), 0);
-				m_lastUsedRow = data_x.rows();
-
-				m_curBatchIdxs.reserve(maxBatchSize);
-			}
-
-			void prepateToBatchSize(const vec_len_t batchSize)noexcept {
-				m_batchX.deform_rows(batchSize);
-				m_batchY.deform_rows(batchSize);
-				m_curBatchIdxs.resize(batchSize);
-			}
-			const vec_len_t curBatchSize()const noexcept { return m_batchX.rows(); }
-
-			template<typename iRngT, typename iMathT>
-			void nextBatch(iRngT& iR, iMathT& iM)noexcept {
-				if (m_lastUsedRow + curBatchSize() >= m_pDataX->rows()) {
-					m_lastUsedRow = 0;
-					std::random_shuffle(m_rowsIdxs.begin(), m_rowsIdxs.end(), iR);
-				}
-
-				vec_len_t* pSrc = &m_rowsIdxs[m_lastUsedRow];
-				std::copy(pSrc, pSrc + curBatchSize(), m_curBatchIdxs.begin());
-
-				m_lastUsedRow += curBatchSize();
-
-				iM.mExtractRows(*m_pDataX, m_curBatchIdxs.begin(), m_batchX);
-				iM.mExtractRows(*m_pDataY, m_curBatchIdxs.begin(), m_batchY);
-			}
-		};
-
-	}
 }

@@ -38,23 +38,15 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "../nntl/_supp/io/binfile.h"
 #include "../nntl/_supp/io/matfile.h"
 
+#include "../nntl/weights_init/LsuvExt.h"
+
 #include "asserts.h"
 #include "common_routines.h"
 
+
+
 using namespace nntl;
 typedef nntl_supp::binfile reader_t;
-
-#define MNIST_FILE_DEBUG "../data/mnist200_100.bin"
-#define MNIST_FILE_RELEASE  "../data/mnist60000.bin"
-
-#if defined(TESTS_SKIP_NNET_LONGRUNNING)
-//ALWAYS run debug build with similar relations of data sizes:
-// if release will run in minibatches - make sure, there will be at least 2 minibatches)
-// if release will use different data sizes for train/test - make sure, debug will also run on different datasizes
-#define MNIST_FILE MNIST_FILE_DEBUG
-#else
-#define MNIST_FILE MNIST_FILE_RELEASE
-#endif // _DEBUG
 
 //////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////
@@ -156,10 +148,112 @@ TEST(TestNnet, L2Weights) {
 	ASSERT_TRUE(td.train_x().emulatesBiases());
 	ASSERT_TRUE(td.test_x().emulatesBiases());
 
-	/*testL2L1<true>(td, 0, 0, 5, .02, "d:/Docs/Math/play_matlab/NoL2.mat");
-	testL2L1<true>(td, .1, 0, 5, .02, "d:/Docs/Math/play_matlab/L2.mat");
-	testL2L1<false>(td, .1, 0, 5, .02, "d:/Docs/Math/play_matlab/L1.mat");*/
 	testL2L1(true,td, 0, 0, 5, real_t(.02));
 	testL2L1(true,td, real_t(.1), 0, 5, real_t(.02));
 	testL2L1(false,td, real_t(.1), 0, 5, real_t(.02));
+}
+
+//////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////
+
+template<typename RealT>
+void test_LSUVExt(train_data<RealT>& td, bool bCentNorm, bool bScaleNorm, bool bIndNeurons,const size_t rngSeed)noexcept {
+	typedef RealT real_t;
+
+	const bool bUseLSUVExt = bCentNorm || bScaleNorm;
+	SCOPED_TRACE(bUseLSUVExt ? "test_LSUVExt, bUseLSUVExt=true" : "test_LSUVExt, bUseLSUVExt=false");
+	STDCOUT(std::endl << "Running with ");
+	if (bUseLSUVExt) {
+		STDCOUTL("LSUVExt bCentNorm=" << bCentNorm << ", bScaleNorm=" << bScaleNorm << ", bIndNeurons=" << bIndNeurons);
+	} else {
+		STDCOUTL("plain OrthoInit");
+	}
+
+	const real_t learningRate = real_t(.0005);
+	const size_t epochs = 8;
+	
+	typedef dt_interfaces<real_t> myIntf;
+	typedef grad_works<myIntf> myGW;
+	typedef weights_init::OrthoInit<10000000> w_init_scheme;//10e6 used here to make plain nnet learn somehow
+	typedef activation::softsign<real_t, 1000, w_init_scheme> activ_func;
+	//typedef activation::leaky_relu_100<real_t, w_init_scheme> activ_func;
+
+	layer_input<myIntf> inp(td.train_x().cols_no_bias());
+
+	layer_fully_connected<activ_func, myGW> fcl(256, learningRate);
+	layer_fully_connected<activ_func, myGW> fcl2(128, learningRate);
+	layer_fully_connected<activ_func, myGW> fcl3(64, learningRate);
+	layer_fully_connected<activ_func, myGW> fcl4(64, learningRate);
+	layer_fully_connected<activ_func, myGW> fcl5(64, learningRate);
+	layer_fully_connected<activ_func, myGW> fcl6(64, learningRate);
+	layer_fully_connected<activ_func, myGW> fcl7(64, learningRate);
+	layer_fully_connected<activ_func, myGW> fcl8(64, learningRate);
+	layer_fully_connected<activ_func, myGW> fcl9(64, learningRate);
+	layer_output<activation::softsigm_xentropy_loss<real_t, 1000, w_init_scheme>, myGW> outp(td.train_y().cols(), learningRate);
+
+	auto lp = make_layers(inp, fcl, fcl2, fcl3, fcl4, fcl5, fcl6, fcl7, fcl8, fcl9, outp);
+
+	nnet_train_opts<training_observer_stdcout<eval_classification_one_hot<real_t>>> opts(epochs);
+	opts.batchSize(200);
+
+	auto nn = make_nnet(lp);
+
+	nn.get_iRng().seed64(rngSeed);
+	//we must init weights right now to make sure they are the same for bUseLSUVExt and !bUseLSUVExt cases
+	nn.get_layer_pack().for_each_layer_exc_input([&iR = nn.get_iRng(), &iM = nn.get_iMath()](auto& lyr) {
+		math::smatrix<real_t> W;
+		ASSERT_TRUE(W.resize(lyr.get_neurons_cnt(), lyr.get_incoming_neurons_cnt() + 1));
+		ASSERT_TRUE(std::decay_t<decltype(lyr)>::activation_f_t::weights_scheme::init(W, iR, iM));
+		ASSERT_TRUE(lyr.set_weights(std::move(W)));
+		lyr.m_gradientWorks.set_type(decltype(lyr.m_gradientWorks)::Adam);
+	});
+
+	if (bUseLSUVExt) {
+		typedef weights_init::procedural::LSUVExt<decltype(nn)> winit_t;
+		winit_t::LayerSetts_t def, outpS;
+		
+		//just to illustrate separate settings for a layer (most commonly it'll be an output_layer)
+		outpS.bOverPreActivations = true;
+		outpS.bCentralNormalize = bCentNorm;
+		outpS.bScaleNormalize = bScaleNorm;
+		outpS.bNormalizeIndividualNeurons = bIndNeurons;
+
+		def.bOverPreActivations = true;
+		def.bCentralNormalize = bCentNorm;
+		def.bScaleNormalize = bScaleNorm;
+		def.bNormalizeIndividualNeurons = bIndNeurons;
+		
+		winit_t obj(nn,def);
+		obj.setts().add(outp.get_layer_idx(), outpS);
+
+		//individual neuron stats requires a lot of data to be correctly evaluated
+		if (!obj.run(std::min(vec_len_t(bIndNeurons ? td.train_x().rows() : 2000), td.train_x().rows()), td.train_x())) {
+			STDCOUTL("*** Layer with ID="<<obj.m_firstFailedLayerIdx<<" was the first to fail convergence. There might be more of them.");
+		}
+	}
+
+	//setting common rng state
+	nn.get_iRng().seed64(rngSeed+1);
+	auto ec = nn.train(td, opts);
+	ASSERT_EQ(decltype(nn)::ErrorCode::Success, ec) << "Error code description: " << nn.get_last_error_string();
+}
+
+TEST(TestNnet, LSUVExt) {
+	typedef double real_t;
+	train_data<real_t> td;
+	readTd(td);
+
+	const size_t s = std::time(0);
+
+	test_LSUVExt<real_t>(td, false, false, false, s);
+
+	test_LSUVExt<real_t>(td, true, false, false, s);
+	test_LSUVExt<real_t>(td, true, false, true, s);
+	
+	test_LSUVExt<real_t>(td, false, true, false, s);
+	test_LSUVExt<real_t>(td, false, true, true, s);
+
+	test_LSUVExt<real_t>(td, true, true, false, s);
+	test_LSUVExt<real_t>(td, true, true, true, s);
+
 }

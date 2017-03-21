@@ -326,13 +326,13 @@ namespace math {
 		//////////////////////////////////////////////////////////////////////////
 		//extract rows with indexes specified by Contnr ridxs into dest.
 		template<typename SeqIt>
-		void mExtractRows(const realmtx_t& src, SeqIt ridxsItBegin, realmtx_t& dest)noexcept {
+		void mExtractRows(const realmtx_t& src, const SeqIt& ridxsItBegin, realmtx_t& dest)noexcept {
 			if (dest.cols()<2 || dest.numel() < Thresholds_t::mExtractRows) {
 				get_self().mExtractRows_st_naive(src, ridxsItBegin, dest);
 			} else get_self().mExtractRows_mt_naive(src, ridxsItBegin, dest);
 		}
 		template<typename SeqIt>
-		static void _imExtractRows_st_naive(const realmtx_t& src, SeqIt ridxsItBegin, realmtx_t& dest, const elms_range& er)noexcept {
+		static void _imExtractRows_st_naive(const realmtx_t& src, const SeqIt& ridxsItBegin, realmtx_t& dest, const elms_range& er)noexcept {
 			NNTL_ASSERT(!dest.empty() && !src.empty());
 			src.assert_storage_does_not_intersect(dest);
 			static_assert(std::is_same<vec_len_t, SeqIt::value_type>::value, "Contnr type should contain vec_len_t data");
@@ -350,10 +350,10 @@ namespace math {
 			auto pSrc = src.data();
 			auto pDest = dest.data() + er.elmBegin;
 			const auto pDestEnd = pDest + dest.numel();
-			auto pThreadRI = ridxsItBegin + er.elmBegin;
+			SeqIt pThreadRI = ridxsItBegin + er.elmBegin;
 
 			while (pDest != pDestEnd) {
-				auto pRI = pThreadRI;
+				SeqIt pRI = pThreadRI;
 				auto destCur = pDest;
 				pDest += destRows;
 				const auto destEnd = destCur + rCnt;
@@ -367,17 +367,17 @@ namespace math {
 			}
 		}
 		template<typename SeqIt>
-		static void mExtractRows_st_naive(const realmtx_t& src, SeqIt ridxsItBegin, realmtx_t& dest, const elms_range*const pER = nullptr)noexcept {
+		static void mExtractRows_st_naive(const realmtx_t& src, const SeqIt& ridxsItBegin, realmtx_t& dest, const elms_range*const pER = nullptr)noexcept {
 			_imExtractRows_st_naive(src, ridxsItBegin, dest, pER ? *pER : elms_range(0, dest.rows()));
 		}
 		template<typename SeqIt>
-		void mExtractRows_mt_naive(const realmtx_t& src, SeqIt ridxsItBegin, realmtx_t& dest)noexcept {
+		void mExtractRows_mt_naive(const realmtx_t& src, const SeqIt& ridxsItBegin, realmtx_t& dest)noexcept {
 			NNTL_ASSERT(!dest.empty() && !src.empty());
 			src.assert_storage_does_not_intersect(dest);
 			static_assert(std::is_same<vec_len_t, SeqIt::value_type>::value, "Contnr type should contain vec_len_t data");
 			NNTL_ASSERT(dest.cols() == src.cols() && dest.rows() <= src.rows());
 
-			m_threads.run([&src, &dest, ridxsItBegin](const par_range_t& r) {
+			m_threads.run([&src, &dest, &ridxsItBegin](const par_range_t& r) {
 				_imExtractRows_st_naive(src, ridxsItBegin, dest, elms_range(r));
 			}, dest.rows());
 		}
@@ -1345,6 +1345,80 @@ namespace math {
 				if (!r) break;
 			}
 			return r;
+		}
+
+		//////////////////////////////////////////////////////////////////////////
+		// dL/dZ for a linear output layer is = (err===a-y)*{0|a==0, 1|a!=0)
+		void dIdentityQuadLoss_dZ(const realmtx_t& data_y, realmtx_t& act_dLdZ) {
+			if (act_dLdZ.numel() < Thresholds_t::dIdentityQuadLoss_dZ) {
+				get_self().dIdentityQuadLoss_dZ_st(data_y, act_dLdZ);
+			} else get_self().dIdentityQuadLoss_dZ_mt(data_y, act_dLdZ);
+		}
+		//usually error is defined as diffrence between data_y and last layer activation, i.e. nn.e=y-nn.a{n}, but
+		//that will lead to necessity of negation of error in back propagation algorithm. To get rid of that negation,
+		// we'll define error as nn.a{n}-y. This won't bother loss calculation, because it is either squares error
+		// (conventional quadratic loss function) or doesn't use that error definition at all (crossentropy error)
+		void dIdentityQuadLoss_dZ_st(const realmtx_t& data_y, realmtx_t& act_dLdZ, const elms_range*const pER = nullptr) {
+			get_self()._idIdentityQuadLoss_dZ_st(data_y, act_dLdZ, pER ? *pER : elms_range(act_dLdZ));
+		}
+		static void _idIdentityQuadLoss_dZ_st(const realmtx_t& data_y, realmtx_t& act_dLdZ, const elms_range& er) {
+			NNTL_ASSERT(!act_dLdZ.emulatesBiases() && !data_y.emulatesBiases());
+			NNTL_ASSERT(act_dLdZ.size() == data_y.size());
+
+			auto pY = data_y.data() + er.elmBegin;
+			auto pSD = act_dLdZ.data() + er.elmBegin;
+			const auto pSDE = pSD + er.totalElements();
+			while (pSD != pSDE) {
+				const auto a = *pSD;
+				NNTL_ASSERT(real_t(0.) <= a && a <= real_t(1.));
+				const auto y = *pY++;
+				NNTL_ASSERT(real_t(0.) <= y && y <= real_t(1.));
+				*pSD++ = (a - y)*(a != real_t(0.));
+			}
+		}
+		void dIdentityQuadLoss_dZ_mt(const realmtx_t& data_y, realmtx_t& act_dLdZ) {
+			NNTL_ASSERT(!act_dLdZ.emulatesBiases() && !data_y.emulatesBiases());
+			NNTL_ASSERT(act_dLdZ.size() == data_y.size());
+			m_threads.run([&data_y, &act_dLdZ, this](const par_range_t& r) {
+				get_self()._idIdentityQuadLoss_dZ_st(data_y, act_dLdZ, elms_range(r));
+			}, act_dLdZ.numel());
+		}
+
+		//////////////////////////////////////////////////////////////////////////
+		// L = -y*log(a)-(1-y)log(1-a) (dL/dZ = dL/dA * dA/dZ = (a-y)/(a*(1-a)) * dA/dZ )
+		// dA/dZ = {0|a==0, 1|a!=0}
+		// because activations comes from the output layer, expecting no biases there
+		void dIdentityXEntropyLoss_dZ(const realmtx_t& data_y, realmtx_t& act_dLdZ)noexcept {
+			if (act_dLdZ.numel() < Thresholds_t::dIdentityXEntropyLoss_dZ) {
+				get_self().dIdentityXEntropyLoss_dZ_st(data_y, act_dLdZ);
+			} else get_self().dIdentityXEntropyLoss_dZ_mt(data_y, act_dLdZ);
+		}
+		void dIdentityXEntropyLoss_dZ_st(const realmtx_t& data_y, realmtx_t& act_dLdZ, const elms_range*const pER = nullptr)noexcept {
+			get_self()._idIdentityXEntropyLoss_dZ_st(data_y, act_dLdZ, pER ? *pER : elms_range(act_dLdZ));
+		}
+		static void _idIdentityXEntropyLoss_dZ_st(const realmtx_t& data_y, realmtx_t& act_dLdZ, const elms_range& er)noexcept {
+			NNTL_ASSERT(!act_dLdZ.emulatesBiases() && !data_y.emulatesBiases());
+			NNTL_ASSERT(act_dLdZ.size() == data_y.size());
+
+			auto pY = data_y.data() + er.elmBegin;
+			auto pSD = act_dLdZ.data() + er.elmBegin;
+			const auto pSDE = pSD + er.totalElements();
+			while (pSD != pSDE) {
+				const auto av = *pSD;
+				NNTL_ASSERT(real_t(0.) <= av && av <= real_t(1.));
+				const auto y = *pY++;
+				NNTL_ASSERT(real_t(0.) <= y && y <= real_t(1.));
+
+				//#numstab ?
+				*pSD++ = (av - y)*(av != real_t(0.)) / (av*(real_t(1.) - av));
+			}
+		}
+		void dIdentityXEntropyLoss_dZ_mt(const realmtx_t& data_y, realmtx_t& act_dLdZ)noexcept {
+			NNTL_ASSERT(!act_dLdZ.emulatesBiases() && !data_y.emulatesBiases());
+			NNTL_ASSERT(act_dLdZ.size() == data_y.size());
+			m_threads.run([&data_y, &act_dLdZ, this](const par_range_t& r) {
+				get_self()._idIdentityXEntropyLoss_dZ_st(data_y, act_dLdZ, elms_range(r));
+			}, act_dLdZ.numel());
 		}
 
 
@@ -2340,7 +2414,7 @@ namespace math {
 		//////////////////////////////////////////////////////////////////////////
 		//calculates derivative of cross-entropy loss function for softsigm neurons wrt total neuron input Z (=Aprev_layer*W), dL/dZ
 		//////////////////////////////////////////////////////////////////////////
-		// L = -y*log(a)-(1-y)log(1-a) (dL/dz = dL/dA * dA/dZ = (a-y)/(a*(1-a)) * dA/dZ )
+		// L = -y*log(a)-(1-y)log(1-a) (dL/dZ = dL/dA * dA/dZ = (a-y)/(a*(1-a)) * dA/dZ )
 		// dL/dZ = (a-y)/(a*(1-a)) * dSoftSigm/dZ
 		// because activations comes from the output layer, expecting no biases there
 		void dSoftSigmXEntropyLoss_dZ(const realmtx_t& data_y, realmtx_t& act_dLdZ, const real_t& a)noexcept {
@@ -2540,45 +2614,7 @@ namespace math {
 
 		//////////////////////////////////////////////////////////////////////////
 		// cross entropy function (applicable ONLY for binary data_y and sigmoid-style activation function)
-		// L = -y*log(a)-(1-y)log(1-a) (dL/dz = dL/dA * dA/dZ = (a-y)/(a*(1-a)) * dA/dZ )
-		/*real_t loss_xentropy(const realmtx_t& activations, const realmtx_t& data_y)noexcept {
-			if (activations.numel() < Thresholds_t::loss_xentropy) {
-				return get_self().loss_xentropy_st(activations, data_y);
-			} else return get_self().loss_xentropy_mt(activations, data_y);
-		}
-		real_t loss_xentropy_st(const realmtx_t& activations, const realmtx_t& data_y, const elms_range*const pER = nullptr)noexcept {
-			return -get_self()._iloss_xentropy_st(activations, data_y, pER ? *pER : elms_range(activations)) / activations.rows();
-		}
-		static real_t _iloss_xentropy_st(const realmtx_t& activations, const realmtx_t& data_y, const elms_range& er)noexcept {
-			NNTL_ASSERT(activations.size() == data_y.size() && !activations.empty() && !data_y.empty());
-			const auto ptrA = activations.data(), ptrY = data_y.data();
-			constexpr auto log_zero = math::real_t_limits<real_t>::log_almost_zero;
-			real_t ql = 0;
-			for (numel_cnt_t i = er.elmBegin; i < er.elmEnd; ++i) {
-				const auto y = ptrY[i];
-				const auto a = ptrA[i];
-				NNTL_ASSERT(y == real_t(0.0) || y == real_t(1.0));
-				NNTL_ASSERT(a >= real_t(0.0) && a <= real_t(1.0));
-
-				if (y > real_t(0.0)) {
-					ql += (a == real_t(0.0) ? log_zero : std::log(a));
-				} else {
-					//const auto oma = real_t(1.0) - a;
-					//ql += (oma == real_t(0.0) ? log_zero : log(oma));
-					ql += (a == real_t(1.0) ? log_zero : math::log1p(-a));
-				}
-				NNTL_ASSERT(!isnan(ql));
-			}
-			return ql;
-		}
-		real_t loss_xentropy_mt(const realmtx_t& activations, const realmtx_t& data_y)noexcept {
-			return -m_threads.reduce([&activations, &data_y, this](const par_range_t& pr)->real_t {
-				return get_self()._iloss_xentropy_st(activations, data_y, elms_range(pr));
-			}, _reduce_final_sum, activations.numel()) / activations.rows();
-		}*/
-		//////////////////////////////////////////////////////////////////////////
-		// cross entropy function (applicable ONLY for binary data_y and sigmoid-style activation function)
-		// L = -y*log(a)-(1-y)log(1-a) (dL/dz = dL/dA * dA/dZ = (a-y)/(a*(1-a)) * dA/dZ )
+		// L = -y*log(a)-(1-y)log(1-a) (dL/dZ = dL/dA * dA/dZ = (a-y)/(a*(1-a)) * dA/dZ )
 		real_t loss_xentropy(const realmtx_t& activations, const realmtx_t& data_y)noexcept {
 			if (activations.numel() < Thresholds_t::loss_xentropy) {
 				return get_self().loss_xentropy_st(activations, data_y);

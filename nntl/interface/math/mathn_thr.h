@@ -84,6 +84,9 @@ namespace _impl {
 		static constexpr size_t evAbs = 20300;
 		static constexpr size_t vSumAbs = 18000;//not tested		
 
+		static constexpr size_t dIdentityQuadLoss_dZ = 15000;//nt
+		static constexpr size_t dIdentityXEntropyLoss_dZ = 10000;//nt
+
 		static constexpr size_t sigm = 1300;
 		static constexpr size_t dsigm = 24500;
 		static constexpr size_t dSigmQuadLoss_dZ = 14900;
@@ -182,6 +185,9 @@ namespace _impl {
 		static constexpr size_t vSumSquares = 40000; //not tested
 		static constexpr size_t evAbs = 43000;
 		static constexpr size_t vSumAbs = 36000;//not tested
+
+		static constexpr size_t dIdentityQuadLoss_dZ = 15000;//nt
+		static constexpr size_t dIdentityXEntropyLoss_dZ = 10000;//nt
 
 		static constexpr size_t sigm = 1300;//*
 		static constexpr size_t dsigm = 24500;//*

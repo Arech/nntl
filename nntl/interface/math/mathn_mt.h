@@ -74,7 +74,7 @@ namespace math {
 		//////////////////////////////////////////////////////////////////////////
 		//extract rows with indexes specified by Contnr ridxs into dest.
 		template<typename SeqIt>
-		void mExtractRows(const realmtx_t& src, SeqIt ridxsItBegin, realmtx_t& dest)noexcept {
+		void mExtractRows(const realmtx_t& src, const SeqIt& ridxsItBegin, realmtx_t& dest)noexcept {
 			mExtractRows_mt_naive(src, ridxsItBegin, dest);
 		}
 		

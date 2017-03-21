@@ -412,16 +412,26 @@ real_t rowvecs_renorm_ET(realmtx_t& m, const real_t newNormSq, const bool bNormI
 real_t vSumAbs_ET(const realmtx_t& A)noexcept {
 	const auto dataCnt = A.numel();
 	const auto p = A.data();
-	real_t ret(0);
-	for (numel_cnt_t i = 0; i < dataCnt; ++i) ret += std::abs(p[i]);
+	real_t ret(0), C(0.), Y, T;
+	for (numel_cnt_t i = 0; i < dataCnt; ++i) {
+		Y = std::abs(p[i]) - C;
+		T = ret + Y;
+		C = T - ret - Y;
+		ret = T;
+	}
 	return ret;
 }
 
 real_t vSumSquares_ET(const realmtx_t& A)noexcept {
 	const auto dataCnt = A.numel();
 	const auto p = A.data();
-	real_t ret(0);
-	for (numel_cnt_t i = 0; i < dataCnt; ++i) ret += p[i] * p[i];
+	real_t ret(0), C(0.), Y, T;
+	for (numel_cnt_t i = 0; i < dataCnt; ++i) {
+		Y = p[i] * p[i] - C;
+		T = ret + Y;
+		C = T - ret - Y;
+		ret = T;
+	}
 	return ret;
 }
 

@@ -33,8 +33,8 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include "../_i_inspector.h"
 #include "../../utils/gradcheck.h"
+//#include "../../_supp/io/matfile.h"
 
-#include "../../_supp/io/matfile.h"
 
 //intended to be used for a numeric gradient check
 namespace nntl {
@@ -46,7 +46,7 @@ namespace inspector {
 	private:
 		typedef BaseInspT _base_class_t;
 	protected:
-		typedef _impl::layer_idx_keeper<layer_index_t, BaseInspT::_NoLayerIdxSpecified, maxNnetDepth> keeper_t;
+		typedef utils::layer_idx_keeper<layer_index_t, BaseInspT::_NoLayerIdxSpecified, maxNnetDepth> keeper_t;
 
 	public:
 		typedef GradCheck gradcheck_inspector_t;

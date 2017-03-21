@@ -32,6 +32,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #pragma once
 
 #include "../_i_inspector.h"
+#include "../../utils/bwlist.h"
 
 namespace nntl {
 	namespace inspector {
@@ -126,9 +127,14 @@ namespace nntl {
 
 
 		template<typename FinalChildT, typename RealT, typename ArchiveT, typename CondDumpT, size_t maxNnetDepth = 32>
-		class _dumper_base : public _impl::_bwlist<FinalChildT, RealT>
+		class _dumper_base 
+			: public utils::_bwlist<RealT>
+			, public _impl::_base<RealT>
 		{
 		public:
+			typedef FinalChildT self_t;
+			NNTL_METHODS_SELF_CHECKED((std::is_base_of<_dumper_base, FinalChildT>::value), "FinalChildT must derive from _dumper_base");
+
 			typedef ArchiveT archive_t;
 			typedef typename archive_t::ErrorCode ArchiveError_t;
 
@@ -137,7 +143,7 @@ namespace nntl {
 			typedef std::vector<std::string> layer_names_t;
 
 		protected:
-			typedef _impl::layer_idx_keeper<layer_index_t, _NoLayerIdxSpecified, maxNnetDepth> keeper_t;
+			typedef utils::layer_idx_keeper<layer_index_t, _NoLayerIdxSpecified, maxNnetDepth> keeper_t;
 
 			//#todo: this settings should be given be a special ParamsT class passed here as a template parameter
 			static constexpr bool bVerbose = false;
@@ -156,6 +162,8 @@ namespace nntl {
 			keeper_t m_curLayer;
 
 			const char* m_pDirToDump;
+
+			bool m_bDoDump;//it's 'protected' for some rare special unforeseen cases. Use the bDoDump() or the CondDumpT
 
 			static constexpr size_t maxFileNameLength = MAX_PATH;
 			static constexpr size_t maxDirNameLength = maxFileNameLength - 10;
@@ -190,6 +198,7 @@ namespace nntl {
 				m_batchIdx = -1;
 				m_layersCount = 0;
 				m_pDirToDump = nullptr;
+				m_bDoDump = false;
 			}
 
 		protected:
@@ -204,9 +213,7 @@ namespace nntl {
 			}
 
 			template<typename PArchT = std::nullptr_t>
-			_dumper_base(const char* pDirToDump, PArchT pA=nullptr)noexcept 
-				: m_bOwnArch(!pA)
-			{
+			_dumper_base(const char* pDirToDump, PArchT pA=nullptr)noexcept  : m_bOwnArch(!pA) {
 				_ctor();
 				if (pDirToDump) set_dir_to_dump(pDirToDump);
 				_make_archive(pA);

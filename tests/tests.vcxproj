@@ -231,9 +231,13 @@
     <ClInclude Include="..\nntl\interfaces.h" />
     <ClInclude Include="..\nntl\nnet_train_opts.h" />
     <ClInclude Include="..\nntl\train_data.h" />
+    <ClInclude Include="..\nntl\utils\bwlist.h" />
+    <ClInclude Include="..\nntl\utils\dataHolder.h" />
     <ClInclude Include="..\nntl\utils\denormal_floats.h" />
     <ClInclude Include="..\nntl\utils\gradcheck.h" />
     <ClInclude Include="..\nntl\utils\lambdas.h" />
+    <ClInclude Include="..\nntl\utils\layers_settings.h" />
+    <ClInclude Include="..\nntl\utils\layer_idx_keeper.h" />
     <ClInclude Include="..\nntl\utils\mixins.h" />
     <ClInclude Include="..\nntl\utils\vector_conditions.h" />
     <ClInclude Include="..\nntl\utils\chrono.h" />
@@ -245,6 +249,9 @@
     <ClInclude Include="..\nntl\serialization\serialization.h" />
     <ClInclude Include="..\nntl\utils\tuple_iterations.h" />
     <ClInclude Include="..\nntl\weights_init.h" />
+    <ClInclude Include="..\nntl\weights_init\LsuvExt.h" />
+    <ClInclude Include="..\nntl\weights_init\static.h" />
+    <ClInclude Include="..\nntl\weights_init\_procedural_base.h" />
     <ClInclude Include="..\nntl\_defs.h" />
     <ClInclude Include="..\nntl\layer\_layer_base.h" />
     <ClInclude Include="..\nntl\layers.h" />

@@ -30,11 +30,43 @@ OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
-// this file provides definitions of weights initialization algorithms
-
 #pragma once
 
-#include "weights_init/static.h"
+#include "../utils/dataHolder.h"
 
-//procedural weight init schemes might be somewhat heavy to compile. Place a separate additional include for the neccessary scheme when needed.
-//#include "weights_init/LsuvExt.h"
+namespace nntl {
+namespace weights_init {
+namespace procedural {
+
+	namespace _impl {
+
+		template<typename NnetT>
+		struct _base : public math::smatrix_td {
+		public:
+			typedef NnetT nnet_t;
+			typedef typename NnetT::real_t real_t;
+			typedef typename NnetT::realmtx_t realmtx_t;
+			typedef typename NnetT::realmtxdef_t realmtxdef_t;
+
+		protected:
+			nnet_t& m_nn;
+			utils::dataHolder<real_t> m_data;
+
+		public:
+			_base(nnet_t& nn)noexcept : m_nn(nn) {}
+
+		protected:
+			void init(const vec_len_t batchSize, const realmtx_t& data_x)noexcept {
+				m_data.init(batchSize, data_x);
+			}
+			void deinit()noexcept {
+				m_data.deinit();
+			}
+
+		};
+
+	}
+
+}
+}
+}

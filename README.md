@@ -49,6 +49,7 @@ I wouldn't state the NNTL is the fastest CPU implementation of feedforward neura
   * According to **He, Zhang** et al. "Delving Deep into Rectifiers: Surpassing Human-Level Performance on ImageNet Classification" 2015 (amazing for ReLU family units)
   * Sparse initialization according to **Martens** "Deep learning via Hessian-free optimization" 2010 and Sutskever, Martens et al. "On the importance of initialization and momentum in deep learning" 2013
   * **Orthogonal initialization** according to Andrew M. Saxe et al. "Exact solutions to the nonlinear dynamics of learning in deep linear neural networks", 2013, arxiv:1312.6120
+  * Layer-sequential unit-variance (**LSUV**) initialization as described by D. Mishkin, J.Matas "All You Need Is a Good Init" 2015, arxiv:1511.06422 and some of my own extensions to it. (Extremely useful init for very deep nets)
 * Optimizers:
   * "classical" constant learning rate
   * **RMSProp** as Geoffrey Hinton introduced it in the "Neural Networks for Machine Learning" course, lecture 6
@@ -68,6 +69,7 @@ I wouldn't state the NNTL is the fastest CPU implementation of feedforward neura
   * one-hot vector classification via sigmoid or softmax activations
   * one dimensional binary classification via sigmoid activation
 * Debugging and baby-sitting a neural network learning process is implemented through a special interface which allows to monitor/dump any temporary variable or matrix you might want to examine during a training session (activation/preactivation values, weights, weigth updates and many more - and much more will be added as it'll be needed). The interface is easily extensible and incurs zero run-time cost if it isn't used (it is off by default). Dumping data to Matlab's `.mat` files is already available at the moment. See an example at test_inspectors.cpp.
+* Numeric gradient check routine
 * Actually, I have left one real **gem** unpublished - a component that turns a process of describing neural network architecture (defining layer objects and their relationships) from the hell pain of writing tonns of extremely hard to maintain C++ code into a real joy of drawing or updating a drawing of something very similar to UML class diagramm in 3rd party visual editor. I'll upload it sometime later, but feel free to contact me to hurry up this process.
 
 ## The Pros and Cons

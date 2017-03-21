@@ -75,10 +75,18 @@ namespace activation {
 		//i.e. computes y' based on y value ( not the x-value, where y=y(x) )
 		template <typename iMath>
 		nntl_interface static void df(realmtx_t& f_df, iMath& m) noexcept;
+
+		//to support linear layers
+		template <typename iMath>
+		static void dIdentity(realmtx_t& f_df, iMath& m) noexcept {
+			static_assert(std::is_base_of<math::_i_math<real_t>, iMath>::value, "iMath should implement math::_i_math");
+			NNTL_ASSERT(!f_df.emulatesBiases());
+			m.ewBinarize_ip(f_df, real_t(0.));
+		}
 	};
 
 
-	//for use in output layer activations
+	//for use in an output layer activations
 	template<typename RealT>
 	class _i_activation_loss {
 		~_i_activation_loss() = delete;
@@ -94,9 +102,46 @@ namespace activation {
 			IN OUT typename _i_activation<RealT>::realmtx_t& act_dLdZ, iMath& m)noexcept;
 		//we glue into single function calculation of dL/dA and dA/dZ. The latter is in fact calculated by _i_activation::df(), but if
 		//we'll calculate dL/dZ in separate functions, then we can't make some optimizations
+
+		//to support linear layers
+		template <typename iMath>
+		nntl_interface static void dLdZIdentity(const typename _i_activation<RealT>::realmtx_t& data_y,
+			IN OUT typename _i_activation<RealT>::realmtx_t& act_dLdZ, iMath& m) noexcept;
 	};
 
+	template<typename RealT>
+	class _i_quadratic_loss : public _i_activation_loss<RealT> {
+	public:
+		~_i_quadratic_loss() = delete;
+		_i_quadratic_loss() = delete;
 
+		template <typename iMath>
+		static void dLdZIdentity(const typename _i_activation<RealT>::realmtx_t& data_y,
+			IN OUT typename _i_activation<RealT>::realmtx_t& act_dLdZ, iMath& m) noexcept
+		{
+			static_assert(std::is_base_of<math::_i_math<RealT>, iMath>::value, "iMath should implement math::_i_math");
+			NNTL_ASSERT(!data_y.emulatesBiases() && !act_dLdZ.emulatesBiases());
+			m.dIdentityQuadLoss_dZ(data_y, act_dLdZ);
+		}
+	};
+
+	template<typename RealT>
+	class _i_xentropy_loss : public _i_activation_loss<RealT> {
+	public:
+		~_i_xentropy_loss() = delete;
+		_i_xentropy_loss() = delete;
+
+		template <typename iMath>
+		static void dLdZIdentity(const typename _i_activation<RealT>::realmtx_t& data_y,
+			IN OUT typename _i_activation<RealT>::realmtx_t& act_dLdZ, iMath& m) noexcept
+		{
+			static_assert(std::is_base_of<math::_i_math<RealT>, iMath>::value, "iMath should implement math::_i_math");
+			NNTL_ASSERT(!data_y.emulatesBiases() && !act_dLdZ.emulatesBiases());
+			m.dIdentityXEntropyLoss_dZ(data_y, act_dLdZ);
+		}
+	};
+
+	//////////////////////////////////////////////////////////////////////////
 	//////////////////////////////////////////////////////////////////////////
 	//sigmoid
 	template<typename RealT=d_interfaces::real_t, typename WeightsInitScheme = weights_init::Martens_SI_sigm<>>
@@ -122,7 +167,7 @@ namespace activation {
 	};
 
 	template<typename RealT, typename WeightsInitScheme = weights_init::Martens_SI_sigm<>, bool bNumericStable = false>
-	class sigm_quad_loss : public sigm<RealT, WeightsInitScheme>, public _i_activation_loss<RealT> {
+	class sigm_quad_loss : public sigm<RealT, WeightsInitScheme>, public _i_quadratic_loss<RealT> {
 		sigm_quad_loss() = delete;
 		~sigm_quad_loss() = delete;
 	public:
@@ -145,18 +190,20 @@ namespace activation {
 	};
 
 	template<typename RealT, typename WeightsInitScheme = weights_init::Martens_SI_sigm<>, bool bNumericStable = false>
-	class sigm_xentropy_loss : public sigm<RealT, WeightsInitScheme>, public _i_activation_loss<RealT> {
+	class sigm_xentropy_loss : public sigm<RealT, WeightsInitScheme>, public _i_xentropy_loss<RealT> {
 		sigm_xentropy_loss() = delete;
 		~sigm_xentropy_loss() = delete;
 	public:
 		template <typename iMath>
 		static void dLdZ(const realmtx_t& data_y, realmtx_t& act_dLdZ, iMath& m)noexcept {
 			static_assert(std::is_base_of<math::_i_math<real_t>, iMath>::value, "iMath should implement math::_i_math");
+			// L = -y*log(a)-(1-y)log(1-a) (dL/dZ = dL/dA * dA/dZ = (a-y)/(a*(1-a)) * dA/dZ )
+			// dA/dZ = a(1-a)
 			//dL/dz = dL/dA * dA/dZ = (a-y)
-			//m.evSub(activations, data_y, dLdZ);
 			NNTL_ASSERT(!act_dLdZ.emulatesBiases() && !data_y.emulatesBiases());
 			m.evSub_ip(act_dLdZ, data_y);
 		}
+		
 
 		template <typename iMath, bool bNS = bNumericStable>
 		static std::enable_if_t<!bNS, real_t> loss(const realmtx_t& activations, const realmtx_t& data_y, iMath& m)noexcept {
@@ -172,11 +219,12 @@ namespace activation {
 	};
 
 	//////////////////////////////////////////////////////////////////////////
+	//////////////////////////////////////////////////////////////////////////
 	// SoftMax (for output layer only - it's easier to get dL/dL than dA/dL for SoftMax)
-	// TODO: which weight initialization scheme is better for SoftMax?
-	// TODO: may be it's worth to implement SoftMax activation for hidden layers, i.e. make a dA/dZ implementation
+	// #TODO: which weight initialization scheme is better for SoftMax?
+	// #TODO: may be it's worth to implement SoftMax activation for hidden layers, i.e. make a dA/dZ implementation
 	template<typename RealT, typename WeightsInitScheme = weights_init::Martens_SI_sigm<>>
-	class softmax_xentropy_loss : public _i_function<RealT>, public _i_activation_loss<RealT> {
+	class softmax_xentropy_loss : public _i_function<RealT>, public _i_xentropy_loss<RealT> {
 		softmax_xentropy_loss() = delete;
 		~softmax_xentropy_loss() = delete;
 	public:
@@ -196,12 +244,10 @@ namespace activation {
 			return m.softmax_needTempMem(act);
 		}
 
-
 		template <typename iMath>
 		static void dLdZ(const realmtx_t& data_y, realmtx_t& act_dLdZ, iMath& m)noexcept {
 			static_assert(std::is_base_of<math::_i_math<real_t>, iMath>::value, "iMath should implement math::_i_math");
 			//SoftMax dL/dZ = dL/dA * dA/dZ = (a-y)
-			//m.evSub(activations, data_y, dLdZ);
 			NNTL_ASSERT(!act_dLdZ.emulatesBiases() && !data_y.emulatesBiases());
 			m.evSub_ip(act_dLdZ, data_y);
 		}
@@ -213,7 +259,7 @@ namespace activation {
 		}
 	};
 
-
+	//////////////////////////////////////////////////////////////////////////
 	//////////////////////////////////////////////////////////////////////////
 	//ReLU
 	template<typename RealT, typename WeightsInitScheme = weights_init::He_Zhang<>>
@@ -239,6 +285,7 @@ namespace activation {
 		}
 	};
 
+	//////////////////////////////////////////////////////////////////////////
 	//////////////////////////////////////////////////////////////////////////
 	// Leaky Relu
 	template<typename RealT, unsigned int LeakKInv100 = 10000, typename WeightsInitScheme = weights_init::He_Zhang<>>
@@ -272,6 +319,7 @@ namespace activation {
 	template<typename RealT, typename WeightsInitScheme = weights_init::He_Zhang<>>
 	using very_leaky_relu_5p5 = leaky_relu<RealT, 550, WeightsInitScheme>;
 
+	//////////////////////////////////////////////////////////////////////////
 	//////////////////////////////////////////////////////////////////////////
 	// ELU
 	template<typename RealT, unsigned int Alpha1e3 = 1000, typename WeightsInitScheme = weights_init::He_Zhang<>>
@@ -528,7 +576,7 @@ namespace activation {
 	//bNumericStable selects slightly more stable loss function implementation (usually drops relative error by the factor of 2)
 	// use it for numeric gradient checks. Useless for usual nnet training
 	template<typename RealT, unsigned int A1e3 = 1000, typename WeightsInitScheme = weights_init::He_Zhang<>, bool bNumericStable=false>
-	class softsigm_quad_loss : public softsigm<RealT, A1e3, WeightsInitScheme>, public _i_activation_loss<RealT> {
+	class softsigm_quad_loss : public softsigm<RealT, A1e3, WeightsInitScheme>, public _i_quadratic_loss<RealT> {
 		softsigm_quad_loss() = delete;
 		~softsigm_quad_loss() = delete;
 	public:
@@ -552,7 +600,7 @@ namespace activation {
 
 	//NB: http://neuralnetworksanddeeplearning.com/chap3.html
 	template<typename RealT, unsigned int A1e3 = 1000, typename WeightsInitScheme = weights_init::He_Zhang<>, bool bNumericStable = false>
-	class softsigm_xentropy_loss : public softsigm<RealT, A1e3, WeightsInitScheme>, public _i_activation_loss<RealT> {
+	class softsigm_xentropy_loss : public softsigm<RealT, A1e3, WeightsInitScheme>, public _i_xentropy_loss<RealT> {
 		softsigm_xentropy_loss() = delete;
 		~softsigm_xentropy_loss() = delete;
 	public:

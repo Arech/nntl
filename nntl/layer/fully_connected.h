@@ -76,12 +76,18 @@ namespace nntl {
 		realmtxdef_t m_dLdW;//doesn't guarantee to retain it's value between usage in different code flows;
 		// may share memory with some other data structure. Must be deformable for grad_works_t
 
-		unsigned m_nTiledTimes;
+		real_t m_nTiledTimes;
 
 	public:
 		grad_works_t m_gradientWorks;
 
 	protected:
+		bool m_bDoDropout;//use bDropout() to test
+
+		//#todo this flag is probably worst possible solution, however we may need some mean to switch off nonlinearity in a run-time.
+		//Is there a better (non-branching when it's not necessary) solution available?
+		bool m_bLayerIsLinear;
+
 		//this flag controls the weights matrix initialization and prevents reinitialization on next nnet.train() calls
 		bool m_bWeightsInitialized;
 
@@ -119,11 +125,13 @@ namespace nntl {
 			, const real_t dpa = real_t(1.0) //"dropout_percent_alive"
 			, const char* pCustomName=nullptr
 		)noexcept
-			: _base_class(_neurons_cnt, pCustomName), m_activations(), m_weights(), m_bWeightsInitialized(false)
-				, m_gradientWorks(learningRate)
-				, m_dropoutMask(), m_dropoutPercentActive(dpa), m_nTiledTimes(0)
+			: _base_class(_neurons_cnt, pCustomName), m_activations(), m_weights()
+			, m_bWeightsInitialized(false), m_gradientWorks(learningRate)
+			, m_dropoutMask(), m_dropoutPercentActive(dpa), m_nTiledTimes(0.)
+			, m_bLayerIsLinear(false)
 		{
 			if (m_dropoutPercentActive <= real_t(+0.) || m_dropoutPercentActive > real_t(1.)) m_dropoutPercentActive = real_t(1.);
+			m_bDoDropout = m_dropoutPercentActive < real_t(1.);
 			m_activations.will_emulate_biases();
 		};
 		
@@ -143,10 +151,9 @@ namespace nntl {
 
 		//#TODO: move all generic fullyconnected stuff into a special base class!
 
-		const realmtx_t& get_weights()const noexcept {
-			NNTL_ASSERT(m_bWeightsInitialized);
-			return m_weights;
-		}
+		const realmtx_t& get_weights()const noexcept { NNTL_ASSERT(m_bWeightsInitialized); return m_weights; }
+		realmtx_t& get_weights() noexcept { NNTL_ASSERT(m_bWeightsInitialized); return m_weights; }
+
 		bool set_weights(realmtx_t&& W)noexcept {
 			if (W.empty() || W.emulatesBiases()
 				|| (W.cols() != get_self().get_incoming_neurons_cnt() + 1)
@@ -171,7 +178,7 @@ namespace nntl {
 				if (!bSuccessfullyInitialized) get_self().deinit();
 			});
 			
-			m_nTiledTimes = lid.nTiledTimes;
+			m_nTiledTimes = real_t(lid.nTiledTimes);
 
 			NNTL_ASSERT(!m_weights.emulatesBiases());
 			if (m_bWeightsInitialized) {
@@ -236,7 +243,7 @@ namespace nntl {
 			m_dropoutMask.clear();
 			m_dLdW.clear();
 			_base_class::deinit();
-			m_nTiledTimes = 0;
+			m_nTiledTimes = real_t(0.);
 		}
 
 		void initMem(real_t* ptr, numel_cnt_t cnt)noexcept {
@@ -303,7 +310,9 @@ namespace nntl {
 			iI.fprop_preactivations(m_activations);
 
 			NNTL_ASSERT(get_self().is_activations_shared() || m_activations.test_biases_ok());
-			activation_f_t::f(m_activations, _Math);
+			if (!m_bLayerIsLinear) {
+				activation_f_t::f(m_activations, _Math);
+			}
 			iI.fprop_activations(m_activations);
 
 			NNTL_ASSERT(get_self().is_activations_shared() || m_activations.test_biases_ok());
@@ -375,7 +384,12 @@ namespace nntl {
 			dLdZ.useExternalStorage_no_bias(m_activations);
 
 			//computing dA/dZ using m_activations (aliased to dLdZ variable, which eventually will be a dL/dZ
-			activation_f_t::df(dLdZ, _Math);//it's a dA/dZ actually
+			if (m_bLayerIsLinear) {
+				activation_f_t::dIdentity(dLdZ, _Math);//dLdZ var here is a dA/dZ actually
+			}else{
+				activation_f_t::df(dLdZ, _Math);//dLdZ var here is a dA/dZ actually
+			}
+			
 			iI.bprop_dAdZ(dLdZ);
 			//compute dL/dZ=dL/dA.*dA/dZ into dA/dZ
 			_Math.evMul_ip(dLdZ, dLdA);
@@ -405,7 +419,7 @@ namespace nntl {
 			// to get some element of dLdW equals to zero, because it'll require that dLdZ entries for some neuron over the
 			// whole batch were set to zero.
 			NNTL_ASSERT(m_nTiledTimes > 0);
-			_Math.mScaledMulAtB_C(real_t(m_nTiledTimes) / real_t(dLdZ.rows()), dLdZ, prevActivations, m_dLdW);
+			_Math.mScaledMulAtB_C(m_nTiledTimes / real_t(dLdZ.rows()), dLdZ, prevActivations, m_dLdW);
 			iI.bprop_dLdW(dLdZ, prevActivations, m_dLdW);
 
 			if (!bPrevLayerIsInput) {
@@ -470,18 +484,23 @@ namespace nntl {
 
 		//////////////////////////////////////////////////////////////////////////
 
+		bool bLayerIsLinear()const noexcept { return m_bLayerIsLinear; }
+		void setLayerLinear(const bool b)noexcept { m_bLayerIsLinear = b; }
+
+		//////////////////////////////////////////////////////////////////////////
 		const real_t dropoutPercentActive()const noexcept { return m_dropoutPercentActive; }
 		self_ref_t dropoutPercentActive(real_t dpa)noexcept {
 			NNTL_ASSERT(real_t(0.) < dpa && dpa <= real_t(1.));
 			if (dpa <= real_t(+0.) || dpa > real_t(1.)) dpa = real_t(1.);
 			m_dropoutPercentActive = dpa;
+			m_bDoDropout = dpa < real_t(1.);
 			if (!get_self()._check_init_dropout()) {
 				NNTL_ASSERT(!"Failed to init dropout, probably no memory");
 				abort();
 			}
 			return get_self();
 		}
-		const bool bDropout()const noexcept { return m_dropoutPercentActive < real_t(1.); }
+		const bool bDropout()const noexcept { return m_bDoDropout; }
 
 	protected:
 		const bool _check_init_dropout()noexcept {

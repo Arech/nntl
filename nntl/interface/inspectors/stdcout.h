@@ -43,7 +43,7 @@ namespace inspector {
 		typedef stdcout<real_t, maxNnetDepth> self_t;
 
 	protected:
-		typedef _impl::layer_idx_keeper<layer_index_t, _NoLayerIdxSpecified, maxNnetDepth> keeper_t;
+		typedef utils::layer_idx_keeper<layer_index_t, _NoLayerIdxSpecified, maxNnetDepth> keeper_t;
 
 	protected:
 		layer_names_t m_layerNames;

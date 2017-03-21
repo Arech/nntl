@@ -419,6 +419,9 @@ namespace math {
 		value_ptr_t end()noexcept { return data()+numel(); }
 		cvalue_ptr_t end()const noexcept { return data()+numel(); }
 
+		value_ptr_t end_no_bias()noexcept { return data() + numel_no_bias(); }
+		cvalue_ptr_t end_no_bias()const noexcept { return data() + numel_no_bias(); }
+
 		value_ptr_t colDataAsVec(vec_len_t c)noexcept {
 			NNTL_ASSERT(!empty() && m_cols>0 && m_rows>0 && c <= m_cols);//non strict inequality c <= m_cols to allow reference 'after the last' column
 			return m_pData + sNumel(m_rows, c);

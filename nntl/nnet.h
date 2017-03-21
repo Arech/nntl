@@ -217,7 +217,7 @@ namespace nntl {
 				m_failedLayerIdx = le.second;
 				return le.first;
 			}
-			NNTL_ASSERT(m_LMR.maxSingledLdANumel > 0);
+			NNTL_ASSERT(batchSize == 0 || m_LMR.maxSingledLdANumel > 0);
 			
 			if (!get_iMath().init()) return ErrorCode::CantInitializeIMath;
 
@@ -254,7 +254,7 @@ namespace nntl {
 
 		numel_cnt_t _processTmpStor(const bool bMiniBatch, const vec_len_t batchSize)noexcept
 		{
-			NNTL_ASSERT(m_pTmpStor.size() > 0);
+			NNTL_ASSERT(batchSize == 0 || m_pTmpStor.size() > 0);
 			//auto tempMemStorage = m_pTmpStor.get();
 			//NNTL_ASSERT(tempMemStorage);
 			auto& tempMemStorage = m_pTmpStor;
@@ -558,7 +558,7 @@ namespace nntl {
 			//there's no need to make these objects global besides getting rid of memory reallocations, so let it be
 			std::vector<neurons_count_t> m_grpIdx, m_subgrpIdxs;
 
-			_impl::gradcheck_dataHolder<real_t> m_data;
+			utils::dataHolder<real_t> m_data;
 
 			const layer_index_t m_outputLayerIdx;
 
@@ -595,7 +595,7 @@ namespace nntl {
 			//////////////////////////////////////////////////////////////////////////
 
 			bool performCheck(const vec_len_t batchSize, const realmtx_t& data_x, const realmtx_t& data_y)noexcept {
-				m_data.init(batchSize, data_x, data_y);
+				m_data.init(batchSize, data_x, &data_y);
 				
 				bool bRet = false;
 				if (m_ngcSetts.bVerbose) {
@@ -604,7 +604,7 @@ namespace nntl {
 				_launchCheck(_impl::gradcheck_mode::online, 1);
 				if (!m_failedLayerIdx) {
 					if (m_ngcSetts.bVerbose) {
-						STDCOUTL(std::endl << "Performing layerwise gradient check in batch mode (check dL/dW and so on)");
+						STDCOUTL(std::endl << "Performing layerwise gradient check in batch mode (check dL/dW and so on) with a batchSize = " << batchSize);
 					}
 					_launchCheck(_impl::gradcheck_mode::batch, batchSize);
 					bRet = !m_failedLayerIdx;
@@ -616,8 +616,7 @@ namespace nntl {
 
 			layer_index_t getFailedLayerIdx()const noexcept { return m_failedLayerIdx; }
 			
-			template<typename LayerT>
-			void operator()(LayerT& lyr) noexcept {
+			template<typename LayerT> void operator()(LayerT& lyr) noexcept {
 				if (m_failedLayerIdx) return;//do nothing, check has already been failed.
 
 				//calling internal layers at first if applicable
@@ -680,7 +679,7 @@ namespace nntl {
 				lyr.for_each_packed_layer_down(*this);
 			}
 			template<typename LayerT>
-			std::enable_if_t<!is_layer_pack<LayerT>::value> _checkInnerLayers(LayerT& lyr)noexcept {}
+			std::enable_if_t<!is_layer_pack<LayerT>::value> _checkInnerLayers(LayerT& lyr)const noexcept {}
 			
 			void _checkdLdA(const layer_index_t& lIdx, const neurons_count_t neuronsCnt)noexcept {
 				const auto checkNeuronsCnt = m_ngcSetts.groupSetts.countToCheck(neuronsCnt);
@@ -855,8 +854,10 @@ namespace nntl {
 
 			void _say_final(const mtx_coords_t& coords)const noexcept {
 				STDCOUT(" coordinates: (" << coords.first << ", " << coords.second << "). Following data rows were used in the batch: ");
-				for (const auto& r : m_data.curBatchIdxs()) {
-					STDCOUT(r << ",");
+				auto it = m_data.curBatchIdxs();
+				const auto itE = m_data.curBatchIdxsEnd();
+				while (it < itE) {
+					STDCOUT(*it++ << ",");
 				}
 				STDCOUT(std::endl);
 			}
@@ -888,7 +889,6 @@ namespace nntl {
 		// Read http://cs231n.github.io/neural-networks-3/#gradcheck before using this function.
 		// NB: Most of our loss functions implementations are very simple and therefore numerically unstable.
 		// The first and the only real use a value of loss function is actually here, in .gradcheck().
-		// #todo stabilize loss functions computations
 		bool gradcheck(const realmtx_t& data_x, const realmtx_t& data_y
 			, const vec_len_t batchSize = 5
 			, const gradcheck_settings<real_t>& ngcSetts = gradcheck_settings<real_t>())noexcept

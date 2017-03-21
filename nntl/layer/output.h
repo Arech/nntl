@@ -71,6 +71,10 @@ namespace nntl {
 		real_t m_dLdZRestrictLowerBnd, m_dLdZRestrictUpperBnd;
 		bool m_bRestrictdLdZ;//restriction flag should be permanent for init/deinit calls and changed only by explicit calls to respective functions
 		
+		//#todo this flag is probably worst possible solution, however we may need some mean to switch off nonlinearity in a run-time.
+		//Is there a better (non-branching when it's not necessary) solution available?
+		bool m_bLayerIsLinear;
+
 	    //this flag controls the weights matrix initialization and prevents reinitialization on next nnet.train() calls
 		bool m_bWeightsInitialized;
 
@@ -112,10 +116,9 @@ namespace nntl {
 			: _base_class(_neurons_cnt, pCustomName), m_activations(), m_weights(), m_dLdW(), m_bWeightsInitialized(false)
 			, m_gradientWorks(learningRate)
 			, m_bRestrictdLdZ(false), m_dLdZRestrictLowerBnd(.0), m_dLdZRestrictUpperBnd(.0)
-		{
-			//dont need biases in last layer!  --- it is OFF by default
-			//m_activations.dont_emulate_biases();
-		};
+			, m_bLayerIsLinear(false)
+		{};
+
 		static constexpr const char _defName[] = "outp";
 
 		// Class assumes, that the content of the m_activations matrix on the beginning of the bprop() is the same as it was on exit from fprop().
@@ -133,10 +136,9 @@ namespace nntl {
 
 		//#TODO: move all generic fullyconnected stuff into a special base class!
 
-		const realmtx_t& get_weights()const noexcept { 
-			NNTL_ASSERT(m_bWeightsInitialized);
-			return m_weights; 
-		}
+		const realmtx_t& get_weights()const noexcept { NNTL_ASSERT(m_bWeightsInitialized); return m_weights; }
+		realmtx_t& get_weights() noexcept { NNTL_ASSERT(m_bWeightsInitialized); return m_weights; }
+
 		//should be called after assembling layers into layer_pack, - it initializes _incoming_neurons_cnt
 		bool set_weights(realmtx_t&& W)noexcept {
 			if (W.empty() || W.emulatesBiases() || (W.cols() != get_incoming_neurons_cnt() + 1)
@@ -249,9 +251,13 @@ namespace nntl {
 			auto& _Math = get_self().get_iMath();
 			iI.fprop_makePreActivations(m_weights, prevActivations);
 			_Math.mMulABt_Cnb(prevActivations, m_weights, m_activations);
+
 			iI.fprop_preactivations(m_activations);
-			activation_f_t::f(m_activations, _Math);
+			if (!m_bLayerIsLinear) {
+				activation_f_t::f(m_activations, _Math);
+			}
 			iI.fprop_activations(m_activations);
+
 			iI.fprop_end(m_activations);
 			m_bActivationsValid = true;
 		}
@@ -282,7 +288,13 @@ namespace nntl {
 			//compute dL/dZ
 			iI.bprop_predLdZOut(m_activations, data_y);
 			
-			activation_f_t::dLdZ(data_y, m_activations, _Math);
+			if (m_bLayerIsLinear) {
+				activation_f_t::dLdZIdentity(data_y, m_activations, _Math);
+			} else {
+				activation_f_t::dLdZ(data_y, m_activations, _Math);
+			}
+
+
 			//now dLdZ is calculated into m_activations
 			realmtx_t & dLdZ = m_activations;
 			iI.bprop_dLdZ(dLdZ);
@@ -349,6 +361,11 @@ namespace nntl {
 		real_t lossAddendum()const noexcept { return m_gradientWorks.lossAddendum(m_weights); }
 		//should return true, if the layer has a value to add to Loss function value (there's some regularizer attached)
 		bool hasLossAddendum()const noexcept { return m_gradientWorks.hasLossAddendum(); }
+
+		//////////////////////////////////////////////////////////////////////////
+
+		bool bLayerIsLinear()const noexcept { return m_bLayerIsLinear; }
+		void setLayerLinear(const bool b)noexcept { m_bLayerIsLinear = b; }
 
 		//////////////////////////////////////////////////////////////////////////
 

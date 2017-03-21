@@ -67,6 +67,9 @@
     <Filter Include="nntl\grad_works">
       <UniqueIdentifier>{632ece8d-fedb-481f-bd5c-ec49e1fbc6d8}</UniqueIdentifier>
     </Filter>
+    <Filter Include="nntl\weight_init">
+      <UniqueIdentifier>{4a81942d-dddd-43f8-964b-7bd1eca75f0f}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <Text Include="ReadMe.txt" />
@@ -158,9 +161,6 @@
     </ClInclude>
     <ClInclude Include="..\_extern\agner.org\AF_randomc_h\random.h">
       <Filter>_extern\agner.org</Filter>
-    </ClInclude>
-    <ClInclude Include="..\nntl\weights_init.h">
-      <Filter>nntl</Filter>
     </ClInclude>
     <ClInclude Include="..\nntl\interface\rng\distr_normal_naive.h">
       <Filter>nntl\interface\rng</Filter>
@@ -343,6 +343,30 @@
       <Filter>nntl\interface\inspectors</Filter>
     </ClInclude>
     <ClInclude Include="..\nntl\utils\gradcheck.h">
+      <Filter>nntl\utils</Filter>
+    </ClInclude>
+    <ClInclude Include="..\nntl\utils\bwlist.h">
+      <Filter>nntl\utils</Filter>
+    </ClInclude>
+    <ClInclude Include="..\nntl\utils\layer_idx_keeper.h">
+      <Filter>nntl\utils</Filter>
+    </ClInclude>
+    <ClInclude Include="..\nntl\weights_init.h">
+      <Filter>nntl</Filter>
+    </ClInclude>
+    <ClInclude Include="..\nntl\weights_init\static.h">
+      <Filter>nntl\weight_init</Filter>
+    </ClInclude>
+    <ClInclude Include="..\nntl\weights_init\LsuvExt.h">
+      <Filter>nntl\weight_init</Filter>
+    </ClInclude>
+    <ClInclude Include="..\nntl\weights_init\_procedural_base.h">
+      <Filter>nntl\weight_init</Filter>
+    </ClInclude>
+    <ClInclude Include="..\nntl\utils\dataHolder.h">
+      <Filter>nntl\utils</Filter>
+    </ClInclude>
+    <ClInclude Include="..\nntl\utils\layers_settings.h">
       <Filter>nntl\utils</Filter>
     </ClInclude>
   </ItemGroup>
