@@ -31,7 +31,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 #pragma once
 
-#include "../interface/rng/std.h"
+#include "../interface/rng/cstd.h"
 #include "../weights_init.h"
 
 namespace nntl {
@@ -42,7 +42,7 @@ namespace test_weights_init {
 	struct Xavier : public weights_init::Xavier<scalingCoeff1e6> {
 		template <typename iRng_t>
 		static bool init(typename iRng_t::realmtx_t& W, iRng_t&)noexcept {
-			rng::Std drng(rngSeed);
+			rng::CStd drng(rngSeed);
 			return weights_init::Xavier<scalingCoeff1e6>::init(W, drng);
 		}
 

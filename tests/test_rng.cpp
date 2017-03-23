@@ -34,7 +34,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "../nntl/math.h"
 #include "../nntl/common.h"
 
-#include "../nntl/interface/rng/std.h"
+#include "../nntl/interface/rng/cstd.h"
 #include "../nntl/interface/rng/afrand.h"
 #include "../nntl/interface/rng/afrand_mt.h"
 
@@ -42,6 +42,13 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include "../nntl/utils/chrono.h"
 #include "../nntl/utils/prioritize_workers.h"
+
+#include "../nntl/interface/rng/distr_normal_naive.h"
+
+#include <boost/accumulators/accumulators.hpp>
+#include <boost/accumulators/statistics/stats.hpp>
+#include <boost/accumulators/statistics/mean.hpp>
+#include <boost/accumulators/statistics/variance.hpp>
 
 using namespace nntl;
 using namespace nntl::utils;
@@ -74,14 +81,14 @@ void test_rng_perf(realmtx_t::vec_len_t rowsCnt, realmtx_t::vec_len_t colsCnt = 
 	/*
 	 *turning it off because it works more than 100 slower
 	{
-		rng::Std rg;
+		rng::CStd rg;
 		bt = steady_clock::now();
 		for (unsigned r = 0; r < maxReps; ++r) {
 			rg.gen_matrix_norm(m);
 		}
 		diff = steady_clock::now() - bt;
 	}
-	STDCOUTL("Std:\t" << utils::duration_readable(diff, maxReps, &tstStd));*/
+	STDCOUTL("CStd:\t" << utils::duration_readable(diff, maxReps, &tstStd));*/
 
 	{
 		rng::AFRand<real_t, AFog::CRandomMersenne> rg;
@@ -180,4 +187,42 @@ TEST(TestRNG, RngMtPerf) {
 		test_rng_mt_perf<AFog::CRandomSFMT0>(Thr, "AFSFMT0", i, 10);
 	NNTL_RUN_TEST2( (rng::_impl::AFRAND_MT_THR<AFog::CRandomSFMT1, real_t>::bnd_gen_vector_norm), 10)
 		test_rng_mt_perf<AFog::CRandomSFMT1>(Thr, "AFSFMT1", i, 10);
+}
+
+//////////////////////////////////////////////////////////////////////////
+template<typename base_t> struct NormDistrCompat_EPS {};
+template<> struct NormDistrCompat_EPS<double> { static constexpr double eps = 1e-4; };
+template<> struct NormDistrCompat_EPS<float> { static constexpr float eps = 5e-2f; };
+TEST(TestRNG, NormDistrCompat) {
+	typedef d_interfaces::iRng_t iRng_t;
+	typedef nntl::d_interfaces::iThreads_t def_threads_t;
+	typedef std::vector<real_t> vec_t;
+
+	static constexpr real_t targMean(real_t(.5)), targStddev(real_t(2.));
+	static constexpr unsigned maxReps = 5, totalElms = 1000000;
+
+	vec_t dest(totalElms);
+
+	def_threads_t Thr;
+	iRng_t iR(Thr);
+	rng::distr_normal_naive<iRng_t> d(iR, targMean, targStddev);
+
+	for (unsigned i = 0; i < maxReps; ++i) {
+		std::fill(dest.begin(), dest.end(), real_t(0.));
+		d.gen_vector(&dest.front(), totalElms);
+
+		boost::accumulators::accumulator_set<real_t, boost::accumulators::stats<
+			boost::accumulators::tag::mean
+			, boost::accumulators::tag::lazy_variance >
+		> acc;
+		for (const auto& v : dest) {
+			acc(v);
+		}
+		const real_t _mean = boost::accumulators::extract_result< boost::accumulators::tag::mean >(acc)
+			, _std = std::sqrt(boost::accumulators::extract_result< boost::accumulators::tag::lazy_variance >(acc));
+		STDCOUTL("Mean = " << _mean << ", std = " << _std);
+		ASSERT_NEAR(_mean, targMean, NormDistrCompat_EPS<real_t>::eps) << "Wrong mean!!!";
+		ASSERT_NEAR(_std, targStddev, NormDistrCompat_EPS<real_t>::eps) << "Wrong StdDev!!!";
+	}
+
 }

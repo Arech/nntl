@@ -470,7 +470,7 @@ void test_mrwMax_perf(vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 	realmtx_t m(rowsCnt, colsCnt);
 	ASSERT_TRUE(!m.isAllocationFailed());
 	vec_t vmax(rowsCnt);
-
+		
 	iM.preinit(m.numel());
 	ASSERT_TRUE(iM.init());
 	d_interfaces::iRng_t rg;
@@ -484,7 +484,7 @@ void test_mrwMax_perf(vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 		tStRwSmall.tic();
 		iM.mrwMax_st_rw_small(m, &vmax[0]);
 		tStRwSmall.toc();
-
+		
 		std::fill(vmax.begin(), vmax.end(), std::numeric_limits<real_t>::lowest()); 		rg.gen_matrix(m, 10);
 		tStRw.tic();
 		iM.mrwMax_st_rw(m, &vmax[0]);
@@ -494,12 +494,12 @@ void test_mrwMax_perf(vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 		tStCw.tic();
 		iM.mrwMax_st_cw(m, &vmax[0]);
 		tStCw.toc();
-
+		
 		std::fill(vmax.begin(), vmax.end(), std::numeric_limits<real_t>::lowest()); 		rg.gen_matrix(m, 10);
 		tSt.tic();
 		iM.mrwMax_st(m, &vmax[0]);
 		tSt.toc();
-
+		
 		if (colsCnt > SMath_t::Thresholds_t::mrwMax_mt_cw_ColsPerThread) {
 			std::fill(vmax.begin(), vmax.end(), std::numeric_limits<real_t>::lowest());			rg.gen_matrix(m, 10);
 			tMtCw.tic();
@@ -537,8 +537,8 @@ TEST(TestSMathThr, mrwMax) {
 	NNTL_RUN_TEST4(SMath_t::Thresholds_t::mrwMax, 5, 2.5, 10) test_mrwMax_perf(i, 10);
 	NNTL_RUN_TEST4(SMath_t::Thresholds_t::mrwMax, 5, 2.5, 2) test_mrwMax_perf(i, 2);
 #ifndef TESTS_SKIP_LONGRUNNING
-	test_mrwMax_perf(100, 10000);
-	test_mrwMax_perf(10000, 100);
+ 	test_mrwMax_perf(100, 10000);
+ 	test_mrwMax_perf(10000, 100);
 // 	test_mrwMax_perf(10, 100000);
 // 	test_mrwMax_perf(100000, 10);
 #endif

@@ -44,7 +44,7 @@ namespace nntl {
 	namespace rng {
 
 		template<typename RealT, typename AgnerFogRNG, typename iThreadsT>
-		class AFRand_mt final : public rng_helper<RealT, AFRand_mt<RealT, AgnerFogRNG, iThreadsT>> {
+		class AFRand_mt final : public rng_helper<RealT, ptrdiff_t, uint32_t, AFRand_mt<RealT, AgnerFogRNG, iThreadsT>> {
 			static_assert(std::is_base_of<threads::_i_threads<RealT, typename iThreadsT::range_t>, iThreadsT>::value, "iThreads must implement threads::_i_threads");
 
 		public:
@@ -111,23 +111,18 @@ namespace nntl {
 					rngs[r.tid()].RandomInitByArray(sd, 2);
 				},m_pThreads->workers_count());
 			}
-// 			void seed_array(const seed_t s[], unsigned seedsCnt) noexcept {
-// 				//m_rng.RandomInitByArray(static_cast<const int*>(s), static_cast<int>(seedsCnt));
-// 				m_rng.RandomInitByArray(s, static_cast<int>(seedsCnt));//better to get here an error than silent convertion that will ruin everything
-// 			}
 
-			// generated_scalar_t is either int on 32bits or int64 on 64bits
-			// gen_i() is going to be used with random_shuffle()
-			generated_scalar_t gen_i(generated_scalar_t lessThan)noexcept {
+			// int_4_random_shuffle_t is either int on 32bits or int64 on 64bits
+			int_4_random_shuffle_t gen_i(int_4_random_shuffle_t lessThan)noexcept {
 				NNTL_ASSERT(m_pThreads);
 				//TODO: pray we'll never need it bigger (because we'll possible do need and this may break everything)
 				NNTL_ASSERT(lessThan <= INT32_MAX);
 				int v = m_Rngs[0].IRandomX(0, static_cast<int>(lessThan - 1));
 				NNTL_ASSERT(v != AFog::GEN_ERROR);
-				return static_cast<generated_scalar_t>(v);
+				return static_cast<int_4_random_shuffle_t>(v);
 			}
 
-			int gen_int()noexcept { return m_Rngs[0].IRandom(min(), max()); }
+			int_4_distribution_t gen_int()noexcept { return static_cast<int_4_distribution_t>(m_Rngs[0].BRandom()); }
 
 			//////////////////////////////////////////////////////////////////////////
 			//generate FP value in range [0,1]

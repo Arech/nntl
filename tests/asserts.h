@@ -38,6 +38,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include <numeric>
 
+//#BUGBUG there must be no global typedefs!!!!
 typedef nntl::d_interfaces::real_t real_t;
 typedef nntl::math::smatrix<real_t> realmtx_t;
 typedef nntl::math::smatrix_deform<real_t> realmtxdef_t;

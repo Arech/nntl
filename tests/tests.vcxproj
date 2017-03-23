@@ -216,7 +216,7 @@
     <ClInclude Include="..\nntl\interface\math\mathn.h" />
     <ClInclude Include="..\nntl\interface\_i_math.h" />
     <ClInclude Include="..\nntl\interface\math\smatrix.h" />
-    <ClInclude Include="..\nntl\interface\rng\std.h" />
+    <ClInclude Include="..\nntl\interface\rng\cstd.h" />
     <ClInclude Include="..\nntl\interface\_i_threads.h" />
     <ClInclude Include="..\nntl\interface\threads\intel_tbb.h" />
     <ClInclude Include="..\nntl\interface\threads\parallel_range.h" />

@@ -46,41 +46,36 @@ namespace rng {
 	//defining RNG functor. Functions can be non static, because a rng can have a state
 	//Don't use in production unless you are on WinXP+ and use #define _CRT_RAND_S (and even then don't use it too)
 	template<typename RealT>
-	class Std final : public rng_helper<RealT, Std<RealT>> {
+	class CStd final : public rng_helper<RealT, ptrdiff_t, int, CStd<RealT>> {
 	protected:
 		typedef unsigned int real_seed_t;
 		typedef uint32_t real_rand_max_t;
 	public:
 		
-		Std()noexcept {
+		CStd()noexcept {
 			seed(static_cast<seed_t>(s64to32(std::time(0))));
 		}
-		Std(seed_t s)noexcept {
+		CStd(seed_t s)noexcept {
 			seed(s);
 		}
 
 		static void seed(seed_t s) noexcept { std::srand(s); }// _64to32(s)); }
-// 		static void seed_array(const seed_t s[], unsigned seedsCnt) noexcept {
-// 			seed_t sv=0;
-// 			for (unsigned i = 0; i < seedsCnt; ++i) sv += s[i];
-// 			seed(sv);
-// 		}
 
 		//////////////////////////////////////////////////////////////////////////
 		// family of generator subfunctions
 		// If there was an error and RNG can't be generated, by convention return 0 and assume, it's a caller responsibility
 		// to make sure the gen is ok.
 		// 
-		// generated_scalar_t is either int on 32bits or int64 on 64bits
+		// int_4_random_shuffle_t is either int on 32bits or int64 on 64bits
 		// gen_i() is going to be used with random_shuffle()
-		static generated_scalar_t gen_i(generated_scalar_t lessThan)noexcept {
+		static int_4_random_shuffle_t gen_i(int_4_random_shuffle_t lessThan)noexcept {
 			//TODO: pray we'll never need it bigger (because we'll possible do need and this may break everything)
 			NNTL_ASSERT(lessThan <= _rand_max());
-			return static_cast<generated_scalar_t>(_rand()) % lessThan;
+			return static_cast<int_4_random_shuffle_t>(_rand() % lessThan);
 		}
-		//generated_scalar_t operator()(generated_scalar_t lessThan)noexcept { return gen_i(lessThan); }
+		//int_4_random_shuffle_t operator()(int_4_random_shuffle_t lessThan)noexcept { return gen_i(lessThan); }
 
-		static int gen_int()noexcept { return static_cast<int>(_rand()); }
+		static int_4_distribution_t gen_int()noexcept { return static_cast<int_4_distribution_t>(_rand()); }
 
 		//////////////////////////////////////////////////////////////////////////
 		//generate FP value in range [0,a]
@@ -92,15 +87,6 @@ namespace rng {
 
 		//////////////////////////////////////////////////////////////////////////
 		// weights generation (sequence from begin to end of numbers drawn from uniform distribution in [-a,a])
-// 		static void gen_matrix(realmtx_t& mtx, const real_t a)noexcept {
-// 			NNTL_ASSERT(!mtx.emulatesBiases());
-// 			gen_vector(mtx.data(), mtx.numel(), a);
-// 		}
-// 		static void gen_matrix_no_bias(realmtx_t& mtx, const real_t a)noexcept {
-// 			NNTL_ASSERT();
-// 			NNTL_ASSERT(mtx.emulatesBiases());
-// 			gen_vector(mtx.data(), mtx.numel_no_bias(), a);
-// 		}
 		static void gen_vector(real_t* ptr, const size_t n, const real_t a)noexcept {
 			const real_t scale = 2 * a;
 			const real_t rm = static_cast<real_t>(_rand_max());
@@ -119,28 +105,6 @@ namespace rng {
 				*ptr++ = static_cast<real_t>(_rand()) / rm;
 			}
 		}
-// 		//generate matrix with values in range [0,1]
-// 		static void gen_matrix_norm(realmtx_t& mtx)noexcept {
-// 			NNTL_ASSERT(!mtx.emulatesBiases());
-// 			gen_vector_norm(mtx.data(), mtx.numel());
-// 		}
-// 		static void gen_matrix_no_bias_norm(realmtx_t& mtx)noexcept {
-// 			NNTL_ASSERT();
-// 			NNTL_ASSERT(mtx.emulatesBiases());
-// 			gen_vector_norm(mtx.data(), mtx.numel_no_bias());
-// 		}
-// 
-// 		//////////////////////////////////////////////////////////////////////////
-// 		//generate matrix with values in range [0,a]
-// 		static void gen_matrix_gtz(realmtx_t& mtx, const real_t a)noexcept {
-// 			NNTL_ASSERT(!mtx.emulatesBiases());
-// 			gen_vector_gtz(mtx.data(), mtx.numel(), a);
-// 		}
-// 		static void gen_matrix_no_bias_gtz(realmtx_t& mtx, const real_t a)noexcept {
-// 			NNTL_ASSERT();
-// 			NNTL_ASSERT(mtx.emulatesBiases());
-// 			gen_vector_gtz( mtx.data(), mtx.numel_no_bias(), a);
-// 		}
 		//generate vector with values in range [0,a]
 		template<typename BaseType>
 		static void gen_vector_gtz(BaseType* ptr, const size_t n, const BaseType a)noexcept {

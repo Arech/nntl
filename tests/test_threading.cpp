@@ -33,7 +33,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include "../nntl/math.h"
 #include "../nntl/nntl.h"
-#include "../nntl/interface/rng/std.h"
+#include "../nntl/interface/rng/cstd.h"
 #include "../nntl/interface/threads/winqdu.h"
 #include "../nntl/interface/threads/std.h"
 #include "../nntl/interfaces.h"
@@ -195,14 +195,14 @@ TEST(TestThreading, PerfComparision) {
 template <typename TT>
 void threading_delay_test(TT& t) {
 	//no need to make it significantly smaller because of resolution of Windows sleep timer
-	const rng::Std<real_t>::generated_scalar_t max_mks = 5000;
+	const rng::CStd<real_t>::int_4_random_shuffle_t max_mks = 5000;
 	//but this count should be large enough
 	const uint64_t maxreps = 10000;
 
 	STDCOUTL("The test would require a bit less than " << static_cast<uint64_t>(max_mks*maxreps / 1000000) << "s"
 		<<".\nIf it lasts significantly longer, then the app hangs and test failed. Define TESTS_SKIP_THREADING_DELAYS to skip.");
 	
-	rng::Std<real_t> r;
+	rng::CStd<real_t> r;
 	for (uint64_t i = 0; i < maxreps; ++i) {
 		t.run([=, &r](const TT::par_range_t&) {
 			std::this_thread::sleep_for(std::chrono::microseconds(r.gen_i(max_mks)));

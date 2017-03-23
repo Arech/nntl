@@ -41,7 +41,7 @@ namespace nntl {
 namespace rng {
 
 	template<typename RealT, typename AgnerFogRNG>
-	class AFRand final : public rng_helper<RealT, AFRand<RealT, AgnerFogRNG>> {
+	class AFRand final : public rng_helper<RealT, ptrdiff_t, uint32_t, AFRand<RealT, AgnerFogRNG>> {
 	public:
 		typedef AgnerFogRNG base_rng_t;
 
@@ -49,22 +49,17 @@ namespace rng {
 		AFRand(seed_t s)noexcept : m_rng(static_cast<int>(s)) {}
 
 		void seed(seed_t s) noexcept { m_rng.RandomInit(static_cast<int>(s)); }
-// 		void seed_array(const seed_t s[], unsigned seedsCnt) noexcept { 
-// 			//m_rng.RandomInitByArray(static_cast<const int*>(s), static_cast<int>(seedsCnt));
-// 			m_rng.RandomInitByArray( s, static_cast<int>(seedsCnt));//better to get here an error than silent convertion that will ruin everything
-// 		}
 
-		// generated_scalar_t is either int on 32bits or int64 on 64bits
-		// gen_i() is going to be used with random_shuffle()
-		generated_scalar_t gen_i(generated_scalar_t lessThan)noexcept {
+		// int_4_random_shuffle_t is either int on 32bits or int64 on 64bits
+		int_4_random_shuffle_t gen_i(int_4_random_shuffle_t lessThan)noexcept {
 			//TODO: pray we'll never need it bigger (because we'll possible do need and this may break everything)
 			NNTL_ASSERT(lessThan <= INT32_MAX);
 			int v = m_rng.IRandomX(0, static_cast<int>(lessThan-1));
 			NNTL_ASSERT(v != AFog::GEN_ERROR);
-			return static_cast<generated_scalar_t>(v);
+			return static_cast<int_4_random_shuffle_t>(v);
 		}
 
-		int gen_int()noexcept { return m_rng.IRandom(min(), max()); }
+		int_4_distribution_t gen_int()noexcept { return static_cast<int_4_distribution_t>(m_rng.BRandom()); }
 
 		//////////////////////////////////////////////////////////////////////////
 		//generate FP value in range [0,1]

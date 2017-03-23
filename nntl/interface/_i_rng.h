@@ -31,41 +31,60 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 #pragma once
 
-//#include <cstdint>
-//#include <ctime>        // std::time
-
 namespace nntl {
 namespace rng {
 
 	template<typename RealT>
 	struct _i_rng {
-
-		//typedef uint64_t seed_t;
-		typedef int seed_t;
-		
 		typedef RealT real_t;
 		typedef math::smatrix<real_t> realmtx_t;
 
-		// ptrdiff_t is either int on 32bits or int64 on 64bits. Type required by random_shuffle()
-		typedef ptrdiff_t generated_scalar_t;
+		//all typedefs below should be changed in derived classes to suit needs
+		
+		typedef int seed_t;
+		nntl_interface void seed(seed_t s) noexcept;
+		nntl_interface void seed64(uint64_t s) noexcept;
 
+		//////////////////////////////////////////////////////////////////////////
+		// Multithreading support. iRng instance should not create own threading pool, it should be given a threads pool object
+		// during initialization
+		// 
+		// change to appropriate value in derived class
 		static constexpr bool is_multithreaded = false;
+
 		template<typename itt>
 		bool set_ithreads(itt& t)noexcept { return false; }
 		template<typename itt>
 		bool set_ithreads(itt& t, seed_t s)noexcept { return false; }
 
-		//nntl_interface _i_rng()noexcept {}
-		//nntl_interface _i_rng(seed_t s)noexcept {}
+		//////////////////////////////////////////////////////////////////////////
+		// iRng object should provide the following types of random numbers:
+		// - fixed point number in range [0, A], where A is given. This numbers are going to used primarily by std::random_shuffle()
+		//		and should be implicitly convertible to ptrdiff_t.
+		// - fixed point number in its full range. To be used by distributions generators such as std::normal_distribution.
+		//		This rng must obey UniformRandomBitGenerator concept.
+		// - floating point number in ranges [0,1], [0,A] and [-A,A]
 
-		nntl_interface void seed(seed_t s) noexcept;
-		nntl_interface void seed64(uint64_t s) noexcept;
-		//nntl_interface void seed_array(const seed_t s[], unsigned seedsCnt) noexcept;
+		//////////////////////////////////////////////////////////////////////////
+		// std::random_shuffle() support
+		//
+		// ptrdiff_t is either int on 32bits or int64 on 64bits. Type required by random_shuffle()
+		typedef ptrdiff_t int_4_random_shuffle_t;
+		// int_4_random_shuffle_t is either int on 32bits or int64 on 64bits
+		nntl_interface int_4_random_shuffle_t gen_i(int_4_random_shuffle_t lessThan)noexcept;
+		nntl_interface int_4_random_shuffle_t operator()(int_4_random_shuffle_t lessThan)noexcept;// { return gen_i(lessThan); }
 
-		// generated_scalar_t is either int on 32bits or int64 on 64bits
-		// gen_i() is going to be used with random_shuffle()
-		nntl_interface generated_scalar_t gen_i(generated_scalar_t lessThan)noexcept;
-		
+		//////////////////////////////////////////////////////////////////////////
+		// std::*_distribution<> support. This API must conform UniformRandomBitGenerator concept
+		//
+		typedef int int_4_distribution_t;
+		nntl_interface int_4_distribution_t operator()()noexcept;//returns values that are uniformly distributed between min() and max().
+		nntl_interface int_4_distribution_t min()noexcept;//returns the minimum value that is returned by the generator's operator().
+		nntl_interface int_4_distribution_t max()noexcept;//returns the maximum value that is returned by the generator's operator().
+		nntl_interface int_4_distribution_t gen_int()noexcept;//random full-ranged int
+
+		//floating point generation
+
 		//////////////////////////////////////////////////////////////////////////
 		//generate FP value in range [0,1]
 		nntl_interface real_t gen_f_norm()noexcept;
@@ -86,29 +105,6 @@ namespace rng {
 		nntl_interface void gen_vector_gtz(BaseType* ptr, const size_t n, const BaseType a)noexcept;
 
 
-
-		//////////////////////////////////////////////////////////////////////////
-		//////////////////////////////////////////////////////////////////////////
-		//following functions could be implemented in _i_rng_helper
-
-		//to be used by random_shuffle()
-		nntl_interface generated_scalar_t operator()(generated_scalar_t lessThan)noexcept;// { return gen_i(lessThan); }
-
-		//////////////////////////////////////////////////////////////////////////
-		//to be used by <random> distribution algorithms
-		/*nntl_interface real_t operator()()noexcept;//returns values that are uniformly distributed between min() and max().
-		nntl_interface real_t min()noexcept;//returns the minimum value that is returned by the generator's operator().
-		nntl_interface real_t max()noexcept;//returns the maximum value that is returned by the generator's operator().
-		// When result_type is a floating-point (real-valued) type, max() is the smallest value greater than all values
-		// that can be returned (non-inclusive).*/
-		//
-		// be aware: due to Microsoft's std::normal_distribution implementation, the operator() and min()/max() should better return full-ranged int.
-		// I've tried a real_t(float) in range [0,1] and it resulted in a distribution with a significantly bigger (about to sqrt(2)) sigma/stddev.
-		nntl_interface int operator()()noexcept;//returns values that are uniformly distributed between min() and max().
-		nntl_interface int min()noexcept;//returns the minimum value that is returned by the generator's operator().
-		nntl_interface int max()noexcept;//returns the maximum value that is returned by the generator's operator().
-		nntl_interface int gen_int()noexcept;//random full-ranged int
-
 		//generate FP value in range [0,a]
 		nntl_interface real_t gen_f(const real_t a)noexcept; //{ return a*gen_f_norm(); }
 
@@ -125,42 +121,39 @@ namespace rng {
 		nntl_interface void gen_matrix_no_bias_gtz(realmtx_t& mtx, const real_t a)noexcept;
 	};
 
-	template<typename RealT, typename FinalPolymorphChild>
+	template<typename RealT, typename int4ShuffleT, typename int4DistribsT, typename FinalPolymorphChild>
 	struct rng_helper : public _i_rng<RealT> {
 	protected:
 		typedef FinalPolymorphChild self_t;
-		NNTL_METHODS_SELF_CHECKED((std::is_base_of<rng_helper<real_t, FinalPolymorphChild>, FinalPolymorphChild>::value)
+		NNTL_METHODS_SELF_CHECKED((std::is_base_of<rng_helper<real_t, int4ShuffleT, int4DistribsT, FinalPolymorphChild>, FinalPolymorphChild>::value)
 			, "FinalPolymorphChild must derive from _i_rng_helper<RealT,FinalPolymorphChild>");
 
 	public:
-		generated_scalar_t operator()(generated_scalar_t lessThan)noexcept { return get_self().gen_i(lessThan); }
-
+		typedef int4ShuffleT int_4_random_shuffle_t;
+		typedef int4DistribsT int_4_distribution_t;
+		
+		//////////////////////////////////////////////////////////////////////////
 		void seed64(uint64_t s) noexcept {
 			get_self().seed(static_cast<seed_t>(s64to32(s)));
 		}
 
 		//////////////////////////////////////////////////////////////////////////
-		//to be used by <random> distribution algorithms
-		//returns values that are uniformly distributed between min() and max().
-		/*real_t operator()()noexcept { return get_self().gen_f_norm(); }
-		//returns the minimum value that is returned by the generator's operator().
-		real_t min()noexcept { return real_t(0.0); }
-		//returns the maximum value that is returned by the generator's operator().
-		// When result_type is a floating-point (real-valued) type, max() is the smallest value greater than all values
-		// that can be returned (non-inclusive).
-		real_t max()noexcept { return real_t(1.0); }*/
+		// std::random_shuffle() support
+		int_4_random_shuffle_t operator()(int_4_random_shuffle_t lessThan)noexcept { return get_self().gen_i(lessThan); }
 
-		int operator()()noexcept { return get_self().gen_int(); }
+		//////////////////////////////////////////////////////////////////////////
+		// std::*_distribution<> support. This API must conform UniformRandomBitGenerator concept
+		int_4_distribution_t operator()()noexcept { return get_self().gen_int(); }
 		//returns the minimum value that is returned by the generator's operator().
-		constexpr int min()const noexcept { return INT_MIN + 1; } //+1 is essential
+		//static constexpr int_4_distribution_t min()const noexcept { return std::numeric_limits<int_4_distribution_t>::min() + 1; } //+1 is essential
+		static constexpr int_4_distribution_t min() noexcept { return std::numeric_limits<int_4_distribution_t>::min(); }
 		//returns the maximum value that is returned by the generator's operator().
-		constexpr int max()const noexcept { return INT_MAX; }
+		static constexpr int_4_distribution_t max() noexcept { return std::numeric_limits<int_4_distribution_t>::max(); }
 
 		//////////////////////////////////////////////////////////////////////////
 		//generate FP value in range [0,a]
 		real_t gen_f(const real_t a)noexcept { return a*get_self().gen_f_norm(); }
 
-		//TODO: I forgot, do we really need this _no_bias versions or should just make them default?
 
 		// matrix/vector generation (sequence from begin to end of numbers drawn from uniform distribution in [-a,a])
 		void gen_matrix(realmtx_t& mtx, const real_t a)noexcept {

@@ -37,7 +37,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "../nntl/nntl.h"
 
 //#include "../nntl/utils/clamp.h"
-#include "../nntl/interface/rng/std.h"
+#include "../nntl/interface/rng/cstd.h"
 #include "../nntl/utils/chrono.h"
 #include "../nntl/utils/prioritize_workers.h"
 #include "../nntl/utils/options.h"
