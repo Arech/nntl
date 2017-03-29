@@ -211,6 +211,8 @@ TEST(TestRNG, NormDistrCompat) {
 		std::fill(dest.begin(), dest.end(), real_t(0.));
 		d.gen_vector(&dest.front(), totalElms);
 
+		//see http://www.boost.org/doc/libs/1_63_0/doc/html/accumulators/user_s_guide.html
+
 		boost::accumulators::accumulator_set<real_t, boost::accumulators::stats<
 			boost::accumulators::tag::mean
 			, boost::accumulators::tag::lazy_variance >

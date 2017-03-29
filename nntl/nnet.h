@@ -193,17 +193,21 @@ namespace nntl {
 		}
 
 		//batchSize==0 means that _init is called for use in fprop scenario only
-		ErrorCode _init(const vec_len_t biggestFprop, vec_len_t batchSize = 0, const bool bMiniBatch = false)noexcept {
+		ErrorCode _init(const vec_len_t biggestFprop, vec_len_t batchSize = 0, const bool bMiniBatch = false
+			, const size_t maxEpoch = 1, const vec_len_t numBatches = 1)noexcept
+		{
 			if (_is_initialized(biggestFprop, batchSize)) {
 				//_processTmpStor(bMiniBatch, train_x_cols, train_y_cols, batchSize, pTtd);
 				//looks like the call above is actually a bug. If the nnet is initalized, no work should be done with its memory
-				
+				get_iInspect().init_nnet(m_Layers.total_layers(), maxEpoch, numBatches);
 				return ErrorCode::Success;
 			}
 
 			//#TODO we must be sure here that no internal objects settings will be hurt during deinit phase
 			_deinit();
 			
+			get_iInspect().init_nnet(m_Layers.total_layers(), maxEpoch, numBatches);
+
 			bool bInitFinished = false;
 			utils::scope_exit _run_deinit([this, &bInitFinished]() {
 				if (!bInitFinished) _deinit();
@@ -344,13 +348,11 @@ namespace nntl {
 			const vec_len_t numBatches = samplesCount / batchSize;
 
 			if (!_batchSizeOk(td, batchSize)) return _set_last_error(ErrorCode::BatchSizeMustBeMultipleOfTrainDataLength);
-			
-			iI.init_nnet(m_Layers.total_layers(), maxEpoch, numBatches);
 
 			m_bCalcFullLossValue = opts.calcFullLossValue();
 			//////////////////////////////////////////////////////////////////////////
 			// perform layers initialization, gather temp memory requirements, then allocate and spread temp buffers
-			auto ec = _init(bTrainSetBigger ? samplesCount : td.test_x().rows(), batchSize, bMiniBatch);
+			auto ec = _init(bTrainSetBigger ? samplesCount : td.test_x().rows(), batchSize, bMiniBatch, maxEpoch, numBatches);
 			if (ErrorCode::Success != ec) return _set_last_error(ec);
 
 			//scheduling deinitialization with scope_exit to forget about return statements

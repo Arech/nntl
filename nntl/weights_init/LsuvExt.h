@@ -258,8 +258,8 @@ namespace weights_init {
 					}
 					if (!bScaleStatOK) _say_failed();
 				}
-				//offsetting bias weights breaks orthogonality of weight matrix (when OrthoInit was used). Therefore to change
-				//it little less we'll update biases after we've reached correct scale.
+				//offsetting bias weights breaks orthogonality of weight matrix (when OrthoInit is being used). Therefore to change
+				//it little less we'll update biases after we've reached the correct scale.
 				if (lSetts.bCentralNormalize) {
 					for (unsigned i = 0; i < lSetts.maxTries; ++i) {
 						_fprop();

@@ -551,7 +551,7 @@ namespace math {
 			NNTL_ASSERT(!A.empty() && !B.empty() && B.size() == A.size());
 			return m_threads.reduce([&A, &B, this](const par_range_t& pr)->real_t {
 				return get_self()._iewSumProd_st(A, B, elms_range(pr));
-			}, _reduce_final_sum, A.numel());
+			}, _reduce_final_sum_ns, A.numel());
 		}
 
 

@@ -43,7 +43,8 @@ namespace nntl {
 	struct m_layer_input {};
 	struct m_layer_output {};
 
-	//this class marks a layer as learnable. It must provide get_weights/set_weights() and bLayerIsLinear()/setLayerLinear() functions,
+	//this class marks a layer as learnable. It must provide get_weights/set_weights(), bLayerIsLinear()/setLayerLinear()
+	// and get_gradWorks() functions,
 	// as well as compute dL/dW during bprop()
 	struct m_layer_learnable {};
 

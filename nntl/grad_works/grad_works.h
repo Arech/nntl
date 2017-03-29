@@ -533,8 +533,8 @@ namespace nntl {
 			return get_self();
 		}
 
-		//in general, for max_norm it is better to take biases into account when calculation the norm value - it doesn't
-		//affect on the direction that the weight is point to but makes two weights with the same direction but different biases really different.
+		//for max_norm it might be better to take biases into account during calculation of norm value - it doesn't
+		//affect the direction that the weight is point to but makes two weights with the same direction but different biases really different.
 		// HOWEVER: if weights are getting small, but a bias has to be big, than there might be issues due to numeric problems.
 		// In general: when there must be a big difference in weights (including bias) magnitude, it may make the things worse. When weights
 		// and bias are similar in magnitude - it helps. To detect such condition try to learn with double precision type. Usually
@@ -543,7 +543,13 @@ namespace nntl {
 		//bNormIncludesBias parameter toggles whether the mn parameter describes the max norm of weight vector only (excluding bias weight - false)
 		//or the max norm of a full weight vector (including bias - true). Anyway, full weight vector are scaled.
 		// bNormIncludesBias==false might offer a bit more numeric stability due to overall magnitude similarity between weigths
-		// (biases generally have different, mostly bigger, magnitudes)
+		// (biases generally have different, mostly bigger, magnitudes).
+		// And one more thing to consider: weight vector magnitude (norm) defines the maximum "amplification" that previous layers
+		// activations will get during scalar multiplication (pre-activation calculation step). When the prev.layer activations
+		// is ranged in [-1,1] (tanh-function family) or [0,1] (sigm-function famility) it might be fairly safe to assume
+		// (though not always) that bias weights will have the same magnitude as activation weights. However, for other activation
+		// functions, especically for ReLU-style functions, this assumption is clearly very fragile and unsounded. Therefore,
+		// generally it is better NOT to include bias weight in max-norm constraint and set bNormIncludesBias parameter to false.
 		self_ref_t max_norm(const real_t L2normSquared, const bool bNormIncludesBias = defNormIncludesBias)noexcept {
 			NNTL_ASSERT(L2normSquared >= real_t(0.0));
 			m_WeightVecNormSqared = L2normSquared;

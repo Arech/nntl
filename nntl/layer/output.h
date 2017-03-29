@@ -80,6 +80,7 @@ namespace nntl {
 
 	public:
 		grad_works_t m_gradientWorks;
+		grad_works_t& get_gradWorks()noexcept { return m_gradientWorks; }
 		
 		//////////////////////////////////////////////////////////////////////////
 		//Serialization support

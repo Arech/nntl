@@ -1178,12 +1178,15 @@ namespace math {
 		static real_t vSumSquares_st(const realmtx_t& A)noexcept {
 			NNTL_ASSERT(!A.empty());
 
-			real_t ret(0.0);
+			real_t ret(0.0), C(0.), Y, T;
 			auto p = A.data();
 			const auto pE = p + A.numel();
 			while (p != pE) {
 				const auto v = *p++;
-				ret += v*v;
+				Y = v*v - C;
+				T = ret + Y;
+				C = T - ret - Y;
+				ret = T;
 			}
 			return ret;
 		}
@@ -1192,15 +1195,18 @@ namespace math {
 
 			const auto pA = A.data();
 			return m_threads.reduce([pA](const par_range_t& r)->real_t {
-				real_t ret(0.0);
+				real_t ret(0.0), C(0.), Y, T;
 				auto p = pA + r.offset();
 				const auto pE = p + r.cnt();
 				while (p != pE) {
 					const auto v = *p++;
-					ret += v*v;
+					Y = v*v - C;
+					T = ret + Y;
+					C = T - ret - Y;
+					ret = T;
 				}
 				return ret;
-			}, _reduce_final_sum, A.numel());
+			}, _reduce_final_sum_ns, A.numel());
 		}
 
 		//////////////////////////////////////////////////////////////////////////
@@ -1370,7 +1376,7 @@ namespace math {
 			const auto pSDE = pSD + er.totalElements();
 			while (pSD != pSDE) {
 				const auto a = *pSD;
-				NNTL_ASSERT(real_t(0.) <= a && a <= real_t(1.));
+				NNTL_ASSERT(real_t(0.) <= a && a <= real_t(1.));//#consider do we need this assert here???
 				const auto y = *pY++;
 				NNTL_ASSERT(real_t(0.) <= y && y <= real_t(1.));
 				*pSD++ = (a - y)*(a != real_t(0.));

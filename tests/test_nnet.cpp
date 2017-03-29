@@ -244,6 +244,7 @@ TEST(TestNnet, LSUVExt) {
 	readTd(td);
 
 	const size_t s = std::time(0);
+	STDCOUTL("Seed = " << s);
 
 	test_LSUVExt<real_t>(td, false, false, false, s);
 
