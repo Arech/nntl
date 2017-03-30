@@ -474,7 +474,7 @@ namespace nntl {
 			if (use_L2_regularization()) {
 				const bool bIgnoreBiases = get_opt(f_L2RegIgnoreBias);
 				if (bIgnoreBiases) _W.hide_last_col();
-				ret += m_actualL2*real_t(.5) * get_iMath().vSumSquares(_W);
+				ret += m_actualL2*real_t(.5) * get_iMath().ewSumSquares(_W);
 				if (bIgnoreBiases) _W.restore_last_col();
 			}
 
@@ -485,7 +485,7 @@ namespace nntl {
 
 		//////////////////////////////////////////////////////////////////////////
 
-		self_ref_t learning_rate(const real_t learningRate)noexcept {
+		self_ref_t learning_rate(const real_t& learningRate)noexcept {
 			m_learningRate = learningRate;
 			m_actualL1 = math::sign(m_learningRate)*m_L1;
 			m_actualL2 = math::sign(m_learningRate)*m_L2;

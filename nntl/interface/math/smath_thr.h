@@ -47,6 +47,8 @@ namespace math {
 
 		template <> struct SMATH_THR<double> {
 			static constexpr size_t ewSumProd = 8800;
+			static constexpr size_t ewSumSquares = 8800;//nt
+			static constexpr size_t ewSumSquares_ns = 8800;//nt
 
 			static constexpr size_t mrwDivideByVec_rw = 10000;
 			static constexpr size_t mrwDivideByVec_mt_rows = 5000;
@@ -87,6 +89,8 @@ namespace math {
 
 		template <> struct SMATH_THR<float> {
 			static constexpr size_t ewSumProd = 880*19;
+			static constexpr size_t ewSumSquares = 880*19;//nt
+			static constexpr size_t ewSumSquares_ns = 880 * 19;//nt
 
 			static constexpr size_t mrwDivideByVec_rw = 20000;
 			static constexpr size_t mrwDivideByVec = 30000;

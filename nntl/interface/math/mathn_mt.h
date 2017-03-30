@@ -188,13 +188,13 @@ namespace math {
 
 		//////////////////////////////////////////////////////////////////////////
 		//inplace elementwise multiplication A = b.*A
-		void evMulC_ip(realmtx_t& A, const real_t b)noexcept {
-			evMulC_ip_mt_naive(A, b);
+		void evMulC_ip(realmtx_t& A, const real_t& b)noexcept {
+			base_class_t::evMulC_ip(A, b);
 		}
 
 		//inplace elementwise multiplication A(no_bias) = b.*A(no_bias)
-		void evMulC_ip_Anb(realmtx_t& A, const real_t b)noexcept {
-			evMulC_ip_Anb_mt_naive(A, b);
+		void evMulC_ip_Anb(realmtx_t& A, const real_t& b)noexcept {
+			base_class_t::evMulC_ip_Anb(A, b);
 		}
 
 		//////////////////////////////////////////////////////////////////////////
@@ -254,8 +254,11 @@ namespace math {
 
 		//////////////////////////////////////////////////////////////////////////
 		//finds sum of squares of elements (squared L2 norm): return sum( A.^2 )
-		real_t vSumSquares(const realmtx_t& A)noexcept {
+		/*real_t vSumSquares(const realmtx_t& A)noexcept {
 			return vSumSquares_mt(A);
+		}*/
+		real_t ewSumSquares(const realmtx_t& A)noexcept {
+			return base_class_t::ewSumSquares(A);
 		}
 		
 		//////////////////////////////////////////////////////////////////////////

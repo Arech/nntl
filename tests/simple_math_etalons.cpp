@@ -251,3 +251,18 @@ void mrwBinaryOR_ET(const realmtx_t& A, real_t* pVec)noexcept {
 		}
 	}
 }
+
+
+
+real_t ewSumSquares_ET(const realmtx_t& A)noexcept {
+	const auto dataCnt = A.numel();
+	const auto p = A.data();
+	real_t ret(0), C(0.), Y, T;
+	for (numel_cnt_t i = 0; i < dataCnt; ++i) {
+		Y = p[i] * p[i] - C;
+		T = ret + Y;
+		C = T - ret - Y;
+		ret = T;
+	}
+	return ret;
+}

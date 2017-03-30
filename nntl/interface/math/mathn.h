@@ -135,6 +135,8 @@ namespace math {
 		using base_class_t::ithreads;
 
 		using base_class_t::ewSumProd;
+		using base_class_t::ewSumSquares;
+		using base_class_t::ewSumSquares_ns;
 		//using base_class_t::ewBinarize;
 		using base_class_t::mrwIdxsOfMax;
 		using base_class_t::mrwMax;
@@ -497,12 +499,12 @@ namespace math {
 			// Making newNorm slightly less, than maxNormSquared to make sure the result will be less than max norm.
 			//const real_t newNorm = maxNormSquared - math::real_t_limits<real_t>::eps_lower_n(maxNormSquared, sCheck_normalize_rows_MULT);
 			// removed. it's not a big deal if resulting norm will be slightly bigger
-			const real_t newNorm = maxNormSquared;// -2 * sqrt(math::real_t_limits<real_t>::eps_lower(maxNormSquared));
+			const real_t newNorm = maxNormSquared;// -2 * std::sqrt(math::real_t_limits<real_t>::eps_lower(maxNormSquared));
 			auto pCurNorm = pTmp;
 			const auto pTmpE = pTmp + mRows;
 			while (pCurNorm != pTmpE) {
 				const auto rowNorm = *pCurNorm;
-				*pCurNorm++ = rowNorm > maxNormSquared ? sqrt(newNorm / rowNorm) : real_t(1.0);
+				*pCurNorm++ = rowNorm > maxNormSquared ? std::sqrt(newNorm / rowNorm) : real_t(1.0);
 			}
 
 			//renormalize (multiply each rowvector to corresponding coefficient from pTmp)
@@ -521,11 +523,11 @@ namespace math {
 
 			// calc scaling coefficients
 			const auto pRowNormE = pTmpStor + mRows;
-			const real_t newNorm = maxNormSquared;// -2 * sqrt(math::real_t_limits<real_t>::eps_lower(maxNormSquared));
+			const real_t newNorm = maxNormSquared;// -2 * std::sqrt(math::real_t_limits<real_t>::eps_lower(maxNormSquared));
 			auto pCurNorm = pTmpStor;
 			while (pCurNorm != pRowNormE) {
 				const auto rowNorm = *pCurNorm;
-				*pCurNorm++ = rowNorm > maxNormSquared ? sqrt(newNorm / rowNorm) : real_t(1.0);
+				*pCurNorm++ = rowNorm > maxNormSquared ? std::sqrt(newNorm / rowNorm) : real_t(1.0);
 			}
 
 			// 3. multiplying
@@ -848,46 +850,62 @@ namespace math {
 
 		//////////////////////////////////////////////////////////////////////////
 		//inplace elementwise multiplication A = b.*A
-		void evMulC_ip(realmtx_t& A, const real_t b)noexcept {
+		static void _ievMulC_ip_st(real_t* pA, const real_t b, const elms_range& er)noexcept {
+			NNTL_ASSERT(pA && er.totalElements() > 0);
+			const real_t*const pAE = pA + er.elmEnd;
+			pA += er.elmBegin;
+			while (pA != pAE) *pA++ *= b;
+		}
+		void evMulC_ip(realmtx_t& A, const real_t& b)noexcept {
 			if (A.numel() < Thresholds_t::evMulC_ip) {
 				get_self().evMulC_ip_st_naive(A, b);
 			} else get_self().evMulC_ip_mt_naive(A, b);
 		}
-		void evMulC_ip_st_naive(realmtx_t& A, const real_t b)noexcept {
+		void evMulC_ip_st_naive(realmtx_t& A, const real_t& b, const elms_range*const pER = nullptr)noexcept {
 			NNTL_ASSERT(!A.empty() && A.numel() > 0);
-			get_self().ievMulC_ip_st_naive(A.data(), A.numel(), b);
+			NNTL_ASSERT(!pER || pER->elmEnd <= A.numel());
+			get_self()._ievMulC_ip_st(A.data(), b, pER ? *pER : elms_range(A));
 		}
-		static void ievMulC_ip_st_naive(real_t* ptrA, const numel_cnt_t dataCnt, const real_t b)noexcept {
-			const auto ptrAE = ptrA + dataCnt;
-			while (ptrA != ptrAE)  *ptrA++ *= b;
-		}
-		void evMulC_ip_mt_naive(realmtx_t& A, const real_t b)noexcept {
+		void evMulC_ip_mt_naive(realmtx_t& A, const real_t& b)noexcept {
 			NNTL_ASSERT(!A.empty() && A.numel() > 0);
-			get_self().ievMulC_ip_mt_naive(A.data(), A.numel(), b);
+			m_threads.run([pA = A.data(), b, this](const par_range_t& pr) {
+				get_self()._ievMulC_ip_st(pA, b, elms_range(pr));
+			}, A.numel());
 		}
-		void ievMulC_ip_mt_naive(real_t* ptrA, const numel_cnt_t dataCnt, const real_t b)noexcept {
-			m_threads.run([ptrA, b](const par_range_t& r) {
-				auto p = ptrA + r.offset();
-				const auto pe = p + r.cnt();
-				while (p != pe) {
-					*p++ *= b;
-				}
-			}, dataCnt);
+		//////////////////////////////////////////////////////////////////////////
+		void evMulC_ip(real_t* pA, const numel_cnt_t& n, const real_t& b)noexcept {
+			if (n < Thresholds_t::evMulC_ip) {
+				get_self().evMulC_ip_st_naive(pA, n, b);
+			} else get_self().evMulC_ip_mt_naive(pA, n, b);
+		}
+		void evMulC_ip_st_naive(real_t* pA, const numel_cnt_t& n, const real_t& b, const elms_range*const pER = nullptr)noexcept {
+			NNTL_ASSERT(pA && n > 0);
+			NNTL_ASSERT(!pER || pER->elmEnd <= n);
+			get_self()._ievMulC_ip_st(pA, b, pER ? *pER : elms_range(0, n));
+		}
+		void evMulC_ip_mt_naive(real_t* pA, const numel_cnt_t& n, const real_t& b)noexcept {
+			NNTL_ASSERT(pA && n > 0);
+			m_threads.run([pA, b, this](const par_range_t& pr) {
+				get_self()._ievMulC_ip_st(pA, b, elms_range(pr));
+			}, n);
 		}
 
 		//inplace elementwise multiplication A(no_bias) = b.*A(no_bias)
-		void evMulC_ip_Anb(realmtx_t& A, const real_t b)noexcept {
+		void evMulC_ip_Anb(realmtx_t& A, const real_t& b)noexcept {
 			if (A.numel_no_bias() < Thresholds_t::evMulC_ip_Anb) {
 				get_self().evMulC_ip_Anb_st_naive(A, b);
 			} else get_self().evMulC_ip_Anb_mt_naive(A, b);
 		}
-		void evMulC_ip_Anb_st_naive(realmtx_t& A, const real_t b)noexcept {
+		void evMulC_ip_Anb_st_naive(realmtx_t& A, const real_t& b, const elms_range*const pER = nullptr)noexcept {
 			NNTL_ASSERT(!A.empty() && A.numel_no_bias() > 0);
-			get_self().ievMulC_ip_st_naive(A.data(), A.numel_no_bias(), b);
+			NNTL_ASSERT(!pER || pER->elmEnd <= A.numel_no_bias());
+			get_self()._ievMulC_ip_st(A.data(), b, pER ? *pER : elms_range(0, A.numel_no_bias()));
 		}
-		void evMulC_ip_Anb_mt_naive(realmtx_t& A, const real_t b)noexcept {
+		void evMulC_ip_Anb_mt_naive(realmtx_t& A, const real_t& b)noexcept {
 			NNTL_ASSERT(!A.empty() && A.numel_no_bias() > 0);
-			get_self().ievMulC_ip_mt_naive(A.data(), A.numel_no_bias(), b);
+			m_threads.run([pA = A.data(), b, this](const par_range_t& pr) {
+				get_self()._ievMulC_ip_st(pA, b, elms_range(pr));
+			}, A.numel_no_bias());
 		}
 
 
@@ -1170,7 +1188,8 @@ namespace math {
 
 		//////////////////////////////////////////////////////////////////////////
 		//finds sum of squares of elements (squared L2 norm): return sum( A.^2 )
-		real_t vSumSquares(const realmtx_t& A)noexcept {
+		// see SMath::ewSumSquares()
+		/*real_t vSumSquares(const realmtx_t& A)noexcept {
 			if (A.numel() < Thresholds_t::vSumSquares) {
 				return get_self().vSumSquares_st(A);
 			} else return get_self().vSumSquares_mt(A);
@@ -1207,7 +1226,7 @@ namespace math {
 				}
 				return ret;
 			}, _reduce_final_sum_ns, A.numel());
-		}
+		}*/
 
 		//////////////////////////////////////////////////////////////////////////
 		//finding elementwise absolute values dest = abs(src);
@@ -2765,7 +2784,7 @@ namespace math {
 				const auto w = *pW;
 				const auto rms = emaDecay*(*pF) + w*w*_1_emaDecay;
 				*pF = rms;
-				*pW = learningRate*(w / (sqrt(rms) + numericStabilizer));
+				*pW = learningRate*(w / (std::sqrt(rms) + numericStabilizer));
 			}
 		}
 		void RMSProp_Hinton_mt(realmtx_t& dW, realmtx_t& rmsF, const real_t learningRate,
@@ -2787,7 +2806,7 @@ namespace math {
 					const auto w = *pW;
 					const auto rms = emaDecay*(*pF) + w*w*_1_emaDecay;
 					*pF = rms;
-					*pW = learningRate*(w / (sqrt(rms) + numericStabilizer));
+					*pW = learningRate*(w / (std::sqrt(rms) + numericStabilizer));
 				}
 			}, dW.numel());
 		}
@@ -2821,7 +2840,7 @@ namespace math {
 				*pF = rF;
 				const auto rG = emaDecay*(*pG) + wdec;
 				*pG = rG;
-				*pW = learningRate*(w / (sqrt(rF - rG*rG + numericStabilizer)));
+				*pW = learningRate*(w / (std::sqrt(rF - rG*rG + numericStabilizer)));
 			}
 		}
 		void RMSProp_Graves_mt(realmtx_t& dW, realmtx_t& rmsF, realmtx_t& rmsG, const real_t learningRate,
@@ -2848,7 +2867,7 @@ namespace math {
 					*pF = rF;
 					const auto rG = emaDecay*(*pG) + wdec;
 					*pG = rG;
-					*pW = learningRate*(w / (sqrt(rF - rG*rG + numericStabilizer)));
+					*pW = learningRate*(w / (std::sqrt(rF - rG*rG + numericStabilizer)));
 				}
 			}, dW.numel());
 		}
@@ -2966,8 +2985,12 @@ namespace math {
 				NNTL_ASSERT(beta1t < real_t(1.));
 				NNTL_ASSERT(beta2t < real_t(1.));
 			}
-			const auto alphat = learningRate*sqrt(real_t(1.) - beta2t) / (real_t(1.) - beta1t);
+			const auto alphat = learningRate*std::sqrt(real_t(1.) - beta2t) / (real_t(1.) - beta1t);
 			const auto ombeta1 = real_t(1.) - beta1, ombeta2 = real_t(1.) - beta2;
+
+// 			if (std::isnan(alphat)) {
+// 				__debugbreak();
+// 			}
 
 			auto pdW = dW.data()+ er.elmBegin, pMt = Mt.data()+ er.elmBegin, pVt = Vt.data()+ er.elmBegin;
 			const auto pDWE = pdW + er.totalElements();
@@ -2977,7 +3000,12 @@ namespace math {
 				*pMt++ = m;
 				const auto v = (*pVt)*beta2 + g*g*ombeta2;
 				*pVt++ = v;
-				*pdW++ = alphat*m / (sqrt(v) + numericStabilizer);
+
+				const auto ndw = alphat*m / (std::sqrt(v) + numericStabilizer);
+// 				if (std::isnan(g) || std::isnan(m) || std::isnan(v) || std::isnan(ndw)) {
+// 					__debugbreak();
+// 				}
+				*pdW++ = ndw;
 			}
 			//FFFUUUUUUUUCK! for() cycle (commented out below) works about 4-5 times slower, than while().
 			// Don't know why did I choose to use for() for an RMSProp_*() implementation.
@@ -2991,7 +3019,7 @@ namespace math {
 				*pM = m;
 				const auto v = (*pV)*beta2 + g*g*ombeta2;
 				*pV = v;
-				*pG = alphat*m / (sqrt(v) + numericStabilizer);
+				*pG = alphat*m / (std::sqrt(v) + numericStabilizer);
 			}*/
 		}
 		void Adam_mt(realmtx_t& dW, realmtx_t& Mt, realmtx_t& Vt, real_t& beta1t, real_t& beta2t, const real_t learningRate,

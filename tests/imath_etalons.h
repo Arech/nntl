@@ -85,7 +85,6 @@ void AdaMax_ET(realmtx_t& dW, realmtx_t& Mt, realmtx_t& Ut, real_t& beta1t, cons
 	const real_t beta1, const real_t beta2, const real_t numericStabilizer)noexcept;
 
 real_t vSumAbs_ET(const realmtx_t& A)noexcept;
-real_t vSumSquares_ET(const realmtx_t& A)noexcept;
 real_t rowvecs_renorm_ET(realmtx_t& m, const real_t newNormSq, const bool bNormIncludesBias, real_t* pTmp)noexcept;
 
 void sigm_ET(realmtx_t& x);

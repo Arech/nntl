@@ -554,6 +554,98 @@ namespace math {
 			}, _reduce_final_sum_ns, A.numel());
 		}
 
+		//////////////////////////////////////////////////////////////////////////
+		//////////////////////////////////////////////////////////////////////////
+		//finds a sum of elementwise squares: return sum( A.*A );
+		
+		static real_t _iewSumSquares_st(const real_t* pA, const elms_range& er)noexcept {
+			NNTL_ASSERT(pA && er.totalElements() > 0);
+			const real_t*const pAE = pA + er.elmEnd;
+			pA += er.elmBegin;
+			real_t ret(0.0);
+			while (pA!=pAE) {
+				auto v = *pA++;
+				ret += v*v;
+			}
+			return ret;
+		}
+		static real_t _iewSumSquares_st_ns(const real_t* pA, const elms_range& er)noexcept {
+			NNTL_ASSERT(pA && er.totalElements() > 0);
+			const real_t*const pAE = pA + er.elmEnd;
+			pA += er.elmBegin;
+			real_t ret(0.0), C(0.), Y, T;
+			while (pA != pAE) {
+				auto v = *pA++;
+				Y = v*v - C;
+				T = ret + Y;
+				C = T - ret - Y;
+				ret = T;
+			}
+			return ret;
+		}
+		//////////////////////////////////////////////////////////////////////////
+		real_t ewSumSquares(const realmtx_t& A)noexcept {
+			if (A.numel() < Thresholds_t::ewSumSquares) {
+				return get_self().ewSumSquares_st(A);
+			} else return get_self().ewSumSquares_mt(A);
+		}
+		real_t ewSumSquares_st(const realmtx_t& A, const elms_range*const pER = nullptr)noexcept {
+			NNTL_ASSERT(!pER || pER->elmEnd <= A.numel());
+			return get_self()._iewSumSquares_st(A.data(), pER ? *pER : elms_range(A));
+		}
+		real_t ewSumSquares_mt(const realmtx_t& A)noexcept {
+			NNTL_ASSERT(!A.empty());
+			return m_threads.reduce([pA=A.data(), this](const par_range_t& pr)->real_t {
+				return get_self()._iewSumSquares_st(pA, elms_range(pr));
+			}, _reduce_final_sum, A.numel());
+		}
+		//////////////////////////////////////////////////////////////////////////
+		real_t ewSumSquares(const real_t* pA, const numel_cnt_t& n)noexcept {
+			if (n < Thresholds_t::ewSumSquares) {
+				return get_self().ewSumSquares_st(pA, n);
+			} else return get_self().ewSumSquares_mt(pA, n);
+		}
+		real_t ewSumSquares_st(const real_t* pA, const numel_cnt_t& n, const elms_range*const pER = nullptr)noexcept {
+			NNTL_ASSERT(!pER || pER->elmEnd <= n);
+			return get_self()._iewSumSquares_st(pA, pER ? *pER : elms_range(0, n));
+		}
+		real_t ewSumSquares_mt(const real_t* pA, const numel_cnt_t& n)noexcept {
+			return m_threads.reduce([pA, this](const par_range_t& pr)->real_t {
+				return get_self()._iewSumSquares_st(pA, elms_range(pr));
+			}, _reduce_final_sum, n);
+		}
+		//////////////////////////////////////////////////////////////////////////
+		real_t ewSumSquares_ns(const realmtx_t& A)noexcept {
+			if (A.numel() < Thresholds_t::ewSumSquares_ns) {
+				return get_self().ewSumSquares_st_ns(A);
+			} else return get_self().ewSumSquares_mt_ns(A);
+		}
+		real_t ewSumSquares_st_ns(const realmtx_t& A, const elms_range*const pER = nullptr)noexcept {
+			NNTL_ASSERT(!pER || pER->elmEnd <= A.numel());
+			return get_self()._iewSumSquares_st_ns(A.data(), pER ? *pER : elms_range(A));
+		}
+		real_t ewSumSquares_mt_ns(const realmtx_t& A)noexcept {
+			NNTL_ASSERT(!A.empty());
+			return m_threads.reduce([pA = A.data(), this](const par_range_t& pr)->real_t {
+				return get_self()._iewSumSquares_st_ns(pA, elms_range(pr));
+			}, _reduce_final_sum_ns, A.numel());
+		}
+		//////////////////////////////////////////////////////////////////////////
+		real_t ewSumSquares_ns(const real_t* pA, const numel_cnt_t& n)noexcept {
+			if (n < Thresholds_t::ewSumSquares_ns) {
+				return get_self().ewSumSquares_st_ns(pA, n);
+			} else return get_self().ewSumSquares_mt_ns(pA, n);
+		}
+		real_t ewSumSquares_st_ns(const real_t* pA, const numel_cnt_t& n, const elms_range*const pER = nullptr)noexcept {
+			NNTL_ASSERT(!pER || pER->elmEnd <= n);
+			return get_self()._iewSumSquares_st_ns(pA, pER ? *pER : elms_range(0, n));
+		}
+		real_t ewSumSquares_mt_ns(const real_t* pA, const numel_cnt_t& n)noexcept {
+			return m_threads.reduce([pA, this](const par_range_t& pr)->real_t {
+				return get_self()._iewSumSquares_st_ns(pA, elms_range(pr));
+			}, _reduce_final_sum_ns, n);
+		}
+
 
 		//////////////////////////////////////////////////////////////////////////
 		//////////////////////////////////////////////////////////////////////////

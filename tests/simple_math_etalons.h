@@ -51,3 +51,5 @@ void mCloneCols_ET(const realmtx_t& srcCols, realmtx_t& dest, const vec_len_t*co
 void mCloneCol_ET(const realmtx_t& srcCol, realmtx_t& dest)noexcept;
 
 void mrwBinaryOR_ET(const realmtx_t& A, real_t* pVec)noexcept;
+
+real_t ewSumSquares_ET(const realmtx_t& A)noexcept;

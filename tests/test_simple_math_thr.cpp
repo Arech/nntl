@@ -809,3 +809,48 @@ TEST(TestSMathThr, mrwOr) {
 	test_mrwOr_perf(10, 100000);
 #endif*/
 }
+
+void test_ewSumSquares_perf(vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
+	const auto dataSize = realmtx_t::sNumel(rowsCnt, colsCnt);
+	STDCOUTL("******* testing ewSumSquares() over " << rowsCnt << "x" << colsCnt << " matrix (" << dataSize << " elements) **************");
+
+	constexpr unsigned maxReps = TEST_PERF_REPEATS_COUNT;
+
+	realmtx_t A(rowsCnt, colsCnt);
+	ASSERT_TRUE(!A.isAllocationFailed());
+
+	d_interfaces::iRng_t rg;
+	rg.set_ithreads(iM.ithreads());
+	
+	tictoc tst, tmt, tb;
+	//////////////////////////////////////////////////////////////////////////
+	//testing performance
+	utils::prioritize_workers<utils::PriorityClass::PerfTesting, iThreads_t> pw(iM.ithreads());
+
+	//FFFFfffffffff... don't ever think about removing rg. calls that randomizes data...
+	real_t vv = 0;
+	for (unsigned r = 0; r < maxReps; ++r) {
+		rg.gen_matrix(A, 2);
+		tst.tic();
+		vv += iM.ewSumSquares_st(A);
+		tst.toc();
+
+		rg.gen_matrix(A, 2);
+		tmt.tic();
+		vv += iM.ewSumSquares_mt(A);
+		tmt.toc();
+
+		rg.gen_matrix(A, 2);
+		tb.tic();
+		vv += iM.ewSumSquares(A);
+		tb.toc();
+	}
+	tst.say("st");
+	tmt.say("mt");
+	tb.say("best");
+	STDCOUTL(vv);
+}
+
+TEST(TestSMathThr, ewSumSquares) {
+	NNTL_RUN_TEST2(SMath_t::Thresholds_t::ewSumSquares, 100) test_ewSumSquares_perf(i, 100);
+}

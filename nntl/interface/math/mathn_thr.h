@@ -80,7 +80,7 @@ namespace _impl {
 		static constexpr size_t evMulC_ip_Sub_ip = 15000;
 
 		static constexpr size_t evSquare = 24400;
-		static constexpr size_t vSumSquares = 20000;//not tested
+		//static constexpr size_t vSumSquares = 20000;//not tested
 		static constexpr size_t evAbs = 20300;
 		static constexpr size_t vSumAbs = 18000;//not tested		
 
@@ -182,7 +182,7 @@ namespace _impl {
 		static constexpr size_t evMulC_ip_Sub_ip = 30000;
 
 		static constexpr size_t evSquare = 49000;
-		static constexpr size_t vSumSquares = 40000; //not tested
+		//static constexpr size_t vSumSquares = 40000; //not tested
 		static constexpr size_t evAbs = 43000;
 		static constexpr size_t vSumAbs = 36000;//not tested
 

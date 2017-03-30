@@ -50,7 +50,7 @@ namespace nntl {
 	//dummy callback for .train() function.
 	struct NNetCB_OnEpochEnd_Dummy {
 		template<typename _nnet, typename _opts>
-		constexpr const bool operator()(_nnet& nn, _opts& opts, const size_t epochIdx)const {
+		constexpr const bool operator()(_nnet& nn, _opts& opts, const size_t& epochIdx)const {
 			//return false to stop learning
 			return true;
 		}

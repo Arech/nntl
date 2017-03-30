@@ -503,68 +503,7 @@ TEST(TestMathN, vSumAbs) {
 	NNTL_RUN_TEST2(iMB::Thresholds_t::vSumAbs, 100) test_vSumAbs(iM, i, 100);
 }
 
-//////////////////////////////////////////////////////////////////////////
-//////////////////////////////////////////////////////////////////////////
 
-template<typename base_t> struct vSumSquares_EPS {};
-template<> struct vSumSquares_EPS<double> { static constexpr double eps = 1e-10; };
-template<> struct vSumSquares_EPS<float> { static constexpr float eps = .5f; };
-template<typename iMath>
-void test_vSumSquares(iMath& iM, vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
-	const auto dataSize = realmtx_t::sNumel(rowsCnt, colsCnt);
-	STDCOUTL("******* testing vSumSquares() over " << rowsCnt << "x" << colsCnt << " matrix (" << dataSize << " elements) **************");
-
-	constexpr unsigned maxReps = TEST_PERF_REPEATS_COUNT, testCorrRepCnt = TEST_CORRECTN_REPEATS_COUNT;
-
-	realmtx_t A(rowsCnt, colsCnt);
-	ASSERT_TRUE(!A.isAllocationFailed());
-
-	d_interfaces::iRng_t rg;
-	rg.set_ithreads(iM.ithreads());
-	for (unsigned r = 0; r < testCorrRepCnt; ++r) {
-		rg.gen_matrix(A, 1);
-
-		const auto vss = vSumSquares_ET(A);
-		
-		ASSERT_NEAR(vss, iM.vSumSquares_st(A), vSumSquares_EPS<real_t>::eps) << "vSumSquares_st failed correctness test";
-		ASSERT_NEAR(vss, iM.vSumSquares_mt(A), vSumSquares_EPS<real_t>::eps) << "vSumSquares_mt failed correctness test";
-		ASSERT_NEAR(vss, iM.vSumSquares(A), vSumSquares_EPS<real_t>::eps) << "vSumSquares failed correctness test";
-	}
-
-	tictoc tst, tmt, tb;
-	//////////////////////////////////////////////////////////////////////////
-	//testing performance
-	utils::prioritize_workers<utils::PriorityClass::PerfTesting, iMath::ithreads_t> pw(iM.ithreads());
-
-	//FFFFfffffffff... don't ever think about removing rg. calls that randomizes data...
-	real_t vv = 0;
-	for (unsigned r = 0; r < maxReps; ++r) {
-		rg.gen_matrix(A, 2);
-		tst.tic();
-		vv+=iM.vSumSquares_st(A);
-		tst.toc();
-
-		rg.gen_matrix(A, 2);
-		tmt.tic();
-		vv += iM.vSumSquares_mt(A);
-		tmt.toc();
-
-		rg.gen_matrix(A, 2);
-		tb.tic();
-		vv += iM.vSumSquares(A);
-		tb.toc();
-	}
-	tst.say("st");
-	tmt.say("mt");
-	tb.say("best");
-	STDCOUTL(vv);
-}
-TEST(TestMathN, vSumSquares) {
-	typedef nntl::d_interfaces::iThreads_t def_threads_t;
-	typedef math::MathN<real_t, def_threads_t> iMB;
-	iMB iM;
-	NNTL_RUN_TEST2(iMB::Thresholds_t::vSumSquares, 100) test_vSumSquares(iM, i, 100);
-}
 
 //////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////

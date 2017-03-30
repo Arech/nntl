@@ -204,7 +204,9 @@ namespace math {
 		nntl_interface void evSquare(realmtx_t& dest, const realmtx_t& src)noexcept;
 
 		//finds a sum of squares of elements (squared L2 norm): return sum( A.^2 )
-		nntl_interface real_t vSumSquares(const realmtx_t& A)noexcept;
+		//nntl_interface real_t vSumSquares(const realmtx_t& A)noexcept;
+		nntl_interface real_t ewSumSquares(const realmtx_t& A)noexcept;
+		nntl_interface real_t ewSumSquares_ns(const realmtx_t& A)noexcept;
 
 		//finding elementwise absolute values dest = abs(src);
 		nntl_interface void evAbs(realmtx_t& dest, const realmtx_t& src)noexcept;
