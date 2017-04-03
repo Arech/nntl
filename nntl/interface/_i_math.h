@@ -242,6 +242,10 @@ namespace math {
 		// divide each matrix A row by corresponding vector d element, A(i,:) = A(i,:) / d(i)
 		//nntl_interface void mrwDivideByVec(realmtx_t& A, const real_t* pDiv)noexcept;
 
+		nntl_interface void dIdentity(realmtx_t& f_df)noexcept;
+		nntl_interface void dIdentityQuadLoss_dZ(const realmtx_t& data_y, realmtx_t& act_dLdZ)noexcept;
+		nntl_interface void dIdentityXEntropyLoss_dZ(const realmtx_t& data_y, realmtx_t& act_dLdZ)noexcept;
+
 		//////////////////////////////////////////////////////////////////////////
 		// sigm activation.
 		// Remember to ignore biases for activation function calculations!

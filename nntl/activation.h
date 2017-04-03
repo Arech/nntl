@@ -81,7 +81,7 @@ namespace activation {
 		static void dIdentity(realmtx_t& f_df, iMath& m) noexcept {
 			static_assert(std::is_base_of<math::_i_math<real_t>, iMath>::value, "iMath should implement math::_i_math");
 			NNTL_ASSERT(!f_df.emulatesBiases());
-			m.ewBinarize_ip(f_df, real_t(0.));
+			m.dIdentity(f_df);
 		}
 	};
 

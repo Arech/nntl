@@ -1373,8 +1373,35 @@ namespace math {
 		}
 
 		//////////////////////////////////////////////////////////////////////////
+		// dF for a linear layer is {0|a==0, 1|a!=0)
+		void dIdentity(realmtx_t& f_df)noexcept {
+			if (f_df.numel() < Thresholds_t::dIdentity) {
+				get_self().dIdentity_st(f_df);
+			} else get_self().dIdentity_mt(f_df);
+		}
+		void dIdentity_st(realmtx_t& f_df, const elms_range*const pER = nullptr)noexcept {
+			get_self()._idIdentity_st(f_df, pER ? *pER : elms_range(f_df));
+		}
+		static void _idIdentity_st(realmtx_t& f_df, const elms_range& er)noexcept {
+			NNTL_ASSERT(!f_df.emulatesBiases());
+
+			auto pF = f_df.data() + er.elmBegin;
+			const auto pFE = pF + er.totalElements();
+			while (pF != pFE) {
+				const auto a = *pF;
+				*pF++ = static_cast<real_t>(a != real_t(0.));
+			}
+		}
+		void dIdentity_mt(realmtx_t& f_df)noexcept {
+			NNTL_ASSERT(!f_df.emulatesBiases());
+			m_threads.run([&f_df, this](const par_range_t& r) {
+				get_self()._idIdentity_st(f_df, elms_range(r));
+			}, f_df.numel());
+		}
+
+		//////////////////////////////////////////////////////////////////////////
 		// dL/dZ for a linear output layer is = (err===a-y)*{0|a==0, 1|a!=0)
-		void dIdentityQuadLoss_dZ(const realmtx_t& data_y, realmtx_t& act_dLdZ) {
+		void dIdentityQuadLoss_dZ(const realmtx_t& data_y, realmtx_t& act_dLdZ)noexcept {
 			if (act_dLdZ.numel() < Thresholds_t::dIdentityQuadLoss_dZ) {
 				get_self().dIdentityQuadLoss_dZ_st(data_y, act_dLdZ);
 			} else get_self().dIdentityQuadLoss_dZ_mt(data_y, act_dLdZ);
@@ -1383,10 +1410,10 @@ namespace math {
 		//that will lead to necessity of negation of error in back propagation algorithm. To get rid of that negation,
 		// we'll define error as nn.a{n}-y. This won't bother loss calculation, because it is either squares error
 		// (conventional quadratic loss function) or doesn't use that error definition at all (crossentropy error)
-		void dIdentityQuadLoss_dZ_st(const realmtx_t& data_y, realmtx_t& act_dLdZ, const elms_range*const pER = nullptr) {
+		void dIdentityQuadLoss_dZ_st(const realmtx_t& data_y, realmtx_t& act_dLdZ, const elms_range*const pER = nullptr) noexcept {
 			get_self()._idIdentityQuadLoss_dZ_st(data_y, act_dLdZ, pER ? *pER : elms_range(act_dLdZ));
 		}
-		static void _idIdentityQuadLoss_dZ_st(const realmtx_t& data_y, realmtx_t& act_dLdZ, const elms_range& er) {
+		static void _idIdentityQuadLoss_dZ_st(const realmtx_t& data_y, realmtx_t& act_dLdZ, const elms_range& er)noexcept {
 			NNTL_ASSERT(!act_dLdZ.emulatesBiases() && !data_y.emulatesBiases());
 			NNTL_ASSERT(act_dLdZ.size() == data_y.size());
 
@@ -1401,7 +1428,7 @@ namespace math {
 				*pSD++ = (a - y)*(a != real_t(0.));
 			}
 		}
-		void dIdentityQuadLoss_dZ_mt(const realmtx_t& data_y, realmtx_t& act_dLdZ) {
+		void dIdentityQuadLoss_dZ_mt(const realmtx_t& data_y, realmtx_t& act_dLdZ)noexcept {
 			NNTL_ASSERT(!act_dLdZ.emulatesBiases() && !data_y.emulatesBiases());
 			NNTL_ASSERT(act_dLdZ.size() == data_y.size());
 			m_threads.run([&data_y, &act_dLdZ, this](const par_range_t& r) {
