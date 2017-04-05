@@ -1017,19 +1017,19 @@ namespace math {
 
 		//////////////////////////////////////////////////////////////////////////
 		//inplace elementwise adding of scaled vector: A = A + c*B;
-		void evAddScaled_ip(realmtx_t& A, const real_t c, const realmtx_t& B)noexcept {
+		void evAddScaled_ip(realmtx_t& A, const real_t& c, const realmtx_t& B)noexcept {
 			if (A.numel() < Thresholds_t::evAddScaled_ip) {
 				get_self().evAddScaled_ip_st(A, c, B);
 			} else get_self().evAddScaled_ip_mt(A, c, B);
 		}
-		static void evAddScaled_ip_st(realmtx_t& A, const real_t c, const realmtx_t& B)noexcept {
+		static void evAddScaled_ip_st(realmtx_t& A, const real_t& c, const realmtx_t& B)noexcept {
 			NNTL_ASSERT(A.size() == B.size() && !A.empty() && !B.empty() && c != real_t(0.0));
 			const auto pA = A.data();
 			const auto dataCnt = A.numel();
 			const auto pB = B.data();
 			for (numel_cnt_t i = 0; i < dataCnt; ++i) pA[i] += c*pB[i];
 		}
-		void evAddScaled_ip_mt(realmtx_t& A, const real_t c, const realmtx_t& B)noexcept {
+		void evAddScaled_ip_mt(realmtx_t& A, const real_t& c, const realmtx_t& B)noexcept {
 			NNTL_ASSERT(A.size() == B.size() && !A.empty() && !B.empty() && c != real_t(0.0));
 			const auto pA = A.data();
 			const auto pB = B.data();
@@ -1043,19 +1043,19 @@ namespace math {
 		//////////////////////////////////////////////////////////////////////////
 		//inplace elementwise addition of scaled signum: A = A + c*sign(B);
 		//(L1 regularization, dLdW update step)
-		void evAddScaledSign_ip(realmtx_t& A, const real_t c, const realmtx_t& B)noexcept {
+		void evAddScaledSign_ip(realmtx_t& A, const real_t& c, const realmtx_t& B)noexcept {
 			if (A.numel() < Thresholds_t::evAddScaledSign_ip) {
 				get_self().evAddScaledSign_ip_st(A, c, B);
 			} else get_self().evAddScaledSign_ip_mt(A, c, B);
 		}
-		static void evAddScaledSign_ip_st(realmtx_t& A, const real_t c, const realmtx_t& B)noexcept {
+		static void evAddScaledSign_ip_st(realmtx_t& A, const real_t& c, const realmtx_t& B)noexcept {
 			NNTL_ASSERT(A.size() == B.size() && !A.empty() && !B.empty() && c != real_t(0.0));
 			const auto pA = A.data();
 			const auto dataCnt = A.numel();
 			const auto pB = B.data();
 			for (numel_cnt_t i = 0; i < dataCnt; ++i) pA[i] += c*math::sign(pB[i]);
 		}
-		void evAddScaledSign_ip_mt(realmtx_t& A, const real_t c, const realmtx_t& B)noexcept {
+		void evAddScaledSign_ip_mt(realmtx_t& A, const real_t& c, const realmtx_t& B)noexcept {
 			NNTL_ASSERT(A.size() == B.size() && !A.empty() && !B.empty() && c != real_t(0.0));
 			const auto pA = A.data();
 			const auto pB = B.data();
@@ -2645,8 +2645,7 @@ namespace math {
 			//for KahanSum() see https://msdn.microsoft.com/en-us/library/aa289157(v=vs.71).aspx
 			for (numel_cnt_t i = er.elmBegin; i < er.elmEnd; ++i) {
 				const real_t e = pA[i] - pY[i];
-				const auto e2 = e*e;
-				Y = e2 - C;
+				Y = e*e - C;
 				T = sum + Y;
 				C = T - sum - Y;
 				sum = T;

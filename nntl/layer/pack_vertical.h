@@ -114,7 +114,7 @@ namespace nntl {
 			m_layerIdx = ili.newIndex();
 
 			_impl::_preinit_layers initializer(ili, inc_neurons_cnt);
-			utils::for_eachwp_up(m_layers, initializer);
+			tuple_utils::for_eachwp_up(m_layers, initializer);
 		}
 
 		//first layer is lowmost layer
@@ -128,7 +128,7 @@ namespace nntl {
 			: _base_class(pCustomName), m_layers(layrs...), m_layerIdx(0)
 		{
 			//#todo this better be done with a single static_assert in the class scope
-			utils::for_each_up(m_layers, [](auto& l)noexcept {
+			tuple_utils::for_each_up(m_layers, [](auto& l)noexcept {
 				static_assert(!std::is_base_of<m_layer_input, decltype(l)>::value && !std::is_base_of<m_layer_output, decltype(l)>::value,
 					"Inner layers of _layer_pack_vertical mustn't be input or output layers!");
 			});
@@ -153,13 +153,13 @@ namespace nntl {
 		//and apply function _Func(auto& layer) to each underlying (non-pack) layer here
 		template<typename _Func>
 		void for_each_layer(_Func&& f)const noexcept {
-			utils::for_each_up(m_layers, [&func{ std::forward<_Func>(f) }](auto& l)noexcept {
+			tuple_utils::for_each_up(m_layers, [&func{ std::forward<_Func>(f) }](auto& l)noexcept {
 				call_F_for_each_layer(std::forward<_Func>(func), l);
 			});
 		}
 		template<typename _Func>
 		void for_each_layer_down(_Func&& f)const noexcept {
-			utils::for_each_down(m_layers, [&func{ std::forward<_Func>(f) }](auto& l)noexcept {
+			tuple_utils::for_each_down(m_layers, [&func{ std::forward<_Func>(f) }](auto& l)noexcept {
 				call_F_for_each_layer_down(std::forward<_Func>(func), l);
 			});
 		}
@@ -167,11 +167,11 @@ namespace nntl {
 		//This will apply f to every layer, packed in tuple no matter whether it is a _pack_* kind of layer or no
 		template<typename _Func>
 		void for_each_packed_layer(_Func&& f)const noexcept {
-			utils::for_each_up(m_layers, std::forward<_Func>(f));
+			tuple_utils::for_each_up(m_layers, std::forward<_Func>(f));
 		}
 		template<typename _Func>
 		void for_each_packed_layer_down(_Func&& f)const noexcept {
-			utils::for_each_down(m_layers, std::forward<_Func>(f));
+			tuple_utils::for_each_down(m_layers, std::forward<_Func>(f));
 		}
 
 		const layer_index_t get_layer_idx() const noexcept { return m_layerIdx; }
@@ -224,7 +224,7 @@ namespace nntl {
 			//		propagate/return max() of layer's max_dLdA_numel as ours lid.max_dLdA_numel.
 			// - layers will be called sequentially, therefore they are safe to use a shared memory.
 			auto initD = lid.dupe();
-			utils::for_each_exc_last_up(m_layers, [&ec, &initD, &lid, &failedLayerIdx](auto& l)noexcept {
+			tuple_utils::for_each_exc_last_up(m_layers, [&ec, &initD, &lid, &failedLayerIdx](auto& l)noexcept {
 				if (ErrorCode::Success == ec) {
 					initD.clean_passing(lid); // there are currently no IN flags/variables in _layer_init_data_t structure,
 					// that must be propagated to every layer in a stack, therefore we're using the default clean_using() form.
@@ -262,7 +262,7 @@ namespace nntl {
 		}
 
 		void on_batch_size_change(real_t*const pNewActivationStorage = nullptr)noexcept {
-			utils::for_each_exc_last_up(m_layers, [](auto& lyr)noexcept {
+			tuple_utils::for_each_exc_last_up(m_layers, [](auto& lyr)noexcept {
 				lyr.on_batch_size_change();
 			});
 			get_self().topmost_layer().on_batch_size_change(pNewActivationStorage);
@@ -285,7 +285,7 @@ namespace nntl {
 
 			NNTL_ASSERT(lowerLayer.get_activations().test_biases_ok());
 			get_self().lowmost_layer().fprop(lowerLayer);
-			utils::for_eachwp_up(m_layers, [](auto& lcur, auto& lprev, const bool)noexcept {
+			tuple_utils::for_eachwp_up(m_layers, [](auto& lcur, auto& lprev, const bool)noexcept {
 				NNTL_ASSERT(lprev.get_activations().test_biases_ok());
 				lcur.fprop(lprev);
 				NNTL_ASSERT(lprev.get_activations().test_biases_ok());
@@ -309,7 +309,7 @@ namespace nntl {
 			realmtxdefptr_array_t a_dLdA = { &dLdA, &dLdAPrev };
 			unsigned mtxIdx = 0;
 
-			utils::for_eachwn_downfullbp(m_layers, [&mtxIdx, &a_dLdA](auto& lcur, auto& lprev, const bool)noexcept {
+			tuple_utils::for_eachwn_downfullbp(m_layers, [&mtxIdx, &a_dLdA](auto& lcur, auto& lprev, const bool)noexcept {
 				const unsigned nextMtxIdx = mtxIdx ^ 1;
 				a_dLdA[nextMtxIdx]->deform_like_no_bias(lprev.get_activations());
 				NNTL_ASSERT(lprev.get_activations().test_biases_ok());

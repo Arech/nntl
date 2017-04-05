@@ -105,7 +105,7 @@ namespace nntl {
 
 			_impl::_preinit_layers initializer(ili, inc_neurons_cnt);
 			if (initializer.preparePHLCheck()) {
-				utils::for_each_up(m_phl_tuple, initializer);
+				tuple_utils::for_each_up(m_phl_tuple, initializer);
 				if (!initializer.PHLCheck()) {
 					NNTL_ASSERT(!"All lower layer activations must be covered by a set of inner layers of _layer_pack_horizontal!");
 					//#todo: probably need a better way to return error
@@ -126,7 +126,7 @@ namespace nntl {
 	private:
 		static const neurons_count_t _calcNeuronsCnt(const _phl_tuple& tupl) noexcept {
 			neurons_count_t nc = 0;
-			utils::for_each_up(tupl, [&nc](const auto& phl)noexcept {
+			tuple_utils::for_each_up(tupl, [&nc](const auto& phl)noexcept {
 				static_assert(is_PHL<std::remove_reference_t<decltype(phl)>>::value, "_layer_pack_horizontal must be assembled from PHL objects!");
 				static_assert(!std::is_base_of<m_layer_input, std::remove_reference_t<decltype(phl)>::phl_original_t>::value
 					&& !std::is_base_of<m_layer_output, std::remove_reference_t<decltype(phl)>::phl_original_t>::value
@@ -164,14 +164,14 @@ namespace nntl {
 		//and apply function _Func(auto& layer) to each underlying (non-pack) layer here
 		template<typename _Func>
 		void for_each_layer(_Func&& f)const noexcept {
-			utils::for_each_up(m_phl_tuple, [&func{ std::forward<_Func>(f) }](auto& phl)noexcept {
+			tuple_utils::for_each_up(m_phl_tuple, [&func{ std::forward<_Func>(f) }](auto& phl)noexcept {
 				call_F_for_each_layer(std::forward<_Func>(func), phl.l);
 			});
 		}
 
 		template<typename _Func>
 		void for_each_layer_down(_Func&& f)const noexcept {
-			utils::for_each_down(m_phl_tuple, [&func{ std::forward<_Func>(f) }](auto& phl)noexcept {
+			tuple_utils::for_each_down(m_phl_tuple, [&func{ std::forward<_Func>(f) }](auto& phl)noexcept {
 				call_F_for_each_layer_down(std::forward<_Func>(func), phl.l);
 			});
 		}
@@ -179,13 +179,13 @@ namespace nntl {
 		//This will apply f to every layer, packed in tuple no matter whether it is a _pack_* kind of layer or no
 		template<typename _Func>
 		void for_each_packed_layer(_Func&& f)const noexcept {
-			utils::for_each_up(m_phl_tuple, [&func{ std::forward<_Func>(f) }](auto& phl)noexcept {
+			tuple_utils::for_each_up(m_phl_tuple, [&func{ std::forward<_Func>(f) }](auto& phl)noexcept {
 				std::forward<_Func>(func)(phl.l);
 			});
 		}		
 		template<typename _Func>
 		void for_each_packed_layer_down(_Func&& f)const noexcept {
-			utils::for_each_down(m_phl_tuple, [&func{ std::forward<_Func>(f) }](auto& phl)noexcept {
+			tuple_utils::for_each_down(m_phl_tuple, [&func{ std::forward<_Func>(f) }](auto& phl)noexcept {
 				std::forward<_Func>(func)(phl.l);
 			});
 		}
@@ -386,7 +386,7 @@ namespace nntl {
 
 			NNTL_ASSERT(lowerLayer.get_activations().test_biases_ok());
 
-			utils::for_each_up(m_phl_tuple, [&act = lowerLayer.get_activations(), pTmpBiasStorage = m_pTmpBiasStorage](const auto& phl) {
+			tuple_utils::for_each_up(m_phl_tuple, [&act = lowerLayer.get_activations(), pTmpBiasStorage = m_pTmpBiasStorage](const auto& phl) {
 				phl.l.fprop(_impl::trainable_partial_layer_wrapper<LowerLayer>(act, pTmpBiasStorage, phl.coord));
 			});
 			
@@ -433,7 +433,7 @@ namespace nntl {
 			
 			//The order of traversing is EXTREMELY IMPORTANT for gating layers, for example (they might expect a gating layer to be
 			// processed first during fprop() and last during bprop()). Therefore we must go backwards here!
-			utils::for_each_down(m_phl_tuple, [&firstNeuronOfs, &lowerLayer, &dLdA, &dLdAPrev
+			tuple_utils::for_each_down(m_phl_tuple, [&firstNeuronOfs, &lowerLayer, &dLdA, &dLdAPrev
 				, _training_batch_size = get_self().getCurBatchSize(), &_Math = get_self().get_iMath(), this](const auto& phl)
 			{
 				auto& lyr = phl.l;

@@ -183,11 +183,11 @@ namespace math {
 		nntl_interface void vAdd_ip(real_t*const pA, const real_t*const pB, const numel_cnt_t dataCnt)noexcept;
 
 		//inplace elementwise adding of scaled vector: A = A + c*B;
-		nntl_interface void evAddScaled_ip(realmtx_t& A, const real_t c, const realmtx_t& B)noexcept;
+		nntl_interface void evAddScaled_ip(realmtx_t& A, const real_t& c, const realmtx_t& B)noexcept;
 
 		//inplace elementwise addition of scaled signum: A = A + c*sign(B);
 		//(L1 regularization, dLdW update step)
-		nntl_interface void evAddScaledSign_ip(realmtx_t& A, const real_t c, const realmtx_t& B)noexcept;
+		nntl_interface void evAddScaledSign_ip(realmtx_t& A, const real_t& c, const realmtx_t& B)noexcept;
 
 		//inplace elementwise subtraction A = A-B
 		nntl_interface void evSub_ip(realmtx_t& A, const realmtx_t& B)noexcept;

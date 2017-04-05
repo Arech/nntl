@@ -34,6 +34,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <bitset>
 #include "../common_nn_data.h"
 #include "ILR.h"
+#include "loss_addendums.h"
 
 namespace nntl {
 
@@ -64,12 +65,17 @@ namespace nntl {
 			//dLdW can have any values on output (use it for temporary calculations if needed)
 			nntl_interface void apply_grad(realmtxdef_t& weights, realmtxdef_t& dLdW)noexcept;
 
+			//////////////////////////////////////////////////////////////////////////
+			// The following function ALSO MUST BE IMPLEMENTED
+			// They are commented out for the reason, - they are implemented as a mixin, and it's an issue to correctly specify
+			// a "using" statement for them
+			// 
 			//returns a loss function summand, that's caused by this layer (for example, L2 regularizer adds term
 			// l2Coefficient*Sum(weights.^2) )
-			nntl_interface real_t lossAddendum(const realmtxdef_t& weights)const noexcept;
+			//nntl_interface real_t lossAddendum(const realmtxdef_t& weights)const noexcept;
 
 			//should return true, if the layer has a value to add to Loss function value (there's some regularizer attached)
-			nntl_interface bool hasLossAddendum()const noexcept;
+			//nntl_interface bool hasLossAddendum()const noexcept;
 		};
 	}
 
@@ -117,19 +123,11 @@ namespace nntl {
 
 			f_UseMaxNorm,
 			f_NormIncludesBias,//if true, the max-norm parameter describes full norm of weight vector
-
-			f_UseL1,
-			f_L1RegIgnoreBias,
-
-			f_UseL2,
-			f_L2RegIgnoreBias,
-
+			
 			opts_total
 		};
 
 	public:
-		//static constexpr size_t _root_total_opts = opts_total;
-
 		static constexpr size_t mixins_count = sizeof...(MixinsT);
 
 		typedef utils::mixins::indexed::make_mixin_vec<FinalT, real_t, MixinsT...> mixins_tvec;
@@ -179,16 +177,10 @@ namespace nntl {
 		//hint: weights initialized from uniform distribution [-b,b]. It's second raw momentum is b^2/3, so the mean norm should
 		//be about <row_vector_length>*b^2/3
 
-		real_t m_actualL2;//L2 (weight decay) regularizer coefficient
-		real_t m_actualL1;//L1 regularizer coefficient
-
 		GradType m_type;
 
 		realmtx_t m_Vw;
 		realmtx_t m_optMtxA, m_optMtxB;//some optimizers require additional memory.
-
-		real_t m_L2;//L2 (weight decay) regularizer coefficient
-		real_t m_L1;//L1 regularizer coefficient
 
 		real_t m_optBeta1t, m_optBeta2t;//storage for coefficients some optimizers (Adam, AdaMax) needed
 
@@ -201,7 +193,7 @@ namespace nntl {
 	protected:
 		//////////////////////////////////////////////////////////////////////////
 		// some static constants to make code consistent
-		static constexpr bool defRegularizersIgnoresBiasWeights = true;
+		//static constexpr bool defRegularizersIgnoresBiasWeights = true;
 		static constexpr bool defNormIncludesBias = false;
 
 
@@ -221,8 +213,6 @@ namespace nntl {
 				ar & NNTL_SERIALIZATION_NVP(m_optBeta2);
 				ar & NNTL_SERIALIZATION_NVP(m_numericStabilizerEps);
 				ar & NNTL_SERIALIZATION_NVP(m_WeightVecNormSqared);
-				ar & NNTL_SERIALIZATION_NVP(m_L2);
-				ar & NNTL_SERIALIZATION_NVP(m_L1);
 				ar & NNTL_SERIALIZATION_NVP(m_type);
 				ar & NNTL_SERIALIZATION_NVP(m_opts);
 				ar & NNTL_SERIALIZATION_NVP(m_optBeta1t);
@@ -251,15 +241,16 @@ namespace nntl {
 		//!!assignment is not needed
 		_grad_works& operator=(const _grad_works& rhs) noexcept = delete;
 
-		_grad_works(const real_t lr) noexcept : m_momentum(real_t(0.0))
+		_grad_works(const real_t& lr) noexcept : m_momentum(real_t(0.0))
 			, m_optBeta1(real_t(0.9)), m_optBeta2(real_t(0.999))
 			, m_numericStabilizerEps(_impl::NUM_STAB_EPS<real_t>::value), m_WeightVecNormSqared(real_t(0.0))
-			, m_L1(real_t(0.0)), m_L2(real_t(0.0)), m_actualL1(real_t(0.0)), m_actualL2(real_t(0.0))
 			, m_optBeta1t(real_t(1.)), m_optBeta2t(real_t(1.))
 			, m_type(ClassicalConstant)
 		{
 			learning_rate(lr);
 			_flags_default();
+
+			_la_construct();
 		}
 		
 	public:
@@ -328,38 +319,19 @@ namespace nntl {
 		void apply_grad(realmtxdef_t& weights, realmtxdef_t& dLdW) noexcept {
 			NNTL_ASSERT(dLdW.size() == weights.size());
 
-			auto& iM = get_iMath();
 			auto& iI = get_iInspect();
 
 			iI.apply_grad_begin(weights, dLdW);
+
+			_applyLossAddendums(weights, dLdW);
 
 			if (isLearningBlocked()) return; //do nothing, leave the state intact
 
 			const bool bFirstRun = get_opt(f_FirstRun);
 			set_opt(f_FirstRun,false);
 
-			//applying L1-L2 penalties
-			// BTW: because we're working with batches that averages dL/dW over many data samples and, possibly, over many 
-			// individual dropout masks, it is highly unlikely that any element of dLdW could have a value of zero
-			// (zero dL/dW means that we've found an optimal value of weight, that minimizes/maximizes the loss function, or a saddle point).
-			// Therefore it is safe to assume, that weights tuning process is still incomplete here and we should apply other
-			// weights changing mechanisms, such as L1 or L2 regularization (we shouldn't do it if dL/dW for a weight is zero,
-			// because it'll drive the weight's value away from its optimal state).
-			// 
-			if (use_L1_regularization()) {
-				const bool bIgnoreBiases = get_opt(f_L1RegIgnoreBias);
-				if (bIgnoreBiases) { dLdW.hide_last_col(); weights.hide_last_col(); }
-				iM.evAddScaledSign_ip(dLdW, m_actualL1, weights);
-				if (bIgnoreBiases) { dLdW.restore_last_col(); weights.restore_last_col(); }
-			}
+			auto& iM = get_iMath();
 
-			if (use_L2_regularization()) {
-				const bool bIgnoreBiases = get_opt(f_L2RegIgnoreBias);
-				if (bIgnoreBiases) { dLdW.hide_last_col(); weights.hide_last_col(); }
-				iM.evAddScaled_ip(dLdW, m_actualL2, weights);
-				if (bIgnoreBiases) { dLdW.restore_last_col(); weights.restore_last_col(); }
-			}
-			
 			switch (m_type) {
 			case ClassicalConstant:
 				iM.evMulC_ip(dLdW, m_learningRate);
@@ -455,40 +427,8 @@ namespace nntl {
 
 		//////////////////////////////////////////////////////////////////////////
 
-		//returns a loss function summand, that's caused by this layer (for example, L2 regularizer adds term
-		// l2Coefficient*Sum(weights.^2) )
-		real_t lossAddendum(const realmtxdef_t& weights)const noexcept {
-			real_t ret(0.0);
-
-			//the only modification of weights we may use is stripping/restoring last (bias) column,
-			//which is in fact not a modification from outside POV
-			realmtxdef_t& _W = *(const_cast<realmtxdef_t*>(&weights));
-
-			if (use_L1_regularization()) {
-				const bool bIgnoreBiases = get_opt(f_L1RegIgnoreBias);
-				if (bIgnoreBiases) _W.hide_last_col();
-				ret += m_actualL1 * get_iMath().vSumAbs(_W);
-				if (bIgnoreBiases) _W.restore_last_col();
-			}
-
-			if (use_L2_regularization()) {
-				const bool bIgnoreBiases = get_opt(f_L2RegIgnoreBias);
-				if (bIgnoreBiases) _W.hide_last_col();
-				ret += m_actualL2*real_t(.5) * get_iMath().ewSumSquares(_W);
-				if (bIgnoreBiases) _W.restore_last_col();
-			}
-
-			return ret;
-		}
-		//should return true, if the layer has a value to add to Loss function value (there's some regularizer attached)
-		bool hasLossAddendum()const noexcept { return use_L1_regularization() | use_L2_regularization(); }
-
-		//////////////////////////////////////////////////////////////////////////
-
 		self_ref_t learning_rate(const real_t& learningRate)noexcept {
 			m_learningRate = learningRate;
-			m_actualL1 = math::sign(m_learningRate)*m_L1;
-			m_actualL2 = math::sign(m_learningRate)*m_L2;
 			return get_self();
 		}
 		const real_t learning_rate()const noexcept { return m_learningRate; }
@@ -559,35 +499,12 @@ namespace nntl {
 		}
 		const real_t max_norm()const noexcept { return use_max_norm() ? m_WeightVecNormSqared : real_t(.0); }
 
-		//L1 is good for sparse signals
-		self_ref_t L1(const real_t l1, const bool bIgnoreBiasWeights = defRegularizersIgnoresBiasWeights)noexcept {
-			NNTL_ASSERT(l1 >= real_t(0.0));
-			m_L1 = l1;
-			m_actualL1 = math::sign(m_learningRate)*m_L1;
-			set_opt(f_UseL1, m_L1 > real_t(0.0));
-			set_opt(f_L1RegIgnoreBias, bIgnoreBiasWeights);
-			return get_self();
-		}
-		const real_t L1()const noexcept { return m_L1; }
-		//L2 is just good)
-		self_ref_t L2(const real_t l2, const bool bIgnoreBiasWeights = defRegularizersIgnoresBiasWeights)noexcept {
-			NNTL_ASSERT(l2 >= real_t(0.0));
-			m_L2 = l2;
-			m_actualL2 = math::sign(m_learningRate)*m_L2;
-			set_opt(f_UseL2, m_L2 > real_t(0.0));
-			set_opt(f_L2RegIgnoreBias, bIgnoreBiasWeights);
-			return get_self();
-		}
-		const real_t L2()const noexcept { return m_L2; }
-
 		const bool use_momentums()const noexcept { return get_opt(f_UseMomentum); } // m_momentum > real_t(0.0);
 		const bool nesterov_momentum()const noexcept { return get_opt(f_UseNesterovMomentum); }
 		const bool use_nesterov_momentum()const noexcept { return get_opt(f_UseMomentum) & get_opt(f_UseNesterovMomentum); }
 		const bool use_classical_momentum()const noexcept { return get_opt(f_UseMomentum) & (!get_opt(f_UseNesterovMomentum)); }
 
 		const bool use_max_norm()const noexcept { return get_opt(f_UseMaxNorm); }
-		const bool use_L1_regularization()const noexcept { return get_opt(f_UseL1); }
-		const bool use_L2_regularization()const noexcept { return get_opt(f_UseL2); }
 		const bool isFirstRun()const noexcept { return get_opt(f_FirstRun); }
 	};
 
@@ -601,6 +518,13 @@ namespace nntl {
 	};
 
 	template<typename InterfacesT>
-	using grad_works = grad_works_f<InterfacesT, GW::ILR>;
+	using grad_works = grad_works_f<
+		InterfacesT
+		, GW::ILR
+		, GW::Loss_Addendums_builder<
+		    loss_addendum::L1<typename InterfacesT::real_t>
+		    , loss_addendum::L2<typename InterfacesT::real_t>
+		>::template type
+	>;
 
 }

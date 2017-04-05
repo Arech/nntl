@@ -33,13 +33,13 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include "_defs.h"
 #include "common.h"
-#include "interfaces.h"
+//#include "interfaces.h"
 
 namespace nntl {
 namespace activation {
 
 	template<typename RealT>
-	class _i_function {
+	class _i_function : public math::smatrix_td {
 		_i_function() = delete;
 		~_i_function() = delete;
 	public:
@@ -47,8 +47,6 @@ namespace activation {
 
 		typedef math::smatrix<real_t> realmtx_t;
 		typedef math::smatrix_deform<real_t> realmtxdef_t;
-		typedef typename realmtx_t::numel_cnt_t numel_cnt_t;
-		typedef typename realmtx_t::vec_len_t vec_len_t;
 
 		//apply f to each srcdest matrix element to compute activation values. The biases (if any) must be left untouched!
 		template <typename iMath>
@@ -56,6 +54,8 @@ namespace activation {
 
 		//get requirements on temporary memory size needed to calculate f() over matrix act (need it for memory
 		// preallocation algorithm of iMath). This is default version. Override in derived class if need something more
+		// #todo we should probably split output to fprop() only and fprop()+bprop() versions like we're doing in _i_layer::init()
+		// #todo probably should adopt a _i_loss_addendum initialization scheme here
 		template <typename iMath>
 		static numel_cnt_t needTempMem(const realmtx_t& act, iMath& m) noexcept {
 			return act.numel();

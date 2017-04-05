@@ -126,7 +126,7 @@ namespace nntl {
 		{
 			//iterate over layers and check whether they i_layer derived and set their indexes
 			_impl::_preinit_layers pil(m_totalLayersCount);
-			utils::for_eachwp_up(m_layers, pil);
+			tuple_utils::for_eachwp_up(m_layers, pil);
 			//STDCOUTL("There are " << m_totalLayersCount << " layers at total");
 		}
 
@@ -146,33 +146,33 @@ namespace nntl {
 		//and apply function _Func(auto& layer) to each underlying (non-pack) layer here
 		template<typename _Func>
 		void for_each_layer(_Func&& f)noexcept {
-			//utils::for_each_up(m_layers, std::move(f));
-			utils::for_each_up(m_layers, [&func{ std::forward<_Func>(f) }](auto& l) {
+			//tuple_utils::for_each_up(m_layers, std::move(f));
+			tuple_utils::for_each_up(m_layers, [&func{ std::forward<_Func>(f) }](auto& l) {
 				call_F_for_each_layer(std::forward<_Func>(func), l);
 			});
 		}
 		//This will apply f to every layer, packed in tuple no matter whether it is a _pack_* kind of layer or no
 		template<typename _Func>
 		void for_each_packed_layer(_Func&& f)noexcept {
-			utils::for_each_up(m_layers, std::forward<_Func>(f));
+			tuple_utils::for_each_up(m_layers, std::forward<_Func>(f));
 		}
 
 		//and apply function _Func(auto& layer) to each underlying (non-pack) layer here excluding the first
 		template<typename _Func>
 		void for_each_layer_exc_input(_Func&& f)noexcept {
-			//utils::for_each_exc_first_up(m_layers, std::move(f));
-			utils::for_each_exc_first_up(m_layers, [&func{ std::forward<_Func>(f) }](auto& l) {
+			//tuple_utils::for_each_exc_first_up(m_layers, std::move(f));
+			tuple_utils::for_each_exc_first_up(m_layers, [&func{ std::forward<_Func>(f) }](auto& l) {
 				call_F_for_each_layer(std::forward<_Func>(func), l);
 			});
 		}
 		//This will apply f to every layer excluding the first, packed in tuple no matter whether it is a _pack_* kind of layer or no
 		template<typename _Func>
 		void for_each_packed_layer_exc_input(_Func&& f)noexcept {
-			utils::for_each_exc_first_up(m_layers, std::forward<_Func>(f));
+			tuple_utils::for_each_exc_first_up(m_layers, std::forward<_Func>(f));
 		}
 		template<typename _Func>
 		void for_each_packed_layer_exc_input_down(_Func&& f)noexcept {
-			utils::for_each_exc_first_down(m_layers, std::forward<_Func>(f));
+			tuple_utils::for_each_exc_first_down(m_layers, std::forward<_Func>(f));
 		}
 
 		input_layer_t& input_layer()const noexcept { return std::get<0>(m_layers); }
@@ -187,7 +187,7 @@ namespace nntl {
 
 			_layer_init_data_t lid(cd);
 
-			utils::for_each_up(m_layers, [&](auto& lyr)noexcept {
+			tuple_utils::for_each_up(m_layers, [&](auto& lyr)noexcept {
 				if (ErrorCode::Success == ec) {
 					lid.clean_using();
 					ec = lyr.init(lid);
@@ -203,14 +203,14 @@ namespace nntl {
 		}
 
 		void deinit() noexcept {
-			utils::for_each_up(m_layers, [](auto& lyr)noexcept {
+			tuple_utils::for_each_up(m_layers, [](auto& lyr)noexcept {
 				lyr.deinit();
 			});
 			for (auto& m : m_a_dLdA) { m.clear(); }
 		}
 
 		void initMem(real_t* ptr, numel_cnt_t cnt)noexcept {
-			utils::for_each_up(m_layers, [=](auto& lyr)noexcept {
+			tuple_utils::for_each_up(m_layers, [=](auto& lyr)noexcept {
 				lyr.initMem(ptr,cnt);
 			});
 		}
@@ -226,7 +226,7 @@ namespace nntl {
 		real_t calcLossAddendum()noexcept {
 			if (m_lossAddendum==real_t(0.0)) {
 				real_t ret(0.0);
-				utils::for_each_up(m_layers, [&](auto& lyr)noexcept {
+				tuple_utils::for_each_up(m_layers, [&](auto& lyr)noexcept {
 					const auto v = lyr.lossAddendum();
 					//may assert here when learningRate<0. Should find a better way to test loss addendum correctness
 					NNTL_ASSERT(v >= real_t(0.0));
@@ -239,7 +239,7 @@ namespace nntl {
 		}
 
 		void on_batch_size_change()noexcept {
-			utils::for_each_up(m_layers, [](auto& lyr)noexcept { lyr.on_batch_size_change(); });
+			tuple_utils::for_each_up(m_layers, [](auto& lyr)noexcept { lyr.on_batch_size_change(); });
 		}
 
 		void fprop(const realmtx_t& data_x) noexcept {
@@ -247,7 +247,7 @@ namespace nntl {
 
 			input_layer().fprop(data_x);
 
-			utils::for_eachwp_up(m_layers, [](auto& lcur, auto& lprev, const bool)noexcept {
+			tuple_utils::for_eachwp_up(m_layers, [](auto& lcur, auto& lprev, const bool)noexcept {
 				NNTL_ASSERT(lprev.get_activations().test_biases_ok());
 				lcur.fprop(lprev);
 				NNTL_ASSERT(lprev.get_activations().test_biases_ok());
@@ -264,7 +264,7 @@ namespace nntl {
 			output_layer().bprop(data_y, preoutput_layer(), m_a_dLdA[0]);
 			unsigned mtxIdx = 0;
 
-			utils::for_eachwn_downbp(m_layers, [&mtxIdx, &_a_dLdA = m_a_dLdA](auto& lcur, auto& lprev, const bool bPrevIsFirstLayer)noexcept {
+			tuple_utils::for_eachwn_downbp(m_layers, [&mtxIdx, &_a_dLdA = m_a_dLdA](auto& lcur, auto& lprev, const bool bPrevIsFirstLayer)noexcept {
 				const unsigned nextMtxIdx = mtxIdx ^ 1;
 				if (bPrevIsFirstLayer) {
 					//TODO: for IBP we'd need a normal matrix

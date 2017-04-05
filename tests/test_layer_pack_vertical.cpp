@@ -294,6 +294,6 @@ TEST(TestLPV, GradCheck) {
 
 	gradcheck_settings<real_t> ngcSetts;
 	ngcSetts.evalSetts.bIgnoreZerodLdWInUndelyingLayer = true;
-	//ngcSetts.evalSetts.dLdW_setts.relErrFailThrsh = real_t(5e-3);//numeric errors due to dLdAPrev addition in LPH stacks up significantly
+	ngcSetts.evalSetts.dLdW_setts.relErrFailThrsh = real_t(5e-4);
 	ASSERT_TRUE(nnArch.NN.gradcheck(td.train_x(), td.train_y(), 3, ngcSetts));
 }

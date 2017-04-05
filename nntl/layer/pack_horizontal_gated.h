@@ -315,7 +315,7 @@ namespace nntl {
 				NNTL_ASSERT(!m_bDropSamplesWasCalled || m_bIsGatedDropSamplesMightBeCalled);
 			}
 
-			utils::for_each_exc_first_up(m_phl_tuple
+			tuple_utils::for_each_exc_first_up(m_phl_tuple
 				, [&ind_dLdA, &dLdA, &ofs, &lNum, &mask = this->m_gatingMask, &iM](const auto& phl)
 			{
 				const auto nc = phl.l.get_neurons_cnt();
@@ -332,7 +332,7 @@ namespace nntl {
 
 			realmtx_t rMask;
 			vec_len_t lNum = 0;
-			utils::for_each_exc_first_up(m_phl_tuple
+			tuple_utils::for_each_exc_first_up(m_phl_tuple
 				, [&lNum, &rMask, &mask = this->m_gatingMask, &iM = get_self().get_iMath()](const auto& phl)
 			{
 				rMask.useExternalStorage(mask.colDataAsVec(lNum++), mask.rows(), 1, false);

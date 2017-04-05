@@ -34,7 +34,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <type_traits>
 
 namespace nntl {
-namespace utils {
+namespace tuple_utils {
 
 	//////////////////////////////////////////////////////////////////////////
 	//helpers to call f() for each tuple element
@@ -217,8 +217,9 @@ namespace utils {
 		return subtuple_(t, std::make_index_sequence<sizeof...(T)-Trim>());
 	}
 
+	//////////////////////////////////////////////////////////////////////////
 	//from http://stackoverflow.com/questions/31893102/passing-stdinteger-sequence-as-template-parameter-to-a-meta-function
-	/*template <typename T, typename U>
+	template <typename T, typename U>
 	struct selector;
 
 	template <typename T, std::size_t... Is>
@@ -239,7 +240,25 @@ namespace utils {
 // 		using X = remove_last_n<2, int, char, bool, int>::type;
 // 		static_assert(std::is_same<X, std::tuple<int, char>>::value, "types do not match");
 // 	}
-*/
+
+	//////////////////////////////////////////////////////////////////////////
+	//idea from http://stackoverflow.com/a/16707966/1974258s
+	//returns index of the first occurrence of type T in tuple<Args...>. If there's no such type in the tuple will return
+	// the size of the tuple.
+	// 
+	template <class T, std::size_t N, class... Args>
+	struct get_element_idx_impl { static constexpr auto value = N; };
+
+	template <class T, std::size_t N, class... Args>
+	struct get_element_idx_impl<T, N, T, Args...> { static constexpr auto value = N; };
+
+	template <class T, std::size_t N, class U, class... Args>
+	struct get_element_idx_impl<T, N, U, Args...> { static constexpr auto value = get_element_idx_impl<T, N + 1, Args...>::value; };
+
+	template <class T, class... Args>
+	constexpr size_t get_element_idx(const std::tuple<Args...>&) { return get_element_idx_impl<T, 0, Args...>::value; }
+	template <class T, class... Args>
+	constexpr size_t get_element_idx() { return get_element_idx_impl<T, 0, Args...>::value; }
 
 }
 }

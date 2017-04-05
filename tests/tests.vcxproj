@@ -185,6 +185,7 @@
     <ClInclude Include="..\nntl\grad_works\grad_works.h" />
     <ClInclude Include="..\nntl\grad_works\ILR.h" />
     <ClInclude Include="..\nntl\grad_works\ILR_Props.h" />
+    <ClInclude Include="..\nntl\grad_works\loss_addendums.h" />
     <ClInclude Include="..\nntl\interface\inspectors\dummy.h" />
     <ClInclude Include="..\nntl\interface\inspectors\dumper.h" />
     <ClInclude Include="..\nntl\interface\inspectors\gradcheck.h" />
@@ -209,6 +210,8 @@
     <ClInclude Include="..\nntl\layer\_init_layers.h" />
     <ClInclude Include="..\nntl\layer\_pack_.h" />
     <ClInclude Include="..\nntl\layer\_pack_traits.h" />
+    <ClInclude Include="..\nntl\loss_addendum\L1.h" />
+    <ClInclude Include="..\nntl\loss_addendum\L2.h" />
     <ClInclude Include="..\nntl\math.h" />
     <ClInclude Include="..\nntl\interface\math\bindings\b_acml.h" />
     <ClInclude Include="..\nntl\interface\math\bindings\b_open_blas.h" />
@@ -226,6 +229,7 @@
     <ClInclude Include="..\nntl\layer\input.h" />
     <ClInclude Include="..\nntl\layer\output.h" />
     <ClInclude Include="..\nntl\nnet_evaluator.h" />
+    <ClInclude Include="..\nntl\loss_addendum\_i_loss_addendum.h" />
     <ClInclude Include="..\nntl\serialization\options.h" />
     <ClInclude Include="..\nntl\training_observer.h" />
     <ClInclude Include="..\nntl\interfaces.h" />
@@ -247,7 +251,7 @@
     <ClInclude Include="..\nntl\utils\prioritize_workers.h" />
     <ClInclude Include="..\nntl\utils\scope_exit.h" />
     <ClInclude Include="..\nntl\serialization\serialization.h" />
-    <ClInclude Include="..\nntl\utils\tuple_iterations.h" />
+    <ClInclude Include="..\nntl\utils\tuple_utils.h" />
     <ClInclude Include="..\nntl\weights_init.h" />
     <ClInclude Include="..\nntl\weights_init\LsuvExt.h" />
     <ClInclude Include="..\nntl\weights_init\static.h" />

@@ -70,6 +70,9 @@
     <Filter Include="nntl\weight_init">
       <UniqueIdentifier>{4a81942d-dddd-43f8-964b-7bd1eca75f0f}</UniqueIdentifier>
     </Filter>
+    <Filter Include="nntl\loss_addendum">
+      <UniqueIdentifier>{a1aa024b-803c-4914-b64f-5da99852db66}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <Text Include="ReadMe.txt" />
@@ -110,9 +113,6 @@
     </ClInclude>
     <ClInclude Include="..\nntl\_nnet_errs.h">
       <Filter>nntl</Filter>
-    </ClInclude>
-    <ClInclude Include="..\nntl\utils\tuple_iterations.h">
-      <Filter>nntl\utils</Filter>
     </ClInclude>
     <ClInclude Include="..\nntl\utils.h">
       <Filter>nntl</Filter>
@@ -368,6 +368,21 @@
     </ClInclude>
     <ClInclude Include="..\nntl\interface\rng\cstd.h">
       <Filter>nntl\interface\rng</Filter>
+    </ClInclude>
+    <ClInclude Include="..\nntl\loss_addendum\_i_loss_addendum.h">
+      <Filter>nntl\loss_addendum</Filter>
+    </ClInclude>
+    <ClInclude Include="..\nntl\loss_addendum\L1.h">
+      <Filter>nntl\loss_addendum</Filter>
+    </ClInclude>
+    <ClInclude Include="..\nntl\loss_addendum\L2.h">
+      <Filter>nntl\loss_addendum</Filter>
+    </ClInclude>
+    <ClInclude Include="..\nntl\grad_works\loss_addendums.h">
+      <Filter>nntl\grad_works</Filter>
+    </ClInclude>
+    <ClInclude Include="..\nntl\utils\tuple_utils.h">
+      <Filter>nntl\utils</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

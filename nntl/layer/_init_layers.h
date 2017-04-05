@@ -110,7 +110,7 @@ namespace nntl {
 			}
 
 			//////////////////////////////////////////////////////////////////////////
-			// variation to comply utils::for_eachwp_up() callback
+			// variation to comply tuple_utils::for_eachwp_up() callback
 			// To use with class layers{}
 			template <typename LCur, typename LPrev>
 			void operator()(LCur& lcur, LPrev& lprev, const bool bFirst)noexcept {
@@ -133,7 +133,7 @@ namespace nntl {
 				return nullptr != m_pPHLCheckStorage;
 			}
 
-			// variation to comply with utils::for_each_up() callback. For use with PHL structures in _layer_pack_horizontal
+			// variation to comply with tuple_utils::for_each_up() callback. For use with PHL structures in _layer_pack_horizontal
 			template<typename PHLT>
 			std::enable_if_t<is_PHL<PHLT>::value> operator()(PHLT& phl)noexcept {
 				static_assert(std::is_base_of<_i_layer<PHLT::phl_original_t::real_t>, PHLT::phl_original_t>::value, "Each layer must derive from i_layer");

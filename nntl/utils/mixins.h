@@ -44,17 +44,19 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <boost/mpl/push_back.hpp>
 //#include <boost/mpl/pop_front.hpp>
 
+
+// NEVER!!! call get_opt()/set_opt() in mixin constructors (before the root (which instantiates and constucts m_opts) constructor has been run)
 #define NNTL_METHODS_MIXIN_OPTIONS(mixinIdx) \
 static_assert(mixinIdx > 0, "MixinIdx must be positive! Zero is reserved for a root class"); \
 private: \
-const bool get_opt(const size_t oIdx)const { return get_self().m_opts.get<mixinIdx>(oIdx); 	} \
-auto& set_opt(const size_t oIdx, const bool b) { get_self().m_opts.set<mixinIdx>(oIdx, b); return *this; }
+const bool get_opt(const size_t& oIdx)const { return get_self().m_opts.get<mixinIdx>(oIdx); 	} \
+auto& set_opt(const size_t& oIdx, const bool& b) { get_self().m_opts.set<mixinIdx>(oIdx, b); return *this; }
 
 //set_opt() (for mixins and for the root) MUST return *this, and not a get_self()!
 
 #define NNTL_METHODS_MIXIN_ROOT_OPTIONS() protected: \
-const bool get_opt(const size_t oIdx)const { return get_self().m_opts.get<0>(oIdx); } \
-auto& set_opt(const size_t oIdx, const bool b) { get_self().m_opts.set<0>(oIdx, b); return *this; } \
+const bool get_opt(const size_t& oIdx)const { return get_self().m_opts.get<0>(oIdx); } \
+auto& set_opt(const size_t& oIdx, const bool& b) { get_self().m_opts.set<0>(oIdx, b); return *this; } \
 private:
 
 //////////////////////////////////////////////////////////////////////////
@@ -164,12 +166,12 @@ namespace mixins {
 
 	public:
 		template<size_t mixinIdx>
-		const bool get(const size_t oIdx)const {//we could do this func constexpr, but there's no point of that
+		const bool get(const size_t& oIdx)const {//we could do this func constexpr, but there's no point of that
 			return (*this)[oIdx + boost::mpl::at_c<Opts_Ofs, mixinIdx>::type::value];
 		}
 
 		template<size_t mixinIdx>
-		void set(const size_t oIdx, const bool b) {
+		void set(const size_t& oIdx, const bool b) {
 			(*this)[oIdx + boost::mpl::at_c<Opts_Ofs, mixinIdx>::type::value] = b;
 		}
 

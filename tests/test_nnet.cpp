@@ -125,14 +125,14 @@ TEST(TestNnet, L2L1) {
 	for (unsigned i = 0; i < im; ++i) {
 		auto sv = std::time(0);
 		testL2L1(true,td, 0, sv);
-		testL2L1(true,td, real_t(.1), sv);
+		testL2L1(true,td, real_t(.01), sv);
 	}
 
 	STDCOUTL("*************** Testing L1 regularizer ******************* ");
 	for (unsigned i = 0; i < im; ++i) {
 		auto sv = std::time(0);
 		testL2L1(false,td, 0, sv);
-		testL2L1(false,td, real_t(.1), sv);
+		testL2L1(false,td, real_t(.01), sv);
 	}
 }
 
