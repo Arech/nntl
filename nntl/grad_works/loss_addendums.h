@@ -83,18 +83,9 @@ namespace GW { //GW namespace is for grad_works mixins and other stuff, that hel
 
 	public:
 
-		typedef loss_addendum::L1<real_t> LA_L1_t;
-		typedef loss_addendum::L2<real_t> LA_L2_t;
-
 		typedef std::tuple<LossAddsTs...> addendums_tuple_t;
 		static constexpr size_t addendums_count = sizeof...(LossAddsTs);
 		static_assert(addendums_count > 0, "Use Loss_Addendums_dummy if you don't need loss_addendums at all");
-
-		static constexpr auto idxL1 = tuple_utils::get_element_idx_impl<LA_L1_t, 0, LossAddsTs...>::value;
-		static constexpr bool bL1Available = (idxL1 < addendums_count);
-
-		static constexpr auto idxL2 = tuple_utils::get_element_idx_impl<LA_L2_t, 0, LossAddsTs...>::value;
-		static constexpr bool bL2Available = (idxL2 < addendums_count);
 
 		static constexpr bool defRegularizersIgnoresBiasWeights = true;
 
@@ -163,29 +154,6 @@ namespace GW { //GW namespace is for grad_works mixins and other stuff, that hel
 		}
 
 		//////////////////////////////////////////////////////////////////////////
-		//////////////////////////////////////////////////////////////////////////
-		template<bool b= bL1Available>
-		std::enable_if_t<b, self_ref_t> L1(const real_t& l1, const bool& bIgnoreBiasWeights = defRegularizersIgnoresBiasWeights)noexcept {
-			addendum<LA_L1_t>().scale(l1);
-			useAddendum<LA_L1_t>(l1 != real_t(0.0));
-			addendumIgnoresBias<LA_L1_t>(bIgnoreBiasWeights);
-			return get_self();
-		}
-		template<bool b = bL1Available>
-		std::enable_if_t<b, const real_t&> L1()const noexcept { return addendum<LA_L1_t>().scale(); }
-
-		template<bool b = bL2Available>
-		std::enable_if_t<b, self_ref_t> L2(const real_t& l2, const bool& bIgnoreBiasWeights = defRegularizersIgnoresBiasWeights)noexcept {
-			addendum<LA_L2_t>().scale(l2);
-			useAddendum<LA_L2_t>(l2 != real_t(0.0));
-			addendumIgnoresBias<LA_L2_t>(bIgnoreBiasWeights);
-			return get_self();
-		}
-		template<bool b = bL2Available>
-		std::enable_if_t<b, const real_t&> L2()const noexcept { return addendum<LA_L2_t>().scale(); }
-
-		//////////////////////////////////////////////////////////////////////////
-
 
 		//should return true, if the layer has a value to add to Loss function value (there's some regularizer attached)
 		const bool hasLossAddendum()const noexcept {
@@ -219,16 +187,6 @@ namespace GW { //GW namespace is for grad_works mixins and other stuff, that hel
 			return ret;
 		}
 
-// 		template<bool b = bL1Available>
-// 		std::enable_if_t<b, const bool> use_L1_regularization()const noexcept { return useAddendum<LA_L1_t>(); }
-// 		template<bool b = bL1Available>
-// 		std::enable_if_t<!b, constexpr bool> use_L1_regularization()const noexcept { return false; }
-// 
-// 		template<bool b = bL2Available>
-// 		std::enable_if_t<b, const bool> use_L2_regularization()const noexcept { return useAddendum<LA_L2_t>(); }
-// 		template<bool b = bL2Available>
-// 		std::enable_if_t<!b, constexpr bool> use_L2_regularization()const noexcept { return false; }
-
 	protected:
 		void _applyLossAddendums(realmtxdef_t& weights, realmtxdef_t& dLdW)const noexcept {
 			tuple_utils::for_each_up(m_addendumsTuple, [&weights, &dLdW, this](auto& la) {
@@ -253,7 +211,49 @@ namespace GW { //GW namespace is for grad_works mixins and other stuff, that hel
 			}
 		}
 
+	public:
+		//////////////////////////////////////////////////////////////////////////
+		//////////////////////////////////////////////////////////////////////////
+		// consider the following as an example of how to enable, setup and use a custom _i_loss_addendum derived class object.
+		
+		typedef loss_addendum::L1<real_t> LA_L1_t;//for the convenience
+		typedef loss_addendum::L2<real_t> LA_L2_t;
 
+		static constexpr auto idxL1 = tuple_utils::get_element_idx_impl<LA_L1_t, 0, LossAddsTs...>::value;
+		static constexpr bool bL1Available = (idxL1 < addendums_count);
+
+		static constexpr auto idxL2 = tuple_utils::get_element_idx_impl<LA_L2_t, 0, LossAddsTs...>::value;
+		static constexpr bool bL2Available = (idxL2 < addendums_count);
+		
+		template<bool b = bL1Available>
+		std::enable_if_t<b, self_ref_t> L1(const real_t& l1, const bool& bIgnoreBiasWeights = defRegularizersIgnoresBiasWeights)noexcept {
+			addendum<LA_L1_t>().scale(l1);
+			useAddendum<LA_L1_t>(l1 != real_t(0.0));
+			addendumIgnoresBias<LA_L1_t>(bIgnoreBiasWeights);
+			return get_self();
+		}
+		template<bool b = bL1Available>
+		std::enable_if_t<b, real_t> L1()const noexcept { return useAddendum<LA_L1_t>() ? addendum<LA_L1_t>().scale() : real_t(0.); }
+
+		template<bool b = bL2Available>
+		std::enable_if_t<b, self_ref_t> L2(const real_t& l2, const bool& bIgnoreBiasWeights = defRegularizersIgnoresBiasWeights)noexcept {
+			addendum<LA_L2_t>().scale(l2);
+			useAddendum<LA_L2_t>(l2 != real_t(0.0));
+			addendumIgnoresBias<LA_L2_t>(bIgnoreBiasWeights);
+			return get_self();
+		}
+		template<bool b = bL2Available>
+		std::enable_if_t<b, real_t> L2()const noexcept { return useAddendum<LA_L2_t>() ? addendum<LA_L2_t>().scale() : real_t(0.); }
+
+		// 		template<bool b = bL1Available>
+		// 		std::enable_if_t<b, const bool> use_L1_regularization()const noexcept { return useAddendum<LA_L1_t>(); }
+		// 		template<bool b = bL1Available>
+		// 		std::enable_if_t<!b, constexpr bool> use_L1_regularization()const noexcept { return false; }
+		// 
+		// 		template<bool b = bL2Available>
+		// 		std::enable_if_t<b, const bool> use_L2_regularization()const noexcept { return useAddendum<LA_L2_t>(); }
+		// 		template<bool b = bL2Available>
+		// 		std::enable_if_t<!b, constexpr bool> use_L2_regularization()const noexcept { return false; }
 	};
 
 	// primary template handles types that have no nested ::addendums_tuple_t member:
