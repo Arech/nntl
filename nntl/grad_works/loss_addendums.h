@@ -81,10 +81,11 @@ namespace GW { //GW namespace is for grad_works mixins and other stuff, that hel
 		typedef math::smatrix<real_t> realmtx_t;
 		typedef math::smatrix_deform<real_t> realmtxdef_t;
 
+	public:
+
 		typedef loss_addendum::L1<real_t> LA_L1_t;
 		typedef loss_addendum::L2<real_t> LA_L2_t;
 
-	public:
 		typedef std::tuple<LossAddsTs...> addendums_tuple_t;
 		static constexpr size_t addendums_count = sizeof...(LossAddsTs);
 		static_assert(addendums_count > 0, "Use Loss_Addendums_dummy if you don't need loss_addendums at all");
@@ -124,9 +125,8 @@ namespace GW { //GW namespace is for grad_works mixins and other stuff, that hel
 		template<class LaT>
 		const bool useAddendum()const noexcept {
 			constexpr auto idx = tuple_utils::get_element_idx<LaT, LossAddsTs...>();
-			//NNTL_ASSERT(idx < addendums_count);
 			static_assert(idx < addendums_count, "Unknown loss_addendum type passed!");
-			return get_opt(f_UseAddendum0 + idx);
+			return useAddendum(idx);
 		}
 
 		void useAddendum(const size_t& idx, const bool& b) noexcept {
@@ -136,11 +136,9 @@ namespace GW { //GW namespace is for grad_works mixins and other stuff, that hel
 		template<class LaT>
 		void useAddendum(const bool& b) noexcept {
 			constexpr auto idx = tuple_utils::get_element_idx<LaT, LossAddsTs...>();
-			//NNTL_ASSERT(idx < addendums_count);
 			static_assert(idx < addendums_count, "Unknown loss_addendum type passed!");
-			set_opt(f_UseAddendum0 + idx, b);
+			useAddendum(idx, b);
 		}
-
 
 		const bool addendumIgnoresBias(const size_t& idx)const noexcept {
 			NNTL_ASSERT(idx < addendums_count);
@@ -149,9 +147,8 @@ namespace GW { //GW namespace is for grad_works mixins and other stuff, that hel
 		template<class LaT>
 		const bool addendumIgnoresBias()const noexcept {
 			constexpr auto idx = tuple_utils::get_element_idx<LaT, LossAddsTs...>();
-			//NNTL_ASSERT(idx < addendums_count);
 			static_assert(idx < addendums_count, "Unknown loss_addendum type passed!");
-			return get_opt(f_AddendumIgnoresBias0 + idx);
+			return addendumIgnoresBias(idx);
 		}
 
 		void addendumIgnoresBias(const size_t& idx, const bool& b)noexcept {
@@ -161,9 +158,8 @@ namespace GW { //GW namespace is for grad_works mixins and other stuff, that hel
 		template<class LaT>
 		void addendumIgnoresBias(const bool& b)noexcept {
 			constexpr auto idx = tuple_utils::get_element_idx<LaT, LossAddsTs...>();
-			//NNTL_ASSERT(idx < addendums_count);
 			static_assert(idx < addendums_count, "Unknown loss_addendum type passed!");
-			set_opt(f_AddendumIgnoresBias0 + idx, b);
+			addendumIgnoresBias(idx, b);
 		}
 
 		//////////////////////////////////////////////////////////////////////////
