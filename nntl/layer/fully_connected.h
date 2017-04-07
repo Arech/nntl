@@ -37,13 +37,13 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 namespace nntl {
 
-	template<typename ActivFunc, typename GradWorks, typename FinalPolymorphChild>
+	template<typename FinalPolymorphChild, typename ActivFunc, typename GradWorks>
 	class _layer_fully_connected 
 		: public m_layer_learnable
-		, public _layer_base<typename GradWorks::interfaces_t, FinalPolymorphChild>
+		, public _layer_base<FinalPolymorphChild, typename GradWorks::interfaces_t>
 	{
 	private:
-		typedef _layer_base<typename GradWorks::interfaces_t, FinalPolymorphChild> _base_class;
+		typedef _layer_base<FinalPolymorphChild, typename GradWorks::interfaces_t> _base_class;
 
 	public:
 		typedef ActivFunc activation_f_t;
@@ -121,10 +121,10 @@ namespace nntl {
 		// functions
 	public:
 		~_layer_fully_connected() noexcept {};
-		_layer_fully_connected(const neurons_count_t _neurons_cnt
+		_layer_fully_connected(const char* pCustomName
+			, const neurons_count_t _neurons_cnt
 			, const real_t learningRate = real_t(.01)
 			, const real_t dpa = real_t(1.0) //"dropout_percent_alive"
-			, const char* pCustomName=nullptr
 		)noexcept
 			: _base_class(_neurons_cnt, pCustomName), m_activations(), m_weights()
 			, m_bWeightsInitialized(false), m_gradientWorks(learningRate)
@@ -200,7 +200,7 @@ namespace nntl {
 
 			lid.nParamsToLearn = m_weights.numel();
 
-			const auto biggestBatchSize = get_self().get_biggest_batch_size();
+			const auto biggestBatchSize = get_self().get_common_data().biggest_batch_size();
 
 			NNTL_ASSERT(m_activations.emulatesBiases());
 			if (pNewActivationStorage) {
@@ -217,14 +217,14 @@ namespace nntl {
 			get_self().get_iMath().preinit(std::max({
 				m_weights.numel()
 				,activation_f_t::needTempMem(m_activations,get_self().get_iMath())
-				,realmtx_t::sNumel(get_self().get_training_batch_size(), get_incoming_neurons_cnt() + 1)
+				,realmtx_t::sNumel(get_self().get_common_data().training_batch_size(), get_incoming_neurons_cnt() + 1)
 			}));
 
-			if (get_self().isTrainingPossible()) {
+			if (get_self().get_common_data().is_training_possible()) {
 				//it'll be training session, therefore must allocate necessary supplementary matrices and form temporary memory reqs.
  				if(!_check_init_dropout()) return ErrorCode::CantAllocateMemoryForDropoutMask;
 
-				lid.max_dLdA_numel = realmtx_t::sNumel(get_self().get_training_batch_size(), get_self().get_neurons_cnt());
+				lid.max_dLdA_numel = realmtx_t::sNumel(get_self().get_common_data().training_batch_size(), get_self().get_neurons_cnt());
 				// we'll need 1 temporarily matrix for bprop(): it is a dL/dW [m_neurons_cnt x get_incoming_neurons_cnt()+1]
 				lid.maxMemTrainingRequire = m_weights.numel();
 			}
@@ -248,7 +248,7 @@ namespace nntl {
 		}
 
 		void initMem(real_t* ptr, numel_cnt_t cnt)noexcept {
-			if (get_self().isTrainingPossible()) {
+			if (get_self().get_common_data().is_training_possible()) {
 				NNTL_ASSERT(ptr && cnt >= m_weights.numel());
 				m_dLdW.useExternalStorage(ptr, m_weights);
 				NNTL_ASSERT(!m_dLdW.emulatesBiases());
@@ -259,8 +259,8 @@ namespace nntl {
 			NNTL_ASSERT(m_activations.emulatesBiases());
 			m_bActivationsValid = false;
 
-			const vec_len_t batchSize = get_self().getCurBatchSize();
-			const auto _biggest_batch_size = get_self().get_biggest_batch_size();
+			const vec_len_t batchSize = get_self().get_common_data().get_cur_batch_size();
+			const auto _biggest_batch_size = get_self().get_common_data().biggest_batch_size();
 			NNTL_ASSERT(batchSize <= _biggest_batch_size);
 
 			if (pNewActivationStorage) {
@@ -277,7 +277,7 @@ namespace nntl {
 				NNTL_ASSERT(m_activations.test_biases_ok());
 			}
 
-			if (get_self().isTrainingMode() && get_self().bDropout()) {
+			if (get_self().get_common_data().is_training_mode() && get_self().bDropout()) {
 				NNTL_ASSERT(!m_dropoutMask.empty());
 				m_dropoutMask.deform_rows(batchSize);
 				NNTL_ASSERT(m_dropoutMask.size() == m_activations.size_no_bias());
@@ -287,7 +287,7 @@ namespace nntl {
 	protected:
 		//help compiler to isolate fprop functionality from the specific of previous layer
 		void _fprop(const realmtx_t& prevActivations)noexcept {
-			const bool bTrainingMode = get_self().isTrainingMode();
+			const bool bTrainingMode = get_self().get_common_data().is_training_mode();
 			auto& iI = get_self().get_iInspect();
 			iI.fprop_begin(get_self().get_layer_idx(), prevActivations, bTrainingMode);
 
@@ -296,7 +296,7 @@ namespace nntl {
 				m_activations.set_biases();
 			}
 
-			NNTL_ASSERT(m_activations.rows() == get_self().getCurBatchSize());
+			NNTL_ASSERT(m_activations.rows() == get_self().get_common_data().get_cur_batch_size());
 			NNTL_ASSERT(prevActivations.test_biases_ok());
 			NNTL_ASSERT(m_activations.rows() == prevActivations.rows());
 			NNTL_ASSERT(prevActivations.cols() == m_weights.cols());
@@ -354,7 +354,7 @@ namespace nntl {
 			dLdA.assert_storage_does_not_intersect(dLdAPrev);
 			dLdA.assert_storage_does_not_intersect(m_dLdW);
 			dLdAPrev.assert_storage_does_not_intersect(m_dLdW);
-			NNTL_ASSERT(get_self().isTrainingMode());
+			NNTL_ASSERT(get_self().get_common_data().is_training_mode());
 			NNTL_ASSERT(prevActivations.test_biases_ok());
 
 			NNTL_ASSERT(m_activations.emulatesBiases() && !m_dLdW.emulatesBiases());
@@ -364,8 +364,8 @@ namespace nntl {
 			NNTL_ASSERT(m_dLdW.size() == m_weights.size());
 
 			NNTL_ASSERT(bPrevLayerIsInput || prevActivations.emulatesBiases());//input layer in batch mode may have biases included, but no emulatesBiases() set
-			NNTL_ASSERT(m_activations.rows() == get_self().getCurBatchSize());
-			NNTL_ASSERT(mtx_size_t(get_self().getCurBatchSize(), get_incoming_neurons_cnt() + 1) == prevActivations.size());
+			NNTL_ASSERT(m_activations.rows() == get_self().get_common_data().get_cur_batch_size());
+			NNTL_ASSERT(mtx_size_t(get_self().get_common_data().get_cur_batch_size(), get_incoming_neurons_cnt() + 1) == prevActivations.size());
 			NNTL_ASSERT(bPrevLayerIsInput || dLdAPrev.size() == prevActivations.size_no_bias());//in vanilla simple BP we shouldn't calculate dLdAPrev for the first layer			
 
 			auto& _Math = get_self().get_iMath();
@@ -506,15 +506,15 @@ namespace nntl {
 	protected:
 		const bool _check_init_dropout()noexcept {
 			NNTL_ASSERT(get_self().has_common_data());
-			if (get_self().isTrainingPossible() && get_self().bDropout()) {
+			if (get_self().get_common_data().is_training_possible() && get_self().bDropout()) {
 				//condition means if (there'll be a training session) and (we're going to use dropout)
 				NNTL_ASSERT(!m_dropoutMask.emulatesBiases());
 				if (m_dropoutMask.empty()) {
 					//resize to the biggest possible size during training
-					if (!m_dropoutMask.resize(get_self().get_training_batch_size(), get_self().get_neurons_cnt())) return false;
+					if (!m_dropoutMask.resize(get_self().get_common_data().training_batch_size(), get_self().get_neurons_cnt())) return false;
 				}//else expecting it to have correct maximum size
 
-				if (get_self().isTrainingMode()) {
+				if (get_self().get_common_data().is_training_mode()) {
 					//change size to fit m_activations
 					m_dropoutMask.deform_rows(m_activations.rows());
 				}//else will be changed during on_batch_size_change()
@@ -536,15 +536,20 @@ namespace nntl {
 	template <typename ActivFunc = activation::sigm<d_interfaces::real_t>,
 		typename GradWorks = grad_works<d_interfaces>
 	> class LFC final 
-		: public _layer_fully_connected<ActivFunc, GradWorks, LFC<ActivFunc, GradWorks>>
+		: public _layer_fully_connected<LFC<ActivFunc, GradWorks>, ActivFunc, GradWorks>
 	{
 	public:
 		~LFC() noexcept {};
 		LFC(const neurons_count_t _neurons_cnt, const real_t learningRate = real_t(.01)
 			, const real_t dropoutFrac = real_t(0.0), const char* pCustomName = nullptr
 		)noexcept
-			: _layer_fully_connected<ActivFunc, GradWorks, LFC<ActivFunc, GradWorks>>
-			(_neurons_cnt, learningRate, dropoutFrac, pCustomName) {};
+			: _layer_fully_connected<LFC<ActivFunc, GradWorks>, ActivFunc, GradWorks>
+			(pCustomName, _neurons_cnt, learningRate, dropoutFrac) {};
+		LFC(const char* pCustomName, const neurons_count_t _neurons_cnt, const real_t learningRate = real_t(.01)
+			, const real_t dropoutFrac = real_t(0.0)
+		)noexcept
+			: _layer_fully_connected<LFC<ActivFunc, GradWorks>, ActivFunc, GradWorks>
+			(pCustomName, _neurons_cnt, learningRate, dropoutFrac) {};
 	};
 
 	template <typename ActivFunc = activation::sigm<d_interfaces::real_t>,

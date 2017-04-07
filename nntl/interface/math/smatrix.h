@@ -711,6 +711,7 @@ namespace math {
 			return hasBiases;
 		}
 		void restore_biases()noexcept { //should only be called iff hide_biases() returned true
+			NNTL_ASSERT(!emulatesBiases());
 			restore_last_col();
 			m_bEmulateBiases = true;
 		}

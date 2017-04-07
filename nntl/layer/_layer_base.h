@@ -178,6 +178,9 @@ namespace nntl {
 
 		//////////////////////////////////////////////////////////////////////////
 		// base interface
+		
+		// class constructor MUST have const char* pCustomName as the first parameter.
+		
 		// each call to own functions should go through get_self() to make polymorphyc function work
 		nntl_interface auto get_self() const noexcept;
 		nntl_interface const layer_index_t get_layer_idx() const noexcept;
@@ -323,6 +326,7 @@ namespace nntl {
 	//////////////////////////////////////////////////////////////////////////
 	// poly base class, Implements compile time polymorphism (to get rid of virtual functions)
 	// and default _layer_name_ machinery
+	// Every derived class MUST have typename FinalPolymorphChild as the first template parameter!
 	template<typename FinalPolymorphChild, typename RealT>
 	class _cpolym_layer_base : public _i_layer<RealT> {
 	public:
@@ -358,7 +362,7 @@ namespace nntl {
 	public:
 		//////////////////////////////////////////////////////////////////////////
 		~_cpolym_layer_base()noexcept {}
-		_cpolym_layer_base(const char* pCustName=nullptr)noexcept /*: m_bTraining(false),s m_bActivationsValid(false)*/ {
+		_cpolym_layer_base(const char* pCustName = nullptr)noexcept /*: m_bTraining(false),s m_bActivationsValid(false)*/ {
 			set_custom_name(pCustName);
 		}
 
@@ -398,7 +402,7 @@ namespace nntl {
 	// Implements compile time polymorphism (to get rid of virtual functions),
 	// default _layer_name_ machinery, some default basic typedefs and basic support machinery
 	// (init() function with common_data_t, layer index number, neurons count)
-	template<typename InterfacesT, typename FinalPolymorphChild>
+	template<typename FinalPolymorphChild, typename InterfacesT>
 	class _layer_base 
 		: public _cpolym_layer_base<FinalPolymorphChild, typename InterfacesT::iMath_t::real_t>
 		, public _impl::_common_data_consumer<InterfacesT>
@@ -465,11 +469,11 @@ namespace nntl {
 		}
 
 		const bool is_activations_shared()const noexcept { return m_bIsSharedActivations; }
-	protected:
+	//protected:
 		const bool is_drop_samples_mbc()const noexcept { return m_bIsDropSamplesMightBeCalled; }
 
 	public:
-		const layer_index_t get_layer_idx() const noexcept { return m_layerIdx; }
+		const layer_index_t& get_layer_idx() const noexcept { return m_layerIdx; }
 		const neurons_count_t get_neurons_cnt() const noexcept { 
 			NNTL_ASSERT(m_neurons_cnt);
 			return m_neurons_cnt;
@@ -519,5 +523,57 @@ namespace nntl {
 		template<class Archive> nntl_interface void serialize(Archive & ar, const unsigned int version);
 	};
 
+	//////////////////////////////////////////////////////////////////////////
+	// "light"-version of _layer_base that forwards its functions to some other layer, that is acceptable by get_self()._forwarder_layer()
+
+	template<typename FinalPolymorphChild, typename InterfacesT>
+	class _layer_base_forwarder 
+		: public _cpolym_layer_base<FinalPolymorphChild, typename InterfacesT::real_t>
+		, public interfaces_td<InterfacesT> 
+	{
+	public:
+		typedef typename InterfacesT::real_t real_t;
+
+		static constexpr bool bAllowToBlockLearning = inspector::is_gradcheck_inspector<iInspect_t>::value;
+
+	public:
+		~_layer_base_forwarder()noexcept{}
+		_layer_base_forwarder(const char* pCustName = nullptr)noexcept 
+			: _cpolym_layer_base<FinalPolymorphChild, typename InterfacesT::real_t>(pCustName)
+		{}
+
+		//////////////////////////////////////////////////////////////////////////
+		// helpers to access common data 
+		// #todo this implies, that the following functions are described in _i_layer interface. It's not the case at this moment.
+		const bool has_common_data()const noexcept { return get_self()._forwarder_layer().has_common_data(); }
+		const auto& get_common_data()const noexcept { return get_self()._forwarder_layer().get_common_data(); }
+		iMath_t& get_iMath()const noexcept { return get_self()._forwarder_layer().get_iMath(); }
+		iRng_t& get_iRng()const noexcept { return get_self()._forwarder_layer().get_iRng(); }
+		iInspect_t& get_iInspect()const noexcept { return get_self()._forwarder_layer().get_iInspect(); }
+
+		template<bool B = bAllowToBlockLearning>
+		std::enable_if_t<B, const bool> isLearningBlocked()const noexcept {
+			return get_self()._forwarder_layer().isLearningBlocked();
+		}
+		template<bool B = bAllowToBlockLearning>
+		constexpr std::enable_if_t<!B, bool> isLearningBlocked() const noexcept { return false; }
+
+		/*const vec_len_t max_fprop_batch_size()const noexcept { return get_self()._forwarder_layer().max_fprop_batch_size(); }
+		const vec_len_t training_batch_size()const noexcept { return get_self()._forwarder_layer().training_batch_size(); }
+		const vec_len_t biggest_batch_size()const noexcept { return get_self()._forwarder_layer().biggest_batch_size(); }
+		const bool is_training_mode()const noexcept { return get_self()._forwarder_layer().is_training_mode(); }
+		const bool is_training_possible()const noexcept { return get_self()._forwarder_layer().is_training_possible(); }
+		const vec_len_t get_cur_batch_size()const noexcept { return get_self()._forwarder_layer().get_cur_batch_size(); }*/
+
+		const neurons_count_t get_neurons_cnt() const noexcept { return get_self()._forwarder_layer().get_neurons_cnt(); }
+		const neurons_count_t get_incoming_neurons_cnt()const noexcept { return  get_self()._forwarder_layer().get_incoming_neurons_cnt(); }
+
+		const realmtxdef_t& get_activations()const noexcept { return get_self()._forwarder_layer().get_activations(); }
+		const mtx_size_t get_activations_size()const noexcept { return get_self()._forwarder_layer().get_activations_size(); }
+		const bool is_activations_shared()const noexcept { return get_self()._forwarder_layer().is_activations_shared(); }
+
+		const bool is_drop_samples_mbc()const noexcept { return get_self()._forwarder_layer().is_drop_samples_mbc(); }
+
+	};
 
 }

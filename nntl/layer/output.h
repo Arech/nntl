@@ -35,14 +35,14 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 namespace nntl {
 
-	template<typename ActivFunc, typename GradWorks, typename FinalPolymorphChild>
+	template<typename FinalPolymorphChild, typename ActivFunc, typename GradWorks>
 	class _layer_output 
 		: public m_layer_output
 		, public m_layer_learnable
-		, public _layer_base<typename GradWorks::interfaces_t, FinalPolymorphChild>
+		, public _layer_base<FinalPolymorphChild, typename GradWorks::interfaces_t>
 	{
 	private:
-		typedef _layer_base<typename GradWorks::interfaces_t, FinalPolymorphChild> _base_class;
+		typedef _layer_base<FinalPolymorphChild, typename GradWorks::interfaces_t> _base_class;
 
 	public:
 		typedef ActivFunc activation_f_t;
@@ -113,7 +113,7 @@ namespace nntl {
 	public:
 		~_layer_output() noexcept {};
 
-		_layer_output(const neurons_count_t _neurons_cnt, real_t learningRate = 0.01, const char* pCustomName = nullptr) noexcept
+		_layer_output(const char* pCustomName, const neurons_count_t _neurons_cnt, real_t learningRate = real_t(.01)) noexcept
 			: _base_class(_neurons_cnt, pCustomName), m_activations(), m_weights(), m_dLdW(), m_bWeightsInitialized(false)
 			, m_gradientWorks(learningRate)
 			, m_bRestrictdLdZ(false), m_dLdZRestrictLowerBnd(.0), m_dLdZRestrictUpperBnd(.0)
@@ -182,7 +182,7 @@ namespace nntl {
 
 			lid.nParamsToLearn = m_weights.numel();
 			
-			const auto biggestBatchSize = get_self().get_biggest_batch_size();
+			const auto biggestBatchSize = get_self().get_common_data().biggest_batch_size();
 
 			NNTL_ASSERT(!m_activations.emulatesBiases());
 			if (!m_activations.resize(biggestBatchSize, get_self().get_neurons_cnt())) return ErrorCode::CantAllocateMemoryForActivations;
@@ -194,10 +194,10 @@ namespace nntl {
 			get_self().get_iMath().preinit(std::max({
 				m_weights.numel()
 				, activation_f_t::needTempMem(m_activations, get_self().get_iMath())
-				, realmtx_t::sNumel(get_self().get_training_batch_size(), get_incoming_neurons_cnt() + 1)
+				, realmtx_t::sNumel(get_self().get_common_data().training_batch_size(), get_incoming_neurons_cnt() + 1)
 			}));
 
-			if (get_self().isTrainingPossible()) {
+			if (get_self().get_common_data().is_training_possible()) {
 				//There's no dLdA coming into the output layer, therefore leave max_dLdA_numel it zeroed
 				//lid.max_dLdA_numel = 0;
 				
@@ -221,7 +221,7 @@ namespace nntl {
 		}
 
 		void initMem(real_t* ptr, numel_cnt_t cnt)noexcept {
-			if (get_self().isTrainingPossible()) {
+			if (get_self().get_common_data().is_training_possible()) {
 				NNTL_ASSERT(ptr && cnt >= m_weights.numel());
 				m_dLdW.useExternalStorage(ptr, m_weights);
 				NNTL_ASSERT(!m_dLdW.emulatesBiases());
@@ -229,8 +229,8 @@ namespace nntl {
 		}
 
 		void on_batch_size_change()noexcept {
-			const vec_len_t batchSize = get_self().getCurBatchSize();
-			NNTL_ASSERT(batchSize > 0 && batchSize <= get_self().get_biggest_batch_size());
+			const vec_len_t batchSize = get_self().get_common_data().get_cur_batch_size();
+			NNTL_ASSERT(batchSize > 0 && batchSize <= get_self().get_common_data().biggest_batch_size());
 			m_bActivationsValid = false;
 
 			NNTL_ASSERT(!m_activations.emulatesBiases());
@@ -240,14 +240,14 @@ namespace nntl {
 	protected:
 		void _fprop(const realmtx_t& prevActivations)noexcept {
 			auto& iI = get_self().get_iInspect();
-			iI.fprop_begin(get_self().get_layer_idx(), prevActivations, get_self().isTrainingMode());
+			iI.fprop_begin(get_self().get_layer_idx(), prevActivations, get_self().get_common_data().is_training_mode());
 
-			NNTL_ASSERT(m_activations.rows() == get_self().getCurBatchSize());
+			NNTL_ASSERT(m_activations.rows() == get_self().get_common_data().get_cur_batch_size());
 			NNTL_ASSERT(m_activations.rows() == prevActivations.rows());
 			NNTL_ASSERT(prevActivations.cols() == m_weights.cols());
 
 			//might be necessary for Nesterov momentum application
-			if (get_self().isTrainingMode()) m_gradientWorks.pre_training_fprop(m_weights);
+			if (get_self().get_common_data().is_training_mode()) m_gradientWorks.pre_training_fprop(m_weights);
 
 			auto& _Math = get_self().get_iMath();
 			iI.fprop_makePreActivations(m_weights, prevActivations);
@@ -274,14 +274,14 @@ namespace nntl {
 
 			data_y.assert_storage_does_not_intersect(dLdAPrev);
 			dLdAPrev.assert_storage_does_not_intersect(m_dLdW);
-			NNTL_ASSERT(get_self().isTrainingMode());
+			NNTL_ASSERT(get_self().get_common_data().is_training_mode());
 			NNTL_ASSERT(!m_dLdW.emulatesBiases());
 			NNTL_ASSERT(m_activations.size() == data_y.size());
 			//NNTL_ASSERT(m_dLdZ.size() == m_activations.size());
 			NNTL_ASSERT(m_dLdW.size() == m_weights.size());
 			NNTL_ASSERT(bPrevLayerIsInput || prevActivations.emulatesBiases());//input layer in batch mode may have biases included, but no emulatesBiases() set
-			NNTL_ASSERT(m_activations.rows() == get_self().getCurBatchSize());
-			NNTL_ASSERT(mtx_size_t(get_self().getCurBatchSize(), get_self().get_incoming_neurons_cnt() + 1) == prevActivations.size());
+			NNTL_ASSERT(m_activations.rows() == get_self().get_common_data().get_cur_batch_size());
+			NNTL_ASSERT(mtx_size_t(get_self().get_common_data().get_cur_batch_size(), get_self().get_incoming_neurons_cnt() + 1) == prevActivations.size());
 			NNTL_ASSERT(bPrevLayerIsInput || dLdAPrev.size() == prevActivations.size_no_bias());
 
 			auto& _Math = get_self().get_iMath();
@@ -405,13 +405,17 @@ namespace nntl {
 	template <typename ActivFunc = activation::sigm_quad_loss<d_interfaces::real_t>,
 		typename GradWorks = grad_works<d_interfaces>
 	> class layer_output final 
-		: public _layer_output<ActivFunc, GradWorks, layer_output<ActivFunc, GradWorks>>
+		: public _layer_output<layer_output<ActivFunc, GradWorks>, ActivFunc, GradWorks>
 	{
 	public:
 		~layer_output() noexcept {};
 		layer_output(const neurons_count_t _neurons_cnt, const real_t learningRate=real_t(0.01)
 			, const char* pCustomName = nullptr) noexcept 
-			: _layer_output<ActivFunc, GradWorks, layer_output<ActivFunc, GradWorks>>(_neurons_cnt, learningRate, pCustomName)
+			: _layer_output<layer_output<ActivFunc, GradWorks>, ActivFunc, GradWorks>(pCustomName, _neurons_cnt, learningRate)
+		{};
+
+		layer_output(const char* pCustomName, const neurons_count_t _neurons_cnt, const real_t learningRate = real_t(0.01)) noexcept
+			: _layer_output<layer_output<ActivFunc, GradWorks>, ActivFunc, GradWorks>(pCustomName, _neurons_cnt, learningRate)
 		{};
 	};
 }

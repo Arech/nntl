@@ -207,6 +207,7 @@
     <ClInclude Include="..\nntl\layer\pack_horizontal_gated.h" />
     <ClInclude Include="..\nntl\layer\pack_tile.h" />
     <ClInclude Include="..\nntl\layer\pack_vertical.h" />
+    <ClInclude Include="..\nntl\layer\penalized_activations.h" />
     <ClInclude Include="..\nntl\layer\_init_layers.h" />
     <ClInclude Include="..\nntl\layer\_pack_.h" />
     <ClInclude Include="..\nntl\layer\_pack_traits.h" />
@@ -289,6 +290,7 @@
     <ClCompile Include="test_inspectors.cpp" />
     <ClCompile Include="test_layer_pack_horizontal.cpp" />
     <ClCompile Include="test_layer_pack_horizontal_gated.cpp" />
+    <ClCompile Include="test_layer_penalized_activations.cpp" />
     <ClCompile Include="test_layer_pack_tile.cpp" />
     <ClCompile Include="test_layer_pack_vertical.cpp" />
     <ClCompile Include="test_matfile.cpp" />

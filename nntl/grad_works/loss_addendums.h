@@ -173,13 +173,13 @@ namespace GW { //GW namespace is for grad_works mixins and other stuff, that hel
 			//which is in fact not a modification from outside POV
 			realmtxdef_t& _W = *(const_cast<realmtxdef_t*>(&weights));
 
-			tuple_utils::for_each_up(m_addendumsTuple, [&_W, &ret, this](auto& la) {
+			tuple_utils::for_each_up(m_addendumsTuple, [&_W, &ret, &iM = get_self().get_iMath(), this](auto& la) {
 				typedef std::decay_t<decltype(la)> la_t;
 
 				if (useAddendum<la_t>()) {
 					const auto bIgnoreBiases = addendumIgnoresBias<la_t>();
 					if (bIgnoreBiases) _W.hide_last_col();
-					ret += la.lossAdd(_W, get_self().get_iMath());
+					ret += la.lossAdd(_W, iM);
 					if (bIgnoreBiases) _W.restore_last_col();
 				}
 			});
@@ -189,16 +189,14 @@ namespace GW { //GW namespace is for grad_works mixins and other stuff, that hel
 
 	protected:
 		void _applyLossAddendums(realmtxdef_t& weights, realmtxdef_t& dLdW)const noexcept {
-			tuple_utils::for_each_up(m_addendumsTuple, [&weights, &dLdW, this](auto& la) {
+			tuple_utils::for_each_up(m_addendumsTuple, [&weights, &dLdW, &iM = get_self().get_iMath(), this](auto& la) {
 				typedef std::decay_t<decltype(la)> la_t;
+				static_assert(loss_addendum::is_loss_addendum<la_t>::value, "Every Loss_addendum class must implement loss_addendum::_i_loss_addendum<>");
 
 				if (useAddendum<la_t>()) {
 					const auto bIgnoreBiases = addendumIgnoresBias<la_t>();
 					if (bIgnoreBiases) { dLdW.hide_last_col(); weights.hide_last_col(); }
-
-					//ret += la.lossAdd(_W, get_self().get_iMath());
-					la.dLossAdd(weights, dLdW, get_self().get_iMath());
-
+					la.dLossAdd(weights, dLdW, iM);
 					if (bIgnoreBiases) { dLdW.restore_last_col(); weights.restore_last_col(); }
 				}
 			});
@@ -227,8 +225,9 @@ namespace GW { //GW namespace is for grad_works mixins and other stuff, that hel
 		
 		template<bool b = bL1Available>
 		std::enable_if_t<b, self_ref_t> L1(const real_t& l1, const bool& bIgnoreBiasWeights = defRegularizersIgnoresBiasWeights)noexcept {
-			addendum<LA_L1_t>().scale(l1);
-			useAddendum<LA_L1_t>(l1 != real_t(0.0));
+			auto& adn = addendum<LA_L1_t>();
+			adn.scale(l1);
+			useAddendum<LA_L1_t>(adn.bEnabled());
 			addendumIgnoresBias<LA_L1_t>(bIgnoreBiasWeights);
 			return get_self();
 		}
@@ -237,8 +236,9 @@ namespace GW { //GW namespace is for grad_works mixins and other stuff, that hel
 
 		template<bool b = bL2Available>
 		std::enable_if_t<b, self_ref_t> L2(const real_t& l2, const bool& bIgnoreBiasWeights = defRegularizersIgnoresBiasWeights)noexcept {
-			addendum<LA_L2_t>().scale(l2);
-			useAddendum<LA_L2_t>(l2 != real_t(0.0));
+			auto& adn = addendum<LA_L2_t>();
+			adn.scale(l2);
+			useAddendum<LA_L2_t>(adn.bEnabled());
 			addendumIgnoresBias<LA_L2_t>(bIgnoreBiasWeights);
 			return get_self();
 		}

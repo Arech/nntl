@@ -56,19 +56,15 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 namespace nntl {
 
 	template<typename FinalPolymorphChild, typename ...Layrs>
-	class _layer_pack_vertical 
-		: public _cpolym_layer_base<FinalPolymorphChild, typename std::remove_reference<typename 
-		    std::tuple_element<0, const std::tuple<Layrs&...>>::type>::type::iMath_t::real_t>
-		, public interfaces_td<typename std::remove_reference<typename
-		    std::tuple_element<0, const std::tuple<Layrs&...>>::type>::type::interfaces_t>
+	class _layer_pack_vertical : public _layer_base_forwarder<FinalPolymorphChild,
+		typename std::remove_reference<typename std::tuple_element<0, const std::tuple<Layrs&...>>::type>::type::interfaces_t>
 	{
 	private:
-		typedef _cpolym_layer_base<FinalPolymorphChild,
-			typename std::remove_reference<typename std::tuple_element<0, const std::tuple<Layrs&...>>::type>::type::iMath_t::real_t> _base_class;
+		typedef _layer_base_forwarder<FinalPolymorphChild,
+			typename std::remove_reference<typename std::tuple_element<0, const std::tuple<Layrs&...>>::type>::type::interfaces_t
+		> _base_class_t;
 
 	public:
-		using _base_class::real_t;
-
 		//LayerPack_t is used to distinguish ordinary layers from layer packs (for example, to implement call_F_for_each_layer())
 		typedef self_t LayerPack_t;
 
@@ -123,9 +119,12 @@ namespace nntl {
 		topmost_layer_t& topmost_layer()const noexcept { return std::get<layers_count - 1>(m_layers); }
 
 	public:
+		//used by _layer_base_forwarder<> functions to forward various data from the topmost_layer()
+		auto& _forwarder_layer()const noexcept { return topmost_layer(); }
+
 		~_layer_pack_vertical()noexcept {}
 		_layer_pack_vertical(const char* pCustomName, Layrs&... layrs)noexcept 
-			: _base_class(pCustomName), m_layers(layrs...), m_layerIdx(0)
+			: _base_class_t(pCustomName), m_layers(layrs...), m_layerIdx(0)
 		{
 			//#todo this better be done with a single static_assert in the class scope
 			tuple_utils::for_each_up(m_layers, [](auto& l)noexcept {
@@ -134,21 +133,7 @@ namespace nntl {
 			});
 		}
 		static constexpr const char _defName[] = "lpv";
-
-		//////////////////////////////////////////////////////////////////////////
-		// helpers to access common data 
-		// #todo this implies, that the following functions are described in _i_layer interface. It's not the case at this moment.
-		const common_data_t& get_common_data()const noexcept { return lowmost_layer().get_common_data(); }
-		iMath_t& get_iMath()const noexcept { return lowmost_layer().get_iMath(); }
-		iRng_t& get_iRng()const noexcept { return lowmost_layer().get_iRng(); }
-		iInspect_t& get_iInspect()const noexcept { return lowmost_layer().get_iInspect(); }
-		const vec_len_t get_max_fprop_batch_size()const noexcept { return lowmost_layer().get_max_fprop_batch_size(); }
-		const vec_len_t get_training_batch_size()const noexcept { return lowmost_layer().get_training_batch_size(); }
-		const vec_len_t get_biggest_batch_size()const noexcept { return lowmost_layer().get_biggest_batch_size(); }
-		const bool isTrainingMode()const noexcept { return lowmost_layer().isTrainingMode(); }
-		const bool isTrainingPossible()const noexcept { return lowmost_layer().isTrainingPossible(); }
-		const vec_len_t getCurBatchSize()const noexcept { return lowmost_layer().getCurBatchSize(); }
-		
+				
 		//////////////////////////////////////////////////////////////////////////
 		//and apply function _Func(auto& layer) to each underlying (non-pack) layer here
 		template<typename _Func>
@@ -174,15 +159,10 @@ namespace nntl {
 			tuple_utils::for_each_down(m_layers, std::forward<_Func>(f));
 		}
 
-		const layer_index_t get_layer_idx() const noexcept { return m_layerIdx; }
-		const neurons_count_t get_neurons_cnt() const noexcept { return get_self().topmost_layer().get_neurons_cnt(); }
+		const layer_index_t& get_layer_idx() const noexcept { return m_layerIdx; }
+
+		//overriding _layer_base_forwarder<> implementation.
 		const neurons_count_t get_incoming_neurons_cnt()const noexcept { return  get_self().lowmost_layer().get_incoming_neurons_cnt(); }
-
-		const realmtxdef_t& get_activations()const noexcept { return get_self().topmost_layer().get_activations(); }
-		const mtx_size_t get_activations_size()const noexcept { return get_self().topmost_layer().get_activations_size(); }
-		const bool is_activations_shared()const noexcept { return get_self().topmost_layer().is_activations_shared(); }
-
-		const bool is_drop_samples_mbc()const noexcept { return get_self().topmost_layer().is_drop_samples_mbc(); }
 
 		//should return true, if the layer has a value to add to Loss function value (there's some regularizer attached)
 		bool hasLossAddendum()const noexcept {
@@ -199,18 +179,19 @@ namespace nntl {
 
 		//////////////////////////////////////////////////////////////////////////
 		//in order to pass correct initialization values to underlying topmost layer, we must define a .OuterLayerCustomFlag1Eval()
-
+/*
+deprecated:
 		template<typename PhlsTupleT>
 		std::enable_if_t< _impl::layer_has_OuterLayerCustomFlag1Eval<topmost_layer_t, PhlsTupleT, _layer_init_data_t>::value, bool>
 			OuterLayerCustomFlag1Eval(const PhlsTupleT& lphTuple, const _layer_init_data_t& lphLid)const noexcept
 		{
 			return topmost_layer().OuterLayerCustomFlag1Eval(lphTuple, lphLid);
-		}
+		}*/
 
 		//////////////////////////////////////////////////////////////////////////
 		//
 		ErrorCode init(_layer_init_data_t& lid, real_t* pNewActivationStorage = nullptr)noexcept {
-			_base_class::init();
+			_base_class_t::init();
 			ErrorCode ec = ErrorCode::Success;
 			layer_index_t failedLayerIdx = 0;
 
@@ -253,7 +234,7 @@ namespace nntl {
 
 		void deinit() noexcept {
 			get_self().for_each_packed_layer([](auto& l) {l.deinit(); });
-			_base_class::deinit();
+			_base_class_t::deinit();
 		}
 
 		void initMem(real_t* ptr, numel_cnt_t cnt)noexcept {
@@ -281,7 +262,7 @@ namespace nntl {
 		std::enable_if_t<_impl::is_layer_wrapper<LowerLayerWrapper>::value> fprop(const LowerLayerWrapper& lowerLayer)noexcept
 		{
 			auto& iI = get_self().get_iInspect();
-			iI.fprop_begin(get_self().get_layer_idx(), lowerLayer.get_activations(), get_self().isTrainingMode());
+			iI.fprop_begin(get_self().get_layer_idx(), lowerLayer.get_activations(), get_self().get_common_data().is_training_mode());
 
 			NNTL_ASSERT(lowerLayer.get_activations().test_biases_ok());
 			get_self().lowmost_layer().fprop(lowerLayer);

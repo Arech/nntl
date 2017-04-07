@@ -43,8 +43,6 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "asserts.h"
 #include "common_routines.h"
 
-
-
 using namespace nntl;
 typedef nntl_supp::binfile reader_t;
 
@@ -55,7 +53,11 @@ typedef nntl_supp::binfile reader_t;
 
 //////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////
-void testL2L1(const bool bL2, train_data<real_t>& td, const real_t coeff, uint64_t rngSeed, const size_t maxEpochs=3, const real_t LR=.02, const char* pDumpFileName=nullptr) noexcept {
+template<typename real_t>
+struct testWeightsL1L2_res {
+	std::array<real_t, 3> w;
+};
+void testL2L1(const bool bL2, train_data<real_t>& td, const real_t coeff, uint64_t rngSeed, testWeightsL1L2_res<real_t>& res, const size_t maxEpochs=3, const real_t LR=.02, const char* pDumpFileName=nullptr) noexcept {
 	if (bL2) {
 		STDCOUTL("Using l2coeff = " << coeff);
 	} else STDCOUTL("Using l1coeff = " << coeff);
@@ -95,6 +97,11 @@ void testL2L1(const bool bL2, train_data<real_t>& td, const real_t coeff, uint64
 	auto ec = nn.train(td, opts);
 	ASSERT_EQ(decltype(nn)::ErrorCode::Success, ec) << "Error code description: " << nn.get_last_error_string();
 
+	auto& iM = nn.get_iMath();
+	res.w[0] = iM.ewSumSquares_ns(fcl.get_weights());
+	res.w[1] = iM.ewSumSquares_ns(fcl2.get_weights());
+	res.w[2] = iM.ewSumSquares_ns(outp.get_weights());
+	
 #if NNTL_MATLAB_AVAILABLE
 	if (pDumpFileName) {
 		nntl_supp::omatfile<> mf;
@@ -107,7 +114,7 @@ void testL2L1(const bool bL2, train_data<real_t>& td, const real_t coeff, uint64
 #endif
 }
 
-TEST(TestNnet, L2L1) {
+TEST(TestNnet, WeightsConstraintsL2L1) {
 	train_data<real_t> td;
 	reader_t reader;
 
@@ -120,22 +127,36 @@ TEST(TestNnet, L2L1) {
 	ASSERT_TRUE(td.test_x().emulatesBiases());
 
 	const unsigned im = 2;
+	testWeightsL1L2_res<real_t> noReg, wReg;
 
 	STDCOUTL("*************** Testing L2 regularizer ******************* ");
 	for (unsigned i = 0; i < im; ++i) {
 		auto sv = std::time(0);
-		testL2L1(true,td, 0, sv);
-		testL2L1(true,td, real_t(.01), sv);
+		testL2L1(true,td, 0, sv, noReg);
+		testL2L1(true,td, real_t(.01), sv, wReg);
+		STDCOUTL("Sum of squared weights without regularizer vs with regularizer:");
+		for (size_t idx = 0; idx < noReg.w.size(); ++idx) {
+			STDCOUT("Layer#" << idx << ": " << noReg.w[idx] << " - " << wReg.w[idx] << "    ");
+			ASSERT_GT(noReg.w[idx], wReg.w[idx]) << "Comparison for the layer failed!";
+		}
+		STDCOUT(std::endl);
 	}
 
 	STDCOUTL("*************** Testing L1 regularizer ******************* ");
 	for (unsigned i = 0; i < im; ++i) {
 		auto sv = std::time(0);
-		testL2L1(false,td, 0, sv);
-		testL2L1(false,td, real_t(.01), sv);
+		testL2L1(false, td, 0, sv, noReg);
+		testL2L1(false, td, real_t(.01), sv, wReg);
+		STDCOUTL("Sum of squared weights without regularizer vs with regularizer:");
+		for (size_t idx = 0; idx < noReg.w.size(); ++idx) {
+			STDCOUT("Layer#" << idx << ": " << noReg.w[idx] << " - " << wReg.w[idx] << "    ");
+			ASSERT_GT(noReg.w[idx], wReg.w[idx]) << "Comparison for the layer failed!";
+		}
+		STDCOUT(std::endl);
 	}
 }
 
+/*
 TEST(TestNnet, L2Weights) {
 	train_data<real_t> td;
 	reader_t reader;
@@ -151,7 +172,7 @@ TEST(TestNnet, L2Weights) {
 	testL2L1(true,td, 0, 0, 5, real_t(.02));
 	testL2L1(true,td, real_t(.1), 0, 5, real_t(.02));
 	testL2L1(false,td, real_t(.1), 0, 5, real_t(.02));
-}
+}*/
 
 //////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////

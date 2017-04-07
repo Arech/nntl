@@ -48,11 +48,11 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 namespace nntl {
 
-	template<typename Interfaces, typename FinalPolymorphChild>
-	class _layer_identity : public _layer_base<Interfaces, FinalPolymorphChild>, public m_layer_autoneurons_cnt
+	template<typename FinalPolymorphChild, typename Interfaces>
+	class _layer_identity : public _layer_base<FinalPolymorphChild, Interfaces>, public m_layer_autoneurons_cnt
 	{
 	private:
-		typedef _layer_base<Interfaces, FinalPolymorphChild> _base_class;
+		typedef _layer_base<FinalPolymorphChild, Interfaces> _base_class;
 
 		//////////////////////////////////////////////////////////////////////////
 		//members section (in "biggest first" order)
@@ -61,7 +61,7 @@ namespace nntl {
 
 	public:
 		~_layer_identity()noexcept {}
-		_layer_identity(const char* pCustomName = nullptr)noexcept : _base_class(0, pCustomName) {
+		_layer_identity(const char* pCustomName)noexcept : _base_class(0, pCustomName) {
 			m_activations.will_emulate_biases();
 		}
 
@@ -88,7 +88,7 @@ namespace nntl {
 			if (ErrorCode::Success != ec) return ec;
 
 			NNTL_ASSERT(get_self().get_neurons_cnt());
-			m_activations.useExternalStorage(pNewActivationStorage, get_self().get_biggest_batch_size(), get_self().get_neurons_cnt() + 1, true);
+			m_activations.useExternalStorage(pNewActivationStorage, get_self().get_common_data().biggest_batch_size(), get_self().get_neurons_cnt() + 1, true);
 			return ec;
 		}
 
@@ -102,8 +102,8 @@ namespace nntl {
 		void on_batch_size_change(real_t*const pNewActivationStorage)noexcept {
 			NNTL_ASSERT(pNewActivationStorage);
 			m_bActivationsValid = false;
-			const vec_len_t batchSize = get_self().getCurBatchSize();
-			NNTL_ASSERT(batchSize <= get_self().get_biggest_batch_size());
+			const vec_len_t batchSize = get_self().get_common_data().get_cur_batch_size();
+			NNTL_ASSERT(batchSize <= get_self().get_common_data().biggest_batch_size());
 
 			NNTL_ASSERT(m_activations.emulatesBiases() && get_self().is_activations_shared() && get_self().get_neurons_cnt());
 			//m_neurons_cnt + 1 for biases
@@ -116,10 +116,10 @@ namespace nntl {
 			NNTL_ASSERT(prevActivations.size() == m_activations.size());
 			NNTL_ASSERT(get_self().is_activations_shared());
 			NNTL_ASSERT(prevActivations.test_biases_ok());
-			NNTL_ASSERT(m_activations.rows() == get_self().getCurBatchSize());
+			NNTL_ASSERT(m_activations.rows() == get_self().get_common_data().get_cur_batch_size());
 
 			auto& iI = get_self().get_iInspect();
-			iI.fprop_begin(get_self().get_layer_idx(), prevActivations, get_self().isTrainingMode());
+			iI.fprop_begin(get_self().get_layer_idx(), prevActivations, get_self().get_common_data().is_training_mode());
 
 			//restoring biases, should they were altered in drop_samples()
 			if (m_activations.isHoleyBiases() && !get_self().is_activations_shared()) {
@@ -155,7 +155,7 @@ namespace nntl {
 			bprop(realmtx_t& dLdA, const LowerLayerWrapper& lowerLayer, realmtx_t& dLdAPrev)noexcept
 		{
 			NNTL_ASSERT(m_bActivationsValid);
-			NNTL_ASSERT(m_activations.rows() == get_self().getCurBatchSize());
+			NNTL_ASSERT(m_activations.rows() == get_self().get_common_data().get_cur_batch_size());
 			m_bActivationsValid = false;
 			auto& iI = get_self().get_iInspect();
 			iI.bprop_begin(get_self().get_layer_idx(), dLdA);
@@ -208,12 +208,12 @@ namespace nntl {
 	};
 
 	//////////////////////////////////////////////////////////////////////////
-	template<typename Interfaces, typename FinalPolymorphChild>
-	class _layer_identity_gate : public _layer_identity<Interfaces, FinalPolymorphChild>
+	template<typename FinalPolymorphChild, typename Interfaces>
+	class _layer_identity_gate : public _layer_identity<FinalPolymorphChild, Interfaces>
 		, public _i_layer_gate<typename Interfaces::iMath_t::real_t>
 	{
 	private:
-		typedef _layer_identity<Interfaces, FinalPolymorphChild> _base_class;
+		typedef _layer_identity<FinalPolymorphChild, Interfaces> _base_class;
 
 	public:
 		using _base_class::real_t;
@@ -227,7 +227,7 @@ namespace nntl {
 
 	public:
 		~_layer_identity_gate()noexcept {}
-		_layer_identity_gate(const char* pCustomName = nullptr)noexcept : _base_class(pCustomName) {
+		_layer_identity_gate(const char* pCustomName)noexcept : _base_class(pCustomName) {
 			m_gate.dont_emulate_biases();
 		}
 		static constexpr const char _defName[] = "idg";
@@ -247,7 +247,7 @@ namespace nntl {
 			if (ErrorCode::Success != ec) return ec;
 
 			NNTL_ASSERT(get_self().get_neurons_cnt());
-			m_gate.useExternalStorage(pNewActivationStorage, get_self().get_biggest_batch_size(), get_self().get_neurons_cnt(), false);
+			m_gate.useExternalStorage(pNewActivationStorage, get_self().get_common_data().biggest_batch_size(), get_self().get_neurons_cnt(), false);
 			return ec;
 		}
 
@@ -260,7 +260,7 @@ namespace nntl {
 			NNTL_ASSERT(pNewActivationStorage);
 			_base_class::on_batch_size_change(pNewActivationStorage);
 
-			const vec_len_t batchSize = get_self().getCurBatchSize();
+			const vec_len_t batchSize = get_self().get_common_data().get_cur_batch_size();
 			m_gate.useExternalStorage(pNewActivationStorage, batchSize, get_self().get_neurons_cnt(), false);
 		}
 
@@ -280,21 +280,21 @@ namespace nntl {
 	//
 	// 
 	template <typename Interfaces = d_interfaces>
-	class layer_identity final : public _layer_identity<Interfaces, layer_identity<Interfaces>>
+	class layer_identity final : public _layer_identity<layer_identity<Interfaces>, Interfaces>
 	{
 	public:
 		~layer_identity() noexcept {};
 		layer_identity(const char* pCustomName = nullptr) noexcept 
-			: _layer_identity<Interfaces, layer_identity<Interfaces>> (pCustomName) {};
+			: _layer_identity<layer_identity<Interfaces>, Interfaces> (pCustomName) {};
 	};
 
 	template <typename Interfaces = d_interfaces>
-	class layer_identity_gate final : public _layer_identity_gate<Interfaces, layer_identity_gate<Interfaces>>
+	class layer_identity_gate final : public _layer_identity_gate<layer_identity_gate<Interfaces>, Interfaces>
 	{
 	public:
 		~layer_identity_gate() noexcept {};
 		layer_identity_gate(const char* pCustomName = nullptr) noexcept 
-			: _layer_identity_gate<Interfaces, layer_identity_gate<Interfaces>>(pCustomName) {};
+			: _layer_identity_gate<layer_identity_gate<Interfaces>, Interfaces>(pCustomName) {};
 	};
 
 }

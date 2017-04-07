@@ -161,7 +161,7 @@ namespace nntl {
 			//we must resize gatingMask here to the size of underlying_layer activations, however gatingMask mustn't
 			//have an emulated bias column
 			NNTL_ASSERT(get_self().get_neurons_cnt() > gated_layers_count);
-			const auto biggestBatchSize = get_self().get_biggest_batch_size();
+			const auto biggestBatchSize = get_self().get_common_data().biggest_batch_size();
 
 			NNTL_ASSERT(!m_gatingMask.emulatesBiases() && m_gatingMask.empty());
 			if (_bAllocateGatingMask()) {
@@ -182,8 +182,8 @@ namespace nntl {
 
 			m_bDropSamplesWasCalled = false;
 			if (m_bIsGatedDropSamplesMightBeCalled) {
-				//m_dropSamplesGatingMask will be applied only during bprop(), therefore it's size should rely on get_training_batch_size()
-				if (!m_dropSamplesGatingMask.resize(get_self().get_training_batch_size(),1))
+				//m_dropSamplesGatingMask will be applied only during bprop(), therefore it's size should rely on training_batch_size()
+				if (!m_dropSamplesGatingMask.resize(get_self().get_common_data().training_batch_size(),1))
 					return ErrorCode::CantAllocateMemoryForGatingMask;
 			}
 
@@ -203,7 +203,7 @@ namespace nntl {
 		void on_batch_size_change(real_t*const pNewActivationStorage = nullptr)noexcept {
 			_base_class::on_batch_size_change(pNewActivationStorage);
 
-			const vec_len_t batchSize = get_self().getCurBatchSize();
+			const vec_len_t batchSize = get_self().get_common_data().get_cur_batch_size();
 			if (_bAllocateGatingMask()) {
 				NNTL_ASSERT(!m_gatingMask.empty() && !m_gatingMask.bDontManageStorage());
 				//we must deform the mask to fit new underlying activations size
@@ -305,7 +305,7 @@ namespace nntl {
 			vec_len_t ofs = gating_layer().get_neurons_cnt(), lNum=0;
 			auto &iM = get_self().get_iMath();
 
-			NNTL_ASSERT(get_self().isTrainingMode());
+			NNTL_ASSERT(get_self().get_common_data().is_training_mode());
 			if (m_bIsGatedDropSamplesMightBeCalled && m_bDropSamplesWasCalled) {
 				NNTL_ASSERT(!m_dropSamplesGatingMask.empty() && m_dropSamplesGatingMask.rows() == dLdA.rows() && 1 == m_dropSamplesGatingMask.cols());
 				//we must also apply mask to corresponding dLdA columns
@@ -361,9 +361,9 @@ namespace nntl {
 		void fprop(const LowerLayer& lowerLayer)noexcept {
 			static_assert(std::is_base_of<_i_layer_fprop, LowerLayer>::value, "Template parameter LowerLayer must implement _i_layer_fprop");
 			auto& iI = get_self().get_iInspect();
-			iI.fprop_begin(get_self().get_layer_idx(), lowerLayer.get_activations(), get_self().isTrainingMode());
+			iI.fprop_begin(get_self().get_layer_idx(), lowerLayer.get_activations(), get_self().get_common_data().is_training_mode());
 
-			if (m_bIsGatedDropSamplesMightBeCalled && get_self().isTrainingMode()) {
+			if (m_bIsGatedDropSamplesMightBeCalled && get_self().get_common_data().is_training_mode()) {
 				m_bDropSamplesWasCalled = false;
 			}
 
@@ -386,7 +386,7 @@ namespace nntl {
 			auto& iI = get_self().get_iInspect();
 			iI.bprop_begin(get_self().get_layer_idx(), dLdA);
 
-			NNTL_ASSERT(get_self().isTrainingMode());
+			NNTL_ASSERT(get_self().get_common_data().is_training_mode());
 			NNTL_ASSERT(m_gatingMask.rows() == get_self().get_activations().rows());
 			NNTL_ASSERT(m_gatingMask.rows() == lowerLayer.get_activations().rows());
 			NNTL_ASSERT(m_gatingMask.cols() == get_self().gating_layer().get_gate_width());
@@ -413,7 +413,7 @@ namespace nntl {
 			NNTL_ASSERT(m_gatingMask.isBinary());
 			NNTL_ASSERT(mask.isBinary() && 1 == mask.cols());
 			
-			if (get_self().isTrainingMode()) {
+			if (get_self().get_common_data().is_training_mode()) {
 				m_bDropSamplesWasCalled = true;
 				NNTL_ASSERT(!m_dropSamplesGatingMask.empty());
 				m_dropSamplesGatingMask.deform_like(mask);

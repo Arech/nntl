@@ -54,12 +54,12 @@ namespace nntl {
 	::type>::type::phl_original_t::iMath_t::real_t>*/
 
 	template<typename FinalPolymorphChild, typename ...PHLsT>
-	class _layer_pack_horizontal : public _layer_base<typename std::remove_reference<typename std::tuple_element<0, const std::tuple<PHLsT...>>
-		::type>::type::phl_original_t::interfaces_t, FinalPolymorphChild>
+	class _layer_pack_horizontal : public _layer_base<FinalPolymorphChild, typename std::remove_reference<typename std::tuple_element<0, const std::tuple<PHLsT...>>
+		::type>::type::phl_original_t::interfaces_t>
 	{
 	private:
-		typedef _layer_base<typename std::remove_reference<typename std::tuple_element<0, const std::tuple<PHLsT...>>
-			::type>::type::phl_original_t::interfaces_t, FinalPolymorphChild> _base_class;
+		typedef _layer_base<FinalPolymorphChild, typename std::remove_reference<typename std::tuple_element<0, const std::tuple<PHLsT...>>
+			::type>::type::phl_original_t::interfaces_t> _base_class;
 
 	public:
 		//LayerPack_t is used to distinguish ordinary layers from layer packs (for example, to implement call_F_for_each_layer())
@@ -203,7 +203,9 @@ namespace nntl {
 			return la;
 		}
 
-	/*protected:
+	/*
+	 *deprecated:
+	 *protected:
 		template<typename InnerLayerT>
 		std::enable_if_t<_impl::layer_has_OuterLayerCustomFlag1Eval<InnerLayerT, decltype(m_phl_tuple), _layer_init_data_t>::value,bool>
 			call_layers_OuterLayerCustomFlag1Eval(const InnerLayerT& lyr, const _layer_init_data_t& origLid)noexcept
@@ -232,7 +234,7 @@ namespace nntl {
 				if (!bSuccessfullyInitialized) get_self().deinit();
 			});
 
-			const auto biggestBatchSize = get_self().get_biggest_batch_size();
+			const auto biggestBatchSize = get_self().get_common_data().biggest_batch_size();
 
 			//allocating m_activations
 			NNTL_ASSERT(m_activations.emulatesBiases());
@@ -282,14 +284,14 @@ namespace nntl {
 				// that will be substituted by biases for fprop() of one inner layer
 				lid.maxMemFPropRequire += biggestBatchSize;
 
-				if (get_self().isTrainingPossible()) {
-					const auto& _training_batch_size = get_self().get_training_batch_size();
+				if (get_self().get_common_data().is_training_possible()) {
+					const auto& _training_batch_size = get_self().get_common_data().training_batch_size();
 					//adding backprop requirements
 					// saving lid.max_dLdA_numel, gathered from inner layers and substituting it for this layer's max_dLdA_numel
 					m_layers_max_dLdA_numel = std::max(lid.max_dLdA_numel
 						, realmtx_t::sNumel(_training_batch_size, maxIncNeuronsCnt));
 					//The first argument of max() - lid.max_dLdA_numel - describes the biggest dLdA size, the second
-					//argument (realmtx_t::sNumel(get_self().get_training_batch_size(), maxIncNeuronsCnt)) describes the biggest
+					//argument (realmtx_t::sNumel(get_self().training_batch_size(), maxIncNeuronsCnt)) describes the biggest
 					// dLdAPrev.
 
 					//The biggest "outside" dLdA is limited to the ours activation matrix size (we can't send dLdA passed as bprop() argument
@@ -320,13 +322,13 @@ namespace nntl {
 
 		void initMem(real_t* ptr, numel_cnt_t cnt)noexcept {
 			//for fprop()
-			const auto _biggest_batch_size = static_cast<numel_cnt_t>(get_self().get_biggest_batch_size());
+			const auto _biggest_batch_size = static_cast<numel_cnt_t>(get_self().get_common_data().biggest_batch_size());
 			NNTL_ASSERT(ptr && cnt >= _biggest_batch_size);
 			m_pTmpBiasStorage = ptr;
 			ptr += _biggest_batch_size;
 			cnt -= _biggest_batch_size;
 
-			if (get_self().isTrainingPossible()) {
+			if (get_self().get_common_data().is_training_possible()) {
 				NNTL_ASSERT(cnt >= 2 * m_layers_max_dLdA_numel);
 				m_innerdLdA.useExternalStorage(ptr, m_layers_max_dLdA_numel, false);
 				ptr += m_layers_max_dLdA_numel;
@@ -339,8 +341,8 @@ namespace nntl {
 		}
 
 		void on_batch_size_change(real_t*const pNewActivationStorage = nullptr)noexcept {
-			const vec_len_t batchSize = get_self().getCurBatchSize();
-			NNTL_ASSERT(batchSize > 0 && batchSize <= get_self().get_biggest_batch_size());
+			const vec_len_t batchSize = get_self().get_common_data().get_cur_batch_size();
+			NNTL_ASSERT(batchSize > 0 && batchSize <= get_self().get_common_data().biggest_batch_size());
 			NNTL_ASSERT(m_activations.emulatesBiases());
 			// now we must resize m_activations and update activations of inner layers with on_batch_size_change variation
 			m_bActivationsValid = false;
@@ -355,7 +357,7 @@ namespace nntl {
 			} else {
 				NNTL_ASSERT(!m_activations.bDontManageStorage());
 				m_activations.deform_rows(batchSize);
-				bRestoreBiases = batchSize != get_self().get_biggest_batch_size();
+				bRestoreBiases = batchSize != get_self().get_common_data().biggest_batch_size();
 			}
 
 			neurons_count_t firstNeuronOfs = 0;
@@ -375,9 +377,9 @@ namespace nntl {
 		void fprop(const LowerLayer& lowerLayer)noexcept {
 			static_assert(std::is_base_of<_i_layer_fprop<real_t>, LowerLayer>::value, "Template parameter LowerLayer must implement _i_layer_fprop");
 			auto& iI = get_self().get_iInspect();
-			iI.fprop_begin(get_self().get_layer_idx(), lowerLayer.get_activations(), get_self().isTrainingMode());
+			iI.fprop_begin(get_self().get_layer_idx(), lowerLayer.get_activations(), get_self().get_common_data().is_training_mode());
 
-			NNTL_ASSERT(m_activations.rows() == get_self().getCurBatchSize());
+			NNTL_ASSERT(m_activations.rows() == get_self().get_common_data().get_cur_batch_size());
 
 			//restoring biases, should they were altered in drop_samples()
 			if (m_activations.isHoleyBiases() && !get_self().is_activations_shared()) {
@@ -419,8 +421,8 @@ namespace nntl {
 			auto& iI = get_self().get_iInspect();
 			iI.bprop_begin(get_self().get_layer_idx(), dLdA);
 
-			NNTL_ASSERT(m_activations.rows() == get_self().getCurBatchSize());
-			NNTL_ASSERT(get_self().isTrainingMode());
+			NNTL_ASSERT(m_activations.rows() == get_self().get_common_data().get_cur_batch_size());
+			NNTL_ASSERT(get_self().get_common_data().is_training_mode());
 			NNTL_ASSERT(lowerLayer.get_activations().test_biases_ok());
 			//NNTL_ASSERT(m_activations.test_biases_ok());
 			NNTL_ASSERT(dLdA.size() == m_activations.size_no_bias());
@@ -434,7 +436,7 @@ namespace nntl {
 			//The order of traversing is EXTREMELY IMPORTANT for gating layers, for example (they might expect a gating layer to be
 			// processed first during fprop() and last during bprop()). Therefore we must go backwards here!
 			tuple_utils::for_each_down(m_phl_tuple, [&firstNeuronOfs, &lowerLayer, &dLdA, &dLdAPrev
-				, _training_batch_size = get_self().getCurBatchSize(), &_Math = get_self().get_iMath(), this](const auto& phl)
+				, _training_batch_size = get_self().get_common_data().get_cur_batch_size(), &_Math = get_self().get_iMath(), this](const auto& phl)
 			{
 				auto& lyr = phl.l;
 

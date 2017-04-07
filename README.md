@@ -61,7 +61,7 @@ I wouldn't state the NNTL is the fastest CPU implementation of feedforward neura
 * Classical **momentum** and **Nesterov momentum** (a.k.a. Nesterov Accelerated Gradient or NAG for short)
 * Regularizers:
   * **Dropout** (actually, it's so called "inverted dropout" where activations is scaled only at a training time; during a testing activations/weights with and without dropout remains the same).
-  * **L1** and **L2** (weight decay) regularizers.
+  * **L1** and **L2** regularizers is applicable to weights and activation values. Custom regularizers are easy to add by implementing loss_addendum::_i_loss_addendum interface.
   * Constraint for a total length of a neuron's incoming weight vector - so called **max-norm** regularization. Once a neuron weights grow too much, they are getting scaled so their norm will fit into a some predefined value (Srivastava, Hinton, et.al "Dropout: A Simple Way to Prevent Neural Networks from Overfitting" 2014)
   * Constraints for a magnitude of derivative of a loss function in an output layer (idea taken from the aforementioned “Generating Sequences With Recurrent Neural Networks” (2013) by Alex Graves)
 * Individual Adaptive Learning Rates (an ILR in code) based on a agreement in signs of a current and a previous gradient or a momentum velocity.

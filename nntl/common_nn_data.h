@@ -121,7 +121,7 @@ namespace _impl {
 		template<bool B = bAllowToBlockLearning>
 		std::enable_if_t<B, const bool> isLearningBlocked()const noexcept { NNTL_ASSERT(m_pbNotLearningNow); return *m_pbNotLearningNow; }
 		template<bool B = bAllowToBlockLearning>
-		std::enable_if_t<!B, const bool> isLearningBlocked()const noexcept { return false; }
+		constexpr std::enable_if_t<!B, bool> isLearningBlocked()const noexcept { return false; }
 
 		void set_training_mode(bool bTraining)noexcept { m_bInTraining = bTraining; }
 		const bool is_training_mode()const noexcept { return m_bInTraining; }
@@ -201,35 +201,38 @@ namespace _impl {
 			return m_pCommonData->isLearningBlocked();
 		}
 		template<bool B = bAllowToBlockLearning>
-		std::enable_if_t<!B, const bool> isLearningBlocked() const noexcept { return false; }
+		constexpr std::enable_if_t<!B, bool> isLearningBlocked() const noexcept { return false; }
 
-		const typename iMath_t::vec_len_t get_max_fprop_batch_size()const noexcept {
+		//////////////////////////////////////////////////////////////////////////
+		//everything besides written above should be accessed via get_common_data()
+
+		/*const typename iMath_t::vec_len_t max_fprop_batch_size()const noexcept {
 			NNTL_ASSERT(m_pCommonData);
 			return m_pCommonData->max_fprop_batch_size();
 		}
-		const typename iMath_t::vec_len_t get_training_batch_size()const noexcept {
+		const typename iMath_t::vec_len_t training_batch_size()const noexcept {
 			NNTL_ASSERT(m_pCommonData);
 			return m_pCommonData->training_batch_size();
 		}
-		const typename iMath_t::vec_len_t get_biggest_batch_size()const noexcept {
+		const typename iMath_t::vec_len_t biggest_batch_size()const noexcept {
 			NNTL_ASSERT(m_pCommonData);
 			return m_pCommonData->biggest_batch_size();
 		}
 
-		const bool isTrainingMode()const noexcept {
+		const bool is_training_mode()const noexcept {
 			NNTL_ASSERT(m_pCommonData);
 			return m_pCommonData->is_training_mode();
 		}
 
-		const bool isTrainingPossible()const noexcept {
+		const bool is_training_possible()const noexcept {
 			NNTL_ASSERT(m_pCommonData);
 			return m_pCommonData->is_training_possible();
 		}
 		
-		const typename iMath_t::vec_len_t getCurBatchSize()const noexcept {
+		const typename iMath_t::vec_len_t get_cur_batch_size()const noexcept {
 			NNTL_ASSERT(m_pCommonData);
 			return m_pCommonData->get_cur_batch_size();
-		}
+		}*/
 	};
 
 	//////////////////////////////////////////////////////////////////////////

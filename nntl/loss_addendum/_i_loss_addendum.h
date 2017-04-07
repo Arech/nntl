@@ -62,12 +62,17 @@ namespace loss_addendum {
 		typedef math::smatrix_deform<real_t> realmtxdef_t;
 		//typedef init_struct init_struct_t;
 
+		//static constexpr const char _defName[] = "_LA_name_not_set";
+		nntl_interface const char* getName()const noexcept;// { return "_LA_name_not_set"; }
+
 		//computes loss addendum for a given matrix of values (for weight-decay Vals parameter is a weight matrix)
 		template <typename iMath>
 		nntl_interface real_t lossAdd(const realmtx_t& Vals, iMath& iM) noexcept;
 
 		template <typename iMath>
 		nntl_interface void dLossAdd(const realmtx_t& Vals, realmtx_t& dLossdVals, iMath& iM) noexcept;
+
+		nntl_interface const bool bEnabled()const noexcept;
 
 		// Performs initialization.
 		//At mininum, it must call iMath.preinit()
@@ -87,6 +92,15 @@ namespace loss_addendum {
 		}*/
 	};
 
+	template<typename LaT>
+	struct is_loss_addendum_impl : public std::is_base_of<_i_loss_addendum<typename LaT::real_t>, LaT>{};
+	
+	template<typename AnyT>
+	struct is_loss_addendum : public std::conditional_t<has_real_t<AnyT>::value
+		, is_loss_addendum_impl<AnyT>
+		, std::false_type>
+	{};
+
 	template<typename RealT>
 	class _scaled_addendum : public _i_loss_addendum<RealT> {
 	protected:
@@ -100,6 +114,8 @@ namespace loss_addendum {
 			m_scale = s;
 		}
 		const real_t& scale()const noexcept { return m_scale; }
+
+		const bool bEnabled()const noexcept { return real_t(0.) != m_scale; }
 	};
 
 

@@ -73,6 +73,13 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "interface/math/smatrix.h"
 
 namespace nntl {
+
+	template< class, class = std::void_t<> >
+	struct has_real_t : std::false_type { };
+	// specialization recognizes types that do have a nested ::real_t member:
+	template< class T >
+	struct has_real_t<T, std::void_t<typename T::real_t>> : std::true_type {};
+
 namespace math {
 
 	typedef NNTL_CFG_DEFAULT_TYPE d_real_t;

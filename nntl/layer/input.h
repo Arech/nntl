@@ -38,13 +38,13 @@ namespace nntl {
 	//////////////////////////////////////////////////////////////////////////
 	// class to derive from when making final input layer. Need it to propagate correct FinalPolymorphChild to
 	// static polymorphism implementation here and in layer__base
-	template<typename Interfaces, typename FinalPolymorphChild>
+	template<typename FinalPolymorphChild, typename Interfaces>
 	class _layer_input 
 		: public m_layer_input
-		, public _layer_base<Interfaces, FinalPolymorphChild>
+		, public _layer_base<FinalPolymorphChild, Interfaces>
 	{
 	private:
-		typedef _layer_base<Interfaces, FinalPolymorphChild> _base_class;
+		typedef _layer_base<FinalPolymorphChild, Interfaces> _base_class;
 
 		//////////////////////////////////////////////////////////////////////////
 		//members
@@ -66,8 +66,9 @@ namespace nntl {
 
 	public:
 
-		_layer_input(const neurons_count_t _neurons_cnt, const char* pCustomName = nullptr)noexcept :
-			_base_class(_neurons_cnt, pCustomName), m_pActivations(nullptr) {};
+		_layer_input(const char* pCustomName, const neurons_count_t _neurons_cnt)noexcept 
+			: _base_class(_neurons_cnt, pCustomName), m_pActivations(nullptr)
+		{};
 		~_layer_input() noexcept {};
 		static constexpr const char _defName[] = "inp";
 
@@ -106,7 +107,7 @@ namespace nntl {
 
 		void fprop(const realmtx_t& data_x)noexcept {
 			auto& iI = get_self().get_iInspect();
-			iI.fprop_begin(get_self().get_layer_idx(),data_x, get_self().isTrainingMode());
+			iI.fprop_begin(get_self().get_layer_idx(),data_x, get_self().get_common_data().is_training_mode());
 
 			NNTL_ASSERT(data_x.test_biases_ok());
 			m_pActivations = &data_x;
@@ -152,11 +153,13 @@ namespace nntl {
 	// final implementation of layer with all functionality of _layer_input
 	// If you need to derive a new class, derive it from _layer_input (to make static polymorphism work)
 	template < typename Interfaces = d_interfaces>
-	class layer_input final : public _layer_input<Interfaces, layer_input<Interfaces>> {
+	class layer_input final : public _layer_input<layer_input<Interfaces>, Interfaces> {
 	public:
 		~layer_input() noexcept {};
 		layer_input(const neurons_count_t _neurons_cnt, const char* pCustomName = nullptr) noexcept 
-			: _layer_input<Interfaces, layer_input<Interfaces>>(_neurons_cnt, pCustomName) {};
+			: _layer_input<layer_input<Interfaces>, Interfaces>(pCustomName, _neurons_cnt) {};
+		layer_input(const char* pCustomName, const neurons_count_t _neurons_cnt) noexcept
+			: _layer_input<layer_input<Interfaces>, Interfaces>(pCustomName, _neurons_cnt) {};
 	};
 
 }
