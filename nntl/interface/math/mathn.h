@@ -211,7 +211,8 @@ namespace math {
 			const auto bRestoreBiases = srcdest.hide_biases();
 
 			const auto rm = srcdest.rows();
-			const auto pTmp = get_self()._get_thread_temp_raw_storage(get_self().softmax_needTempMem(srcdest));
+			const auto tmemSize = get_self().softmax_needTempMem(srcdest);
+			const auto pTmp = get_self()._salloc_istor(tmemSize);
 			const auto pNumer = pTmp;
 			const auto pMax = pTmp + srcdest.numel();
 			const auto pDenom = pMax + rm;
@@ -225,13 +226,15 @@ namespace math {
 			get_self().mrwDivideByVec(srcdest, pDenom);
 
 			if (bRestoreBiases) srcdest.restore_biases();
+			get_self()._sfree_istor(pTmp, tmemSize);
 		}
 		void softmax_mt(realmtxdef_t& srcdest) noexcept {
 			NNTL_ASSERT(!srcdest.empty() && srcdest.numel() > 0);
 			const auto bRestoreBiases = srcdest.hide_biases();
 
 			const auto rm = srcdest.rows();
-			const auto pTmp = get_self()._get_thread_temp_raw_storage(get_self().softmax_needTempMem(srcdest));
+			const auto tmemSize = get_self().softmax_needTempMem(srcdest);
+			const auto pTmp = get_self()._salloc_istor(tmemSize);
 			const auto pNumer = pTmp;
 			const auto pMax = pTmp + srcdest.numel();
 			const auto pDenom = pMax + rm;
@@ -245,6 +248,7 @@ namespace math {
 			get_self().mrwDivideByVec(srcdest, pDenom);
 
 			if (bRestoreBiases) srcdest.restore_biases();
+			get_self()._sfree_istor(pTmp, tmemSize);
 		}
 
 
@@ -387,19 +391,18 @@ namespace math {
 		//////////////////////////////////////////////////////////////////////////
 		//////////////////////////////////////////////////////////////////////////
 		// compute squared L2norm of each matrix A row into a vector pNormsVec: pNormsVec(i) = norm(A(i,:)) (rowwise sum of squares)
-		// ATTENTION! At this moment pNormsVec parameter is used for a description purpose only! It MUST be the result of
-		// the call to get_self()._get_thread_temp_raw_storage( A.rows()*m_threads.workers_count() ).
+		// ATTENTION! pNormsVec MUST address at least ( A.rows()*m_threads.workers_count() ) elements!
 		// 
-		void mrwL2NormSquared(const realmtx_t& A, real_t*const pNormsVec=nullptr)noexcept {
-			NNTL_ASSERT(pNormsVec == nullptr || pNormsVec == get_self()._get_thread_temp_raw_storage(realmtx_t::sNumel(A.rows(), m_threads.workers_count())));
+		void mrwL2NormSquared(const realmtx_t& A, real_t*const pNormsVec)noexcept {
+			NNTL_ASSERT(pNormsVec);
 			return (A.cols() <= Thresholds_t::mrwL2NormSquared_mt_cw_ColsPerThread || A.numel() < Thresholds_t::mrwL2NormSquared)
-				? get_self().mrwL2NormSquared_st(A)
-				: get_self().mrwL2NormSquared_mt(A);
+				? get_self().mrwL2NormSquared_st(A, pNormsVec)
+				: get_self().mrwL2NormSquared_mt(A, pNormsVec);
 		}
 
-		void mrwL2NormSquared_st(const realmtx_t& A, real_t*const pNormsVec=nullptr, const rowcol_range*const pRCR = nullptr)noexcept {
-			NNTL_ASSERT(pNormsVec == nullptr || pNormsVec == get_self()._get_thread_temp_raw_storage(A.rows()));
-			get_self()._imrwL2NormSquared_st(A, get_self()._get_thread_temp_raw_storage(A.rows()), pRCR ? *pRCR : rowcol_range(A));
+		//pNormsVec MUST address at least A.rows() elements
+		void mrwL2NormSquared_st(const realmtx_t& A, real_t*const pNormsVec, const rowcol_range*const pRCR = nullptr)noexcept {
+			get_self()._imrwL2NormSquared_st(A, pNormsVec, pRCR ? *pRCR : rowcol_range(A));
 		}
 		// #todo implement using _processMtx_rw/_processMtx_cw and move a whole family to SMath::
 		void _imrwL2NormSquared_st(const realmtx_t& A, real_t*const pNormsVec, const rowcol_range& RCR)noexcept {
@@ -425,14 +428,11 @@ namespace math {
 				}
 			}
 		}
-		void mrwL2NormSquared_mt(const realmtx_t& A, real_t*const pNormsVec=nullptr)noexcept {
+		void mrwL2NormSquared_mt(const realmtx_t& A, real_t*const pNormsVec)noexcept {
 			NNTL_ASSERT(!A.empty());
 			if (A.cols() <= Thresholds_t::mrwL2NormSquared_mt_cw_ColsPerThread) {
 				get_self().mrwL2NormSquared_st(A, pNormsVec);
 			} else {
-				const auto pTmpStor = get_self()._get_thread_temp_raw_storage(realmtx_t::sNumel(A.rows(), m_threads.workers_count()));
-				NNTL_ASSERT(pNormsVec == nullptr || pNormsVec == pTmpStor);
-
 				_processMtx_cw(A, Thresholds_t::mrwL2NormSquared_mt_cw_ColsPerThread
 					, [&A, this](const rowcol_range& RCR, real_t*const pVec)noexcept
 				{
@@ -441,7 +441,7 @@ namespace math {
 					[this](realmtx_t& fin)noexcept
 				{
 					get_self().mrwSum_ip(fin);
-				}, pTmpStor);
+				}, pNormsVec);
 			}
 		}
 
@@ -488,7 +488,7 @@ namespace math {
 			NNTL_ASSERT(!A.empty() && maxNormSquared > real_t(0.0));
 
 			const auto mRows = A.rows();
-			auto pTmp = get_self()._get_thread_temp_raw_storage(mRows);
+			auto pTmp = get_self()._salloc_istor(mRows);
 			
 			if (!bNormIncludesBias) A.hide_last_col();
 			get_self().mrwL2NormSquared_st(A, pTmp);
@@ -509,13 +509,15 @@ namespace math {
 
 			//renormalize (multiply each rowvector to corresponding coefficient from pTmp)
 			get_self().mrwMulByVec_st(A, pTmp);
+			get_self()._sfree_istor(pTmp, mRows);
 		}
 		//TODO: might be good to make separate _cw and _rw versions of this algo
 		void mCheck_normalize_rows_mt(realmtxdef_t& A, const real_t& maxNormSquared, const bool bNormIncludesBias)noexcept {
 			NNTL_ASSERT(!A.empty() && maxNormSquared > real_t(0.0));
 						
 			const auto mRows = A.rows();
-			const auto pTmpStor = get_self()._get_thread_temp_raw_storage(realmtx_t::sNumel(mRows, m_threads.workers_count()));
+			const auto tmemSize = realmtx_t::sNumel(mRows, m_threads.workers_count());
+			const auto pTmpStor = get_self()._salloc_istor(tmemSize);
 
 			if (!bNormIncludesBias) A.hide_last_col();
 			get_self().mrwL2NormSquared_mt(A, pTmpStor);
@@ -532,6 +534,7 @@ namespace math {
 
 			// 3. multiplying
 			get_self().mrwMulByVec(A, pTmpStor);
+			get_self()._sfree_istor(pTmpStor, tmemSize);
 		}
 
 		//////////////////////////////////////////////////////////////////////////
@@ -741,7 +744,7 @@ namespace math {
 			//TODO: probably not the most efficient implementation
 
 			const auto dataCnt = dLdW.numel();
-			auto pCond = get_self()._get_thread_temp_raw_storage(dataCnt);
+			auto pCond = get_self()._salloc_istor(dataCnt);
 
 			auto pdW = dLdW.data();
 			const auto prevdW = prevdLdW.data();
@@ -767,6 +770,8 @@ namespace math {
 				*pG *= (!(bUp | bDown))*real_t(1.) + bUp*incr + bDown*decr;
 			}
 
+			get_self()._sfree_istor(pCond, dataCnt);
+
 			for (numel_cnt_t i = 0; i < dataCnt; ++i) pdW[i] *= pGain[i];
 		}
 
@@ -779,7 +784,7 @@ namespace math {
 			//TODO: probably not the most efficient implementation
 
 			const auto dataCnt = dLdW.numel();
-			const auto pTmpMem = get_self()._get_thread_temp_raw_storage(dataCnt);
+			const auto pTmpMem = get_self()._salloc_istor(dataCnt);
 			const auto pdW = dLdW.data(), pGain = ILRGain.data();
 			const auto prevdW = prevdLdW.data();
 
@@ -813,6 +818,7 @@ namespace math {
 
 				for (numel_cnt_t i = 0; i < cnt; ++i) pW[i] *= pGn[i];
 			}, dataCnt);
+			get_self()._sfree_istor(pTmpMem, dataCnt);
 		}
 
 		//////////////////////////////////////////////////////////////////////////

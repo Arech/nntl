@@ -233,6 +233,9 @@ namespace nntl {
 			OUT bool bHasLossAddendum;//to be set by layer.init()
 			OUT bool bOutputDifferentDuringTraining;//set by layer.init() to note that the layer output (fprop results)
 			// differs in the training and testing mode for the same data_x and parameters (for example, due to a dropout)
+			
+			OUT bool bLossAddendumDependsOnActivations; //layer.init() sets this option when there's at least one loss addendum that
+			//depends on activations values (that's necessary for correct loss addendum caching handling for training/testing sets).
 
 			_layer_init_data(const common_data_t& cd) noexcept : commonData(cd) {
 				//clean(); //not necessary here because the struct is almost always reused and cleaned before each use.
@@ -249,6 +252,7 @@ namespace nntl {
 				bDropSamplesMightBeCalled = false;
 				bActivationsShareSpace = false;
 				bHasLossAddendum = false;
+				bLossAddendumDependsOnActivations = false;
 				bOutputDifferentDuringTraining = false;
 			}
 			
@@ -278,6 +282,7 @@ namespace nntl {
 				max_dLdA_numel = std::max(max_dLdA_numel, o.max_dLdA_numel);
 				nParamsToLearn += o.nParamsToLearn;
 				bHasLossAddendum |= o.bHasLossAddendum;
+				bLossAddendumDependsOnActivations |= o.bLossAddendumDependsOnActivations;
 				bOutputDifferentDuringTraining |= o.bOutputDifferentDuringTraining;
 			}
 
@@ -295,6 +300,7 @@ namespace nntl {
 				totalParamsToLearn;//The total parameters count the model has
 
 			bool bHasLossAddendum;
+			bool bLossAddendumDependsOnActivations;
 			bool bOutputDifferentDuringTraining;
 
 			layers_mem_requirements() noexcept{
@@ -307,25 +313,28 @@ namespace nntl {
 				maxSingledLdANumel = 0;//single! The biggest matrix.numel() to be used in a bprop()
 				totalParamsToLearn = 0;
 				bHasLossAddendum = false;
+				bLossAddendumDependsOnActivations = false;
 				bOutputDifferentDuringTraining = false;
 			}
 
 			void updateLayerReq(const numel_cnt_t& mmlF, const numel_cnt_t& mmlB
 				, const numel_cnt_t& maxdLdA, const numel_cnt_t& nLP
-				, const bool _HasLossAddendum, const bool _OutputDifferentDuringTraining)noexcept
+				, const bool _HasLossAddendum, const bool _bLossAddendumDependsOnActivations
+				, const bool _OutputDifferentDuringTraining)noexcept
 			{
 				maxMemLayerTrainingRequire = std::max({ maxMemLayerTrainingRequire, mmlF, mmlB });
 				maxMemLayersFPropRequire = std::max(maxMemLayersFPropRequire, mmlF);
 				maxSingledLdANumel = std::max(maxSingledLdANumel, maxdLdA);
 				totalParamsToLearn += nLP;
 				bHasLossAddendum |= _HasLossAddendum;
+				bLossAddendumDependsOnActivations |= _bLossAddendumDependsOnActivations;
 				bOutputDifferentDuringTraining |= _OutputDifferentDuringTraining;
 			}
 
 			template<typename _layer_init_data_t>
 			void updateLayerReq(const _layer_init_data_t& lid)noexcept {
 				return updateLayerReq(lid.maxMemFPropRequire, lid.maxMemTrainingRequire, lid.max_dLdA_numel
-					, lid.nParamsToLearn, lid.bHasLossAddendum, lid.bOutputDifferentDuringTraining);
+					, lid.nParamsToLearn, lid.bHasLossAddendum, lid.bLossAddendumDependsOnActivations, lid.bOutputDifferentDuringTraining);
 			}
 		};
 	}

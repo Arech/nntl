@@ -72,6 +72,13 @@ namespace loss_addendum {
 		template <typename iMath>
 		nntl_interface void dLossAdd(const realmtx_t& Vals, realmtx_t& dLossdVals, iMath& iM) noexcept;
 
+		//#todo: computation of some loss functions may be optimized, if some data is cached between corresponding calls to lossAdd/dLossAdd.
+		//However it's really useful only for a fullbatch learning with a full error calculation, which is a quite rare thing.
+		// (usually, there's no special need to compute a full error (take loss addendums into account); it's usually enough
+		// to compute error from the basic loss function (quadratic or cross-entropy) only).
+		// Therefore until I'd really need it
+		// I don't want to bother about caching and a huge set of accompanying cache-freshness related conditions...
+
 		nntl_interface const bool bEnabled()const noexcept;
 
 		// Performs initialization.
@@ -81,15 +88,6 @@ namespace loss_addendum {
 		static void init(const bool& bWillDoTraining, const realmtx_t& biggestMtx, iMath& iM) noexcept {
 			iM.preinit(biggestMtx.numel_no_bias());
 		}
-
-		//Performs initialization.
-		//At mininum, it must calculate how much temporary memory iMath object must allocate in order  to use lossAdd() or dLossAdd over a given matrix 
-		//override in derived class to suit needs
-		/*template <typename iMath>
-		static void init(const realmtx_t& biggestMtx, init_struct_t& initStr, iMath& iM) noexcept {
-			initStr.maxIMathMemFPropRequire = biggestMtx.numel_no_bias();
-			initStr.maxIMathMemTrainingRequire = initStr.maxIMathMemFPropRequire;
-		}*/
 	};
 
 	template<typename LaT>

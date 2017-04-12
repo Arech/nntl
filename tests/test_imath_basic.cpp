@@ -370,7 +370,9 @@ void test_softmax(vec_len_t rowsCnt, vec_len_t colsCnt) {
 		else rg.gen_matrix(A_orig, 5);
 
 		A_orig.clone_to(A_ET);
-		softmax_ET(A_ET, iM._get_thread_temp_raw_storage(maxSoftmaxMemSize));
+		auto pTmp = iM._salloc_istor(maxSoftmaxMemSize);
+		softmax_ET(A_ET, pTmp);
+		iM._sfree_istor(pTmp, maxSoftmaxMemSize);
 		
 		A_orig.clone_to(A);
 		iM.softmax_st(A);
@@ -843,7 +845,9 @@ void test_mCheck_normalize_rows(vec_len_t rowsCnt, vec_len_t colsCnt, const bool
 		iM.evAdd_ip(srcW, ones);//to make sure norms will be greater than 1
 
 		srcW.clone_to(etW);
-		auto meanNorm = rowvecs_renorm_ET(etW, newNormSq, bNormIncludesBias, iM._get_thread_temp_raw_storage(rowsCnt));
+		auto pTmp = iM._salloc_istor(rowsCnt);
+		auto meanNorm = rowvecs_renorm_ET(etW, newNormSq, bNormIncludesBias, pTmp);
+		iM._sfree_istor(pTmp, rowsCnt);
 		ASSERT_LT(newNormSq, meanNorm) << "Mean norm should be greater than a new norm";
 
 		srcW.clone_to(W);
@@ -869,91 +873,6 @@ TEST(TestMathN, mCheckNormalizeRows) {
 		}
 	}
 }
-
-/*
-template<typename iMath>
-void test_mCheck_normalize_rows(iMath& iM, vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
-	const auto dataSize = realmtx_t::sNumel(rowsCnt, colsCnt);
-	STDCOUTL("**** testing mCheck_normalize_rows() over " << rowsCnt << "x" << colsCnt << " matrix (" << dataSize << " elements) ****");
-
-	constexpr unsigned maxReps = TEST_PERF_REPEATS_COUNT, testCorrRepCnt = TEST_CORRECTN_REPEATS_COUNT;
-
-	const real_t scale = 5;
-	const real_t newNormSq = 4*4;
-	realmtx_t W(rowsCnt, colsCnt), srcW(rowsCnt, colsCnt);
-	ASSERT_TRUE(!W.isAllocationFailed() && !srcW.isAllocationFailed());
-
-	iM.preinit(W.numel());
-	ASSERT_TRUE(iM.init());
-	
-	d_interfaces::iRng_t rg;
-	rg.set_ithreads(iM.ithreads());
-
-	{
-		realmtx_t etW(rowsCnt, colsCnt);
-		ASSERT_TRUE(!etW.isAllocationFailed());
-
-		for (unsigned r = 0; r < testCorrRepCnt; ++r) {
-			rg.gen_matrix(srcW, scale);
-
-			srcW.clone_to(etW);
-			auto meanNorm = rowvecs_renorm_ET(etW, newNormSq, iM._get_thread_temp_raw_storage(etW.numel()));
-			ASSERT_LT(newNormSq, meanNorm) << "Mean norm should be greater than new norm";
-
-			srcW.clone_to(W);
-			iM.mCheck_normalize_rows_st(W, newNormSq);
-			ASSERT_REALMTX_NEAR(etW, W, "st failed correctness test", mCheck_normalize_rows_EPS<real_t>::eps);
-
-			srcW.clone_to(W);
-			iM.mCheck_normalize_rows_mt(W, newNormSq);
-			ASSERT_REALMTX_NEAR(etW, W, "mt failed correctness test", mCheck_normalize_rows_EPS<real_t>::eps);
-
-			srcW.clone_to(W);
-			iM.mCheck_normalize_rows(W, newNormSq);
-			ASSERT_REALMTX_NEAR(etW, W, "() failed correctness test", mCheck_normalize_rows_EPS<real_t>::eps);
-		}
-	}
-
-	tictoc tSt, tMt, tB;
-	//testing performance
-	utils::prioritize_workers<utils::PriorityClass::PerfTesting, iMath::ithreads_t> pw(iM.ithreads());
-	for (unsigned r = 0; r < maxReps; ++r) {
-		rg.gen_matrix(srcW, scale);
-		
-		srcW.clone_to(W);
-		tSt.tic();
-		iM.mCheck_normalize_rows_st(W, newNormSq);
-		tSt.toc();
-
-		srcW.clone_to(W);
-		tMt.tic();
-		iM.mCheck_normalize_rows_mt(W, newNormSq);
-		tMt.toc();
-
-		srcW.clone_to(W);
-		tB.tic();
-		iM.mCheck_normalize_rows(W, newNormSq);
-		tB.toc();
-	}
-	tSt.say("st");
-	tMt.say("mt");
-	tB.say("best");
-}
-TEST(TestMathN, mCheckNormalizeRows) {
-	typedef nntl::d_interfaces::iThreads_t def_threads_t;
-	typedef math::MathN<real_t, def_threads_t> iMB;
-	iMB iM;
-	NNTL_RUN_TEST2(iMB::Thresholds_t::mCheck_normalize_rows, 100) test_mCheck_normalize_rows(iM, i, 100);
-
-#ifndef TESTS_SKIP_LONGRUNNING
-	for (unsigned i = 1400; i <= 1425; i += 5) {
-		test_mCheck_normalize_rows(iM, i, i / 16);
-		test_mCheck_normalize_rows(iM, i / 4, i / 4);
-		test_mCheck_normalize_rows(iM, i / 16, i);
-	}
-#endif // !TESTS_SKIP_LONGRUNNING
-}
-*/
 
 //////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////

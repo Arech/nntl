@@ -149,7 +149,9 @@ namespace nntl {
 			//const auto& activations = m_Layers.output_layer().get_activations();
 			if (!bTrainSetWasInspected) obs.inspect_results(epoch, td.train_y(), false, *this);
 
-			const auto testLoss = _calcLoss(td.test_x(), td.test_y());
+			if (m_bCalcFullLossValue && m_LMR.bLossAddendumDependsOnActivations) m_Layers.prepToCalcLossAddendum();
+
+			const auto testLoss = _calcLossNotifyInspector(&td.test_x(), td.test_y(), false);
 			if (pTestEvalRes) {
 				//saving training results
 				pTestEvalRes->lossValue = testLoss;
@@ -173,9 +175,18 @@ namespace nntl {
 			set_mode_and_batch_size(data_x.rows());
 			m_Layers.fprop(data_x);
 		}
-		real_t _calcLoss(const realmtx_t& data_x, const realmtx_t& data_y, const bool bDropFProp = false) noexcept {
-			NNTL_ASSERT(data_x.rows() == data_y.rows());
-			if (!bDropFProp) _fprop(data_x);
+
+		real_t _calcLossNotifyInspector(const realmtx_t*const pData_x, const realmtx_t& data_y, const bool bTrainingData) noexcept {
+			auto& iI = get_iInspect();
+			iI.train_preCalcError(bTrainingData);
+			const auto r = _calcLoss(pData_x, data_y);
+			iI.train_postCalcError();
+			return r;
+		}
+
+		real_t _calcLoss(const realmtx_t*const pData_x, const realmtx_t& data_y) noexcept {
+			NNTL_ASSERT(!pData_x || pData_x->rows() == data_y.rows());
+			if (pData_x) _fprop(*pData_x);
 
 			static_assert(std::is_base_of<activation::_i_activation_loss<real_t>, layers_pack_t::output_layer_t::activation_f_t>::value,
 				"Activation function class of output layer must implement activation::_i_activation_loss interface");
@@ -394,16 +405,11 @@ namespace nntl {
 			opts.observer().on_training_start(samplesCount, td.test_x().rows(), train_x.cols_no_bias(), train_y.cols(), batchSize, m_LMR.totalParamsToLearn);
 			
 			if (m_bCalcFullLossValue) m_Layers.prepToCalcLossAddendum();
-			{
-				iI.train_preCalcError(true);
-				const auto lv = _calcLoss(train_x, train_y);
-				iI.train_postCalcError();
-				
-				iI.train_preCalcError(false);
-				_report_training_fragment<bPrioritizeThreads>(-1, lv, td, std::chrono::nanoseconds(0), opts.observer());
-				iI.train_postCalcError();
-			}
 
+			{
+				const auto lv = _calcLossNotifyInspector(&train_x, train_y, true);
+				_report_training_fragment<bPrioritizeThreads>(-1, lv, td, std::chrono::nanoseconds(0), opts.observer());
+			}
 			set_mode_and_batch_size(0);//prepare for training (sets to batchSize, that's already stored in Layers)
 
 			nnet_eval_results<real_t>* pTestEvalRes = nullptr;
@@ -447,7 +453,7 @@ namespace nntl {
 
 						if (bOptFBErrCalcThisEpoch) {
 							if (m_bCalcFullLossValue) m_Layers.prepToCalcLossAddendum();
-							trainLoss = _calcLoss(batch_x, batch_y, true);
+							trainLoss = _calcLossNotifyInspector(nullptr, batch_y, true);
 							//we don't need to call set_mode_and_batch_size(0) here because we did not do fprop() in _calcLoss()
 							if (bInspectEpoch) opts.observer().inspect_results(epochIdx, train_y, false, *this);
 						}
@@ -461,9 +467,7 @@ namespace nntl {
 					if (bCalcLoss) {
 						if (!bOptFBErrCalcThisEpoch) {
 							if (m_bCalcFullLossValue) m_Layers.prepToCalcLossAddendum();
-							iI.train_preCalcError(true);
-							trainLoss = _calcLoss(train_x, train_y);
-							iI.train_postCalcError();
+							trainLoss = _calcLossNotifyInspector(&train_x, train_y, true);
 						}
 						if (bCheckForDivergence && trainLoss >= opts.divergenceCheckThreshold())
 							return _set_last_error(ErrorCode::NNDiverged);
@@ -481,10 +485,8 @@ namespace nntl {
 								pTestEvalRes = &opts.NNEvalFinalResults().testSet;
 							}
 							
-							iI.train_preCalcError(false);
 							_report_training_fragment<bPrioritizeThreads>(epochIdx, trainLoss, td
 								, epochPeriodEnds - epochPeriodBeginsAt, opts.observer(), bOptFBErrCalcThisEpoch, pTestEvalRes);
-							iI.train_postCalcError();
 
 							epochPeriodBeginsAt = epochPeriodEnds;//restarting period timer
 						}
@@ -510,37 +512,35 @@ namespace nntl {
 			return _set_last_error(ec);
 		}
 
-		ErrorCode calcLoss(const realmtx_t& data_x, const realmtx_t& data_y, real_t& lossVal, const bool& bUseOldLossAddendum = false) noexcept {
+		ErrorCode calcLoss(const realmtx_t& data_x, const realmtx_t& data_y, real_t& lossVal) noexcept {
 			NNTL_ASSERT(data_x.rows() == data_y.rows());
 
 			auto ec = _init(data_x.rows());
 			if (ErrorCode::Success != ec) return _set_last_error(ec);
 
-			if (m_bCalcFullLossValue && !bUseOldLossAddendum) m_Layers.prepToCalcLossAddendum();
-			lossVal = _calcLoss(data_x, data_y);
+			if (m_bCalcFullLossValue) m_Layers.prepToCalcLossAddendum();
+			lossVal = _calcLoss(&data_x, data_y);
 			return _set_last_error(ec);
 		}
 
-		ErrorCode eval(const realmtx_t& data_x, const realmtx_t& data_y, nnet_eval_results<real_t>& res, const bool& bUseOldLossAddendum=false)noexcept {
+		ErrorCode eval(const realmtx_t& data_x, const realmtx_t& data_y, nnet_eval_results<real_t>& res)noexcept {
 			NNTL_ASSERT(data_x.rows() == data_y.rows());
 
 			auto ec = _init(data_x.rows());
 			if (ErrorCode::Success != ec) return _set_last_error(ec);
 
-			if (m_bCalcFullLossValue && !bUseOldLossAddendum) m_Layers.prepToCalcLossAddendum();
+			if (m_bCalcFullLossValue) m_Layers.prepToCalcLossAddendum();
 
-			res.lossValue = _calcLoss(data_x, data_y);
+			res.lossValue = _calcLoss(&data_x, data_y);
 			m_Layers.output_layer().get_activations().clone_to(res.output_activations);
 			return _set_last_error(ec);
 		}
 
 		ErrorCode td_eval(train_data_t& td, nnet_td_eval_results<real_t>& res)noexcept {
-			if (m_bCalcFullLossValue) m_Layers.prepToCalcLossAddendum();
-
-			auto ec = eval(td.train_x(), td.train_y(), res.trainSet, true);
+			auto ec = eval(td.train_x(), td.train_y(), res.trainSet);
 			if (ec != ErrorCode::Success) return ec;
 			
-			ec = eval(td.test_x(), td.test_y(), res.testSet, true);
+			ec = eval(td.test_x(), td.test_y(), res.testSet);
 			return ec;
 		}
 		
@@ -878,7 +878,7 @@ namespace nntl {
 			const real_t _calcLossF()noexcept {
 				m_nn.m_Layers.prepToCalcLossAddendum();//cleanup cached loss version to always recalculate it from scratch, because we aren't interested in any cheats here.
 				m_nn.m_Layers.fprop(m_data.batchX());
-				return m_nn._calcLoss(m_data.batchX(), m_data.batchY(), true);
+				return m_nn._calcLoss(nullptr, m_data.batchY());
 			}
 		};
 

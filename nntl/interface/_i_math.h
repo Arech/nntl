@@ -140,7 +140,7 @@ namespace math {
 		// (for use in max-norm weights regularization)
 		nntl_interface void mCheck_normalize_rows(realmtxdef_t& W, const real_t& maxL2NormSquared, const bool bNormIncludesBias)noexcept;
 
-		nntl_interface void mrwL2NormSquared(const realmtx_t& A, real_t*const pNormsVec = nullptr)noexcept;
+		nntl_interface void mrwL2NormSquared(const realmtx_t& A, real_t*const pNormsVec)noexcept;
 		//nntl_interface void apply_max_norm(realmtxdef_t& W, const real_t& maxL2NormSquared, const bool bNormIncludesBias)noexcept;
 
 		//returns how many elements in two vectors has exactly the same value. Vectors must have the same length

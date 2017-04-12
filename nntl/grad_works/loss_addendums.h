@@ -274,5 +274,8 @@ namespace GW { //GW namespace is for grad_works mixins and other stuff, that hel
 		>;
 	};
 
+	template<typename _FC, typename RealT, size_t MixinIdx>
+	using Loss_Addendums_L1L2 = _Loss_Addendums<_FC, RealT, MixinIdx, loss_addendum::L1<RealT>, loss_addendum::L2<RealT>>;
+
 }
 }

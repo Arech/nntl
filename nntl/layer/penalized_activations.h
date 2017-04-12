@@ -34,6 +34,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 // layer_penalized_activations implements a layer wrapper that offers a way to impose some restrictions, such as L1 or L2, over
 // a layer activations values.
 // 
+// #todo: _i_loss_addendum interface should be extended to allow optimizations (caching) for a fullbatch learning with full error calculation
 
 #include "_layer_base.h"
 //#include "_pack_.h"
@@ -57,7 +58,9 @@ namespace nntl {
 		typedef typename _base_class_t::real_t real_t;
 		typedef typename _base_class_t::realmtx_t realmtx_t;
 		typedef typename _base_class_t::realmtxdef_t realmtxdef_t;
-		
+		typedef typename _base_class_t::ErrorCode ErrorCode;
+		typedef typename _base_class_t::_layer_init_data_t _layer_init_data_t;
+
 		typedef typename _base_class_t::self_t self_t;
 		typedef typename _base_class_t::self_ref_t self_ref_t;
 
@@ -119,6 +122,12 @@ namespace nntl {
 			if (bRestoreBiases) act.restore_biases();
 
 			return ret + _base_class_t::lossAddendum();
+		}
+
+		ErrorCode init(_layer_init_data_t& lid, real_t* pNewActivationStorage = nullptr)noexcept {
+			const auto r = _base_class_t::init(lid, pNewActivationStorage);
+			lid.bLossAddendumDependsOnActivations = true;
+			return r;
 		}
 		
 	protected:

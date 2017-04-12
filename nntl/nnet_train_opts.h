@@ -109,7 +109,7 @@ namespace nntl {
 
 		vec_len_t m_BatchSize;
 
-		int16_t m_DivergenceCheckLastEpoch;//probably don't need a bigger type here
+		int16_t m_DivergenceCheckLastEpoch;//set to zero to turn off divergence check
 
 		bool m_bCalcFullLossValue;//if set to false, then only the main part of loss function will be calculated 
 		// (i.e. additional summands such as L2 weight penalty value will be stripped.
@@ -126,7 +126,7 @@ namespace nntl {
 		void _ctor()noexcept {
 			m_BatchSize = 0;
 			m_DivergenceCheckLastEpoch = 5;
-			m_DivergenceCheckThreshold = real_t(1e6);
+			m_DivergenceCheckThreshold = real_t(1e5);
 			m_bCalcFullLossValue = true;
 			m_bImmediatelyDeinit = false;
 			m_pNNEvalFinalRes = nullptr;

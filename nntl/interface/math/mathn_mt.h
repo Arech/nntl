@@ -136,8 +136,8 @@ namespace math {
 			base_class_t::mTilingUnroll(src, dest);
 		}
 
-		void mrwL2NormSquared(const realmtx_t& A, real_t*const pNormsVec = nullptr)noexcept {
-			mrwL2NormSquared_mt(A, pNormsVec);
+		void mrwL2NormSquared(const realmtx_t& A, real_t*const pNormsVec)noexcept {
+			base_class_t::mrwL2NormSquared_mt(A, pNormsVec);
 		}
 
 		//////////////////////////////////////////////////////////////////////////
@@ -145,14 +145,14 @@ namespace math {
 		// its length/norm is not longer, than predefined value. If it's longer, than rescale vector to this max length
 		// (for use in max-norm weights regularization)
 		void mCheck_normalize_rows(realmtxdef_t& A, const real_t& maxNormSquared, const bool bNormIncludesBias)noexcept {
-			mCheck_normalize_rows_mt(A, maxNormSquared, bNormIncludesBias);
+			base_class_t::mCheck_normalize_rows_mt(A, maxNormSquared, bNormIncludesBias);
 		}
 
 		//////////////////////////////////////////////////////////////////////////
 		//returns how many elements in two vectors has exactly the same value. Vectors must have the same length
 		template<typename Contnr>
 		size_t vCountSame(const Contnr& A, const Contnr& B)noexcept {
-			return vCountSame_st_naive(A, B);
+			return base_class_t::vCountSame_st_naive(A, B);
 			// 			if (A.size()<=50000) {
 			// 				return vCountSame_st_naive(A, B);
 			// 			}else return vCountSame_mt_naive(A, B);
@@ -161,7 +161,7 @@ namespace math {
 		//////////////////////////////////////////////////////////////////////////
 		//clamps vector values into range
 		void evClamp(realmtx_t& m, real_t lo, real_t hi)noexcept {
-			evClamp_mt(m, lo, hi);
+			base_class_t::evClamp_mt(m, lo, hi);
 		}
 
 		//////////////////////////////////////////////////////////////////////////
@@ -170,7 +170,7 @@ namespace math {
 		// act must be used in "no_bias" mode
 		// Actually, the function must implement so called "inverted Dropout", see http://cs231n.github.io/neural-networks-2/
 		void make_dropout(realmtx_t& act, real_t dropPercAct, realmtx_t& dropoutMask)noexcept {
-			make_dropout_mt(act, dropPercAct, dropoutMask);
+			base_class_t::make_dropout_mt(act, dropPercAct, dropoutMask);
 		}
 		//////////////////////////////////////////////////////////////////////////
 		//apply individual learning rate to dLdW
