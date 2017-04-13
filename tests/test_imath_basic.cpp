@@ -370,9 +370,9 @@ void test_softmax(vec_len_t rowsCnt, vec_len_t colsCnt) {
 		else rg.gen_matrix(A_orig, 5);
 
 		A_orig.clone_to(A_ET);
-		auto pTmp = iM._salloc_istor(maxSoftmaxMemSize);
+		auto pTmp = iM._istor_alloc(maxSoftmaxMemSize);
 		softmax_ET(A_ET, pTmp);
-		iM._sfree_istor(pTmp, maxSoftmaxMemSize);
+		iM._istor_free(pTmp, maxSoftmaxMemSize);
 		
 		A_orig.clone_to(A);
 		iM.softmax_st(A);
@@ -845,9 +845,9 @@ void test_mCheck_normalize_rows(vec_len_t rowsCnt, vec_len_t colsCnt, const bool
 		iM.evAdd_ip(srcW, ones);//to make sure norms will be greater than 1
 
 		srcW.clone_to(etW);
-		auto pTmp = iM._salloc_istor(rowsCnt);
+		auto pTmp = iM._istor_alloc(rowsCnt);
 		auto meanNorm = rowvecs_renorm_ET(etW, newNormSq, bNormIncludesBias, pTmp);
-		iM._sfree_istor(pTmp, rowsCnt);
+		iM._istor_free(pTmp, rowsCnt);
 		ASSERT_LT(newNormSq, meanNorm) << "Mean norm should be greater than a new norm";
 
 		srcW.clone_to(W);

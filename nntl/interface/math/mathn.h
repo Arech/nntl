@@ -212,7 +212,7 @@ namespace math {
 
 			const auto rm = srcdest.rows();
 			const auto tmemSize = get_self().softmax_needTempMem(srcdest);
-			const auto pTmp = get_self()._salloc_istor(tmemSize);
+			const auto pTmp = get_self()._istor_alloc(tmemSize);
 			const auto pNumer = pTmp;
 			const auto pMax = pTmp + srcdest.numel();
 			const auto pDenom = pMax + rm;
@@ -226,7 +226,7 @@ namespace math {
 			get_self().mrwDivideByVec(srcdest, pDenom);
 
 			if (bRestoreBiases) srcdest.restore_biases();
-			get_self()._sfree_istor(pTmp, tmemSize);
+			get_self()._istor_free(pTmp, tmemSize);
 		}
 		void softmax_mt(realmtxdef_t& srcdest) noexcept {
 			NNTL_ASSERT(!srcdest.empty() && srcdest.numel() > 0);
@@ -234,7 +234,7 @@ namespace math {
 
 			const auto rm = srcdest.rows();
 			const auto tmemSize = get_self().softmax_needTempMem(srcdest);
-			const auto pTmp = get_self()._salloc_istor(tmemSize);
+			const auto pTmp = get_self()._istor_alloc(tmemSize);
 			const auto pNumer = pTmp;
 			const auto pMax = pTmp + srcdest.numel();
 			const auto pDenom = pMax + rm;
@@ -248,7 +248,7 @@ namespace math {
 			get_self().mrwDivideByVec(srcdest, pDenom);
 
 			if (bRestoreBiases) srcdest.restore_biases();
-			get_self()._sfree_istor(pTmp, tmemSize);
+			get_self()._istor_free(pTmp, tmemSize);
 		}
 
 
@@ -488,7 +488,7 @@ namespace math {
 			NNTL_ASSERT(!A.empty() && maxNormSquared > real_t(0.0));
 
 			const auto mRows = A.rows();
-			auto pTmp = get_self()._salloc_istor(mRows);
+			auto pTmp = get_self()._istor_alloc(mRows);
 			
 			if (!bNormIncludesBias) A.hide_last_col();
 			get_self().mrwL2NormSquared_st(A, pTmp);
@@ -509,7 +509,7 @@ namespace math {
 
 			//renormalize (multiply each rowvector to corresponding coefficient from pTmp)
 			get_self().mrwMulByVec_st(A, pTmp);
-			get_self()._sfree_istor(pTmp, mRows);
+			get_self()._istor_free(pTmp, mRows);
 		}
 		//TODO: might be good to make separate _cw and _rw versions of this algo
 		void mCheck_normalize_rows_mt(realmtxdef_t& A, const real_t& maxNormSquared, const bool bNormIncludesBias)noexcept {
@@ -517,7 +517,7 @@ namespace math {
 						
 			const auto mRows = A.rows();
 			const auto tmemSize = realmtx_t::sNumel(mRows, m_threads.workers_count());
-			const auto pTmpStor = get_self()._salloc_istor(tmemSize);
+			const auto pTmpStor = get_self()._istor_alloc(tmemSize);
 
 			if (!bNormIncludesBias) A.hide_last_col();
 			get_self().mrwL2NormSquared_mt(A, pTmpStor);
@@ -534,7 +534,7 @@ namespace math {
 
 			// 3. multiplying
 			get_self().mrwMulByVec(A, pTmpStor);
-			get_self()._sfree_istor(pTmpStor, tmemSize);
+			get_self()._istor_free(pTmpStor, tmemSize);
 		}
 
 		//////////////////////////////////////////////////////////////////////////
@@ -744,7 +744,7 @@ namespace math {
 			//TODO: probably not the most efficient implementation
 
 			const auto dataCnt = dLdW.numel();
-			auto pCond = get_self()._salloc_istor(dataCnt);
+			auto pCond = get_self()._istor_alloc(dataCnt);
 
 			auto pdW = dLdW.data();
 			const auto prevdW = prevdLdW.data();
@@ -770,7 +770,7 @@ namespace math {
 				*pG *= (!(bUp | bDown))*real_t(1.) + bUp*incr + bDown*decr;
 			}
 
-			get_self()._sfree_istor(pCond, dataCnt);
+			get_self()._istor_free(pCond, dataCnt);
 
 			for (numel_cnt_t i = 0; i < dataCnt; ++i) pdW[i] *= pGain[i];
 		}
@@ -784,7 +784,7 @@ namespace math {
 			//TODO: probably not the most efficient implementation
 
 			const auto dataCnt = dLdW.numel();
-			const auto pTmpMem = get_self()._salloc_istor(dataCnt);
+			const auto pTmpMem = get_self()._istor_alloc(dataCnt);
 			const auto pdW = dLdW.data(), pGain = ILRGain.data();
 			const auto prevdW = prevdLdW.data();
 
@@ -818,7 +818,7 @@ namespace math {
 
 				for (numel_cnt_t i = 0; i < cnt; ++i) pW[i] *= pGn[i];
 			}, dataCnt);
-			get_self()._sfree_istor(pTmpMem, dataCnt);
+			get_self()._istor_free(pTmpMem, dataCnt);
 		}
 
 		//////////////////////////////////////////////////////////////////////////

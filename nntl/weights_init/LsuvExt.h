@@ -279,7 +279,7 @@ namespace weights_init {
 							}
 						}
 
-						if (lSetts.bVerbose) STDCOUTL("#" << i << " avg central (\"variance\") = " << statSum / total_nc << (bCentralStatOK ? "(ok)" : "****"));
+						if (lSetts.bVerbose) STDCOUTL("#" << i << " avg central (\"mean\") = " << statSum / total_nc << (bCentralStatOK ? "(ok)" : "****"));
 						if (bCentralStatOK) break;
 					}
 					if (!bCentralStatOK) _say_failed();

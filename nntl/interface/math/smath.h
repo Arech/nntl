@@ -141,15 +141,16 @@ namespace math {
 
 		// use with care, it's kind of "internal memory" of the class object. Don't know, if really 
 		// should expose it into public (for some testing purposes only at this moment)
-		// Always perform corresponding call to _sfree_istor() in LIFO (stack) order!
-		real_t* _salloc_istor(const numel_cnt_t& maxDataSize)noexcept {
+		// Always perform corresponding call to _istor_free() in LIFO (stack) order!
+		// THREAD UNSAFE BY DESIGN! NEVER call from inside of _st() which is called from _mt()
+		real_t* _istor_alloc(const numel_cnt_t& maxDataSize)noexcept {
 			NNTL_ASSERT(m_minTempStorageSize >= maxDataSize + m_curStorElementsAllocated);
 			NNTL_ASSERT(m_threadTempRawStorage.size() >= m_minTempStorageSize);
 			auto r = &m_threadTempRawStorage[m_curStorElementsAllocated];
 			m_curStorElementsAllocated += maxDataSize;
 			return r;
 		}
-		void _sfree_istor(real_t*const ptr, const numel_cnt_t& maxDataSize)noexcept {
+		void _istor_free(real_t*const ptr, const numel_cnt_t& maxDataSize)noexcept {
 			NNTL_ASSERT(m_curStorElementsAllocated >= maxDataSize);
 			m_curStorElementsAllocated -= maxDataSize;
 			NNTL_ASSERT(ptr == &m_threadTempRawStorage[m_curStorElementsAllocated]);//if this assert triggered, then the wrong pointer was allocated/freed
@@ -465,7 +466,7 @@ namespace math {
 			static_assert(sizeof(VT) == sizeof(real_t),"Mismatching type sizes will lead to wrong malloc");
 
 			numel_cnt_t elmsToAlloc(0);
-			const auto pTmpMem = pTVec ? pTVec : reinterpret_cast<VT*>(get_self()._salloc_istor(elmsToAlloc = smatrix<VT>::sNumel(rm, threadsToUse)));
+			const auto pTmpMem = pTVec ? pTVec : reinterpret_cast<VT*>(get_self()._istor_alloc(elmsToAlloc = smatrix<VT>::sNumel(rm, threadsToUse)));
 			thread_id_t threadsUsed = 0;
 			//TODO: for some algorithms and datasizes it may be highly beneficial to make smart partitioning, that takes into account
 			//CPU cache size (will probably require more than workers_count() calls to worker function, but each call will run significanly
@@ -481,7 +482,7 @@ namespace math {
 			//FinFunc(static_cast<const MtxT&>(fin));
 			std::forward<LambdaFinal>(FinFunc)(fin);
 			if (!pTVec) {
-				get_self()._sfree_istor(reinterpret_cast<real_t*>(pTmpMem), elmsToAlloc);
+				get_self()._istor_free(reinterpret_cast<real_t*>(pTmpMem), elmsToAlloc);
 			}
 		}
 
@@ -502,7 +503,7 @@ namespace math {
 			static_assert(sizeof(VT) == sizeof(real_t), "Mismatching type sizes will lead to wrong malloc");
 			const auto elemsCnt = smatrix<VT>::sNumel(rm, threadsToUse);
 			const auto tmemSize = elemsCnt + static_cast<numel_cnt_t>(ceil((real_t(sizeof(ScndVecType)) / sizeof(real_t))*elemsCnt));
-			const auto pTmpMem = get_self()._salloc_istor(tmemSize);
+			const auto pTmpMem = get_self()._istor_alloc(tmemSize);
 
 			const auto pMainVec = pTmpMem;
 			ScndVecType*const pScndVec = reinterpret_cast<ScndVecType*>(pTmpMem + elemsCnt);
@@ -524,7 +525,7 @@ namespace math {
 			fin.useExternalStorage(pMainVec, rm, threadsUsed);
 			//FinFunc(static_cast<const MtxT&>(fin), pScndVec);
 			std::forward<LambdaFinal>(FinFunc)(fin, pScndVec);
-			get_self()._sfree_istor(pTmpMem, tmemSize);
+			get_self()._istor_free(pTmpMem, tmemSize);
 		}
 
 		//////////////////////////////////////////////////////////////////////////
@@ -773,14 +774,14 @@ namespace math {
 			_memset_rowrange<vec_len_t>(pDest, pRCR ? pRCR->colBegin : 0, rm, pRCR);
 			if (A.cols() > 1) {
 				const bool bSaveMax = !!pMax;
-				if (!bSaveMax) pMax = get_self()._salloc_istor(rm);
+				if (!bSaveMax) pMax = get_self()._istor_alloc(rm);
 				//memcpy(pMax, A.data(), sizeof(*pMax)*rm);
 				_memcpy_rowcol_range(pMax, A, pRCR);
 				if (bSaveMax) {
 					_mrwVecOperation_st_cw(A, pMax, 1, pRCR ? *pRCR : rowcol_range(A), _mrwFindIdxsOf_MAX<true>(pDest));
 				} else {
 					_mrwVecOperation_st_cw(A, pMax, 1, pRCR ? *pRCR : rowcol_range(A), _mrwFindIdxsOf_MAX<false>(pDest));
-					get_self()._sfree_istor(pMax, rm);
+					get_self()._istor_free(pMax, rm);
 				}
 			}
 		}
@@ -838,12 +839,12 @@ namespace math {
 			NNTL_ASSERT(!(!pMax ^ !pRCR));
 			NNTL_ASSERT(!A.empty() && A.numel() > 0 && pDest);
 			const auto bSaveMax = !!pMax;
-			if (!bSaveMax) pMax = get_self()._salloc_istor(A.rows());
+			if (!bSaveMax) pMax = get_self()._istor_alloc(A.rows());
 			if (bSaveMax) {
 				_mrwVecOperation_st_rw(A, pMax, pRCR ? *pRCR : rowcol_range(A), _mrwFindIdxsOf_MAX<true>(pDest));
 			} else {
 				_mrwVecOperation_st_rw(A, pMax, pRCR ? *pRCR : rowcol_range(A), _mrwFindIdxsOf_MAX<false>(pDest));
-				get_self()._sfree_istor(pMax, A.rows());
+				get_self()._istor_free(pMax, A.rows());
 			}
 		}
 
@@ -891,7 +892,7 @@ namespace math {
 			// and rm*workersCnt of vec_len_t's to store indexes.
 			const auto _elmsCnt = realmtx_t::sNumel(rm, workersCnt);
 			const auto tmemSize = _elmsCnt + static_cast<numel_cnt_t>(ceil((real_t(sizeof(vec_len_t)) / sizeof(real_t))*_elmsCnt));
-			const auto pTmp = get_self()._salloc_istor(tmemSize);
+			const auto pTmp = get_self()._istor_alloc(tmemSize);
 			const auto pMaxStor = pTmp;
 			vec_len_t*const pIdxsStor = reinterpret_cast<vec_len_t*>(pTmp + _elmsCnt);
 
@@ -942,16 +943,16 @@ namespace math {
 				pIdxs += rm;
 			}
 			memcpy(pDest, pIdxsStor, sizeof(vec_len_t)*rm);
-			get_self()._sfree_istor(pTmp, tmemSize);
+			get_self()._istor_free(pTmp, tmemSize);
 		}
 		void mrwIdxsOfMax_mt_rw(const realmtx_t& A, vec_len_t*const pDest)noexcept {
 			NNTL_ASSERT(!A.empty() && A.numel() > 0 && pDest);
-			const auto pMax = get_self()._salloc_istor(A.rows());
+			const auto pMax = get_self()._istor_alloc(A.rows());
 			_processMtx_rw(A, [&A, pDest, pMax, this](const rowcol_range& RCR) {
 				NNTL_ASSERT(RCR.colBegin == 0 && RCR.colEnd == A.cols());
 				get_self().mrwIdxsOfMax_st_rw(A, pDest, pMax, &RCR);
 			});
-			get_self()._sfree_istor(pMax, A.rows());
+			get_self()._istor_free(pMax, A.rows());
 		}
 		
 
