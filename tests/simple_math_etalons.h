@@ -53,3 +53,69 @@ void mCloneCol_ET(const realmtx_t& srcCol, realmtx_t& dest)noexcept;
 void mrwBinaryOR_ET(const realmtx_t& A, real_t* pVec)noexcept;
 
 real_t ewSumSquares_ET(const realmtx_t& A)noexcept;
+
+template<bool bLowerTriangl, typename _T>
+_T ewSumSquaresTriang_ET(const nntl::math::smatrix<_T>& A) noexcept {
+	NNTL_ASSERT(A.rows() == A.cols());
+
+	const vec_len_t n = A.rows();
+	_T s(_T(0));
+
+	if (bLowerTriangl) {
+		for (vec_len_t ri = 1; ri < n; ++ri) {
+			for (vec_len_t ci = 0; ci < ri; ++ci) {
+				const auto v = A.get(ri, ci);
+				s += v*v;
+			}
+		}
+	} else {
+		for (vec_len_t ci = 1; ci < n; ++ci) {
+			for (vec_len_t ri = 0; ri < ci; ++ri) {
+				const auto v = A.get(ri, ci);
+				s += v*v;
+			}
+		}
+	}
+	return s;
+}
+
+template<typename _T>
+void mcwMean_ET(const nntl::math::smatrix<_T>& A, _T*const pVec) noexcept {
+	const auto tc = A.cols(), tr=A.rows();
+	const _T N = static_cast<_T>(tr);
+
+	for (vec_len_t ci = 0; ci < tc; ++ci) {
+		_T v(_T(0));
+		const auto* pA = A.colDataAsVec(ci);
+		for (vec_len_t ri = 0; ri < tr; ++ri) {
+			v += pA[ri] / N;
+		}
+		pVec[ci] = v;
+	}
+}
+
+template<typename _T>
+void mcwSub_ip_ET(nntl::math::smatrix<_T>& A, const _T* pVec)noexcept {
+	const auto tc = A.cols(), tr = A.rows();
+	for (vec_len_t ci = 0; ci < tc; ++ci) {
+		auto*const pA = A.colDataAsVec(ci);
+		const auto v = pVec[ci];
+		for (vec_len_t ri = 0; ri < tr; ++ri) {
+			pA[ri] -= v;
+		}
+	}
+}
+
+template<typename BaseT>
+void mcwMulDiag_ip_ET(nntl::math::smatrix<BaseT>& A, const nntl::math::smatrix<BaseT>& B)noexcept {
+	NNTL_ASSERT(B.rows() == B.cols() || !"B must be a square matrix!");
+	NNTL_ASSERT(A.cols() == B.cols());
+	const auto tc = A.cols(), tr = A.rows();
+	for (vec_len_t ci = 0; ci < tc; ++ci) {
+		auto*const pA = A.colDataAsVec(ci);
+		const auto v = B.get(ci, ci);
+		for (vec_len_t ri = 0; ri < tr; ++ri) {
+			pA[ri] *= v;
+		}
+	}
+}

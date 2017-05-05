@@ -146,6 +146,27 @@ namespace math {
 			m_bHoleyBiases = sizeLikeThis.isHoleyBiases();
 		}
 
+		smatrix(value_ptr_t ptr, const mtx_size_t& sizeLikeThis, const bool bEmulateBiases = false, const bool _bHoleyBiases = false)noexcept
+			: m_pData(nullptr), m_bDontManageStorage(false)
+		{
+			useExternalStorage(ptr, sizeLikeThis, bEmulateBiases, _bHoleyBiases);
+		}
+		smatrix(value_ptr_t ptr, const vec_len_t& r, const vec_len_t& c, const bool bEmulateBiases = false, const bool _bHoleyBiases = false)noexcept
+			: m_pData(nullptr), m_bDontManageStorage(false)
+		{
+			useExternalStorage(ptr, r, c, bEmulateBiases, _bHoleyBiases);
+		}
+
+		struct tag_useExternalStorageNoBias {};
+		//useExternalStorage_no_bias(value_ptr_t ptr, const smatrix& sizeLikeThis) variation
+		smatrix(value_ptr_t ptr, const smatrix& sizeLikeThisNoBias, const tag_useExternalStorageNoBias&)noexcept 
+			: m_pData(nullptr), m_bDontManageStorage(false)
+		{
+			useExternalStorage_no_bias(ptr, sizeLikeThisNoBias, sizeLikeThisNoBias.isHoleyBiases());
+		}
+
+		//////////////////////////////////////////////////////////////////////////
+
 		smatrix(smatrix&& src)noexcept : m_pData(src.m_pData), m_rows(src.m_rows), m_cols(src.m_cols),
 			m_bEmulateBiases(src.m_bEmulateBiases), m_bDontManageStorage(src.m_bDontManageStorage), m_bHoleyBiases(src.m_bHoleyBiases)
 		{
@@ -379,11 +400,13 @@ namespace math {
 				return mtx_size_t(m_rows, m_cols-1);
 			}else return size();
 		}
+		
 		static constexpr numel_cnt_t sNumel(vec_len_t r, vec_len_t c)noexcept { 
 			//NNTL_ASSERT(r && c); //sNumel is used in many cases where r==0 or c==0 is perfectly legal. No need to assert here.
 			return static_cast<numel_cnt_t>(r)*static_cast<numel_cnt_t>(c); 
 		}
 		static constexpr numel_cnt_t sNumel(const mtx_size_t& s)noexcept { return sNumel(s.first, s.second); }
+
 		const numel_cnt_t numel()const noexcept { 
 			//NNTL_ASSERT(m_rows && m_cols);
 			return sNumel(m_rows,m_cols); 
@@ -394,6 +417,53 @@ namespace math {
 				return sNumel(m_rows,m_cols-1);
 			} else return numel();
 		}
+
+		//////////////////////////////////////////////////////////////////////////
+		// triangular matrix support
+		//returns the number of elements in a triangular matrix of size N. (Elements of the main diagonal are excluded)
+		static constexpr numel_cnt_t sNumelTriangl(const vec_len_t& n)noexcept {
+			return (static_cast<numel_cnt_t>(n)*(n-1)) / 2;
+		}
+		const numel_cnt_t numel_triangl()const noexcept {
+			NNTL_ASSERT(rows() == cols());
+			return sNumelTriangl(rows());
+		}
+		//returns (ri,ci) coordinates of the element with index k of upper/lower (toggled by template parameter bool bLowerTriangl) triangular matrix
+		template<bool bLowerTriangl>
+		static std::enable_if_t<!bLowerTriangl> sTrianglCoordsFromIdx(const vec_len_t& n, const numel_cnt_t& k, vec_len_t& ri, vec_len_t& ci) noexcept {
+			NNTL_ASSERT(k <= sNumelTriangl(n));
+			const auto _ci = static_cast<numel_cnt_t>(std::ceil((std::sqrt(static_cast<real_t>(8 * k + 9)) - 1) / 2));
+			ci = static_cast<vec_len_t>(_ci);
+			NNTL_ASSERT(ci <= n);
+			ri = static_cast<vec_len_t>(k - _ci*(_ci - 1) / 2);
+			NNTL_ASSERT(static_cast<int>(ri) >= 0 && ri < n);
+		}
+		template<bool bLowerTriangl>
+		static std::enable_if_t<bLowerTriangl> sTrianglCoordsFromIdx(const vec_len_t& n, const numel_cnt_t& k, vec_len_t& ri, vec_len_t& ci) noexcept {
+			const auto trNumel = sNumelTriangl(n);
+			NNTL_ASSERT(k <= trNumel);
+			const auto nm1 = n - 1;
+			if (k==trNumel) {
+				ri = 0;
+				ci = nm1;
+			} else {
+				const auto _k = trNumel - k - 1;
+				const auto _ci = static_cast<numel_cnt_t>(std::ceil((std::sqrt(static_cast<real_t>(8 * _k + 9)) - 1) / 2));
+				NNTL_ASSERT(_ci < n);				
+				ci = nm1 - static_cast<vec_len_t>(_ci);
+				ri = nm1 - static_cast<vec_len_t>(_k - _ci*(_ci - 1) / 2);
+				NNTL_ASSERT(static_cast<int>(ri) > 0 && ri < n);
+			}
+			
+		}
+		template<bool bLowerTriangl>
+		void triangl_coords_from_idx(const numel_cnt_t& k, vec_len_t& ri, vec_len_t& ci)const noexcept {
+			NNTL_ASSERT(rows() == cols());
+			sTrianglCoordsFromIdx<bLowerTriangl>(rows(), k, ri, ci);
+		}
+
+		//////////////////////////////////////////////////////////////////////////
+
 		const numel_cnt_t byte_size()const noexcept {
 			return numel()*sizeof(value_type);
 		}
@@ -511,11 +581,17 @@ namespace math {
 		}
 
 
+		void useExternalStorage_no_bias(value_ptr_t ptr, const smatrix& sizeLikeThisNoBias, bool bHBiases = false)noexcept {
+			useExternalStorage(ptr, sizeLikeThisNoBias.rows(), sizeLikeThisNoBias.cols_no_bias(), false, bHBiases);
+		}
 		void useExternalStorage_no_bias(smatrix& src)noexcept {
 			useExternalStorage(src.data(), src.rows(), src.cols_no_bias(), false, false);
 		}
 		void useExternalStorage(smatrix& src)noexcept {
 			useExternalStorage(src.data(), src.rows(), src.cols_no_bias(), src.emulatesBiases(), src.isHoleyBiases());
+		}
+		void useExternalStorage(value_ptr_t ptr, const mtx_size_t& sizeLikeThis, bool bEmulateBiases = false, bool bHBiases = false)noexcept {
+			useExternalStorage(ptr, sizeLikeThis.first, sizeLikeThis.second, bEmulateBiases, bHBiases);
 		}
 		void useExternalStorage(value_ptr_t ptr, const smatrix& sizeLikeThis, bool bHBiases = false)noexcept {
 			useExternalStorage(ptr, sizeLikeThis.rows(), sizeLikeThis.cols(), sizeLikeThis.emulatesBiases(),bHBiases);
@@ -738,13 +814,9 @@ namespace math {
 	//////////////////////////////////////////////////////////////////////////
 	// helper class to define matrix elements range
 	//////////////////////////////////////////////////////////////////////////
-	template<typename T_>
-	class s_elems_range {
+	//template<typename T_>
+	class s_elems_range : public smatrix_td {
 	public:
-		typedef T_ value_type;
-		typedef smatrix<value_type> simplemtx_t;
-		typedef typename simplemtx_t::numel_cnt_t numel_cnt_t;
-
 		typedef threads::parallel_range<numel_cnt_t> par_range_t;
 
 	public:
@@ -754,7 +826,9 @@ namespace math {
 
 	public:
 		~s_elems_range()noexcept {}
-		s_elems_range(const simplemtx_t& A)noexcept : elmEnd(A.numel()), elmBegin(0){}
+
+		template<typename _T>
+		s_elems_range(const smatrix<_T>& A)noexcept : elmEnd(A.numel()), elmBegin(0){}
 
 		s_elems_range(const par_range_t& pr)noexcept : elmEnd(pr.offset() + pr.cnt()), elmBegin(pr.offset()) {}
 
@@ -770,13 +844,7 @@ namespace math {
 	//////////////////////////////////////////////////////////////////////////
 	// in general, it depends on how to use it, but usually the class doesn't specify a rectangular sub-block of a matrix,
 	// but defines a range that starts and ends on the specified elements.
-	class s_rowcol_range {
-	public:
-// 		typedef T_ value_type;
-// 		typedef smatrix<value_type> simplemtx_t;
-// 		typedef typename simplemtx_t::vec_len_t vec_len_t;
-		typedef typename smatrix_td::vec_len_t vec_len_t;
-
+	class s_rowcol_range : public smatrix_td {
 	public:
 		const vec_len_t rowEnd;
 		const vec_len_t rowBegin;

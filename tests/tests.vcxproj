@@ -211,6 +211,7 @@
     <ClInclude Include="..\nntl\layer\_init_layers.h" />
     <ClInclude Include="..\nntl\layer\_pack_.h" />
     <ClInclude Include="..\nntl\layer\_pack_traits.h" />
+    <ClInclude Include="..\nntl\loss_addendum\DeCov.h" />
     <ClInclude Include="..\nntl\loss_addendum\L1.h" />
     <ClInclude Include="..\nntl\loss_addendum\L2.h" />
     <ClInclude Include="..\nntl\math.h" />

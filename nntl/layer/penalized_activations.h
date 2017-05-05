@@ -41,6 +41,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include "../loss_addendum/L1.h"
 #include "../loss_addendum/L2.h"
+#include "../loss_addendum/DeCov.h"
 
 namespace nntl {
 
@@ -80,7 +81,7 @@ namespace nntl {
 			: _base_class_t(pCustomName, _args...)
 		{}
 
-		static constexpr const char _defName[] = "lpla";
+		static constexpr const char _defName[] = "lpa";
 		
 		//////////////////////////////////////////////////////////////////////////
 		//////////////////////////////////////////////////////////////////////////
@@ -156,7 +157,8 @@ namespace nntl {
 		const unsigned bprop(realmtxdef_t& dLdA, const LowerLayerT& lowerLayer, realmtxdef_t& dLdAPrev)noexcept {
 			static_assert(std::is_base_of<_i_layer_trainable, LowerLayerT>::value, "Template parameter LowerLayer must implement _i_layer_trainable");
 
-			//#TODO this routine shouldn't be invisible for an iInspector!
+			//#TODO this routine shouldn't be invisible for an iInspector, however if we to pass dLdA to an inspector here, it
+			//should break layer's gradient check
 
 // 			auto& iI = get_self().get_iInspect();
 // 			iI.bprop_begin(get_self().get_layer_idx(), dLdA);

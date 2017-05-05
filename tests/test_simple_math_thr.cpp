@@ -226,7 +226,7 @@ void test_mrwDivideByVec(vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 		tStRw.tic();
 		iM.mrwDivideByVec_st_rw(A, &vDiv[0]);
 		tStRw.toc();
-
+		
 		rg.gen_matrix(A, 10);		rg.gen_vector(&vDiv[0], rowsCnt, 5);
 		tSt.tic();
 		iM.mrwDivideByVec_st(A, &vDiv[0]);
@@ -853,4 +853,193 @@ void test_ewSumSquares_perf(vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 
 TEST(TestSMathThr, ewSumSquares) {
 	NNTL_RUN_TEST2(SMath_t::Thresholds_t::ewSumSquares, 100) test_ewSumSquares_perf(i, 100);
+}
+
+//////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////
+
+template<bool bLowerTriangl, bool bNumStab>
+void test_ewSumSquaresTriang_perf(vec_len_t rowsCnt) {
+	const auto dataSize = realmtx_t::sNumelTriangl(rowsCnt);
+	STDCOUTL("******* testing ewSumSquaresTriang<" << bLowerTriangl << "," << bNumStab << ">() over " 
+		<< rowsCnt << "x" << rowsCnt << " matrix (" << dataSize << " triang_elements) **************");
+
+	constexpr unsigned maxReps = TEST_PERF_REPEATS_COUNT;
+
+	realmtx_t A1(rowsCnt, rowsCnt), A2(rowsCnt, rowsCnt), A3(rowsCnt, rowsCnt);
+	ASSERT_TRUE(!A1.isAllocationFailed() && !A2.isAllocationFailed() && !A3.isAllocationFailed());
+
+	d_interfaces::iRng_t rg;
+	rg.set_ithreads(iM.ithreads());
+
+	tictoc tst, tmt, tb;
+	//////////////////////////////////////////////////////////////////////////
+	//testing performance
+	utils::prioritize_workers<utils::PriorityClass::PerfTesting, iThreads_t> pw(iM.ithreads());
+
+	//FFFFfffffffff... don't ever think about removing rg. calls that randomizes data...
+	real_t vv = 0;
+	for (unsigned r = 0; r < maxReps; ++r) {
+		rg.gen_matrix(A1, 2);
+		tst.tic();
+		vv += iM.ewSumSquaresTriang_st<bLowerTriangl, bNumStab>(A1);
+		tst.toc();
+
+		rg.gen_matrix(A2, 2);
+		tmt.tic();
+		vv += iM.ewSumSquaresTriang_mt<bLowerTriangl, bNumStab>(A2);
+		tmt.toc();
+
+		rg.gen_matrix(A3, 2);
+		tb.tic();
+		vv += iM.ewSumSquaresTriang<bLowerTriangl, bNumStab>(A3);
+		tb.toc();
+	}
+	tst.say("st");
+	tmt.say("mt");
+	tb.say("best");
+	STDCOUTL(vv);
+}
+
+TEST(TestSMathThr, ewSumSquaresTriang) {
+	NNTL_RUN_TEST2((SMath_t::Thresholds_t::ewSumSquaresTriang<false, true>::v), 1) test_ewSumSquaresTriang_perf<false, true>(i);
+	NNTL_RUN_TEST2((SMath_t::Thresholds_t::ewSumSquaresTriang<false, false>::v), 1) test_ewSumSquaresTriang_perf<false, false>(i);
+	NNTL_RUN_TEST2((SMath_t::Thresholds_t::ewSumSquaresTriang<true, true>::v), 1) test_ewSumSquaresTriang_perf<true, true>(i);
+	NNTL_RUN_TEST2((SMath_t::Thresholds_t::ewSumSquaresTriang<true, false>::v), 1) test_ewSumSquaresTriang_perf<true, false>(i);
+}
+
+//////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////
+
+template<bool bNumStab>
+void test_mcwMean(vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
+	const auto dataSize = realmtx_t::sNumel(rowsCnt, colsCnt);
+	STDCOUTL("**** testing mcwMean<" << bNumStab << ">() variations over " 
+		<< rowsCnt << "x" << colsCnt << " matrix (" << dataSize << " elements) ****");
+
+	constexpr unsigned maxReps = TEST_PERF_REPEATS_COUNT / 3;
+
+	realmtx_t A(rowsCnt, colsCnt), A2(rowsCnt, colsCnt), A3(rowsCnt, colsCnt);
+	ASSERT_TRUE(!A.isAllocationFailed() && !A2.isAllocationFailed() && !A3.isAllocationFailed());
+	std::vector<real_t> vMean(colsCnt), vMean2(colsCnt), vMean3(colsCnt);
+
+	d_interfaces::iRng_t rg;
+	rg.set_ithreads(iM.ithreads());
+
+	tictoc tSt, tMt, tB;
+	utils::prioritize_workers<utils::PriorityClass::PerfTesting, SMath_t::ithreads_t> pw(iM.ithreads());
+	for (unsigned r = 0; r < maxReps; ++r) {
+		rg.gen_matrix(A, 10);
+		tSt.tic();
+		iM.mcwMean_st<bNumStab>(A, &vMean[0]);
+		tSt.toc();
+
+		rg.gen_matrix(A2, 10);
+		tMt.tic();
+		iM.mcwMean_mt<bNumStab>(A2, &vMean2[0]);
+		tMt.toc();
+
+		rg.gen_matrix(A3, 10);
+		tB.tic();
+		iM.mcwMean<bNumStab>(A3, &vMean3[0]);
+		tB.toc();
+	}
+	tSt.say("st");
+	tMt.say("mt");
+	tB.say("best");
+}
+TEST(TestSMathThr, mcwMean) {
+	NNTL_RUN_TEST2((SMath_t::Thresholds_t::mcwMean<true>::v), 100) test_mcwMean<true>(100, i);
+	NNTL_RUN_TEST2((SMath_t::Thresholds_t::mcwMean<false>::v), 100) test_mcwMean<false>(100, i);
+
+#ifndef TESTS_SKIP_LONGRUNNING
+// 	test_mcwMean<false>(3000, 300);
+// 	test_mcwMean<false>(300, 3000);
+#endif
+}
+
+//////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////
+
+void test_mcwSub_ip(vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
+	const auto dataSize = realmtx_t::sNumel(rowsCnt, colsCnt);
+	STDCOUTL("**** testing mcwSub_ip() variations over " << rowsCnt << "x" << colsCnt << " matrix (" << dataSize << " elements) ****");
+
+	constexpr unsigned maxReps = TEST_PERF_REPEATS_COUNT / 3;
+
+	realmtx_t A(rowsCnt, colsCnt), A2(rowsCnt, colsCnt), A3(rowsCnt, colsCnt);// , A4(rowsCnt, colsCnt);
+	ASSERT_TRUE(!A.isAllocationFailed() && !A2.isAllocationFailed() && !A3.isAllocationFailed());// && !A4.isAllocationFailed());
+	std::vector<real_t> vVec1(colsCnt), vVec2(colsCnt), vVec3(colsCnt);// , vVec4(colsCnt);
+
+	d_interfaces::iRng_t rg;
+	rg.set_ithreads(iM.ithreads());
+
+	tictoc tSt, tMt, tB;// , tSt2;
+	utils::prioritize_workers<utils::PriorityClass::PerfTesting, SMath_t::ithreads_t> pw(iM.ithreads());
+	for (unsigned r = 0; r < maxReps; ++r) {
+		rg.gen_matrix(A, 10); rg.gen_vector(&vVec1[0], colsCnt, 5);
+		tSt.tic();
+		iM.mcwSub_ip_st(A, &vVec1[0]);
+		tSt.toc();
+
+		rg.gen_matrix(A2, 10); rg.gen_vector(&vVec2[0], colsCnt, 5);
+		tMt.tic();
+		iM.mcwSub_ip_mt(A2, &vVec2[0]);
+		tMt.toc();
+
+		rg.gen_matrix(A3, 10); rg.gen_vector(&vVec3[0], colsCnt, 5);
+		tB.tic();
+		iM.mcwSub_ip(A3, &vVec3[0]);
+		tB.toc();
+	}
+	tSt.say("st");
+	//tSt2.say("st2");
+	tMt.say("mt");
+	tB.say("best");
+}
+TEST(TestSMathThr, mcwSub_ip) {
+	NNTL_RUN_TEST2(SMath_t::Thresholds_t::mcwSub_ip, 120) test_mcwSub_ip(i,120);
+}
+
+//////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////
+
+void test_mcwMulDiag_ip(vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
+	const auto dataSize = realmtx_t::sNumel(rowsCnt, colsCnt);
+	STDCOUTL("**** testing mcwMulDiag_ip() variations over " << rowsCnt << "x" << colsCnt << " matrix (" << dataSize << " elements) ****");
+
+	constexpr unsigned maxReps = TEST_PERF_REPEATS_COUNT / 3;
+
+	realmtx_t A(rowsCnt, colsCnt), A2(rowsCnt, colsCnt), A3(rowsCnt, colsCnt);// , A4(rowsCnt, colsCnt);
+	ASSERT_TRUE(!A.isAllocationFailed() && !A2.isAllocationFailed() && !A3.isAllocationFailed());// && !A4.isAllocationFailed());
+	realmtx_t B(colsCnt, colsCnt), B2(colsCnt, colsCnt), B3(colsCnt, colsCnt);
+	ASSERT_TRUE(!B.isAllocationFailed() && !B2.isAllocationFailed() && !B3.isAllocationFailed());
+
+	d_interfaces::iRng_t rg;
+	rg.set_ithreads(iM.ithreads());
+
+	tictoc tSt, tMt, tB;
+	utils::prioritize_workers<utils::PriorityClass::PerfTesting, SMath_t::ithreads_t> pw(iM.ithreads());
+	for (unsigned r = 0; r < maxReps; ++r) {
+		rg.gen_matrix(A, 10); rg.gen_matrix(B, 5);
+		tSt.tic();
+		iM.mcwMulDiag_ip_st(A, B);
+		tSt.toc();
+
+		rg.gen_matrix(A2, 10); rg.gen_matrix(B2, 5);
+		tMt.tic();
+		iM.mcwMulDiag_ip_mt(A2, B2);
+		tMt.toc();
+
+		rg.gen_matrix(A3, 10); rg.gen_matrix(B3, 5);
+		tB.tic();
+		iM.mcwMulDiag_ip(A3, B3);
+		tB.toc();
+	}
+	tSt.say("st");
+	tMt.say("mt");
+	tB.say("best");
+}
+TEST(TestSMathThr, mcwMulDiag_ip) {
+	NNTL_RUN_TEST2(SMath_t::Thresholds_t::mcwMulDiag_ip, 120) test_mcwMulDiag_ip(i, 120);
 }

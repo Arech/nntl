@@ -576,7 +576,7 @@ namespace math {
 					ret += size_t(pA[i] == pB[i]);
 				}
 				return static_cast<real_t>(ret);
-			}, _reduce_final_sum, A.size());
+			}, _vec_sum<false, real_t>, A.size());
 
 			return static_cast<size_t>(ret);
 		}
@@ -1231,7 +1231,7 @@ namespace math {
 					ret = T;
 				}
 				return ret;
-			}, _reduce_final_sum_ns, A.numel());
+			}, _vec_sum<true, real_t>, A.numel());
 		}*/
 
 		//////////////////////////////////////////////////////////////////////////
@@ -1286,7 +1286,7 @@ namespace math {
 				const auto pE = p + r.cnt();
 				while (p != pE) ret += std::abs(*p++);
 				return ret;
-			}, _reduce_final_sum, A.numel());
+			}, _vec_sum<false, real_t>, A.numel());
 		}
 
 		//////////////////////////////////////////////////////////////////////////
@@ -1315,8 +1315,8 @@ namespace math {
 		}
 		//////////////////////////////////////////////////////////////////////////
 		//C = a*(A` * B) - matrix multiplication of transposed A times B with result normalization
-		static void mScaledMulAtB_C(real_t alpha, const realmtx_t& A, const realmtx_t& B, realmtx_t& C)noexcept {
-			A.assert_storage_does_not_intersect(B);
+		static void mScaledMulAtB_C(const real_t& alpha, const realmtx_t& A, const realmtx_t& B, realmtx_t& C)noexcept {
+			//A.assert_storage_does_not_intersect(B);
 			A.assert_storage_does_not_intersect(C);
 			B.assert_storage_does_not_intersect(C);
 			const auto acols = A.cols();
@@ -1327,6 +1327,29 @@ namespace math {
 				real_t(0.0), C.data(), acols);
 		}
 
+		//////////////////////////////////////////////////////////////////////////
+		// Computes a symmetrical matrix C = 1/ARowsCnt  A' * A.
+		// If the columns of A are zero meaned, the resulting matrix is the actual covariance matrix for columns of A
+		// Actual C content stored only in the upper or lower triangular part of C
+		// Generally, it seems that for tall matrices (rows>cols) upper triangular matrix work a bit faster
+		static void mColumnsCov(const realmtx_t& A, realmtx_t& C, const bool bCLowerTriangl)noexcept {
+			NNTL_ASSERT(A.cols() > 1);
+			A.assert_storage_does_not_intersect(C);
+			const auto acols = A.cols();
+			const auto arows = A.rows();
+			NNTL_ASSERT(C.rows() == acols && C.cols() == acols);
+			b_BLAS_t::syrk(bCLowerTriangl, true, acols, arows, real_t(1.) / real_t(arows), A.data(), arows, real_t(0.), C.data(), acols);
+		}
+		// it might be helpful to have a templated version, because we don't expect we'll have a need to switch triangles in a run-time
+		template<bool bCLowerTriangl>
+		static void mColumnsCov(const realmtx_t& A, realmtx_t& C)noexcept {
+			NNTL_ASSERT(A.cols() > 1);
+			A.assert_storage_does_not_intersect(C);
+			const auto acols = A.cols();
+			const auto arows = A.rows();
+			NNTL_ASSERT(C.rows() == acols && C.cols() == acols);
+			b_BLAS_t::syrk(bCLowerTriangl, true, acols, arows, real_t(1.) / real_t(arows), A.data(), arows, real_t(0.), C.data(), acols);
+		}
 
 		//////////////////////////////////////////////////////////////////////////
 		//Elements of SVD (singular value decomposition)
@@ -1349,6 +1372,9 @@ namespace math {
 			return 0 == r;
 		}
 
+
+
+		//////////////////////////////////////////////////////////////////////////
 		template<typename base_t> struct _mIsOrthogonal_defEps {};
 		template<> struct _mIsOrthogonal_defEps<double> { static constexpr double eps = 1e-11; };
 		template<> struct _mIsOrthogonal_defEps<float> { static constexpr float eps = 1e-5f; };
@@ -1378,6 +1404,7 @@ namespace math {
 			return r;
 		}
 
+		//////////////////////////////////////////////////////////////////////////
 		//////////////////////////////////////////////////////////////////////////
 		// dF for a linear layer is {0|a==0, 1|a!=0)
 		void dIdentity(realmtx_t& f_df)noexcept {
@@ -2628,9 +2655,9 @@ namespace math {
 			return _iloss_quadratic_st_naive(activations, data_y, pER ? *pER : elms_range(activations)) / (2 * activations.rows());
 		}
 		real_t loss_quadratic_mt_naive(const realmtx_t& activations, const realmtx_t& data_y)noexcept {
-			real_t ql = m_threads.reduce([&activations, &data_y](const par_range_t& r)->real_t {
+			const real_t ql = m_threads.reduce([&activations, &data_y](const par_range_t& r)->real_t {
 				return _iloss_quadratic_st_naive(activations, data_y, elms_range(r));
-			}, _reduce_final_sum, activations.numel());
+			}, _vec_sum<false, real_t>, activations.numel());
 			return ql / (2 * activations.rows());
 		}
 
@@ -2665,7 +2692,7 @@ namespace math {
 		real_t loss_quadratic_mt_naive_ns(const realmtx_t& activations, const realmtx_t& data_y)noexcept {
 			real_t ql = m_threads.reduce([&activations, &data_y](const par_range_t& r)->real_t {
 				return _iloss_quadratic_st_naive_ns(activations, data_y, elms_range(r));
-			}, _reduce_final_sum_ns, activations.numel());
+			}, _vec_sum<true, real_t>, activations.numel());
 			return ql / (2 * activations.rows());
 		}
 
@@ -2708,7 +2735,7 @@ namespace math {
 		real_t loss_xentropy_mt(const realmtx_t& activations, const realmtx_t& data_y)noexcept {
 			return -m_threads.reduce([&activations, &data_y, this](const par_range_t& pr)->real_t {
 				return get_self()._iloss_xentropy_st(activations, data_y, elms_range(pr));
-			}, _reduce_final_sum, activations.numel()) / activations.rows();
+			}, _vec_sum<false, real_t>, activations.numel()) / activations.rows();
 		}
 		//////////////////////////////////////////////////////////////////////////
 		real_t loss_xentropy_ns(const realmtx_t& activations, const realmtx_t& data_y)noexcept {
@@ -2751,7 +2778,7 @@ namespace math {
 		real_t loss_xentropy_ns_mt(const realmtx_t& activations, const realmtx_t& data_y)noexcept {
 			return -m_threads.reduce([&activations, &data_y, this](const par_range_t& pr)->real_t {
 				return get_self()._iloss_xentropy_ns_st(activations, data_y, elms_range(pr));
-			}, _reduce_final_sum_ns, activations.numel()) / activations.rows();
+			}, _vec_sum<true, real_t>, activations.numel()) / activations.rows();
 		}
 
 
@@ -2786,7 +2813,7 @@ namespace math {
 			const auto pA = activations.data(), pY = data_y.data();
 			return m_threads.reduce([pA, pY](const par_range_t& pr)->real_t {
 				return _iloss_softmax_xentropy_sum_st(pA, pY, elms_range(pr));
-			}, _reduce_final_sum, activations.numel()) / activations.rows();
+			}, _vec_sum<false, real_t>, activations.numel()) / activations.rows();
 		}
 
 
@@ -3129,6 +3156,116 @@ namespace math {
 				get_self()._iAdaMax_st(dW, Mt, Ut, beta1t, learningRate, beta1, beta2, numericStabilizer, elms_range(r), true);
 			}, dW.numel());
 		}
+
+		//////////////////////////////////////////////////////////////////////////
+		//////////////////////////////////////////////////////////////////////////
+		// loss addendum functions
+		// 
+		//////////////////////////////////////////////////////////////////////////
+		// deCov
+		// returns how much internal temporarily memory must be available to the to calculate loss_deCov() and dLoss_deCov
+		static numel_cnt_t loss_DeCov_tempMemReqs(const bool& bWillDoTraining, const realmtx_t& biggestMtx)noexcept {
+			// we'll need some temporary memory to compute covariation and derivative correctly.
+			// In general, we'll need memory for:
+			// - vector of colwise means of biggestMtx, size == biggestMtx.cols_no_bias() 
+			// - de-mean'ed matrix of the same size as biggestMtx
+			// - covariance matrix of size (biggestMtx.cols_no_bias(), biggestMtx.cols_no_bias()). Will be used after means-vector are freed
+			return biggestMtx.numel_no_bias() + realmtx_t::sNumel(biggestMtx.cols_no_bias(), biggestMtx.cols_no_bias());
+		}
+		// Implements DeCov regularizer from the paper "Reducing Overfitting in Deep Neural Networks by Decorrelating Representations", 2015, ArXiv:1511.06068
+		// (similar to “Discovering Hidden Factors of Variation in Deep Networks”, ArXiv:1412.6583)
+		// BTW, there's wrong derivative presented in "Reducing Overfitting...". Actual derivative must be 2 times greater, than printed in paper.
+		// 
+		// N=size(A,1);
+		// actCnt = size(A, 2);
+		// DM = A - mean(A);
+		// C = DM'*DM./N;
+		// L = (norm(C, 'fro'). ^ 2 - norm(diag(C)). ^ 2). / 2;
+		template<bool bLowerTriangl, bool bNumStab>
+		real_t loss_deCov(const realmtx_t& Vals)noexcept {
+			NNTL_ASSERT(!Vals.isHoleyBiases() || !"Current deCov algorithm does not support holey biases!");
+			//to support holey biases algorithm must ignore rows with zeroed biases. Looks like the easiest (and probably the
+			//fastest to run) way to do it is to make a something like a Vals.clone_to_droping_holes(DeMeaned) and then proceed as normal
+			NNTL_ASSERT(Vals.cols_no_bias() > 1);
+
+			const auto valsNumelNoBias = Vals.numel_no_bias();
+			real_t*const pDeMeaned = get_self()._istor_alloc(valsNumelNoBias);
+			realmtx_t DeMeaned(pDeMeaned, Vals, realmtx_t::tag_useExternalStorageNoBias());
+			NNTL_ASSERT(!DeMeaned.emulatesBiases());
+			const auto _clone_result = Vals.clone_to_no_bias(DeMeaned);
+			NNTL_ASSERT(_clone_result);
+
+			real_t*const pVecMeans = get_self()._istor_alloc(DeMeaned.cols());
+
+			get_self().mcwMean<bNumStab>(DeMeaned, pVecMeans);
+			get_self().mcwSub_ip(DeMeaned, pVecMeans);
+
+			get_self()._istor_free(pVecMeans, DeMeaned.cols());
+
+			const auto covMtxNumel = realmtx_t::sNumel(DeMeaned.cols(), DeMeaned.cols());
+			real_t*const pCovMtx = get_self()._istor_alloc(covMtxNumel);
+			realmtx_t CovMtx(pCovMtx, DeMeaned.cols(), DeMeaned.cols());
+
+			get_self().mColumnsCov<bLowerTriangl>(DeMeaned, CovMtx);
+			//sum over a single triangle of a symmetric matrix is a half smaller than the sum over the whole matrix (excluding the main diagonal)
+			//therefore we shouldn't divide it by 2 to fit the formula.
+			// However, we must normalize the error to the batchSize since the error must be normalized
+			const auto ret = get_self().ewSumSquaresTriang<bLowerTriangl, bNumStab>(CovMtx) / Vals.rows();
+
+			get_self()._istor_free(pCovMtx, covMtxNumel);
+
+			get_self()._istor_free(pDeMeaned, valsNumelNoBias);
+			return ret;
+		}
+
+		// N=size(A,1);
+		// actCnt = size(A, 2);
+		// DM = A - mean(A);
+		// C = DM'*DM./N;
+		// dL = (DM*C - diag(C)'.*DM).*2./N;
+		template<bool bLowerTriangl, bool bNumStab>
+		void dLoss_deCov(const realmtx_t& Vals, realmtx_t& dLossdVals/*, const real_t& scale*/)noexcept {
+			NNTL_ASSERT(Vals.cols_no_bias() == dLossdVals.cols() && Vals.rows() == dLossdVals.rows());
+			NNTL_ASSERT(!Vals.isHoleyBiases() || !"Current deCov algorithm does not support holey biases!");
+			//to support holey biases algorithm must ignore rows with zeroed biases. Looks like the easiest (and probably the
+			//fastest to run) way to do it is to make a something like a Vals.clone_to_droping_holes(DeMeaned) and then proceed as normal
+			NNTL_ASSERT(Vals.cols_no_bias() > 1);
+			NNTL_ASSERT(!dLossdVals.emulatesBiases());
+
+			const auto valsNumelNoBias = Vals.numel_no_bias();
+			real_t*const pDeMeaned = get_self()._istor_alloc(valsNumelNoBias);
+			realmtx_t DeMeaned(pDeMeaned, Vals, realmtx_t::tag_useExternalStorageNoBias());
+			NNTL_ASSERT(!DeMeaned.emulatesBiases());
+			const auto _clone_result = Vals.clone_to_no_bias(DeMeaned);
+			NNTL_ASSERT(_clone_result);
+
+			real_t*const pVecMeans = get_self()._istor_alloc(DeMeaned.cols());
+
+			get_self().mcwMean<bNumStab>(DeMeaned, pVecMeans);
+			get_self().mcwSub_ip(DeMeaned, pVecMeans);
+
+			get_self()._istor_free(pVecMeans, DeMeaned.cols());
+
+			const auto covMtxNumel = realmtx_t::sNumel(DeMeaned.cols(), DeMeaned.cols());
+			real_t*const pCovMtx = get_self()._istor_alloc(covMtxNumel);
+			realmtx_t CovMtx(pCovMtx, DeMeaned.cols(), DeMeaned.cols());
+
+			get_self().mColumnsCov<bLowerTriangl>(DeMeaned, CovMtx);
+			
+			DeMeaned.clone_to(dLossdVals);
+			get_self().mcwMulDiag_ip(dLossdVals, CovMtx);
+
+			//dL = (DM*C - diag(C)'.*DM).*2./N;
+			//const real_t cmnScale = (2 * scale) / dLossdVals.rows();
+			const real_t cmnScale = real_t(2.) / static_cast<real_t>(dLossdVals.rows());
+			b_BLAS_t::symm(false, bLowerTriangl, dLossdVals.rows(), dLossdVals.cols(), cmnScale, CovMtx.data(), CovMtx.cols()
+				, DeMeaned.data(), DeMeaned.rows(), -cmnScale, dLossdVals.data(), dLossdVals.rows());
+
+			get_self()._istor_free(pCovMtx, covMtxNumel);
+
+			get_self()._istor_free(pDeMeaned, valsNumelNoBias);
+		}
+
 	};
 
 	template <typename RealT, typename iThreadsT, typename ThresholdsT = _impl::MATHN_THR<RealT>>

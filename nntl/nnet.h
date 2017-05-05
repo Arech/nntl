@@ -600,10 +600,14 @@ namespace nntl {
 				m_data.init(batchSize, data_x, &data_y);
 				
 				bool bRet = false;
+				NNTL_ASSERT(m_ngcSetts.onlineBatchSize > 0);
 				if (m_ngcSetts.bVerbose) {
-					STDCOUTL(std::endl<< "Performing layerwise gradient check in online mode (check dL/dA and so on)");
+					STDCOUT(std::endl << "Performing layerwise gradient check in online mode (check dL/dA and so on)");
+					if (m_ngcSetts.onlineBatchSize > 1) {
+						STDCOUTL(" with a custom batchSize = " << m_ngcSetts.onlineBatchSize);
+					} else STDCOUT(std::endl);
 				}
-				_launchCheck(_impl::gradcheck_mode::online, 1);
+				_launchCheck(_impl::gradcheck_mode::online, m_ngcSetts.onlineBatchSize);
 				if (!m_failedLayerIdx) {
 					if (m_ngcSetts.bVerbose) {
 						STDCOUTL(std::endl << "Performing layerwise gradient check in batch mode (check dL/dW and so on) with a batchSize = " << batchSize);
@@ -640,7 +644,7 @@ namespace nntl {
 						const auto lidx = lyr.get_layer_idx();
 						if (lidx != m_outputLayerIdx) {
 							if (m_ngcSetts.bVerbose) STDCOUT(lyr.get_layer_name_str() << ": ");
-							_checkdLdA(lidx, lyr.get_neurons_cnt());
+							_checkdLdA(lidx, lyr.get_neurons_cnt()/*, lyr.get_common_data().get_cur_batch_size()*/);
 						}
 					}
 					break;
@@ -683,7 +687,7 @@ namespace nntl {
 			template<typename LayerT>
 			std::enable_if_t<!is_layer_pack<LayerT>::value> _checkInnerLayers(LayerT& lyr)const noexcept {}
 			
-			void _checkdLdA(const layer_index_t& lIdx, const neurons_count_t neuronsCnt)noexcept {
+			void _checkdLdA(const layer_index_t& lIdx, const neurons_count_t neuronsCnt/*, const vec_len_t& batchSize*/)noexcept {
 				const auto checkNeuronsCnt = m_ngcSetts.groupSetts.countToCheck(neuronsCnt);
 				if (m_ngcSetts.bVerbose) STDCOUTL( checkNeuronsCnt << " dL/dA values out of total " << neuronsCnt << "... ");
 
@@ -694,7 +698,11 @@ namespace nntl {
 				
 				const neurons_count_t maxZerodLdA = (checkNeuronsCnt*m_ngcSetts.evalSetts.dLdA_setts.percOfZeros) / 100;
 				neurons_count_t zerodLdA = 0;
-				const auto doubleSs = m_ngcSetts.stepSize * 2;
+
+				//const auto doubleSs = m_ngcSetts.stepSize * 2;
+				// numeric error is already batchsize-normalized. however, analytical does not.
+				const real_t numMult = static_cast<real_t>(m_ngcSetts.onlineBatchSize) / (m_ngcSetts.stepSize * 2);
+
 				auto& iI = m_nn.get_iInspect();
 				for (neurons_count_t i = 0; i < checkNeuronsCnt; ++i) {
 					if (m_failedLayerIdx) break;
@@ -710,12 +718,13 @@ namespace nntl {
 					const real_t LossMinus = _calcLossF();
 
 					iI.gc_set_phase(_impl::gradcheck_phase::df_numeric_plus);
-					const real_t dLnum = (_calcLossF() - LossMinus) / doubleSs;
+					//const real_t dLnum = (_calcLossF() - LossMinus) / doubleSs;
+					const real_t dLnum = numMult*(_calcLossF() - LossMinus);
 					
-					iI.gc_set_phase(_impl::gradcheck_phase::df_analitical);
+					iI.gc_set_phase(_impl::gradcheck_phase::df_analytical);
 					m_nn.m_Layers.fprop(m_data.batchX());
 					m_nn.m_Layers.bprop(m_data.batchY());
-					const real_t dLan = iI.get_analitical_value();
+					const real_t dLan = iI.get_analytical_value();
 
 					_checkErr(lIdx, dLan, dLnum, coords, maxZerodLdA, zerodLdA);
 				}
@@ -743,10 +752,10 @@ namespace nntl {
 				iI.gc_set_phase(_impl::gradcheck_phase::df_numeric_plus);
 				const real_t dLnum = (_calcLossF() - LossMinus) / doubleSs;
 
-				iI.gc_set_phase(_impl::gradcheck_phase::df_analitical);
+				iI.gc_set_phase(_impl::gradcheck_phase::df_analytical);
 				m_nn.m_Layers.fprop(m_data.batchX());
 				m_nn.m_Layers.bprop(m_data.batchY());
-				const real_t dLan = iI.get_analitical_value();
+				const real_t dLan = iI.get_analytical_value();
 
 				_checkErr(lIdx, dLan, dLnum, coords, maxZerodLdW, zerodLdW);
 			}
@@ -903,13 +912,14 @@ namespace nntl {
 				STDCOUTL("batchSize must be at least 1");
 				return false;
 			}
+			const auto biggestBatchSize = std::max(batchSize, ngcSetts.onlineBatchSize);
 
-			NNTL_ASSERT(data_x.cols() == m_Layers.input_layer().get_neurons_cnt() + 1 && data_x.rows() >= batchSize);
-			NNTL_ASSERT(data_y.cols() == m_Layers.output_layer().get_neurons_cnt() && data_y.rows() >= batchSize);
+			NNTL_ASSERT(data_x.cols() == m_Layers.input_layer().get_neurons_cnt() + 1 && data_x.rows() >= biggestBatchSize);
+			NNTL_ASSERT(data_y.cols() == m_Layers.output_layer().get_neurons_cnt() && data_y.rows() >= biggestBatchSize);
 			NNTL_ASSERT(data_x.rows() == data_y.rows());
 			if (
-				!(data_x.cols() == m_Layers.input_layer().get_neurons_cnt() + 1 && data_x.rows() >= batchSize)
-				|| !(data_y.cols() == m_Layers.output_layer().get_neurons_cnt() && data_y.rows() >= batchSize)
+				!(data_x.cols() == m_Layers.input_layer().get_neurons_cnt() + 1 && data_x.rows() >= biggestBatchSize)
+				|| !(data_y.cols() == m_Layers.output_layer().get_neurons_cnt() && data_y.rows() >= biggestBatchSize)
 				|| !(data_x.rows() == data_y.rows())
 				)
 			{
@@ -921,7 +931,7 @@ namespace nntl {
 				STDCOUTL("*** warning: it's significantly better to perform gradient check with double floating point precision.");
 			}
 			//////////////////////////////////////////////////////////////////////////
-			const auto ec = _init(batchSize, batchSize, false);
+			const auto ec = _init(biggestBatchSize, biggestBatchSize, false);
 			if (ErrorCode::Success != ec) {
 				STDCOUTL("Failed to init nnet object for gradcheck. Reason: " << get_error_str(ec));
 				return false;

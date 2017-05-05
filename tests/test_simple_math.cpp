@@ -61,6 +61,207 @@ constexpr unsigned TEST_CORRECTN_REPEATS_COUNT = 60, _baseRowsCnt = 300;
 //////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////
 
+void test_mcwMulDiag_ip_corr(vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
+	MTXSIZE_SCOPED_TRACE(rowsCnt, colsCnt, "mcwMulDiag_ip");
+	constexpr unsigned testCorrRepCnt = TEST_CORRECTN_REPEATS_COUNT;
+	realmtx_t A(rowsCnt, colsCnt), A2(rowsCnt, colsCnt), A_ET(rowsCnt, colsCnt), B(colsCnt, colsCnt), B2(colsCnt, colsCnt);
+	ASSERT_TRUE(!A.isAllocationFailed() && !A2.isAllocationFailed() && !B.isAllocationFailed() && !B2.isAllocationFailed() && !A_ET.isAllocationFailed());
+
+	d_interfaces::iRng_t rg;
+	rg.set_ithreads(iM.ithreads());
+	for (unsigned rr = 0; rr < testCorrRepCnt; ++rr) {
+		rg.gen_matrix(A, 10); rg.gen_matrix(B, real_t(5));
+		A.clone_to(A_ET); B.clone_to(B2);
+
+		mcwMulDiag_ip_ET(A_ET, B);
+		ASSERT_MTX_EQ(B, B2, "_ET has changed const B!");
+		
+		A.clone_to(A2);
+		iM.mcwMulDiag_ip_st(A2, B);
+		ASSERT_MTX_EQ(B, B2, "_st has changed const B!");
+		ASSERT_MTX_EQ(A_ET, A2, "_st failed!");
+
+		A.clone_to(A2);
+		iM.mcwMulDiag_ip_mt(A2, B);
+		ASSERT_MTX_EQ(B, B2, "_mt has changed const B!");
+		ASSERT_MTX_EQ(A_ET, A2, "_mt failed!");
+
+		A.clone_to(A2);
+		iM.mcwMulDiag_ip(A2, B);
+		ASSERT_MTX_EQ(B, B2, "() has changed const B!");
+		ASSERT_MTX_EQ(A_ET, A2, "() failed!");
+	}
+}
+TEST(TestSMath, mcwMulDiag_ip) {
+	for (vec_len_t r = 1; r < g_MinDataSizeDelta; ++r) {
+		for (vec_len_t c = 1; c < g_MinDataSizeDelta; ++c) {
+			ASSERT_NO_FATAL_FAILURE(test_mcwMulDiag_ip_corr(r, c));
+		}
+	}
+
+	constexpr unsigned rowsCnt = _baseRowsCnt;
+	const vec_len_t maxCols = g_MinDataSizeDelta, maxRows = rowsCnt + g_MinDataSizeDelta;
+	for (vec_len_t r = rowsCnt; r < maxRows; ++r) {
+		for (vec_len_t c = 1; c < maxCols; ++c) {
+			ASSERT_NO_FATAL_FAILURE(test_mcwMulDiag_ip_corr(r, c));
+		}
+	}
+}
+
+
+//////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////
+
+void test_mcwSub_ip_corr(vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
+	MTXSIZE_SCOPED_TRACE(rowsCnt, colsCnt, "mcwSub_ip");
+	constexpr unsigned testCorrRepCnt = TEST_CORRECTN_REPEATS_COUNT;
+	realmtx_t A(rowsCnt, colsCnt), A2(rowsCnt, colsCnt), A3(rowsCnt, colsCnt);;
+	ASSERT_TRUE(!A.isAllocationFailed() && !A2.isAllocationFailed() && !A3.isAllocationFailed());
+	std::vector<real_t> vVec(colsCnt), vVec2(colsCnt);
+
+	d_interfaces::iRng_t rg;
+	rg.set_ithreads(iM.ithreads());
+	for (unsigned rr = 0; rr < testCorrRepCnt; ++rr) {
+		rg.gen_matrix(A, 10); rg.gen_vector(&vVec[0], colsCnt, real_t(5));
+		A.clone_to(A2); A.clone_to(A3);
+		std::copy(vVec.cbegin(), vVec.cend(), vVec2.begin());
+
+		mcwSub_ip_ET(A, &vVec[0]);
+		ASSERT_VECTOR_EQ(vVec, vVec2, "_ET changed const source vVec!");
+
+		iM.mcwSub_ip_st(A2, &vVec2[0]);
+		ASSERT_MTX_EQ(A, A2, "_st failed!");
+		ASSERT_VECTOR_EQ(vVec, vVec2, "_st has changed const source vVec!");
+				
+		A3.clone_to(A2);
+		iM.mcwSub_ip_mt(A2, &vVec2[0]);
+		ASSERT_MTX_EQ(A, A2, "_mt failed!");
+		ASSERT_VECTOR_EQ(vVec, vVec2, "_mt has changed const source vVec!");
+
+		A3.clone_to(A2);
+		iM.mcwSub_ip(A2, &vVec2[0]);
+		ASSERT_MTX_EQ(A, A2, "() failed!");
+		ASSERT_VECTOR_EQ(vVec, vVec2, "() has changed const source vVec!");
+	}
+}
+TEST(TestSMath, mcwSub_ip) {
+	for (vec_len_t r = 1; r < g_MinDataSizeDelta; ++r) {
+		for (vec_len_t c = 1; c < g_MinDataSizeDelta; ++c) {
+			ASSERT_NO_FATAL_FAILURE(test_mcwSub_ip_corr(r, c));
+		}
+	}
+
+	constexpr unsigned rowsCnt = _baseRowsCnt;
+	const vec_len_t maxCols = g_MinDataSizeDelta, maxRows = rowsCnt + g_MinDataSizeDelta;
+	for (vec_len_t r = rowsCnt; r < maxRows; ++r) {
+		for (vec_len_t c = 1; c < maxCols; ++c) {
+			ASSERT_NO_FATAL_FAILURE(test_mcwSub_ip_corr(r, c));
+		}
+	}
+}
+
+
+//////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////
+
+template<typename base_t> struct mcwMean_EPS {};
+template<> struct mcwMean_EPS<double> { static constexpr double eps = 1e-10; };
+template<> struct mcwMean_EPS<float> { static constexpr float eps = 1e-5f; };
+
+template<bool bNumStab>
+void test_mcwMean_corr(vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
+	MTXSIZE_SCOPED_TRACE1(rowsCnt, colsCnt, "mcwMean", static_cast<real_t>(bNumStab));
+	constexpr unsigned testCorrRepCnt = TEST_CORRECTN_REPEATS_COUNT;
+	realmtx_t A(rowsCnt, colsCnt), A2(rowsCnt, colsCnt);
+	ASSERT_TRUE(!A.isAllocationFailed() && !A2.isAllocationFailed());
+	std::vector<real_t> vMeanET(colsCnt), vMean(colsCnt);
+
+	d_interfaces::iRng_t rg;
+	rg.set_ithreads(iM.ithreads());
+	for (unsigned rr = 0; rr < testCorrRepCnt; ++rr) {
+		rg.gen_matrix(A, 10);
+		A.clone_to(A2);
+
+		mcwMean_ET(A, &vMeanET[0]);
+		ASSERT_MTX_EQ(A, A2, "_ET has changed const source mtx A!");
+
+		iM.mcwMean_st<bNumStab>(A, &vMean[0]);
+		ASSERT_MTX_EQ(A, A2, "_st has changed const source mtx A!");
+		ASSERT_VECTOR_NEAR(vMeanET, vMean, "_st failed!", mcwMean_EPS<real_t>::eps);
+
+		iM.mcwMean_mt<bNumStab>(A, &vMean[0]);
+		ASSERT_MTX_EQ(A, A2, "_mt has changed const source mtx A!");
+		ASSERT_VECTOR_NEAR(vMeanET, vMean, "_mt failed!", mcwMean_EPS<real_t>::eps);
+
+		iM.mcwMean<bNumStab>(A, &vMean[0]);
+		ASSERT_MTX_EQ(A, A2, "() has changed const source mtx A!");
+		ASSERT_VECTOR_NEAR(vMeanET, vMean, "() failed!", mcwMean_EPS<real_t>::eps);
+	}
+}
+TEST(TestSMath, mcwMean) {
+	for (vec_len_t r = 1; r < g_MinDataSizeDelta; ++r) {
+		for (vec_len_t c = 1; c < g_MinDataSizeDelta; ++c) {
+			ASSERT_NO_FATAL_FAILURE(test_mcwMean_corr<false>(r, c));
+			ASSERT_NO_FATAL_FAILURE(test_mcwMean_corr<true>(r, c));
+		}
+	}
+
+	constexpr unsigned rowsCnt = _baseRowsCnt;
+	const vec_len_t maxCols = g_MinDataSizeDelta, maxRows = rowsCnt + g_MinDataSizeDelta;
+	for (vec_len_t r = rowsCnt; r < maxRows; ++r) {
+		for (vec_len_t c = 1; c < maxCols; ++c) {
+			ASSERT_NO_FATAL_FAILURE(test_mcwMean_corr<false>(r, c));
+			ASSERT_NO_FATAL_FAILURE(test_mcwMean_corr<true>(r, c));
+		}
+	}
+}
+
+
+
+//////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////
+
+template<typename base_t> struct ewSumSquaresTriang_EPS {};
+template<> struct ewSumSquaresTriang_EPS<double> { static constexpr double eps = 1e-10; };
+template<> struct ewSumSquaresTriang_EPS<float> { static constexpr float eps = .5f; };
+template<bool bLowerTriangl>
+void test_ewSumSquaresTriang_corr(vec_len_t rowsCnt) {
+	constexpr unsigned testCorrRepCnt = TEST_CORRECTN_REPEATS_COUNT;
+	MTXSIZE_SCOPED_TRACE(rowsCnt, rowsCnt, bLowerTriangl ? "ewSumSquaresTriang<true>" : "ewSumSquaresTriang<false>");
+
+	realmtx_t A(rowsCnt, rowsCnt);
+	ASSERT_TRUE(!A.isAllocationFailed());
+
+	d_interfaces::iRng_t rg;
+	rg.set_ithreads(iM.ithreads());
+
+	for (unsigned r = 0; r < testCorrRepCnt; ++r) {
+		rg.gen_matrix_norm(A);
+
+		const auto vss = ewSumSquaresTriang_ET<bLowerTriangl>(A);
+
+		ASSERT_NEAR(vss, (iM.ewSumSquaresTriang_st<bLowerTriangl, false>(A)), ewSumSquaresTriang_EPS<real_t>::eps) << "ewSumSquaresTriang_st<" << bLowerTriangl << ",false> failed correctness test";
+		ASSERT_NEAR(vss, (iM.ewSumSquaresTriang_mt<bLowerTriangl, false>(A)), ewSumSquaresTriang_EPS<real_t>::eps) << "ewSumSquaresTriang_mt<" << bLowerTriangl << ",false> failed correctness test";
+		ASSERT_NEAR(vss, (iM.ewSumSquaresTriang<bLowerTriangl, false>(A)), ewSumSquaresTriang_EPS<real_t>::eps) << "ewSumSquaresTriang<" << bLowerTriangl << ",false> failed correctness test";
+
+		ASSERT_NEAR(vss, (iM.ewSumSquaresTriang_st<bLowerTriangl, true>(A)), ewSumSquaresTriang_EPS<real_t>::eps) << "ewSumSquaresTriang_st<" << bLowerTriangl << ",true> failed correctness test";
+		ASSERT_NEAR(vss, (iM.ewSumSquaresTriang_mt<bLowerTriangl, true>(A)), ewSumSquaresTriang_EPS<real_t>::eps) << "ewSumSquaresTriang_mt<" << bLowerTriangl << ",true> failed correctness test";
+		ASSERT_NEAR(vss, (iM.ewSumSquaresTriang<bLowerTriangl, true>(A)), ewSumSquaresTriang_EPS<real_t>::eps) << "ewSumSquaresTriang<" << bLowerTriangl << ",true> failed correctness test";
+	}
+}
+TEST(TestSMath, ewSumSquaresTriang) {
+	const vec_len_t maxRows = 5*g_MinDataSizeDelta;
+	for (vec_len_t r = 2; r < maxRows; ++r) {
+		ASSERT_NO_FATAL_FAILURE(test_ewSumSquaresTriang_corr<true>(r));
+		ASSERT_NO_FATAL_FAILURE(test_ewSumSquaresTriang_corr<false>(r));
+	}
+}
+
+
+
+//////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////
+
 template<typename base_t> struct ewSumSquares_EPS {};
 template<> struct ewSumSquares_EPS<double> { static constexpr double eps = 1e-10; };
 template<> struct ewSumSquares_EPS<float> { static constexpr float eps = .5f; };
@@ -89,30 +290,15 @@ void test_ewSumSquares_corr(vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 TEST(TestSMath, ewSumSquares) {
 	constexpr unsigned rowsCnt = _baseRowsCnt;
 	const vec_len_t maxCols = g_MinDataSizeDelta, maxRows = rowsCnt + g_MinDataSizeDelta;
+
+	for (vec_len_t r = 1; r < g_MinDataSizeDelta; ++r) {
+		for (vec_len_t c = 1; c < g_MinDataSizeDelta; ++c) ASSERT_NO_FATAL_FAILURE(test_ewSumSquares_corr(r, c));
+	}
+
 	for (vec_len_t r = rowsCnt; r < maxRows; ++r) {
 		for (vec_len_t c = 1; c < maxCols; ++c) ASSERT_NO_FATAL_FAILURE(test_ewSumSquares_corr(r, c));
 	}
 }
-
-
-//////////////////////////////////////////////////////////////////////////
-//////////////////////////////////////////////////////////////////////////
-
-/*
-TEST(TestSMath, DumpmTilingRoll) {
-	constexpr vec_len_t k = 5, r = 2, c = 3;
-	realmtx_t src(r, k*c, true), dest(k*r, c, true);
-	ASSERT_TRUE(!src.isAllocationFailed());
-	seqFillMtx(src);
-
-	mTilingRoll_ET(src, dest);
-
-	nntl_supp::omatfile<> mf;
-	ASSERT_EQ(mf.ErrorCode::Success, mf.open("./test_data/test.mat"));
-
-	mf << NNTL_SERIALIZATION_NVP(src);
-	mf << NNTL_SERIALIZATION_NVP(dest);
-}*/
 
 //////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////
@@ -466,7 +652,7 @@ void test_mrwDivideByVec_corr(vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 		A3.clone_to(A2);
 		iM.mrwDivideByVec_st_rw(A2, &vDiv[0]);
 		ASSERT_MTX_EQ(A, A2, "st_rw() failed");
-
+		
 		A3.clone_to(A2);
 		iM.mrwDivideByVec_st(A2, &vDiv[0]);
 		ASSERT_MTX_EQ(A, A2, "st() failed");

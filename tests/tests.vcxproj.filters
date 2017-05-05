@@ -387,6 +387,9 @@
     <ClInclude Include="..\nntl\layer\penalized_activations.h">
       <Filter>nntl\layer</Filter>
     </ClInclude>
+    <ClInclude Include="..\nntl\loss_addendum\DeCov.h">
+      <Filter>nntl\loss_addendum</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="stdafx.cpp">

@@ -50,6 +50,12 @@ namespace math {
 			static constexpr size_t ewSumSquares = 8800;//nt
 			static constexpr size_t ewSumSquares_ns = 8800;//nt
 
+			template <bool bLowerTriangl, bool bNumStab> struct ewSumSquaresTriang {};
+			template<>struct ewSumSquaresTriang<false, true> { static constexpr vec_len_t v = 90; };//*
+			template<>struct ewSumSquaresTriang<false, false> { static constexpr vec_len_t v = 176; };//*
+			template<>struct ewSumSquaresTriang<true, true> { static constexpr vec_len_t v = 90; };//*
+			template<>struct ewSumSquaresTriang<true, false> { static constexpr vec_len_t v = 165; };//*
+
 			static constexpr size_t mrwDivideByVec_rw = 10000;
 			static constexpr size_t mrwDivideByVec_mt_rows = 5000;
 			static constexpr size_t mrwDivideByVec = 5000;
@@ -77,20 +83,33 @@ namespace math {
 			//static constexpr size_t mrwBinaryOR_st = 24000;
 			static constexpr vec_len_t mrwBinaryOR_mt_cw_colsPerThread = 3;
 
+			template <bool bNumStab> struct mcwMean {};
+			template<>struct mcwMean<true> { static constexpr size_t v = 10000; };
+			template<>struct mcwMean<false> { static constexpr size_t v = 10000; };
+
+			static constexpr size_t mcwSub_ip = 30000;
+			static constexpr size_t mcwMulDiag_ip = 20000;//*
+
 			static constexpr vec_len_t mCloneCols = 2;
 			static constexpr vec_len_t mCloneCol = 2;
 
-			static constexpr vec_len_t mTilingRoll = 23000;
+			static constexpr size_t mTilingRoll = 23000;
 			static constexpr vec_len_t mTilingRoll_mt_cols = 3;
 
-			static constexpr vec_len_t mTilingUnroll = 23000;
+			static constexpr size_t mTilingUnroll = 23000;
 			static constexpr vec_len_t mTilingUnroll_mt_cols = 3;
 		};
 
 		template <> struct SMATH_THR<float> {
 			static constexpr size_t ewSumProd = 880*19;
-			static constexpr size_t ewSumSquares = 880*19;//nt
-			static constexpr size_t ewSumSquares_ns = 880 * 19;//nt
+			static constexpr size_t ewSumSquares = 18000;
+			static constexpr size_t ewSumSquares_ns = 17000;
+
+			template <bool bLowerTriangl,bool bNumStab> struct ewSumSquaresTriang {};
+			template<>struct ewSumSquaresTriang<false, true> { static constexpr vec_len_t v = 90; };
+			template<>struct ewSumSquaresTriang<false, false> { static constexpr vec_len_t v = 176; };
+			template<>struct ewSumSquaresTriang<true, true> { static constexpr vec_len_t v = 90; };
+			template<>struct ewSumSquaresTriang<true, false> { static constexpr vec_len_t v = 165; };
 
 			static constexpr size_t mrwDivideByVec_rw = 20000;
 			static constexpr size_t mrwDivideByVec = 30000;
@@ -116,6 +135,14 @@ namespace math {
 			static constexpr size_t mrwSum_st = 24000*19/10;
 			static constexpr vec_len_t mrwSum_mt_cw_colsPerThread = 3;
 
+			template <bool bNumStab> struct mcwMean {};
+			template<>struct mcwMean<true> { static constexpr size_t v = 5000; };
+			template<>struct mcwMean<false> { static constexpr size_t v = 17000; };
+			
+			static constexpr size_t mcwSub_ip = 30000;
+
+			static constexpr size_t mcwMulDiag_ip = 24500;
+
 			static constexpr size_t mrwBinaryOR = 10000;
 			//static constexpr size_t mrwBinaryOR_st = 24000 * 19 / 10;
 			static constexpr vec_len_t mrwBinaryOR_mt_cw_colsPerThread = 3;
@@ -123,10 +150,10 @@ namespace math {
 			static constexpr vec_len_t mCloneCols = 2;
 			static constexpr vec_len_t mCloneCol = 2;
 
-			static constexpr vec_len_t mTilingRoll = 23000*19/10;
+			static constexpr size_t mTilingRoll = 23000*19/10;
 			static constexpr vec_len_t mTilingRoll_mt_cols = 3;
 
-			static constexpr vec_len_t mTilingUnroll = 23000*19/10;
+			static constexpr size_t mTilingUnroll = 23000*19/10;
 			static constexpr vec_len_t mTilingUnroll_mt_cols = 3;
 		};
 

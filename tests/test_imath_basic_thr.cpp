@@ -1092,3 +1092,47 @@ TEST(TestMathNThr, ApplyILR) {
 	NNTL_RUN_TEST2(imath_basic_t::Thresholds_t::apply_ILR_mt_vec2, 10) test_ApplyILR_perf(i, 10);
 //#endif
 }
+
+//////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////// 
+void test_mColumnsCov_perf(vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
+	const auto dataSize = realmtx_t::sNumel(rowsCnt, colsCnt);
+	STDCOUTL("**** testing mColumnsCov() over " << rowsCnt << "x" << colsCnt << " matrix (" << dataSize << " elements) ****");
+	constexpr unsigned maxReps = TEST_PERF_REPEATS_COUNT;
+	
+	realmtx_t A(rowsCnt, colsCnt), C(colsCnt, colsCnt);
+	ASSERT_TRUE(!A.isAllocationFailed() && !C.isAllocationFailed());
+
+	d_interfaces::iRng_t rg;
+	rg.set_ithreads(iM.ithreads());
+
+	tictoc tUpr, tLwr;
+	utils::prioritize_workers<utils::PriorityClass::PerfTesting, iThreads_t> pw(iM.ithreads());
+	//FFFFfffffffff... don't ever think about removing rg. calls that randomizes data...
+	for (unsigned r = 0; r < maxReps; ++r) {
+		rg.gen_matrix(A,5);
+		tUpr.tic();
+		iM.mColumnsCov(A, C, false);
+		tUpr.toc();
+
+		rg.gen_matrix(A, 5);
+		tLwr.tic();
+		iM.mColumnsCov(A, C, true);
+		tLwr.toc();
+	}
+	tUpr.say("Upr");
+	tLwr.say("Lwr");
+}
+TEST(TestMathNThr, mColumnsCov) {
+	test_mColumnsCov_perf(100, 10);
+
+	test_mColumnsCov_perf(1000, 100);
+	test_mColumnsCov_perf(100, 1000);
+
+	test_mColumnsCov_perf(1000, 10);
+	test_mColumnsCov_perf(10, 1000);
+
+	test_mColumnsCov_perf(10000, 10);
+	test_mColumnsCov_perf(10000, 100);
+}

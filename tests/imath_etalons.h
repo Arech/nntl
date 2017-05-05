@@ -126,3 +126,62 @@ void dsoftsign_ET(const realmtx_t& x, realmtx_t& df, const real_t& a);
 
 void softsigm_ET(const realmtx_t& x, realmtx_t& f, const real_t& a);
 void dsoftsigm_ET(const realmtx_t& x, realmtx_t& df, const real_t& a);
+
+template<typename iMathT>
+void mColumnsCov_ET(const nntl::math::smatrix<typename iMathT::real_t>& A, nntl::math::smatrix<typename iMathT::real_t>& C, iMathT& iM){
+	typedef typename iMathT::real_t real_t;
+	iM.mScaledMulAtB_C(real_t(1.) / real_t(A.rows()), A, A, C);
+}
+
+template<bool bLowerTriangl, typename iMathT>
+auto loss_deCov_ET(const nntl::math::smatrix<typename iMathT::real_t>& A, nntl::math::smatrix<typename iMathT::real_t>& tDM
+	, nntl::math::smatrix<typename iMathT::real_t>& tCov, std::vector<typename iMathT::real_t>& vMean, iMathT& iM)noexcept
+{
+	NNTL_ASSERT(!tDM.emulatesBiases() && !tCov.emulatesBiases());
+	NNTL_ASSERT(A.cols_no_bias() == tDM.cols() && A.rows() == tDM.rows());
+	NNTL_ASSERT(tDM.cols() == tCov.cols() && tCov.cols() == tCov.rows());
+	NNTL_ASSERT(vMean.size() == tDM.cols());
+
+	const auto b = A.copy_data_skip_bias(tDM);
+	NNTL_ASSERT(b);
+
+	mcwMean_ET(tDM, &vMean[0]);
+	mcwSub_ip_ET(tDM, &vMean[0]);
+	mColumnsCov_ET(tDM, tCov, iM);
+	return ewSumSquaresTriang_ET<bLowerTriangl>(tCov) / A.rows();
+}
+
+template<bool bLowerTriangl, typename iMathT>
+void dLoss_deCov_ET(const nntl::math::smatrix<typename iMathT::real_t>& A
+	, nntl::math::smatrix<typename iMathT::real_t>& dL
+	, nntl::math::smatrix<typename iMathT::real_t>& tDM
+	, nntl::math::smatrix<typename iMathT::real_t>& tCov, std::vector<typename iMathT::real_t>& vMean, iMathT& iM)noexcept
+{
+	NNTL_ASSERT(!tDM.emulatesBiases() && !tCov.emulatesBiases() && !dL.emulatesBiases());
+	NNTL_ASSERT(A.cols_no_bias() == tDM.cols() && A.rows() == tDM.rows() && tDM.size() == dL.size());
+	NNTL_ASSERT(tDM.cols() == tCov.cols() && tCov.cols() == tCov.rows());
+	NNTL_ASSERT(vMean.size() == tDM.cols());
+
+	const auto b = A.copy_data_skip_bias(tDM);
+	NNTL_ASSERT(b);
+
+	mcwMean_ET(tDM, &vMean[0]);
+	mcwSub_ip_ET(tDM, &vMean[0]);
+	mColumnsCov_ET(tDM, tCov, iM);
+
+	const auto N = A.rows(), actCnt = A.cols_no_bias();
+	for (vec_len_t m = 0; m < N; ++m) {
+		for (vec_len_t a = 0; a < actCnt; ++a) {
+			//real_t v(real_t(0));
+			typename iMathT::func_SUM<real_t, true> F;
+			for (vec_len_t j = 0; j < actCnt; ++j) {
+				if (a!=j) {
+					//v += tCov.get(a, j) * tDM.get(m, j);
+					F.op(tCov.get(a, j) * tDM.get(m, j));
+				}
+			}
+			//dL.set(m, a, v * 2 / N);
+			dL.set(m, a, F.result() * 2 / N);
+		}
+	}
+}

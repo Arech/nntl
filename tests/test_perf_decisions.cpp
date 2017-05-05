@@ -65,9 +65,68 @@ constexpr unsigned TEST_PERF_REPEATS_COUNT = 500;
 constexpr unsigned TEST_CORRECTN_REPEATS_COUNT = 50;
 #endif // NNTL_DEBUG
 
-//////////////////////////////////////////////////////////////////////////
-//////////////////////////////////////////////////////////////////////////
+real_t t_sum_stdacc(const real_t* pVec, const numel_cnt_t& n)noexcept {
+	//current implementation of accumulate is similar to while{} statement, however it's also for() based
+	return std::accumulate(pVec, pVec + n, real_t(0.));
+}
+//this seems a bit faster 
+real_t t_sum_for(const real_t* pVec, const numel_cnt_t& n)noexcept {
+	real_t r(0.);
+	for (numel_cnt_t i = 0; i < n; ++i) {
+		r += pVec[i];
+	}
+	return r;
+}
 
+void t_sum(vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
+	const auto dataSize = realmtx_t::sNumel(rowsCnt, colsCnt);
+	STDCOUTL("**** checking sum variations over vector with " << dataSize << " elements ****");
+
+	constexpr unsigned maxReps = TEST_PERF_REPEATS_COUNT;
+	
+	std::vector<real_t> vec1(dataSize), vec2(dataSize), vec3(dataSize);
+
+	typedef math::SMath<real_t, d_interfaces::iThreads_t> SMath_t;
+
+	d_interfaces::iThreads_t trd;
+	d_interfaces::iRng_t rg;
+	rg.set_ithreads(trd);
+
+	tictoc tAcc, tFor, tFunctor;
+	//////////////////////////////////////////////////////////////////////////
+	//testing performance
+	utils::prioritize_workers<utils::PriorityClass::PerfTesting, d_interfaces::iThreads_t> pw(trd);
+
+	//FFFFfffffffff... don't ever think about removing rg. calls that randomizes data...
+	real_t s1(0), s2(0), s3(0);
+	for (unsigned r = 0; r < maxReps; ++r) {
+		rg.gen_vector_norm(&vec1[0], dataSize);
+		tAcc.tic();
+		s1 += t_sum_stdacc(&vec1[0], dataSize);
+		tAcc.toc();
+
+		rg.gen_vector_norm(&vec2[0], dataSize);
+		tFor.tic();
+		s2 += t_sum_for(&vec2[0], dataSize);
+		tFor.toc();
+
+// 		rg.gen_vector_norm(&vec3[0], dataSize);
+// 		tFunctor.tic();
+// 		SMath_t::func_SUM<real_t, false> funct;
+// 		SMath_t::_vec_apply_func(&vec3[0], dataSize, funct);
+// 		s3 += funct.result();
+// 		tFunctor.toc();
+	}
+	tAcc.say("std");
+	tFor.say("for");
+	//tFunctor.say("FUNC");
+	STDCOUTL("s1=" << s1 << "   s2=" << s2 << "   s3=" << s3);
+}
+
+TEST(TestPerfDecisions, vectorSum) {
+	constexpr vec_len_t maxCol = vec_len_t(1e6/100);
+	for (unsigned c = 1; c <= maxCol; c*=10) t_sum(100, c);
+}
 
 
 //////////////////////////////////////////////////////////////////////////

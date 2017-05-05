@@ -81,6 +81,194 @@ constexpr unsigned TEST_CORRECTN_REPEATS_COUNT = 60, _baseRowsCnt = 300;
 //////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////
 
+/*
+#if NNTL_MATLAB_AVAILABLE
+
+template<typename RealT, bool bLowerTriangl, bool bNumStab>
+void dump_deCov(const char* pFileName, vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
+	typedef RealT real_t;
+	typedef nntl::math::smatrix<real_t> realmtx_t;
+	typedef d_int_nI<real_t>::iThreads_t iThreads_t;
+	typedef nntl::math::MathN<real_t, iThreads_t> imath_basic_t;
+	imath_basic_t iM;
+	
+	MTXSIZE_SCOPED_TRACE(rowsCnt, colsCnt, "dump_deCov");
+
+	realmtx_t A(rowsCnt, colsCnt), dL(rowsCnt, colsCnt);
+	ASSERT_TRUE(!A.isAllocationFailed() && !dL.isAllocationFailed());
+
+	iM.preinit(iM.loss_DeCov_tempMemReqs(true, A));
+	ASSERT_TRUE(iM.init());
+	d_int_nI<real_t>::iRng_t rg;
+	rg.set_ithreads(iM.ithreads());
+
+	rg.gen_matrix(A, real_t(5));
+	const auto loss = iM.loss_deCov<bLowerTriangl, bNumStab>(A);
+	iM.dLoss_deCov<bLowerTriangl, bNumStab>(A, dL);
+
+	using namespace nntl_supp;
+	omatfile<> mf;
+	ASSERT_EQ(mf.ErrorCode::Success, mf.open(pFileName));
+
+	mf << NNTL_SERIALIZATION_NVP(A);
+	ASSERT_EQ(mf.ErrorCode::Success, mf.get_last_error()) << mf.get_last_error_str();
+
+	mf << NNTL_SERIALIZATION_NVP(loss);
+	ASSERT_EQ(mf.ErrorCode::Success, mf.get_last_error()) << mf.get_last_error_str();
+
+	mf << NNTL_SERIALIZATION_NVP(dL);
+	ASSERT_EQ(mf.ErrorCode::Success, mf.get_last_error()) << mf.get_last_error_str();
+}
+
+TEST(TestMathN, DumpDeCov) {
+	dump_deCov<double, false, true>("./test_data/deCov.mat", 300, 70);
+}
+
+#endif*/
+
+//////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////
+
+template<typename base_t> struct dLoss_deCov_EPS {};
+template<> struct dLoss_deCov_EPS<double> { static constexpr double eps = 6e-5; };
+template<> struct dLoss_deCov_EPS<float> { static constexpr float eps = 1; };
+
+template<typename RealT, bool bLowerTriangl, bool bNumStab>
+void test_dLoss_deCov(vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
+	typedef RealT real_t;
+	typedef nntl::math::smatrix<real_t> realmtx_t;
+	typedef d_int_nI<real_t>::iThreads_t iThreads_t;
+	typedef nntl::math::MathN<real_t, iThreads_t> imath_basic_t;
+	imath_basic_t iM;
+
+
+	MTXSIZE_SCOPED_TRACE(rowsCnt, colsCnt, "dLoss_deCov");
+	constexpr unsigned testCorrRepCnt = TEST_CORRECTN_REPEATS_COUNT;
+
+	realmtx_t A(rowsCnt, colsCnt, true), A2(rowsCnt, colsCnt, true), tDM(rowsCnt, colsCnt), tCov(colsCnt, colsCnt);
+	ASSERT_TRUE(!A.isAllocationFailed() && !A2.isAllocationFailed() && !tDM.isAllocationFailed() && !tCov.isAllocationFailed());
+	realmtx_t dL_ET(rowsCnt, colsCnt), dL(rowsCnt, colsCnt);
+	ASSERT_TRUE(!dL_ET.isAllocationFailed() && !dL.isAllocationFailed());
+	std::vector<real_t> tMean(colsCnt);
+
+	iM.preinit(iM.loss_DeCov_tempMemReqs(true, A));
+	ASSERT_TRUE(iM.init());
+	d_int_nI<real_t>::iRng_t rg;
+	rg.set_ithreads(iM.ithreads());
+
+	for (unsigned r = 0; r < testCorrRepCnt; ++r) {
+		rg.gen_matrix_no_bias(A, real_t(5));
+		A.copy_data_skip_bias(A2);
+
+		dLoss_deCov_ET<bLowerTriangl>(A, dL_ET, tDM, tCov, tMean, iM);
+		ASSERT_MTX_EQ(A, A2, "_ET has changed const A!!");
+
+		// 		loss = iM.dLoss_deCov_st(A, Y);
+		// 		ASSERT_NEAR(etLoss, loss, dLoss_deCov_EPS<real_t>::eps);
+		// 
+		// 		loss = iM.dLoss_deCov_mt(A, Y);
+		// 		ASSERT_NEAR(etLoss, loss, dLoss_deCov_EPS<real_t>::eps);
+
+		iM.dLoss_deCov<bLowerTriangl, bNumStab>(A, dL);
+		ASSERT_MTX_EQ(A, A2, "() has changed const A!!");
+		ASSERT_REALMTX_NEAR(dL_ET, dL, "() failed!", dLoss_deCov_EPS<real_t>::eps);
+		//ASSERT_NEAR(etLoss, loss, dLoss_deCov_EPS<real_t>::eps) << "<" << bLowerTriangl << "," << bNumStab << "> failed";
+	}
+}
+
+TEST(TestMathN, dLoss_deCov) {
+	//testing with double datatype. float reduces accuracy extremely (and that's totally expectable and shouldn't hurt a nn learning process).
+	for (vec_len_t r = 1; r < g_MinDataSizeDelta; ++r) {
+		for (vec_len_t c = 2; c < g_MinDataSizeDelta; ++c) {
+			ASSERT_NO_FATAL_FAILURE((test_dLoss_deCov<double, false, false>(r, c)));
+			ASSERT_NO_FATAL_FAILURE((test_dLoss_deCov<double, false, true>(r, c)));
+			ASSERT_NO_FATAL_FAILURE((test_dLoss_deCov<double, true, false>(r, c)));
+			ASSERT_NO_FATAL_FAILURE((test_dLoss_deCov<double, true, true>(r, c)));
+		}
+	}
+
+	constexpr unsigned rowsCnt = _baseRowsCnt;
+	const vec_len_t maxCols = g_MinDataSizeDelta, maxRows = rowsCnt + g_MinDataSizeDelta;
+	for (vec_len_t r = rowsCnt; r < maxRows; ++r) {
+		for (vec_len_t c = 2; c < maxCols; ++c) {
+			ASSERT_NO_FATAL_FAILURE((test_dLoss_deCov<double, false, false>(r, c)));
+			ASSERT_NO_FATAL_FAILURE((test_dLoss_deCov<double, false, true>(r, c)));
+			ASSERT_NO_FATAL_FAILURE((test_dLoss_deCov<double, true, false>(r, c)));
+			ASSERT_NO_FATAL_FAILURE((test_dLoss_deCov<double, true, true>(r, c)));
+		}
+	}
+}
+
+//////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////
+
+template<typename base_t> struct loss_deCov_EPS {};
+template<> struct loss_deCov_EPS<double> { static constexpr double eps = 1e-10; };
+template<> struct loss_deCov_EPS<float> { static constexpr float eps = 1e-1f; };
+
+template<typename RealT, bool bLowerTriangl, bool bNumStab>
+void test_loss_deCov(vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
+	typedef RealT real_t;
+	typedef nntl::math::smatrix<real_t> realmtx_t;
+	typedef d_int_nI<real_t>::iThreads_t iThreads_t;
+	typedef nntl::math::MathN<real_t, iThreads_t> imath_basic_t;
+	imath_basic_t iM;
+
+
+	MTXSIZE_SCOPED_TRACE(rowsCnt, colsCnt, "loss_deCov");
+	constexpr unsigned testCorrRepCnt = TEST_CORRECTN_REPEATS_COUNT;
+
+	realmtx_t A(rowsCnt, colsCnt, true), A2(rowsCnt, colsCnt, true), tDM(rowsCnt, colsCnt), tCov(colsCnt, colsCnt);
+	ASSERT_TRUE(!A.isAllocationFailed() && !A2.isAllocationFailed() && !tDM.isAllocationFailed() && !tCov.isAllocationFailed());
+	std::vector<real_t> tMean(colsCnt);
+
+	iM.preinit(iM.loss_DeCov_tempMemReqs(false, A));
+	ASSERT_TRUE(iM.init());
+	d_int_nI<real_t>::iRng_t rg;
+	rg.set_ithreads(iM.ithreads());
+
+	for (unsigned r = 0; r < testCorrRepCnt; ++r) {
+		rg.gen_matrix_no_bias(A, real_t(5));
+		A.copy_data_skip_bias(A2);
+
+		real_t loss, etLoss = loss_deCov_ET<bLowerTriangl>(A, tDM, tCov, tMean, iM);
+		ASSERT_MTX_EQ(A, A2, "_ET has changed const A!!");
+
+// 		loss = iM.loss_deCov_st(A, Y);
+// 		ASSERT_NEAR(etLoss, loss, loss_deCov_EPS<real_t>::eps);
+// 
+// 		loss = iM.loss_deCov_mt(A, Y);
+// 		ASSERT_NEAR(etLoss, loss, loss_deCov_EPS<real_t>::eps);
+
+		loss = iM.loss_deCov<bLowerTriangl, bNumStab>(A);
+		ASSERT_MTX_EQ(A, A2, "() has changed const A!!");
+		ASSERT_NEAR(etLoss, loss, loss_deCov_EPS<real_t>::eps) << "<" << bLowerTriangl << "," << bNumStab << "> failed";
+
+	}
+}
+
+TEST(TestMathN, loss_deCov) {
+	//testing with double datatype. float reduces accuracy extremely (and that's totally expectable and shouldn't hurt a nn learning process).
+	for (vec_len_t r = 1; r < g_MinDataSizeDelta; ++r) {
+		for (vec_len_t c = 2; c < g_MinDataSizeDelta; ++c) {
+			ASSERT_NO_FATAL_FAILURE((test_loss_deCov<double, false, false>(r, c)));
+			ASSERT_NO_FATAL_FAILURE((test_loss_deCov<double, false, true>(r, c)));
+			ASSERT_NO_FATAL_FAILURE((test_loss_deCov<double, true, false>(r, c)));
+			ASSERT_NO_FATAL_FAILURE((test_loss_deCov<double, true, true>(r, c)));
+		}
+	}
+
+	constexpr unsigned rowsCnt = _baseRowsCnt;
+	const vec_len_t maxCols = g_MinDataSizeDelta, maxRows = rowsCnt + g_MinDataSizeDelta;
+	for (vec_len_t r = rowsCnt; r < maxRows; ++r) {
+		for (vec_len_t c = 2; c < maxCols; ++c) {
+			ASSERT_NO_FATAL_FAILURE((test_loss_deCov<double, false, false>(r, c)));
+			ASSERT_NO_FATAL_FAILURE((test_loss_deCov<double, false, true>(r, c)));
+			ASSERT_NO_FATAL_FAILURE((test_loss_deCov<double, true, false>(r, c)));
+			ASSERT_NO_FATAL_FAILURE((test_loss_deCov<double, true, true>(r, c)));
+		}
+	}
+}
 
 
 //////////////////////////////////////////////////////////////////////////
@@ -3358,3 +3546,64 @@ TEST(TestMathN, mSVD_Orthogonalize_ss) {
 	GTEST_FAIL() << "Unfortunately, this test requires a working Matlab support";
 }
 #endif
+
+//////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////// 
+template<typename base_t> struct mColumnsCov_EPS {};
+template<> struct mColumnsCov_EPS <double> { static constexpr double eps = 1e-12; };
+template<> struct mColumnsCov_EPS <float> { static constexpr float eps = 1e-6f; };
+void test_mColumnsCov_corr(vec_len_t rowsCnt, vec_len_t colsCnt) {
+	MTXSIZE_SCOPED_TRACE(rowsCnt, colsCnt, "test_mColumnsCov_corr");
+	constexpr unsigned testCorrRepCnt = 10;
+	realmtx_t A(rowsCnt, colsCnt), A2(rowsCnt, colsCnt)
+		, C_ET(colsCnt, colsCnt)
+		, C(colsCnt, colsCnt);
+
+	ASSERT_TRUE(!A.isAllocationFailed() && !A2.isAllocationFailed() && !C_ET.isAllocationFailed() && !C.isAllocationFailed());
+
+	d_interfaces::iRng_t rg;
+	rg.set_ithreads(iM.ithreads());
+	for (unsigned r = 0; r < testCorrRepCnt; ++r) {
+		rg.gen_matrix(A, 5);
+		A.clone_to(A2);
+
+		mColumnsCov_ET(A, C_ET, iM);
+		ASSERT_EQ(A, A2);
+		
+		C.zeros();
+		iM.mColumnsCov(A, C, false);
+		ASSERT_EQ(A, A2);
+
+		ASSERT_NO_FATAL_FAILURE({
+			SCOPED_TRACE("upper triangular");
+			for (vec_len_t c = 0; c < colsCnt; ++c) {
+				for (vec_len_t r = 0; r <= c; ++r) {
+					ASSERT_NEAR(C_ET.get(r, c), C.get(r, c), mColumnsCov_EPS<real_t>::eps) << "element (" << r << "," << c << ") differs";
+				}
+			}
+		});
+
+		C.zeros();
+		iM.mColumnsCov(A, C, true);
+		ASSERT_EQ(A, A2);
+
+		ASSERT_NO_FATAL_FAILURE({
+			SCOPED_TRACE("lower triangular");
+			for (vec_len_t r = 0; r < colsCnt; ++r) {
+				for (vec_len_t c = 0; c <= r; ++c) {
+					ASSERT_NEAR(C_ET.get(r, c), C.get(r, c), mColumnsCov_EPS<real_t>::eps) << "element (" << r << "," << c << ") differs";
+				}
+			}
+		});
+	}
+}
+
+TEST(TestMathN, mColumnsCov) {
+	for (vec_len_t r = 1; r < 2*g_MinDataSizeDelta; ++r) {
+		for (vec_len_t c = 2; c < 2*g_MinDataSizeDelta; ++c) {
+			test_mColumnsCov_corr(r, c);
+		}
+	}
+}
+

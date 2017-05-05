@@ -62,6 +62,8 @@ I wouldn't state the NNTL is the fastest CPU implementation of feedforward neura
 * Regularizers:
   * **Dropout** (actually, it's so called "inverted dropout" where activations is scaled only at a training time; during a testing activations/weights with and without dropout remains the same).
   * **L1** and **L2** regularizers is applicable to weights and activation values. Custom regularizers are easy to add by implementing loss_addendum::_i_loss_addendum interface.
+  * **DeCov** activations values regularizer is implemented almost as described by Michael Cogswell et.al in the paper "Reducing Overfitting in Deep Neural Networks by Decorrelating Representations", 2015, arXiv:1511.06068. The only difference is in that the NNTL uses a correct derivative of the loss function (which is twice bigger than the published derivative).
+    * One may apply a single **DeCov** regularizer to a number of layers simultaneously to reduce covariance between these layers activations values. Just use layer_penalized_activations with DeCov over a horizontal pack of layers.
   * Constraint for a total length of a neuron's incoming weight vector - so called **max-norm** regularization. Once a neuron weights grow too much, they are getting scaled so their norm will fit into a some predefined value (Srivastava, Hinton, et.al "Dropout: A Simple Way to Prevent Neural Networks from Overfitting" 2014)
   * Constraints for a magnitude of derivative of a loss function in an output layer (idea taken from the aforementioned “Generating Sequences With Recurrent Neural Networks” (2013) by Alex Graves)
 * Individual Adaptive Learning Rates (an ILR in code) based on a agreement in signs of a current and a previous gradient or a momentum velocity.

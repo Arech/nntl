@@ -48,7 +48,7 @@ namespace nntl {
 		};
 
 		enum class gradcheck_phase {
-			df_analitical,
+			df_analytical,
 			df_numeric_plus,
 			df_numeric_minus
 		};
@@ -178,7 +178,7 @@ namespace nntl {
 
 	// numeric gradient check settings 
 	template<typename RealT>
-	struct gradcheck_settings {
+	struct gradcheck_settings : public math::smatrix_td {
 		typedef RealT real_t;
 
 		// For the sake of gradcheck coverage we use separate thresholds for a number of parameters to check within a group - groupSetts
@@ -191,12 +191,13 @@ namespace nntl {
 
 		const real_t stepSize;
 		const bool bVerbose;
+		vec_len_t onlineBatchSize;
 
 		//////////////////////////////////////////////////////////////////////////
-		gradcheck_settings()noexcept : stepSize(_impl::gradcheck_def_stepSize<real_t>::value), bVerbose(true) {}
+		gradcheck_settings()noexcept : stepSize(_impl::gradcheck_def_stepSize<real_t>::value), bVerbose(true), onlineBatchSize(1){}
 
 		gradcheck_settings(bool vb, real_t ss = _impl::gradcheck_def_stepSize<real_t>::value)noexcept 
-			: stepSize(ss), bVerbose(vb)
+			: stepSize(ss), bVerbose(vb), onlineBatchSize(1)
 		{}
 	};
 

@@ -55,7 +55,8 @@ char _scopeMsg[_scopeMsgLen]; \
 sprintf_s(_scopeMsg, "%s%f: data size is %dx%d (%lld elements)", (_descr), (fparam),(_r), (_c), realmtx_t::sNumel((_r), (_c))); \
 SCOPED_TRACE(_scopeMsg);
 
-inline void _ASSERT_REALMTX_NEAR(const realmtx_t& c1, const realmtx_t& c2, const char* descr, const double eps) noexcept {
+template<typename _T>
+inline void _ASSERT_REALMTX_NEAR(const nntl::math::smatrix<_T>& c1, const nntl::math::smatrix<_T>& c2, const char* descr, const double eps) noexcept {
 	ASSERT_EQ(c1.size(), c2.size()) << descr;
 	ASSERT_EQ(c1.emulatesBiases(), c2.emulatesBiases()) << descr;
 	const auto p1 = c1.data(), p2 = c2.data();

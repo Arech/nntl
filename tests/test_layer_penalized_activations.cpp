@@ -34,6 +34,9 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include "stdafx.h"
 
+//to get rid of '... decorated name length exceeded, name was truncated'
+#pragma warning( disable : 4503 )
+
 #include "../nntl/nntl.h"
 #include "../nntl/_supp/io/binfile.h"
 #include "../nntl/_supp/io/matfile.h"
@@ -42,6 +45,8 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include "asserts.h"
 #include "common_routines.h"
+
+#include "nn_base_arch.h"
 
 using namespace nntl;
 
@@ -127,7 +132,7 @@ void testActivationsL2L1(train_data<real_t>& td, const real_t coeff, uint64_t rn
 #endif*/
 }
 
-TEST(TestLULA, ActivationsConstraintsL2L1) {
+TEST(TestLPA, ActivationsConstraintsL2L1) {
 	train_data<real_t> td;
 	
 	readTd(td);// , MNIST_FILE_DEBUG);//intended to use small (debug) variation here
@@ -158,4 +163,61 @@ TEST(TestLULA, ActivationsConstraintsL2L1) {
 		}
 		STDCOUT(std::endl << std::endl << std::endl);
 	}
+}
+
+//////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////
+
+template<typename ArchPrmsT>
+struct GC_LPA_deCov : public nntl_tests::NN_base_arch_td<ArchPrmsT> {
+	template<typename FpcT>
+	using _MyLFC_tpl = _layer_fully_connected<FpcT, myActivation, myGradWorks>;
+
+	typedef LPA<_MyLFC_tpl, loss_addendum::DeCov<real_t, true>> MyLPA;
+	//typedef myLFC MyLPA;
+
+	MyLPA lFinal;
+
+	~GC_LPA_deCov()noexcept {}
+	GC_LPA_deCov(const ArchPrms_t& Prms)noexcept
+		: lFinal("lFinal", 70, Prms.learningRate, Prms.dropoutAlivePerc)
+	{}
+};
+
+template<typename RealT>
+struct GC_LPA_deCov_ArchPrms : public nntl_tests::NN_base_params<RealT, nntl::inspector::GradCheck<RealT>> {
+private:
+	typedef nntl_tests::NN_base_params<RealT, nntl::inspector::GradCheck<RealT>> _base_class_t;
+public:
+	typedef nntl::activation::softsigm_quad_loss <real_t, 1000, nntl::weights_init::He_Zhang<>, true> myOutputActivation;
+	//typedef nntl::activation::debug_softsigm_zeros <real_t, 1000, nntl::weights_init::He_Zhang<>> myOutputActivation;
+
+	~GC_LPA_deCov_ArchPrms()noexcept{}
+	GC_LPA_deCov_ArchPrms(const nntl::train_data<real_t>& td)noexcept : _base_class_t(td) {}
+};
+
+TEST(TestLPA, deCovGradCheck) {
+	typedef double real_t;
+	//typedef nntl_tests::NN_base_params<real_t, nntl::inspector::GradCheck<real_t>> ArchPrms_t;
+	typedef GC_LPA_deCov_ArchPrms<real_t> ArchPrms_t;
+
+	nntl::train_data<real_t> td;
+	readTd(td);
+
+	ArchPrms_t Prms(td);
+	nntl_tests::NN_arch<GC_LPA_deCov<ArchPrms_t>> nnArch(Prms);
+
+	nnArch.ArchObj.lFinal.addendum<0>().scale(real_t(1));
+
+	auto ec = nnArch.warmup(td, 5, 200);
+	ASSERT_EQ(decltype(nnArch)::ErrorCode_t::Success, ec) << "Reason: " << nnArch.NN.get_error_str(ec);
+
+	gradcheck_settings<real_t> ngcSetts;
+	ngcSetts.evalSetts.bIgnoreZerodLdWInUndelyingLayer = true;
+	ngcSetts.onlineBatchSize = 4;//batch must be big enought to compute columnwise covariance
+	
+	//ngcSetts.evalSetts.dLdW_setts.percOfZeros = 100; //for debug_softsigm_zeros
+	
+	//ngcSetts.evalSetts.dLdW_setts.relErrFailThrsh = real_t(5e-4);
+	ASSERT_TRUE(nnArch.NN.gradcheck(td.train_x(), td.train_y(), 5, ngcSetts));
 }

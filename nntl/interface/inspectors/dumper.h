@@ -424,18 +424,18 @@ namespace nntl {
 				// is guaranteed to be true when m_bDoDump==true
 				//NNTL_ASSERT(!m_bDoDump || bTrainingMode);
 				m_curLayer.push(lIdx);
-				if (bDoDump(lIdx)) get_self().on_fprop_begin(lIdx, prevAct, bTrainingMode);
+				if (bDoDump(lIdx) && m_curLayer.bUpperLayerDifferent()) get_self().on_fprop_begin(lIdx, prevAct, bTrainingMode);
 			}
 			void fprop_end(const realmtx_t& act) noexcept {
-				if (bDoDump(m_curLayer)) get_self().on_fprop_end(act);
+				if (bDoDump(m_curLayer) && m_curLayer.bUpperLayerDifferent()) get_self().on_fprop_end(act);
 				m_curLayer.pop();
 			}
 			void bprop_begin(const layer_index_t lIdx, const realmtx_t& dLdA) noexcept {
 				m_curLayer.push(lIdx);
-				if (bDoDump(lIdx)) get_self().on_bprop_begin(lIdx, dLdA);
+				if (bDoDump(lIdx) && m_curLayer.bUpperLayerDifferent()) get_self().on_bprop_begin(lIdx, dLdA);
 			}
 			void bprop_end(const realmtx_t& dLdAPrev) noexcept {
-				if (bDoDump(m_curLayer)) get_self().on_bprop_end(dLdAPrev);
+				if (bDoDump(m_curLayer) && m_curLayer.bUpperLayerDifferent()) get_self().on_bprop_end(dLdAPrev);
 				m_curLayer.pop();
 			}
 		};

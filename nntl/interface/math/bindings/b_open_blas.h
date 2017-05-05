@@ -103,6 +103,9 @@ namespace math {
 		//////////////////////////////////////////////////////////////////////////
 		//////////////////////////////////////////////////////////////////////////
 		// LEVEL 3
+		// 
+		//////////////////////////////////////////////////////////////////////////
+		// General matrix multiplication
 		// GEMM C := alpha*op(A)*op(B) + beta*C
 		// https://software.intel.com/en-us/node/520775
 		// where:
@@ -133,8 +136,8 @@ namespace math {
 		static typename std::enable_if_t< std::is_same< std::remove_pointer_t<fl_t>, double>::value >
 			gemm( //const enum CBLAS_TRANSPOSE TransA, const enum CBLAS_TRANSPOSE TransB,
 			const bool bTransposeA, const bool bTransposeB,
-			const sz_t M, const sz_t N, const sz_t K, const fl_t alpha, const fl_t *A, const sz_t lda,
-			const fl_t *B, const sz_t ldb, const fl_t beta, fl_t *C, const sz_t ldc)
+			const sz_t& M, const sz_t& N, const sz_t& K, const fl_t& alpha, const fl_t *A, const sz_t& lda,
+			const fl_t *B, const sz_t& ldb, const fl_t& beta, fl_t *C, const sz_t& ldc)
 		{
 			cblas_dgemm(CblasColMajor, bTransposeA ? CblasTrans : CblasNoTrans, bTransposeB ? CblasTrans : CblasNoTrans,
 				static_cast<blasint>(M), static_cast<blasint>(N), static_cast<blasint>(K),
@@ -144,13 +147,74 @@ namespace math {
 		static typename std::enable_if_t< std::is_same< std::remove_pointer_t<fl_t>, float>::value >
 			gemm( //const enum CBLAS_TRANSPOSE TransA, const enum CBLAS_TRANSPOSE TransB,
 			const bool bTransposeA, const bool bTransposeB,
-			const sz_t M, const sz_t N, const sz_t K, const fl_t alpha, const fl_t *A, const sz_t lda,
-			const fl_t *B, const sz_t ldb, const fl_t beta, fl_t *C, const sz_t ldc)
+			const sz_t& M, const sz_t& N, const sz_t& K, const fl_t& alpha, const fl_t *A, const sz_t& lda,
+			const fl_t *B, const sz_t& ldb, const fl_t& beta, fl_t *C, const sz_t& ldc)
 		{
 			cblas_sgemm(CblasColMajor, bTransposeA ? CblasTrans: CblasNoTrans, bTransposeB ? CblasTrans : CblasNoTrans,
 				static_cast<blasint>(M), static_cast<blasint>(N), static_cast<blasint>(K),
 				alpha, A, static_cast<blasint>(lda), B, static_cast<blasint>(ldb), beta, C, static_cast<blasint>(ldc));
 		}
+
+		//////////////////////////////////////////////////////////////////////////
+		// cblas_?syrk, https://software.intel.com/en-us/node/520780
+		// Performs a symmetric rank-k update.
+		// The ?syrk routines perform a rank-k matrix-matrix operation for a symmetric matrix C using a general matrix A.
+		// The operation is defined as:
+		// C := alpha*A*A' + beta*C,
+		//		or
+		// C : = alpha*A'*A + beta*C,
+		// where :
+		//		alpha and beta are scalars,
+		//		C is an n-by-n symmetric matrix,
+		//		A is an n-by-k matrix in the first case and a k-by-n matrix in the second case.
+		template<typename sz_t, typename fl_t>
+		static typename std::enable_if_t< std::is_same< std::remove_pointer_t<fl_t>, double>::value >
+			syrk( const bool bCLowerTriangl, const bool bFirstATransposed, const sz_t& N, const sz_t& K, const fl_t& alpha
+				, const fl_t *A, const sz_t& lda, const fl_t& beta, fl_t *C, const sz_t& ldc)
+		{
+			cblas_dsyrk(CblasColMajor, bCLowerTriangl ? CblasLower : CblasUpper, bFirstATransposed ? CblasTrans : CblasNoTrans
+				, static_cast<blasint>(N), static_cast<blasint>(K), alpha, A, static_cast<blasint>(lda), beta, C, static_cast<blasint>(ldc));
+		}
+		template<typename sz_t, typename fl_t>
+		static typename std::enable_if_t< std::is_same< std::remove_pointer_t<fl_t>, float>::value >
+			syrk(const bool bCLowerTriangl, const bool bFirstATransposed, const sz_t& N, const sz_t& K, const fl_t& alpha
+				, const fl_t *A, const sz_t& lda, const fl_t& beta, fl_t *C, const sz_t& ldc)
+		{
+			cblas_ssyrk(CblasColMajor, bCLowerTriangl ? CblasLower : CblasUpper, bFirstATransposed ? CblasTrans : CblasNoTrans
+				, static_cast<blasint>(N), static_cast<blasint>(K), alpha, A, static_cast<blasint>(lda), beta, C, static_cast<blasint>(ldc));
+		}
+
+		//////////////////////////////////////////////////////////////////////////
+		// cblas_?symm, https://software.intel.com/en-us/node/520779
+		// Computes a matrix - matrix product where one input matrix is symmetric.
+		// The ?symm routines compute a scalar-matrix-matrix product with one symmetric matrix and add the
+		// result to a scalar-matrix product. The operation is defined as
+		// C: = alpha*A*B + beta*C,
+		//		or
+		// C : = alpha*B*A + beta*C,
+		// where :
+		//		alpha and beta are scalars,
+		//		A is a symmetric matrix,
+		//		B and C are m - by - n matrices.
+		template<typename sz_t, typename fl_t>
+		static typename std::enable_if_t< std::is_same< std::remove_pointer_t<fl_t>, double>::value >
+			symm(const bool bSymmAatLeft, const bool bALowerTriangl, const sz_t& M, const sz_t& N, const fl_t& alpha
+				, const fl_t *A, const sz_t& lda, const fl_t *B, const sz_t& ldb, const fl_t& beta, fl_t *C, const sz_t& ldc)
+		{
+			cblas_dsymm(CblasColMajor, bSymmAatLeft ? CblasLeft : CblasRight, bALowerTriangl ? CblasLower : CblasUpper
+				, static_cast<blasint>(M), static_cast<blasint>(N), alpha, A, static_cast<blasint>(lda)
+				, B, static_cast<blasint>(ldb), beta, C, static_cast<blasint>(ldc));
+		}
+		template<typename sz_t, typename fl_t>
+		static typename std::enable_if_t< std::is_same< std::remove_pointer_t<fl_t>, float>::value >
+			symm(const bool bSymmAatLeft, const bool bALowerTriangl, const sz_t& M, const sz_t& N, const fl_t& alpha
+				, const fl_t *A, const sz_t& lda, const fl_t *B, const sz_t& ldb, const fl_t& beta, fl_t *C, const sz_t& ldc)
+		{
+			cblas_ssymm(CblasColMajor, bSymmAatLeft ? CblasLeft : CblasRight, bALowerTriangl ? CblasLower : CblasUpper
+				, static_cast<blasint>(M), static_cast<blasint>(N), alpha, A, static_cast<blasint>(lda)
+				, B, static_cast<blasint>(ldb), beta, C, static_cast<blasint>(ldc));
+		}
+
 
 		//////////////////////////////////////////////////////////////////////////
 		//////////////////////////////////////////////////////////////////////////
@@ -161,9 +225,9 @@ namespace math {
 		template<typename sz_t, typename fl_t>
 		static typename std::enable_if_t< std::is_same< std::remove_pointer_t<fl_t>, double>::value, int>
 			gesvd(/*int matrix_layout,*/ const char jobu, const char jobvt,
-				const sz_t m, const sz_t n, fl_t* A,
-				const sz_t lda, fl_t* S, fl_t* U, const sz_t ldu,
-				fl_t* Vt, const sz_t ldvt, fl_t* superb)
+				const sz_t& m, const sz_t& n, fl_t* A,
+				const sz_t& lda, fl_t* S, fl_t* U, const sz_t& ldu,
+				fl_t* Vt, const sz_t& ldvt, fl_t* superb)
 		{
 			return static_cast<int>(LAPACKE_dgesvd(LAPACK_COL_MAJOR, jobu, jobvt, static_cast<lapack_int>(m), static_cast<lapack_int>(n)
 				, A, static_cast<lapack_int>(lda), S, U, static_cast<lapack_int>(ldu), Vt, static_cast<lapack_int>(ldvt), superb));
@@ -171,9 +235,9 @@ namespace math {
 		template<typename sz_t, typename fl_t>
 		static typename std::enable_if_t< std::is_same< std::remove_pointer_t<fl_t>, float>::value, int>
 			gesvd(/*int matrix_layout,*/ const char jobu, const char jobvt,
-				const sz_t m, const sz_t n, fl_t* A,
-				const sz_t lda, fl_t* S, fl_t* U, const sz_t ldu,
-				fl_t* Vt, const sz_t ldvt, fl_t* superb)
+				const sz_t& m, const sz_t& n, fl_t* A,
+				const sz_t& lda, fl_t* S, fl_t* U, const sz_t& ldu,
+				fl_t* Vt, const sz_t& ldvt, fl_t* superb)
 		{
 			return static_cast<int>(LAPACKE_sgesvd(LAPACK_COL_MAJOR, jobu, jobvt, static_cast<lapack_int>(m), static_cast<lapack_int>(n)
 				, A, static_cast<lapack_int>(lda), S, U, static_cast<lapack_int>(ldu), Vt, static_cast<lapack_int>(ldvt), superb));

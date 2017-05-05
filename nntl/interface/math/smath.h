@@ -50,6 +50,8 @@ namespace math {
 	// _mt and generic function versions may use any suitable implementations.
 	// generic, _st and _mt versions MUST accept any datasizes. However, their specializations,
 	//		such as _mt_cw MAY put restrictions on acceptable data sizes.
+	//
+	// #todo drop <typename RealT> template parameter!
 
 	template<typename RealT, typename iThreadsT, typename ThresholdsT, typename FinalPolymorphChild>
 	class _SMath {
@@ -67,11 +69,9 @@ namespace math {
 
 		typedef smatrix_deform<real_t> realmtxdef_t;
 
-		//typedef std::vector<vec_len_t> vector_of_vec_len_t;
-
-		//typedef s_rowcol_range<real_t> rowcol_range;
 		typedef s_rowcol_range rowcol_range;
-		typedef s_elems_range<real_t> elms_range;
+		typedef s_elems_range elms_range;
+
 		// here's small guide for using rowcol_range/elms_range :
 		// Every function that should be multithreaded should have 3 (!!!) functions:
 		//	.1 func_st() which does purely singlethreaded processing. If needed, it must be aware of other threads running and
@@ -92,7 +92,7 @@ namespace math {
 		static_assert(std::is_same<typename realmtx_t::numel_cnt_t, typename iThreadsT::range_t>::value, "iThreads::range_t should be the same as realmtx_t::numel_cnt_t");
 
 		//ALL branching functions require refactoring
-		typedef ThresholdsT Thresholds_t;
+		typedef typename ThresholdsT Thresholds_t;
 
 		//TODO: probably don't need this assert
 		static_assert(std::is_base_of<_impl::SMATH_THR<real_t>, Thresholds_t>::value, "Thresholds_t must be derived from _impl::SMATH_THR<real_t>");
@@ -108,31 +108,6 @@ namespace math {
 		numel_cnt_t m_minTempStorageSize, m_curStorElementsAllocated;
 		thread_temp_storage_t m_threadTempRawStorage;
 		
-		//////////////////////////////////////////////////////////////////////////
-		// Technical Methods
-	protected:
-		static real_t _reduce_final_sum(real_t* _ptr, const range_t _cnt)noexcept {
-			NNTL_ASSERT(_ptr && _cnt > 0);
-			const auto pE = _ptr + _cnt;
-			auto ret = *_ptr++;
-			while (_ptr != pE) {
-				ret += *_ptr++;
-			}
-			return ret;
-		}
-		static real_t _reduce_final_sum_ns(real_t* _ptr, const range_t _cnt)noexcept {
-			NNTL_ASSERT(_ptr && _cnt > 0);
-			const auto pE = _ptr + _cnt;
-			real_t ret(0.), C(0.), Y, T;
-			while (_ptr != pE) {
-				Y = *_ptr++ - C;
-				T = ret + Y;
-				C = T - ret - Y;
-				ret = T;
-			}
-			return ret;
-		}
-
 	public:
 		~_SMath()noexcept {}
 		_SMath()noexcept : m_minTempStorageSize(0), m_curStorElementsAllocated(0){
@@ -180,10 +155,141 @@ namespace math {
 			m_curStorElementsAllocated = 0;
 		}
 
+
 		//////////////////////////////////////////////////////////////////////////
 		// Math Methods
-	protected:
+	//protected:
+		template<typename FunctorT>
+		static void _vec_apply_func(const typename FunctorT::value_type * _ptr, const size_t _cnt, FunctorT& F)noexcept {
+			NNTL_ASSERT(_ptr && _cnt > 0);
+			for (size_t i = 0; i < _cnt; ++i) {//seems to vectorize better than while{}
+				//(std::forward<FunctorT>(F)).op(_ptr[i]);
+				//The F will be used later in callee code, so it can't be move'd here.
+				F.op(_ptr[i]);
+			}
+		}
+		template <typename FunctorT>
+		static typename FunctorT::value_type _vec_apply_func_get_result(const typename FunctorT::value_type* _ptr, const size_t& _cnt)noexcept {
+			FunctorT f;
+			_vec_apply_func(_ptr, _cnt, f);
+			return f.result();
+		}
 
+		//////////////////////////////////////////////////////////////////////////
+		template<typename _T, bool bNumStab>
+		struct func_SUM {};
+
+		template<typename _T>
+		struct func_SUM<_T, false> {
+			typedef _T value_type;
+
+			value_type ret;
+
+			func_SUM()noexcept:ret(value_type(0.)) {}
+			void op(const value_type& v)noexcept {
+				ret += v;
+			}
+			value_type result()const noexcept { return ret; }
+		};
+
+		template<typename _T>
+		struct func_SUM<_T, true> {
+			typedef _T value_type;
+
+			value_type ret, C;
+
+			func_SUM()noexcept:ret(value_type(0.)), C(value_type(0.)) {}
+			void op(const value_type& v)noexcept {
+				const auto Y = v - C;
+				const auto T = ret + Y;
+				C = T - ret - Y;
+				ret = T;
+			}
+			value_type result()const noexcept { return ret; }
+		};
+
+		template<typename _T, bool bNumStab>
+		struct func_SUM_squares : public func_SUM<_T, bNumStab> {
+		private:
+			typedef func_SUM<_T, bNumStab> _base_class_t;
+		public:
+			void op(const _T& v)noexcept {
+				_base_class_t::op(v*v);
+			}
+		};
+
+		//////////////////////////////////////////////////////////////////////////
+		template <bool bNumStab, typename _T>
+		static _T _vec_sum(const _T* _ptr, const size_t& _cnt)noexcept {
+			return _vec_apply_func_get_result<func_SUM<_T, bNumStab>>(_ptr, _cnt);
+		}
+		template <bool bNumStab, typename _T>
+		static _T _vec_sum_squares(const _T* _ptr, const size_t& _cnt)noexcept {
+			return _vec_apply_func_get_result<func_SUM_squares<_T, bNumStab>>(_ptr, _cnt);
+		}
+
+		//////////////////////////////////////////////////////////////////////////
+		//contrary to a common matrix elements numeration, `er` var describes elements indexes in TRIANGULAR matrix (not a square matrix as usual)
+		template<bool bLowerTriangl, typename FunctorT>
+		static auto _triang_apply_func_get_result(const smatrix<typename FunctorT::value_type>& A, const elms_range& er)noexcept {
+			NNTL_ASSERT(A.rows() > 1);
+			NNTL_ASSERT(er.elmEnd <= A.numel_triangl());
+
+			vec_len_t ri, ci, endRi, endCi;
+			A.triangl_coords_from_idx<bLowerTriangl>(er.elmBegin, ri, ci);
+			A.triangl_coords_from_idx<bLowerTriangl>(er.elmEnd, endRi, endCi);
+			NNTL_ASSERT(ci < endCi || (ci == endCi && ri < endRi));
+
+			const auto n = A.rows();
+			NNTL_ASSERT(ri < n && endRi < n && (endCi < n || (endCi == n && endRi == 0)));
+			const bool bFirstIsLastCol = ci == endCi;
+			const auto _n = static_cast<ptrdiff_t>(n);
+			FunctorT F;
+			const auto* pCol = A.colDataAsVec(ci);
+
+			//first column of the range (it has non-default beginning row index)
+			if (bLowerTriangl) {
+				NNTL_ASSERT(ri > 0);
+				_vec_apply_func(pCol + ri, n - ri - bFirstIsLastCol*(n - endRi), F);
+				ri = ci + 2;
+			} else {
+				_vec_apply_func(pCol + ri, ci - ri - bFirstIsLastCol*(ci - endRi), F);
+			}
+			++ci;
+			pCol += _n;
+
+			//intermediate columns
+			for (; ci < endCi; ++ci) {
+				if (bLowerTriangl) {
+					NNTL_ASSERT(ri < n);
+					_vec_apply_func(pCol + ri, n - ri, F);
+					++ri;
+				} else {
+					_vec_apply_func(pCol, ci, F);
+				}
+				pCol += _n;
+			}
+
+			//final column (it has non-default ending row index)
+			if (!bFirstIsLastCol) {
+				if (bLowerTriangl) {
+					if (endRi > endCi + 1) {
+						NNTL_ASSERT(pCol < A.end());
+						NNTL_ASSERT(ri < n && ri == endCi + 1);
+						_vec_apply_func(pCol + ri, endRi - ri, F);
+					}
+				} else {
+					if (endRi > 0) { //endRi==0 means just the begining of the next column
+						NNTL_ASSERT(pCol < A.end());
+						_vec_apply_func(pCol, endRi, F);
+					}
+				}
+			}
+
+			return F.result();
+		}
+
+		//////////////////////////////////////////////////////////////////////////
 		//Copies pRCR->totalRows() elements from a column of A, starting at row=(pRCR->rowBegin) col=(pRCR->colBegin) element.
 		template<typename T_>
 		nntl_force_inline static void _memcpy_rowcol_range(T_* dest, const smatrix<T_>& A, const rowcol_range*const pRCR)noexcept {
@@ -206,10 +312,12 @@ namespace math {
 				dest += pRCR->rowBegin;
 				elems = pRCR->totalRows();
 			}
+			//#todo which one is really faster?
 			//memset(dest, src, sizeof(T_)*elems);
 			std::fill(dest, dest + elems, v);
 		}
 
+		//////////////////////////////////////////////////////////////////////////
 		enum _OperationType {
 			mrw_cw,//processing rows of matrix columnwise
 			mrw_rw //processing rows of matrix rowwise
@@ -337,7 +445,7 @@ namespace math {
 		};
 
 
-		//#TODO: !!!!!!!!! Actually, proper and usually more effective way to pass simple and small solver objects BY VALUE.
+		//#TODO: !!!!!!!!! Actually, proper and usually more effective way to pass simple and small solver objects BY VALUE. (???)
 		//Test it here!
 
 		//////////////////////////////////////////////////////////////////////////
@@ -351,7 +459,7 @@ namespace math {
 			for (numel_cnt_t i = er.elmBegin; i < er.elmEnd; ++i) {
 				const auto p = pA + i;
 				//F.op(pA[i]);
-				F.op(*p);
+				std::forward<ewOperationT>(F).op(*p);
 			}
 		}
 		template<typename ContainerT, typename ewOperationT>
@@ -359,7 +467,7 @@ namespace math {
 			auto pA = A.data() + er.elmBegin;
 			const auto pAE = A.data() + er.elmEnd;
 			while(pA!=pAE){
-				F.op(*pA);//dont do F.op(*pA++) or you'll get serious performance penalty
+				std::forward<ewOperationT>(F).op(*pA);//dont do F.op(*pA++) or you'll get serious performance penalty
 				pA++;
 			}
 		}
@@ -382,7 +490,7 @@ namespace math {
 			colBegin += RCR.colBegin;
 			NNTL_ASSERT(colBegin <= RCR.colEnd);
 			auto pA = A.colDataAsVec(colBegin);
-			F.initOperation(colBegin, A.rows());
+			std::forward<mrwOperationT>(F).initOperation(colBegin, A.rows());
 			for (auto c = colBegin; c < RCR.colEnd; ++c) {
 				for (vec_len_t r = RCR.rowBegin; r < RCR.rowEnd; ++r) {//FOR cycle with offset calculation is generally faster than WHILE,
 					const auto pV = pVec + r;//because usually compiler can unfold a cycle into many instructions
@@ -390,19 +498,13 @@ namespace math {
 					//and calculating offsets is faster than mrwOperationT::op(*pA++, *pV++);
 					//static call-style mrwOperationT::op() vs. object call-style F.op() doesn't make any difference in asm 
 					// code (at the moment of testing), but object call-style permits far more generic algorithms creation
-					F.op<mrw_cw>(*pElm, *pV, r, c, rm);
+					std::forward<mrwOperationT>(F).op<mrw_cw>(*pElm, *pV, r, c, rm);
 				}
 				pA += rm;
-				F.cw_toNextCol(rm);
+				std::forward<mrwOperationT>(F).cw_toNextCol(rm);
 			}
 		}
 
-		/*template<bool _Cond,typename VecValueT>
-		nntl_force_inline static std::enable_if_t<!_Cond> _condSetVal(VecValueT* pV, const std::remove_const_t<VecValueT> v)noexcept {}
-		template<bool _Cond, typename VecValueT>
-		nntl_force_inline static std::enable_if_t<_Cond> _condSetVal(VecValueT* pV, const std::remove_const_t<VecValueT> v)noexcept {
-			*pV = v;
-		}*/
 		//Rowwise
 		template<typename MtxT, typename VecValueT, typename mrwOperationT>
 		nntl_probably_force_inline static void _mrwVecOperation_st_rw(MtxT& A, VecValueT*const pVec, const rowcol_range& RCR, mrwOperationT&& F)noexcept {
@@ -410,18 +512,50 @@ namespace math {
 			NNTL_ASSERT(!A.empty() && A.numel() > 0 && pVec);
 			const auto pA = A.colDataAsVec(RCR.colBegin); //A.data();
 			const size_t rm = A.rows();
-			F.initOperation(RCR.colBegin, A.rows());
+			std::forward<mrwOperationT>(F).initOperation(RCR.colBegin, A.rows());
 			for (vec_len_t r = RCR.rowBegin; r < RCR.rowEnd; ++r) {
 				const auto pV = pVec + r;
 				auto pElm = pA + r;
-				auto v = F.rw_initVecElm(*pV, pElm, rm, RCR.colBegin, r);
+				auto v = std::forward<mrwOperationT>(F).rw_initVecElm(*pV, pElm, rm, RCR.colBegin, r);
 				for (vec_len_t c = RCR.colBegin + mrwOperationT::rw_FirstColumnIdx; c < RCR.colEnd; ++c) {
-					F.op<mrw_rw>(*pElm, v, r, c, rm);
+					std::forward<mrwOperationT>(F).op<mrw_rw>(*pElm, v, r, c, rm);
 					pElm += rm;
 				}
-				F.rw_updVecElm<VecValueT>(*pV, v, r);
+				std::forward<mrwOperationT>(F).rw_updVecElm<VecValueT>(*pV, v, r);
 			}
 		}
+
+		//////////////////////////////////////////////////////////////////////////
+		// colwise matrix processing
+
+		//functor to perform colwise vector element subtraction A = A - vec, where size(vec)==A.cols()
+		struct _mcwSUB_ip {
+			template<typename _T>
+			static void op(_T& mtxElm, const _T& vecElm)noexcept {
+				mtxElm -= vecElm;
+			}
+		};
+
+		template<typename MtxT, typename VecValueT, typename mcwOperationT>
+		nntl_probably_force_inline static void _mcwVecOperation_st(MtxT& A, VecValueT* pVec, const rowcol_range& RCR, mcwOperationT&& F)noexcept {
+			static_assert(std::is_same< smatrix<std::remove_const_t<VecValueT>>, std::remove_const_t<MtxT> >::value, "Types mismatch");
+			NNTL_ASSERT(!A.empty() && A.numel() > 0 && pVec);
+			NNTL_ASSERT(RCR.rowBegin == 0 && RCR.rowEnd == A.rows());//we won't be using row information
+
+			auto* pA = A.colDataAsVec(RCR.colBegin);
+			auto*const pAE = A.colDataAsVec(RCR.colEnd);
+			pVec += RCR.colBegin;
+			const numel_cnt_t rc = A.rows();
+			while (pA != pAE) {
+				const auto pC = pA;
+				pA += rc;
+				const auto v = *pVec++;
+				for (numel_cnt_t i = 0; i < rc; ++i) {
+					std::forward<mcwOperationT>(F).op(pC[i], v);
+				}
+			}
+		}
+
 
 		//////////////////////////////////////////////////////////////////////////
 		//////////////////////////////////////////////////////////////////////////
@@ -436,18 +570,17 @@ namespace math {
 		}
 		//////////////////////////////////////////////////////////////////////////
 		// colwise processing
-		// Variation to update A without additional tmp vector
-		//LambdaF is void(*F)(const rowcol_range& RCR, const thread_id_t _tid)
+		// Variation to work with the A without additional tmp vector
+		//LambdaF is void(*F)(const rowcol_range& RCR)
 		template<typename VT, typename LambdaF>
 		nntl_probably_force_inline void _processMtx_cw(const smatrix<VT>& A, LambdaF&& Func)noexcept {
 			NNTL_ASSERT(!A.empty() && A.numel() > 0);
 			//TODO: for some algorithms and datasizes it may be highly beneficial to make smart partitioning, that takes into account
 			//CPU cache size (will probably require more than workers_count() call to worker function, but each call will run significanly
 			// faster, due to correct cache use)
-			//m_threads.run([&A, F{ std::move(Func) }](const par_range_t& pr) {
 			m_threads.run([&A, &F{ std::forward<LambdaF>(Func) }](const par_range_t& pr) {
 				const auto colBeg = static_cast<vec_len_t>(pr.offset());
-				std::forward<LambdaF>(F)(rowcol_range(A, colBeg, colBeg + static_cast<vec_len_t>(pr.cnt())), pr.tid());
+				std::forward<LambdaF>(F)(rowcol_range(A, colBeg, colBeg + static_cast<vec_len_t>(pr.cnt())));// , pr.tid());
 			}, A.cols());
 		}
 		//Variation to make a vector out of const A
@@ -568,7 +701,7 @@ namespace math {
 			NNTL_ASSERT(!A.empty() && !B.empty() && B.size() == A.size());
 			return m_threads.reduce([&A, &B, this](const par_range_t& pr)->real_t {
 				return get_self()._iewSumProd_st(A, B, elms_range(pr));
-			}, _reduce_final_sum_ns, A.numel());
+			}, _vec_sum<true, real_t>, A.numel());
 		}
 
 		//////////////////////////////////////////////////////////////////////////
@@ -577,28 +710,11 @@ namespace math {
 		
 		static real_t _iewSumSquares_st(const real_t* pA, const elms_range& er)noexcept {
 			NNTL_ASSERT(pA && er.totalElements() > 0);
-			const real_t*const pAE = pA + er.elmEnd;
-			pA += er.elmBegin;
-			real_t ret(0.0);
-			while (pA!=pAE) {
-				auto v = *pA++;
-				ret += v*v;
-			}
-			return ret;
+			return _vec_sum_squares<false>(pA + er.elmBegin, er.totalElements());
 		}
 		static real_t _iewSumSquares_st_ns(const real_t* pA, const elms_range& er)noexcept {
 			NNTL_ASSERT(pA && er.totalElements() > 0);
-			const real_t*const pAE = pA + er.elmEnd;
-			pA += er.elmBegin;
-			real_t ret(0.0), C(0.), Y, T;
-			while (pA != pAE) {
-				auto v = *pA++;
-				Y = v*v - C;
-				T = ret + Y;
-				C = T - ret - Y;
-				ret = T;
-			}
-			return ret;
+			return _vec_sum_squares<true>(pA + er.elmBegin, er.totalElements());
 		}
 		//////////////////////////////////////////////////////////////////////////
 		real_t ewSumSquares(const realmtx_t& A)noexcept {
@@ -614,7 +730,7 @@ namespace math {
 			NNTL_ASSERT(!A.empty());
 			return m_threads.reduce([pA=A.data(), this](const par_range_t& pr)->real_t {
 				return get_self()._iewSumSquares_st(pA, elms_range(pr));
-			}, _reduce_final_sum, A.numel());
+			}, _vec_sum<false, real_t>, A.numel());
 		}
 		//////////////////////////////////////////////////////////////////////////
 		real_t ewSumSquares(const real_t* pA, const numel_cnt_t& n)noexcept {
@@ -629,7 +745,7 @@ namespace math {
 		real_t ewSumSquares_mt(const real_t* pA, const numel_cnt_t& n)noexcept {
 			return m_threads.reduce([pA, this](const par_range_t& pr)->real_t {
 				return get_self()._iewSumSquares_st(pA, elms_range(pr));
-			}, _reduce_final_sum, n);
+			}, _vec_sum<false, real_t>, n);
 		}
 		//////////////////////////////////////////////////////////////////////////
 		real_t ewSumSquares_ns(const realmtx_t& A)noexcept {
@@ -645,7 +761,7 @@ namespace math {
 			NNTL_ASSERT(!A.empty());
 			return m_threads.reduce([pA = A.data(), this](const par_range_t& pr)->real_t {
 				return get_self()._iewSumSquares_st_ns(pA, elms_range(pr));
-			}, _reduce_final_sum_ns, A.numel());
+			}, _vec_sum<true, real_t>, A.numel());
 		}
 		//////////////////////////////////////////////////////////////////////////
 		real_t ewSumSquares_ns(const real_t* pA, const numel_cnt_t& n)noexcept {
@@ -660,7 +776,37 @@ namespace math {
 		real_t ewSumSquares_mt_ns(const real_t* pA, const numel_cnt_t& n)noexcept {
 			return m_threads.reduce([pA, this](const par_range_t& pr)->real_t {
 				return get_self()._iewSumSquares_st_ns(pA, elms_range(pr));
-			}, _reduce_final_sum_ns, n);
+			}, _vec_sum<true, real_t>, n);
+		}
+
+		//////////////////////////////////////////////////////////////////////////
+		//////////////////////////////////////////////////////////////////////////
+		// Sum of squares of elements that lies in the upper or the lower triangular part of a square matrix A
+		// Main diagonal elements excluded.
+		template<bool bLowerTriangl, bool bNumStab, typename _T>
+		_T ewSumSquaresTriang(const smatrix<_T>& A)noexcept {
+			NNTL_ASSERT(A.rows() == A.cols());
+			if (A.rows() < Thresholds_t::ewSumSquaresTriang<bLowerTriangl, bNumStab>::v) {
+				return get_self().ewSumSquaresTriang_st<bLowerTriangl, bNumStab>(A);
+			} else return get_self().ewSumSquaresTriang_mt<bLowerTriangl, bNumStab>(A);
+		}
+
+		template<bool bLowerTriangl, bool bNumStab, typename _T>
+		_T ewSumSquaresTriang_st(const smatrix<_T>& A, const elms_range*const pER = nullptr)noexcept {
+			return get_self()._iewSumSquaresTriang_st<bLowerTriangl, bNumStab>(A, pER ? *pER : elms_range(0, A.numel_triangl()));
+		}
+
+		template<bool bLowerTriangl, bool bNumStab, typename _T>
+		_T ewSumSquaresTriang_mt(const smatrix<_T>& A)noexcept {
+			return m_threads.reduce([&A, this](const par_range_t& pr)->real_t {
+				return get_self()._iewSumSquaresTriang_st<bLowerTriangl, bNumStab>(A, elms_range(pr));
+			}, _vec_sum<bNumStab, real_t>, A.numel_triangl());
+		}
+
+		//contrary to a common matrix elements numeration, `er` var describes elements indexes in TRIANGULAR matrix (not a square matrix as usual)
+		template<bool bLowerTriangl, bool bNumStab, typename _T>
+		static _T _iewSumSquaresTriang_st(const smatrix<_T>& A, const elms_range& er)noexcept{
+			return _triang_apply_func_get_result<bLowerTriangl, func_SUM_squares<_T, bNumStab>>(A, er);
 		}
 
 
@@ -692,10 +838,10 @@ namespace math {
 		static void mrwDivideByVec_st_rw(realmtx_t& A, const real_t*const pDiv, const rowcol_range*const pRCR = nullptr)noexcept {
 			NNTL_ASSERT(!A.empty() && A.numel() > 0 && pDiv);
 			_mrwVecOperation_st_rw(A, pDiv, pRCR ? *pRCR : rowcol_range(A), _mrw_DIV_mtx_by_vec());
-		}
+		}		
 		void mrwDivideByVec_mt_cw(realmtx_t& A, const real_t*const pDiv)noexcept {
 			NNTL_ASSERT(!A.empty() && A.numel() > 0 && pDiv);
-			_processMtx_cw(A, [&A, pDiv, this](const rowcol_range& RCR, const thread_id_t _tid) {
+			_processMtx_cw(A, [&A, pDiv, this](const rowcol_range& RCR){//, const thread_id_t _tid) {
 				get_self().mrwDivideByVec_st(A, pDiv, &RCR);
 			});
 		}
@@ -733,7 +879,7 @@ namespace math {
 		}
 		void mrwMulByVec_mt_cw(realmtx_t& A, const real_t*const pMul)noexcept {
 			NNTL_ASSERT(!A.empty() && A.numel() > 0 && pMul);
-			_processMtx_cw(A, [&A, pMul, this](const rowcol_range& RCR, const thread_id_t _tid) {
+			_processMtx_cw(A, [&A, pMul, this](const rowcol_range& RCR) {//, const thread_id_t _tid) {
 				get_self().mrwMulByVec_st(A, pMul, &RCR);
 			});
 		}
@@ -1251,7 +1397,119 @@ namespace math {
 			});
 		}
 
+		//////////////////////////////////////////////////////////////////////////
+		//////////////////////////////////////////////////////////////////////////
+		// Matrix ColWise operations
+		//////////////////////////////////////////////////////////////////////////
+		//////////////////////////////////////////////////////////////////////////
 
+		//////////////////////////////////////////////////////////////////////////
+		// compute colwise mean
+		// pVec must address at least A.cols() elements
+		template<bool bNumStab, typename _T>
+		void mcwMean(const smatrix<_T>& A, _T*const pVec)noexcept{
+			if (A.numel() < Thresholds_t::mcwMean<bNumStab>::v) {
+				get_self().mcwMean_st<bNumStab>(A, pVec);
+			} else get_self().mcwMean_mt<bNumStab>(A, pVec);
+		}
+
+		template<bool bNumStab, typename _T>
+		void mcwMean_st(const smatrix<_T>& A, _T*const pVec, const rowcol_range*const pRCR = nullptr)noexcept {
+			get_self()._imcwMean_st<bNumStab>(A, pVec, pRCR ? *pRCR : rowcol_range(A));
+		}
+
+		template<bool bNumStab, typename _T>
+		void mcwMean_mt(const smatrix<_T>& A, _T*const pVec)noexcept {
+			_processMtx_cw(A, [&A, &pVec, this](const rowcol_range& rcr) noexcept {
+				get_self()._imcwMean_st<bNumStab>(A, pVec, rcr);
+			});
+		}
+
+		template<bool bNumStab, typename _T>
+		static void _imcwMean_st(const smatrix<_T>& A, _T* pVec, const rowcol_range& rcr)noexcept {
+			NNTL_ASSERT(pVec && !A.empty());
+			NNTL_ASSERT(rcr.rowBegin == 0 && rcr.rowEnd == A.rows());
+			NNTL_ASSERT(!A.emulatesBiases());//we're not expecting matrices with biases here
+			const auto* pA = A.colDataAsVec(rcr.colBegin);
+			const auto*const pAE = A.colDataAsVec(rcr.colEnd);
+			const ptrdiff_t rc = A.rows();
+			const _T N = static_cast<_T>(rc);
+			pVec += rcr.colBegin;
+
+			while (pA != pAE) {
+				const auto pCur = pA;
+				pA += rc;
+				//*pVec++ = std::accumulate(pCur, pA, _T(0.)) / rc;
+				*pVec++ = _vec_sum<bNumStab>(pCur, rc) / N;
+			}
+		}
+
+		//////////////////////////////////////////////////////////////////////////
+		// subtract from each matrix column a corresponding vector element: A(:,j) = A(:,j) - pVec(j)
+		template<typename BaseT>
+		void mcwSub_ip(smatrix<BaseT>& A, const BaseT* pVec)noexcept {
+			if (A.numel() < Thresholds_t::mcwSub_ip) {
+				get_self().mcwSub_ip_st(A, pVec);
+			} else get_self().mcwSub_ip_mt(A, pVec);
+		}
+		template<typename BaseT>
+		void mcwSub_ip_st(smatrix<BaseT>& A, const BaseT* pVec, const rowcol_range*const pRCR = nullptr)noexcept {
+			get_self()._mcwVecOperation_st(A, pVec, pRCR ? *pRCR : rowcol_range(A), _mcwSUB_ip());
+		}
+		template<typename BaseT>
+		void mcwSub_ip_mt(smatrix<BaseT>& A, const BaseT* pVec)noexcept {
+			_processMtx_cw(A, [&A, &pVec, this](const rowcol_range& rcr)noexcept {
+				get_self().mcwSub_ip_st(A, pVec, &rcr);
+			});
+		}
+
+		//////////////////////////////////////////////////////////////////////////
+		//perform elementwise multiplication of a vector of diagonal elements of the matrix B to corresponding columns of matrix A
+		// i.e. A(:,j) = A(:,j) .* B(j,j);
+		template<typename BaseT>
+		void mcwMulDiag_ip(smatrix<BaseT>& A, const smatrix<BaseT>& B)noexcept {
+			if (A.numel() < Thresholds_t::mcwMulDiag_ip) {
+				get_self().mcwMulDiag_ip_st(A, B);
+			} else get_self().mcwMulDiag_ip_mt(A, B);
+		}
+		template<typename BaseT>
+		void mcwMulDiag_ip_st(smatrix<BaseT>& A, const smatrix<BaseT>& B, const rowcol_range*const pRCR = nullptr)noexcept {
+			get_self()._imcwMulDiag_ip_st(A, B, pRCR ? *pRCR : rowcol_range(A));
+		}
+		template<typename BaseT>
+		void mcwMulDiag_ip_mt(smatrix<BaseT>& A, const smatrix<BaseT>& B)noexcept {
+			_processMtx_cw(A, [&A, &B, this](const rowcol_range& rcr)noexcept {
+				get_self()._imcwMulDiag_ip_st(A, B, rcr);
+			});
+		}
+		template<typename _T>
+		static void _imcwMulDiag_ip_st(smatrix<_T>& A, const smatrix<_T>& B, const rowcol_range& rcr)noexcept {
+			NNTL_ASSERT(!A.empty() && !B.empty());
+			NNTL_ASSERT(B.rows() == B.cols() || !"B must be a square matrix!");
+			NNTL_ASSERT(A.cols() == B.cols());
+			NNTL_ASSERT(rcr.rowBegin == 0 && rcr.rowEnd == A.rows());
+			NNTL_ASSERT(rcr.colBegin < rcr.colEnd && rcr.colEnd <= A.cols());
+			NNTL_ASSERT(!A.emulatesBiases() && !B.emulatesBiases());//we're not expecting matrices with biases here
+
+			auto* pA = A.colDataAsVec(rcr.colBegin);
+			const auto*const pAE = A.colDataAsVec(rcr.colEnd);
+			const ptrdiff_t rc = A.rows();
+			auto pB = B.colDataAsVec(rcr.colBegin) + rcr.colBegin;
+			const ptrdiff_t nextB = B.rows() + 1;
+
+			while (pA != pAE) {
+				const auto pCur = pA;
+				pA += rc;
+				const auto v = *pB;
+				pB += nextB;
+				for (ptrdiff_t j = 0; j < rc; ++j) {
+					pCur[j] *= v;
+				}
+			}
+		}
+
+
+		//////////////////////////////////////////////////////////////////////////
 		//////////////////////////////////////////////////////////////////////////
 		//////////////////////////////////////////////////////////////////////////
 		// clone matrix columns to another more wide matrix

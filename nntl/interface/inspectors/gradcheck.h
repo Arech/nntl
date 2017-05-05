@@ -68,7 +68,7 @@ namespace inspector {
 		mtx_coords_t m_coord;
 
 		real_t m_stepSize;
-		real_t m_analiticalValue;
+		real_t m_analyticalValue;
 		static_assert(std::numeric_limits<real_t>::has_quiet_NaN, "real_t MUST have quiet NaN available!");
 
 		real_t* m_pChangedEl;
@@ -99,15 +99,15 @@ namespace inspector {
 			m_coord = coord;
 			//return *this;
 		}
-		const real_t& get_analitical_value()const noexcept {
-			NNTL_ASSERT(!std::isnan(m_analiticalValue));
-			NNTL_ASSERT(nntl::_impl::gradcheck_phase::df_analitical == m_checkPhase);
-			return m_analiticalValue;
+		const real_t& get_analytical_value()const noexcept {
+			NNTL_ASSERT(!std::isnan(m_analyticalValue));
+			NNTL_ASSERT(nntl::_impl::gradcheck_phase::df_analytical == m_checkPhase);
+			return m_analyticalValue;
 		}
 
 		void gc_set_phase(nntl::_impl::gradcheck_phase ph)noexcept {
 			m_checkPhase = ph;
-			m_analiticalValue = std::numeric_limits<real_t>::quiet_NaN();
+			m_analyticalValue = std::numeric_limits<real_t>::quiet_NaN();
 		}
 
 		//////////////////////////////////////////////////////////////////////////
@@ -120,7 +120,7 @@ namespace inspector {
 			if (m_layerIdxToCheck) {
 				if (m_layerIdxToCheck == m_curLayer
 					&& nntl::_impl::gradcheck_paramsGroup::dLdW == m_checkParamsGroup
-					&& nntl::_impl::gradcheck_phase::df_analitical != m_checkPhase)
+					&& nntl::_impl::gradcheck_phase::df_analytical != m_checkPhase)
 				{
 					NNTL_ASSERT(!m_pChangedEl);
 					m_pChangedEl = &const_cast<realmtx_t&>(W).get(m_coord);
@@ -135,7 +135,7 @@ namespace inspector {
 			if (m_layerIdxToCheck) {
 				if (m_layerIdxToCheck == m_curLayer
 					&& nntl::_impl::gradcheck_paramsGroup::dLdW == m_checkParamsGroup
-					&& nntl::_impl::gradcheck_phase::df_analitical != m_checkPhase
+					&& nntl::_impl::gradcheck_phase::df_analytical != m_checkPhase
 					&& m_pChangedEl)
 				{
 					*m_pChangedEl = m_origElVal;
@@ -149,7 +149,7 @@ namespace inspector {
 			if (m_layerIdxToCheck){
 				if (m_layerIdxToCheck == m_curLayer 
 					&& nntl::_impl::gradcheck_paramsGroup::dLdA == m_checkParamsGroup
-					&& nntl::_impl::gradcheck_phase::df_analitical != m_checkPhase
+					&& nntl::_impl::gradcheck_phase::df_analytical != m_checkPhase
 					&& m_curLayer.bUpperLayerDifferent())
 				{
 					const_cast<realmtx_t&>(Act).get(m_coord) += nntl::_impl::gradcheck_phase::df_numeric_plus == m_checkPhase 
@@ -166,11 +166,11 @@ namespace inspector {
 
 				if (m_layerIdxToCheck==lIdx
 					&& nntl::_impl::gradcheck_paramsGroup::dLdA == m_checkParamsGroup
-					&& nntl::_impl::gradcheck_phase::df_analitical == m_checkPhase
+					&& nntl::_impl::gradcheck_phase::df_analytical == m_checkPhase
 					&& m_curLayer.bUpperLayerDifferent())
 				{
-					NNTL_ASSERT(std::isnan(m_analiticalValue));
-					m_analiticalValue = dLdA.get(m_coord);
+					NNTL_ASSERT(std::isnan(m_analyticalValue));
+					m_analyticalValue = dLdA.get(m_coord);
 				}
 			}
 			_base_class_t::bprop_begin(lIdx,dLdA);
@@ -180,11 +180,11 @@ namespace inspector {
 			if (m_layerIdxToCheck) {
 				if (m_layerIdxToCheck == m_curLayer
 					&& nntl::_impl::gradcheck_paramsGroup::dLdW == m_checkParamsGroup
-					&& nntl::_impl::gradcheck_phase::df_analitical == m_checkPhase
+					&& nntl::_impl::gradcheck_phase::df_analytical == m_checkPhase
 					&& m_curLayer.bUpperLayerDifferent())
 				{
-					NNTL_ASSERT(std::isnan(m_analiticalValue));
-					m_analiticalValue = dLdW.get(m_coord);
+					NNTL_ASSERT(std::isnan(m_analyticalValue));
+					m_analyticalValue = dLdW.get(m_coord);
 				}
 			}
 			_base_class_t::bprop_dLdW(dLdZ, prevAct, dLdW);
