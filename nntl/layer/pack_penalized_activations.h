@@ -58,6 +58,7 @@ namespace nntl {
 		using _base_class_t::realmtx_t;
 		using _base_class_t::realmtxdef_t;
 		typedef typename LayerT::_layer_init_data_t _layer_init_data_t;
+		typedef typename LayerT::common_data_t common_data_t;
 
 		//LayerPack_t is used to distinguish ordinary layers from layer packs (for example, to implement call_F_for_each_layer())
 		typedef self_t LayerPack_t;
