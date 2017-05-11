@@ -55,22 +55,24 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 namespace nntl {
 
-	template<typename FinalPolymorphChild, typename ...Layrs>
+	template<typename FinalPolymorphChild, typename LayrsRefTuple>
 	class _layer_pack_vertical : public _layer_base_forwarder<FinalPolymorphChild,
-		typename std::remove_reference<typename std::tuple_element<0, const std::tuple<Layrs&...>>::type>::type::interfaces_t>
+		typename std::remove_reference<typename std::tuple_element<0, LayrsRefTuple>::type>::type::interfaces_t>
 	{
 	private:
 		typedef _layer_base_forwarder<FinalPolymorphChild,
-			typename std::remove_reference<typename std::tuple_element<0, const std::tuple<Layrs&...>>::type>::type::interfaces_t
+			typename std::remove_reference<typename std::tuple_element<0, LayrsRefTuple>::type>::type::interfaces_t
 		> _base_class_t;
 
 	public:
 		//LayerPack_t is used to distinguish ordinary layers from layer packs (for example, to implement call_F_for_each_layer())
 		typedef self_t LayerPack_t;
 
-		typedef const std::tuple<Layrs&...> _layers;
+		//typedef const std::tuple<Layrs&...> _layers;
+		typedef const LayrsRefTuple _layers;
+		//static constexpr size_t layers_count = sizeof...(Layrs);
+		static constexpr size_t layers_count = std::tuple_size<LayrsRefTuple>::value;
 
-		static constexpr size_t layers_count = sizeof...(Layrs);
 		static_assert(layers_count > 1, "For vertical pack with a single inner layer use that layer instead");
 		typedef typename std::remove_reference<typename std::tuple_element<0, _layers>::type>::type lowmost_layer_t;
 		typedef typename std::remove_reference<typename std::tuple_element<layers_count - 1, _layers>::type>::type topmost_layer_t;
@@ -123,8 +125,8 @@ namespace nntl {
 		auto& _forwarder_layer()const noexcept { return topmost_layer(); }
 
 		~_layer_pack_vertical()noexcept {}
-		_layer_pack_vertical(const char* pCustomName, Layrs&... layrs)noexcept 
-			: _base_class_t(pCustomName), m_layers(layrs...), m_layerIdx(0)
+		_layer_pack_vertical(const char* pCustomName, const LayrsRefTuple& layrs)noexcept
+			: _base_class_t(pCustomName), m_layers(layrs), m_layerIdx(0)
 		{
 			//#todo this better be done with a single static_assert in the class scope
 			tuple_utils::for_each_up(m_layers, [](auto& l)noexcept {
@@ -340,15 +342,14 @@ deprecated:
 	// final implementation of layer with all functionality of _layer_pack_vertical
 	// If you need to derive a new class, derive it from _layer_pack_vertical (to make static polymorphism work)
 	template <typename ...Layrs>
-	class LPV final
-		: public _layer_pack_vertical<LPV<Layrs...>, Layrs...>
+	class LPV final : public _layer_pack_vertical<LPV<Layrs...>, std::tuple<Layrs&...>>
 	{
 	public:
 		~LPV() noexcept {};
 		LPV(Layrs&... layrs) noexcept
-			: _layer_pack_vertical<LPV<Layrs...>, Layrs...>(nullptr, layrs...) {};
+			: _layer_pack_vertical<LPV<Layrs...>, std::tuple<Layrs&...>>(nullptr, std::tie(layrs...)) {};
 		LPV(const char* pCustomName, Layrs&... layrs) noexcept
-			: _layer_pack_vertical<LPV<Layrs...>, Layrs...>(pCustomName, layrs...) {};
+			: _layer_pack_vertical<LPV<Layrs...>, std::tuple<Layrs&...>>(pCustomName, std::tie(layrs...)) {};
 	};
 
 	template <typename ..._T>

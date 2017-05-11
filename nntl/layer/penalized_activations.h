@@ -41,10 +41,10 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 namespace nntl {
 
 	//LayerTpl is a template of base layer whose activations should be penalized. See ../../tests/test_layer_penalized_activations.cpp for a use-case
-	//If possible prefer the _layer_penalized_activations<> over the _layer_pack_penalized_activations<>. However, in complicated
-	// cases compiler's bugs may leave you no option but to use _layer_pack_penalized_activations<>.
-	template<typename FinalPolymorphChild, template <class FpcT> class LayerTpl, typename ...LossAddsTs>
-	class _layer_penalized_activations : public LayerTpl<FinalPolymorphChild>, public _penalized_activations_base<LossAddsTs...>
+	//If possible prefer the _layer_penalized_activations<> over the _layer_pack_penalized_activations<>. However, in many even not very
+	// complicated cases of LayerTpl definition, compiler's bugs may leave you no option but to use _layer_pack_penalized_activations<>.
+	template<typename FinalPolymorphChild, template <class FpcT> class LayerTpl, typename LossAddsTuple>
+	class _layer_penalized_activations : public LayerTpl<FinalPolymorphChild>, public _penalized_activations_base<LossAddsTuple>
 	{
 	private:
 		typedef LayerTpl<FinalPolymorphChild> _base_class_t;
@@ -121,12 +121,12 @@ namespace nntl {
 	};
 
 	template<template <class FpcT> class LayerTpl, typename ...LossAddsTs>
-	class LPA final : public _layer_penalized_activations<LPA<LayerTpl, LossAddsTs...>, LayerTpl, LossAddsTs...> {
+	class LPA final : public _layer_penalized_activations<LPA<LayerTpl, LossAddsTs...>, LayerTpl, std::tuple<LossAddsTs...>> {
 	public:
 		~LPA() noexcept {};
 		template<typename... ArgsTs>
 		LPA(const char* pCustomName, ArgsTs... _args) noexcept
-			: _layer_penalized_activations<LPA<LayerTpl, LossAddsTs...>, LayerTpl, LossAddsTs...>(pCustomName, _args...) {};
+			: _layer_penalized_activations<LPA<LayerTpl, LossAddsTs...>, LayerTpl, std::tuple<LossAddsTs...>>(pCustomName, _args...) {};
 	};
 
 	template <template <class FpcT> class LayerTpl, typename ..._T>

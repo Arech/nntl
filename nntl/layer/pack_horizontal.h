@@ -48,27 +48,34 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "_pack_.h"
 #include "../utils.h"
 
+#include "_penalized_activations_base.h"
+
 namespace nntl {
+	
+	//AddendumsTupleT was introduced only to overcome compiler bug when using _layer_penalized_activations<> wrapper
 
-	/*class _layer_pack_horizontal : public _i_layer<typename std::remove_reference<typename std::tuple_element<0, const std::tuple<PHLsT...>>
-	::type>::type::phl_original_t::iMath_t::real_t>*/
-
-	template<typename FinalPolymorphChild, typename ...PHLsT>
-	class _layer_pack_horizontal : public _layer_base<FinalPolymorphChild, typename std::remove_reference<typename std::tuple_element<0, const std::tuple<PHLsT...>>
-		::type>::type::phl_original_t::interfaces_t>
+	template<typename FinalPolymorphChild, typename PHLsTuple, typename AddendumsTupleT = void>
+	class _layer_pack_horizontal 
+		: public _layer_base<FinalPolymorphChild, typename std::remove_reference<typename std::tuple_element<0, PHLsTuple>::type>::type::phl_original_t::interfaces_t>
+		, public _penalized_activations_base_selector<AddendumsTupleT>
 	{
 	private:
-		typedef _layer_base<FinalPolymorphChild, typename std::remove_reference<typename std::tuple_element<0, const std::tuple<PHLsT...>>
-			::type>::type::phl_original_t::interfaces_t> _base_class;
+		typedef _layer_base<FinalPolymorphChild, typename std::remove_reference<typename std::tuple_element<0, PHLsTuple>
+			::type>::type::phl_original_t::interfaces_t> _base_class_t;
 
 	public:
 		//LayerPack_t is used to distinguish ordinary layers from layer packs (for example, to implement call_F_for_each_layer())
 		typedef self_t LayerPack_t;
 
-		//shouldn't use references here (with PHLsT...)
-		typedef const std::tuple<PHLsT...> _phl_tuple;
+		using _base_class_t::real_t;
+		using _base_class_t::realmtx_t;
+		using _base_class_t::realmtxdef_t;
 
-		static constexpr size_t phl_count = sizeof...(PHLsT);
+		//typedef const std::tuple<PHLsT...> _phl_tuple;
+		typedef const PHLsTuple _phl_tuple;
+
+		//static constexpr size_t phl_count = sizeof...(PHLsT);
+		static constexpr size_t phl_count = std::tuple_size<PHLsTuple>::value;
 		static_assert(phl_count > 1, "For a pack with a single inner layer use that layer instead");
 
 		static_assert(is_PHL<typename std::remove_reference<typename std::tuple_element<0, _phl_tuple>::type>::type>::value, "_layer_pack_horizontal must be assembled from PHL objects!");
@@ -101,7 +108,7 @@ namespace nntl {
 			//anyway, there is nothing to help to those who'll try to abuse this API...
 			NNTL_ASSERT(inc_neurons_cnt > 0);
 
-			_base_class::_preinit_layer(ili, inc_neurons_cnt);
+			_base_class_t::_preinit_layer(ili, inc_neurons_cnt);
 
 			_impl::_preinit_layers initializer(ili, inc_neurons_cnt);
 			if (initializer.preparePHLCheck()) {
@@ -141,9 +148,9 @@ namespace nntl {
 
 	public:
 		~_layer_pack_horizontal()noexcept {}
-		_layer_pack_horizontal(const char* pCustomName, PHLsT&... phls)noexcept 
-			: _base_class(_calcNeuronsCnt(_phl_tuple(phls...)),pCustomName)
-			, m_phl_tuple(phls...), m_pTmpBiasStorage(nullptr), m_layers_max_dLdA_numel(0)
+		_layer_pack_horizontal(const char* pCustomName, const PHLsTuple& phls)noexcept
+			: _base_class_t(_calcNeuronsCnt(phls),pCustomName)
+			, m_phl_tuple(phls), m_pTmpBiasStorage(nullptr), m_layers_max_dLdA_numel(0)
 		{
 			m_activations.will_emulate_biases();
 		}
@@ -156,7 +163,7 @@ namespace nntl {
 		const mtx_size_t get_activations_size()const noexcept { return m_activations.size(); }
 
 		const bool is_activations_shared()const noexcept {
-			const auto r = _base_class::is_activations_shared();
+			const auto r = _base_class_t::is_activations_shared();
 			NNTL_ASSERT(!r || m_activations.bDontManageStorage());//shared activations can't manage their own storage
 			return r;
 		}
@@ -192,15 +199,17 @@ namespace nntl {
 
 		//should return true, if the layer has a value to add to Loss function value (there's some regularizer attached)
 		bool hasLossAddendum()const noexcept {
-			bool b = false;
-			get_self().for_each_packed_layer([&b](auto& l) {				b |= l.hasLossAddendum();			});
+			bool b = _pab_hasLossAddendum();
+			if (!b) {
+				get_self().for_each_packed_layer([&b](auto& l) {				b |= l.hasLossAddendum();			});
+			}
 			return b;
 		}
 		//returns a loss function summand, that's caused by this layer
 		real_t lossAddendum()const noexcept {
 			real_t la(.0);
 			get_self().for_each_packed_layer([&la](auto& l) {				la += l.lossAddendum();			});
-			return la;
+			return la + _pab_lossAddendum(get_self().get_activations(), get_self().get_iMath());
 		}
 
 	/*
@@ -226,7 +235,7 @@ namespace nntl {
 	public:
 		//////////////////////////////////////////////////////////////////////////
 		ErrorCode init(_layer_init_data_t& lid, real_t* pNewActivationStorage = nullptr)noexcept {
-			auto ec = _base_class::init(lid, pNewActivationStorage);
+			auto ec = _base_class_t::init(lid, pNewActivationStorage);
 			if (ErrorCode::Success != ec) return ec;
 
 			bool bSuccessfullyInitialized = false;
@@ -306,6 +315,8 @@ namespace nntl {
 
 			if (ErrorCode::Success == ec) bSuccessfullyInitialized = true;
 
+			lid.bLossAddendumDependsOnActivations = can_penalize_activations<FinalPolymorphChild>::value;
+
 			//#TODO need some way to return failedLayerIdx
 			return ec;
 		}
@@ -317,7 +328,7 @@ namespace nntl {
 			m_layers_max_dLdA_numel = 0;
 			m_innerdLdA.clear();
 			m_innerdLdAPrev.clear();
-			_base_class::deinit();
+			_base_class_t::deinit();
 		}
 
 		void initMem(real_t* ptr, numel_cnt_t cnt)noexcept {
@@ -412,10 +423,14 @@ namespace nntl {
 		// from dLdA&dLdAPrev, passed to this function as argument. It's possible however to reuse passed dLdA&dLdAPrev for that task, but
 		// it would require significantly more complicated and error-prone code to keep all data safe
 		template <typename LowerLayer>
-		const unsigned bprop(realmtx_t& dLdA, const LowerLayer& lowerLayer, realmtx_t& dLdAPrev)noexcept {
+		const unsigned bprop(realmtxdef_t& dLdA, const LowerLayer& lowerLayer, realmtx_t& dLdAPrev)noexcept {
 			static_assert(std::is_base_of<_i_layer_trainable, LowerLayer>::value, "Template parameter LowerLayer must implement _i_layer_trainable");
 
 			NNTL_ASSERT(m_bActivationsValid);
+
+			//must be done before iI.bprop_begin()
+			_pab_update_dLdA(dLdA, get_self().get_activations(), get_self().get_iMath());
+
 			m_bActivationsValid = false;
 
 			auto& iI = get_self().get_iInspect();
@@ -534,15 +549,15 @@ namespace nntl {
 	//to shorten class name to get rid of C4503
 	template <typename ...PHLsT>
 	class LPH final
-		: public _layer_pack_horizontal<LPH<PHLsT...>, PHLsT...>
+		: public _layer_pack_horizontal < LPH<PHLsT...>, std::tuple<PHLsT...>>
 	{
 	public:
 		~LPH() noexcept {};
 		LPH(PHLsT&... phls) noexcept
-			: _layer_pack_horizontal<LPH<PHLsT...>, PHLsT...>(nullptr, phls...) {};
+			: _layer_pack_horizontal<LPH<PHLsT...>, std::tuple<PHLsT...>>(nullptr, std::make_tuple(phls...)) {};
 
 		LPH(const char* pCustomName, PHLsT&... phls) noexcept
-			: _layer_pack_horizontal<LPH<PHLsT...>, PHLsT...>(pCustomName, phls...) {};
+			: _layer_pack_horizontal<LPH<PHLsT...>, std::tuple<PHLsT...>>(pCustomName, std::make_tuple(phls...)) {};
 	};
 
 	template <typename ..._T>
@@ -556,4 +571,18 @@ namespace nntl {
 		LPH <PHLsT...> make_layer_pack_horizontal(const char* pCustomName, PHLsT&... phls) noexcept {
 		return LPH<PHLsT...>(pCustomName, phls...);
 	}
+
+	//////////////////////////////////////////////////////////////////////////
+	template <typename LossAddsTuple, typename ...PHLsT>
+	class LPH_PA final
+		: public _layer_pack_horizontal < LPH_PA<LossAddsTuple, PHLsT...>, std::tuple<PHLsT...>, LossAddsTuple>
+	{
+	public:
+		~LPH_PA() noexcept {};
+		LPH_PA(PHLsT&... phls) noexcept
+			: _layer_pack_horizontal<LPH_PA<LossAddsTuple, PHLsT...>, std::tuple<PHLsT...>, LossAddsTuple>(nullptr, std::make_tuple(phls...)) {};
+
+		LPH_PA(const char* pCustomName, PHLsT&... phls) noexcept
+			: _layer_pack_horizontal<LPH_PA<LossAddsTuple, PHLsT...>, std::tuple<PHLsT...>, LossAddsTuple>(pCustomName, std::make_tuple(phls...)) {};
+	};
 }

@@ -57,11 +57,11 @@ namespace nntl {
 	//nBinarize1e6 - if this parameter has non-zero value, then gating neuron values are binarized according
 	//to relation to value of real_t(nBinarize1e6/1e6).
 	// 
-	template<typename FinalPolymorphChild, int32_t nBinarize1e6, typename ...PHLsT>
-	class _layer_pack_horizontal_gated : public _layer_pack_horizontal<FinalPolymorphChild, PHLsT...>
+	template<typename FinalPolymorphChild, int32_t nBinarize1e6, typename PHLsTuple>
+	class _layer_pack_horizontal_gated : public _layer_pack_horizontal<FinalPolymorphChild, PHLsTuple>
 	{
 	private:
-		typedef _layer_pack_horizontal<FinalPolymorphChild, PHLsT...> _base_class;
+		typedef _layer_pack_horizontal<FinalPolymorphChild, PHLsTuple> _base_class;
 
 	public:
 		static_assert(std::is_base_of<_i_layer_gate<real_t>, first_layer_t>::value,
@@ -113,7 +113,7 @@ namespace nntl {
 		static constexpr const char _defName[sizeof(_defNameS<sbBinarizeGate>::n)] = _defNameS<sbBinarizeGate>::n;
 
 		~_layer_pack_horizontal_gated()noexcept {}
-		_layer_pack_horizontal_gated(const char* pCustomName, PHLsT&... phls)noexcept : _base_class(pCustomName, phls...)
+		_layer_pack_horizontal_gated(const char* pCustomName, const PHLsTuple& phls)noexcept : _base_class(pCustomName, phls)
 			, m_bIsGatedDropSamplesMightBeCalled(false), m_bDropSamplesWasCalled(false)
 		{
 			//at this point all neuron counts in gating layers must be initialized and therefore we can check whether
@@ -451,14 +451,14 @@ namespace nntl {
 	//to shorten class name to get rid of C4503
 	template <typename ...PHLsT>
 	class LPHG final
-		: public _layer_pack_horizontal_gated<LPHG<PHLsT...>, 500000, PHLsT...>
+		: public _layer_pack_horizontal_gated<LPHG<PHLsT...>, 500000, std::tuple<PHLsT...>>
 	{
 	public:
 		~LPHG() noexcept {};
 		LPHG(PHLsT&... phls) noexcept
-			: _layer_pack_horizontal_gated<LPHG<PHLsT...>, 500000, PHLsT...>(nullptr, phls...) {};
+			: _layer_pack_horizontal_gated<LPHG<PHLsT...>, 500000, std::tuple<PHLsT...>>(nullptr, std::make_tuple(phls...)) {};
 		LPHG(const char* pCustomName, PHLsT&... phls) noexcept
-			: _layer_pack_horizontal_gated<LPHG<PHLsT...>, 500000, PHLsT...>(pCustomName, phls...) {};
+			: _layer_pack_horizontal_gated<LPHG<PHLsT...>, 500000, std::tuple<PHLsT...>>(pCustomName, std::make_tuple(phls...)) {};
 	};
 
 	template <typename ..._T>
@@ -476,14 +476,14 @@ namespace nntl {
 
 	template <typename ...PHLsT>
 	class LPHGFI final
-		: public _layer_pack_horizontal_gated<LPHGFI<PHLsT...>, 0, PHLsT...>
+		: public _layer_pack_horizontal_gated<LPHGFI<PHLsT...>, 0, std::tuple<PHLsT...>>
 	{
 	public:
 		~LPHGFI() noexcept {};
 		LPHGFI(PHLsT&... phls) noexcept
-			: _layer_pack_horizontal_gated<LPHGFI<PHLsT...>, 0, PHLsT...>(nullptr, phls...) {};
+			: _layer_pack_horizontal_gated<LPHGFI<PHLsT...>, 0, std::tuple<PHLsT...>>(nullptr, std::make_tuple(phls...)) {};
 		LPHGFI(const char* pCustomName, PHLsT&... phls) noexcept
-			: _layer_pack_horizontal_gated<LPHGFI<PHLsT...>, 0, PHLsT...>(pCustomName, phls...) {};
+			: _layer_pack_horizontal_gated<LPHGFI<PHLsT...>, 0, std::tuple<PHLsT...>>(pCustomName, std::make_tuple(phls...)) {};
 	};
 
 	template <typename ..._T>

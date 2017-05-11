@@ -257,6 +257,7 @@ namespace tuple_utils {
 
 	template <class T, class... Args>
 	constexpr size_t get_element_idx(const std::tuple<Args...>&) { return get_element_idx_impl<T, 0, Args...>::value; }
+
 	template <class T, class... Args>
 	constexpr size_t get_element_idx() { return get_element_idx_impl<T, 0, Args...>::value; }
 

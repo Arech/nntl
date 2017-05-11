@@ -40,12 +40,29 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 namespace nntl {
 
-	template<typename ...LossAddsTs>
+	class _penalized_activations_base_dummy {
+	protected:
+		static constexpr bool _pab_hasLossAddendum()noexcept {
+			return false;
+		}
+
+		template<typename iMathT>
+		static constexpr typename iMathT::real_t _pab_lossAddendum(const math::smatrix_deform<typename iMathT::real_t>& ThisActivations, const iMathT& iM) noexcept {
+			return (typename iMathT::real_t)(0);
+		}
+
+		template<typename iMathT>
+		static constexpr void _pab_update_dLdA(const math::smatrix_deform<typename iMathT::real_t>& dLdA, const math::smatrix_deform<typename iMathT::real_t>& ThisActivations, const iMathT& iM)noexcept{}
+	};
+
+	template<typename AddendumsTupleT>
 	class _penalized_activations_base : private math::smatrix_td
 	{
 	public:
-		typedef std::tuple<LossAddsTs...> addendums_tuple_t;
-		static constexpr size_t addendums_count = sizeof...(LossAddsTs);
+		//typedef std::tuple<LossAddsTs...> addendums_tuple_t;
+		//static constexpr size_t addendums_count = sizeof...(LossAddsTs);
+		typedef AddendumsTupleT addendums_tuple_t;
+		static constexpr size_t addendums_count = std::tuple_size<AddendumsTupleT>::value;
 		static_assert(addendums_count > 0, "Use the layer directly instead of LPA<>");
 
 	protected:
@@ -122,33 +139,40 @@ namespace nntl {
 		//////////////////////////////////////////////////////////////////////////
 		//////////////////////////////////////////////////////////////////////////
 		// consider the following as an example of how to enable, setup and use a custom _i_loss_addendum derived class object.
-
+		/*
+		DEPRECATED
 		typedef loss_addendum::L1<real_t> LA_L1_t;//for the convenience
 		typedef loss_addendum::L2<real_t> LA_L2_t;
 
 		static constexpr auto idxL1 = tuple_utils::get_element_idx_impl<LA_L1_t, 0, LossAddsTs...>::value;
+		//static constexpr auto idxL1 = tuple_utils::get_element_idx<LA_L1_t>(AddendumsTupleT());
 		static constexpr bool bL1Available = (idxL1 < addendums_count);
 
 		static constexpr auto idxL2 = tuple_utils::get_element_idx_impl<LA_L2_t, 0, LossAddsTs...>::value;
+		//static constexpr auto idxL2 = tuple_utils::get_element_idx<LA_L2_t>(AddendumsTupleT());
 		static constexpr bool bL2Available = (idxL2 < addendums_count);
 
-		/*template<bool b = bL1Available>
-		std::enable_if_t<b, self_ref_t> L1(const real_t& l1)noexcept {
-			auto& adn = addendum<LA_L1_t>();
-			adn.scale(l1);
-			return get_self();
-		}*/
 		template<bool b = bL1Available>
 		std::enable_if_t<b, real_t> L1()const noexcept { return addendum<LA_L1_t>().scale(); }
 
-		/*template<bool b = bL2Available>
-		std::enable_if_t<b, self_ref_t> L2(const real_t& l2)noexcept {
-			auto& adn = addendum<LA_L2_t>();
-			adn.scale(l2);
-			return get_self();
-		}*/
 		template<bool b = bL2Available>
-		std::enable_if_t<b, real_t> L2()const noexcept { return addendum<LA_L2_t>().scale(); }
+		std::enable_if_t<b, real_t> L2()const noexcept { return addendum<LA_L2_t>().scale(); }*/
 	};
 
+	//////////////////////////////////////////////////////////////////////////
+	// Helper traits recognizer
+	// primary template handles types that have no nested ::addendums_tuple_t member:
+	template< class, class = std::void_t<> >
+	struct can_penalize_activations : std::false_type { };
+	// specialization recognizes types that do have a nested ::addendums_tuple_t member:
+	template< class T >
+	struct can_penalize_activations<T, std::void_t<typename T::addendums_tuple_t>> : std::true_type {};
+
+
+	template<typename AddendumsTupleT>
+	using _penalized_activations_base_selector = typename std::conditional<
+		std::is_fundamental<AddendumsTupleT>::value
+		, _penalized_activations_base_dummy
+		, _penalized_activations_base<AddendumsTupleT>
+	>::type;
 }
