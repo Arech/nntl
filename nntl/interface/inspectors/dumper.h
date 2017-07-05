@@ -441,7 +441,7 @@ namespace nntl {
 		};
 
 		//////////////////////////////////////////////////////////////////////////
-		// _dumper class is more an example of how to use the _dumper_base<> class
+		// _dumper class is more an *example* of how to use the _dumper_base<> class. Derive your own code from _dumper_base<>.
 		// To make it universally useful, it should be somehow parametrized with an info which data it should dump and which one shouldn't
 		// Without this parametrization one just have to comment/uncomment the necessary code...
 		template<typename FinalChildT, typename RealT, typename ArchiveT, typename CondDumpT, size_t maxNnetDepth = 32>
@@ -462,7 +462,7 @@ namespace nntl {
 			// NB2: there are some functions commented out below - their code is perfectly fine, just surplus to some task.
 			// Feel free to restore it, or better derive your own class from _dumper_base<> with necessary functions to be independent of _dumper
 			
-			/*void on_fprop_begin(const layer_index_t lIdx, const realmtx_t& prevAct, const bool bTrainingMode) const noexcept {
+			void on_fprop_begin(const layer_index_t lIdx, const realmtx_t& prevAct, const bool bTrainingMode) const noexcept {
 				//NNTL_ASSERT(bTrainingMode);
 				_verbalize("on_fprop_begin");
 				auto& ar = getArchive();
@@ -475,9 +475,9 @@ namespace nntl {
 				_check_err(ar.get_last_error(), "on_fprop_end: saving activations");
 
 				_check_err(ar.save_struct_end(), "on_fprop_end: save_struct_end");
-			}*/
+			}
 
-			/*void fprop_preNesterovMomentum(const realmtx_t& vW, const real_t momentum, const realmtx_t& W)const noexcept {
+			void fprop_preNesterovMomentum(const realmtx_t& vW, const real_t momentum, const realmtx_t& W)const noexcept {
 				if (bDoDump(m_curLayer)) {
 					_verbalize("fprop_preNesterovMomentum");
 					auto& ar = getArchive();
@@ -486,16 +486,16 @@ namespace nntl {
 					ar & serialization::make_nvp("f_preNM_momentum", momentum);
 					_check_err(ar.get_last_error(), "fprop_preNesterovMomentum: saving momentum");
 				}
-			}*/
+			}
 
-			/*void fprop_makePreActivations(const realmtx_t& W, const realmtx_t& prevAct)const noexcept {
+			void fprop_makePreActivations(const realmtx_t& W, const realmtx_t& prevAct)const noexcept {
 				if (bDoDump(m_curLayer)) {
 					_verbalize("fprop_makePreActivations");
 					auto& ar = getArchive();
 					ar & serialization::make_nvp("W", W);
 					_check_err(ar.get_last_error(), "fprop_makePreActivations: saving W");
 				}
-			}*/
+			}
 
 			
 
@@ -507,22 +507,22 @@ namespace nntl {
 				auto& ar = getArchive();
 				_check_err (ar.save_struct_begin(get_self()._layer_name(), bSplitFiles ? false : true, bIgnoreLayersNesting),"on_bprop_begin: save_struct_begin");
 
-				/*ar & NNTL_SERIALIZATION_NVP(dLdA);
-				_check_err(ar.get_last_error(),"on_bprop_begin: saving dLdA");*/
+				ar & NNTL_SERIALIZATION_NVP(dLdA);
+				_check_err(ar.get_last_error(),"on_bprop_begin: saving dLdA");
 			}
 			void on_bprop_end(const realmtx_t& dLdAPrev) const noexcept {
 				_verbalize("on_bprop_end");
 				_check_err(getArchive().save_struct_end(), "on_bprop_end: save_struct_end");
 			}
 
-			/*void bprop_dLdZ(const realmtx_t& dLdZ) const noexcept {
+			void bprop_dLdZ(const realmtx_t& dLdZ) const noexcept {
 				if (bDoDump(m_curLayer)) {
 					_verbalize("bprop_dLdZ");
 					auto& ar = getArchive();
 					ar & NNTL_SERIALIZATION_NVP(dLdZ);
 					_check_err(ar.get_last_error(), "bprop_dLdZ: saving dLdZ");
 				}
-			}*/
+			}
 
 			void apply_grad_begin(const realmtx_t& W, const realmtx_t& dLdW)const noexcept {
 				if (bDoDump(m_curLayer)) {
@@ -540,35 +540,35 @@ namespace nntl {
 				if (bDoDump(m_curLayer)) {
 					_verbalize("apply_grad_update");
 					auto& ar = getArchive();
-					/*ar & serialization::make_nvp("a_WUpd_W",W);
-					_check_err(ar.get_last_error(), "apply_grad_update: saving weights");*/
+					ar & serialization::make_nvp("a_WUpd_W",W);
+					_check_err(ar.get_last_error(), "apply_grad_update: saving weights");
 
 					ar & serialization::make_nvp("a_WUpd",WUpd);
 					_check_err(ar.get_last_error(), "apply_grad_update: saving weight updates");
 				}
 			}
 
-			/*void apply_grad_end(const realmtx_t& W)const noexcept {
+			void apply_grad_end(const realmtx_t& W)const noexcept {
 				if (bDoDump(m_curLayer)) {
 					_verbalize("apply_grad_end");
 					auto& ar = getArchive();
 					ar & serialization::make_nvp("a_W", W);
 					_check_err(ar.get_last_error(), "apply_grad_end: saving weights");
 				}
-			}*/
+			}
 			
-			/*void apply_grad_preILR(const realmtx_t& dLdW, const realmtx_t& prevdLdW, const realmtx_t& Gain) const noexcept {
+			void apply_grad_preILR(const realmtx_t& dLdW, const realmtx_t& prevdLdW, const realmtx_t& Gain) const noexcept {
 				if (bDoDump(m_curLayer)) {
 					_verbalize("apply_grad_preILR");
 					auto& ar = getArchive();
-					/ *ar & serialization::make_nvp("dLdW_preILR", dLdW);
-					_check_err(ar.get_last_error(), "apply_grad_preILR: saving dLdW");* /
+					/*ar & serialization::make_nvp("dLdW_preILR", dLdW);
+					_check_err(ar.get_last_error(), "apply_grad_preILR: saving dLdW");*/
 					ar & serialization::make_nvp("Gain_preILR", Gain);
 					_check_err(ar.get_last_error(), "apply_grad_preILR: saving Gain");
 				}
-			}*/
+			}
 
-			/*void apply_grad_postILR(const realmtx_t& dLdW, const realmtx_t& Gain) const noexcept {
+			void apply_grad_postILR(const realmtx_t& dLdW, const realmtx_t& Gain) const noexcept {
 				if (bDoDump(m_curLayer)) {
 					_verbalize("apply_grad_postILR");
 					auto& ar = getArchive();
@@ -577,7 +577,7 @@ namespace nntl {
 					ar & serialization::make_nvp("Gain_postILR", Gain);
 					_check_err(ar.get_last_error(), "apply_grad_postILR: saving Gain");
 				}
-			}*/
+			}
 		};
 
 		template<typename RealT, typename ArchiveT, typename CondDumpT = conds::EpochNum, size_t maxNnetDepth = 32>

@@ -271,6 +271,7 @@ namespace nntl {
 
 			auto& iI = get_self().get_iInspect();
 			iI.bprop_begin(get_self().get_layer_idx(), data_y);
+			//iI.bprop_finaldLdA(dLdA); //--doesn't apply here actually
 
 			data_y.assert_storage_does_not_intersect(dLdAPrev);
 			dLdAPrev.assert_storage_does_not_intersect(m_dLdW);

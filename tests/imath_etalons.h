@@ -148,6 +148,7 @@ auto loss_deCov_ET(const nntl::math::smatrix<typename iMathT::real_t>& A, nntl::
 	mcwMean_ET(tDM, &vMean[0]);
 	mcwSub_ip_ET(tDM, &vMean[0]);
 	mColumnsCov_ET(tDM, tCov, iM);
+	//return ewSumSquaresTriang_ET<bLowerTriangl>(tCov) / (static_cast<numel_cnt_t>(A.rows())*tDM.cols()*(tDM.cols() - 1));
 	return ewSumSquaresTriang_ET<bLowerTriangl>(tCov) / A.rows();
 }
 
@@ -180,8 +181,8 @@ void dLoss_deCov_ET(const nntl::math::smatrix<typename iMathT::real_t>& A
 					F.op(tCov.get(a, j) * tDM.get(m, j));
 				}
 			}
-			//dL.set(m, a, v * 2 / N);
 			dL.set(m, a, F.result() * 2 / N);
+			//dL.set(m, a, F.result() * 2 / (static_cast<numel_cnt_t>(N)*actCnt*(actCnt - 1)));
 		}
 	}
 }

@@ -45,10 +45,12 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 namespace nntl {
 	namespace loss_addendum {
 
+		// BE AWARE that the amount of scaling applied to this regularized is not stable w.r.t. the batch size and layer neurons count.
+		// I.e. if you found some good scaling value for DeCov and then changed the batch size or the layer neurons count, then you'd
+		// have to repeat the search for the proper scaling again!
 		template<typename RealT, bool bNumStab = false, bool bLowerTriangl = false>
 		class DeCov : public _scaled_addendum<RealT> {
 		public:
-
 			static constexpr const char* getName()noexcept { return "DeCov"; }
 
 			

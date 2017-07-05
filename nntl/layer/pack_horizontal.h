@@ -405,6 +405,7 @@ namespace nntl {
 			
 			NNTL_ASSERT(lowerLayer.get_activations().test_biases_ok());
 
+			iI.fprop_activations(m_activations);
 			iI.fprop_end(m_activations);
 			m_bActivationsValid = true;
 		}
@@ -428,13 +429,14 @@ namespace nntl {
 
 			NNTL_ASSERT(m_bActivationsValid);
 
-			//must be done before iI.bprop_begin()
-			_pab_update_dLdA(dLdA, get_self().get_activations(), get_self().get_iMath());
-
-			m_bActivationsValid = false;
-
 			auto& iI = get_self().get_iInspect();
 			iI.bprop_begin(get_self().get_layer_idx(), dLdA);
+
+			_pab_update_dLdA(dLdA, get_self().get_activations(), get_self().get_iMath());
+
+			iI.bprop_finaldLdA(dLdA);
+
+			m_bActivationsValid = false;
 
 			NNTL_ASSERT(m_activations.rows() == get_self().get_common_data().get_cur_batch_size());
 			NNTL_ASSERT(get_self().get_common_data().is_training_mode());

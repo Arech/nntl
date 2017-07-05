@@ -145,8 +145,21 @@ namespace inspector {
 			_base_class_t::fprop_preactivations(Z);
 		}
 
+		void fprop_activations(const realmtx_t& Act) noexcept {
+			if (m_layerIdxToCheck
+				&& m_layerIdxToCheck == m_curLayer
+				&& nntl::_impl::gradcheck_paramsGroup::dLdA == m_checkParamsGroup
+				&& nntl::_impl::gradcheck_phase::df_analytical != m_checkPhase
+				&& m_curLayer.bUpperLayerDifferent())
+			{
+				const_cast<realmtx_t&>(Act).get(m_coord) += nntl::_impl::gradcheck_phase::df_numeric_plus == m_checkPhase
+					? m_stepSize : -m_stepSize;
+			}
+			_base_class_t::fprop_activations(Act);
+		}
+
 		void fprop_end(const realmtx_t& Act) noexcept {
-			if (m_layerIdxToCheck){
+			/*if (m_layerIdxToCheck){
 				if (m_layerIdxToCheck == m_curLayer 
 					&& nntl::_impl::gradcheck_paramsGroup::dLdA == m_checkParamsGroup
 					&& nntl::_impl::gradcheck_phase::df_analytical != m_checkPhase
@@ -157,35 +170,38 @@ namespace inspector {
 				}
 				m_curLayer.pop();
 			}
+			_base_class_t::fprop_end(Act);*/
+			if (m_layerIdxToCheck) m_curLayer.pop();
 			_base_class_t::fprop_end(Act);
 		}
 
 		void bprop_begin(const layer_index_t lIdx, const realmtx_t& dLdA) noexcept {
-			if (m_layerIdxToCheck) {
-				m_curLayer.push(lIdx);
+			if (m_layerIdxToCheck) m_curLayer.push(lIdx);
+			_base_class_t::bprop_begin(lIdx, dLdA);
+		}
 
-				if (m_layerIdxToCheck==lIdx
-					&& nntl::_impl::gradcheck_paramsGroup::dLdA == m_checkParamsGroup
-					&& nntl::_impl::gradcheck_phase::df_analytical == m_checkPhase
-					&& m_curLayer.bUpperLayerDifferent())
-				{
-					NNTL_ASSERT(std::isnan(m_analyticalValue));
-					m_analyticalValue = dLdA.get(m_coord);
-				}
+		void bprop_finaldLdA(const realmtx_t& dLdA) noexcept {
+			if (m_layerIdxToCheck 
+				&& m_layerIdxToCheck == m_curLayer
+				&& nntl::_impl::gradcheck_paramsGroup::dLdA == m_checkParamsGroup
+				&& nntl::_impl::gradcheck_phase::df_analytical == m_checkPhase
+				&& m_curLayer.bUpperLayerDifferent())
+			{
+				NNTL_ASSERT(std::isnan(m_analyticalValue));
+				m_analyticalValue = dLdA.get(m_coord);
 			}
-			_base_class_t::bprop_begin(lIdx,dLdA);
+			_base_class_t::bprop_finaldLdA(dLdA);
 		}
 
 		void bprop_dLdW(const realmtx_t& dLdZ, const realmtx_t& prevAct, const realmtx_t& dLdW) noexcept {
-			if (m_layerIdxToCheck) {
-				if (m_layerIdxToCheck == m_curLayer
-					&& nntl::_impl::gradcheck_paramsGroup::dLdW == m_checkParamsGroup
-					&& nntl::_impl::gradcheck_phase::df_analytical == m_checkPhase
-					&& m_curLayer.bUpperLayerDifferent())
-				{
-					NNTL_ASSERT(std::isnan(m_analyticalValue));
-					m_analyticalValue = dLdW.get(m_coord);
-				}
+			if (m_layerIdxToCheck
+				&& m_layerIdxToCheck == m_curLayer
+				&& nntl::_impl::gradcheck_paramsGroup::dLdW == m_checkParamsGroup
+				&& nntl::_impl::gradcheck_phase::df_analytical == m_checkPhase
+				&& m_curLayer.bUpperLayerDifferent())
+			{
+				NNTL_ASSERT(std::isnan(m_analyticalValue));
+				m_analyticalValue = dLdW.get(m_coord);
 			}
 			_base_class_t::bprop_dLdW(dLdZ, prevAct, dLdW);
 		}

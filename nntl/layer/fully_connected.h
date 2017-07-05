@@ -37,6 +37,8 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 namespace nntl {
 
+	//#todo: add AddendumsTupleT template parameter, as done in LPH
+
 	template<typename FinalPolymorphChild, typename ActivFunc, typename GradWorks>
 	class _layer_fully_connected 
 		: public m_layer_learnable
@@ -350,6 +352,7 @@ namespace nntl {
 
 			auto& iI = get_self().get_iInspect();
 			iI.bprop_begin(get_self().get_layer_idx(), dLdA);
+			iI.bprop_finaldLdA(dLdA);
 
 			dLdA.assert_storage_does_not_intersect(dLdAPrev);
 			dLdA.assert_storage_does_not_intersect(m_dLdW);

@@ -151,7 +151,7 @@ namespace nntl {
 			iI.fprop_begin(get_self().get_layer_idx(), lowerLayer.get_activations(), get_self().get_common_data().is_training_mode());
 			
 			m_undLayer.fprop(lowerLayer);
-
+			iI.fprop_activations(get_self().get_activations());
 			iI.fprop_end(get_self().get_activations());
 		}
 
@@ -160,10 +160,12 @@ namespace nntl {
 		const unsigned bprop(realmtxdef_t& dLdA, const LowerLayerT& lowerLayer, realmtxdef_t& dLdAPrev)noexcept {
 			static_assert(std::is_base_of<_i_layer_trainable, LowerLayerT>::value, "Template parameter LowerLayer must implement _i_layer_trainable");
 
-			_pab_update_dLdA(dLdA, get_self().get_activations(), get_self().get_iMath());
-
 			auto& iI = get_self().get_iInspect();
 			iI.bprop_begin(get_self().get_layer_idx(), dLdA);
+
+			_pab_update_dLdA(dLdA, get_self().get_activations(), get_self().get_iMath());
+
+			iI.bprop_finaldLdA(dLdA);
 
 			const auto ret = m_undLayer.bprop(dLdA, lowerLayer, dLdAPrev);
 

@@ -42,11 +42,13 @@ namespace utils {
 	template<typename IdxT, IdxT defaultVal, size_t _maxDepth>
 	class layer_idx_keeper : private std::stack<IdxT, std::vector<IdxT>> {
 	private:
-		typedef std::stack<IdxT, std::vector<IdxT>> _base_class;
+		typedef std::stack<IdxT, std::vector<IdxT>> _base_class_t;
 	public:
 		typedef IdxT value_t;
+		//typedef const value_t& cref_value_t;
 		static constexpr size_t maxDepth = _maxDepth;
 		static constexpr value_t default_value = defaultVal;
+		//static const value_t default_value = defaultVal;
 
 	public:
 		~layer_idx_keeper()noexcept {
@@ -58,22 +60,42 @@ namespace utils {
 
 		void push(const value_t& v)noexcept {
 			NNTL_ASSERT(size() < maxDepth);
-			_base_class::push(v);//#exceptions STL
+			_base_class_t::push(v);//#exceptions STL
 		}
+		void push(value_t&& v)noexcept {
+			NNTL_ASSERT(size() < maxDepth);
+			_base_class_t::push(std::move(v));//#exceptions STL
+		}
+
 		void pop()noexcept {
 			NNTL_ASSERT(size());
-			_base_class::pop();
+			_base_class_t::pop();
 		}
 		value_t top()const noexcept {
-			return size() ? _base_class::top() : default_value;
+			return _base_class_t::size() ? _base_class_t::top() : default_value;
 		}
+
+		/*const value_t& top_unsafe()const noexcept {
+			return _base_class_t::top();
+		}
+		value_t top_n(const size_type& n)const noexcept {
+			return _base_class_t::size()>=n ? *std::prev(_base_class_t::_Get_container().end(), n) : default_value;
+		}
+		const value_t& top_n_unsafe(const size_type& n)const noexcept {
+			return *std::prev(_base_class_t::_Get_container().end(), n);
+		}*/
+
 		operator value_t()const noexcept {
 			return top();
 		}
 
 		//checks whether the previous entry is the same as current
 		bool bUpperLayerDifferent()const noexcept {
-			return size() < 2 || _base_class::top() != *std::prev(_base_class::_Get_container().end(), 2);
+			return _base_class_t::size() < 2 || _base_class_t::top() != *std::prev(_base_class_t::_Get_container().end(), 2);
+		}
+
+		size_type size()const noexcept {
+			return _base_class_t::size();
 		}
 	};
 }

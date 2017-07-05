@@ -39,7 +39,6 @@ namespace loss_addendum {
 	template<typename RealT>
 	class L2 : public _scaled_addendum<RealT> {
 	public:
-
 		static constexpr const char* getName()noexcept { return "L2"; }
 
 		//computes loss addendum for a given matrix of values (for weight-decay Vals parameter is a weight matrix)

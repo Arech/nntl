@@ -3211,6 +3211,8 @@ namespace math {
 			//therefore we shouldn't divide it by 2 to fit the formula.
 			// However, we must normalize the error to the batchSize since the error must be normalized
 			const auto ret = get_self().ewSumSquaresTriang<bLowerTriangl, bNumStab>(CovMtx) / Vals.rows();
+			// - and to the amount of active neurons
+			//const auto ret = get_self().ewSumSquaresTriang<bLowerTriangl, bNumStab>(CovMtx) / (valsNumelNoBias * (DeMeaned.cols() - 1));
 
 			get_self()._istor_free(pCovMtx, covMtxNumel);
 
@@ -3256,8 +3258,9 @@ namespace math {
 			get_self().mcwMulDiag_ip(dLossdVals, CovMtx);
 
 			//dL = (DM*C - diag(C)'.*DM).*2./N;
-			//const real_t cmnScale = (2 * scale) / dLossdVals.rows();
+			
 			const real_t cmnScale = real_t(2.) / static_cast<real_t>(dLossdVals.rows());
+			//const real_t cmnScale = real_t(2.) / (valsNumelNoBias * (dLossdVals.cols() - 1));
 			b_BLAS_t::symm(false, bLowerTriangl, dLossdVals.rows(), dLossdVals.cols(), cmnScale, CovMtx.data(), CovMtx.cols()
 				, DeMeaned.data(), DeMeaned.rows(), -cmnScale, dLossdVals.data(), dLossdVals.rows());
 

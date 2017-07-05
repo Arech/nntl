@@ -112,6 +112,7 @@ namespace nntl {
 			NNTL_ASSERT(data_x.test_biases_ok());
 			m_pActivations = &data_x;
 
+			iI.fprop_activations(*m_pActivations);
 			iI.fprop_end(*m_pActivations);
 			m_bActivationsValid = true;
 		}
@@ -122,6 +123,7 @@ namespace nntl {
 			m_bActivationsValid = false;
 			//auto& iI = get_self().get_iInspect();
 			//iI.bprop_begin(get_self().get_layer_idx(), dLdA);
+			// iI.bprop_finaldLdA(dLdA);
 
 			//iI.bprop_end(dLdAPrev);
 			return 1;

@@ -57,11 +57,11 @@ namespace nntl {
 	//nBinarize1e6 - if this parameter has non-zero value, then gating neuron values are binarized according
 	//to relation to value of real_t(nBinarize1e6/1e6).
 	// 
-	template<typename FinalPolymorphChild, int32_t nBinarize1e6, typename PHLsTuple>
-	class _layer_pack_horizontal_gated : public _layer_pack_horizontal<FinalPolymorphChild, PHLsTuple>
+	template<typename FinalPolymorphChild, int32_t nBinarize1e6, typename PHLsTuple, typename AddendumsTupleT = void>
+	class _layer_pack_horizontal_gated : public _layer_pack_horizontal<FinalPolymorphChild, PHLsTuple, AddendumsTupleT>
 	{
 	private:
-		typedef _layer_pack_horizontal<FinalPolymorphChild, PHLsTuple> _base_class;
+		typedef _layer_pack_horizontal<FinalPolymorphChild, PHLsTuple, AddendumsTupleT> _base_class;
 
 	public:
 		static_assert(std::is_base_of<_i_layer_gate<real_t>, first_layer_t>::value,
@@ -125,6 +125,17 @@ namespace nntl {
 		}
 
 		const gating_layer_t& gating_layer()const noexcept { return get_self().first_layer(); }
+
+		void get_gating_info(_impl::GatingContext<real_t>& ctx)const noexcept {
+			ctx.pGatingMask = &m_gatingMask;
+			ctx.colsDescr.clear();
+			ctx.nongatedIds.clear();
+			ctx.nongatedIds.insert(gating_layer().get_layer_idx());
+			vec_len_t cIdx = 0;
+			tuple_utils::for_each_exc_first_up(m_phl_tuple, [&cIdx, &cDescr = ctx.colsDescr](const auto& phl)noexcept {
+				cDescr[phl.l.get_layer_idx()] = cIdx++;
+			});
+		}
 
 		//#TODO returns a loss function summand, that's caused by this layer. Should take gating mask into account (and
 		//that's a bit of issue)
@@ -373,7 +384,10 @@ namespace nntl {
 					&& m_gatingMask.rows() == lowerLayer.get_activations().rows()
 					&& m_gatingMask.cols() == get_self().gating_layer().get_gate_width()));
 
+			
 			_base_class::fprop(lowerLayer);
+			iI.fprop_activations(m_activations);
+
 			get_self().finish_fprop(_bApplyGateToBiases());
 			NNTL_ASSERT(lowerLayer.get_activations().test_biases_ok());
 
@@ -395,6 +409,8 @@ namespace nntl {
 			NNTL_ASSERT((std::is_base_of<m_layer_input, LowerLayer>::value) || dLdAPrev.size() == lowerLayer.get_activations().size_no_bias());
 
 			get_self().drop_dLdA_by_mask(dLdA);
+
+			iI.bprop_finaldLdA(dLdA);
 
 			const unsigned ret = _base_class::bprop(dLdA, lowerLayer, dLdAPrev);
 			NNTL_ASSERT(lowerLayer.get_activations().test_biases_ok());
@@ -473,6 +489,7 @@ namespace nntl {
 		return LPHG<PHLsT...>(pCustomName, phls...);
 	}
 	//////////////////////////////////////////////////////////////////////////
+	//////////////////////////////////////////////////////////////////////////
 
 	template <typename ...PHLsT>
 	class LPHGFI final
@@ -498,4 +515,30 @@ namespace nntl {
 		return LPHGFI<PHLsT...>(pCustomName, phls...);
 	}
 
+	//////////////////////////////////////////////////////////////////////////
+	//////////////////////////////////////////////////////////////////////////
+	
+	template <typename AddendumsTupleT, typename ...PHLsT>
+	class LPHG_PA final
+		: public _layer_pack_horizontal_gated<LPHG_PA<AddendumsTupleT, PHLsT...>, 500000, std::tuple<PHLsT...>, AddendumsTupleT>
+	{
+	public:
+		~LPHG_PA() noexcept {};
+		LPHG_PA(PHLsT&... phls) noexcept
+			: _layer_pack_horizontal_gated<LPHG_PA<AddendumsTupleT, PHLsT...>, 500000, std::tuple<PHLsT...>, AddendumsTupleT>(nullptr, std::make_tuple(phls...)) {};
+		LPHG_PA(const char* pCustomName, PHLsT&... phls) noexcept
+			: _layer_pack_horizontal_gated<LPHG_PA<AddendumsTupleT, PHLsT...>, 500000, std::tuple<PHLsT...>, AddendumsTupleT>(pCustomName, std::make_tuple(phls...)) {};
+	};
+
+	template <typename AddendumsTupleT, typename ...PHLsT>
+	class LPHGFI_PA final
+		: public _layer_pack_horizontal_gated<LPHGFI_PA<AddendumsTupleT, PHLsT...>, 0, std::tuple<PHLsT...>, AddendumsTupleT>
+	{
+	public:
+		~LPHGFI_PA() noexcept {};
+		LPHGFI_PA(PHLsT&... phls) noexcept
+			: _layer_pack_horizontal_gated<LPHGFI_PA<AddendumsTupleT, PHLsT...>, 0, std::tuple<PHLsT...>, AddendumsTupleT>(nullptr, std::make_tuple(phls...)) {};
+		LPHGFI_PA(const char* pCustomName, PHLsT&... phls) noexcept
+			: _layer_pack_horizontal_gated<LPHGFI_PA<AddendumsTupleT, PHLsT...>, 0, std::tuple<PHLsT...>, AddendumsTupleT>(pCustomName, std::make_tuple(phls...)) {};
+	};
 }

@@ -100,14 +100,17 @@ namespace nntl {
 			//#TODO this routine shouldn't be invisible for an iInspector, however if we to pass dLdA to an inspector here, it
 			//should break layer's gradient check
 
-// 			auto& iI = get_self().get_iInspect();
-// 			iI.bprop_begin(get_self().get_layer_idx(), dLdA);
+			auto& iI = get_self().get_iInspect();
+			iI.bprop_begin(get_self().get_layer_idx(), dLdA);
 
 			_pab_update_dLdA(dLdA, get_self().get_activations(), get_self().get_iMath());
 
+			iI.bprop_finaldLdA(dLdA);
+
 			const auto ret = _base_class_t::bprop(dLdA, lowerLayer, dLdAPrev);
 
-			//iI.bprop_end(ret ? dLdAPrev : dLdA);
+			iI.bprop_end(ret ? dLdAPrev : dLdA);
+
 			return ret;
 		}
 		

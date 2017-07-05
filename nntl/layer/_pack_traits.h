@@ -32,7 +32,10 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #pragma once
 
-// defines common traits for layer_pack_* layers
+#include <map>
+#include <set>
+
+// defines some common traits and struct for layer_pack_* layers
 
 namespace nntl {
 
@@ -45,4 +48,44 @@ namespace nntl {
 	template< class T >
 	struct is_PHL<T, std::void_t<typename T::phl_original_t>> : std::true_type {};
 
+	//////////////////////////////////////////////////////////////////////////
+	// Tests if a layer applies gating capabilities to its inner layers by checking the existance of ::gating_layer_t type
+	template< class, class = std::void_t<> >
+	struct is_pack_gated : std::false_type { };
+	template< class T >
+	struct is_pack_gated<T, std::void_t<typename T::gating_layer_t>> : std::true_type {};
+	//Such layer must provide a function get_gating_info(_impl::GatingContext&)
+
+	namespace _impl {
+
+		template<typename RealT>
+		struct GatingContext : public math::smatrix_td {
+			typedef RealT real_t;
+			typedef math::smatrix<real_t> realmtx_t;
+
+			//it's safe to use a pointer to gating mask as the mask matrix itself doesn't move with fprop()'s/bprop()'s/etc
+			const realmtx_t* pGatingMask;
+
+			//this type makes a connection between an inner LPHG's layer and its corresponding gating mask column.
+			typedef std::map<layer_index_t, vec_len_t> gating_mask_columns_descr_t;
+			gating_mask_columns_descr_t colsDescr;
+
+			//this type to hold layers ids of gating layers
+			typedef std::set<layer_index_t> nongated_layers_set_t;
+			nongated_layers_set_t nongatedIds;
+
+			bool bShouldProcessLayer(const layer_index_t& lIdx) const noexcept {
+				return 0 == nongatedIds.count(lIdx);
+			}
+		};
+
+	}
+
+
+	//////////////////////////////////////////////////////////////////////////
+	// Tests if a layer applies tiling capabilities to its inner layer by checking the existance of ::tiled_layer_t type
+	template< class, class = std::void_t<> >
+	struct is_pack_tiled : std::false_type { };
+	template< class T >
+	struct is_pack_tiled<T, std::void_t<typename T::tiled_layer_t>> : std::true_type {};
 }

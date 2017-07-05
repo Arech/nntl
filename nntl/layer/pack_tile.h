@@ -110,6 +110,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "../utils.h"
 
 namespace nntl {
+	
 
 	//Special parameters are:
 	// K_tiles - the number of tiles
@@ -412,6 +413,7 @@ namespace nntl {
 			get_self().get_iMath().mTilingUnroll(m_innerActivations, m_activations);
 
 			NNTL_ASSERT(m_innerLowerLayerActivations.test_biases_ok());
+			iI.fprop_activations(m_activations);
 			iI.fprop_end(m_activations);
 			m_bActivationsValid = true;
 		}
@@ -440,6 +442,7 @@ namespace nntl {
 			iM.mTilingUnroll(m_innerActivations, m_activations);
 
 			NNTL_ASSERT(m_innerLowerLayerActivations.test_biases_ok());
+			iI.fprop_activations(m_activations);
 			iI.fprop_end(m_activations);
 			m_bActivationsValid = true;
 		}
@@ -454,6 +457,7 @@ namespace nntl {
 
 			auto& iI = get_self().get_iInspect();
 			iI.bprop_begin(get_self().get_layer_idx(), dLdA);
+			iI.bprop_finaldLdA(dLdA);
 
 			NNTL_ASSERT(m_activations.rows() == get_self().get_common_data().get_cur_batch_size());
 			NNTL_ASSERT(get_self().get_common_data().is_training_mode());

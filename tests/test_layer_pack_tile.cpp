@@ -56,8 +56,6 @@ struct GC_LPT : public nntl_tests::NN_base_arch_td<ArchPrmsT> {
 		, lFinal(lBase, "lFinal")
 	{}
 };
-//This test should be run multiple times to test variuos gate "positions". gradcheck() routine could be updated to handle
-//it automatically, but that require too much precious time I've already run out of.
 TEST(TestLayerPackTile, GradCheck) {
 	typedef double real_t;
 	typedef nntl_tests::NN_base_params<real_t, nntl::inspector::GradCheck<real_t>> ArchPrms_t;
@@ -93,8 +91,6 @@ struct GC_LPT_LPV : public nntl_tests::NN_base_arch_td<ArchPrmsT> {
 		, lFinal(lBase, "lFinal")
 	{}
 };
-//This test should be run multiple times to test variuos gate "positions". gradcheck() routine could be updated to handle
-//it automatically, but that require too much precious time I've already run out of.
 TEST(TestLayerPackTile, GradCheck_LPV) {
 	typedef double real_t;
 	typedef nntl_tests::NN_base_params<real_t, nntl::inspector::GradCheck<real_t>> ArchPrms_t;

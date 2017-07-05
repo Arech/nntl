@@ -140,6 +140,7 @@ namespace nntl {
 			const auto r = prevActivations.copy_data_skip_bias(m_activations);
 			NNTL_ASSERT(r);
 
+			iI.fprop_activations(m_activations);
 			iI.fprop_end(m_activations);
 		}
 
@@ -164,6 +165,7 @@ namespace nntl {
 			m_bActivationsValid = false;
 			auto& iI = get_self().get_iInspect();
 			iI.bprop_begin(get_self().get_layer_idx(), dLdA);
+			iI.bprop_finaldLdA(dLdA);
 
 			//nothing to do here
 			NNTL_ASSERT(lowerLayer.get_activations().test_biases_ok());

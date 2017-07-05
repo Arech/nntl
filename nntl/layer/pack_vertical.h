@@ -275,6 +275,7 @@ deprecated:
 			});
 			NNTL_ASSERT(lowerLayer.get_activations().test_biases_ok());
 
+			iI.fprop_activations(get_self().get_activations());
 			iI.fprop_end(get_self().get_activations());
 		}
 
@@ -284,6 +285,7 @@ deprecated:
 
 			auto& iI = get_self().get_iInspect();
 			iI.bprop_begin(get_self().get_layer_idx(), dLdA);
+			iI.bprop_finaldLdA(dLdA);
 
 			NNTL_ASSERT(lowerLayer.get_activations().test_biases_ok());
 			NNTL_ASSERT(dLdA.size() == topmost_layer().get_activations().size_no_bias());

@@ -126,6 +126,10 @@ namespace inspector {
 		nntl_interface void bprop_begin(const layer_index_t lIdx, const realmtx_t& dLdA) const noexcept;
 		nntl_interface void bprop_end(const realmtx_t& dLdAPrev) const noexcept;
 
+		//this function gets a final dL/dA that gets applied to the layer. It may contain added derivatives of auxiliary loss functions
+		//based on activation values (such as DeCov loss)
+		nntl_interface void bprop_finaldLdA(const realmtx_t& dLdA) const noexcept;
+
 		nntl_interface void bprop_preCancelDropout(const realmtx_t& Act, const real_t dpa) const noexcept;
 		nntl_interface void bprop_postCancelDropout(const realmtx_t& Act) const noexcept;
 		
@@ -209,6 +213,8 @@ namespace inspector {
 			//BPROP
 			void bprop_begin(const layer_index_t lIdx, const realmtx_t& dLdA) const noexcept {}
 			void bprop_end(const realmtx_t& dLdAPrev) const noexcept {}
+
+			void bprop_finaldLdA(const realmtx_t& dLdA) const noexcept {}
 
 			void bprop_preCancelDropout(const realmtx_t& Act, const real_t dpa) const noexcept {}
 			void bprop_postCancelDropout(const realmtx_t& Act) const noexcept {}

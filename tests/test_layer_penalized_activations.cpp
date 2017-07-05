@@ -207,7 +207,7 @@ TEST(TestLPA, deCovGradCheck) {
 	ArchPrms_t Prms(td);
 	nntl_tests::NN_arch<GC_LPA_deCov<ArchPrms_t>> nnArch(Prms);
 
-	nnArch.ArchObj.lFinal.addendum<0>().scale(real_t(1));
+	nnArch.ArchObj.lFinal.addendum<0>().scale(real_t(10000));
 
 	auto ec = nnArch.warmup(td, 5, 200);
 	ASSERT_EQ(decltype(nnArch)::ErrorCode_t::Success, ec) << "Reason: " << nnArch.NN.get_error_str(ec);

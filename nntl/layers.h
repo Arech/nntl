@@ -138,7 +138,7 @@ namespace nntl {
 		//better don't play with _layers directly
 		_layers& get_layers()noexcept { return m_layers; }
 		
-		const layer_index_t total_layers()const noexcept {
+		const layer_index_t& total_layers()const noexcept {
 			NNTL_ASSERT(m_totalLayersCount);
 			return m_totalLayersCount;
 		}
