@@ -54,8 +54,8 @@ namespace nntl {
 			static constexpr const char* getName()noexcept { return "DeCov"; }
 
 			
-			template <typename iMath>
-			static void init(const bool& bWillDoTraining, const realmtx_t& biggestMtx, iMath& iM) noexcept {
+			template <typename iMathT>
+			static void init(const bool& bWillDoTraining, const realmtx_t& biggestMtx, iMathT& iM) noexcept {
 				//we'll need additional biggestMtx.numel_no_bias() elements to store temporary dLoss mtx
 				iM.preinit(iM.loss_DeCov_tempMemReqs(bWillDoTraining, biggestMtx) + bWillDoTraining* biggestMtx.numel_no_bias());
 			}
@@ -64,15 +64,15 @@ namespace nntl {
 			// DeCov loss is L=0.5*\sum_{i\neq j}C_{ij}, where C - covariance matrix
 			// C_{ij}=\frac{1}{N} \sum_{n=1}^N (h_i^n - \mu_i)(h_j^n - \mu_j),
 			// and \mu_i=\frac{1}{N} \sum_{n=1}^N h_i^n - columnwise mean of matrix H (or Vals; it has N rows (batchsize)).
-			template <typename iMath>
-			real_t lossAdd(const realmtx_t& Vals, iMath& iM) const noexcept {
+			template <typename iMathT>
+			real_t lossAdd(const realmtx_t& Vals, iMathT& iM) const noexcept {
 				NNTL_ASSERT(!Vals.emulatesBiases());
 				return m_scale* iM.loss_deCov<bLowerTriangl, bNumStab>(Vals);
 			}
 			// \frac{\partial L}{\partial h_a^m} = \frac{2}{N} \sum_{j\neq a} C_{aj} (h_j^m - \mu_j)
 			// Contrary to what's posted in the paper, correct derivative has 2 in the numerator (instead of 1), because C is symmetrical matrix.
-			template <typename iMath>
-			void dLossAdd(const realmtx_t& Vals, realmtx_t& dLossdVals, iMath& iM) const noexcept {
+			template <typename iMathT, typename iInspectT>
+			void dLossAdd(const realmtx_t& Vals, realmtx_t& dLossdVals, iMathT& iM, iInspectT& iI) const noexcept {
 				NNTL_ASSERT(!Vals.emulatesBiases() && !dLossdVals.emulatesBiases());
 
 				const auto dLNumel = dLossdVals.numel();
@@ -80,6 +80,9 @@ namespace nntl {
 				realmtx_t dL(pDL, dLossdVals.size());
 
 				iM.dLoss_deCov<bLowerTriangl, bNumStab>(Vals, dL);
+
+				iI.dLossAddendumScaled(dL, m_scale, getName());
+
 				iM.evAddScaled_ip(dLossdVals, m_scale, dL);
 
 				iM._istor_free(pDL, dLNumel);

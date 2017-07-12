@@ -377,6 +377,74 @@ void AdaMax_ET(realmtx_t& dW, realmtx_t& Mt, realmtx_t& Ut, real_t& beta1t, cons
 
 //////////////////////////////////////////////////////////////////////////
 
+void Nadam_ET(realmtx_t& dW, realmtx_t& Mt, realmtx_t& Vt, real_t& mu_pow_t, real_t& eta_pow_t, const real_t learningRate,
+	const real_t mu, const real_t eta, const real_t numericStabilizer)noexcept
+{
+	NNTL_ASSERT(dW.size() == Mt.size() && dW.size() == Vt.size());
+	NNTL_ASSERT(real_t(0.) < learningRate && learningRate < real_t(1.));
+	NNTL_ASSERT(real_t(0.) < mu && mu < real_t(1.));
+	NNTL_ASSERT(real_t(0.) < eta && eta < real_t(1.));
+	NNTL_ASSERT(real_t(0.) < numericStabilizer && numericStabilizer < real_t(1.));
+	NNTL_ASSERT(real_t(0.) <= mu_pow_t && mu_pow_t <= real_t(1.));
+	NNTL_ASSERT(real_t(0.) <= eta_pow_t && eta_pow_t <= real_t(1.));
+
+	mu_pow_t *= mu;
+	eta_pow_t *= eta;
+
+	const real_t mu_t = (mu - mu_pow_t) / (real_t(1.) - mu_pow_t), eta_t = (eta - eta_pow_t) / (real_t(1.) - eta_pow_t);
+
+	const auto o_m_mu_t = real_t(1.) - mu_t, o_m_eta_t = real_t(1.) - eta_t;
+
+	const real_t mHat_c_mt = mu*((real_t(1.) - mu_pow_t) / (real_t(1) - mu*mu_pow_t));
+	const real_t mHat_c_g = o_m_mu_t;
+
+
+	const auto ne = dW.numel();
+	const auto pDw = dW.data(), pMt = Mt.data(), pVt = Vt.data();
+	for (numel_cnt_t i = 0; i < ne; ++i) {
+		const auto g = pDw[i];
+		pMt[i] = mu_t*pMt[i] + o_m_mu_t*g;
+		pVt[i] = eta_t*pVt[i] + o_m_eta_t*(g*g);
+		const auto mhat = mHat_c_mt * pMt[i] + mHat_c_g*g;
+		pDw[i] = learningRate*mhat / (sqrt(pVt[i]) + numericStabilizer);
+	}
+}
+
+void Radam_ET(realmtx_t& dW, realmtx_t& Mt, realmtx_t& Vt, real_t& mu_pow_t, real_t& eta_pow_t, const real_t learningRate,
+	const real_t mu, const real_t eta, const real_t gamma, const real_t numericStabilizer)noexcept
+{
+	NNTL_ASSERT(dW.size() == Mt.size() && dW.size() == Vt.size());
+	NNTL_ASSERT(real_t(0.) < learningRate && learningRate < real_t(1.));
+	NNTL_ASSERT(real_t(0.) < mu && mu < real_t(1.));
+	NNTL_ASSERT(real_t(0.) < eta && eta < real_t(1.));
+	NNTL_ASSERT(real_t(0.) < gamma && gamma < real_t(1.));
+	NNTL_ASSERT(real_t(0.) < numericStabilizer && numericStabilizer < real_t(1.));
+	NNTL_ASSERT(real_t(0.) <= mu_pow_t && mu_pow_t <= real_t(1.));
+	NNTL_ASSERT(real_t(0.) <= eta_pow_t && eta_pow_t <= real_t(1.));
+
+	mu_pow_t *= mu;
+	eta_pow_t *= eta;
+
+	const real_t mu_t = (mu - mu_pow_t) / (real_t(1.) - mu_pow_t), eta_t = (eta - eta_pow_t) / (real_t(1.) - eta_pow_t);
+
+	const auto o_m_mu_t = real_t(1.) - mu_t, o_m_eta_t = real_t(1.) - eta_t;
+
+	const real_t mHat_c_mt = real_t(1)-gamma;
+	const real_t mHat_c_g = gamma;
+
+	const auto ne = dW.numel();
+	const auto pDw = dW.data(), pMt = Mt.data(), pVt = Vt.data();
+	for (numel_cnt_t i = 0; i < ne; ++i) {
+		const auto g = pDw[i];
+		pMt[i] = mu_t*pMt[i] + o_m_mu_t*g;
+		pVt[i] = eta_t*pVt[i] + o_m_eta_t*(g*g);
+		const auto mhat = mHat_c_mt * pMt[i] + mHat_c_g*g;
+		pDw[i] = learningRate*mhat / (sqrt(pVt[i]) + numericStabilizer);
+	}
+}
+
+//////////////////////////////////////////////////////////////////////////
+
 real_t rowvecs_renorm_ET(realmtx_t& m, const real_t newNormSq, const bool bNormIncludesBias, real_t* pTmp)noexcept {
 	//calculate current norms of row-vectors into pTmp
 	const auto mRows = m.rows(), mCols = m.cols(), cols4norm = mCols - (!bNormIncludesBias);

@@ -568,6 +568,154 @@ TEST(TestMathNThr, AdaMax) {
 #endif
 }
 
+//////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////
+void test_Nadam_perf(const size_t epochs, vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
+	const auto dataSize = realmtx_t::sNumel(rowsCnt, colsCnt);
+	STDCOUTL("**** testing Nadam() over " << rowsCnt << "x" << colsCnt << " matrix (" << dataSize << " elements) ****");
+
+	constexpr unsigned maxReps = TEST_PERF_REPEATS_COUNT;
+
+	d_interfaces::iRng_t rg;
+	rg.set_ithreads(iM.ithreads());
+
+	realmtx_t dW_st(rowsCnt, colsCnt), Mt_st(rowsCnt, colsCnt), Vt_st(rowsCnt, colsCnt);
+	ASSERT_TRUE(!dW_st.isAllocationFailed() && !Mt_st.isAllocationFailed() && !Vt_st.isAllocationFailed());
+	realmtx_t dW_mt(rowsCnt, colsCnt), Mt_mt(rowsCnt, colsCnt), Vt_mt(rowsCnt, colsCnt);
+	ASSERT_TRUE(!dW_mt.isAllocationFailed() && !Mt_mt.isAllocationFailed() && !Vt_mt.isAllocationFailed());
+	realmtx_t dW_(rowsCnt, colsCnt), Mt_(rowsCnt, colsCnt), Vt_(rowsCnt, colsCnt);
+	ASSERT_TRUE(!dW_.isAllocationFailed() && !Mt_.isAllocationFailed() && !Vt_.isAllocationFailed());
+
+	const real_t mu = real_t(.9), eta = real_t(.999), learningRate = real_t(.001), numStab = real_t(1e-8);
+	const real_t _g = real_t(0.);
+
+	tictoc tSt, tMt, tB, tSt2, tMt2;
+	utils::prioritize_workers<utils::PriorityClass::PerfTesting, imath_basic_t::ithreads_t> pw(iM.ithreads());
+	for (unsigned r = 0; r < maxReps; ++r) {
+		Mt_st.zeros(); Mt_mt.zeros(); Mt_.zeros();
+		Vt_st.zeros(); Vt_mt.zeros(); Vt_.zeros();
+
+		real_t beta1t_st = real_t(1.), beta2t_st = real_t(1.);
+		real_t beta1t_mt = real_t(1.), beta2t_mt = real_t(1.);
+		real_t beta1t_ = real_t(1.), beta2t_ = real_t(1.);
+
+		for (size_t e = 0; e < epochs; ++e) {
+			rg.gen_matrix(dW_st, real_t(3.0));
+			ASSERT_TRUE(dW_st.clone_to(dW_mt)); ASSERT_TRUE(dW_st.clone_to(dW_));
+
+			tSt.tic();
+			iM.RNadam_st(dW_st, Mt_st, Vt_st, beta1t_st, beta2t_st, learningRate, mu, eta, _g, numStab);
+			tSt.toc();
+
+			tMt.tic();
+			iM.RNadam_mt(dW_mt, Mt_mt, Vt_mt, beta1t_mt, beta2t_mt, learningRate, mu, eta, _g, numStab);
+			tMt.toc();
+
+			tSt2.tic();
+			iM.RNadam_st(dW_st, Mt_st, Vt_st, beta1t_st, beta2t_st, learningRate, mu, eta, _g, numStab);
+			tSt2.toc();
+
+			tMt2.tic();
+			iM.RNadam_mt(dW_mt, Mt_mt, Vt_mt, beta1t_mt, beta2t_mt, learningRate, mu, eta, _g, numStab);
+			tMt2.toc();
+
+			tB.tic();
+			iM.RNadam(dW_, Mt_, Vt_, beta1t_, beta2t_, learningRate, mu, eta, _g, numStab);
+			tB.toc();
+		}
+	}
+
+	tSt.say("st");
+	tSt2.say("st2");
+	tMt.say("mt");
+	tMt2.say("mt2");
+
+	tB.say("best");
+}
+
+TEST(TestMathNThr, Nadam) {
+	NNTL_RUN_TEST2(imath_basic_t::Thresholds_t::RNadam, 100) {
+		test_Nadam_perf(10, i, 100);
+	}
+
+#ifndef TESTS_SKIP_LONGRUNNING
+	//test_Nadam_perf(100000, 10);
+#endif
+}
+
+void test_Radam_perf(const size_t epochs, vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
+	const auto dataSize = realmtx_t::sNumel(rowsCnt, colsCnt);
+	STDCOUTL("**** testing Radam() over " << rowsCnt << "x" << colsCnt << " matrix (" << dataSize << " elements) ****");
+
+	constexpr unsigned maxReps = TEST_PERF_REPEATS_COUNT;
+
+	d_interfaces::iRng_t rg;
+	rg.set_ithreads(iM.ithreads());
+
+	realmtx_t dW_st(rowsCnt, colsCnt), Mt_st(rowsCnt, colsCnt), Vt_st(rowsCnt, colsCnt);
+	ASSERT_TRUE(!dW_st.isAllocationFailed() && !Mt_st.isAllocationFailed() && !Vt_st.isAllocationFailed());
+	realmtx_t dW_mt(rowsCnt, colsCnt), Mt_mt(rowsCnt, colsCnt), Vt_mt(rowsCnt, colsCnt);
+	ASSERT_TRUE(!dW_mt.isAllocationFailed() && !Mt_mt.isAllocationFailed() && !Vt_mt.isAllocationFailed());
+	realmtx_t dW_(rowsCnt, colsCnt), Mt_(rowsCnt, colsCnt), Vt_(rowsCnt, colsCnt);
+	ASSERT_TRUE(!dW_.isAllocationFailed() && !Mt_.isAllocationFailed() && !Vt_.isAllocationFailed());
+
+	const real_t mu = real_t(.9), eta = real_t(.999), learningRate = real_t(.001), numStab = real_t(1e-8);
+	const real_t gamma = real_t(0.1);
+
+	tictoc tSt, tMt, tB, tSt2, tMt2;
+	utils::prioritize_workers<utils::PriorityClass::PerfTesting, imath_basic_t::ithreads_t> pw(iM.ithreads());
+	for (unsigned r = 0; r < maxReps; ++r) {
+		Mt_st.zeros(); Mt_mt.zeros(); Mt_.zeros();
+		Vt_st.zeros(); Vt_mt.zeros(); Vt_.zeros();
+
+		real_t beta1t_st = real_t(1.), beta2t_st = real_t(1.);
+		real_t beta1t_mt = real_t(1.), beta2t_mt = real_t(1.);
+		real_t beta1t_ = real_t(1.), beta2t_ = real_t(1.);
+
+		for (size_t e = 0; e < epochs; ++e) {
+			rg.gen_matrix(dW_st, real_t(3.0));
+			ASSERT_TRUE(dW_st.clone_to(dW_mt)); ASSERT_TRUE(dW_st.clone_to(dW_));
+
+			tSt.tic();
+			iM.RNadam_st(dW_st, Mt_st, Vt_st, beta1t_st, beta2t_st, learningRate, mu, eta, gamma, numStab);
+			tSt.toc();
+
+			tMt.tic();
+			iM.RNadam_mt(dW_mt, Mt_mt, Vt_mt, beta1t_mt, beta2t_mt, learningRate, mu, eta, gamma, numStab);
+			tMt.toc();
+
+			tSt2.tic();
+			iM.RNadam_st(dW_st, Mt_st, Vt_st, beta1t_st, beta2t_st, learningRate, mu, eta, gamma, numStab);
+			tSt2.toc();
+
+			tMt2.tic();
+			iM.RNadam_mt(dW_mt, Mt_mt, Vt_mt, beta1t_mt, beta2t_mt, learningRate, mu, eta, gamma, numStab);
+			tMt2.toc();
+
+			tB.tic();
+			iM.RNadam(dW_, Mt_, Vt_, beta1t_, beta2t_, learningRate, mu, eta, gamma, numStab);
+			tB.toc();
+		}
+	}
+
+	tSt.say("st");
+	tSt2.say("st2");
+	tMt.say("mt");
+	tMt2.say("mt2");
+
+	tB.say("best");
+}
+
+TEST(TestMathNThr, Radam) {
+	NNTL_RUN_TEST2(imath_basic_t::Thresholds_t::RNadam, 100) {
+		test_Radam_perf(10, i, 100);
+	}
+
+#ifndef TESTS_SKIP_LONGRUNNING
+	//test_Radam_perf(100000, 10);
+#endif
+}
+
 
 //////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////

@@ -154,14 +154,18 @@ namespace nntl {
 			
 			Adam,//b1=.9, b2=.999, numStab=1e-8, learningRate=.001; --- remember to set numeric_stabilizer() correctly!!!
 			AdaMax,// see Adam - A Method for Stochastic Optimization.1412.6980v8
+
+			Nadam, //Timothy Dozat, ICLR 2016, "Incorporating Nesterov Momentum into Adam"
+			Radam //https://github.com/tdozat/Optimization
 		};
 
 	protected:
 		const bool _optimizerRequiresMatrixA()const noexcept {
-			return m_type == RMSProp_Hinton || m_type == RMSProp_Graves || m_type == ModProp || m_type == Adam || m_type == AdaMax;
+			return m_type == RMSProp_Hinton || m_type == RMSProp_Graves || m_type == ModProp || m_type == Adam 
+				|| m_type == AdaMax || m_type == Nadam || m_type == Radam;
 		}
 		const bool _optimizerRequiresMatrixB()const noexcept {
-			return m_type == RMSProp_Graves || m_type == Adam || m_type == AdaMax;
+			return m_type == RMSProp_Graves || m_type == Adam || m_type == AdaMax || m_type == Nadam || m_type == Radam;
 		}
 
 	protected:
@@ -171,7 +175,7 @@ namespace nntl {
 		real_t m_learningRate;
 
 		real_t m_momentum;
-		real_t m_optBeta1, m_optBeta2;
+		real_t m_optBeta1, m_optBeta2, m_optGamma;
 		real_t m_numericStabilizerEps;
 		real_t m_WeightVecNormSqared;//coefficient of max-norm regularization ||W||2 <= c (see "Dropout: A Simple Way to Prevent Neural Networks from Overfitting".2014)
 		//hint: weights initialized from uniform distribution [-b,b]. It's second raw momentum is b^2/3, so the mean norm should
@@ -242,7 +246,7 @@ namespace nntl {
 		_grad_works& operator=(const _grad_works& rhs) noexcept = delete;
 
 		_grad_works(const real_t& lr) noexcept : m_momentum(real_t(0.0))
-			, m_optBeta1(real_t(0.9)), m_optBeta2(real_t(0.999))
+			, m_optBeta1(real_t(0.9)), m_optBeta2(real_t(0.999)), m_optGamma(real_t(0.05))
 			, m_numericStabilizerEps(_impl::NUM_STAB_EPS<real_t>::value), m_WeightVecNormSqared(real_t(0.0))
 			, m_optBeta1t(real_t(1.)), m_optBeta2t(real_t(1.))
 			, m_type(ClassicalConstant)
@@ -316,6 +320,7 @@ namespace nntl {
 			}
 		}
 		
+		//#todo this code should be refactored.
 		void apply_grad(realmtxdef_t& weights, realmtxdef_t& dLdW) noexcept {
 			NNTL_ASSERT(dLdW.size() == weights.size());
 
@@ -331,6 +336,19 @@ namespace nntl {
 			set_opt(f_FirstRun,false);
 
 			auto& iM = get_iMath();
+
+			//changing nesterov momentum vars
+			if (use_momentums() && get_opt(f_UseNesterovMomentum)) {
+				NNTL_ASSERT(m_Vw.size() == dLdW.size());
+				// (3)  vW(t+1) = momentum*vW(t) + scaling*grad_Loss( W(t)-momentum*vW(t))
+				//				= vW`(t+1) + scaling*grad_Loss( W`(t+1) )
+				iI.apply_grad_preNesterovMomentum(m_Vw, dLdW);
+				iM.evAdd_ip(m_Vw, dLdW);
+				iI.apply_grad_postNesterovMomentum(m_Vw);
+				// (4)  W(t+1)  = W(t) - vW(t+1) 
+				//				= W(t) - vW`(t+1) - scaling*grad_Loss( W`(t+1) )
+				//				= W`(t+1) - scaling * grad_Loss( W`(t+1) )
+			}
 
 			switch (m_type) {
 			case ClassicalConstant:
@@ -382,6 +400,20 @@ namespace nntl {
 				iM.AdaMax(dLdW, m_optMtxA, m_optMtxB, m_optBeta1t, m_learningRate, m_optBeta1, m_optBeta2, m_numericStabilizerEps);
 				break;
 
+			case Nadam:
+			case Radam:
+				if (bFirstRun) {
+					m_optBeta1t = real_t(1.);
+					m_optBeta2t = real_t(1.);
+					m_optMtxA.zeros();
+					m_optMtxB.zeros();
+					if (Nadam==m_type) {
+						m_optGamma = real_t(0.);
+					}
+				};
+				iM.RNadam(dLdW, m_optMtxA, m_optMtxB, m_optBeta1t, m_optBeta2t, m_learningRate, m_optBeta1, m_optBeta2, m_optGamma, m_numericStabilizerEps);
+				break;
+
 			default:
 				NNTL_ASSERT(!"WTF??");
 				STDCOUTL("*** " << NNTL_FUNCTION << ": Wrong type of optimizer specified!");
@@ -391,29 +423,12 @@ namespace nntl {
 
 			ILR_apply(bFirstRun, dLdW, m_Vw);
 
-			bool bApplydLdW2Weights = true;
-			if (use_momentums()) {
-				NNTL_ASSERT(m_Vw.size() == dLdW.size());
-				if (get_opt(f_UseNesterovMomentum)) {
-					// (3)  vW(t+1) = momentum*vW(t) + scaling*grad_Loss( W(t)-momentum*vW(t))
-					//				= vW`(t+1) + scaling*grad_Loss( W`(t+1) )
-					iI.apply_grad_preNesterovMomentum(m_Vw, dLdW);
-					iM.evAdd_ip(m_Vw, dLdW);
-					iI.apply_grad_postNesterovMomentum(m_Vw);
-					// (4)  W(t+1)  = W(t) - vW(t+1) 
-					//				= W(t) - vW`(t+1) - scaling*grad_Loss( W`(t+1) )
-					//				= W`(t+1) - scaling * grad_Loss( W`(t+1) )
-					//bApplydLdW2Weights=true;
-				} else {
-					//Vw = momentum.*Vw + dW
-					iM.apply_momentum(m_Vw, m_momentum, dLdW);
-					iI.apply_grad_update(weights, m_Vw);
-					iM.evSub_ip(weights, m_Vw);
-					bApplydLdW2Weights = false;
-				}
-			}
-
-			if (bApplydLdW2Weights) {
+			if (use_momentums() && !get_opt(f_UseNesterovMomentum)) {
+				//Vw = momentum.*Vw + dW
+				iM.apply_momentum(m_Vw, m_momentum, dLdW);
+				iI.apply_grad_update(weights, m_Vw);
+				iM.evSub_ip(weights, m_Vw);
+			} else {
 				iI.apply_grad_update(weights, dLdW);
 				iM.evSub_ip(weights, dLdW);
 			}
@@ -431,7 +446,7 @@ namespace nntl {
 			m_learningRate = learningRate;
 			return get_self();
 		}
-		const real_t learning_rate()const noexcept { return m_learningRate; }
+		const real_t& learning_rate()const noexcept { return m_learningRate; }
 
 		self_ref_t momentum(const real_t m)noexcept {
 			NNTL_ASSERT(m >= 0 && m < 1);
@@ -453,13 +468,21 @@ namespace nntl {
 			m_optBeta1 = c;
 			return get_self();
 		}
-		const real_t beta1()const noexcept { return m_optBeta1; }
+		const real_t& beta1()const noexcept { return m_optBeta1; }
 		self_ref_t beta2(const real_t c)noexcept {
 			NNTL_ASSERT(c > 0 && c < 1);
 			m_optBeta2 = c;
 			return get_self();
 		}
-		const real_t beta2()const noexcept { return m_optBeta2; }
+		const real_t& beta2()const noexcept { return m_optBeta2; }
+
+		self_ref_t gamma(const real_t c)noexcept {
+			NNTL_ASSERT(c > 0 && c < 1);
+			m_optGamma = c;
+			return get_self();
+		}
+		const real_t& gamma()const noexcept { return m_optGamma; }
+
 
 		self_ref_t numeric_stabilizer(const real_t n)noexcept {
 			NNTL_ASSERT(n >= 0 && n < real_t(1.));
@@ -472,6 +495,8 @@ namespace nntl {
 			m_type = gt;
 			return get_self();
 		}
+
+
 
 		//for max_norm it might be better to take biases into account during calculation of norm value - it doesn't
 		//affect the direction that the weight is point to but makes two weights with the same direction but different biases really different.

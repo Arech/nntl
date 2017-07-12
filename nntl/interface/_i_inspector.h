@@ -152,6 +152,9 @@ namespace inspector {
 
 		nntl_interface void apply_grad_preILR(const realmtx_t& dLdW, const realmtx_t& prevdLdW, const realmtx_t& Gain) const noexcept;
 		nntl_interface void apply_grad_postILR(const realmtx_t& dLdW, const realmtx_t& Gain) const noexcept;
+
+		//to monitor dLdA addendums
+		nntl_interface void dLossAddendumScaled(const realmtx_t& dLossAdd, const real_t& scale, const char*const pLossName)const noexcept;
 	};
 
 	namespace _impl {
@@ -239,6 +242,8 @@ namespace inspector {
 
 			void apply_grad_preILR(const realmtx_t& dLdW, const realmtx_t& prevdLdW, const realmtx_t& Gain) const noexcept{}
 			void apply_grad_postILR(const realmtx_t& dLdW, const realmtx_t& Gain) const noexcept{}
+
+			void dLossAddendumScaled(const realmtx_t& dLossAdd, const real_t& scale, const char*const pLossName)const noexcept{}
 		};
 
 	}

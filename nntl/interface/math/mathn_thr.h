@@ -148,6 +148,8 @@ namespace _impl {
 		static constexpr size_t ModProp = 4170;
 		static constexpr size_t Adam = 3000;
 		static constexpr size_t AdaMax = 1200;
+
+		static constexpr size_t RNadam = 3000;
 	};
 
 	template <> struct MATHN_THR<float> : public SMATH_THR<float> {
@@ -251,6 +253,8 @@ namespace _impl {
 		static constexpr size_t ModProp = 9300;
 		static constexpr size_t Adam = 8000;//*
 		static constexpr size_t AdaMax = 2900;//*
+
+		static constexpr size_t RNadam = 8000;
 	};
 
 }

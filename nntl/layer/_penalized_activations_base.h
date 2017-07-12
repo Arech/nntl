@@ -51,8 +51,9 @@ namespace nntl {
 			return (typename iMathT::real_t)(0);
 		}
 
-		template<typename iMathT>
-		static constexpr void _pab_update_dLdA(const math::smatrix_deform<typename iMathT::real_t>& dLdA, const math::smatrix_deform<typename iMathT::real_t>& ThisActivations, const iMathT& iM)noexcept{}
+		template<typename iMathT, typename iInspectT>
+		static constexpr void _pab_update_dLdA(const math::smatrix_deform<typename iMathT::real_t>& dLdA
+			, const math::smatrix_deform<typename iMathT::real_t>& ThisActivations, const iMathT& iM, const iInspectT& iI)noexcept{}
 	};
 
 	template<typename AddendumsTupleT>
@@ -117,18 +118,18 @@ namespace nntl {
 
 		//#note: if we actually need to work with the output_layer, then there must be very special handling of this case because of how
 		//bprop() is implemented for output_layer now
-		template<typename iMathT>
-		void _pab_update_dLdA(realmtxdef_t& dLdA, const realmtxdef_t& ThisActivations, iMathT& iM)noexcept {
+		template<typename iMathT, typename iInspectT>
+		void _pab_update_dLdA(realmtxdef_t& dLdA, const realmtxdef_t& ThisActivations, iMathT& iM, iInspectT& iI)noexcept {
 			realmtxdef_t& act = const_cast<realmtxdef_t&>(ThisActivations);
 			NNTL_ASSERT(act.emulatesBiases());
 			const auto bRestoreBiases = act.hide_biases();
 
-			tuple_utils::for_each_up(m_addendumsTuple, [&act, &dLdA, &iM](auto& la) {
+			tuple_utils::for_each_up(m_addendumsTuple, [&act, &dLdA, &iM, &iI](auto& la) {
 				typedef std::decay_t<decltype(la)> la_t;
 				static_assert(loss_addendum::is_loss_addendum<la_t>::value, "Every Loss_addendum class must implement loss_addendum::_i_loss_addendum<>");
 
 				if (la.bEnabled()) {
-					la.dLossAdd(act, dLdA, iM);
+					la.dLossAdd(act, dLdA, iM, iI);
 				}
 			});
 

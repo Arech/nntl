@@ -1999,6 +1999,137 @@ TEST(TestMathN, AdaMax) {
 
 //////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////
+
+void test_Nadam_corr(const size_t epochs, const vec_len_t maxRowsCnt, const vec_len_t maxColsCnt = 10) {
+	const real_t mu = real_t(.9), eta = real_t(.999), learningRate = real_t(.001), numStab = real_t(1e-8);
+	const real_t _g = real_t(0);
+
+	d_interfaces::iRng_t rg;
+	rg.set_ithreads(iM.ithreads());
+
+	for (vec_len_t r = 1; r < maxRowsCnt; ++r) {
+		for (vec_len_t c = 1; c < maxColsCnt; ++c) {
+			MTXSIZE_SCOPED_TRACE(r, c, "test_Nadam_corr");
+
+			realmtx_t dW_ET(r, c), Mt_ET(r, c), Vt_ET(r, c);
+			ASSERT_TRUE(!dW_ET.isAllocationFailed() && !Mt_ET.isAllocationFailed() && !Vt_ET.isAllocationFailed());
+			realmtx_t dW_st(r, c), Mt_st(r, c), Vt_st(r, c);
+			ASSERT_TRUE(!dW_st.isAllocationFailed() && !Mt_st.isAllocationFailed() && !Vt_st.isAllocationFailed());
+			realmtx_t dW_mt(r, c), Mt_mt(r, c), Vt_mt(r, c);
+			ASSERT_TRUE(!dW_mt.isAllocationFailed() && !Mt_mt.isAllocationFailed() && !Vt_mt.isAllocationFailed());
+			realmtx_t dW_(r, c), Mt_(r, c), Vt_(r, c);
+			ASSERT_TRUE(!dW_.isAllocationFailed() && !Mt_.isAllocationFailed() && !Vt_.isAllocationFailed());
+
+			Mt_ET.zeros(); Mt_st.zeros(); Mt_mt.zeros(); Mt_.zeros();
+			Vt_ET.zeros(); Vt_st.zeros(); Vt_mt.zeros(); Vt_.zeros();
+
+			real_t mu_t_ET = real_t(1.), eta_t_ET = real_t(1.);
+			real_t mu_t_st = real_t(1.), eta_t_st = real_t(1.);
+			real_t mu_t_mt = real_t(1.), eta_t_mt = real_t(1.);
+			real_t mu_t_ = real_t(1.), eta_t_ = real_t(1.);
+
+			for (size_t e = 0; e < epochs; ++e) {
+				rg.gen_matrix(dW_ET, real_t(3.0));
+				ASSERT_TRUE(dW_ET.clone_to(dW_st)); ASSERT_TRUE(dW_ET.clone_to(dW_mt)); ASSERT_TRUE(dW_ET.clone_to(dW_));
+
+				Nadam_ET(dW_ET, Mt_ET, Vt_ET, mu_t_ET, eta_t_ET, learningRate, mu, eta, numStab);
+
+				iM.RNadam_st(dW_st, Mt_st, Vt_st, mu_t_st, eta_t_st, learningRate, mu, eta, _g, numStab);
+				ASSERT_MTX_EQ(dW_ET, dW_st, "dW @ _st");
+				ASSERT_MTX_EQ(Mt_ET, Mt_st, "Mt @ _st");
+				ASSERT_MTX_EQ(Vt_ET, Vt_st, "Vt @ _st");
+				ASSERT_EQ(mu_t_ET, mu_t_st) << "_st";
+				ASSERT_EQ(eta_t_ET, eta_t_st) << "_st";
+
+				iM.RNadam_mt(dW_mt, Mt_mt, Vt_mt, mu_t_mt, eta_t_mt, learningRate, mu, eta, _g, numStab);
+				ASSERT_MTX_EQ(dW_ET, dW_mt, "dW @ _mt");
+				ASSERT_MTX_EQ(Mt_ET, Mt_mt, "Mt @ _mt");
+				ASSERT_MTX_EQ(Vt_ET, Vt_mt, "Vt @ _mt");
+				ASSERT_EQ(mu_t_ET, mu_t_mt) << "_mt";
+				ASSERT_EQ(eta_t_ET, eta_t_mt) << "_mt";
+
+				iM.RNadam(dW_, Mt_, Vt_, mu_t_, eta_t_, learningRate, mu, eta, _g, numStab);
+				ASSERT_MTX_EQ(dW_ET, dW_, "dW @ _");
+				ASSERT_MTX_EQ(Mt_ET, Mt_, "Mt @ _");
+				ASSERT_MTX_EQ(Vt_ET, Vt_, "Vt @ _");
+				ASSERT_EQ(mu_t_ET, mu_t_) << "_";
+				ASSERT_EQ(eta_t_ET, eta_t_) << "_";
+			}
+		}
+	}
+}
+
+TEST(TestMathN, Nadam) {
+	test_Nadam_corr(10, g_MinDataSizeDelta * 2, g_MinDataSizeDelta * 2);
+}
+
+
+void test_Radam_corr(const size_t epochs, const vec_len_t maxRowsCnt, const vec_len_t maxColsCnt = 10) {
+	const real_t mu = real_t(.9), eta = real_t(.999), learningRate = real_t(.001), numStab = real_t(1e-8);
+	const real_t gamma = real_t(.1);
+
+	d_interfaces::iRng_t rg;
+	rg.set_ithreads(iM.ithreads());
+
+	for (vec_len_t r = 1; r < maxRowsCnt; ++r) {
+		for (vec_len_t c = 1; c < maxColsCnt; ++c) {
+			MTXSIZE_SCOPED_TRACE(r, c, "test_Radam_corr");
+
+			realmtx_t dW_ET(r, c), Mt_ET(r, c), Vt_ET(r, c);
+			ASSERT_TRUE(!dW_ET.isAllocationFailed() && !Mt_ET.isAllocationFailed() && !Vt_ET.isAllocationFailed());
+			realmtx_t dW_st(r, c), Mt_st(r, c), Vt_st(r, c);
+			ASSERT_TRUE(!dW_st.isAllocationFailed() && !Mt_st.isAllocationFailed() && !Vt_st.isAllocationFailed());
+			realmtx_t dW_mt(r, c), Mt_mt(r, c), Vt_mt(r, c);
+			ASSERT_TRUE(!dW_mt.isAllocationFailed() && !Mt_mt.isAllocationFailed() && !Vt_mt.isAllocationFailed());
+			realmtx_t dW_(r, c), Mt_(r, c), Vt_(r, c);
+			ASSERT_TRUE(!dW_.isAllocationFailed() && !Mt_.isAllocationFailed() && !Vt_.isAllocationFailed());
+
+			Mt_ET.zeros(); Mt_st.zeros(); Mt_mt.zeros(); Mt_.zeros();
+			Vt_ET.zeros(); Vt_st.zeros(); Vt_mt.zeros(); Vt_.zeros();
+
+			real_t mu_t_ET = real_t(1.), eta_t_ET = real_t(1.);
+			real_t mu_t_st = real_t(1.), eta_t_st = real_t(1.);
+			real_t mu_t_mt = real_t(1.), eta_t_mt = real_t(1.);
+			real_t mu_t_ = real_t(1.), eta_t_ = real_t(1.);
+
+			for (size_t e = 0; e < epochs; ++e) {
+				rg.gen_matrix(dW_ET, real_t(3.0));
+				ASSERT_TRUE(dW_ET.clone_to(dW_st)); ASSERT_TRUE(dW_ET.clone_to(dW_mt)); ASSERT_TRUE(dW_ET.clone_to(dW_));
+
+				Radam_ET(dW_ET, Mt_ET, Vt_ET, mu_t_ET, eta_t_ET, learningRate, mu, eta, gamma, numStab);
+
+				iM.RNadam_st(dW_st, Mt_st, Vt_st, mu_t_st, eta_t_st, learningRate, mu, eta, gamma, numStab);
+				ASSERT_MTX_EQ(dW_ET, dW_st, "dW @ _st");
+				ASSERT_MTX_EQ(Mt_ET, Mt_st, "Mt @ _st");
+				ASSERT_MTX_EQ(Vt_ET, Vt_st, "Vt @ _st");
+				ASSERT_EQ(mu_t_ET, mu_t_st) << "_st";
+				ASSERT_EQ(eta_t_ET, eta_t_st) << "_st";
+
+				iM.RNadam_mt(dW_mt, Mt_mt, Vt_mt, mu_t_mt, eta_t_mt, learningRate, mu, eta, gamma, numStab);
+				ASSERT_MTX_EQ(dW_ET, dW_mt, "dW @ _mt");
+				ASSERT_MTX_EQ(Mt_ET, Mt_mt, "Mt @ _mt");
+				ASSERT_MTX_EQ(Vt_ET, Vt_mt, "Vt @ _mt");
+				ASSERT_EQ(mu_t_ET, mu_t_mt) << "_mt";
+				ASSERT_EQ(eta_t_ET, eta_t_mt) << "_mt";
+
+				iM.RNadam(dW_, Mt_, Vt_, mu_t_, eta_t_, learningRate, mu, eta, gamma, numStab);
+				ASSERT_MTX_EQ(dW_ET, dW_, "dW @ _");
+				ASSERT_MTX_EQ(Mt_ET, Mt_, "Mt @ _");
+				ASSERT_MTX_EQ(Vt_ET, Vt_, "Vt @ _");
+				ASSERT_EQ(mu_t_ET, mu_t_) << "_";
+				ASSERT_EQ(eta_t_ET, eta_t_) << "_";
+			}
+		}
+	}
+}
+
+TEST(TestMathN, Radam) {
+	test_Radam_corr(10, g_MinDataSizeDelta * 2, g_MinDataSizeDelta * 2);
+}
+
+
+//////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////
 template<typename iMath>
 void test_make_dropout_perf(iMath& iM, vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 	const auto dataSize = realmtx_t::sNumel(rowsCnt, colsCnt);

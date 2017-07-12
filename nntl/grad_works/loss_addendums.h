@@ -189,14 +189,14 @@ namespace GW { //GW namespace is for grad_works mixins and other stuff, that hel
 
 	protected:
 		void _applyLossAddendums(realmtxdef_t& weights, realmtxdef_t& dLdW)const noexcept {
-			tuple_utils::for_each_up(m_addendumsTuple, [&weights, &dLdW, &iM = get_self().get_iMath(), this](auto& la) {
+			tuple_utils::for_each_up(m_addendumsTuple, [&weights, &dLdW, &iM = get_self().get_iMath(), &iI = get_self().get_iInspect(), this](auto& la) {
 				typedef std::decay_t<decltype(la)> la_t;
 				static_assert(loss_addendum::is_loss_addendum<la_t>::value, "Every Loss_addendum class must implement loss_addendum::_i_loss_addendum<>");
 
 				if (useAddendum<la_t>()) {
 					const auto bIgnoreBiases = addendumIgnoresBias<la_t>();
 					if (bIgnoreBiases) { dLdW.hide_last_col(); weights.hide_last_col(); }
-					la.dLossAdd(weights, dLdW, iM);
+					la.dLossAdd(weights, dLdW, iM, iI);
 					if (bIgnoreBiases) { dLdW.restore_last_col(); weights.restore_last_col(); }
 				}
 			});

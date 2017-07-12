@@ -54,12 +54,12 @@ namespace nntl {
 			verbose(maxEpoch - 1);
 		}
 		vector_conditions(size_t maxEpoch,size_t stride)noexcept : m_flgEvalPerf(maxEpoch, false) {
-			NNTL_ASSERT(maxEpoch > 0);
-			verbose(stride+1, maxEpoch, stride);
+			NNTL_ASSERT(maxEpoch > 0 && stride>0);
+			verbose(stride, maxEpoch, stride);
 			verbose(maxEpoch - 1);
 		}
 		vector_conditions(size_t maxEpoch, size_t startsAt, size_t stride)noexcept : m_flgEvalPerf(maxEpoch, false) {
-			NNTL_ASSERT(maxEpoch > 0 && startsAt<=maxEpoch);
+			NNTL_ASSERT(maxEpoch > 0 && startsAt <= maxEpoch && stride > 0);
 			verbose(startsAt, maxEpoch, stride);
 			verbose(maxEpoch - 1);
 		}
@@ -87,6 +87,7 @@ namespace nntl {
 
 		self_t& set(size_t i, const bool v)noexcept { m_flgEvalPerf[i] = v; return *this; }
 		self_t& set(const size_t _beg, const size_t _end, const size_t stride, const bool v)noexcept {
+			NNTL_ASSERT(stride > 0 && _beg > 0 && _end >= _beg);
 			for (size_t i = _beg - 1; i < _end; i += stride) m_flgEvalPerf[i] = v;
 			return *this;
 		}

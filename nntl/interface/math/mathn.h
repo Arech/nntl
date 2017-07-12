@@ -3157,6 +3157,102 @@ namespace math {
 			}, dW.numel());
 		}
 
+
+
+		//////////////////////////////////////////////////////////////////////////
+		// Radam - Reweighted Adaptive Moment Estimation (see https://github.com/tdozat/Optimization)
+		// It is a further generalization of Nadam (Timothy Dozat, ICLR 2016, "Incorporating Nesterov Momentum into Adam")
+		// that includes the Nadam as a special case (just pass (0) as gamma parameter).
+		// 
+		//on a first call mu_pow_t and eta_pow_t must be initialized with 1.
+		void RNadam(realmtx_t& dW, realmtx_t& Mt, realmtx_t& Nt, real_t& mu_pow_t, real_t& eta_pow_t
+			, const real_t& learningRate, const real_t& mu, const real_t& eta, const real_t& gamma, const real_t& numericStabilizer)noexcept
+		{
+			if (dW.numel() < Thresholds_t::RNadam) {
+				get_self().RNadam_st(dW, Mt, Nt, mu_pow_t, eta_pow_t, learningRate, mu, eta, gamma, numericStabilizer);
+			} else get_self().RNadam_mt(dW, Mt, Nt, mu_pow_t, eta_pow_t, learningRate, mu, eta, gamma, numericStabilizer);
+		}
+		void RNadam_st(realmtx_t& dW, realmtx_t& Mt, realmtx_t& Nt, real_t& mu_pow_t, real_t& eta_pow_t
+			, const real_t& learningRate, const real_t& mu, const real_t& eta, const real_t& gamma, const real_t& numericStabilizer
+			, const elms_range*const pER = nullptr) noexcept
+		{
+			get_self()._iRNadam_st(dW, Mt, Nt, mu_pow_t, eta_pow_t, learningRate, mu, eta, gamma, numericStabilizer, pER ? *pER : elms_range(0, dW.numel()), !!pER);
+		}
+		static void _iRNadam_st(realmtx_t& dW, realmtx_t& Mt, realmtx_t& Nt, real_t& mu_pow_t, real_t& eta_pow_t
+			, const real_t& learningRate, const real_t& mu, const real_t& eta, const real_t& gamma, const real_t& numericStabilizer
+			, const elms_range& er, const bool bInsideMT = true) noexcept
+		{
+			NNTL_ASSERT(dW.size() == Mt.size() && dW.size() == Nt.size());
+			NNTL_ASSERT(real_t(0.) < learningRate && learningRate < real_t(1.));
+			NNTL_ASSERT(real_t(0.) < mu && mu < real_t(1.));
+			NNTL_ASSERT(real_t(0.) < eta && eta < real_t(1.));
+			NNTL_ASSERT(real_t(0.) <= gamma && gamma < real_t(1.));
+			NNTL_ASSERT(real_t(0.) < numericStabilizer && numericStabilizer < real_t(1.));
+			NNTL_ASSERT(real_t(0.) <= mu_pow_t && mu_pow_t <= real_t(1.));
+			NNTL_ASSERT(real_t(0.) <= eta_pow_t && eta_pow_t <= real_t(1.));
+
+			if (!bInsideMT) {//This means, we're running outside of _mt version
+				mu_pow_t *= mu;
+				eta_pow_t *= eta;
+				NNTL_ASSERT(mu_pow_t < real_t(1.));
+				NNTL_ASSERT(eta_pow_t < real_t(1.));
+			}
+
+			const real_t mu_t = (mu - mu_pow_t) / (real_t(1.) - mu_pow_t), eta_t = (eta - eta_pow_t) / (real_t(1.) - eta_pow_t);
+
+			const auto o_m_mu_t = real_t(1.) - mu_t, o_m_eta_t = real_t(1.) - eta_t;
+
+			const bool bIsNadam = gamma == real_t(0);
+
+			const real_t mHat_c_mt = bIsNadam ? mu*((real_t(1.) - mu_pow_t) / (real_t(1) - mu*mu_pow_t)) : (real_t(1.) - gamma);
+			const real_t mHat_c_g = bIsNadam ? o_m_mu_t : gamma;
+
+			auto pdW = dW.data() + er.elmBegin, pMt = Mt.data() + er.elmBegin, pNt = Nt.data() + er.elmBegin;
+			const auto pDWE = pdW + er.totalElements();
+			while (pdW != pDWE) {
+				const auto g = *pdW;
+
+				const auto n = (*pNt)*eta_t + (g*g)*o_m_eta_t;
+				*pNt++ = n;
+				const auto n_hat = std::sqrt(n) + numericStabilizer;
+
+				const auto m = (*pMt)*mu_t + g*o_m_mu_t;
+				*pMt++ = m;
+
+				//m_hat = o_m_gamma*m_t + gamma*g
+				const auto m_hat = mHat_c_mt*m + mHat_c_g*g;
+
+				const auto ndw = learningRate*(m_hat / n_hat);
+				// 				if (std::isnan(g) || std::isnan(m) || std::isnan(v) || std::isnan(ndw)) {
+				// 					__debugbreak();
+				// 				}
+				*pdW++ = ndw;
+			}
+			//FFFUUUUUUUUCK! for() cycle (commented out below) works about 4-5 times slower, than while().
+		}
+		void RNadam_mt(realmtx_t& dW, realmtx_t& Mt, realmtx_t& Nt, real_t& mu_pow_t, real_t& eta_pow_t
+			, const real_t& learningRate, const real_t& mu, const real_t& eta, const real_t& gamma, const real_t& numericStabilizer) noexcept
+		{
+			NNTL_ASSERT(dW.size() == Mt.size() && dW.size() == Nt.size());
+			NNTL_ASSERT(real_t(0.) < learningRate && learningRate < real_t(1.));
+			NNTL_ASSERT(real_t(0.) < mu && mu < real_t(1.));
+			NNTL_ASSERT(real_t(0.) < eta && eta < real_t(1.));
+			NNTL_ASSERT(real_t(0.) <= gamma && gamma < real_t(1.));
+			NNTL_ASSERT(real_t(0.) < numericStabilizer && numericStabilizer < real_t(1.));
+			NNTL_ASSERT(real_t(0.) <= mu_pow_t && mu_pow_t <= real_t(1.));
+			NNTL_ASSERT(real_t(0.) <= eta_pow_t && eta_pow_t <= real_t(1.));
+			mu_pow_t *= mu;
+			eta_pow_t *= eta;
+			NNTL_ASSERT(mu_pow_t < real_t(1.));
+			NNTL_ASSERT(eta_pow_t < real_t(1.));
+			m_threads.run([&dW, &Mt, &Nt, &mu_pow_t, &eta_pow_t, &learningRate, &mu, &eta, &gamma, &numericStabilizer, this](const par_range_t& r) {
+				get_self()._iRNadam_st(dW, Mt, Nt, mu_pow_t, eta_pow_t, learningRate, mu, eta, gamma, numericStabilizer, elms_range(r), true);
+			}, dW.numel());
+		}
+
+
+
+
 		//////////////////////////////////////////////////////////////////////////
 		//////////////////////////////////////////////////////////////////////////
 		// loss addendum functions

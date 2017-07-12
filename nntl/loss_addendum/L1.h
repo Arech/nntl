@@ -42,13 +42,13 @@ namespace loss_addendum {
 		static constexpr const char* getName()noexcept { return "L1"; }
 
 		//computes loss addendum for a given matrix of values (for weight-decay Vals parameter is a weight matrix)
-		template <typename iMath>
-		real_t lossAdd(const realmtx_t& Vals, iMath& iM) const noexcept {
+		template <typename iMathT>
+		real_t lossAdd(const realmtx_t& Vals, iMathT& iM) const noexcept {
 			return m_scale* iM.vSumAbs(Vals);
 		}
 
-		template <typename iMath>
-		void dLossAdd(const realmtx_t& Vals, realmtx_t& dLossdVals, iMath& iM) const noexcept {
+		template <typename iMathT, typename iInspectT>
+		void dLossAdd(const realmtx_t& Vals, realmtx_t& dLossdVals, iMathT& iM, iInspectT& iI) const noexcept {
 			iM.evAddScaledSign_ip(dLossdVals, m_scale, Vals);
 		}
 	};

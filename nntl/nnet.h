@@ -491,12 +491,18 @@ namespace nntl {
 							epochPeriodBeginsAt = epochPeriodEnds;//restarting period timer
 						}
 
-						if (bInspectEpoch || !bOptFBErrCalcThisEpoch)
-							set_mode_and_batch_size(0);//restoring training mode after _calcLoss()
+// 						if (bInspectEpoch || !bOptFBErrCalcThisEpoch)
+// 							set_mode_and_batch_size(0);//restoring training mode after _calcLoss()
 					}
 
 					iI.train_epochEnd();
 					if (! std::forward<OnEpochEndCbT>(onEpochEndCB)(*this, opts, epochIdx)) break;
+
+					if (bCalcLoss && (bInspectEpoch || !bOptFBErrCalcThisEpoch)) {
+						set_mode_and_batch_size(0);//restoring training mode after _calcLoss()
+						//moved the set_mode_and_batch_size() here after the call to onEpochEndCB() to allow onEpochEndCB to call this->fprop() on
+						//any auxiliary (real test) dataset
+					}
 				}
 			}
 			opts.observer().on_training_end(std::chrono::steady_clock::now()- trainingBeginsAt);

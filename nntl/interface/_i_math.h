@@ -326,6 +326,9 @@ namespace math {
 			const real_t beta1, const real_t beta2, const real_t numericStabilizer)noexcept;
 		nntl_interface void AdaMax(realmtx_t& dW, realmtx_t& Mt, realmtx_t& Ut, real_t& beta1t, const real_t learningRate,
 			const real_t beta1, const real_t beta2, const real_t numericStabilizer)noexcept;
+
+		nntl_interface void RNadam(realmtx_t& dW, realmtx_t& Mt, realmtx_t& Nt, real_t& mu_pow_t, real_t& eta_pow_t
+			, const real_t& learningRate, const real_t& mu, const real_t& eta, const real_t& gamma, const real_t& numericStabilizer)noexcept;
 	};
 
 }

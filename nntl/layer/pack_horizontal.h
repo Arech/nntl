@@ -432,7 +432,7 @@ namespace nntl {
 			auto& iI = get_self().get_iInspect();
 			iI.bprop_begin(get_self().get_layer_idx(), dLdA);
 
-			_pab_update_dLdA(dLdA, get_self().get_activations(), get_self().get_iMath());
+			_pab_update_dLdA(dLdA, get_self().get_activations(), get_self().get_iMath(), iI);
 
 			iI.bprop_finaldLdA(dLdA);
 
@@ -580,6 +580,8 @@ namespace nntl {
 		: public _layer_pack_horizontal < LPH_PA<LossAddsTuple, PHLsT...>, std::tuple<PHLsT...>, LossAddsTuple>
 	{
 	public:
+		static constexpr const char _defName[] = "lph_pa";
+
 		~LPH_PA() noexcept {};
 		LPH_PA(PHLsT&... phls) noexcept
 			: _layer_pack_horizontal<LPH_PA<LossAddsTuple, PHLsT...>, std::tuple<PHLsT...>, LossAddsTuple>(nullptr, std::make_tuple(phls...)) {};

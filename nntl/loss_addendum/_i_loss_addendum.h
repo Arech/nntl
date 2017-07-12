@@ -66,11 +66,11 @@ namespace loss_addendum {
 		nntl_interface const char* getName()const noexcept;// { return "_LA_name_not_set"; }
 
 		//computes loss addendum for a given matrix of values (for weight-decay Vals parameter is a weight matrix)
-		template <typename iMath>
-		nntl_interface real_t lossAdd(const realmtx_t& Vals, iMath& iM) noexcept;
+		template <typename iMathT>
+		nntl_interface real_t lossAdd(const realmtx_t& Vals, iMathT& iM) noexcept;
 
-		template <typename iMath>
-		nntl_interface void dLossAdd(const realmtx_t& Vals, realmtx_t& dLossdVals, iMath& iM) noexcept;
+		template <typename iMathT, typename iInspectT>
+		nntl_interface void dLossAdd(const realmtx_t& Vals, realmtx_t& dLossdVals, iMathT& iM, iInspectT& iI) noexcept;
 
 		//#todo: computation of some loss functions may be optimized, if some data is cached between corresponding calls to lossAdd/dLossAdd.
 		//However it's really useful only for a fullbatch learning with a full error calculation, which is a quite rare thing.

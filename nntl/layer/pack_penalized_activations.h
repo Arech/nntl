@@ -163,7 +163,7 @@ namespace nntl {
 			auto& iI = get_self().get_iInspect();
 			iI.bprop_begin(get_self().get_layer_idx(), dLdA);
 
-			_pab_update_dLdA(dLdA, get_self().get_activations(), get_self().get_iMath());
+			_pab_update_dLdA(dLdA, get_self().get_activations(), get_self().get_iMath(), iI);
 
 			iI.bprop_finaldLdA(dLdA);
 
