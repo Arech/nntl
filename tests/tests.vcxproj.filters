@@ -396,6 +396,9 @@
     <ClInclude Include="..\nntl\layer\pack_penalized_activations.h">
       <Filter>nntl\layer</Filter>
     </ClInclude>
+    <ClInclude Include="..\nntl\utils\confusion_mtx.h">
+      <Filter>nntl\utils</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="stdafx.cpp">

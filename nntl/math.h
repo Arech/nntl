@@ -53,6 +53,23 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #endif
 
 
+//////////////////////////////////////////////////////////////////////////
+// the following defs is for debugging purposes.
+#if !defined(NNTL_BREAK_ON_DENORMALS)
+#define NNTL_BREAK_ON_DENORMALS 0
+#endif
+
+#if !defined(NNTL_BREAK_ON_OPENBLAS_DENORMALS)
+#define NNTL_BREAK_ON_OPENBLAS_DENORMALS 0
+#endif
+
+#if NNTL_BREAK_ON_DENORMALS && !(NNTL_BREAK_ON_OPENBLAS_DENORMALS)
+#pragma message("NNTL_BREAK_ON_DENORMALS is ON, turning on NNTL_BREAK_ON_OPENBLAS_DENORMALS")
+#undef NNTL_BREAK_ON_OPENBLAS_DENORMALS
+#define NNTL_BREAK_ON_OPENBLAS_DENORMALS 1
+#endif
+
+//////////////////////////////////////////////////////////////////////////
 //if NNTL_CFG_CAREFULL_LOG_EXP is specified and set, nntl uses special std::log1p() and std::expm1() functions where possible
 // to gain some numeric stability (therefore, more precise calculation) at the cost of
 // about 40% slowdown (measured for loglogu at my HW with /fp:precise)

@@ -328,16 +328,23 @@ namespace nntl {
 
 			iI.apply_grad_begin(weights, dLdW);
 
+			//loss addendums MUST be applied before optimizers, because they reflect actual/desired error surface
+			// and optimizers must take that into account
 			_applyLossAddendums(weights, dLdW);
 
-			if (isLearningBlocked()) return; //do nothing, leave the state intact
+			if (isLearningBlocked()) {
+				iI.apply_grad_end(weights);
+				return; //do nothing, leave the state intact
+			}
+
+			//_applyLossAddendums(weights, dLdW);
 
 			const bool bFirstRun = get_opt(f_FirstRun);
 			set_opt(f_FirstRun,false);
 
 			auto& iM = get_iMath();
 
-			//changing nesterov momentum vars
+			//changing nesterov momentum vars with fresh dL/dW (should do the same with classical momentum #todo)
 			if (use_momentums() && get_opt(f_UseNesterovMomentum)) {
 				NNTL_ASSERT(m_Vw.size() == dLdW.size());
 				// (3)  vW(t+1) = momentum*vW(t) + scaling*grad_Loss( W(t)-momentum*vW(t))

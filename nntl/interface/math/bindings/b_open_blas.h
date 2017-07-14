@@ -40,6 +40,8 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #define lapack_complex_double std::complex<double>
 #include <lapacke.h>
 
+#include "../../../utils/denormal_floats.h"
+
 #pragma comment(lib,"libopenblas.dll.a")
 
 //what else to do to use OpenBLAS:
@@ -142,6 +144,7 @@ namespace math {
 			cblas_dgemm(CblasColMajor, bTransposeA ? CblasTrans : CblasNoTrans, bTransposeB ? CblasTrans : CblasNoTrans,
 				static_cast<blasint>(M), static_cast<blasint>(N), static_cast<blasint>(K),
 				alpha, A, static_cast<blasint>(lda), B, static_cast<blasint>(ldb), beta, C, static_cast<blasint>(ldc));
+			global_denormalized_floats_mode();
 		}
 		template<typename sz_t, typename fl_t>
 		static typename std::enable_if_t< std::is_same< std::remove_pointer_t<fl_t>, float>::value >
@@ -153,6 +156,7 @@ namespace math {
 			cblas_sgemm(CblasColMajor, bTransposeA ? CblasTrans: CblasNoTrans, bTransposeB ? CblasTrans : CblasNoTrans,
 				static_cast<blasint>(M), static_cast<blasint>(N), static_cast<blasint>(K),
 				alpha, A, static_cast<blasint>(lda), B, static_cast<blasint>(ldb), beta, C, static_cast<blasint>(ldc));
+			global_denormalized_floats_mode();
 		}
 
 		//////////////////////////////////////////////////////////////////////////
@@ -174,6 +178,7 @@ namespace math {
 		{
 			cblas_dsyrk(CblasColMajor, bCLowerTriangl ? CblasLower : CblasUpper, bFirstATransposed ? CblasTrans : CblasNoTrans
 				, static_cast<blasint>(N), static_cast<blasint>(K), alpha, A, static_cast<blasint>(lda), beta, C, static_cast<blasint>(ldc));
+			global_denormalized_floats_mode();
 		}
 		template<typename sz_t, typename fl_t>
 		static typename std::enable_if_t< std::is_same< std::remove_pointer_t<fl_t>, float>::value >
@@ -182,6 +187,7 @@ namespace math {
 		{
 			cblas_ssyrk(CblasColMajor, bCLowerTriangl ? CblasLower : CblasUpper, bFirstATransposed ? CblasTrans : CblasNoTrans
 				, static_cast<blasint>(N), static_cast<blasint>(K), alpha, A, static_cast<blasint>(lda), beta, C, static_cast<blasint>(ldc));
+			global_denormalized_floats_mode();
 		}
 
 		//////////////////////////////////////////////////////////////////////////
@@ -204,6 +210,7 @@ namespace math {
 			cblas_dsymm(CblasColMajor, bSymmAatLeft ? CblasLeft : CblasRight, bALowerTriangl ? CblasLower : CblasUpper
 				, static_cast<blasint>(M), static_cast<blasint>(N), alpha, A, static_cast<blasint>(lda)
 				, B, static_cast<blasint>(ldb), beta, C, static_cast<blasint>(ldc));
+			global_denormalized_floats_mode();
 		}
 		template<typename sz_t, typename fl_t>
 		static typename std::enable_if_t< std::is_same< std::remove_pointer_t<fl_t>, float>::value >
@@ -213,6 +220,7 @@ namespace math {
 			cblas_ssymm(CblasColMajor, bSymmAatLeft ? CblasLeft : CblasRight, bALowerTriangl ? CblasLower : CblasUpper
 				, static_cast<blasint>(M), static_cast<blasint>(N), alpha, A, static_cast<blasint>(lda)
 				, B, static_cast<blasint>(ldb), beta, C, static_cast<blasint>(ldc));
+			global_denormalized_floats_mode();
 		}
 
 

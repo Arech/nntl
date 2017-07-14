@@ -31,7 +31,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 #pragma once
 
-//include header after nntl
+#include "../utils/denormal_floats.h"
 #include "threads/parallel_range.h"
 
 namespace nntl {

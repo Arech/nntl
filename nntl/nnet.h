@@ -334,6 +334,8 @@ namespace nntl {
 				, utils::prioritize_workers<utils::PriorityClass::Working, iThreads_t>
 				, utils::_impl::prioritize_workers_dummy<utils::PriorityClass::Normal, iThreads_t>> PW_t;
 
+			global_denormalized_floats_mode();
+
 			if (td.empty()) return _set_last_error(ErrorCode::InvalidTD);
 
 			auto& iI = get_iInspect();

@@ -381,6 +381,19 @@ namespace math {
 			return cond;
 		}
 
+		//for testing only
+		void breakWhenDenormal()const noexcept {
+			enable_denormals();
+			auto pS = m_pData;
+			const auto pE = end();
+			while (pS != pE) {
+				if (std::fpclassify(*pS++) == FP_SUBNORMAL) {
+					__debugbreak();
+				}
+			}
+			global_denormalized_floats_mode();
+		}
+
 		//////////////////////////////////////////////////////////////////////////
 		const vec_len_t rows() const noexcept { return m_rows; }
 		const vec_len_t cols() const noexcept { return m_cols; }

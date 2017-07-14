@@ -156,7 +156,7 @@ namespace weights_init {
 				_base_class_t::deinit();
 				NNTL_ASSERT(m_gatingStack.size() == 0);
 				NNTL_ASSERT(!m_bImmediatelyUnderGated);
-
+				
 				return m_firstFailedLayerIdx == 0;
 			}
 

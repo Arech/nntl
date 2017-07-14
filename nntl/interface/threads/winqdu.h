@@ -230,7 +230,10 @@ namespace threads {
 			return prevOfs;
 		}
 
-		static void _s_worker(WinQDU* p, const thread_id_t id)noexcept { p->_worker(id); }
+		static void _s_worker(WinQDU* p, const thread_id_t id)noexcept {
+			global_denormalized_floats_mode();
+			p->_worker(id);
+		}
 
 		void _worker(const thread_id_t id)noexcept {
 			InterlockedDecrement(&m_workingCnt);

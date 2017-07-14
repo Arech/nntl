@@ -1298,8 +1298,16 @@ namespace math {
 			const auto acols = A.cols();
 			NNTL_ASSERT(acols == B.rows() && A.rows() == C.rows() && B.cols() == C.cols());
 
+#if NNTL_BREAK_ON_OPENBLAS_DENORMALS
+			A.breakWhenDenormal();
+			B.breakWhenDenormal();
+#endif
+
 			b_BLAS_t::gemm(false, false, A.rows(), C.cols(), acols, real_t(1.0), A.data(), A.rows(), B.data(), B.rows(),
 				real_t(0.0), C.data(), C.rows());
+#if NNTL_BREAK_ON_OPENBLAS_DENORMALS
+			C.breakWhenDenormal();
+#endif
 		}
 		//////////////////////////////////////////////////////////////////////////
 		//matrix multiplication C(no bias) = A * B` (B transposed). C could have emulated biases (they will be left untouched)
@@ -1310,8 +1318,17 @@ namespace math {
 			const auto ccols = C.cols_no_bias();
 			NNTL_ASSERT(A.cols() == B.cols() && A.rows() == C.rows() && B.rows() == ccols);
 
+#if NNTL_BREAK_ON_OPENBLAS_DENORMALS
+			A.breakWhenDenormal();
+			B.breakWhenDenormal();
+#endif
+
 			b_BLAS_t::gemm(false, true, A.rows(), ccols, A.cols(), real_t(1.0), A.data(), A.rows(), B.data(), ccols,
 				real_t(0.0), C.data(), C.rows());
+
+#if NNTL_BREAK_ON_OPENBLAS_DENORMALS
+			C.breakWhenDenormal();
+#endif
 		}
 		//////////////////////////////////////////////////////////////////////////
 		//C = a*(A` * B) - matrix multiplication of transposed A times B with result normalization
@@ -1323,8 +1340,22 @@ namespace math {
 			const auto arows = A.rows();
 			NNTL_ASSERT(arows == B.rows() && acols == C.rows() && B.cols() == C.cols());
 
+#if NNTL_BREAK_ON_OPENBLAS_DENORMALS
+			enable_denormals();
+			if (std::fpclassify(alpha) == FP_SUBNORMAL) {
+				__debugbreak();
+			}
+			A.breakWhenDenormal();
+			B.breakWhenDenormal();
+			global_denormalized_floats_mode();
+#endif
+
 			b_BLAS_t::gemm(true, false, acols, B.cols(), arows, alpha, A.data(), arows, B.data(), arows,
 				real_t(0.0), C.data(), acols);
+
+#if NNTL_BREAK_ON_OPENBLAS_DENORMALS
+			C.breakWhenDenormal();
+#endif
 		}
 
 		//////////////////////////////////////////////////////////////////////////
@@ -1338,7 +1369,16 @@ namespace math {
 			const auto acols = A.cols();
 			const auto arows = A.rows();
 			NNTL_ASSERT(C.rows() == acols && C.cols() == acols);
+
+#if NNTL_BREAK_ON_OPENBLAS_DENORMALS
+			A.breakWhenDenormal();
+#endif
+
 			b_BLAS_t::syrk(bCLowerTriangl, true, acols, arows, real_t(1.) / real_t(arows), A.data(), arows, real_t(0.), C.data(), acols);
+
+#if NNTL_BREAK_ON_OPENBLAS_DENORMALS
+			C.breakWhenDenormal();
+#endif
 		}
 		// it might be helpful to have a templated version, because we don't expect we'll have a need to switch triangles in a run-time
 		template<bool bCLowerTriangl>
@@ -1348,7 +1388,16 @@ namespace math {
 			const auto acols = A.cols();
 			const auto arows = A.rows();
 			NNTL_ASSERT(C.rows() == acols && C.cols() == acols);
+
+#if NNTL_BREAK_ON_OPENBLAS_DENORMALS
+			A.breakWhenDenormal();
+#endif
+
 			b_BLAS_t::syrk(bCLowerTriangl, true, acols, arows, real_t(1.) / real_t(arows), A.data(), arows, real_t(0.), C.data(), acols);
+
+#if NNTL_BREAK_ON_OPENBLAS_DENORMALS
+			C.breakWhenDenormal();
+#endif
 		}
 
 		//////////////////////////////////////////////////////////////////////////
@@ -1364,8 +1413,23 @@ namespace math {
 
 			std::vector<real_t> S(2 * minmn);
 
+#if NNTL_BREAK_ON_OPENBLAS_DENORMALS
+			A.breakWhenDenormal();
+#endif
+
 			const auto r = b_BLAS_t::gesvd(bGetU ? 'O' : 'N', bGetU ? 'N' : 'O', m, n
 				, A.data(), m, &S[0], static_cast<real_t*>(nullptr), m, static_cast<real_t*>(nullptr), n, &S[minmn]);
+
+#if NNTL_BREAK_ON_OPENBLAS_DENORMALS
+			enable_denormals();
+			A.breakWhenDenormal();
+			for (auto& e : S) {
+				if (std::fpclassify(e) == FP_SUBNORMAL) {
+					__debugbreak();
+				}
+			}
+			global_denormalized_floats_mode();
+#endif
 
 			NNTL_ASSERT(0 == r || !"b_BLAS_t::gesvd failed!");
 			NNTL_ASSERT(get_self()._mIsOrthogonal(A, bGetU) || !"SVD returned non orthogonal matrix!");
@@ -1387,9 +1451,17 @@ namespace math {
 				, ldab = bFirstTransposed ? opAcols : opArows;
 			realmtx_t ICand(opArows, opArows);
 
+#if NNTL_BREAK_ON_OPENBLAS_DENORMALS
+			A.breakWhenDenormal();
+#endif
+
 			b_BLAS_t::gemm(bFirstTransposed, !bFirstTransposed, opArows, opArows, opAcols
 				, real_t(1.), A.data(), ldab, A.data(), ldab,
 				real_t(0.0), ICand.data(), opArows);
+
+#if NNTL_BREAK_ON_OPENBLAS_DENORMALS
+			ICand.breakWhenDenormal();
+#endif
 
 			bool r = true;
 			for (vec_len_t ri = 0; ri < opArows; ++ri) {
@@ -3223,9 +3295,15 @@ namespace math {
 				const auto m_hat = mHat_c_mt*m + mHat_c_g*g;
 
 				const auto ndw = learningRate*(m_hat / n_hat);
-				// 				if (std::isnan(g) || std::isnan(m) || std::isnan(v) || std::isnan(ndw)) {
-				// 					__debugbreak();
-				// 				}
+				
+#if NNTL_BREAK_ON_DENORMALS
+				enable_denormals();
+				if (std::fpclassify(ndw) == FP_SUBNORMAL) {
+					__debugbreak();
+				}
+				global_denormalized_floats_mode();
+#endif
+
 				*pdW++ = ndw;
 			}
 			//FFFUUUUUUUUCK! for() cycle (commented out below) works about 4-5 times slower, than while().
@@ -3357,8 +3435,24 @@ namespace math {
 			
 			const real_t cmnScale = real_t(2.) / static_cast<real_t>(dLossdVals.rows());
 			//const real_t cmnScale = real_t(2.) / (valsNumelNoBias * (dLossdVals.cols() - 1));
+
+#if NNTL_BREAK_ON_OPENBLAS_DENORMALS
+			enable_denormals();
+			dLossdVals.breakWhenDenormal();
+			CovMtx.breakWhenDenormal();
+			DeMeaned.breakWhenDenormal();
+			if (std::fpclassify(cmnScale) == FP_SUBNORMAL) {
+				__debugbreak();
+			}
+			global_denormalized_floats_mode();
+#endif
+
 			b_BLAS_t::symm(false, bLowerTriangl, dLossdVals.rows(), dLossdVals.cols(), cmnScale, CovMtx.data(), CovMtx.cols()
 				, DeMeaned.data(), DeMeaned.rows(), -cmnScale, dLossdVals.data(), dLossdVals.rows());
+
+#if NNTL_BREAK_ON_OPENBLAS_DENORMALS
+			dLossdVals.breakWhenDenormal();
+#endif
 
 			get_self()._istor_free(pCovMtx, covMtxNumel);
 

@@ -240,6 +240,7 @@
     <ClInclude Include="..\nntl\nnet_train_opts.h" />
     <ClInclude Include="..\nntl\train_data.h" />
     <ClInclude Include="..\nntl\utils\bwlist.h" />
+    <ClInclude Include="..\nntl\utils\confusion_mtx.h" />
     <ClInclude Include="..\nntl\utils\dataHolder.h" />
     <ClInclude Include="..\nntl\utils\denormal_floats.h" />
     <ClInclude Include="..\nntl\utils\gradcheck.h" />
