@@ -61,6 +61,8 @@ namespace threads {
 		//returns a head of container with thread objects (count threadsCnt)
 		nntl_interface auto get_worker_threads(thread_id_t& threadsCnt)noexcept;
 
+		nntl_interface bool denormalsOnInAnyThread()noexcept;
+
 		nntl_interface static constexpr char* name="_i_threads";
 	};
 

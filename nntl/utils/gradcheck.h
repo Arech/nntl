@@ -147,6 +147,10 @@ namespace nntl {
 							 //in order to reduce number of zeroed entries one may try to increase batch_size, however, this still may not work
 							 //as some neurons still might be left unused.
 
+		//the following two variables sets proper nesting level of iInspector's calls that contains necessary data
+// 		layer_index_t indxOfTestedLayer;
+// 		unsigned testedLayerNesting;
+
 		gradcheck_evalSetts_group(const real_t& warn, const real_t& fail)noexcept
 			:percOfZeros(0), relErrWarnThrsh(warn) , relErrFailThrsh(fail)
 		{}

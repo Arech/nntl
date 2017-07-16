@@ -334,6 +334,7 @@ namespace nntl {
 				, utils::prioritize_workers<utils::PriorityClass::Working, iThreads_t>
 				, utils::_impl::prioritize_workers_dummy<utils::PriorityClass::Normal, iThreads_t>> PW_t;
 
+			//just leave it here
 			global_denormalized_floats_mode();
 
 			if (td.empty()) return _set_last_error(ErrorCode::InvalidTD);
@@ -413,6 +414,11 @@ namespace nntl {
 				_report_training_fragment<bPrioritizeThreads>(-1, lv, td, std::chrono::nanoseconds(0), opts.observer());
 			}
 			set_mode_and_batch_size(0);//prepare for training (sets to batchSize, that's already stored in Layers)
+
+#if NNTL_DEBUG_CHECK_DENORMALS_ON_EACH_EPOCH
+			STDCOUTL("Denormals check... " << (get_iMath().ithreads().denormalsOnInAnyThread() ? "FAILED!!!" : "passed.") 
+				<< std::endl << " Going to check it further each epoch and report failures only.");
+#endif//NNTL_DEBUG_CHECK_DENORMALS_ON_EACH_EPOCH
 
 			nnet_eval_results<real_t>* pTestEvalRes = nullptr;
 
@@ -498,6 +504,13 @@ namespace nntl {
 					}
 
 					iI.train_epochEnd();
+
+#if NNTL_DEBUG_CHECK_DENORMALS_ON_EACH_EPOCH
+					if (get_iMath().ithreads().denormalsOnInAnyThread()) {
+						STDCOUTL("*** denormals check FAILED!!!");
+					}
+#endif//NNTL_DEBUG_CHECK_DENORMALS_ON_EACH_EPOCH
+
 					if (! std::forward<OnEpochEndCbT>(onEpochEndCB)(*this, opts, epochIdx)) break;
 
 					if (bCalcLoss && (bInspectEpoch || !bOptFBErrCalcThisEpoch)) {

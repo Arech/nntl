@@ -198,7 +198,9 @@ namespace inspector {
 				&& m_layerIdxToCheck == m_curLayer
 				&& nntl::_impl::gradcheck_paramsGroup::dLdW == m_checkParamsGroup
 				&& nntl::_impl::gradcheck_phase::df_analytical == m_checkPhase
-				&& m_curLayer.bUpperLayerDifferent())
+				//&& m_curLayer.bUpperLayerDifferent() //#todo there should be a check for proper m_curLayer.nestingLevel(),
+				// but it's not necessary now, because we expect only a single bprop_dLdW() call per layer.
+				)
 			{
 				NNTL_ASSERT(std::isnan(m_analyticalValue));
 				m_analyticalValue = dLdW.get(m_coord);

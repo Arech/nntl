@@ -41,11 +41,6 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #if NNTL_MATLAB_AVAILABLE
 
-#include "../../serialization/serialization.h"
-
-#include "../../errors.h"
-#include "../../interface/math/smatrix.h"
-
 //#pragma warning(push)
 //#pragma warning( disable : 4503 )
 #include <vector>
@@ -53,6 +48,17 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <bitset>
 //#pragma warning(pop)
 #include <cstdio>
+
+
+#include "../../serialization/serialization.h"
+
+#include "../../errors.h"
+#include "../../interface/math/smatrix.h"
+
+#include "../../utils/denormal_floats.h"
+// #ATTENTION!
+// MATLAB C API _MAY_ change how denormals are handled by a processor!
+// Therefore for safety better call global_denormalized_floats_mode() after using MATLAB C API
 
 namespace nntl_supp {
 
@@ -241,6 +247,7 @@ namespace nntl_supp {
 			if (m_structureStack.size() == 0 && pA) mxDestroyArray(pA);
 		}
 		
+		//denormals safe
 		ErrorCode _open(const char* fname, FileOpenMode fom) {
 			NNTL_ASSERT(!m_matFile);
 			if (m_matFile) return _set_last_error(ErrorCode::FileAlreadyOpened);
@@ -271,17 +278,23 @@ namespace nntl_supp {
 				return _set_last_error(ErrorCode::InvalidOpenMode);
 			}
 			m_matFile = matOpen(fname, m);
+			global_denormalized_floats_mode();
 			return _set_last_error(m_matFile ? ErrorCode::Success : ErrorCode::FailedToOpenFile);
 		}
 
 	public:
+
+		//denormals safe
 		~_matfile_base()noexcept {
 			close();
 		}
+		//denormals safe
 		_matfile_base() : m_matFile(nullptr), m_curVarName(nullptr){
 			mclmcrInitialize();//looks safe to call multiple times
+			global_denormalized_floats_mode();
 		}
 
+		//denormals safe
 		ErrorCode close()noexcept {
 			NNTL_ASSERT(!m_curVarName);
 			NNTL_ASSERT(!m_structureStack.size());
@@ -308,6 +321,7 @@ namespace nntl_supp {
 				m_matFile = nullptr;
 			}
 			_set_last_error(ec);
+			global_denormalized_floats_mode();
 			return ec;
 		}
 
@@ -321,11 +335,11 @@ namespace nntl_supp {
 	};
 
 
+
 	template<typename FinalChildT, bool bSavingArchive, typename ErrorsClassT = _matfile_errs>
 	class _matfile : public _matfile_base<ErrorsClassT>, public nntl::serialization::simple_archive<FinalChildT, bSavingArchive> {
 	protected:
 		typedef nntl::serialization::simple_archive<FinalChildT, bSavingArchive> base_archive_t;
-		//typedef _matfile_base<ErrorsClassT> base_matfile_t;
 
 		template<typename BaseT>
 		using type2id = nntl::utils::matlab::type2id<BaseT>;		
@@ -340,6 +354,7 @@ namespace nntl_supp {
 		//using base_archive_t::operator >>;
 
 		//////////////////////////////////////////////////////////////////////////
+		//denormals safe
 		template<bool b = bSavingArchive>
 		std::enable_if_t<b, ErrorCode> open(const char* fname, FileOpenMode fom = FileOpenMode::WriteDelete)noexcept {
 			if (FileOpenMode::Read == fom) return _set_last_error(ErrorCode::InvalidOpenMode);
@@ -363,6 +378,7 @@ namespace nntl_supp {
 		// common operators
 		
 		//saving
+		//denormals safe
 		template<class T>
 		self_ref_t operator<<(const boost::serialization::nvp< T > & t) {
 			if (m_matFile) {
@@ -375,8 +391,11 @@ namespace nntl_supp {
 														 //DON'T _set_last_error here, or it'll overwrite the value set by get_self() << t.const_value();
 				}
 			} else _set_last_error(ErrorCode::NoFileOpened);
+			global_denormalized_floats_mode();
 			return get_self();
 		}
+
+		//denormals safe
 		template<class T>
 		self_ref_t operator<<(const nntl::serialization::named_struct< T > & t) {
 			auto ec = ErrorCode::Success;
@@ -407,10 +426,12 @@ namespace nntl_supp {
 				}
 			} else ec = ErrorCode::NoFileOpened;
 			if (ErrorCode::Success != ec) _set_last_error(ec);
+			global_denormalized_floats_mode();
 			return get_self();
 		}
 
 		// loading
+		//denormals safe
 		template<class T>
 		self_ref_t operator>>(boost::serialization::nvp< T > & t) {
 			if (m_matFile) {
@@ -423,8 +444,11 @@ namespace nntl_supp {
 														 //DON'T _set_last_error here, or it'll overwrite the value set by get_self() << t.const_value();
 				}
 			} else _set_last_error(ErrorCode::NoFileOpened);
+			global_denormalized_floats_mode();
 			return get_self();
 		}
+
+		//denormals safe
 		template<class T>
 		self_ref_t operator>>(nntl::serialization::named_struct< T > & t) {
 			auto ec = ErrorCode::Success;
@@ -451,6 +475,7 @@ namespace nntl_supp {
 				}
 			} else ec = ErrorCode::NoFileOpened;
 			if (ErrorCode::Success != ec) _set_last_error(ec);
+			global_denormalized_floats_mode();
 			return get_self();
 		}
 
@@ -458,33 +483,41 @@ namespace nntl_supp {
 		// Special saving functions
 		// We will update last_error only if an error occured!
 
+		//denormals safe
 		template<typename BaseT>
 		self_ref_t operator<<(const nntl::math::smatrix<BaseT>& t) {
 			NNTL_ASSERT(!t.empty() && t.numel() > 0 );
 			NNTL_ASSERT((m_matFile && m_curVarName) || !"Open file with openForSave() and use nvp/named_struct to pass data for saving!");
 			_save_var(t.rows(), t.cols(), t.data(), t.byte_size(), type2id<BaseT>::id);
+			global_denormalized_floats_mode();
 			return get_self();
 		}
 		//smatrix_deform is expected to be in it's greatest possible size (or hidden data will be lost)
+		//denormals safe
 		template<typename BaseT>
 		self_ref_t operator<<(const nntl::math::smatrix_deform<BaseT>& t) {
 			return get_self().operator<<(static_cast<const nntl::math::smatrix<BaseT>&>(t));
 		}
 
+		//denormals safe
 		template<size_t _Bits> self_ref_t operator<<(const std::bitset<_Bits>& t) {
 			NNTL_ASSERT((m_matFile && m_curVarName) || !"Open file with openForSave() and use nvp/named_struct to pass data for saving!");
 			//just a placeholder to make compiler happy. Don't need flags at the moment...
 			//#todo: implement
 			m_curVarName = nullptr;
+			global_denormalized_floats_mode();
 			return get_self();
 		}
 
+		//denormals safe
 		template<typename T>
 		std::enable_if_t< std::is_arithmetic<T>::value, self_ref_t> operator<<(const T& t) {
 			NNTL_ASSERT((m_matFile && m_curVarName) || !"Open file with openForSave() and use nvp/named_struct to pass data for saving!");
 			_save_var(1, 1, &t, sizeof(T), type2id<T>::id);
+			global_denormalized_floats_mode();
 			return get_self();
 		}
+		//denormals safe
 		template<typename T>
 		std::enable_if_t< std::is_enum<T>::value, self_ref_t> operator<<(const T& t) {
 			NNTL_ASSERT((m_matFile && m_curVarName) || !"Open file with openForSave() and use nvp/named_struct to pass data for saving!");
@@ -492,6 +525,7 @@ namespace nntl_supp {
 			return get_self();
 		}
 		//because we've just shadowed (const BaseT& t) signature, have to repeat default code here
+		//denormals safe
 		template<class T>
 		std::enable_if_t<!std::is_arithmetic<T>::value && !std::is_enum<T>::value, self_ref_t> operator<<(T const & t) {
 			boost::serialization::serialize_adl(get_self(), const_cast<T &>(t), ::boost::serialization::version< T >::value);
@@ -503,6 +537,7 @@ namespace nntl_supp {
 		//////////////////////////////////////////////////////////////////////////
 		// Loading functions
 		// We will update last_error only if an error occurred!
+		// //denormals safe
 		template<typename BaseT>
 		self_ref_t operator>>(nntl::math::smatrix<BaseT>& t) {
 			NNTL_ASSERT((m_matFile && m_curVarName) || !"Open file with openForLoad() and use nvp/named_struct to address data to read!");
@@ -526,9 +561,11 @@ namespace nntl_supp {
 				_free_loaded_var(pVar);
 				if (ErrorCode::Success != ec) _set_last_error(ec);
 			}//else error has already been updated
+			global_denormalized_floats_mode();
 			return get_self();
 		}
 
+		//denormals safe
 		//greatest size of smatrix_deform will correspond to the size read.
 		template<typename BaseT>
 		self_ref_t operator>>(nntl::math::smatrix_deform<BaseT>& t) {
@@ -536,7 +573,7 @@ namespace nntl_supp {
 			if (ErrorCode::Success == get_last_error()) t.update_on_hidden_resize();
 			return get_self();
 		}
-
+		//denormals safe
 		template<typename BaseT>
 		std::enable_if_t< std::is_arithmetic<BaseT>::value, self_ref_t> operator>>(BaseT& t) {
 			NNTL_ASSERT((m_matFile && m_curVarName) || !"Open file with openForLoad() and use nvp/named_struct to address data to read!");
@@ -549,8 +586,10 @@ namespace nntl_supp {
 				} else _set_last_error(ErrorCode::WrongVariableTypeHasBeenRead);
 				_free_loaded_var(pVar);
 			}//else error has already been updated
+			global_denormalized_floats_mode();
 			return get_self();
 		}
+		//denormals safe
 		//because we've just shadowed (const BaseT& t) signature, have to repeat default code here
 		template<class T>
 		std::enable_if_t<!std::is_arithmetic<T>::value, self_ref_t> operator>>(T & t) {
@@ -558,6 +597,49 @@ namespace nntl_supp {
 			return get_self();
 		}
 	};
+
+	//////////////////////////////////////////////////////////////////////////
+
+	/*template<typename FinalChildT, bool bSavingArchive, bool bRestoreDNStateAfterEachCall, typename ErrorsClassT = _matfile_errs>
+	class _matfile_dn_safe : public _matfile<FinalChildT, bSavingArchive, ErrorsClassT>
+	{
+	private:
+		typedef _matfile<FinalChildT, bSavingArchive, ErrorsClassT> _base_class_t;
+
+	public:
+		//denormals safe
+		~_matfile_dn_safe()noexcept {}
+		_matfile_dn_safe()noexcept {}
+
+		//////////////////////////////////////////////////////////////////////////
+		//denormals safe|bRestoreDNStateAfterEachCall
+		
+		template<class T, bool bDNR = bRestoreDNStateAfterEachCall>
+		std::enable_if_t<!bDNR, self_ref_t> operator >> (T & t) {
+			_base_class_t::operator>> (t);
+			return get_self();
+		}
+		template<class T, bool bDNR = bRestoreDNStateAfterEachCall>
+		std::enable_if_t<bDNR, self_ref_t> operator >> (T & t) {
+			_base_class_t::operator>> (t);
+			global_denormalized_floats_mode();
+			return get_self();
+		}
+
+		template<class T, bool bDNR = bRestoreDNStateAfterEachCall>
+		std::enable_if_t<!bDNR, self_ref_t> operator << (T & t) {
+			_base_class_t::operator<< (t);
+			return get_self();
+		}
+		template<class T, bool bDNR = bRestoreDNStateAfterEachCall>
+		std::enable_if_t<bDNR, self_ref_t> operator << (T & t) {
+			_base_class_t::operator<< (t);
+			global_denormalized_floats_mode();
+			return get_self();
+		}
+	};*/
+
+
 
 	//////////////////////////////////////////////////////////////////////////
 	//extended API for saving archive. It is required for inspectors::dumper only at this moment
@@ -576,11 +658,13 @@ namespace nntl_supp {
 
 
 	public:
+		//denormals safe
 		~_matfile_savingEx()noexcept{
 			close();
 		}
 		_matfile_savingEx()noexcept{}
 
+		//denormals safe
 		ErrorCode close()noexcept {
 			//The code doesn't guarantee a correct cleanup, because it depends on where an error occured
 			NNTL_ASSERT(!m_nestedStructs.size());
@@ -605,6 +689,7 @@ namespace nntl_supp {
 			return ec == ErrorCode::Success ? ec2 : _set_last_error(ec);
 		}
 
+		//denormals safe
 		//MUST be accompanied by save_struct_end(). Permits nested calls for a different structures
 		// If the bUpdateIfExist is specified, then tries to load the struct from file first
 		// If the bDontNest is specified, then the new struct will be created on the same level of nesting as the
@@ -654,8 +739,10 @@ namespace nntl_supp {
 				}
 			} else ec = ErrorCode::NoFileOpened;
 			if (ErrorCode::Success != ec) _set_last_error(ec);
+			global_denormalized_floats_mode();
 			return ec;
 		}
+		//denormals safe
 		ErrorCode save_struct_end()noexcept {
 			auto ec = ErrorCode::Success;
 			if (m_nestedStructs.size()) {
@@ -687,13 +774,17 @@ namespace nntl_supp {
 				} else ec = ErrorCode::NoFileOpened;
 			} else ec = ErrorCode::NoStructToSave;
 			if (ErrorCode::Success != ec) _set_last_error(ec);
+			global_denormalized_floats_mode();
 			return ec;
 		}
 	};
 
+	//////////////////////////////////////////////////////////////////////////
+	//////////////////////////////////////////////////////////////////////////
+
 	template<typename SerializationOptionsEnumT = serialization::CommonOptions>
 	class omatfile final 
-		: public _matfile<omatfile<SerializationOptionsEnumT>,true, _matfile_errs>
+		: public _matfile<omatfile<SerializationOptionsEnumT>, true, _matfile_errs>
 		, public nntl::utils::binary_options<SerializationOptionsEnumT>
 	{
 	public:
@@ -721,9 +812,6 @@ namespace nntl_supp {
 		, public nntl::utils::binary_options<SerializationOptionsEnumT>
 	{
 	public:
-		typedef _matfile<imatfile<SerializationOptionsEnumT>, false> base_archive_t;
-		//using base_archive_t::operator >>;
-		//using base_archive_t::operator&;
 		~imatfile() {}
 		imatfile() {
 			turn_on_all_options();

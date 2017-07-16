@@ -128,6 +128,23 @@ public:
 			return m_threads.begin();
 		}
 
+		bool denormalsOnInAnyThread()noexcept {
+			for (auto&e : m_reduceCache) e = real_t(-9999);
+
+			thread_id_t thdUsed = 0;
+			const auto thrCnt = m_workersCnt + 1;
+			run([&rc = m_reduceCache](const par_range_t& r) {
+				rc[r.tid()] = isDenormalsOn() ? real_t(1.) : real_t(0.);
+			}, thrCnt, thrCnt, &thdUsed);
+
+			if (thdUsed==thrCnt) {
+				real_t s(real_t(0.));
+				for (const auto& e : m_reduceCache) s += e;
+				return real_t(0.) != s;
+			}
+			return true;
+		}
+
 		template<typename Func>
 		void run(Func&& F, const range_t cnt, const thread_id_t useNThreads = 0, thread_id_t* pThreadsUsed = nullptr) noexcept {
 			//TODO: decide whether it is worth to use workers here
@@ -221,16 +238,21 @@ public:
 		}
 
 		static void _s_worker(Std* p, const thread_id_t id)noexcept { 
-			global_denormalized_floats_mode();
 			p->_worker(id);
 		}
 
 		void _worker(const thread_id_t id)noexcept {
-			m_workingCnt--;
-			m_orderDone.notify_one();
+
+			{
+				locker_t lk(m_lock);
+				m_workingCnt--;
+				m_orderDone.notify_one();
+			}
+
+			global_denormalized_floats_mode();
 
 			while (true) {
-				locker_t lk(m_lock);		
+				locker_t lk(m_lock);
 				while(!m_bStop && 0 == m_ranges[id].cnt()) m_waitingOrders.wait(lk);
 
 				lk.unlock();

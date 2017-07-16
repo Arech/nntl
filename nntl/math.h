@@ -41,33 +41,45 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //#define NNTL_CFG_DEFAULT_TYPE double
 #endif
 
-
+//////////////////////////////////////////////////////////////////////////
+//most of the time you would not want to have denormals, but they may occur during even a
+// normal neural net training (not counting most of the cases with wrong/ill metaparameters).
+// If you have to rely on them - you're probably doing something very wrong.
 #if !defined(NNTL_DENORMALS2ZERO) || NNTL_DENORMALS2ZERO!=0
 #define NNTL_DENORMALS2ZERO 1
 #endif
 
 #if NNTL_DENORMALS2ZERO
 #pragma message("NNTL_DENORMALS2ZERO: denormalized floats WILL BE flushed to zero in global_denormalized_floats_mode()" )
-#else
-#pragma message("NNTL_DENORMALS2ZERO: global_denormalized_floats_mode() will leave handling of denormalized floats as it is" )
-#endif
 
-
-//////////////////////////////////////////////////////////////////////////
 // the following defs is for debugging purposes.
-#if !defined(NNTL_BREAK_ON_DENORMALS)
-#define NNTL_BREAK_ON_DENORMALS 0
+#if !defined(NNTL_DEBUGBREAK_ON_DENORMALS)
+#define NNTL_DEBUGBREAK_ON_DENORMALS 0
 #endif
 
-#if !defined(NNTL_BREAK_ON_OPENBLAS_DENORMALS)
-#define NNTL_BREAK_ON_OPENBLAS_DENORMALS 0
+#if !defined(NNTL_DEBUGBREAK_ON_OPENBLAS_DENORMALS)
+#define NNTL_DEBUGBREAK_ON_OPENBLAS_DENORMALS 0
 #endif
 
-#if NNTL_BREAK_ON_DENORMALS && !(NNTL_BREAK_ON_OPENBLAS_DENORMALS)
-#pragma message("NNTL_BREAK_ON_DENORMALS is ON, turning on NNTL_BREAK_ON_OPENBLAS_DENORMALS")
-#undef NNTL_BREAK_ON_OPENBLAS_DENORMALS
-#define NNTL_BREAK_ON_OPENBLAS_DENORMALS 1
+#if NNTL_DEBUGBREAK_ON_DENORMALS && !(NNTL_DEBUGBREAK_ON_OPENBLAS_DENORMALS)
+#pragma message("NNTL_DEBUGBREAK_ON_DENORMALS is ON, turning on NNTL_DEBUGBREAK_ON_OPENBLAS_DENORMALS")
+#undef NNTL_DEBUGBREAK_ON_OPENBLAS_DENORMALS
+#define NNTL_DEBUGBREAK_ON_OPENBLAS_DENORMALS 1
 #endif
+
+#if !defined(NNTL_DEBUG_CHECK_DENORMALS_ON_EACH_EPOCH)
+#define NNTL_DEBUG_CHECK_DENORMALS_ON_EACH_EPOCH 0
+#endif
+
+#else //NNTL_DENORMALS2ZERO
+#pragma message("NNTL_DENORMALS2ZERO: global_denormalized_floats_mode() will leave handling of denormalized floats as it is" )
+
+#define NNTL_DEBUGBREAK_ON_DENORMALS 0
+#define NNTL_DEBUGBREAK_ON_OPENBLAS_DENORMALS 0
+#define NNTL_DEBUG_CHECK_DENORMALS_ON_EACH_EPOCH 0
+
+#endif //NNTL_DENORMALS2ZERO
+
 
 //////////////////////////////////////////////////////////////////////////
 //if NNTL_CFG_CAREFULL_LOG_EXP is specified and set, nntl uses special std::log1p() and std::expm1() functions where possible

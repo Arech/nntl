@@ -94,6 +94,19 @@ namespace utils {
 			return _base_class_t::size() < 2 || _base_class_t::top() != *std::prev(_base_class_t::_Get_container().end(), 2);
 		}
 
+		size_type nestingLevel()const noexcept {
+			size_type nl = 0;
+			const auto s = _base_class_t::size();
+			const auto t = _base_class_t::top();
+			for (size_type i = 2; i <= s; ++i) {
+				if (t != std::prev(_base_class_t::_Get_container().end(), i)) {
+					break;
+				}
+				++nl;
+			}
+			return nl;
+		}
+
 		size_type size()const noexcept {
 			return _base_class_t::size();
 		}

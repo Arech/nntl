@@ -218,6 +218,6 @@ TEST(TestLPA, deCovGradCheck) {
 	
 	//ngcSetts.evalSetts.dLdW_setts.percOfZeros = 100; //for debug_softsigm_zeros
 	
-	//ngcSetts.evalSetts.dLdW_setts.relErrFailThrsh = real_t(5e-4);
+	ngcSetts.evalSetts.dLdW_setts.relErrFailThrsh = real_t(5e-4);
 	ASSERT_TRUE(nnArch.NN.gradcheck(td.train_x(), td.train_y(), 5, ngcSetts));
 }
