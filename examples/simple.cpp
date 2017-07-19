@@ -51,6 +51,14 @@ using real_t = d_interfaces::real_t;
 //////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////
 
+// Attention: NNTL's code have been updated many times since these samples were written.
+// They still works, however since hyperparameters handling were also changed in nntl, but weren't updated here,
+// samples performance might be suboptimal. That's expected.
+// Sorry, I literally don't have enough time to update everything and everywhere.
+
+//////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////
+
 // make a simple NN without any fancy things, just simple 768->500->300->10 net without momentum and dropout
 TEST(Simple, PlainFFN) {
 	train_data<real_t> td; //storage for MNIST train and test(validation) data

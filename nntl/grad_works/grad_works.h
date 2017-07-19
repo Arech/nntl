@@ -350,7 +350,8 @@ namespace nntl {
 				// (3)  vW(t+1) = momentum*vW(t) + scaling*grad_Loss( W(t)-momentum*vW(t))
 				//				= vW`(t+1) + scaling*grad_Loss( W`(t+1) )
 				iI.apply_grad_preNesterovMomentum(m_Vw, dLdW);
-				iM.evAdd_ip(m_Vw, dLdW);
+				//#todo: need a separate scaling coefficient here. Better leave m_learningRate to optimizer's only use.
+				iM.evAddScaled_ip(m_Vw, m_learningRate, dLdW);
 				iI.apply_grad_postNesterovMomentum(m_Vw);
 				// (4)  W(t+1)  = W(t) - vW(t+1) 
 				//				= W(t) - vW`(t+1) - scaling*grad_Loss( W`(t+1) )

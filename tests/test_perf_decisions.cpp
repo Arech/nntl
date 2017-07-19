@@ -490,9 +490,10 @@ void mTranspose_ET(const realmtx_t& src, realmtx_t& dest) noexcept {
 	}
 }
 
+
 void mTranspose_seq_read(const realmtx_t& src, realmtx_t& dest) noexcept {
 	NNTL_ASSERT(src.rows() == dest.cols() && src.cols() == dest.rows());
-	const auto sRows = src.rows(), sCols = src.cols();
+	const ptrdiff_t sRows = src.rows(), sCols = src.cols();
 	const auto dataCnt = src.numel();
 	auto pSrc = src.data();
 	const auto pSrcE = pSrc + dataCnt;
@@ -511,7 +512,7 @@ void mTranspose_seq_read(const realmtx_t& src, realmtx_t& dest) noexcept {
 }
 void mTranspose_seq_write(const realmtx_t& src, realmtx_t& dest) noexcept {
 	NNTL_ASSERT(src.rows() == dest.cols() && src.cols() == dest.rows());
-	const auto sRows = src.rows(), sCols = src.cols();
+	const ptrdiff_t sRows = src.rows(), sCols = src.cols();
 	const auto dataCnt = src.numel();
 	auto pSrc = src.data();
 	auto pDest = dest.data();
@@ -616,8 +617,20 @@ TEST(TestPerfDecisions, mTranspose) {
 	check_mTranspose(iM, 100, 100);
 	//check_mTranspose(iM, 10000,1000);
 #ifndef TESTS_SKIP_LONGRUNNING
-	check_mTranspose(iM, 1000);
-	check_mTranspose(iM, 10000);
+	check_mTranspose(iM, 1000,10);
+	check_mTranspose(iM, 10, 1000);
+
+	check_mTranspose(iM, 1000, 100);
+	check_mTranspose(iM, 100, 1000);
+
+	//check_mTranspose(iM, 1000, 1000);
+
+	check_mTranspose(iM, 10000,10);
+	check_mTranspose(iM, 10, 10000);
+
+// 	check_mTranspose(iM, 10000, 100);
+// 	check_mTranspose(iM, 100, 10000);
+
 	//check_mTranspose(iM, 100000);
 #endif
 }

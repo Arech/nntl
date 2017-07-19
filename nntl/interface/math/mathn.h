@@ -1022,7 +1022,7 @@ namespace math {
 		}
 
 		//////////////////////////////////////////////////////////////////////////
-		//inplace elementwise adding of scaled vector: A = A + c*B;
+		//inplace elementwise addition of scaled vector: A = A + c*B;
 		void evAddScaled_ip(realmtx_t& A, const real_t& c, const realmtx_t& B)noexcept {
 			if (A.numel() < Thresholds_t::evAddScaled_ip) {
 				get_self().evAddScaled_ip_st(A, c, B);
