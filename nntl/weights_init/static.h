@@ -1,4 +1,4 @@
-/*
+﻿/*
 This file is a part of NNTL project (https://github.com/Arech/nntl)
 
 Copyright (c) 2015-2016, Arech (aradvert@gmail.com; https://github.com/Arech)
@@ -74,6 +74,7 @@ namespace nntl {
 		// ImageNet Classification" 2015 the formula (sqrt(2/prevLayerNeurons) should define _standard_ deviation
 		// of gaussian zero-mean noise. Bias weights set to zero.
 		// This method initializes weights to make weight vectors norm -> scalingCoeff^2 *sqrt(2)
+		// Also called "MSRA Initialization"
 		template<unsigned int scalingCoeff1e6 = 1000000>
 		struct He_Zhang {
 			template <typename iRng_t, typename iMath_t>
@@ -108,10 +109,9 @@ namespace nntl {
 				NNTL_ASSERT(!W.empty() && W.numel() > 0);
 
 				constexpr ext_real_t paramCoeff = ext_real_t(paramCoeff1e6) / ext_real_t(1000000);
-				//constexpr ext_real_t scalingCoeff = ext_real_t(scalingCoeff1e6) / ext_real_t(1000000);
 
 				const auto prevLayerNeuronsCnt = W.cols() - 1;
-				const real_t stdDev = real_t( /* scalingCoeff* */ std::sqrt(paramCoeff / prevLayerNeuronsCnt));
+				const real_t stdDev = real_t( std::sqrt(paramCoeff / prevLayerNeuronsCnt));
 
 				rng::distr_normal_naive<iRng_t> d(iR, real_t(0.0), stdDev);
 
@@ -123,6 +123,10 @@ namespace nntl {
 				return true;
 			}
 		};
+
+		//arXiv:1706.02515, "Self-Normalizing Neural Networks",  Günter Klambauer, Thomas Unterthiner, Andreas Mayr, Sepp Hochreiter
+		//for SELU activations
+		struct SNNInit : public He_Zhang2<1000000> {};
 
 
 		//////////////////////////////////////////////////////////////////////////
