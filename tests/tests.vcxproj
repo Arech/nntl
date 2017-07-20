@@ -179,6 +179,17 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\nntl\activation.h" />
+    <ClInclude Include="..\nntl\activations\elogu.h" />
+    <ClInclude Include="..\nntl\activations\elu.h" />
+    <ClInclude Include="..\nntl\activations\loglogu.h" />
+    <ClInclude Include="..\nntl\activations\relu_family.h" />
+    <ClInclude Include="..\nntl\activations\selu.h" />
+    <ClInclude Include="..\nntl\activations\sigm.h" />
+    <ClInclude Include="..\nntl\activations\softmax.h" />
+    <ClInclude Include="..\nntl\activations\softsigm.h" />
+    <ClInclude Include="..\nntl\activations\softsign.h" />
+    <ClInclude Include="..\nntl\activations\step.h" />
+    <ClInclude Include="..\nntl\activations\_i_activation.h" />
     <ClInclude Include="..\nntl\common.h" />
     <ClInclude Include="..\nntl\common_nn_data.h" />
     <ClInclude Include="..\nntl\errors.h" />

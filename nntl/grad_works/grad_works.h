@@ -31,6 +31,9 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 #pragma once
 
+//Current _grad_works concept is a mess...
+//Still don't understand completely how it should look like, but going to change a lot here in a near future.
+
 #include <bitset>
 #include "../common_nn_data.h"
 #include "ILR.h"

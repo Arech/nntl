@@ -176,6 +176,32 @@ TEST(TestMathNThr, DELU_unitalpha) {
 	}
 }
 
+
+
+TEST(TestMathNThr, SELU) {
+	constexpr real_t alpha = real_t(1.673), lambda= real_t(1.051), a_t_l=alpha*lambda;
+	const auto fst = [a_t_l, lambda](realmtx_t& X) { iM.selu_st(X, a_t_l, lambda); };
+	const auto fmt = [a_t_l, lambda](realmtx_t& X) {iM.selu_mt(X, a_t_l, lambda); };
+	const auto fb = [a_t_l, lambda](realmtx_t& X) {iM.selu(X, a_t_l, lambda); };
+
+	NNTL_RUN_TEST2(imath_basic_t::Thresholds_t::selu, 10) {
+		test_f_x_perf(fst, fmt, fb, "selu", i, 10);
+	}
+}
+
+TEST(TestMathNThr, DSELU) {
+	constexpr real_t alpha = real_t(1.673), lambda = real_t(1.051), a_t_l = alpha*lambda;
+	const auto fst = [a_t_l, lambda](realmtx_t& F_DF) { iM.dselu_st(F_DF, a_t_l, lambda); };
+	const auto fmt = [a_t_l, lambda](realmtx_t& F_DF) {iM.dselu_mt(F_DF, a_t_l, lambda); };
+	const auto fb = [a_t_l, lambda](realmtx_t& F_DF) {iM.dselu(F_DF, a_t_l, lambda); };
+
+	NNTL_RUN_TEST2(imath_basic_t::Thresholds_t::dselu, 10) {
+		test_f_x_perf(fst, fmt, fb, "dselu", i, 10);
+	}
+}
+
+
+
 TEST(TestMathNThr, ELogU) {
 	constexpr real_t alpha = real_t(2.), b=real_t(2.);
 	const auto fst = [alpha, b](realmtx_t& X) { iM.elogu_st(X, alpha, b); };

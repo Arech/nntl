@@ -558,6 +558,30 @@ void delu_ET(realmtx_t& f_df, const real_t alpha) {
 void elu_unitalpha_ET(realmtx_t& f) { elu_ET(f, real_t(1.0)); }
 void delu_unitalpha_ET(realmtx_t& f_df) { delu_ET(f_df, real_t(1.0)); }
 
+
+//////////////////////////////////////////////////////////////////////////
+void selu_ET(realmtx_t& f, const real_t& alpha, const real_t& lambda) {
+	const auto p = f.data();
+	const auto ne = f.numel_no_bias();
+	for (numel_cnt_t i = 0; i < ne; ++i) {
+		//if (p[i] < real_t(0.)) p[i] = alpha*(std::exp(p[i]) - real_t(1.));
+		if (p[i] < real_t(0.)) {
+			p[i] = lambda*alpha*nntl::math::expm1(p[i]);
+		} else {
+			p[i] *= lambda;
+		}
+	}
+}
+void dselu_ET(realmtx_t& f_df, const real_t& alpha, const real_t& lambda) {
+	const auto p = f_df.data();
+	const auto ne = f_df.numel();
+	for (numel_cnt_t i = 0; i < ne; ++i) {
+		p[i] = (p[i] < real_t(0.)) ? (p[i] + alpha*lambda) : lambda;
+	}
+}
+
+//////////////////////////////////////////////////////////////////////////
+
 void elogu_ET(const realmtx_t& x, realmtx_t& f, const real_t& alpha, const real_t& b) {
 	NNTL_ASSERT(x.size() == f.size());
 	const auto px = x.data();

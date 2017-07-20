@@ -49,7 +49,7 @@ namespace nntl {
 
 	public:
 		typedef ActivFunc activation_f_t;
-		static_assert(std::is_base_of<activation::_i_activation<real_t>, activation_f_t>::value, "ActivFunc template parameter should be derived from activation::_i_function");
+		static_assert(std::is_base_of<activation::_i_activation<real_t>, activation_f_t>::value, "ActivFunc template parameter should be derived from activation::_i_activation");
 
 		typedef GradWorks grad_works_t;
 		static_assert(std::is_base_of<_impl::_i_grad_works<real_t>, grad_works_t>::value, "GradWorks template parameter should be derived from _i_grad_works");

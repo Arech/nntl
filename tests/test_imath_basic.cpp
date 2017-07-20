@@ -2866,6 +2866,37 @@ TEST(TestMathN, DLeakyRelu) {
 }
 //////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////
+
+TEST(TestMathN, SELU) {
+	const real_t lambda = real_t(1.050700), alpha = real_t(1.6732632), a_t_l = alpha*lambda;
+	const auto fst = [&a_t_l, &lambda](realmtx_t& X) { iM.selu_st(X, a_t_l, lambda); };
+	const auto fmt = [&a_t_l, &lambda](realmtx_t& X) { iM.selu_mt(X, a_t_l, lambda); };
+	const auto fb = [&a_t_l, &lambda](realmtx_t& X) { iM.selu(X, a_t_l, lambda); };
+	const auto fet = [&alpha, &lambda](realmtx_t& X) { selu_ET(X, alpha, lambda); };
+
+	for (vec_len_t r = 1; r < g_MinDataSizeDelta; ++r) {
+		for (vec_len_t c = 1; c < g_MinDataSizeDelta; ++c) {
+			ASSERT_NO_FATAL_FAILURE(test_f_x_corr<true>(fet, fst, fmt, fb, "selu", r, c));
+		}
+	}
+}
+
+TEST(TestMathN, DSELU) {
+	const real_t lambda = real_t(1.050700), alpha = real_t(1.6732632), a_t_l = alpha*lambda;
+	const auto fst = [&a_t_l, &lambda](realmtx_t& X) { iM.dselu_st(X, a_t_l, lambda); };
+	const auto fmt = [&a_t_l, &lambda](realmtx_t& X) { iM.dselu_mt(X, a_t_l, lambda); };
+	const auto fb = [&a_t_l, &lambda](realmtx_t& X) { iM.dselu(X, a_t_l, lambda); };
+	const auto fet = [&alpha, &lambda](realmtx_t& X) { dselu_ET(X, alpha, lambda); };
+
+	for (vec_len_t r = 1; r < g_MinDataSizeDelta; ++r) {
+		for (vec_len_t c = 1; c < g_MinDataSizeDelta; ++c) {
+			ASSERT_NO_FATAL_FAILURE(test_f_x_corr<false>(fet, fst, fmt, fb, "dselu", r, c));
+		}
+	}
+}
+
+//////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////
 void test_elu_corr(vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 	MTXSIZE_SCOPED_TRACE(rowsCnt, colsCnt, "test_elu_corr");
 	constexpr unsigned testCorrRepCnt = 10;

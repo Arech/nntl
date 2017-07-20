@@ -1,4 +1,4 @@
-/*
+ï»¿/*
 This file is a part of NNTL project (https://github.com/Arech/nntl)
 
 Copyright (c) 2015-2016, Arech (aradvert@gmail.com; https://github.com/Arech)
@@ -452,19 +452,19 @@ namespace math {
 
 			NNTL_ASSERT(!W.empty() && maxL2NormSquared > real_t(0.));
 
-			//ãîòîâèì âðåìåííîå õðàíèëèùå äëÿ âû÷èñëåííûõ íîðì
+			//Ð³Ð¾Ñ‚Ð¾Ð²Ð¸Ð¼ Ð²Ñ€ÐµÐ¼ÐµÐ½Ð½Ð¾Ðµ Ñ…Ñ€Ð°Ð½Ð¸Ð»Ð¸Ñ‰Ðµ Ð´Ð»Ñ Ð²Ñ‹Ñ‡Ð¸ÑÐ»ÐµÐ½Ð½Ñ‹Ñ… Ð½Ð¾Ñ€Ð¼
 			const auto mRows = W.rows();
 			auto pRowsNorm = get_self()._get_thread_temp_raw_storage(mRows);
 			//#todo _memset_rowrange()
 			memset(pRowsNorm, 0, sizeof(*pRowsNorm)*mRows);
 
-			//âû÷èñëÿåì íîðìû
+			//Ð²Ñ‹Ñ‡Ð¸ÑÐ»ÑÐµÐ¼ Ð½Ð¾Ñ€Ð¼Ñ‹
 			if (!bNormIncludesBias) W.hide_last_col();
-			//#todo - _st âåðñèþ
+			//#todo - _st Ð²ÐµÑ€ÑÐ¸ÑŽ
 			mrwL2NormSquared(W, pRowsNorm);
 			if (!bNormIncludesBias) W.restore_last_col();
 
-			//îïðåäåëÿåì ìàñøòàáèðóþùèé êîýôôèöèåíò
+			//Ð¾Ð¿Ñ€ÐµÐ´ÐµÐ»ÑÐµÐ¼ Ð¼Ð°ÑÑˆÑ‚Ð°Ð±Ð¸Ñ€ÑƒÑŽÑ‰Ð¸Ð¹ ÐºÐ¾ÑÑ„Ñ„Ð¸Ñ†Ð¸ÐµÐ½Ñ‚
 		}
 
 		//#todo reimplement using more generic and fast smath:: functions
@@ -484,7 +484,7 @@ namespace math {
 			} else get_self().mCheck_normalize_rows_mt(A, maxL2NormSquared, bNormIncludesBias);
 		}
 		//static constexpr real_t sCheck_normalize_rows_MULT = real_t(32.0);
-		void mCheck_normalize_rows_st(realmtxdef_t& A, const real_t& maxNormSquared, const bool bNormIncludesBias)noexcept {
+		void mCheck_normalize_rows_st(realmtxdef_t& A, const real_t maxNormSquared, const bool bNormIncludesBias)noexcept {
 			NNTL_ASSERT(!A.empty() && maxNormSquared > real_t(0.0));
 
 			const auto mRows = A.rows();
@@ -512,7 +512,7 @@ namespace math {
 			get_self()._istor_free(pTmp, mRows);
 		}
 		//TODO: might be good to make separate _cw and _rw versions of this algo
-		void mCheck_normalize_rows_mt(realmtxdef_t& A, const real_t& maxNormSquared, const bool bNormIncludesBias)noexcept {
+		void mCheck_normalize_rows_mt(realmtxdef_t& A, const real_t maxNormSquared, const bool bNormIncludesBias)noexcept {
 			NNTL_ASSERT(!A.empty() && maxNormSquared > real_t(0.0));
 						
 			const auto mRows = A.rows();
@@ -1028,7 +1028,7 @@ namespace math {
 				get_self().evAddScaled_ip_st(A, c, B);
 			} else get_self().evAddScaled_ip_mt(A, c, B);
 		}
-		static void evAddScaled_ip_st(realmtx_t& A, const real_t& c, const realmtx_t& B)noexcept {
+		static void evAddScaled_ip_st(realmtx_t& A, const real_t c, const realmtx_t& B)noexcept {
 			NNTL_ASSERT(A.size() == B.size() && !A.empty() && !B.empty() && c != real_t(0.0));
 			const auto pA = A.data();
 			const auto dataCnt = A.numel();
@@ -1054,7 +1054,7 @@ namespace math {
 				get_self().evAddScaledSign_ip_st(A, c, B);
 			} else get_self().evAddScaledSign_ip_mt(A, c, B);
 		}
-		static void evAddScaledSign_ip_st(realmtx_t& A, const real_t& c, const realmtx_t& B)noexcept {
+		static void evAddScaledSign_ip_st(realmtx_t& A, const real_t c, const realmtx_t& B)noexcept {
 			NNTL_ASSERT(A.size() == B.size() && !A.empty() && !B.empty() && c != real_t(0.0));
 			const auto pA = A.data();
 			const auto dataCnt = A.numel();
@@ -1494,6 +1494,7 @@ namespace math {
 			const auto pFE = pF + er.totalElements();
 			while (pF != pFE) {
 				const auto a = *pF;
+				//#todo probably comparing as unsigned/uint64 would be faster
 				*pF++ = static_cast<real_t>(a != real_t(0.));
 			}
 		}
@@ -1906,7 +1907,7 @@ namespace math {
 		void elogu_st(realmtx_t& srcdest, const real_t& alpha, const real_t& b, const elms_range*const pER = nullptr) const noexcept {
 			get_self()._ielogu_st(srcdest, alpha, b, pER ? *pER : elms_range(0, srcdest.numel_no_bias()));
 		}
-		static void _ielogu_st(realmtx_t& srcdest, const real_t& alpha, const real_t& b, const elms_range& er) noexcept {
+		static void _ielogu_st(realmtx_t& srcdest, const real_t alpha, const real_t b, const elms_range& er) noexcept {
 			NNTL_ASSERT(!srcdest.empty());
 			NNTL_ASSERT(alpha > real_t(0.0));
 			NNTL_ASSERT(b > real_t(1.0));
@@ -1937,7 +1938,7 @@ namespace math {
 		void delogu_st(realmtx_t& f_df, const real_t& alpha, const real_t& b, const elms_range*const pER = nullptr) const noexcept {
 			get_self()._idelogu_st(f_df, alpha, b, pER ? *pER : elms_range(f_df));
 		}
-		static void _idelogu_st(realmtx_t& f_df, const real_t& alpha, const real_t& b, const elms_range& er) noexcept {
+		static void _idelogu_st(realmtx_t& f_df, const real_t alpha, const real_t b, const elms_range& er) noexcept {
 			NNTL_ASSERT(alpha > real_t(0.0));
 			NNTL_ASSERT(b > real_t(1.0));
 			NNTL_ASSERT(!f_df.empty());
@@ -1971,7 +1972,7 @@ namespace math {
 		void elogu_ua_st(realmtx_t& srcdest, const real_t& b, const elms_range*const pER = nullptr) const noexcept {
 			get_self()._ielogu_ua_st(srcdest, b, pER ? *pER : elms_range(0, srcdest.numel_no_bias()));
 		}
-		static void _ielogu_ua_st(realmtx_t& srcdest, const real_t& b, const elms_range& er) noexcept {
+		static void _ielogu_ua_st(realmtx_t& srcdest, const real_t b, const elms_range& er) noexcept {
 			NNTL_ASSERT(!srcdest.empty());
 			NNTL_ASSERT(b > real_t(1.0));
 			const real_t lbi = real_t(1.) / std::log(b);
@@ -2000,7 +2001,7 @@ namespace math {
 		void delogu_ua_st(realmtx_t& f_df, const real_t& b, const elms_range*const pER = nullptr) const noexcept {
 			get_self()._idelogu_ua_st(f_df, b, pER ? *pER : elms_range(f_df));
 		}
-		static void _idelogu_ua_st(realmtx_t& f_df, const real_t& b, const elms_range& er) noexcept {
+		static void _idelogu_ua_st(realmtx_t& f_df, const real_t b, const elms_range& er) noexcept {
 			NNTL_ASSERT(b > real_t(1.0));
 			NNTL_ASSERT(!f_df.empty());
 
@@ -2032,7 +2033,7 @@ namespace math {
 		void elogu_nb_st(realmtx_t& srcdest, const real_t& alpha, const elms_range*const pER = nullptr) const noexcept {
 			get_self()._ielogu_nb_st(srcdest, alpha, pER ? *pER : elms_range(0, srcdest.numel_no_bias()));
 		}
-		static void _ielogu_nb_st(realmtx_t& srcdest, const real_t& alpha, const elms_range& er) noexcept {
+		static void _ielogu_nb_st(realmtx_t& srcdest, const real_t alpha, const elms_range& er) noexcept {
 			NNTL_ASSERT(!srcdest.empty());
 			NNTL_ASSERT(alpha > real_t(0.0));
 			auto pV = srcdest.data() + er.elmBegin;
@@ -2060,7 +2061,7 @@ namespace math {
 		void delogu_nb_st(realmtx_t& f_df, const real_t& alpha, const elms_range*const pER = nullptr) const noexcept {
 			get_self()._idelogu_nb_st(f_df, alpha, pER ? *pER : elms_range(f_df));
 		}
-		static void _idelogu_nb_st(realmtx_t& f_df, const real_t& alpha, const elms_range& er) noexcept {
+		static void _idelogu_nb_st(realmtx_t& f_df, const real_t alpha, const elms_range& er) noexcept {
 			NNTL_ASSERT(alpha > real_t(0.0));
 			NNTL_ASSERT(!f_df.empty());
 
@@ -2141,7 +2142,7 @@ namespace math {
 		void loglogu_st(realmtx_t& srcdest, const real_t& b_neg, const real_t& b_pos, const elms_range*const pER = nullptr) const noexcept {
 			get_self()._iloglogu_st(srcdest, b_neg, b_pos, pER ? *pER : elms_range(0, srcdest.numel_no_bias()));
 		}
-		static void _iloglogu_st(realmtx_t& srcdest, const real_t& b_neg, const real_t& b_pos, const elms_range& er) noexcept {
+		static void _iloglogu_st(realmtx_t& srcdest, const real_t b_neg, const real_t b_pos, const elms_range& er) noexcept {
 			NNTL_ASSERT(!srcdest.empty());
 			NNTL_ASSERT(b_neg > real_t(1.0));
 			NNTL_ASSERT(b_pos > real_t(1.0));
@@ -2178,7 +2179,7 @@ namespace math {
 		void dloglogu_st(realmtx_t& f_df, const real_t& b_neg, const real_t& b_pos, const elms_range*const pER = nullptr) const noexcept {
 			get_self()._idloglogu_st(f_df, b_neg, b_pos, pER ? *pER : elms_range(f_df));
 		}
-		static void _idloglogu_st(realmtx_t& f_df, const real_t& b_neg, const real_t& b_pos, const elms_range& er) noexcept {
+		static void _idloglogu_st(realmtx_t& f_df, const real_t b_neg, const real_t b_pos, const elms_range& er) noexcept {
 			NNTL_ASSERT(b_neg > real_t(1.0));
 			NNTL_ASSERT(b_pos > real_t(1.0));
 			NNTL_ASSERT(!f_df.empty());
@@ -2210,7 +2211,7 @@ namespace math {
 		void loglogu_nbn_st(realmtx_t& srcdest, const real_t& b_pos, const elms_range*const pER = nullptr) const noexcept {
 			get_self()._iloglogu_nbn_st(srcdest, b_pos, pER ? *pER : elms_range(0, srcdest.numel_no_bias()));
 		}
-		static void _iloglogu_nbn_st(realmtx_t& srcdest, const real_t& b_pos, const elms_range& er) noexcept {
+		static void _iloglogu_nbn_st(realmtx_t& srcdest, const real_t b_pos, const elms_range& er) noexcept {
 			NNTL_ASSERT(!srcdest.empty());
 			NNTL_ASSERT(b_pos > real_t(1.0));
 			const real_t lbposi = real_t(ext_real_t(1.) / std::log(ext_real_t(b_pos)));
@@ -2243,7 +2244,7 @@ namespace math {
 		void dloglogu_nbn_st(realmtx_t& f_df, const real_t& b_pos, const elms_range*const pER = nullptr) const noexcept {
 			get_self()._idloglogu_nbn_st(f_df, b_pos, pER ? *pER : elms_range(f_df));
 		}
-		static void _idloglogu_nbn_st(realmtx_t& f_df, const real_t& b_pos, const elms_range& er) noexcept {
+		static void _idloglogu_nbn_st(realmtx_t& f_df, const real_t b_pos, const elms_range& er) noexcept {
 			NNTL_ASSERT(b_pos > real_t(1.0));
 			NNTL_ASSERT(!f_df.empty());
 			const ext_real_t _lbpos = std::log(ext_real_t(b_pos));
@@ -2271,7 +2272,7 @@ namespace math {
 		void loglogu_nbp_st(realmtx_t& srcdest, const real_t& b_neg, const elms_range*const pER = nullptr) const noexcept {
 			get_self()._iloglogu_nbp_st(srcdest, b_neg, pER ? *pER : elms_range(0, srcdest.numel_no_bias()));
 		}
-		static void _iloglogu_nbp_st(realmtx_t& srcdest, const real_t& b_neg, const elms_range& er) noexcept {
+		static void _iloglogu_nbp_st(realmtx_t& srcdest, const real_t b_neg, const elms_range& er) noexcept {
 			NNTL_ASSERT(!srcdest.empty());
 			NNTL_ASSERT(b_neg > real_t(1.0));			
 			const real_t nlbnegi = real_t(ext_real_t (-1.) / std::log(ext_real_t(b_neg)));
@@ -2304,7 +2305,7 @@ namespace math {
 		void dloglogu_nbp_st(realmtx_t& f_df, const real_t& b_neg, const elms_range*const pER = nullptr) const noexcept {
 			get_self()._idloglogu_nbp_st(f_df, b_neg, pER ? *pER : elms_range(f_df));
 		}
-		static void _idloglogu_nbp_st(realmtx_t& f_df, const real_t& b_neg, const elms_range& er) noexcept {
+		static void _idloglogu_nbp_st(realmtx_t& f_df, const real_t b_neg, const elms_range& er) noexcept {
 			NNTL_ASSERT(b_neg > real_t(1.0));			
 			NNTL_ASSERT(!f_df.empty());
 			const ext_real_t _lbneg = std::log(ext_real_t(b_neg));
@@ -2390,7 +2391,7 @@ namespace math {
 		void softsign_st(realmtx_t& srcdest, const real_t& a, const elms_range*const pER = nullptr) const noexcept {
 			get_self()._isoftsign_st(srcdest, a, pER ? *pER : elms_range(0, srcdest.numel_no_bias()));
 		}
-		static void _isoftsign_st(realmtx_t& srcdest, const real_t& a, const elms_range& er) noexcept {
+		static void _isoftsign_st(realmtx_t& srcdest, const real_t a, const elms_range& er) noexcept {
 			NNTL_ASSERT(!srcdest.empty());
 			NNTL_ASSERT(a > real_t(0.0));
 
@@ -2445,7 +2446,7 @@ namespace math {
 		void dsoftsign_st(realmtx_t& f_df, const real_t& a, const elms_range*const pER = nullptr) const noexcept {
 			get_self()._idsoftsign_st(f_df, a, pER ? *pER : elms_range(f_df));
 		}
-		static void _idsoftsign_st(realmtx_t& f_df, const real_t& a, const elms_range& er) noexcept {
+		static void _idsoftsign_st(realmtx_t& f_df, const real_t a, const elms_range& er) noexcept {
 			NNTL_ASSERT(a > real_t(0.0));
 			NNTL_ASSERT(!f_df.empty());
 			const auto ainv = real_t(1.) / a;
@@ -2476,7 +2477,7 @@ namespace math {
 		void softsigm_st(realmtx_t& srcdest, const real_t& a, const elms_range*const pER = nullptr) const noexcept {
 			get_self()._isoftsigm_st(srcdest, a, pER ? *pER : elms_range(0, srcdest.numel_no_bias()));
 		}
-		static void _isoftsigm_st(realmtx_t& srcdest, const real_t& a, const elms_range& er) noexcept {
+		static void _isoftsigm_st(realmtx_t& srcdest, const real_t a, const elms_range& er) noexcept {
 			NNTL_ASSERT(!srcdest.empty());
 			NNTL_ASSERT(a > real_t(0.0));
 
@@ -2504,7 +2505,7 @@ namespace math {
 		void dsoftsigm_st(realmtx_t& f_df, const real_t& a, const elms_range*const pER = nullptr) const noexcept {
 			get_self()._idsoftsigm_st(f_df, a, pER ? *pER : elms_range(f_df));
 		}
-		static void _idsoftsigm_st(realmtx_t& f_df, const real_t& a, const elms_range& er) noexcept {
+		static void _idsoftsigm_st(realmtx_t& f_df, const real_t a, const elms_range& er) noexcept {
 			NNTL_ASSERT(a > real_t(0.0));
 			NNTL_ASSERT(!f_df.empty());
 			const auto dainv = real_t(2.) / a;
@@ -2541,7 +2542,7 @@ namespace math {
 		void dSoftSigmQuadLoss_dZ_st(const realmtx_t& data_y, realmtx_t& act_dLdZ, const real_t& a, const elms_range*const pER = nullptr)noexcept {
 			get_self()._idSoftSigmQuadLoss_dZ_st(data_y, act_dLdZ, a, pER ? *pER : elms_range(act_dLdZ));
 		}
-		static void _idSoftSigmQuadLoss_dZ_st(const realmtx_t& data_y, realmtx_t& act_dLdZ, const real_t& a, const elms_range& er)noexcept {
+		static void _idSoftSigmQuadLoss_dZ_st(const realmtx_t& data_y, realmtx_t& act_dLdZ, const real_t a, const elms_range& er)noexcept {
 			NNTL_ASSERT(!act_dLdZ.emulatesBiases() && !data_y.emulatesBiases());
 			NNTL_ASSERT(act_dLdZ.size() == data_y.size());
 			NNTL_ASSERT(a > real_t(0.0));
@@ -2582,7 +2583,7 @@ namespace math {
 		void dSoftSigmXEntropyLoss_dZ_st(const realmtx_t& data_y, realmtx_t& act_dLdZ, const real_t& a, const elms_range*const pER = nullptr)noexcept {
 			get_self()._idSoftSigmXEntropyLoss_dZ_st(data_y, act_dLdZ, a, pER ? *pER : elms_range(act_dLdZ));
 		}
-		static void _idSoftSigmXEntropyLoss_dZ_st(const realmtx_t& data_y, realmtx_t& act_dLdZ, const real_t& a, const elms_range& er)noexcept {
+		static void _idSoftSigmXEntropyLoss_dZ_st(const realmtx_t& data_y, realmtx_t& act_dLdZ, const real_t a, const elms_range& er)noexcept {
 			NNTL_ASSERT(!act_dLdZ.emulatesBiases() && !data_y.emulatesBiases());
 			NNTL_ASSERT(act_dLdZ.size() == data_y.size());
 			NNTL_ASSERT(a > real_t(0.0));
@@ -2614,6 +2615,68 @@ namespace math {
 
 		//////////////////////////////////////////////////////////////////////////
 		//////////////////////////////////////////////////////////////////////////
+		//SELU, see arxiv:1706.02515 "Self-Normalizing Neural Networks", by GÃ¼nter Klambauer et al.
+		void selu(realmtx_t& srcdest, const real_t& alpha_t_lambda, const real_t& lambda) noexcept {
+			if (srcdest.numel_no_bias() < Thresholds_t::selu) {
+				get_self().selu_st(srcdest, alpha_t_lambda, lambda);
+			} else get_self().selu_mt(srcdest, alpha_t_lambda, lambda);
+		}
+		void selu_st(realmtx_t& srcdest, const real_t& alpha_t_lambda, const real_t& lambda, const elms_range*const pER = nullptr) const noexcept {
+			get_self()._iselu_st(srcdest, alpha_t_lambda, lambda, pER ? *pER : elms_range(0, srcdest.numel_no_bias()));
+		}
+		static void _iselu_st(realmtx_t& srcdest, const real_t alpha_t_lambda, const real_t lambda, const elms_range& er) noexcept {
+			NNTL_ASSERT(!srcdest.empty());
+			NNTL_ASSERT(alpha_t_lambda > real_t(0.0));
+			auto pV = srcdest.data() + er.elmBegin;
+			const auto pVE = pV + er.totalElements();
+			while (pV != pVE) {
+				const auto v = *pV;
+				/*if (v < real_t(+0.0)) *pV = (std::exp(v) - real_t(1.0))*alpha;
+				++pV;*/
+				//*pV++ = v < real_t(0.) ? (std::exp(v) - real_t(1.0))*alpha : v;
+				*pV++ = v < real_t(0.) ? math::expm1(v)*alpha_t_lambda : v*lambda;
+			}
+		}
+		void selu_mt(realmtx_t& srcdest, const real_t& alpha_t_lambda, const real_t& lambda) noexcept {
+			NNTL_ASSERT(!srcdest.empty());
+			m_threads.run([&srcdest, &alpha_t_lambda, &lambda, this](const par_range_t& r) {
+				get_self()._iselu_st(srcdest, alpha_t_lambda, lambda, elms_range(r));
+			}, srcdest.numel_no_bias());
+		}
+		//////////////////////////////////////////////////////////////////////////
+		// d(selu)/dZ
+		void dselu(realmtx_t& f_df, const real_t& alpha_t_lambda, const real_t& lambda) noexcept {
+			if (f_df.numel() < Thresholds_t::dselu) {
+				get_self().dselu_st(f_df, alpha_t_lambda, lambda);
+			} else get_self().dselu_mt(f_df, alpha_t_lambda, lambda);
+		}
+		void dselu_st(realmtx_t& f_df, const real_t& alpha_t_lambda, const real_t& lambda, const elms_range*const pER = nullptr) const noexcept {
+			get_self()._idselu_st(f_df, alpha_t_lambda, lambda, pER ? *pER : elms_range(f_df));
+		}
+		// FFFUUUUUUUU....!!!!
+		// Declare alpha_t_lambda and lambda parameters as references and get x10 slowdown!
+		// I guess it happens because compiler can't assume that they are allocated outside of mutable *ptrDF.
+		// C++ is indeed a nice rope to shoot own leg...
+		static void _idselu_st(realmtx_t& f_df, const real_t alpha_t_lambda, const real_t lambda, const elms_range& er) noexcept {
+			NNTL_ASSERT(alpha_t_lambda > real_t(0.0));
+			NNTL_ASSERT(!f_df.empty());
+			auto ptrDF = f_df.data() + er.elmBegin;
+			const auto ptrDFE = ptrDF + er.totalElements();
+			while (ptrDF != ptrDFE) {
+				const auto v = *ptrDF;
+				*ptrDF++ = v < real_t(0.) ? (v + alpha_t_lambda) : lambda;
+			}
+		}
+		void dselu_mt(realmtx_t& f_df, const real_t& alpha_t_lambda, const real_t& lambda) noexcept {
+			NNTL_ASSERT(!f_df.empty());
+			m_threads.run([&f_df, &alpha_t_lambda, &lambda, this](const par_range_t& r) {
+				get_self()._idselu_st(f_df, alpha_t_lambda, lambda, elms_range(r));
+			}, f_df.numel());
+		}
+
+
+		//////////////////////////////////////////////////////////////////////////
+		//////////////////////////////////////////////////////////////////////////
 		//step activation unit
 		void step(realmtx_t& srcdest) noexcept {
 			if (srcdest.numel_no_bias() < Thresholds_t::step) {
@@ -2638,6 +2701,9 @@ namespace math {
 				get_self()._istep_st(srcdest, elms_range(r));
 			}, srcdest.numel_no_bias());
 		}
+
+		//////////////////////////////////////////////////////////////////////////
+
 
 
 		//////////////////////////////////////////////////////////////////////////
@@ -3251,7 +3317,7 @@ namespace math {
 			get_self()._iRNadam_st(dW, Mt, Nt, mu_pow_t, eta_pow_t, learningRate, mu, eta, gamma, numericStabilizer, pER ? *pER : elms_range(0, dW.numel()), !!pER);
 		}
 		static void _iRNadam_st(realmtx_t& dW, realmtx_t& Mt, realmtx_t& Nt, real_t& mu_pow_t, real_t& eta_pow_t
-			, const real_t& learningRate, const real_t& mu, const real_t& eta, const real_t& gamma, const real_t& numericStabilizer
+			, const real_t learningRate, const real_t mu, const real_t eta, const real_t gamma, const real_t numericStabilizer
 			, const elms_range& er, const bool bInsideMT = true) noexcept
 		{
 			NNTL_ASSERT(dW.size() == Mt.size() && dW.size() == Nt.size());
@@ -3347,7 +3413,7 @@ namespace math {
 			return biggestMtx.numel_no_bias() + realmtx_t::sNumel(biggestMtx.cols_no_bias(), biggestMtx.cols_no_bias());
 		}
 		// Implements DeCov regularizer from the paper "Reducing Overfitting in Deep Neural Networks by Decorrelating Representations", 2015, ArXiv:1511.06068
-		// (similar to “Discovering Hidden Factors of Variation in Deep Networks”, ArXiv:1412.6583)
+		// (similar to â€œDiscovering Hidden Factors of Variation in Deep Networksâ€, ArXiv:1412.6583)
 		// BTW, there's wrong derivative presented in "Reducing Overfitting...". Actual derivative must be 2 times greater, than printed in paper.
 		// 
 		// N=size(A,1);

@@ -73,6 +73,9 @@
     <Filter Include="nntl\loss_addendum">
       <UniqueIdentifier>{a1aa024b-803c-4914-b64f-5da99852db66}</UniqueIdentifier>
     </Filter>
+    <Filter Include="nntl\activations">
+      <UniqueIdentifier>{0dda5f75-1bcd-4e7b-8570-deed66944c6d}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <Text Include="ReadMe.txt" />
@@ -398,6 +401,39 @@
     </ClInclude>
     <ClInclude Include="..\nntl\utils\confusion_mtx.h">
       <Filter>nntl\utils</Filter>
+    </ClInclude>
+    <ClInclude Include="..\nntl\activations\_i_activation.h">
+      <Filter>nntl\activations</Filter>
+    </ClInclude>
+    <ClInclude Include="..\nntl\activations\sigm.h">
+      <Filter>nntl\activations</Filter>
+    </ClInclude>
+    <ClInclude Include="..\nntl\activations\softmax.h">
+      <Filter>nntl\activations</Filter>
+    </ClInclude>
+    <ClInclude Include="..\nntl\activations\relu_family.h">
+      <Filter>nntl\activations</Filter>
+    </ClInclude>
+    <ClInclude Include="..\nntl\activations\elu.h">
+      <Filter>nntl\activations</Filter>
+    </ClInclude>
+    <ClInclude Include="..\nntl\activations\elogu.h">
+      <Filter>nntl\activations</Filter>
+    </ClInclude>
+    <ClInclude Include="..\nntl\activations\loglogu.h">
+      <Filter>nntl\activations</Filter>
+    </ClInclude>
+    <ClInclude Include="..\nntl\activations\softsign.h">
+      <Filter>nntl\activations</Filter>
+    </ClInclude>
+    <ClInclude Include="..\nntl\activations\softsigm.h">
+      <Filter>nntl\activations</Filter>
+    </ClInclude>
+    <ClInclude Include="..\nntl\activations\selu.h">
+      <Filter>nntl\activations</Filter>
+    </ClInclude>
+    <ClInclude Include="..\nntl\activations\step.h">
+      <Filter>nntl\activations</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

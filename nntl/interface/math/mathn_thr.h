@@ -129,6 +129,9 @@ namespace _impl {
 		static constexpr size_t dSoftSigmQuadLoss_dZ = 10000;
 		static constexpr size_t dSoftSigmXEntropyLoss_dZ = 5000;
 
+		static constexpr size_t selu = 1500;
+		static constexpr size_t dselu = 25000;
+
 		static constexpr size_t step = 132000;
 
 		static constexpr size_t softmax_parts = 1900;
@@ -203,7 +206,7 @@ namespace _impl {
 		static constexpr size_t dleakyrelu = 26500;//*
 
 		static constexpr size_t elu = 1600;//*
-		static constexpr size_t delu = 25000;//*
+		static constexpr size_t delu = 100000;//*
 		static constexpr size_t elu_unitalpha = 1650;//*
 		static constexpr size_t delu_unitalpha = 25600;//*
 
@@ -233,6 +236,9 @@ namespace _impl {
 
 		static constexpr size_t dSoftSigmQuadLoss_dZ = 9900;
 		static constexpr size_t dSoftSigmXEntropyLoss_dZ = 4800;
+
+		static constexpr size_t selu = 1600;//*
+		static constexpr size_t dselu = 100000;//*
 
 		static constexpr size_t step = 500000;
 

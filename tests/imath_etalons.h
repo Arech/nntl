@@ -106,6 +106,9 @@ void delu_ET(realmtx_t& f_df, const real_t alpha);
 void elu_unitalpha_ET(realmtx_t& f);
 void delu_unitalpha_ET(realmtx_t& f_df);
 
+void selu_ET(realmtx_t& f, const real_t& alpha, const real_t& lambda);
+void dselu_ET(realmtx_t& f_df, const real_t& alpha, const real_t& lambda);
+
 void elogu_ET(const realmtx_t& x, realmtx_t& f, const real_t& alpha, const real_t& b);
 void delogu_ET(const realmtx_t& x, realmtx_t& df, const real_t& alpha, const real_t& b);
 void elogu_ua_ET(const realmtx_t& x, realmtx_t& f, const real_t& b);
