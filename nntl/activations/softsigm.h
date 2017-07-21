@@ -39,12 +39,10 @@ namespace activation {
 	//////////////////////////////////////////////////////////////////////////
 	//////////////////////////////////////////////////////////////////////////
 	// SoftSigm, y = (x/(2*(a+|x|)) +.5), dy/dx = (.5-|y-.5|)^2 * 2/a, parameter 'a' controls the slope of the curve
-	template<typename RealT, unsigned int A1e3 = 1000, typename WeightsInitScheme = weights_init::He_Zhang<>>
-	class softsigm : public _i_activation<RealT> {
-		softsigm() = delete;
-		~softsigm() = delete;
+	template<typename RealT, unsigned int A1e3 = 1000
+		, typename WeightsInitScheme = weights_init::He_Zhang<>, typename DropoutT = Dropout<RealT>>
+	class softsigm : public _i_activation<DropoutT, WeightsInitScheme> {
 	public:
-		typedef WeightsInitScheme weights_scheme;
 		static constexpr real_t A = real_t(A1e3) / real_t(1000.0);
 
 	public:
@@ -71,9 +69,7 @@ namespace activation {
 	//bNumericStable selects slightly more stable loss function implementation (usually drops relative error by the factor of 2)
 	// use it for numeric gradient checks. Useless for usual nnet training
 	template<typename RealT, unsigned int A1e3 = 1000, typename WeightsInitScheme = weights_init::He_Zhang<>, bool bNumericStable = false>
-	class softsigm_quad_loss : public softsigm<RealT, A1e3, WeightsInitScheme>, public _i_quadratic_loss<RealT> {
-		softsigm_quad_loss() = delete;
-		~softsigm_quad_loss() = delete;
+	class softsigm_quad_loss : public softsigm<RealT, A1e3, WeightsInitScheme, NoDropout<RealT>>, public _i_quadratic_loss<RealT> {
 	public:
 		template <typename iMath>
 		static void dLdZ(const realmtx_t& data_y, realmtx_t& act_dLdZ, iMath& m)noexcept {
@@ -94,9 +90,7 @@ namespace activation {
 	};
 
 	template<typename RealT, unsigned int A1e3 = 1000, typename WeightsInitScheme = weights_init::He_Zhang<>>
-	class debug_softsigm_zeros : public softsigm<RealT, A1e3, WeightsInitScheme>, public _i_quadratic_loss<RealT> {
-		debug_softsigm_zeros() = delete;
-		~debug_softsigm_zeros() = delete;
+	class debug_softsigm_zeros : public softsigm<RealT, A1e3, WeightsInitScheme, NoDropout<RealT>>, public _i_quadratic_loss<RealT> {
 	public:
 		template <typename iMath>
 		static void dLdZ(const realmtx_t& data_y, realmtx_t& act_dLdZ, iMath& m)noexcept {
@@ -115,9 +109,7 @@ namespace activation {
 
 	//NB: http://neuralnetworksanddeeplearning.com/chap3.html
 	template<typename RealT, unsigned int A1e3 = 1000, typename WeightsInitScheme = weights_init::He_Zhang<>, bool bNumericStable = false>
-	class softsigm_xentropy_loss : public softsigm<RealT, A1e3, WeightsInitScheme>, public _i_xentropy_loss<RealT> {
-		softsigm_xentropy_loss() = delete;
-		~softsigm_xentropy_loss() = delete;
+	class softsigm_xentropy_loss : public softsigm<RealT, A1e3, WeightsInitScheme, NoDropout<RealT>>, public _i_xentropy_loss<RealT> {
 	public:
 		template <typename iMath>
 		static void dLdZ(const realmtx_t& data_y, realmtx_t& act_dLdZ, iMath& m)noexcept {

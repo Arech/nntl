@@ -39,6 +39,9 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 namespace nntl {
 	namespace weights_init {
+		//BE AWARE, that most likely a math interface object passed to init() function will be not initialized
+		//That's expected and OK because most (all?) of iMath functions to be used here doesn't require prior initialization
+
 
 		// According to Xavier et al. "Understanding the difficulty of training deep feedforward neural networks" 2010
 		// for symmetric activation function (probably with unit derivative at 0) it's a 

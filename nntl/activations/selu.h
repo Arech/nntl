@@ -40,13 +40,10 @@ namespace activation {
 	//////////////////////////////////////////////////////////////////////////
 	// SELU, arxiv:1706.02515 "Self-Normalizing Neural Networks", by Günter Klambauer et al.
 	// pass zeros to Alpha&Lambda to get a "standard" SELU with stable fixed point at (0,1)
-	template<typename RealT, uint64_t Alpha1e9 = 0, uint64_t Lambda1e9 = 0, typename WeightsInitScheme = weights_init::SNNInit>
-	class selu : public _i_activation<RealT> {
-		selu() = delete;
-		~selu() = delete;
+	template<typename RealT, uint64_t Alpha1e9 = 0, uint64_t Lambda1e9 = 0
+		, typename WeightsInitScheme = weights_init::SNNInit, typename DropoutT = AlphaDropout<RealT>>
+	class selu : public _i_activation<DropoutT, WeightsInitScheme> {
 	public:
-		typedef WeightsInitScheme weights_scheme;
-
 		static constexpr ext_real_t AlphaExt = Alpha1e9 ? ext_real_t(Alpha1e9) / ext_real_t(1e9) : ext_real_t(1.6732632423543772848170429916717);
 		static constexpr ext_real_t LambdaExt = Lambda1e9 ? ext_real_t(Lambda1e9) / ext_real_t(1e9) : ext_real_t(1.0507009873554804934193349852946);
 

@@ -1627,11 +1627,11 @@ void pt_iact_asymm_st(realmtx_t& srcdest, FunctorT&& fnc) noexcept {
 }
 //slightly faster (177vs192)
 template<typename RealT, size_t LeakKInv100 = 10000, typename WeightsInitScheme = weights_init::He_Zhang<>>
-class exp_leaky_relu : public activation::_i_activation<RealT> {
+class exp_leaky_relu : public activation::_i_activation<Dropout<RealT>, WeightsInitScheme> {
 	exp_leaky_relu() = delete;
 	~exp_leaky_relu() = delete;
 public:
-	typedef WeightsInitScheme weights_scheme;
+	//typedef WeightsInitScheme weights_scheme;
 	static constexpr real_t LeakK = real_t(100.0) / real_t(LeakKInv100);
 
 public:
@@ -1665,11 +1665,11 @@ public:
 //well, this one and current pt_iact_asymm_st() is a bit better and approximately as fast as plain version.
 //however, better fire me than make me refactor the old code now... Leave it for a future.
 template<typename RealT, size_t LeakKInv100 = 10000, typename WeightsInitScheme = weights_init::He_Zhang<>>
-class exp3_leaky_relu : public activation::_i_activation<RealT> {
+class exp3_leaky_relu : public activation::_i_activation<Dropout<RealT>, WeightsInitScheme> {
 	exp3_leaky_relu() = delete;
 	~exp3_leaky_relu() = delete;
 public:
-	typedef WeightsInitScheme weights_scheme;
+	//typedef WeightsInitScheme weights_scheme;
 	static constexpr real_t LeakK = real_t(100.0) / real_t(LeakKInv100);
 
 	struct LRFunc {

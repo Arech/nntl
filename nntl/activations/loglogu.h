@@ -39,12 +39,11 @@ namespace activation {
 	//////////////////////////////////////////////////////////////////////////
 	//////////////////////////////////////////////////////////////////////////
 	//LogLogU : -log(1-x)/log(b_neg) | x<0,   log(x+1)/log(b_pos) | x>0
-	template<typename RealT, unsigned int LogBaseNeg1e3 = 2718, unsigned int LogBasePos1e3 = 2000, typename WeightsInitScheme = weights_init::He_Zhang<>>
-	class loglogu : public _i_activation<RealT> {
-		loglogu() = delete;
-		~loglogu() = delete;
+	template<typename RealT, unsigned int LogBaseNeg1e3 = 2718, unsigned int LogBasePos1e3 = 2000
+		, typename WeightsInitScheme = weights_init::He_Zhang<>, typename DropoutT = Dropout<RealT>>
+	class loglogu : public _i_activation<DropoutT, WeightsInitScheme> {
 	public:
-		typedef WeightsInitScheme weights_scheme;
+		//typedef WeightsInitScheme weights_scheme;
 		static constexpr real_t LogBaseNeg = real_t(LogBaseNeg1e3) / real_t(1000.0);
 		static constexpr bool bIsNBN = (LogBaseNeg1e3 == 2718);
 

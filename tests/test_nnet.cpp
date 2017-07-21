@@ -224,7 +224,7 @@ void test_LSUVExt(train_data<RealT>& td, bool bCentNorm, bool bScaleNorm, bool b
 	nn.get_layer_pack().for_each_layer_exc_input([&iR = nn.get_iRng(), &iM = nn.get_iMath()](auto& lyr) {
 		math::smatrix<real_t> W;
 		ASSERT_TRUE(W.resize(lyr.get_neurons_cnt(), lyr.get_incoming_neurons_cnt() + 1));
-		ASSERT_TRUE(std::decay_t<decltype(lyr)>::activation_f_t::weights_scheme::init(W, iR, iM));
+		ASSERT_TRUE(std::decay_t<decltype(lyr)>::Weights_Init_t::init(W, iR, iM));
 		ASSERT_TRUE(lyr.set_weights(std::move(W)));
 		lyr.m_gradientWorks.set_type(decltype(lyr.m_gradientWorks)::Adam);
 	});

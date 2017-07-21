@@ -39,13 +39,9 @@ namespace activation {
 	//////////////////////////////////////////////////////////////////////////
 	//////////////////////////////////////////////////////////////////////////
 	//sigmoid
-	template<typename RealT = d_interfaces::real_t, typename WeightsInitScheme = weights_init::Martens_SI_sigm<>>
-	class sigm : public _i_activation<RealT> {
-		sigm() = delete;
-		~sigm() = delete;
-	public:
-		typedef WeightsInitScheme weights_scheme;
-
+	template<typename RealT = d_interfaces::real_t
+		, typename WeightsInitScheme = weights_init::Martens_SI_sigm<>, typename DropoutT = Dropout<RealT>>
+	class sigm : public _i_activation<DropoutT, WeightsInitScheme> {
 	public:
 		//apply f to each srcdest matrix element to compute activation values. The biases (if any) must be left untouched!
 		template <typename iMath>
@@ -62,9 +58,7 @@ namespace activation {
 	};
 
 	template<typename RealT, typename WeightsInitScheme = weights_init::Martens_SI_sigm<>, bool bNumericStable = false>
-	class sigm_quad_loss : public sigm<RealT, WeightsInitScheme>, public _i_quadratic_loss<RealT> {
-		sigm_quad_loss() = delete;
-		~sigm_quad_loss() = delete;
+	class sigm_quad_loss : public sigm<RealT, WeightsInitScheme, NoDropout<RealT>>, public _i_quadratic_loss<RealT> {
 	public:
 		template <typename iMath>
 		static void dLdZ(const realmtx_t& data_y, realmtx_t& act_dLdZ, iMath& m)noexcept {
@@ -85,9 +79,7 @@ namespace activation {
 	};
 
 	template<typename RealT, typename WeightsInitScheme = weights_init::Martens_SI_sigm<>, bool bNumericStable = false>
-	class sigm_xentropy_loss : public sigm<RealT, WeightsInitScheme>, public _i_xentropy_loss<RealT> {
-		sigm_xentropy_loss() = delete;
-		~sigm_xentropy_loss() = delete;
+	class sigm_xentropy_loss : public sigm<RealT, WeightsInitScheme, NoDropout<RealT>>, public _i_xentropy_loss<RealT> {
 	public:
 		template <typename iMath>
 		static void dLdZ(const realmtx_t& data_y, realmtx_t& act_dLdZ, iMath& m)noexcept {

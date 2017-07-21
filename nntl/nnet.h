@@ -188,10 +188,7 @@ namespace nntl {
 			NNTL_ASSERT(!pData_x || pData_x->rows() == data_y.rows());
 			if (pData_x) _fprop(*pData_x);
 
-			static_assert(std::is_base_of<activation::_i_activation_loss<real_t>, layers_pack_t::output_layer_t::activation_f_t>::value,
-				"Activation function class of output layer must implement activation::_i_activation_loss interface");
-
-			auto lossValue = layers_pack_t::output_layer_t::activation_f_t::loss(m_Layers.output_layer().get_activations(), data_y, get_iMath());
+			auto lossValue = m_Layers.output_layer().calc_loss(data_y);
 			if (m_bCalcFullLossValue) lossValue += m_Layers.calcLossAddendum();
 			return lossValue;
 		}

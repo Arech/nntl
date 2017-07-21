@@ -39,12 +39,10 @@ namespace activation {
 	//////////////////////////////////////////////////////////////////////////
 	//////////////////////////////////////////////////////////////////////////
 	// SoftSign, y = (x/(a+|x|)), dy/dx = (1-|y|)^2 /a, parameter 'a' controls the slope of the curve
-	template<typename RealT, unsigned int A1e3 = 1000, typename WeightsInitScheme = weights_init::He_Zhang<>>
-	class softsign : public _i_activation<RealT> {
-		softsign() = delete;
-		~softsign() = delete;
+	template<typename RealT, unsigned int A1e3 = 1000
+		, typename WeightsInitScheme = weights_init::He_Zhang<>, typename DropoutT = Dropout<RealT>>
+	class softsign : public _i_activation<DropoutT, WeightsInitScheme> {
 	public:
-		typedef WeightsInitScheme weights_scheme;
 		static constexpr real_t A = real_t(A1e3) / real_t(1000.0);
 		static constexpr bool bIsUnitA = (A1e3 == 1000);
 

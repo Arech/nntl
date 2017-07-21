@@ -54,6 +54,7 @@ namespace nntl {
 	template<typename LayerT>
 	struct is_layer_output : public std::is_base_of<m_layer_output, LayerT> {};
 
+
 	//when a layer is derived from this class, it is expected to be used inside of some layer_pack_* objects and it
 	// doesn't have a neurons count specified in constructor. Instead, compound layer (or it's support objects) specifies
 	// the number of neurons during their construction via _set_neurons_cnt().

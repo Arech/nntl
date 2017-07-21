@@ -39,13 +39,8 @@ namespace activation {
 	//////////////////////////////////////////////////////////////////////////
 	//////////////////////////////////////////////////////////////////////////
 	//ReLU
-	template<typename RealT, typename WeightsInitScheme = weights_init::He_Zhang<>>
-	class relu : public _i_activation<RealT> {
-		relu() = delete;
-		~relu() = delete;
-	public:
-		typedef WeightsInitScheme weights_scheme;
-
+	template<typename RealT, typename WeightsInitScheme = weights_init::He_Zhang<>, typename DropoutT = Dropout<RealT>>
+	class relu : public _i_activation<DropoutT, WeightsInitScheme> {
 	public:
 		//apply f to each srcdest matrix element. The biases (if any) must be left untouched!
 		template <typename iMath>
@@ -65,12 +60,10 @@ namespace activation {
 	//////////////////////////////////////////////////////////////////////////
 	//////////////////////////////////////////////////////////////////////////
 	// Leaky Relu
-	template<typename RealT, unsigned int LeakKInv100 = 10000, typename WeightsInitScheme = weights_init::He_Zhang<>>
-	class leaky_relu : public _i_activation<RealT> {
-		leaky_relu() = delete;
-		~leaky_relu() = delete;
+	template<typename RealT, unsigned int LeakKInv100 = 10000
+		, typename WeightsInitScheme = weights_init::He_Zhang<>, typename DropoutT = Dropout<RealT>>
+	class leaky_relu : public _i_activation<DropoutT, WeightsInitScheme> {
 	public:
-		typedef WeightsInitScheme weights_scheme;
 		static constexpr real_t LeakK = real_t(100.0) / real_t(LeakKInv100);
 
 	public:

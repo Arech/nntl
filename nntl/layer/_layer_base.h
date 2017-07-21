@@ -336,6 +336,9 @@ namespace nntl {
 		NNTL_METHODS_SELF_CHECKED((std::is_base_of<_cpolym_layer_base, FinalPolymorphChild>::value)
 			, "FinalPolymorphChild must derive from _cpolym_layer_base<FinalPolymorphChild>");
 
+		//can't work here
+		//static constexpr bool bOutputLayer = is_layer_output<self_t>::value;
+
 		//layer name could be used for example to name Matlab's variables,
 		//so there must be some reasonable limit. Don't overcome this limit!
 		static constexpr size_t layerNameMaxChars = 50;
@@ -408,13 +411,13 @@ namespace nntl {
 		, public _impl::_common_data_consumer<InterfacesT>
 	{
 	private:
-		typedef _cpolym_layer_base<FinalPolymorphChild, typename InterfacesT::iMath_t::real_t> _base_class;
+		typedef _cpolym_layer_base<FinalPolymorphChild, typename InterfacesT::iMath_t::real_t> _base_class_t;
 	public:
 		//////////////////////////////////////////////////////////////////////////
 		//typedefs		
 		typedef _impl::_layer_init_data<common_data_t> _layer_init_data_t;
 
-		using _base_class::real_t;
+		using _base_class_t::real_t;
 
 		//////////////////////////////////////////////////////////////////////////
 		//members section (in "biggest first" order)
@@ -433,24 +436,31 @@ namespace nntl {
 		//It is NOT the same as statemed 'Are we to expect the activation matrix with removed samples (and probably biases too)?'
 		//For a gating class (such as LPG or LPHG) it shows whether they could have their .drop_samples() called by an some upped
 		// gating class. However, activations of these classes MAY contain zeroed samples due to their gates work.
+
+		//#todo this flag is probably worst possible solution, however we may need some mean to switch off nonlinearity in a run-time.
+		//Is there a better (non-branching when it's not necessary) solution available?
+		// Might be unused in some derived class (until conditional member variables are allowed). Lives here for packing reasons.
+		bool m_bLayerIsLinear;
 		
 	private:
 		static constexpr const char _defName[] = "_base";
 
-	public:		
+	protected:
 		//////////////////////////////////////////////////////////////////////////
 		//constructors-destructor
 		~_layer_base()noexcept {};
 		_layer_base(const neurons_count_t _neurons_cnt, const char* pCustomName=nullptr) noexcept 
-			: _base_class(pCustomName)
+			: _base_class_t(pCustomName)
 			, m_layerIdx(0), m_neurons_cnt(_neurons_cnt), m_incoming_neurons_cnt(0), m_bActivationsValid(false)
 			, m_bIsSharedActivations(false), m_bIsDropSamplesMightBeCalled(false)
+			, m_bLayerIsLinear(false)
 		{};
-		
+	
+	public:
 		//////////////////////////////////////////////////////////////////////////
 		//nntl_interface overridings
 		ErrorCode init(_layer_init_data_t& lid, real_t* pNewActivationStorage = nullptr)noexcept {
-			_base_class::init();
+			_base_class_t::init();
 			m_bActivationsValid = false;
 			m_bIsSharedActivations = lid.bActivationsShareSpace;
 			m_bIsDropSamplesMightBeCalled = lid.bDropSamplesMightBeCalled;
@@ -465,7 +475,7 @@ namespace nntl {
 			m_bIsSharedActivations = false;
 			m_bIsDropSamplesMightBeCalled = false;
 			clean_common_data();
-			_base_class::deinit();
+			_base_class_t::deinit();
 		}
 
 		const bool is_activations_shared()const noexcept { return m_bIsSharedActivations; }
@@ -494,7 +504,15 @@ namespace nntl {
 		//returns a loss function summand, that's caused by this layer (for example, L2 regularizer adds term
 		// l2Coefficient*Sum(weights.^2) )
 		constexpr const real_t lossAddendum()const noexcept { return real_t(0.0); }
-			
+		
+		//////////////////////////////////////////////////////////////////////////
+
+		template<bool c = is_layer_learnable<self_t>::value >
+		std::enable_if_t<c, bool> bLayerIsLinear()const noexcept { return m_bLayerIsLinear; }
+
+		template<bool c = is_layer_learnable<self_t>::value >
+		std::enable_if_t<c> setLayerLinear(const bool b)noexcept { m_bLayerIsLinear = b; }
+
 		//////////////////////////////////////////////////////////////////////////
 		// other funcs
 	protected:

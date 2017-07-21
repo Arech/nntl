@@ -39,12 +39,11 @@ namespace activation {
 	//////////////////////////////////////////////////////////////////////////
 	//////////////////////////////////////////////////////////////////////////
 	// ELU
-	template<typename RealT, unsigned int Alpha1e3 = 1000, typename WeightsInitScheme = weights_init::He_Zhang<>>
-	class elu : public _i_activation<RealT> {
-		elu() = delete;
-		~elu() = delete;
+	template<typename RealT, unsigned int Alpha1e3 = 1000
+		, typename WeightsInitScheme = weights_init::He_Zhang<>, typename DropoutT = Dropout<RealT>>
+	class elu : public _i_activation<DropoutT, WeightsInitScheme> {
 	public:
-		typedef WeightsInitScheme weights_scheme;
+		//typedef WeightsInitScheme weights_scheme;
 		static constexpr real_t Alpha = real_t(Alpha1e3) / real_t(1000.0);
 		static constexpr bool bIsUnitAlpha = (Alpha1e3 == 1000);
 

@@ -42,13 +42,9 @@ namespace activation {
 	// #TODO: which weight initialization scheme is better for SoftMax?
 	// #TODO: may be it's worth to implement SoftMax activation for hidden layers, i.e. make a dA/dZ implementation
 	template<typename RealT, typename WeightsInitScheme = weights_init::Martens_SI_sigm<>>
-	class softmax_xentropy_loss : public _i_function<RealT>, public _i_xentropy_loss<RealT> {
-		softmax_xentropy_loss() = delete;
-		~softmax_xentropy_loss() = delete;
+	class softmax_xentropy_loss : public _i_function<NoDropout<RealT>, WeightsInitScheme>, public _i_xentropy_loss<RealT> {
 	public:
-		typedef WeightsInitScheme weights_scheme;
 
-	public:
 		//apply f to each srcdest matrix element. The biases (if any) must be left untouched!
 		template <typename iMath>
 		static void f(realmtxdef_t& srcdest, iMath& m) noexcept {

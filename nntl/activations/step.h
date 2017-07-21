@@ -39,13 +39,8 @@ namespace activation {
 	//////////////////////////////////////////////////////////////////////////
 	//////////////////////////////////////////////////////////////////////////
 	//stepwise activation: y = 0|x<0 & 1|x>=0
-	template<typename RealT, typename WeightsInitScheme = weights_init::He_Zhang<>>
-	class step : public _i_activation<RealT> {
-		step() = delete;
-		~step() = delete;
-	public:
-		typedef WeightsInitScheme weights_scheme;
-
+	template<typename RealT, typename WeightsInitScheme = weights_init::He_Zhang<>, typename DropoutT = Dropout<RealT>>
+	class step : public _i_activation<DropoutT, WeightsInitScheme> {
 	public:
 		//apply f to each srcdest matrix element to compute activation values. The biases (if any) must be left untouched!
 		template <typename iMath>

@@ -34,19 +34,22 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "../_defs.h"
 #include "../common.h"
 #include "../weights_init.h"
+#include "../dropout.h"
 
 namespace nntl {
 namespace activation {
 
-	template<typename RealT>
+	template<typename DropoutT, typename WeightsInitT>
 	class _i_function : public math::smatrix_td {
-		_i_function() = delete;
-		~_i_function() = delete;
 	public:
-		typedef RealT real_t;
+		typedef DropoutT Dropout_t;
+
+		typedef typename Dropout_t::real_t real_t;
+		
+		typedef WeightsInitT weights_scheme_t;
 
 		typedef math::smatrix<real_t> realmtx_t;
-		typedef math::smatrix_deform<real_t> realmtxdef_t;
+		typedef math::smatrix_deform<real_t> realmtxdef_t;		
 
 		//apply f to each srcdest matrix element to compute activation values. The biases (if any) must be left untouched!
 		template <typename iMath>
@@ -61,16 +64,17 @@ namespace activation {
 			return act.numel();
 		}
 
+		//////////////////////////////////////////////////////////////////////////
+		//to support state full activations this functions must be overridden
+		static constexpr bool act_init()noexcept{ return true; }
+		static constexpr void act_deinit()noexcept {}
 	};
 
 	//class defines interface for activation functions. It's intended to be used as a parent class only
 	//usually, _i_activation implementation class is nothing more than a thunk into iMath, which contains efficient code
-	template<typename RealT>
-	class _i_activation : public _i_function<RealT> {
-		_i_activation() = delete;
-		~_i_activation() = delete;
+	template<typename DropoutT, typename WeightsInitT>
+	class _i_activation : public _i_function<DropoutT, WeightsInitT> {
 	public:
-
 		//computes activation function derivative by using its value.
 		//i.e. computes y' based on y value ( not the x-value, where y=y(x) )
 		template <typename iMath>
@@ -89,35 +93,30 @@ namespace activation {
 	//for use in an output layer activations
 	template<typename RealT>
 	class _i_activation_loss {
-		~_i_activation_loss() = delete;
-		_i_activation_loss() = delete;
 	public:
 		//loss function
 		template <typename iMath>
-		nntl_interface static typename _i_activation<RealT>::real_t loss(const typename _i_activation<RealT>::realmtx_t& activations, const typename _i_activation<RealT>::realmtx_t& data_y, iMath& m)noexcept;
+		nntl_interface static RealT loss(const typename iMath::realmtx_t& activations, const typename iMath::realmtx_t& data_y, iMath& m)noexcept;
 
 		//loss function derivative wrt total neuron input Z (=Aprev_layer*W), dL/dZ
 		template <typename iMath>
-		nntl_interface static void dLdZ(const typename _i_activation<RealT>::realmtx_t& data_y,
-			IN OUT typename _i_activation<RealT>::realmtx_t& act_dLdZ, iMath& m)noexcept;
+		nntl_interface static void dLdZ(const typename iMath::realmtx_t& data_y,
+			IN OUT typename iMath::realmtx_t& act_dLdZ, iMath& m)noexcept;
 		//we glue into single function calculation of dL/dA and dA/dZ. The latter is in fact calculated by _i_activation::df(), but if
 		//we'll calculate dL/dZ in separate functions, then we can't make some optimizations
 
 		//to support linear layers
 		template <typename iMath>
-		nntl_interface static void dLdZIdentity(const typename _i_activation<RealT>::realmtx_t& data_y,
-			IN OUT typename _i_activation<RealT>::realmtx_t& act_dLdZ, iMath& m) noexcept;
+		nntl_interface static void dLdZIdentity(const typename iMath::realmtx_t& data_y,
+			IN OUT typename iMath::realmtx_t& act_dLdZ, iMath& m) noexcept;
 	};
 
 	template<typename RealT>
 	class _i_quadratic_loss : public _i_activation_loss<RealT> {
 	public:
-		~_i_quadratic_loss() = delete;
-		_i_quadratic_loss() = delete;
-
 		template <typename iMath>
-		static void dLdZIdentity(const typename _i_activation<RealT>::realmtx_t& data_y,
-			IN OUT typename _i_activation<RealT>::realmtx_t& act_dLdZ, iMath& m) noexcept
+		static void dLdZIdentity(const typename iMath::realmtx_t& data_y,
+			IN OUT typename iMath::realmtx_t& act_dLdZ, iMath& m) noexcept
 		{
 			static_assert(std::is_base_of<math::_i_math<RealT>, iMath>::value, "iMath should implement math::_i_math");
 			NNTL_ASSERT(!data_y.emulatesBiases() && !act_dLdZ.emulatesBiases());
@@ -128,12 +127,9 @@ namespace activation {
 	template<typename RealT>
 	class _i_xentropy_loss : public _i_activation_loss<RealT> {
 	public:
-		~_i_xentropy_loss() = delete;
-		_i_xentropy_loss() = delete;
-
 		template <typename iMath>
-		static void dLdZIdentity(const typename _i_activation<RealT>::realmtx_t& data_y,
-			IN OUT typename _i_activation<RealT>::realmtx_t& act_dLdZ, iMath& m) noexcept
+		static void dLdZIdentity(const typename iMath::realmtx_t& data_y,
+			IN OUT typename iMath::realmtx_t& act_dLdZ, iMath& m) noexcept
 		{
 			static_assert(std::is_base_of<math::_i_math<RealT>, iMath>::value, "iMath should implement math::_i_math");
 			NNTL_ASSERT(!data_y.emulatesBiases() && !act_dLdZ.emulatesBiases());

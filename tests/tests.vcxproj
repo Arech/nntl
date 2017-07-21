@@ -192,6 +192,7 @@
     <ClInclude Include="..\nntl\activations\_i_activation.h" />
     <ClInclude Include="..\nntl\common.h" />
     <ClInclude Include="..\nntl\common_nn_data.h" />
+    <ClInclude Include="..\nntl\dropout.h" />
     <ClInclude Include="..\nntl\errors.h" />
     <ClInclude Include="..\nntl\grad_works\grad_works.h" />
     <ClInclude Include="..\nntl\grad_works\ILR.h" />
@@ -220,6 +221,7 @@
     <ClInclude Include="..\nntl\layer\pack_tile.h" />
     <ClInclude Include="..\nntl\layer\pack_vertical.h" />
     <ClInclude Include="..\nntl\layer\penalized_activations.h" />
+    <ClInclude Include="..\nntl\layer\_activation_wrapper.h" />
     <ClInclude Include="..\nntl\layer\_init_layers.h" />
     <ClInclude Include="..\nntl\layer\_pack_.h" />
     <ClInclude Include="..\nntl\layer\_pack_traits.h" />
@@ -333,6 +335,7 @@
     <None Include="..\nntl\_supp\matlab\mnist2json.m" />
     <None Include="..\nntl\_supp\matlab\struct_transpose.m" />
     <None Include="..\nntl\_supp\matlab\td2json_file.m" />
+    <None Include="..\README.md" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

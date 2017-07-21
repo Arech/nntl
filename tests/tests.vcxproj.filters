@@ -435,6 +435,12 @@
     <ClInclude Include="..\nntl\activations\step.h">
       <Filter>nntl\activations</Filter>
     </ClInclude>
+    <ClInclude Include="..\nntl\layer\_activation_wrapper.h">
+      <Filter>nntl\layer</Filter>
+    </ClInclude>
+    <ClInclude Include="..\nntl\dropout.h">
+      <Filter>nntl</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="stdafx.cpp">
@@ -528,6 +534,9 @@
     </None>
     <None Include="..\nntl\_supp\matlab\struct_transpose.m">
       <Filter>nntl\_supp\matlab</Filter>
+    </None>
+    <None Include="..\README.md">
+      <Filter>nntl</Filter>
     </None>
   </ItemGroup>
 </Project>
