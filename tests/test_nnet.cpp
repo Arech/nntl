@@ -34,6 +34,9 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include "stdafx.h"
 
+//to get rid of '... decorated name length exceeded, name was truncated'
+#pragma warning( disable : 4503 )
+
 #include "../nntl/nntl.h"
 #include "../nntl/_supp/io/binfile.h"
 #include "../nntl/_supp/io/matfile.h"
@@ -42,6 +45,8 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include "asserts.h"
 #include "common_routines.h"
+
+#include "nn_base_arch.h"
 
 using namespace nntl;
 typedef nntl_supp::binfile reader_t;
@@ -279,3 +284,42 @@ TEST(TestNnet, LSUVExt) {
 	test_LSUVExt<real_t>(td, true, true, true, s);
 
 }
+
+//////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////
+
+template<typename ArchPrmsT>
+struct GC_DROPOUT : public nntl_tests::NN_base_arch_td<ArchPrmsT> {
+	myLFC lFinal;
+
+	~GC_DROPOUT()noexcept {}
+	GC_DROPOUT(const ArchPrms_t& Prms)noexcept
+		: lFinal(100, Prms.learningRate, Prms.specialDropoutAlivePerc, "lFinal")
+	{}
+};
+TEST(TestNnet, GradCheck_dropout) {
+	typedef double real_t;
+	typedef nntl_tests::NN_base_params<real_t, nntl::inspector::GradCheck<real_t>> ArchPrms_t;
+
+	nntl::train_data<real_t> td;
+	readTd(td);
+
+	ArchPrms_t Prms(td);
+	Prms.specialDropoutAlivePerc = real_t(.75);
+	
+	nntl_tests::NN_arch<GC_DROPOUT<ArchPrms_t>> nnArch(Prms);
+
+	auto ec = nnArch.warmup(td, 5, 200);
+	ASSERT_EQ(decltype(nnArch)::ErrorCode_t::Success, ec) << "Reason: " << nnArch.NN.get_error_str(ec);
+
+	gradcheck_settings<real_t> ngcSetts(true, true, 1e-4);
+	//ngcSetts.evalSetts.bIgnoreZerodLdWInUndelyingLayer = true;
+	//ngcSetts.evalSetts.dLdW_setts.relErrFailThrsh = real_t(5e-3);//numeric errors due to dLdAPrev addition in LPH stacks up significantly
+	
+	ngcSetts.evalSetts.dLdA_setts.percOfZeros = 70;
+	ngcSetts.evalSetts.dLdW_setts.percOfZeros = 70;
+	ASSERT_TRUE(nnArch.NN.gradcheck(td.train_x(), td.train_y(), 5, ngcSetts));
+}
+
+//////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////

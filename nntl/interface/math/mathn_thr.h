@@ -59,6 +59,7 @@ namespace _impl {
 		static constexpr size_t mCheck_normalize_rows = 124000;
 		static constexpr size_t evClamp = 9000;
 		static constexpr size_t make_dropout = 7000;
+		static constexpr size_t make_alphaDropout = 5000;
 
 		static constexpr size_t apply_ILR_st_vec = 2620/2;
 		static constexpr size_t apply_ILR_mt = 9000/2;
@@ -78,6 +79,8 @@ namespace _impl {
 		static constexpr size_t evSub_ip = 22000;
 		static constexpr size_t evSub = 12600;
 		static constexpr size_t evMulC_ip_Sub_ip = 15000;
+
+		static constexpr size_t evSubMtxMulC_ip_nb = 10000;
 
 		static constexpr size_t evSquare = 24400;
 		//static constexpr size_t vSumSquares = 20000;//not tested
@@ -167,6 +170,7 @@ namespace _impl {
 		static constexpr size_t mCheck_normalize_rows = 250000;
 		static constexpr size_t evClamp = 14000;
 		static constexpr size_t make_dropout = 13000;//*
+		static constexpr size_t make_alphaDropout = 2700;//*
 
 		static constexpr size_t apply_ILR_st_vec = 2620; //*
 		static constexpr size_t apply_ILR_mt = 9000; //*
@@ -186,6 +190,8 @@ namespace _impl {
 		static constexpr size_t evSub_ip = 46000;
 		static constexpr size_t evSub = 28000;
 		static constexpr size_t evMulC_ip_Sub_ip = 30000;
+
+		static constexpr size_t evSubMtxMulC_ip_nb = 14000;//*
 
 		static constexpr size_t evSquare = 49000;
 		//static constexpr size_t vSumSquares = 40000; //not tested

@@ -41,6 +41,7 @@ namespace nntl_tests {
 		typedef InspectorT Inspector_t;
 
 		typedef nntl::activation::softsign<real_t> myActivation;
+		//typedef nntl::activation::leaky_relu_100<real_t> myActivation;
 
 		typedef nntl::activation::softsigm_quad_loss <real_t, 1000, nntl::weights_init::He_Zhang<>, true> myOutputActivation;
 		//typedef nntl::activation::sigm_quad_loss<real_t> myOutputActivation;
@@ -51,7 +52,7 @@ namespace nntl_tests {
 		real_t learningRate;
 		real_t outputLearningRate;
 
-		real_t dropoutAlivePerc;
+		real_t dropoutAlivePerc, specialDropoutAlivePerc;
 		real_t nesterovMomentum;
 		real_t l2regularizer, l1regularizer;
 		
@@ -63,7 +64,8 @@ namespace nntl_tests {
 			: xCols(td.train_x().cols_no_bias()), yCols(td.train_y().cols())
 			, lUnderlay_nc(37)//any sufficiently big number suits
 			, learningRate(real_t(.001)), outputLearningRate(learningRate)
-			, dropoutAlivePerc(real_t(0.)) , nesterovMomentum(real_t(0.))
+			, dropoutAlivePerc(real_t(1.)) , nesterovMomentum(real_t(0.))
+			, specialDropoutAlivePerc(real_t(1.))
 			, l2regularizer(real_t(0.)), l1regularizer(real_t(0.))
 			,maxNormVal(real_t(0.)), bNormIncludesBias(false)
 		{}

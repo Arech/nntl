@@ -658,13 +658,12 @@ namespace nntl {
 					//straight to the dL/dZ in output_layer...
 					// It's not very good idea (to skip output layer check) for the sake of purity, but if there's a bug in it,
 					// we most likely encounter wrong dL/dA in underlying layers, therefore it seems acceptable solution.
-					{
-						const auto lidx = lyr.get_layer_idx();
-						if (lidx != m_outputLayerIdx) {
-							if (m_ngcSetts.bVerbose) STDCOUT(lyr.get_layer_name_str() << ": ");
-							_checkdLdA(lidx, lyr.get_neurons_cnt()/*, lyr.get_common_data().get_cur_batch_size()*/);
-						}
-					}
+					
+					if (lyr.get_layer_idx() != m_outputLayerIdx) {
+						if (m_ngcSetts.bVerbose) STDCOUT(lyr.get_layer_name_str() << ": ");
+						//_doCheckdLdA(lyr);
+						_checkdLdA(lyr.get_layer_idx(), lyr.get_neurons_cnt());
+					}					
 					break;
 
 				default:
@@ -674,6 +673,19 @@ namespace nntl {
 			}
 
 		protected:
+			/*template<typename LayerT>
+			std::enable_if_t<is_dummy_dropout_class<LayerT>::value> _doCheckdLdA(LayerT& lyr)noexcept {
+				_checkdLdA(lyr.get_layer_idx(), lyr.get_neurons_cnt(), nullptr);
+			}
+			template<typename LayerT>
+			std::enable_if_t<!is_dummy_dropout_class<LayerT>::value> _doCheckdLdA(LayerT& lyr)noexcept {
+				const bool bDO = lyr.bDropout();
+				_checkdLdA(lyr.get_layer_idx(), lyr.get_neurons_cnt()
+					, bDO ? lyr._dropout_get_mask() : nullptr
+					, bDO ? lyr._dropout_activations_scaleInverse() : real_t(1.));
+			}
+*/
+
 			template<typename LayerT>
 			std::enable_if_t<is_layer_learnable<LayerT>::value> _doCheckdLdW(LayerT& lyr) noexcept {
 				if (m_ngcSetts.bVerbose) STDCOUT(lyr.get_layer_name_str() << ": ");
@@ -693,9 +705,13 @@ namespace nntl {
 			void _launchCheck(_impl::gradcheck_mode mode, const vec_len_t batchSize)noexcept {
 				_setMode(mode);
 				m_data.prepateToBatchSize(batchSize);
-				m_nn.get_common_data().set_mode_and_batch_size(true, batchSize);
-				m_nn.m_Layers.on_batch_size_change();
+				_prepNetToBatchSize(true, batchSize);
 				m_nn.m_Layers.for_each_packed_layer_exc_input_down(*this);
+			}
+
+			void _prepNetToBatchSize(const bool bTraining, const vec_len_t batchSize)noexcept {
+				m_nn.get_common_data().set_mode_and_batch_size(bTraining, batchSize);
+				m_nn.m_Layers.on_batch_size_change();
 			}
 
 			template<typename LayerT>
@@ -705,7 +721,12 @@ namespace nntl {
 			template<typename LayerT>
 			std::enable_if_t<!is_layer_pack<LayerT>::value> _checkInnerLayers(LayerT& lyr)const noexcept {}
 			
-			void _checkdLdA(const layer_index_t& lIdx, const neurons_count_t neuronsCnt/*, const vec_len_t& batchSize*/)noexcept {
+			void _checkdLdA(const layer_index_t& lIdx, const neurons_count_t neuronsCnt
+			//	, const realmtx_t* pDropoutMask, const real_t dropoutScaleInv = real_t(1.)
+			)noexcept
+			{
+				//NNTL_ASSERT(!pDropoutMask || !pDropoutMask->emulatesBiases());
+
 				const auto checkNeuronsCnt = m_ngcSetts.groupSetts.countToCheck(neuronsCnt);
 				if (m_ngcSetts.bVerbose) STDCOUTL( checkNeuronsCnt << " dL/dA values out of total " << neuronsCnt << "... ");
 
@@ -730,24 +751,36 @@ namespace nntl {
 					m_data.nextBatch(m_nn.get_iRng(), m_nn.get_iMath());
 
 					const mtx_coords_t coords(0, neurIdx);
+					const auto s = std::time(0);
 					iI.gc_prep_check_layer(lIdx, _impl::gradcheck_paramsGroup::dLdA, coords);
 
+					//_prepNetToBatchSize(false, m_data.batchX().rows());
+					//we must not change the bTraining state, because this would screw the loss value with dropout for example
+
 					iI.gc_set_phase(_impl::gradcheck_phase::df_numeric_minus);
-					const real_t LossMinus = _calcLossF();
+					const real_t LossMinus = _calcLossF(s);
+
+					//const bool bActivationWasDroppedOut = pDropoutMask && (real_t(0.) == pDropoutMask->get(coords));
 
 					iI.gc_set_phase(_impl::gradcheck_phase::df_numeric_plus);
-					//const real_t dLnum = (_calcLossF() - LossMinus) / doubleSs;
-					const real_t dLnum = numMult*(_calcLossF() - LossMinus);
-					
+					//const real_t dLnum = bActivationWasDroppedOut ? real_t(0) : numMult*(_calcLossF(s) - LossMinus);
+					const real_t dLnum = numMult*(_calcLossF(s) - LossMinus);
+
 					iI.gc_set_phase(_impl::gradcheck_phase::df_analytical);
+					//_prepNetToBatchSize(true, m_data.batchX().rows());
+					if (m_ngcSetts.bForceSeed) m_nn.get_iRng().seed64(s);
 					m_nn.m_Layers.fprop(m_data.batchX());
+					if (m_ngcSetts.bForceSeed) m_nn.get_iRng().seed64(s);
 					m_nn.m_Layers.bprop(m_data.batchY());
 					const real_t dLan = iI.get_analytical_value();
 
 					_checkErr(lIdx, dLan, dLnum, coords, maxZerodLdA, zerodLdA);
 				}
 				if (!m_failedLayerIdx){
-					if (m_ngcSetts.evalSetts.dLdA_setts.percOfZeros >= 100 && maxZerodLdA == zerodLdA) {
+					if (maxZerodLdA && zerodLdA) {
+						STDCOUTL("Note: "<< zerodLdA << " values were zeroed (acceptable up to " << maxZerodLdA << ")");
+					}
+					if (m_ngcSetts.evalSetts.dLdA_setts.percOfZeros >= 100 && maxZerodLdA <= zerodLdA) {
 						STDCOUTL("Warning: all dL/dA was zeroed. It's normal for a setups with LPHG, but error for others");
 					}
 					if(m_ngcSetts.bVerbose) STDCOUTL("Passed.");
@@ -761,17 +794,23 @@ namespace nntl {
 				auto& iI = m_nn.get_iInspect();
 
 				m_data.nextBatch(m_nn.get_iRng(), m_nn.get_iMath());
+				const auto s = std::time(0);
 
 				iI.gc_prep_check_layer(lIdx, _impl::gradcheck_paramsGroup::dLdW, coords);
 
+				//_prepNetToBatchSize(false, m_data.batchX().rows());
+
 				iI.gc_set_phase(_impl::gradcheck_phase::df_numeric_minus);
-				const real_t LossMinus = _calcLossF();
+				const real_t LossMinus = _calcLossF(s);
 
 				iI.gc_set_phase(_impl::gradcheck_phase::df_numeric_plus);
-				const real_t dLnum = (_calcLossF() - LossMinus) / doubleSs;
+				const real_t dLnum = (_calcLossF(s) - LossMinus) / doubleSs;
 
 				iI.gc_set_phase(_impl::gradcheck_phase::df_analytical);
+				//_prepNetToBatchSize(true, m_data.batchX().rows());
+				if (m_ngcSetts.bForceSeed) m_nn.get_iRng().seed64(s);
 				m_nn.m_Layers.fprop(m_data.batchX());
+				if (m_ngcSetts.bForceSeed) m_nn.get_iRng().seed64(s);
 				m_nn.m_Layers.bprop(m_data.batchY());
 				const real_t dLan = iI.get_analytical_value();
 
@@ -823,6 +862,10 @@ namespace nntl {
 				}				
 
 				if (!m_failedLayerIdx){
+					if (maxZerodLdW && zerodLdW) {
+						STDCOUTL("Note: " << zerodLdW << " values were zeroed (acceptable up to " << maxZerodLdW << ")");
+					}
+
 					if (m_ngcSetts.evalSetts.dLdW_setts.percOfZeros >= 100 && maxZerodLdW == zerodLdW) {
 						STDCOUTL("Warning: all dL/dW was zeroed. It can be OK for a setups with LPHG, but it's an error for others");
 					}
@@ -902,8 +945,9 @@ namespace nntl {
 				_say_final(coords);
 			}
 
-			const real_t _calcLossF()noexcept {
+			const real_t _calcLossF(size_t s)noexcept {
 				m_nn.m_Layers.prepToCalcLossAddendum();//cleanup cached loss version to always recalculate it from scratch, because we aren't interested in any cheats here.
+				if (m_ngcSetts.bForceSeed) m_nn.get_iRng().seed64(s);
 				m_nn.m_Layers.fprop(m_data.batchX());
 				return m_nn._calcLoss(nullptr, m_data.batchY());
 			}

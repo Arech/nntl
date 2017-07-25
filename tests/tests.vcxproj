@@ -314,6 +314,7 @@
     <ClCompile Include="test_nnet.cpp" />
     <ClCompile Include="test_perf_decisions.cpp" />
     <ClCompile Include="test_rng.cpp" />
+    <ClCompile Include="test_selu.cpp" />
     <ClCompile Include="test_simple_math.cpp" />
     <ClCompile Include="test_simple_math_thr.cpp" />
     <ClCompile Include="test_threading.cpp" />

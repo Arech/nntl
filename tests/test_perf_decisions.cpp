@@ -65,6 +65,103 @@ constexpr unsigned TEST_PERF_REPEATS_COUNT = 500;
 constexpr unsigned TEST_CORRECTN_REPEATS_COUNT = 50;
 #endif // NNTL_DEBUG
 
+//////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////
+
+template<typename RealT>
+void makeDropoutMask_baseline(math::smatrix<RealT>& dropoutMask, const RealT dpa)noexcept {
+	typedef RealT real_t;
+
+	//iR.gen_vector_norm_st(dropoutMask.data(), dropoutMask.numel());
+
+	const real_t dropPercActInv = real_t(1.) / dpa;
+	auto pDM = dropoutMask.data();// +er.elmBegin;
+	const auto pDME = pDM + dropoutMask.numel();// +er.totalElements();
+	while (pDM != pDME) {
+		const auto v = *pDM;
+		NNTL_ASSERT(v >= real_t(0.0) && v <= real_t(1.0));
+		*pDM++ = v < dpa ? dropPercActInv : real_t(0.);
+	}
+}
+
+// this routine is a way slower
+template<typename RealT>
+void makeDropoutMask_vec(math::smatrix<RealT>& dropoutMask, const RealT dpa)noexcept {
+	typedef RealT real_t;
+
+	const real_t dropPercActInv = real_t(1.) / dpa;
+
+	auto pDM = dropoutMask.data();// +er.elmBegin;
+	const auto pDME = pDM + dropoutMask.numel();// +er.totalElements();
+	while (pDM != pDME) {
+		const auto v = *pDM;
+		NNTL_ASSERT(v >= real_t(0.0) && v <= real_t(1.0));
+		*pDM++ = dropPercActInv*std::floor(dpa + v);
+		//*pDM++ = std::floor(dpa + v);
+	}
+	/*pDM = dropoutMask.data();
+	while (pDM != pDME) {
+		*pDM++ *= dropPercActInv;
+	}*/
+}
+
+template<typename iRngT>
+void testperf_makeDropoutMask(iRngT& iR, const typename iRngT::real_t dpa, const vec_len_t _tr, const vec_len_t _tc = 10)noexcept {
+	typedef typename iRngT::real_t real_t;
+	typedef typename iRngT::realmtx_t realmtx_t;
+
+	realmtx_t dm_b(_tr, _tc), dm_v(_tr, _tc);
+	ASSERT_TRUE(!dm_b.isAllocationFailed() && !dm_v.isAllocationFailed());
+
+	STDCOUTL("**** evaluating makeDropoutMask() variations over " << _tr << "x" << _tc << " matrix (" << dm_b.numel() << " elements) ****");
+
+	const unsigned rc = 100;
+
+	tictoc tB, tVec;
+	//////////////////////////////////////////////////////////////////////////
+	//testing performance
+	utils::prioritize_workers<utils::PriorityClass::PerfTesting, d_interfaces::iThreads_t> pw(iR.ithreads());
+
+	for (unsigned r = 0; r<rc; ++r)	{
+		iR.gen_matrix_norm(dm_b);
+		dm_b.clone_to(dm_v);
+		for (auto&& e : dm_v) {
+			e = real_t(1) - e;
+		}
+
+		tB.tic();
+		makeDropoutMask_baseline(dm_b, dpa);
+		tB.toc();
+
+		tVec.tic();
+		makeDropoutMask_vec(dm_v, dpa);
+		tVec.toc();
+
+		//STDCOUTL("b=" << vSumAbs_ET(dm_b) << " , v=" << vSumAbs_ET(dm_v));
+
+		//they might be slightly different in a rare cases, that's ok.
+		//ASSERT_MTX_EQ(dm_b, dm_v, "Algorithms yelded different results!");
+	}
+
+	tB.say("base");
+	tVec.say("vec");
+}
+
+TEST(TestPerfDecisions, makeDropoutMask) {
+	typedef typename d_interfaces::real_t real_t;
+
+	d_interfaces::iThreads_t trd;
+	d_interfaces::iRng_t rg;
+	rg.set_ithreads(trd);
+
+	testperf_makeDropoutMask(rg, real_t(.8), 1000, 100);
+	testperf_makeDropoutMask(rg, real_t(.2), 1000, 100);
+	testperf_makeDropoutMask(rg, real_t(.5), 1000, 100);
+}
+
+//////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////
+
 real_t t_sum_stdacc(const real_t* pVec, const numel_cnt_t& n)noexcept {
 	//current implementation of accumulate is similar to while{} statement, however it's also for() based
 	return std::accumulate(pVec, pVec + n, real_t(0.));

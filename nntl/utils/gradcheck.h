@@ -195,13 +195,14 @@ namespace nntl {
 
 		const real_t stepSize;
 		const bool bVerbose;
+		const bool bForceSeed;
 		vec_len_t onlineBatchSize;
 
 		//////////////////////////////////////////////////////////////////////////
-		gradcheck_settings()noexcept : stepSize(_impl::gradcheck_def_stepSize<real_t>::value), bVerbose(true), onlineBatchSize(1){}
+		//gradcheck_settings()noexcept : stepSize(_impl::gradcheck_def_stepSize<real_t>::value), bVerbose(true), onlineBatchSize(1){}
 
-		gradcheck_settings(bool vb, real_t ss = _impl::gradcheck_def_stepSize<real_t>::value)noexcept 
-			: stepSize(ss), bVerbose(vb), onlineBatchSize(1)
+		gradcheck_settings(bool vb=true, bool bFS=false, real_t ss = _impl::gradcheck_def_stepSize<real_t>::value)noexcept 
+			: stepSize(ss), bVerbose(vb), onlineBatchSize(1), bForceSeed(bFS)
 		{}
 	};
 

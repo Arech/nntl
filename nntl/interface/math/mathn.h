@@ -615,7 +615,7 @@ namespace math {
 		// act must be used in "no_bias" mode.
 		// Actually, the function must implement so called "inverted Dropout", see http://cs231n.github.io/neural-networks-2/
 		void make_dropout(realmtx_t& act, const real_t dropPercAct, realmtx_t& dropoutMask)noexcept {
-			if (act.numel_no_bias() < Thresholds_t::make_dropout) {
+			if (dropoutMask.numel() < Thresholds_t::make_dropout) {
 				get_self().make_dropout_st(act, dropPercAct, dropoutMask);
 			} else get_self().make_dropout_mt(act, dropPercAct, dropoutMask);
 		}
@@ -649,6 +649,81 @@ namespace math {
 			}, dropoutMask.numel());
 		}
 		
+		//////////////////////////////////////////////////////////////////////////
+		// on entry the dropoutMask must be filled with random values in range [0,1]
+		// For Alpha-dropout description see arxiv:1706.02515 "Self-Normalizing Neural Networks", by Günter Klambauer et al.
+		// Here we compute
+		// {dropoutMask <- 0, mtxB <- (a*(-Alpha*Lambda) + b) } with probability (1-p) and
+		// {dropoutMask <- a, mtxB <- b } with probability p
+		// Then we compute the post-dropout activations A3 <- A.*dropoutMask + mtxB
+		void make_alphaDropout(realmtx_t& act, const real_t dropPercAct
+			, const real_t a_dmKeepVal, const real_t b_mbKeepVal, const real_t mbDropVal
+			, realmtx_t& dropoutMask, realmtx_t& mtxB)noexcept
+		{
+			if (dropoutMask.numel() < Thresholds_t::make_alphaDropout) {
+				get_self().make_alphaDropout_st(act, dropPercAct, a_dmKeepVal, b_mbKeepVal, mbDropVal, dropoutMask, mtxB);
+			} else get_self().make_alphaDropout_mt(act, dropPercAct, a_dmKeepVal, b_mbKeepVal, mbDropVal, dropoutMask, mtxB);
+		}
+		void make_alphaDropout_st(realmtx_t& act, const real_t dropPercAct
+			, const real_t a_dmKeepVal, const real_t b_mbKeepVal, const real_t mbDropVal
+			, realmtx_t& dropoutMask, realmtx_t& mtxB, const elms_range*const pER = nullptr) const noexcept
+		{
+			get_self()._imake_alphaDropout_st(act, dropPercAct, a_dmKeepVal, b_mbKeepVal, mbDropVal, dropoutMask, mtxB
+				, pER ? *pER : elms_range(0, dropoutMask.numel()));
+		}
+		static void _imake_alphaDropout_st(realmtx_t& act, const real_t dropPercAct
+			, const real_t a_dmKeepVal, const real_t b_mbKeepVal, const real_t mbDropVal
+			, realmtx_t& dropoutMask, realmtx_t& mtxB, const elms_range& er) noexcept
+		{
+			NNTL_ASSERT(act.emulatesBiases() && !dropoutMask.emulatesBiases());
+			NNTL_ASSERT(act.size_no_bias() == dropoutMask.size());
+			NNTL_ASSERT(mtxB.size() == dropoutMask.size());
+			NNTL_ASSERT(!mtxB.emulatesBiases());
+			NNTL_ASSERT(dropPercAct > 0 && dropPercAct < 1);
+			NNTL_ASSERT(er.elmEnd <= dropoutMask.numel());
+
+			/*auto pmB = mtxB.data() + er.elmBegin;
+			auto pDM = dropoutMask.data() + er.elmBegin;
+			const auto pDME = pDM + er.totalElements();
+			while (pDM != pDME) {
+				const auto v = *pDM;
+				NNTL_ASSERT(v >= real_t(0.0) && v <= real_t(1.0));
+				const auto bKeep = v < dropPercAct;
+				*pDM++ = bKeep ? a_dmKeepVal : real_t(0.);
+				*pmB++ = bKeep ? b_mbKeepVal : mbDropVal;
+			}
+			pmB = mtxB.data();
+			pDM = dropoutMask.data();*/
+
+			const auto pmB = mtxB.data();
+			const auto pDM = dropoutMask.data();
+			for (numel_cnt_t i = er.elmBegin; i < er.elmEnd; ++i) {
+				const auto v = pDM[i];
+				NNTL_ASSERT(v >= real_t(0.0) && v <= real_t(1.0));
+				const auto bKeep = v < dropPercAct;
+				pDM[i] = bKeep ? a_dmKeepVal : real_t(0.);
+				pmB[i] = bKeep ? b_mbKeepVal : mbDropVal;
+			}
+
+			const auto pA = act.data();
+			for (numel_cnt_t i = er.elmBegin; i < er.elmEnd; ++i) pA[i] = pA[i] * pDM[i] + pmB[i];
+		}
+		void make_alphaDropout_mt(realmtx_t& act, const real_t dropPercAct
+			, const real_t a_dmKeepVal, const real_t b_mbKeepVal, const real_t mbDropVal
+			, realmtx_t& dropoutMask, realmtx_t& mtxB)noexcept
+		{
+			NNTL_ASSERT(act.emulatesBiases() && !dropoutMask.emulatesBiases());
+			NNTL_ASSERT(act.size_no_bias() == dropoutMask.size());
+			NNTL_ASSERT(dropPercAct > 0 && dropPercAct < 1);
+			NNTL_ASSERT(mtxB.size() == dropoutMask.size());
+			NNTL_ASSERT(!mtxB.emulatesBiases());
+
+			m_threads.run([&act, &dropoutMask, &mtxB, a_dmKeepVal, b_mbKeepVal, mbDropVal, dropPercAct, this](const par_range_t& r) {
+				get_self()._imake_alphaDropout_st(act, dropPercAct, a_dmKeepVal, b_mbKeepVal, mbDropVal, dropoutMask, mtxB, elms_range(r));
+			}, dropoutMask.numel());
+		}
+
+
 		//////////////////////////////////////////////////////////////////////////
 		//apply individual learning rate to dLdW
 		void apply_ILR(realmtx_t& dLdW, const realmtx_t& prevdLdW, realmtx_t& ILRGain,
@@ -911,6 +986,37 @@ namespace math {
 			NNTL_ASSERT(!A.empty() && A.numel_no_bias() > 0);
 			m_threads.run([pA = A.data(), b, this](const par_range_t& pr) {
 				get_self()._ievMulC_ip_st(pA, b, elms_range(pr));
+			}, A.numel_no_bias());
+		}
+
+		//////////////////////////////////////////////////////////////////////////
+		// inplace element-wise _no_bias operation A <- (A-M) .* c
+		void evSubMtxMulC_ip_nb(realmtx_t& A, const realmtx_t& M, const real_t c)noexcept {
+			if (A.numel_no_bias() < Thresholds_t::evSubMtxMulC_ip_nb) {
+				get_self().evSubMtxMulC_ip_nb_st(A, M, c);
+			} else get_self().evSubMtxMulC_ip_nb_mt(A, M, c);
+		}
+		void evSubMtxMulC_ip_nb_st(realmtx_t& A, const realmtx_t& M, const real_t c, const elms_range*const pER = nullptr)noexcept {
+			NNTL_ASSERT(!A.empty() && A.numel_no_bias() > 0);
+			NNTL_ASSERT(!M.empty() && A.size_no_bias() == M.size());
+			NNTL_ASSERT(c);
+			NNTL_ASSERT(!pER || pER->elmEnd <= A.numel_no_bias());
+			get_self()._ievSubMMulC_ip_nb_st(A.data(), M.data(), c, pER ? *pER : elms_range(0, A.numel_no_bias()));
+		}
+
+		static void _ievSubMMulC_ip_nb_st(real_t*const pA, const real_t*const pM, const real_t c, const elms_range& er)noexcept {
+			NNTL_ASSERT(pA && pM && c && er.totalElements() > 0);
+			for (numel_cnt_t i = er.elmBegin; i < er.elmEnd; ++i) {
+				pA[i] = (pA[i] - pM[i])*c;
+			}
+		}
+
+		void evSubMtxMulC_ip_nb_mt(realmtx_t& A, const realmtx_t& M, const real_t c)noexcept {
+			NNTL_ASSERT(!A.empty() && A.numel_no_bias() > 0);
+			NNTL_ASSERT(!M.empty() && A.size_no_bias() == M.size());
+			NNTL_ASSERT(c);
+			m_threads.run([pA = A.data(), pM = M.data(), c, this](const par_range_t& pr) {
+				get_self()._ievSubMMulC_ip_nb_st(pA, pM, c, elms_range(pr));
 			}, A.numel_no_bias());
 		}
 

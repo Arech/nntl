@@ -94,6 +94,8 @@ namespace nntl {
 				return true;
 			}
 
+			ithreads_t& ithreads()noexcept { return *m_pThreads; }
+
 			AFRand_mt(ithreads_t& t)noexcept : m_pThreads(&t) {
 				_construct_rngs(static_cast<int>(s64to32(std::time(0))));
 			}

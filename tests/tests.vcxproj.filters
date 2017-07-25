@@ -518,6 +518,9 @@
     <ClCompile Include="test_layer_penalized_activations.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="test_selu.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <None Include="..\nntl\_supp\matlab\td2json_file.m">

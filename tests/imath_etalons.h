@@ -195,3 +195,9 @@ void dLoss_deCov_ET(const nntl::math::smatrix<typename iMathT::real_t>& A
 		}
 	}
 }
+
+void make_alphaDropout_ET(realmtx_t& act, const real_t dropPercAct
+	, const real_t a_dmKeepVal, const real_t b_mbKeepVal, const real_t mbDropVal
+	, realmtx_t& dropoutMask, realmtx_t& mtxB) noexcept;
+
+void evSubMtxMulC_ip_nb_ET(realmtx_t& A, const realmtx_t& M, const real_t c)noexcept;

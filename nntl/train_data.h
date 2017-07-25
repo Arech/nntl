@@ -74,7 +74,7 @@ namespace nntl {
 
 		//////////////////////////////////////////////////////////////////////////
 
-		const bool operator==(const train_data& rhs)const noexcept {
+		bool operator==(const train_data& rhs)const noexcept {
 			return m_train_x == rhs.m_train_x && m_train_y == rhs.m_train_y && m_test_x == rhs.m_test_x && m_test_y == rhs.m_test_y;
 		}
 
@@ -91,11 +91,11 @@ namespace nntl {
 		mtxdef_t& train_x_mutable() noexcept { return m_train_x; }
 		mtxdef_t& train_y_mutable() noexcept { return m_train_y; }
 
-		const bool empty()const noexcept {
+		bool empty()const noexcept {
 			return m_train_x.empty() || m_train_y.empty() || m_test_x.empty() || m_test_y.empty();
 		}
 
-		const bool absorb(mtx_t&& _train_x, mtx_t&& _train_y, mtx_t&& _test_x, mtx_t&& _test_y)noexcept{
+		bool absorb(mtx_t&& _train_x, mtx_t&& _train_y, mtx_t&& _test_x, mtx_t&& _test_y)noexcept{
 			//, const bool noBiasEmulationNecessary=false)noexcept {
 			
 			if (!absorbsion_will_succeed(_train_x, _train_y,_test_x,_test_y))  return false;
@@ -109,7 +109,7 @@ namespace nntl {
 			return true;
 		}
 
-		static const bool absorbsion_will_succeed(const mtx_t& _train_x, const mtx_t& _train_y
+		static bool absorbsion_will_succeed(const mtx_t& _train_x, const mtx_t& _train_y
 			, const mtx_t& _test_x, const mtx_t& _test_y)noexcept //, const bool noBiasEmulationNecessary) noexcept
 		{
 			return !_train_x.empty() && !_train_y.empty() && _train_x.rows() == _train_y.rows()
@@ -124,7 +124,7 @@ namespace nntl {
 				//&& (noBiasEmulationNecessary ^ _train_x.emulatesBiases()) && (noBiasEmulationNecessary ^ _test_x.emulatesBiases());
 		}
 
-		const bool replace_Y_will_succeed(const mtx_t& _train_y, const mtx_t& _test_y)noexcept
+		bool replace_Y_will_succeed(const mtx_t& _train_y, const mtx_t& _test_y)noexcept
 		{
 			return !_train_y.empty() && _train_y.rows() == m_train_y.rows()
 				&& !_test_y.empty() && _test_y.rows() == m_test_y.rows()
@@ -134,7 +134,7 @@ namespace nntl {
 				;
 		}
 
-		const bool replace_Y(mtx_t&& _train_y, mtx_t&& _test_y)noexcept {
+		bool replace_Y(mtx_t&& _train_y, mtx_t&& _test_y)noexcept {
 			if (!replace_Y_will_succeed(_train_y, _test_y)) return false;
 
 			m_train_y = std::move(_train_y);

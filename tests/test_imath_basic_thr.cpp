@@ -1310,3 +1310,131 @@ TEST(TestMathNThr, mColumnsCov) {
 	test_mColumnsCov_perf(10000, 10);
 	test_mColumnsCov_perf(10000, 100);
 }
+
+//////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////
+
+void test_make_alphaDropout_perf(vec_len_t rowsCnt, vec_len_t colsCnt = 10, const real_t dpa = .5) {
+	const auto dataSize = realmtx_t::sNumel(rowsCnt, colsCnt);
+	STDCOUTL("**** testing make_alphaDropout() over " << rowsCnt << "x" << colsCnt << " matrix (" << dataSize << " elements) with dpa=" << dpa << " ****");
+	ASSERT_TRUE(dpa > 0 && dpa < 1);
+	
+	constexpr unsigned maxReps = TEST_PERF_REPEATS_COUNT;
+	realmtx_t A(rowsCnt, colsCnt, true), DM(rowsCnt, colsCnt), mB(rowsCnt, colsCnt);
+	const real_t a = real_t(2), b = real_t(-3), c = real_t(4);
+	
+	ASSERT_TRUE(!A.isAllocationFailed() && !DM.isAllocationFailed() && !mB.isAllocationFailed());
+
+	d_interfaces::iRng_t rg;
+	rg.set_ithreads(iM.ithreads());
+
+	const auto pA = A.data(), pDM = DM.data(), pB = mB.data();
+
+	real_t t = real_t(0);
+	tictoc tSt, tMt, tB;
+
+	utils::prioritize_workers<utils::PriorityClass::PerfTesting, imath_basic_t::ithreads_t> pw(iM.ithreads());
+	for (unsigned r = 0; r < maxReps; ++r) {
+
+		rg.gen_matrix_no_bias(A, real_t(5));
+		rg.gen_matrix_norm(DM);
+		tSt.tic();
+		iM.make_alphaDropout_st(A, dpa, a, b, c, DM, mB);
+		tSt.toc();
+		for (numel_cnt_t i = 0; i < dataSize; ++i) t += pA[i] + pDM[i] + pB[i];
+		
+		rg.gen_matrix_no_bias(A, real_t(5));
+		rg.gen_matrix_norm(DM);
+		tMt.tic();
+		iM.make_alphaDropout_mt(A, dpa, a, b, c, DM, mB);
+		tMt.toc();
+		for (numel_cnt_t i = 0; i < dataSize; ++i) t += pA[i] + pDM[i] + pB[i];
+
+		rg.gen_matrix_no_bias(A, real_t(5));
+		rg.gen_matrix_norm(DM);
+		tB.tic();
+		iM.make_alphaDropout(A, dpa, a, b, c, DM, mB);
+		tB.toc();
+		for (numel_cnt_t i = 0; i < dataSize; ++i) t += pA[i] + pDM[i] + pB[i];
+	}
+	tSt.say("st");
+	tMt.say("mt");
+	tB.say("best");
+
+	STDCOUTL(t);
+}
+
+TEST(TestMathNThr, make_alphaDropout) {
+	NNTL_RUN_TEST2(imath_basic_t::Thresholds_t::make_alphaDropout, 100) {
+		test_make_alphaDropout_perf(i, 100, real_t(.5));
+		test_make_alphaDropout_perf(i, 100, real_t(.2));
+		test_make_alphaDropout_perf(i, 100, real_t(.8));
+	}
+
+#ifndef TESTS_SKIP_LONGRUNNING
+	test_make_alphaDropout_perf(10000, 10, .5);
+#endif
+}
+
+//////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////
+
+void test_evSubMtxMulC_ip_nb_perf(vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
+	const auto dataSize = realmtx_t::sNumel(rowsCnt, colsCnt);
+	STDCOUTL("**** testing evSubMtxMulC_ip_nb() over " << rowsCnt << "x" << colsCnt << " matrix (" << dataSize << " elements) ****");
+	
+	constexpr unsigned maxReps = TEST_PERF_REPEATS_COUNT;
+	realmtx_t A(rowsCnt, colsCnt, true), mB(rowsCnt, colsCnt);
+	const real_t c = real_t(2);
+
+	ASSERT_TRUE(!A.isAllocationFailed() && !mB.isAllocationFailed());
+
+	d_interfaces::iRng_t rg;
+	rg.set_ithreads(iM.ithreads());
+
+	const auto pA = A.data();
+
+	real_t t = real_t(0);
+	tictoc tSt, tMt, tB;
+
+	utils::prioritize_workers<utils::PriorityClass::PerfTesting, imath_basic_t::ithreads_t> pw(iM.ithreads());
+	for (unsigned r = 0; r < maxReps; ++r) {
+
+		rg.gen_matrix_no_bias(A, real_t(5));
+		rg.gen_matrix(mB, real_t(5));
+		tSt.tic();
+		iM.evSubMtxMulC_ip_nb_st(A, mB, c);
+		tSt.toc();
+		for (numel_cnt_t i = 0; i < dataSize; ++i) t += pA[i];
+
+		rg.gen_matrix_no_bias(A, real_t(5));
+		rg.gen_matrix(mB, real_t(5));
+		tMt.tic();
+		iM.evSubMtxMulC_ip_nb_mt(A, mB, c);
+		tMt.toc();
+		for (numel_cnt_t i = 0; i < dataSize; ++i) t += pA[i];
+
+		rg.gen_matrix_no_bias(A, real_t(5));
+		rg.gen_matrix(mB, real_t(5));
+		tB.tic();
+		iM.evSubMtxMulC_ip_nb(A, mB, c);
+		tB.toc();
+		for (numel_cnt_t i = 0; i < dataSize; ++i) t += pA[i];
+	}
+	tSt.say("st");
+	tMt.say("mt");
+	tB.say("best");
+
+	STDCOUTL(t);
+}
+
+TEST(TestMathNThr, evSubMtxMulC_ip_nb) {
+	NNTL_RUN_TEST2(imath_basic_t::Thresholds_t::evSubMtxMulC_ip_nb, 100) {
+		test_evSubMtxMulC_ip_nb_perf(i, 100);
+	}
+
+#ifndef TESTS_SKIP_LONGRUNNING
+	test_evSubMtxMulC_ip_nb_perf(10000, 10);
+#endif
+}
+

@@ -31,9 +31,6 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 #pragma once
 
-//#include "_layer_base.h"
-
-//#include "../dropout.h"
 #include "_activation_wrapper.h"
 
 //This is a basic building block of almost any feedforward neural network - fully connected layer of neurons.
@@ -110,7 +107,6 @@ namespace nntl {
 		)noexcept
 			: _base_class_t(_neurons_cnt, pCustomName), m_weights()
 			, m_bWeightsInitialized(false), m_gradientWorks(learningRate)
-			//, m_dropoutMask(), m_dropoutPercentActive(dpa)
 			, m_nTiledTimes(0.)
 		{
 			dropoutPercentActive(dpa);
@@ -276,7 +272,7 @@ namespace nntl {
 
 			auto& _iI = get_self().get_iInspect();
 			_iI.bprop_begin(get_self().get_layer_idx(), dLdA);
-			_iI.bprop_finaldLdA(dLdA);
+						
 
 			dLdA.assert_storage_does_not_intersect(dLdAPrev);
 			dLdA.assert_storage_does_not_intersect(m_dLdW);
@@ -296,14 +292,22 @@ namespace nntl {
 			NNTL_ASSERT(bPrevLayerIsInput || dLdAPrev.size() == prevActivations.size_no_bias());//in vanilla simple BP we shouldn't calculate dLdAPrev for the first layer			
 
 			auto& iM = get_self().get_iMath();
-			const auto bUseDropout = bDropout();
 
-			if (bUseDropout) {
+			if (bDropout()) {
+				//we must cancel activations that was dropped out by the mask (should they've been restored by activation_f_t::df())
+				//and restore the scale of dL/dA according to 1/p
+				//because the true scaled_dL/dA = 1/p * computed_dL/dA
 				//we must undo the scaling step from inverted dropout in order to obtain correct activation values
-				//That is must be done as a basis to obtain correct dL/dA
-				_dropout_cancelScaling(m_activations, iM, _iI);
+				//It must be done as a basis to obtain correct dA/dZ
+				_dropout_restoreScaling(dLdA, m_activations, iM, _iI);
+
+				//we must undo the scaling step from inverted dropout in order to obtain correct activation values
+				//That is must be done as a basis to obtain correct dA/dZ
+				//_dropout_cancelScaling(m_activations, iM, _iI);
 			}
 			
+			_iI.bprop_finaldLdA(dLdA);
+
 			_iI.bprop_predAdZ(m_activations);
 			
 			realmtx_t dLdZ;
@@ -322,13 +326,6 @@ namespace nntl {
 			// there's a m_dropoutMask available (it has zeros for excluded and 1/m_dropoutPercentActive for included activations).
 			// By convention, gating layer and other external 'things' would pass dLdA with zeroed elements, that corresponds to
 			// excluded activations, because by the definition dL/dA_i == 0 means that i-th activation value should be left intact.
-
-			if (bUseDropout) {
-				//we must cancel activations that was dropped out by the mask (should they've been restored by activation_f_t::df())
-				//and restore the scale of dL/dZ according to 1/p
-				//because the true scaled_dL/dZ = 1/p * computed_dL/dZ
-				_dropout_restoreScaling(dLdZ, iM, _iI);
-			}
 
 			get_self()._cust_inspect(dLdZ);
 

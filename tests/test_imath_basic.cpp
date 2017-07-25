@@ -3769,3 +3769,149 @@ TEST(TestMathN, mColumnsCov) {
 	}
 }
 
+//////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////
+
+template<typename base_t> struct make_alphaDropout_EPS {};
+template<> struct make_alphaDropout_EPS<double> { static constexpr double eps = 1e-18; };
+template<> struct make_alphaDropout_EPS<float> { static constexpr float eps = 1e-12f; };
+
+void test_make_alphaDropout(vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
+	MTXSIZE_SCOPED_TRACE(rowsCnt, colsCnt, "make_alphaDropout");
+	constexpr unsigned testCorrRepCnt = TEST_CORRECTN_REPEATS_COUNT;
+
+	const real_t dpa = real_t(.6), a = real_t(2), b = real_t(-3), c = real_t(4);
+
+	realmtx_t A(rowsCnt, colsCnt, true), A_ET(rowsCnt, colsCnt, true), As(rowsCnt, colsCnt, true)
+		, DM(rowsCnt, colsCnt), DM_ET(rowsCnt, colsCnt), DMs(rowsCnt, colsCnt)
+		, mB(rowsCnt, colsCnt), mB_ET(rowsCnt, colsCnt);
+
+	ASSERT_TRUE(!A.isAllocationFailed() && !A_ET.isAllocationFailed() && !As.isAllocationFailed()
+		&& !DM.isAllocationFailed() && !DM_ET.isAllocationFailed() && !DMs.isAllocationFailed()
+		&& !mB.isAllocationFailed() && !mB_ET.isAllocationFailed());
+
+	d_interfaces::iRng_t rg;
+	rg.set_ithreads(iM.ithreads());
+
+	for (unsigned r = 0; r < testCorrRepCnt; ++r) {
+		rg.gen_matrix_no_bias(As, real_t(5));
+		rg.gen_matrix_norm(DMs);
+
+		As.copy_data_skip_bias(A_ET);
+		DMs.copy_to(DM_ET);		
+		mB_ET.ones();
+		make_alphaDropout_ET(A_ET, dpa, a, b, c, DM_ET, mB_ET);
+		ASSERT_TRUE(A_ET.test_biases_strict());
+
+		As.copy_data_skip_bias(A);
+		DMs.copy_to(DM);
+		mB.ones();
+		iM.make_alphaDropout_st(A, dpa, a, b, c, DM, mB);
+		ASSERT_TRUE(A.test_biases_strict());
+		ASSERT_REALMTX_NEAR(A, A_ET, "_st() computes different A!!", make_alphaDropout_EPS<real_t>::eps);
+		ASSERT_REALMTX_NEAR(DM, DM_ET, "_st() computes different DM!!", make_alphaDropout_EPS<real_t>::eps);
+		ASSERT_REALMTX_NEAR(mB, mB_ET, "_st() computes different mB!!", make_alphaDropout_EPS<real_t>::eps);
+
+		As.copy_data_skip_bias(A);
+		DMs.copy_to(DM);
+		mB.ones();
+		iM.make_alphaDropout_mt(A, dpa, a, b, c, DM, mB);
+		ASSERT_TRUE(A.test_biases_strict());
+		ASSERT_REALMTX_NEAR(A, A_ET, "_mt() computes different A!!", make_alphaDropout_EPS<real_t>::eps);
+		ASSERT_REALMTX_NEAR(DM, DM_ET, "_mt() computes different DM!!", make_alphaDropout_EPS<real_t>::eps);
+		ASSERT_REALMTX_NEAR(mB, mB_ET, "_mt() computes different mB!!", make_alphaDropout_EPS<real_t>::eps);
+
+		As.copy_data_skip_bias(A);
+		DMs.copy_to(DM);
+		mB.ones();
+		iM.make_alphaDropout(A, dpa, a, b, c, DM, mB);
+		ASSERT_TRUE(A.test_biases_strict());
+		ASSERT_REALMTX_NEAR(A, A_ET, "() computes different A!!", make_alphaDropout_EPS<real_t>::eps);
+		ASSERT_REALMTX_NEAR(DM, DM_ET, "() computes different DM!!", make_alphaDropout_EPS<real_t>::eps);
+		ASSERT_REALMTX_NEAR(mB, mB_ET, "() computes different mB!!", make_alphaDropout_EPS<real_t>::eps);
+	}
+}
+
+TEST(TestMathN, make_alphaDropout) {
+	for (vec_len_t r = 1; r < g_MinDataSizeDelta; ++r) {
+		for (vec_len_t c = 1; c < g_MinDataSizeDelta; ++c) {
+			ASSERT_NO_FATAL_FAILURE((test_make_alphaDropout(r, c)));
+		}
+	}
+
+	constexpr unsigned rowsCnt = _baseRowsCnt;
+	const vec_len_t maxCols = g_MinDataSizeDelta, maxRows = rowsCnt + g_MinDataSizeDelta;
+	for (vec_len_t r = rowsCnt; r < maxRows; ++r) {
+		for (vec_len_t c = 1; c < maxCols; ++c) {
+			ASSERT_NO_FATAL_FAILURE((test_make_alphaDropout(r, c)));
+		}
+	}
+}
+
+//////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////
+
+template<typename base_t> struct evSubMtxMulC_ip_nb_EPS {};
+template<> struct evSubMtxMulC_ip_nb_EPS<double> { static constexpr double eps = 1e-18; };
+template<> struct evSubMtxMulC_ip_nb_EPS<float> { static constexpr float eps = 1e-12f; };
+
+void test_evSubMtxMulC_ip_nb(vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
+	MTXSIZE_SCOPED_TRACE(rowsCnt, colsCnt, "evSubMtxMulC_ip_nb");
+	constexpr unsigned testCorrRepCnt = TEST_CORRECTN_REPEATS_COUNT;
+
+	const real_t c = real_t(4);
+
+	realmtx_t A(rowsCnt, colsCnt, true), A_ET(rowsCnt, colsCnt, true), As(rowsCnt, colsCnt, true)
+		, mB(rowsCnt, colsCnt), mBs(rowsCnt, colsCnt);
+
+	ASSERT_TRUE(!A.isAllocationFailed() && !A_ET.isAllocationFailed() && !As.isAllocationFailed()
+		&& !mB.isAllocationFailed() && !mBs.isAllocationFailed());
+
+	d_interfaces::iRng_t rg;
+	rg.set_ithreads(iM.ithreads());
+
+	for (unsigned r = 0; r < testCorrRepCnt; ++r) {
+		rg.gen_matrix_no_bias(As, real_t(5));
+		rg.gen_matrix(mBs, real_t(3));
+
+		As.copy_data_skip_bias(A_ET);
+		mBs.copy_to(mB);
+		evSubMtxMulC_ip_nb_ET(A_ET, mB, c);
+		ASSERT_TRUE(A_ET.test_biases_strict());
+		ASSERT_MTX_EQ(mB, mBs, "_ET changes const mtxM!");
+
+		As.copy_data_skip_bias(A);
+		iM.evSubMtxMulC_ip_nb_st(A, mB, c);
+		ASSERT_TRUE(A.test_biases_strict());
+		ASSERT_MTX_EQ(mB, mBs, "_st changes const mtxM!");
+		ASSERT_REALMTX_NEAR(A, A_ET, "_st() computes different A!!", evSubMtxMulC_ip_nb_EPS<real_t>::eps);
+
+		As.copy_data_skip_bias(A);
+		iM.evSubMtxMulC_ip_nb_mt(A, mB, c);
+		ASSERT_TRUE(A.test_biases_strict());
+		ASSERT_MTX_EQ(mB, mBs, "_mt changes const mtxM!");
+		ASSERT_REALMTX_NEAR(A, A_ET, "_mt() computes different A!!", evSubMtxMulC_ip_nb_EPS<real_t>::eps);
+
+		As.copy_data_skip_bias(A);
+		iM.evSubMtxMulC_ip_nb(A, mB, c);
+		ASSERT_TRUE(A.test_biases_strict());
+		ASSERT_MTX_EQ(mB, mBs, "() changes const mtxM!");
+		ASSERT_REALMTX_NEAR(A, A_ET, "() computes different A!!", evSubMtxMulC_ip_nb_EPS<real_t>::eps);
+	}
+}
+
+TEST(TestMathN, evSubMtxMulC_ip_nb) {
+	for (vec_len_t r = 1; r < g_MinDataSizeDelta; ++r) {
+		for (vec_len_t c = 1; c < g_MinDataSizeDelta; ++c) {
+			ASSERT_NO_FATAL_FAILURE((test_evSubMtxMulC_ip_nb(r, c)));
+		}
+	}
+
+	constexpr unsigned rowsCnt = _baseRowsCnt;
+	const vec_len_t maxCols = g_MinDataSizeDelta, maxRows = rowsCnt + g_MinDataSizeDelta;
+	for (vec_len_t r = rowsCnt; r < maxRows; ++r) {
+		for (vec_len_t c = 1; c < maxCols; ++c) {
+			ASSERT_NO_FATAL_FAILURE((test_evSubMtxMulC_ip_nb(r, c)));
+		}
+	}
+}

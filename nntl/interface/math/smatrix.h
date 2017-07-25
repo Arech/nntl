@@ -332,12 +332,12 @@ namespace math {
 
 	public:
 		//function is expected to be called from context of NNTL_ASSERT macro.
-		const bool test_biases_ok()const noexcept {
+		bool test_biases_ok()const noexcept {
 			//NNTL_ASSERT(emulatesBiases());
 			//if (!emulatesBiases()) return false;//not necessary test, because there's no restriction to have biases otherwise
 			return m_bHoleyBiases ? test_biases_holey() : test_biases_strict();
 		}
-		const bool test_biases_strict()const noexcept {
+		bool test_biases_strict()const noexcept {
 			NNTL_ASSERT(emulatesBiases() && !m_bHoleyBiases);
 			const auto ne = numel();
 			auto pS = &m_pData[ne - m_rows];
@@ -350,7 +350,7 @@ namespace math {
 			}
 			return cond;
 		}
-		const bool test_biases_holey()const noexcept {
+		bool test_biases_holey()const noexcept {
 			NNTL_ASSERT(emulatesBiases() && m_bHoleyBiases);
 
 			const auto ne = numel();
@@ -368,7 +368,7 @@ namespace math {
 
 
 		//debug only
-		const bool isBinary()const noexcept {
+		bool isBinary()const noexcept {
 			auto pS = m_pData;
 			const auto pE = end();
 			bool cond = true;
