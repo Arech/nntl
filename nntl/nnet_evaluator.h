@@ -66,10 +66,10 @@ namespace nntl {
 	struct eval_classification_binary : public i_nnet_evaluator<RealT> {
 	protected:
 		//typedef math::smatrix<char> binmtx_t;
-		typedef std::vector<char> binvec_t;
+		typedef ::std::vector<char> binvec_t;
 
 		//for each element of Y data (training/testing) contains binary flag if it's turned on or off
-		typedef std::array<binvec_t, 2> y_data_class_idx_t; //char instead of bool should be a bit faster (not tested)
+		typedef ::std::array<binvec_t, 2> y_data_class_idx_t; //char instead of bool should be a bit faster (not tested)
 
 	protected:
 		y_data_class_idx_t m_ydataPP;//preprocessed ground truth
@@ -127,7 +127,7 @@ namespace nntl {
 	struct eval_classification_one_hot : public i_nnet_evaluator<RealT> {
 	protected:
 		//for each element of Y data (training/testing) contains index of true element class (column number of biggest element in a row)
-		typedef std::array<std::vector<vec_len_t>, 2> y_data_class_idx_t;
+		typedef ::std::array<::std::vector<vec_len_t>, 2> y_data_class_idx_t;
 
 	protected:
 		y_data_class_idx_t m_ydataClassIdxs;//preprocessed ground truth

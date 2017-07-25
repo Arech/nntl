@@ -126,10 +126,10 @@ namespace nntl_supp {
 		//////////////////////////////////////////////////////////////////////////
 		//members
 	public:
-		std::size_t m_readBufSize;
+		::std::size_t m_readBufSize;
 
 	protected:
-		std::size_t m_parseErrorOffset;
+		::std::size_t m_parseErrorOffset;
 		rapidjson::ParseErrorCode m_parseError;
 
 	public:
@@ -142,19 +142,19 @@ namespace nntl_supp {
 		// If readInto_t == nntl::train_data, then all X data will be created with emulateBiases() feature and bMakeMtxBiased param will be ignored
 		template <typename readInto_t>
 		const ErrorCode read(const char* fname, readInto_t& dest, const bool bMakeMtxBiased=false) {
-			static_assert(std::is_same<train_data<typename readInto_t::value_type>, readInto_t>::value
-				|| std::is_same<smatrix<typename readInto_t::value_type>, readInto_t>::value,
+			static_assert(::std::is_same<train_data<typename readInto_t::value_type>, readInto_t>::value
+				|| ::std::is_same<smatrix<typename readInto_t::value_type>, readInto_t>::value,
 				"Only nntl::train_data or nntl::train_data::mtx_t is supported as readInto_t template parameter");
 			//bMakeMtxBiased is ignored for nntl::train_data and should be set as false by default
-			NNTL_ASSERT( (!std::is_same<train_data<typename readInto_t::value_type>, readInto_t>::value || !bMakeMtxBiased));
+			NNTL_ASSERT( (!::std::is_same<train_data<typename readInto_t::value_type>, readInto_t>::value || !bMakeMtxBiased));
 
-			std::FILE* fp = nullptr;
+			::std::FILE* fp = nullptr;
 
 			//TODO: there may be a conflict if fname is not char -derived type
 			if (fopen_s(&fp, fname, "rbS") || nullptr==fp) { return _set_last_error(ErrorCode::FailedToOpenFile); }
 
 			rapidjson::Document d;
-			std::vector<char> readbuf(m_readBufSize);
+			::std::vector<char> readbuf(m_readBufSize);
 			rapidjson::FileReadStream is(fp, &readbuf[0], readbuf.size());
 			d.ParseStream<rapidjson::kParseFullPrecisionFlag>(is);
 			readbuf.clear();
@@ -265,15 +265,15 @@ namespace nntl_supp {
 		}
 		
 		template <typename mvt>
-		typename std::enable_if_t< std::is_floating_point<mvt>::value, mvt > _extract_value(rapidjson::Document::ValueType::ConstValueIterator & itr)const noexcept {
+		typename ::std::enable_if_t< ::std::is_floating_point<mvt>::value, mvt > _extract_value(rapidjson::Document::ValueType::ConstValueIterator & itr)const noexcept {
 			return static_cast<mvt>(itr->GetDouble());
 		}
 		template <typename mvt>
-		typename std::enable_if_t< std::is_integral<mvt>::value && std::is_signed<mvt>::value, mvt > _extract_value(rapidjson::Document::ValueType::ConstValueIterator & itr)const noexcept {
+		typename ::std::enable_if_t< ::std::is_integral<mvt>::value && ::std::is_signed<mvt>::value, mvt > _extract_value(rapidjson::Document::ValueType::ConstValueIterator & itr)const noexcept {
 			return static_cast<mvt>(itr->GetInt64());
 		}
 		template <typename mvt>
-		typename std::enable_if_t< std::is_integral<mvt>::value && std::is_unsigned<mvt>::value, mvt > _extract_value(rapidjson::Document::ValueType::ConstValueIterator & itr)const noexcept {
+		typename ::std::enable_if_t< ::std::is_integral<mvt>::value && ::std::is_unsigned<mvt>::value, mvt > _extract_value(rapidjson::Document::ValueType::ConstValueIterator & itr)const noexcept {
 			return static_cast<mvt>(itr->GetUint64());
 		}
 
@@ -298,7 +298,7 @@ namespace nntl_supp {
 			if (ErrorCode::Success != _parse_mtx(d, test_x, t_x)) { return get_last_error(); }
 			if (ErrorCode::Success != _parse_mtx(d, test_y, t_y)) { return get_last_error(); }
 			
-			if (!dest.absorb(std::move(tr_x), std::move(tr_y), std::move(t_x), std::move(t_y))) { //, !bMakeXDataBiased)) {
+			if (!dest.absorb(::std::move(tr_x), ::std::move(tr_y), ::std::move(t_x), ::std::move(t_y))) { //, !bMakeXDataBiased)) {
 				return _set_last_error(ErrorCode::MismatchingDataLength);
 			}
 
@@ -317,18 +317,18 @@ namespace nntl_supp {
 		}
 
 	public:
-		std::string get_last_error_string()const noexcept { 
-			std::string les(get_last_error_str());
+		::std::string get_last_error_string()const noexcept { 
+			::std::string les(get_last_error_str());
 
 			if (ErrorCode::FailedToParseJson == get_last_error()) {
 				les = les + " Rapidjson: " + rapidjson::GetParseError_En(get_parse_error())
-					+ " Offset: " + std::to_string(get_parse_error_offset());
+					+ " Offset: " + ::std::to_string(get_parse_error_offset());
 			}
 			return les;
 		}
 
 		const rapidjson::ParseErrorCode get_parse_error() const noexcept { return m_parseError; }
-		const std::size_t get_parse_error_offset() const noexcept { return m_parseErrorOffset; }
+		const ::std::size_t get_parse_error_offset() const noexcept { return m_parseErrorOffset; }
 	};
 
 }

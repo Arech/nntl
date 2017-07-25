@@ -50,7 +50,7 @@ namespace rng {
 
 	protected:
 		iRng_t& m_iR;
-		std::normal_distribution<real_t> m_distr;
+		::std::normal_distribution<real_t> m_distr;
 
 	public:
 		~distr_normal_naive() {}

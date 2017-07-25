@@ -55,7 +55,7 @@ constexpr unsigned TEST_CORRECTN_REPEATS_COUNT = 50;
 
 TEST(TestUtils, PrioritizeWorkersPerf) {
 	typedef nntl::d_interfaces::iThreads_t def_threads_t;
-	using namespace std::chrono;
+	using namespace ::std::chrono;
 
 	steady_clock::time_point bt;
 	nanoseconds diff;
@@ -101,7 +101,7 @@ TEST(TestUtils, OwnOrUsePtr) {
 
 	//////////////////////////////////////////////////////////////////////////
 	// move-related stuff
-	/*utils::own_or_use_ptr<int*> pu3(std::move(pu2));
+	/*utils::own_or_use_ptr<int*> pu3(::std::move(pu2));
 	ASSERT_TRUE(!pu3.bOwning);
 	ASSERT_TRUE(!pu3.empty());
 	ASSERT_TRUE(2 == pu3);
@@ -295,14 +295,14 @@ namespace _MixinsConcept {
 		static void print() {
 			STDCOUTL("There are " << TotalOpts << " opts:");
 
-			STDCOUTL("root total=" << (boost::mpl::at_c<mixin_opts_cnt, 0>::type::value));
-			STDCOUTL("M1 total=" << (boost::mpl::at_c<mixin_opts_cnt, 1>::type::value));
-			STDCOUTL("M2 total=" << (boost::mpl::at_c<mixin_opts_cnt, 2>::type::value));
+			STDCOUTL("root total=" << (::boost::mpl::at_c<mixin_opts_cnt, 0>::type::value));
+			STDCOUTL("M1 total=" << (::boost::mpl::at_c<mixin_opts_cnt, 1>::type::value));
+			STDCOUTL("M2 total=" << (::boost::mpl::at_c<mixin_opts_cnt, 2>::type::value));
 
 			STDCOUTL("\nOffsets are:");
-			STDCOUTL("root =" << (boost::mpl::at_c<mixin_opts_ofs, 0>::type::value));
-			STDCOUTL("M1 =" << (boost::mpl::at_c<mixin_opts_ofs, 1>::type::value));
-			STDCOUTL("M2 =" << (boost::mpl::at_c<mixin_opts_ofs, 2>::type::value));
+			STDCOUTL("root =" << (::boost::mpl::at_c<mixin_opts_ofs, 0>::type::value));
+			STDCOUTL("M1 =" << (::boost::mpl::at_c<mixin_opts_ofs, 1>::type::value));
+			STDCOUTL("M2 =" << (::boost::mpl::at_c<mixin_opts_ofs, 2>::type::value));
 		}
 	};
 }

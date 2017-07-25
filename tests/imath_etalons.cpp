@@ -58,10 +58,10 @@ void softmax_parts_ET(const realmtx_t& act, const real_t* pMax, real_t* pDenomin
 	const auto rm = act.rows(), cm = act.cols();
 	realmtx_t Numerator;
 	Numerator.useExternalStorage(pNumerator, rm, cm);
-	std::fill(pDenominator, pDenominator + rm, real_t(0.0));
+	::std::fill(pDenominator, pDenominator + rm, real_t(0.0));
 	for (vec_len_t c = 0; c < cm; ++c) {
 		for (vec_len_t r = 0; r < rm; ++r) {
-			const auto num = std::exp(act.get(r, c) - pMax[r]);
+			const auto num = ::std::exp(act.get(r, c) - pMax[r]);
 			pDenominator[r] += num;
 			Numerator.set(r, c, num);
 		}
@@ -95,7 +95,7 @@ real_t loss_softmax_xentropy_ET(const realmtx_t& activations, const realmtx_t& d
 		const auto y = pY[i];
 		NNTL_ASSERT(a >= real_t(0.0) && a <= real_t(1.0));
 		NNTL_ASSERT(y >= real_t(0.0) && y <= real_t(1.0));
-		a = a > real_t(0.0) ? std::log(a) : nntl::math::real_t_limits<real_t>::log_almost_zero;
+		a = a > real_t(0.0) ? ::std::log(a) : nntl::math::real_t_limits<real_t>::log_almost_zero;
 		ret -= y*a;
 		NNTL_ASSERT(!isnan(ret));
 	}
@@ -167,7 +167,7 @@ void evAbs_ET(realmtx_t& dest, const realmtx_t& src)noexcept {
 	const auto pS = src.data();
 	auto pD = dest.data();
 	const auto dataCnt = src.numel();
-	for (numel_cnt_t i = 0; i < dataCnt; ++i)  pD[i] = std::abs(pS[i]);
+	for (numel_cnt_t i = 0; i < dataCnt; ++i)  pD[i] = ::std::abs(pS[i]);
 }
 
 void evAdd_ip_ET(realmtx_t& A, const realmtx_t& B)noexcept {
@@ -240,7 +240,7 @@ real_t loss_xentropy_ET(const realmtx_t& activations, const realmtx_t& data_y)no
 		NNTL_ASSERT(a >= real_t(0.0) && a <= real_t(1.0));
 
 		if (y > real_t(0.0)) {
-			ql += (a == real_t(0.0) ? log_zero : std::log(a));
+			ql += (a == real_t(0.0) ? log_zero : ::std::log(a));
 		} else {
 			//const auto oma = real_t(1.0) - a;
 			//ql += (oma == real_t(0.0) ? log_zero : log(oma));
@@ -279,7 +279,7 @@ void ModProp_ET(realmtx_t& dW, realmtx_t& rmsF, const real_t learningRate, const
 	const auto _1_emaDecay = 1 - emaDecay;
 	const auto dataCnt = dW.numel();
 	for (numel_cnt_t i = 0; i < dataCnt; ++i) {
-		const auto rms = prmsF[i] * emaDecay + std::abs(pdW[i])*_1_emaDecay;
+		const auto rms = prmsF[i] * emaDecay + ::std::abs(pdW[i])*_1_emaDecay;
 		prmsF[i] = rms;
 		pdW[i] *= learningRate / (rms + numericStabilizer);
 	}
@@ -348,7 +348,7 @@ void Adam_ET(realmtx_t& dW, realmtx_t& Mt, realmtx_t& Vt, real_t& beta1t, real_t
 	for (numel_cnt_t i = 0; i < ne; ++i) {
 		const auto g = pDw[i];
 		pMt[i] = beta1*pMt[i] + ombeta1*g;
-		pVt[i] = beta2*pVt[i] + ombeta2*g*g;
+		pVt[i] = beta2*pVt[i] + ombeta2*(g*g);
 		pDw[i] = alphat*pMt[i] / (sqrt(pVt[i]) + numericStabilizer);
 	}
 }
@@ -370,7 +370,7 @@ void AdaMax_ET(realmtx_t& dW, realmtx_t& Mt, realmtx_t& Ut, real_t& beta1t, cons
 	for (numel_cnt_t i = 0; i < ne; ++i) {
 		const auto g = pDw[i];
 		pMt[i] = beta1*pMt[i] + ombeta1*g;
-		pUt[i] = std::max({ beta2*pUt[i] ,std::abs(g) });
+		pUt[i] = ::std::max({ beta2*pUt[i] ,::std::abs(g) });
 		pDw[i] = alphat*pMt[i] / (pUt[i] + numericStabilizer);
 	}
 }
@@ -457,7 +457,7 @@ real_t rowvecs_renorm_ET(realmtx_t& m, const real_t newNormSq, const bool bNormI
 	}
 
 	//finding average norm
-	real_t meanNorm = static_cast<real_t>(std::accumulate(pTmp, pTmp + mRows, 0.0) / cols4norm);
+	real_t meanNorm = static_cast<real_t>(::std::accumulate(pTmp, pTmp + mRows, 0.0) / cols4norm);
 
 	//test and renormalize
 	//const real_t newNorm = meanNorm - sqrt(math::real_t_limits<real_t>::eps_lower_n(meanNorm, rowvecs_renorm_MULT));
@@ -482,7 +482,7 @@ real_t vSumAbs_ET(const realmtx_t& A)noexcept {
 	const auto p = A.data();
 	real_t ret(0), C(0.), Y, T;
 	for (numel_cnt_t i = 0; i < dataCnt; ++i) {
-		Y = std::abs(p[i]) - C;
+		Y = ::std::abs(p[i]) - C;
 		T = ret + Y;
 		C = T - ret - Y;
 		ret = T;
@@ -496,7 +496,7 @@ void sigm_ET(realmtx_t& X) {
 	const auto p = X.data();
 	const auto ne = X.numel_no_bias();
 	for (numel_cnt_t i = 0; i < ne; ++i) {
-		p[i] = real_t(1.0) / (real_t(1.0) + std::exp(-p[i]));
+		p[i] = real_t(1.0) / (real_t(1.0) + ::std::exp(-p[i]));
 	}
 }
 void dsigm_ET(realmtx_t& f_df) {
@@ -543,7 +543,7 @@ void elu_ET(realmtx_t& f, const real_t alpha) {
 	const auto p = f.data();
 	const auto ne = f.numel_no_bias();
 	for (numel_cnt_t i = 0; i < ne; ++i) {
-		//if (p[i] < real_t(0.)) p[i] = alpha*(std::exp(p[i]) - real_t(1.));
+		//if (p[i] < real_t(0.)) p[i] = alpha*(::std::exp(p[i]) - real_t(1.));
 		if (p[i] < real_t(0.)) p[i] = alpha*nntl::math::expm1(p[i]);
 	}
 }
@@ -564,7 +564,7 @@ void selu_ET(realmtx_t& f, const real_t& alpha, const real_t& lambda) {
 	const auto p = f.data();
 	const auto ne = f.numel_no_bias();
 	for (numel_cnt_t i = 0; i < ne; ++i) {
-		//if (p[i] < real_t(0.)) p[i] = alpha*(std::exp(p[i]) - real_t(1.));
+		//if (p[i] < real_t(0.)) p[i] = alpha*(::std::exp(p[i]) - real_t(1.));
 		if (p[i] < real_t(0.)) {
 			p[i] = lambda*alpha*nntl::math::expm1(p[i]);
 		} else {
@@ -587,11 +587,11 @@ void elogu_ET(const realmtx_t& x, realmtx_t& f, const real_t& alpha, const real_
 	const auto px = x.data();
 	const auto dest = f.data();
 	const auto ne = x.numel_no_bias();
-	const auto ilb = real_t(1.) / std::log(b);
+	const auto ilb = real_t(1.) / ::std::log(b);
 	for (numel_cnt_t i = 0; i < ne; ++i) {
 		const auto xv = px[i];
 		if (xv < real_t(0.)) {
-			//dest[i] = alpha*(std::exp(xv) - real_t(1.));
+			//dest[i] = alpha*(::std::exp(xv) - real_t(1.));
 			dest[i] = alpha*nntl::math::expm1(xv);
 		} else {
 			//dest[i] = log(xv + real_t(1.))*ilb;
@@ -601,14 +601,14 @@ void elogu_ET(const realmtx_t& x, realmtx_t& f, const real_t& alpha, const real_
 }
 void delogu_ET(const realmtx_t& x, realmtx_t& df, const real_t& alpha, const real_t& b) {
 	NNTL_ASSERT(df.size() == x.size_no_bias());
-	const auto ilb = real_t(1.) / std::log(b);
+	const auto ilb = real_t(1.) / ::std::log(b);
 	const auto px = x.data();
 	const auto dest = df.data();
 	const auto ne = x.numel_no_bias();
 	for (numel_cnt_t i = 0; i < ne; ++i) {
 		const auto xv = px[i];
 		if (xv < real_t(0.)) {
-			dest[i] = alpha*std::exp(xv);
+			dest[i] = alpha*::std::exp(xv);
 		} else {
 			dest[i] = ilb / (xv + real_t(1.));
 		}
@@ -627,8 +627,8 @@ void loglogu_ET(const realmtx_t& x, realmtx_t& f, const real_t& b_neg, const rea
 	const auto dest = f.data();
 	const auto ne = x.numel_no_bias();
 
-	const auto ilbpos = real_t(1.) / std::log(b_pos);
-	const auto nilbneg = real_t(-1.) / std::log(b_neg);
+	const auto ilbpos = real_t(1.) / ::std::log(b_pos);
+	const auto nilbneg = real_t(-1.) / ::std::log(b_neg);
 
 	for (numel_cnt_t i = 0; i < ne; ++i) {
 		const auto xv = px[i];
@@ -647,8 +647,8 @@ void dloglogu_ET(const realmtx_t& x, realmtx_t& df, const real_t& b_neg, const r
 	const auto dest = df.data();
 	const auto ne = x.numel_no_bias();
 
-	const auto ilbpos = real_t(1.) / std::log(b_pos);
-	const auto ilbneg = real_t(1.) / std::log(b_neg);
+	const auto ilbpos = real_t(1.) / ::std::log(b_pos);
+	const auto ilbneg = real_t(1.) / ::std::log(b_neg);
 
 	for (numel_cnt_t i = 0; i < ne; ++i) {
 		const auto xv = px[i];
@@ -676,7 +676,7 @@ void softsign_ET(const realmtx_t& x, realmtx_t& f, const real_t& a) {
 	const auto ne = x.numel_no_bias();
 	for (numel_cnt_t i = 0; i < ne; ++i) {
 		const auto xv = px[i];
-		dest[i] = xv / (a + std::abs(xv));
+		dest[i] = xv / (a + ::std::abs(xv));
 	}
 }
 void dsoftsign_ET(const realmtx_t& x, realmtx_t& df, const real_t& a) {
@@ -687,7 +687,7 @@ void dsoftsign_ET(const realmtx_t& x, realmtx_t& df, const real_t& a) {
 
 	for (numel_cnt_t i = 0; i < ne; ++i) {
 		const auto xv = px[i];
-		const auto d = a + std::abs(xv);
+		const auto d = a + ::std::abs(xv);
 		dest[i] = a / (d*d);
 	}
 }
@@ -700,7 +700,7 @@ void softsigm_ET(const realmtx_t& x, realmtx_t& f, const real_t& a) {
 	const auto ne = x.numel_no_bias();
 	for (numel_cnt_t i = 0; i < ne; ++i) {
 		const auto xv = px[i];
-		dest[i] = real_t(.5) + xv / (real_t(2.)*(a + std::abs(xv)));
+		dest[i] = real_t(.5) + xv / (real_t(2.)*(a + ::std::abs(xv)));
 	}
 }
 void dsoftsigm_ET(const realmtx_t& x, realmtx_t& df, const real_t& a) {
@@ -711,7 +711,7 @@ void dsoftsigm_ET(const realmtx_t& x, realmtx_t& df, const real_t& a) {
 
 	for (numel_cnt_t i = 0; i < ne; ++i) {
 		const auto xv = px[i];
-		const auto d = a + std::abs(xv);
+		const auto d = a + ::std::abs(xv);
 		dest[i] = a / (real_t(2.)* d*d);
 	}
 }

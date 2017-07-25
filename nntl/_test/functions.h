@@ -60,18 +60,18 @@ namespace nntl {
 			}
 
 			ASrc.clone_to(dLdZ_ET);
-			(std::forward<FET>(fet))(Y, dLdZ_ET);
+			(::std::forward<FET>(fet))(Y, dLdZ_ET);
 
 			ASrc.clone_to(A);
-			(std::forward<FST>(fst))(Y, A);
+			(::std::forward<FST>(fst))(Y, A);
 			ASSERT_MTX_EQ(dLdZ_ET, A, "_st");
 
 			ASrc.clone_to(A);
-			(std::forward<FMT>(fmt))(Y, A);
+			(::std::forward<FMT>(fmt))(Y, A);
 			ASSERT_MTX_EQ(dLdZ_ET, A, "_mt");
 
 			ASrc.clone_to(A);
-			(std::forward<FB>(fb))(Y, A);
+			(::std::forward<FB>(fb))(Y, A);
 			ASSERT_MTX_EQ(dLdZ_ET, A, "()");
 		}
 	}
@@ -103,21 +103,21 @@ namespace nntl {
 			ASSERT_TRUE(!XHasBiases || XSrc.test_biases_ok());
 
 			XSrc.clone_to(X_ET);
-			(std::forward<FET>(fet))(X_ET);
+			(::std::forward<FET>(fet))(X_ET);
 			ASSERT_TRUE(!XHasBiases || X_ET.test_biases_ok());
 
 			XSrc.clone_to(X);
-			(std::forward<FST>(fst))(X);
+			(::std::forward<FST>(fst))(X);
 			ASSERT_TRUE(!XHasBiases || X.test_biases_ok());
 			ASSERT_MTX_EQ(X_ET, X, "_st");
 
 			XSrc.clone_to(X);
-			(std::forward<FMT>(fmt))(X);
+			(::std::forward<FMT>(fmt))(X);
 			ASSERT_TRUE(!XHasBiases || X.test_biases_ok());
 			ASSERT_MTX_EQ(X_ET, X, "_mt");
 
 			XSrc.clone_to(X);
-			(std::forward<FB>(fb))(X);
+			(::std::forward<FB>(fb))(X);
 			ASSERT_TRUE(!XHasBiases || X.test_biases_ok());
 			ASSERT_MTX_EQ(X_ET, X, "()");
 		}
@@ -150,21 +150,21 @@ namespace nntl {
 			}
 			ASSERT_TRUE(!XHasBiases || F.test_biases_ok());
 
-			(std::forward<FET>(fet))(X, F_ET);
+			(::std::forward<FET>(fet))(X, F_ET);
 			ASSERT_TRUE(!XHasBiases || F_ET.test_biases_ok());
 
 			X.clone_to(F);
-			(std::forward<FST>(fst))(F);
+			(::std::forward<FST>(fst))(F);
 			ASSERT_TRUE(!XHasBiases || F.test_biases_ok());
 			ASSERT_REALMTX_NEAR(F_ET, F, "_st", EPST::eps);
 
 			X.clone_to(F);
-			(std::forward<FMT>(fmt))(F);
+			(::std::forward<FMT>(fmt))(F);
 			ASSERT_TRUE(!XHasBiases || F.test_biases_ok());
 			ASSERT_REALMTX_NEAR(F_ET, F, "_mt", EPST::eps);
 
 			X.clone_to(F);
-			(std::forward<FB>(fb))(F);
+			(::std::forward<FB>(fb))(F);
 			ASSERT_TRUE(!XHasBiases || F.test_biases_ok());
 			ASSERT_REALMTX_NEAR(F_ET, F, "()", EPST::eps);
 		}
@@ -189,20 +189,20 @@ namespace nntl {
 			rg.gen_matrix_no_bias(X, real_t(5.));
 			ASSERT_TRUE(X.test_biases_ok());
 
-			(std::forward<DFET>(dfet))(X, df_ET);
-			(std::forward<FET>(fet))(X, F);
+			(::std::forward<DFET>(dfet))(X, df_ET);
+			(::std::forward<FET>(fet))(X, F);
 			ASSERT_TRUE(F.test_biases_ok());
 
 			F.clone_to_no_bias(DF);
-			(std::forward<DFST>(dfst))(DF);
+			(::std::forward<DFST>(dfst))(DF);
 			ASSERT_REALMTX_NEAR(df_ET, DF, "_st", EPST::eps);
 
 			F.clone_to_no_bias(DF);
-			(std::forward<DFMT>(dfmt))(DF);
+			(::std::forward<DFMT>(dfmt))(DF);
 			ASSERT_REALMTX_NEAR(df_ET, DF, "_mt", EPST::eps);
 
 			F.clone_to_no_bias(DF);
-			(std::forward<DFB>(dfb))(DF);
+			(::std::forward<DFB>(dfb))(DF);
 			ASSERT_REALMTX_NEAR(df_ET, DF, "()", EPST::eps);
 		}
 	}
@@ -232,27 +232,27 @@ namespace nntl {
 
 			XSrc.clone_to(X);
 			tSt.tic();
-			(std::forward<FST>(fst))(X);
+			(::std::forward<FST>(fst))(X);
 			tSt.toc();
 
 			XSrc.clone_to(X);
 			tMt.tic();
-			(std::forward<FMT>(fmt))(X);
+			(::std::forward<FMT>(fmt))(X);
 			tMt.toc();
 
 			XSrc.clone_to(X);
 			tSt2.tic();
-			(std::forward<FST>(fst))(X);
+			(::std::forward<FST>(fst))(X);
 			tSt2.toc();
 
 			XSrc.clone_to(X);
 			tMt2.tic();
-			(std::forward<FMT>(fmt))(X);
+			(::std::forward<FMT>(fmt))(X);
 			tMt2.toc();
 
 			XSrc.clone_to(X);
 			tB.tic();
-			(std::forward<FB>(fb))(X);
+			(::std::forward<FB>(fb))(X);
 			tB.toc();
 		}
 		tSt.say("st");
@@ -289,27 +289,27 @@ namespace nntl {
 
 			ASrc.clone_to(A);
 			tSt.tic();
-			(std::forward<FST>(fst))(Y, A);
+			(::std::forward<FST>(fst))(Y, A);
 			tSt.toc();
 
 			ASrc.clone_to(A);
 			tMt.tic();
-			(std::forward<FMT>(fmt))(Y, A);
+			(::std::forward<FMT>(fmt))(Y, A);
 			tMt.toc();
 
 			ASrc.clone_to(A);
 			tSt2.tic();
-			(std::forward<FST>(fst))(Y, A);
+			(::std::forward<FST>(fst))(Y, A);
 			tSt2.toc();
 
 			ASrc.clone_to(A);
 			tMt2.tic();
-			(std::forward<FMT>(fmt))(Y, A);
+			(::std::forward<FMT>(fmt))(Y, A);
 			tMt2.toc();
 
 			ASrc.clone_to(A);
 			tB.tic();
-			(std::forward<FB>(fb))(Y, A);
+			(::std::forward<FB>(fb))(Y, A);
 			tB.toc();
 		}
 		tSt.say("st");

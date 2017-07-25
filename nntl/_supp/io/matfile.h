@@ -32,7 +32,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #pragma once
 
-//this file contains implementation of boost::serialize Saving Archive Concept interface, that writes passed object into
+//this file contains implementation of ::boost::serialize Saving Archive Concept interface, that writes passed object into
 //Matlab's .mat file using a Matlab's own libmat/libmx API. Restrictions: works only with nvp or named_struct objects!
 // It's intended to create a data link between nntl and Matlab, but not to use a mat file as a permanent storage medium.
 // Also it should be able to read train_data from .mat files
@@ -116,11 +116,11 @@ namespace nntl_supp {
 	};
 
 	//just to get rid of unnecessary memory allocations during a work.
-	//fixed array would fit even better, but std::array doesn't support necessary API, and it's not practical to implement it.
-	template<typename BaseT, size_t reserveElements=4, typename ContT = std::vector<BaseT>>
-	class stack_presized : public std::stack<BaseT, ContT> {
+	//fixed array would fit even better, but ::std::array doesn't support necessary API, and it's not practical to implement it.
+	template<typename BaseT, size_t reserveElements=4, typename ContT = ::std::vector<BaseT>>
+	class stack_presized : public ::std::stack<BaseT, ContT> {
 	public:
-		stack_presized() : std::stack<BaseT,ContT>() {
+		stack_presized() : ::std::stack<BaseT,ContT>() {
 			c.reserve(reserveElements);
 		}
 	};
@@ -260,7 +260,7 @@ namespace nntl_supp {
 				m = "w";
 				break;
 			case UpdateDelete:
-				std::remove(fname);
+				::std::remove(fname);
 				{
 					ErrorCode ec = ErrorCode::Success;
 					const auto pt = matOpen(fname, "w");
@@ -356,21 +356,21 @@ namespace nntl_supp {
 		//////////////////////////////////////////////////////////////////////////
 		//denormals safe
 		template<bool b = bSavingArchive>
-		std::enable_if_t<b, ErrorCode> open(const char* fname, FileOpenMode fom = FileOpenMode::WriteDelete)noexcept {
+		::std::enable_if_t<b, ErrorCode> open(const char* fname, FileOpenMode fom = FileOpenMode::WriteDelete)noexcept {
 			if (FileOpenMode::Read == fom) return _set_last_error(ErrorCode::InvalidOpenMode);
 			return _open(fname, fom);
 		}
 		template<bool b = bSavingArchive>
-		std::enable_if_t<b, ErrorCode> open(const std::string& fname, FileOpenMode fom = FileOpenMode::WriteDelete)noexcept {
+		::std::enable_if_t<b, ErrorCode> open(const ::std::string& fname, FileOpenMode fom = FileOpenMode::WriteDelete)noexcept {
 			return open(fname.c_str(), fom);
 		}
 		template<bool b = bSavingArchive>
-		std::enable_if_t<!b, ErrorCode> open(const char* fname, FileOpenMode fom = FileOpenMode::Read)noexcept {
+		::std::enable_if_t<!b, ErrorCode> open(const char* fname, FileOpenMode fom = FileOpenMode::Read)noexcept {
 			if (FileOpenMode::WriteDelete == fom) return _set_last_error(ErrorCode::InvalidOpenMode);
 			return _open(fname, fom);
 		}
 		template<bool b = bSavingArchive>
-		std::enable_if_t<!b, ErrorCode> open(const std::string& fname, FileOpenMode fom = FileOpenMode::Read)noexcept {
+		::std::enable_if_t<!b, ErrorCode> open(const ::std::string& fname, FileOpenMode fom = FileOpenMode::Read)noexcept {
 			return open(fname.c_str(), fom);
 		}
 
@@ -380,7 +380,7 @@ namespace nntl_supp {
 		//saving
 		//denormals safe
 		template<class T>
-		self_ref_t operator<<(const boost::serialization::nvp< T > & t) {
+		self_ref_t operator<<(const ::boost::serialization::nvp< T > & t) {
 			if (m_matFile) {
 				if (m_curVarName) {
 					_set_last_error(ErrorCode::WrongState_NameAlreadySet);
@@ -433,7 +433,7 @@ namespace nntl_supp {
 		// loading
 		//denormals safe
 		template<class T>
-		self_ref_t operator>>(boost::serialization::nvp< T > & t) {
+		self_ref_t operator>>(::boost::serialization::nvp< T > & t) {
 			if (m_matFile) {
 				if (m_curVarName) {
 					_set_last_error(ErrorCode::WrongState_NameAlreadySet);
@@ -500,7 +500,7 @@ namespace nntl_supp {
 		}
 
 		//denormals safe
-		template<size_t _Bits> self_ref_t operator<<(const std::bitset<_Bits>& t) {
+		template<size_t _Bits> self_ref_t operator<<(const ::std::bitset<_Bits>& t) {
 			NNTL_ASSERT((m_matFile && m_curVarName) || !"Open file with openForSave() and use nvp/named_struct to pass data for saving!");
 			//just a placeholder to make compiler happy. Don't need flags at the moment...
 			//#todo: implement
@@ -511,7 +511,7 @@ namespace nntl_supp {
 
 		//denormals safe
 		template<typename T>
-		std::enable_if_t< std::is_arithmetic<T>::value, self_ref_t> operator<<(const T& t) {
+		::std::enable_if_t< ::std::is_arithmetic<T>::value, self_ref_t> operator<<(const T& t) {
 			NNTL_ASSERT((m_matFile && m_curVarName) || !"Open file with openForSave() and use nvp/named_struct to pass data for saving!");
 			_save_var(1, 1, &t, sizeof(T), type2id<T>::id);
 			global_denormalized_floats_mode();
@@ -519,7 +519,7 @@ namespace nntl_supp {
 		}
 		//denormals safe
 		template<typename T>
-		std::enable_if_t< std::is_enum<T>::value, self_ref_t> operator<<(const T& t) {
+		::std::enable_if_t< ::std::is_enum<T>::value, self_ref_t> operator<<(const T& t) {
 			NNTL_ASSERT((m_matFile && m_curVarName) || !"Open file with openForSave() and use nvp/named_struct to pass data for saving!");
 			get_self() << static_cast<size_t>(t);
 			return get_self();
@@ -527,8 +527,8 @@ namespace nntl_supp {
 		//because we've just shadowed (const BaseT& t) signature, have to repeat default code here
 		//denormals safe
 		template<class T>
-		std::enable_if_t<!std::is_arithmetic<T>::value && !std::is_enum<T>::value, self_ref_t> operator<<(T const & t) {
-			boost::serialization::serialize_adl(get_self(), const_cast<T &>(t), ::boost::serialization::version< T >::value);
+		::std::enable_if_t<!::std::is_arithmetic<T>::value && !::std::is_enum<T>::value, self_ref_t> operator<<(T const & t) {
+			::boost::serialization::serialize_adl(get_self(), const_cast<T &>(t), ::boost::serialization::version< T >::value);
 			return get_self();
 		}
 		
@@ -575,7 +575,7 @@ namespace nntl_supp {
 		}
 		//denormals safe
 		template<typename BaseT>
-		std::enable_if_t< std::is_arithmetic<BaseT>::value, self_ref_t> operator>>(BaseT& t) {
+		::std::enable_if_t< ::std::is_arithmetic<BaseT>::value, self_ref_t> operator>>(BaseT& t) {
 			NNTL_ASSERT((m_matFile && m_curVarName) || !"Open file with openForLoad() and use nvp/named_struct to address data to read!");
 			vec_len_t r, c;
 			auto pVar = _load_var(r, c);
@@ -592,8 +592,8 @@ namespace nntl_supp {
 		//denormals safe
 		//because we've just shadowed (const BaseT& t) signature, have to repeat default code here
 		template<class T>
-		std::enable_if_t<!std::is_arithmetic<T>::value, self_ref_t> operator>>(T & t) {
-			boost::serialization::serialize_adl(get_self(), t, ::boost::serialization::version< T >::value);
+		::std::enable_if_t<!::std::is_arithmetic<T>::value, self_ref_t> operator>>(T & t) {
+			::boost::serialization::serialize_adl(get_self(), t, ::boost::serialization::version< T >::value);
 			return get_self();
 		}
 	};
@@ -615,24 +615,24 @@ namespace nntl_supp {
 		//denormals safe|bRestoreDNStateAfterEachCall
 		
 		template<class T, bool bDNR = bRestoreDNStateAfterEachCall>
-		std::enable_if_t<!bDNR, self_ref_t> operator >> (T & t) {
+		::std::enable_if_t<!bDNR, self_ref_t> operator >> (T & t) {
 			_base_class_t::operator>> (t);
 			return get_self();
 		}
 		template<class T, bool bDNR = bRestoreDNStateAfterEachCall>
-		std::enable_if_t<bDNR, self_ref_t> operator >> (T & t) {
+		::std::enable_if_t<bDNR, self_ref_t> operator >> (T & t) {
 			_base_class_t::operator>> (t);
 			global_denormalized_floats_mode();
 			return get_self();
 		}
 
 		template<class T, bool bDNR = bRestoreDNStateAfterEachCall>
-		std::enable_if_t<!bDNR, self_ref_t> operator << (T & t) {
+		::std::enable_if_t<!bDNR, self_ref_t> operator << (T & t) {
 			_base_class_t::operator<< (t);
 			return get_self();
 		}
 		template<class T, bool bDNR = bRestoreDNStateAfterEachCall>
-		std::enable_if_t<bDNR, self_ref_t> operator << (T & t) {
+		::std::enable_if_t<bDNR, self_ref_t> operator << (T & t) {
 			_base_class_t::operator<< (t);
 			global_denormalized_floats_mode();
 			return get_self();
@@ -650,7 +650,7 @@ namespace nntl_supp {
 
 	protected:
 		//typedefs necessary for breaking nested calls to save_struct_begin()/save_struct_end() into parallel calls
-		typedef std::pair<const std::string, mxArray*const> nested_structs_info_t;
+		typedef ::std::pair<const ::std::string, mxArray*const> nested_structs_info_t;
 		typedef stack_presized<nested_structs_info_t, 4> nested_structs_stack_t;
 
 	protected:
@@ -694,7 +694,7 @@ namespace nntl_supp {
 		// If the bUpdateIfExist is specified, then tries to load the struct from file first
 		// If the bDontNest is specified, then the new struct will be created on the same level of nesting as the
 		//		parental struct (the one, that is already presents on the top of m_structureStack)
-		ErrorCode save_struct_begin(std::string&& structName, const bool bUpdateIfExist, const bool bDontNest)noexcept {
+		ErrorCode save_struct_begin(::std::string&& structName, const bool bUpdateIfExist, const bool bDontNest)noexcept {
 			auto ec = ErrorCode::Success;
 			if (m_matFile) {
 				if (m_curVarName) {
@@ -730,7 +730,7 @@ namespace nntl_supp {
 						pNewStruct = mxCreateStructMatrix(1, 1, 0, nullptr);
 					}
 					if (pNewStruct) {
-						m_nestedStructs.push(std::make_pair(std::forward<std::string>(structName), pOldHead));
+						m_nestedStructs.push(::std::make_pair(::std::forward<::std::string>(structName), pOldHead));
 						m_structureStack.push(pNewStruct);
 					} else {
 						if (ErrorCode::Success == ec) ec = ErrorCode::FailedToCreateStructVariable;

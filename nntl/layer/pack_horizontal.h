@@ -56,11 +56,11 @@ namespace nntl {
 
 	template<typename FinalPolymorphChild, typename PHLsTuple, typename AddendumsTupleT = void>
 	class _layer_pack_horizontal 
-		: public _layer_base<FinalPolymorphChild, typename std::remove_reference<typename std::tuple_element<0, PHLsTuple>::type>::type::phl_original_t::interfaces_t>
+		: public _layer_base<FinalPolymorphChild, typename ::std::remove_reference<typename ::std::tuple_element<0, PHLsTuple>::type>::type::phl_original_t::interfaces_t>
 		, public _penalized_activations_base_selector<AddendumsTupleT>
 	{
 	private:
-		typedef _layer_base<FinalPolymorphChild, typename std::remove_reference<typename std::tuple_element<0, PHLsTuple>
+		typedef _layer_base<FinalPolymorphChild, typename ::std::remove_reference<typename ::std::tuple_element<0, PHLsTuple>
 			::type>::type::phl_original_t::interfaces_t> _base_class_t;
 
 	public:
@@ -71,18 +71,18 @@ namespace nntl {
 		using _base_class_t::realmtx_t;
 		using _base_class_t::realmtxdef_t;
 
-		//typedef const std::tuple<PHLsT...> _phl_tuple;
+		//typedef const ::std::tuple<PHLsT...> _phl_tuple;
 		typedef const PHLsTuple _phl_tuple;
 
 		//static constexpr size_t phl_count = sizeof...(PHLsT);
-		static constexpr size_t phl_count = std::tuple_size<PHLsTuple>::value;
+		static constexpr size_t phl_count = ::std::tuple_size<PHLsTuple>::value;
 		static_assert(phl_count > 1, "For a pack with a single inner layer use that layer instead");
 
-		static_assert(is_PHL<typename std::remove_reference<typename std::tuple_element<0, _phl_tuple>::type>::type>::value, "_layer_pack_horizontal must be assembled from PHL objects!");
-		static_assert(is_PHL<typename std::remove_reference<typename std::tuple_element<phl_count - 1, _phl_tuple>::type>::type>::value, "_layer_pack_horizontal must be assembled from PHL objects!");
+		static_assert(is_PHL<typename ::std::remove_reference<typename ::std::tuple_element<0, _phl_tuple>::type>::type>::value, "_layer_pack_horizontal must be assembled from PHL objects!");
+		static_assert(is_PHL<typename ::std::remove_reference<typename ::std::tuple_element<phl_count - 1, _phl_tuple>::type>::type>::value, "_layer_pack_horizontal must be assembled from PHL objects!");
 
-		typedef typename std::remove_reference<typename std::tuple_element<0, _phl_tuple>::type>::type::phl_original_t first_layer_t;
-		typedef typename std::remove_reference<typename std::tuple_element<phl_count - 1, _phl_tuple>::type>::type::phl_original_t last_layer_t;
+		typedef typename ::std::remove_reference<typename ::std::tuple_element<0, _phl_tuple>::type>::type::phl_original_t first_layer_t;
+		typedef typename ::std::remove_reference<typename ::std::tuple_element<phl_count - 1, _phl_tuple>::type>::type::phl_original_t last_layer_t;
 
 	protected:
 		_phl_tuple m_phl_tuple;
@@ -127,19 +127,19 @@ namespace nntl {
 
 		//NB: first/last means only the first or the last ELEMENT of the m_phl_tuple. It has nothing in common with neurons range.
 		//Neurons range determined by PHLs of m_phl_tuple only.
-		first_layer_t& first_layer()const noexcept { return std::get<0>(m_phl_tuple).l; }
-		last_layer_t& last_layer()const noexcept { return std::get<phl_count - 1>(m_phl_tuple).l; }
+		first_layer_t& first_layer()const noexcept { return ::std::get<0>(m_phl_tuple).l; }
+		last_layer_t& last_layer()const noexcept { return ::std::get<phl_count - 1>(m_phl_tuple).l; }
 		
 	private:
 		static const neurons_count_t _calcNeuronsCnt(const _phl_tuple& tupl) noexcept {
 			neurons_count_t nc = 0;
 			tuple_utils::for_each_up(tupl, [&nc](const auto& phl)noexcept {
-				static_assert(is_PHL<std::remove_reference_t<decltype(phl)>>::value, "_layer_pack_horizontal must be assembled from PHL objects!");
-				static_assert(!std::is_base_of<m_layer_input, std::remove_reference_t<decltype(phl)>::phl_original_t>::value
-					&& !std::is_base_of<m_layer_output, std::remove_reference_t<decltype(phl)>::phl_original_t>::value
+				static_assert(is_PHL<::std::remove_reference_t<decltype(phl)>>::value, "_layer_pack_horizontal must be assembled from PHL objects!");
+				static_assert(!::std::is_base_of<m_layer_input, ::std::remove_reference_t<decltype(phl)>::phl_original_t>::value
+					&& !::std::is_base_of<m_layer_output, ::std::remove_reference_t<decltype(phl)>::phl_original_t>::value
 					, "Inner layers of _layer_pack_horizontal mustn't be input or output layers!");
-				static_assert(std::is_base_of<_i_layer<std::remove_reference_t<decltype(phl)>::phl_original_t::real_t>
-					, std::remove_reference_t<decltype(phl)>::phl_original_t>::value, "Each layer must derive from i_layer");
+				static_assert(::std::is_base_of<_i_layer<::std::remove_reference_t<decltype(phl)>::phl_original_t::real_t>
+					, ::std::remove_reference_t<decltype(phl)>::phl_original_t>::value, "Each layer must derive from i_layer");
 
 				nc += phl.l.get_neurons_cnt();
 			});
@@ -171,29 +171,29 @@ namespace nntl {
 		//and apply function _Func(auto& layer) to each underlying (non-pack) layer here
 		template<typename _Func>
 		void for_each_layer(_Func&& f)const noexcept {
-			tuple_utils::for_each_up(m_phl_tuple, [&func{ std::forward<_Func>(f) }](auto& phl)noexcept {
-				call_F_for_each_layer(std::forward<_Func>(func), phl.l);
+			tuple_utils::for_each_up(m_phl_tuple, [&func{ ::std::forward<_Func>(f) }](auto& phl)noexcept {
+				call_F_for_each_layer(::std::forward<_Func>(func), phl.l);
 			});
 		}
 
 		template<typename _Func>
 		void for_each_layer_down(_Func&& f)const noexcept {
-			tuple_utils::for_each_down(m_phl_tuple, [&func{ std::forward<_Func>(f) }](auto& phl)noexcept {
-				call_F_for_each_layer_down(std::forward<_Func>(func), phl.l);
+			tuple_utils::for_each_down(m_phl_tuple, [&func{ ::std::forward<_Func>(f) }](auto& phl)noexcept {
+				call_F_for_each_layer_down(::std::forward<_Func>(func), phl.l);
 			});
 		}
 
 		//This will apply f to every layer, packed in tuple no matter whether it is a _pack_* kind of layer or no
 		template<typename _Func>
 		void for_each_packed_layer(_Func&& f)const noexcept {
-			tuple_utils::for_each_up(m_phl_tuple, [&func{ std::forward<_Func>(f) }](auto& phl)noexcept {
-				std::forward<_Func>(func)(phl.l);
+			tuple_utils::for_each_up(m_phl_tuple, [&func{ ::std::forward<_Func>(f) }](auto& phl)noexcept {
+				::std::forward<_Func>(func)(phl.l);
 			});
 		}		
 		template<typename _Func>
 		void for_each_packed_layer_down(_Func&& f)const noexcept {
-			tuple_utils::for_each_down(m_phl_tuple, [&func{ std::forward<_Func>(f) }](auto& phl)noexcept {
-				std::forward<_Func>(func)(phl.l);
+			tuple_utils::for_each_down(m_phl_tuple, [&func{ ::std::forward<_Func>(f) }](auto& phl)noexcept {
+				::std::forward<_Func>(func)(phl.l);
 			});
 		}
 
@@ -216,7 +216,7 @@ namespace nntl {
 	 *deprecated:
 	 *protected:
 		template<typename InnerLayerT>
-		std::enable_if_t<_impl::layer_has_OuterLayerCustomFlag1Eval<InnerLayerT, decltype(m_phl_tuple), _layer_init_data_t>::value,bool>
+		::std::enable_if_t<_impl::layer_has_OuterLayerCustomFlag1Eval<InnerLayerT, decltype(m_phl_tuple), _layer_init_data_t>::value,bool>
 			call_layers_OuterLayerCustomFlag1Eval(const InnerLayerT& lyr, const _layer_init_data_t& origLid)noexcept
 		{
 			const auto v = lyr.OuterLayerCustomFlag1Eval(m_phl_tuple, origLid);
@@ -225,7 +225,7 @@ namespace nntl {
 		}
 
 		template<typename InnerLayerT>
-		std::enable_if_t<!_impl::layer_has_OuterLayerCustomFlag1Eval<InnerLayerT, decltype(m_phl_tuple), _layer_init_data_t>::value, constexpr bool>
+		::std::enable_if_t<!_impl::layer_has_OuterLayerCustomFlag1Eval<InnerLayerT, decltype(m_phl_tuple), _layer_init_data_t>::value, constexpr bool>
 			call_layers_OuterLayerCustomFlag1Eval(const InnerLayerT& lyr, const _layer_init_data_t&)noexcept
 		{
 			//return ((STDCOUTL("returning default for " << lyr.get_layer_name_str())), false);
@@ -272,7 +272,7 @@ namespace nntl {
 			neurons_count_t firstNeuronOfs = 0, maxIncNeuronsCnt = 0;//we need maxIncNeuronsCnt to calculate the biggest possible internal dLdAPrev
 			get_self().for_each_packed_layer([&, &act = m_activations](auto& l)noexcept {
 				if (ErrorCode::Success == ec) {
-					maxIncNeuronsCnt = std::max(maxIncNeuronsCnt, l.get_incoming_neurons_cnt());
+					maxIncNeuronsCnt = ::std::max(maxIncNeuronsCnt, l.get_incoming_neurons_cnt());
 
 					initD.clean_using(lid);//we must propagate any IN flags set in the .lid variable to the layer being initialized.
 					//initD.bLPH_CustomFlag1 = call_layers_OuterLayerCustomFlag1Eval(l, origLid);
@@ -297,7 +297,7 @@ namespace nntl {
 					const auto& _training_batch_size = get_self().get_common_data().training_batch_size();
 					//adding backprop requirements
 					// saving lid.max_dLdA_numel, gathered from inner layers and substituting it for this layer's max_dLdA_numel
-					m_layers_max_dLdA_numel = std::max(lid.max_dLdA_numel
+					m_layers_max_dLdA_numel = ::std::max(lid.max_dLdA_numel
 						, realmtx_t::sNumel(_training_batch_size, maxIncNeuronsCnt));
 					//The first argument of max() - lid.max_dLdA_numel - describes the biggest dLdA size, the second
 					//argument (realmtx_t::sNumel(get_self().training_batch_size(), maxIncNeuronsCnt)) describes the biggest
@@ -386,7 +386,7 @@ namespace nntl {
 
 		template <typename LowerLayer>
 		void fprop(const LowerLayer& lowerLayer)noexcept {
-			static_assert(std::is_base_of<_i_layer_fprop<real_t>, LowerLayer>::value, "Template parameter LowerLayer must implement _i_layer_fprop");
+			static_assert(::std::is_base_of<_i_layer_fprop<real_t>, LowerLayer>::value, "Template parameter LowerLayer must implement _i_layer_fprop");
 			auto& iI = get_self().get_iInspect();
 			iI.fprop_begin(get_self().get_layer_idx(), lowerLayer.get_activations(), get_self().get_common_data().is_training_mode());
 
@@ -425,7 +425,7 @@ namespace nntl {
 		// it would require significantly more complicated and error-prone code to keep all data safe
 		template <typename LowerLayer>
 		const unsigned bprop(realmtxdef_t& dLdA, const LowerLayer& lowerLayer, realmtx_t& dLdAPrev)noexcept {
-			static_assert(std::is_base_of<_i_layer_trainable, LowerLayer>::value, "Template parameter LowerLayer must implement _i_layer_trainable");
+			static_assert(::std::is_base_of<_i_layer_trainable, LowerLayer>::value, "Template parameter LowerLayer must implement _i_layer_trainable");
 
 			NNTL_ASSERT(m_bActivationsValid);
 
@@ -443,10 +443,10 @@ namespace nntl {
 			NNTL_ASSERT(lowerLayer.get_activations().test_biases_ok());
 			//NNTL_ASSERT(m_activations.test_biases_ok());
 			NNTL_ASSERT(dLdA.size() == m_activations.size_no_bias());
-			NNTL_ASSERT((std::is_base_of<m_layer_input, LowerLayer>::value) || dLdAPrev.size() == lowerLayer.get_activations().size_no_bias());
+			NNTL_ASSERT((::std::is_base_of<m_layer_input, LowerLayer>::value) || dLdAPrev.size() == lowerLayer.get_activations().size_no_bias());
 			
 			// We'll copy corresponding parts of dLdA into m_innerdLdA and on inner layer.bprop() return we'll ADD corresponding dLdA to dLdAPrev passed
-			if (!std::is_base_of<m_layer_input, LowerLayer>::value) dLdAPrev.zeros();
+			if (!::std::is_base_of<m_layer_input, LowerLayer>::value) dLdAPrev.zeros();
 			
 			neurons_count_t firstNeuronOfs = get_self().get_neurons_cnt();
 			
@@ -460,7 +460,7 @@ namespace nntl {
 				NNTL_ASSERT(firstNeuronOfs >= lyr.get_neurons_cnt());
 				firstNeuronOfs -= lyr.get_neurons_cnt();
 				
-				constexpr bool bLowerLayerIsInput = std::is_base_of<m_layer_input, LowerLayer>::value;
+				constexpr bool bLowerLayerIsInput = ::std::is_base_of<m_layer_input, LowerLayer>::value;
 
 				//setting up the m_innerdLdA
 				m_innerdLdA.deform_like_no_bias(lyr.get_activations());
@@ -534,8 +534,8 @@ namespace nntl {
 
 
 	private:
-		//support for boost::serialization
-		friend class boost::serialization::access;
+		//support for ::boost::serialization
+		friend class ::boost::serialization::access;
 		template<class Archive> void serialize(Archive & ar, const unsigned int version) {
 			get_self().for_each_packed_layer([&ar](auto& l) {
 				ar & serialization::make_named_struct(l.get_layer_name_str().c_str(), l);
@@ -551,15 +551,15 @@ namespace nntl {
 	//to shorten class name to get rid of C4503
 	template <typename ...PHLsT>
 	class LPH final
-		: public _layer_pack_horizontal < LPH<PHLsT...>, std::tuple<PHLsT...>>
+		: public _layer_pack_horizontal < LPH<PHLsT...>, ::std::tuple<PHLsT...>>
 	{
 	public:
 		~LPH() noexcept {};
 		LPH(PHLsT&... phls) noexcept
-			: _layer_pack_horizontal<LPH<PHLsT...>, std::tuple<PHLsT...>>(nullptr, std::make_tuple(phls...)) {};
+			: _layer_pack_horizontal<LPH<PHLsT...>, ::std::tuple<PHLsT...>>(nullptr, ::std::make_tuple(phls...)) {};
 
 		LPH(const char* pCustomName, PHLsT&... phls) noexcept
-			: _layer_pack_horizontal<LPH<PHLsT...>, std::tuple<PHLsT...>>(pCustomName, std::make_tuple(phls...)) {};
+			: _layer_pack_horizontal<LPH<PHLsT...>, ::std::tuple<PHLsT...>>(pCustomName, ::std::make_tuple(phls...)) {};
 	};
 
 	template <typename ..._T>
@@ -577,16 +577,16 @@ namespace nntl {
 	//////////////////////////////////////////////////////////////////////////
 	template <typename LossAddsTuple, typename ...PHLsT>
 	class LPH_PA final
-		: public _layer_pack_horizontal < LPH_PA<LossAddsTuple, PHLsT...>, std::tuple<PHLsT...>, LossAddsTuple>
+		: public _layer_pack_horizontal < LPH_PA<LossAddsTuple, PHLsT...>, ::std::tuple<PHLsT...>, LossAddsTuple>
 	{
 	public:
 		static constexpr const char _defName[] = "lph_pa";
 
 		~LPH_PA() noexcept {};
 		LPH_PA(PHLsT&... phls) noexcept
-			: _layer_pack_horizontal<LPH_PA<LossAddsTuple, PHLsT...>, std::tuple<PHLsT...>, LossAddsTuple>(nullptr, std::make_tuple(phls...)) {};
+			: _layer_pack_horizontal<LPH_PA<LossAddsTuple, PHLsT...>, ::std::tuple<PHLsT...>, LossAddsTuple>(nullptr, ::std::make_tuple(phls...)) {};
 
 		LPH_PA(const char* pCustomName, PHLsT&... phls) noexcept
-			: _layer_pack_horizontal<LPH_PA<LossAddsTuple, PHLsT...>, std::tuple<PHLsT...>, LossAddsTuple>(pCustomName, std::make_tuple(phls...)) {};
+			: _layer_pack_horizontal<LPH_PA<LossAddsTuple, PHLsT...>, ::std::tuple<PHLsT...>, LossAddsTuple>(pCustomName, ::std::make_tuple(phls...)) {};
 	};
 }

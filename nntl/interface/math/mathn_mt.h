@@ -54,7 +54,7 @@ namespace math {
 		// i_math interface implementation
 
 		//////////////////////////////////////////////////////////////////////////
-		// Contnr dest is a std::vector-like container of vec_len_t, sized to m.rows(). Will contain for each row column index
+		// Contnr dest is a ::std::vector-like container of vec_len_t, sized to m.rows(). Will contain for each row column index
 		//of greatest element in a row.
 // 		template<typename Contnr>
 // 		void mFindIdxsOfMaxRowwise(const realmtx_t& m, Contnr& dest)noexcept {

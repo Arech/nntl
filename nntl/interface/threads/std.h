@@ -52,17 +52,17 @@ namespace threads {
 		Std& operator=(const Std& rhs) noexcept = delete;
 
 	protected:
-		typedef std::function<void(const par_range_t& r)> func_run_t;
-		typedef std::function<real_t(const par_range_t& r)> func_reduce_t;
+		typedef ::std::function<void(const par_range_t& r)> func_run_t;
+		typedef ::std::function<real_t(const par_range_t& r)> func_reduce_t;
 
 		enum class JobType { Run, Reduce };
 
-		typedef std::mutex lock_t;
-		typedef std::unique_lock<lock_t> locker_t;
-		typedef std::atomic_ptrdiff_t interlocked_t;
+		typedef ::std::mutex lock_t;
+		typedef ::std::unique_lock<lock_t> locker_t;
+		typedef ::std::atomic_ptrdiff_t interlocked_t;
 
 public:
-		typedef std::vector<std::thread> threads_cont_t;
+		typedef ::std::vector<::std::thread> threads_cont_t;
 		typedef threads_cont_t::iterator ThreadObjIterator_t;
 		
 		static constexpr char* name = "Std";
@@ -70,15 +70,15 @@ public:
 		//////////////////////////////////////////////////////////////////////////
 		//Members
 	protected:
-		std::condition_variable m_waitingOrders;
-		std::condition_variable m_orderDone;
+		::std::condition_variable m_waitingOrders;
+		::std::condition_variable m_orderDone;
 		lock_t m_lock;
 		interlocked_t m_workingCnt;
 		JobType m_jobType;
 
-		std::vector<par_range_t> m_ranges;
+		::std::vector<par_range_t> m_ranges;
 		func_run_t m_fnRun;
-		std::vector<real_t> m_reduceCache;
+		::std::vector<real_t> m_reduceCache;
 		func_reduce_t m_fnReduce;
 		
 		const thread_id_t m_workersCnt;
@@ -109,7 +109,7 @@ public:
 			for (thread_id_t i = 0; i < m_workersCnt; ++i) {
 				//worker threads should have par_range_t::tid>=1. tid==0 is reserved to main thread
 				m_ranges.push_back(par_range_t(0, 0, i + 1));
-				m_threads[i] = std::thread(_s_worker, this, i);
+				m_threads[i] = ::std::thread(_s_worker, this, i);
 			}
 			m_ranges.shrink_to_fit();
 			NNTL_ASSERT(m_ranges.size() == m_workersCnt);
@@ -121,7 +121,7 @@ public:
 		}
 
 		static thread_id_t workers_count()noexcept {
-			return std::thread::hardware_concurrency();
+			return ::std::thread::hardware_concurrency();
 		}
 		auto get_worker_threads(thread_id_t& threadsCnt)noexcept ->ThreadObjIterator_t {
 			threadsCnt = m_workersCnt;
@@ -151,7 +151,7 @@ public:
 			//DONE: well, it worth about 14mks to parallelize execution therefore won't bother...
 			if (cnt <= 1) {
 				if (pThreadsUsed) *pThreadsUsed = 1;
-				std::forward<Func>(F)(par_range_t(cnt));
+				::std::forward<Func>(F)(par_range_t(cnt));
 			} else {
 				locker_t lk(m_lock);
 
@@ -165,7 +165,7 @@ public:
 				m_waitingOrders.notify_all();
 				lk.unlock();
 
-				std::forward<Func>(F)(par_range_t(prevOfs, cnt - prevOfs, 0));
+				::std::forward<Func>(F)(par_range_t(prevOfs, cnt - prevOfs, 0));
 
 				if (m_workingCnt > 0) {
 					lk.lock();
@@ -183,7 +183,7 @@ public:
 			//TODO: decide whether it is worth to use workers here
 			//DONE: well, it worth less than 9mks to parallelize execution therefore won't bother...
 			if (cnt <= 1) {
-				return std::forward<Func>(FRed)( par_range_t(cnt) );
+				return ::std::forward<Func>(FRed)( par_range_t(cnt) );
 			} else {
 				locker_t lk(m_lock);
 
@@ -201,14 +201,14 @@ public:
 				m_waitingOrders.notify_all();
 				lk.unlock();
 
-				*rc = std::forward<Func>(FRed)(par_range_t(prevOfs, cnt - prevOfs, 0));
+				*rc = ::std::forward<Func>(FRed)(par_range_t(prevOfs, cnt - prevOfs, 0));
 
 				if (m_workingCnt > 0) {
 					lk.lock();
 					while (m_workingCnt > 0)  m_orderDone.wait(lk);
 					lk.unlock();
 				}
-				return std::forward<FinalReduceFunc>(FRF)(rc, workersOnReduce);
+				return ::std::forward<FinalReduceFunc>(FRF)(rc, workersOnReduce);
 			}
 		}
 

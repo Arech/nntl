@@ -99,17 +99,17 @@ namespace nntl {
 		//and apply function _Func(auto& layer) to each underlying (non-pack) layer here
 		template<typename _Func>
 		void for_each_layer(_Func&& f)const noexcept {
-			call_F_for_each_layer(std::forward<_Func>(f), m_undLayer);
+			call_F_for_each_layer(::std::forward<_Func>(f), m_undLayer);
 		}
 		template<typename _Func>
 		void for_each_layer_down(_Func&& f)const noexcept {
-			call_F_for_each_layer_down(std::forward<_Func>(f), m_undLayer);
+			call_F_for_each_layer_down(::std::forward<_Func>(f), m_undLayer);
 		}
 		template<typename _Func> void for_each_packed_layer(_Func&& f)const noexcept {
-			std::forward<_Func>(f)(m_undLayer);
+			::std::forward<_Func>(f)(m_undLayer);
 		}
 		template<typename _Func> void for_each_packed_layer_down(_Func&& f)const noexcept { 
-			std::forward<_Func>(f)(m_undLayer);
+			::std::forward<_Func>(f)(m_undLayer);
 		}
 
 
@@ -146,7 +146,7 @@ namespace nntl {
 
 		template <typename LowerLayer>
 		void fprop(const LowerLayer& lowerLayer)noexcept {
-			static_assert(std::is_base_of<_i_layer_fprop, LowerLayer>::value, "Template parameter LowerLayer must implement _i_layer_fprop");
+			static_assert(::std::is_base_of<_i_layer_fprop, LowerLayer>::value, "Template parameter LowerLayer must implement _i_layer_fprop");
 			auto& iI = get_self().get_iInspect();
 			iI.fprop_begin(get_self().get_layer_idx(), lowerLayer.get_activations(), get_self().get_common_data().is_training_mode());
 			
@@ -158,7 +158,7 @@ namespace nntl {
 
 		template <typename LowerLayerT>
 		const unsigned bprop(realmtxdef_t& dLdA, const LowerLayerT& lowerLayer, realmtxdef_t& dLdAPrev)noexcept {
-			static_assert(std::is_base_of<_i_layer_trainable, LowerLayerT>::value, "Template parameter LowerLayer must implement _i_layer_trainable");
+			static_assert(::std::is_base_of<_i_layer_trainable, LowerLayerT>::value, "Template parameter LowerLayer must implement _i_layer_trainable");
 
 			auto& iI = get_self().get_iInspect();
 			iI.bprop_begin(get_self().get_layer_idx(), dLdA);
@@ -174,9 +174,9 @@ namespace nntl {
 		}
 
 	private:
-		//support for boost::serialization
+		//support for ::boost::serialization
 		// 		#TODO
-		friend class boost::serialization::access;
+		friend class ::boost::serialization::access;
 		template<class Archive> void serialize(Archive & ar, const unsigned int version) {
 			//ar & serialization::make_named_struct(m_undLayer.get_layer_name_str().c_str(), m_undLayer);
 		}
@@ -193,11 +193,11 @@ namespace nntl {
 	};
 
 	template<class LayerT, typename ...LossAddsTs>
-	class LPPA final : public _layer_pack_penalized_activations<LPPA<LayerT, LossAddsTs...>, LayerT, std::tuple<LossAddsTs...>> {
+	class LPPA final : public _layer_pack_penalized_activations<LPPA<LayerT, LossAddsTs...>, LayerT, ::std::tuple<LossAddsTs...>> {
 	public:
 		~LPPA() noexcept {};
 		LPPA(const char* pCustomName, LayerT& ul) noexcept
-			: _layer_pack_penalized_activations<LPPA<LayerT, LossAddsTs...>, LayerT, std::tuple<LossAddsTs...>>(pCustomName, ul) {};
+			: _layer_pack_penalized_activations<LPPA<LayerT, LossAddsTs...>, LayerT, ::std::tuple<LossAddsTs...>>(pCustomName, ul) {};
 	};
 
 	template <class LayerT, typename ..._T>

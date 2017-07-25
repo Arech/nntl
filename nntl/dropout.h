@@ -82,9 +82,9 @@ namespace nntl {
 	};
 
 	template<typename DropoutT>
-	using is_dummy_dropout_class = std::disjunction<
-		std::is_same < DropoutT, NoDropout<typename DropoutT::real_t>>
-		, std::is_same < DropoutT, _impl::_No_Dropout_at_All<typename DropoutT::real_t>>
+	using is_dummy_dropout_class = ::std::disjunction<
+		::std::is_same < DropoutT, NoDropout<typename DropoutT::real_t>>
+		, ::std::is_same < DropoutT, _impl::_No_Dropout_at_All<typename DropoutT::real_t>>
 	>;
 
 	//////////////////////////////////////////////////////////////////////////
@@ -357,7 +357,7 @@ namespace nntl {
 				const ext_real_t dropProb = ext_real_t(1) - m_dropoutPercentActive;
 				const ext_real_t amfpm = Neg_AlphaExt_t_LambdaExt - FixedPointMeanExt;
 
-				const ext_real_t aExt = std::sqrt(FixedPointVarianceExt / (m_dropoutPercentActive*(dropProb*amfpm*amfpm + FixedPointVarianceExt)));
+				const ext_real_t aExt = ::std::sqrt(FixedPointVarianceExt / (m_dropoutPercentActive*(dropProb*amfpm*amfpm + FixedPointVarianceExt)));
 				NNTL_ASSERT(aExt && !isnan(aExt) && isfinite(aExt));
 				m_a = static_cast<real_t>(aExt);
 				NNTL_ASSERT(isfinite(m_a));

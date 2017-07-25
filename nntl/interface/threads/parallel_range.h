@@ -38,7 +38,7 @@ namespace threads {
 	class parallel_range {
 	public:
 		typedef range_type range_t;
-		static_assert(std::is_pod<range_t>::value, "Expecting template parameter T to be plain data type");
+		static_assert(::std::is_pod<range_t>::value, "Expecting template parameter T to be plain data type");
 
 		//thread id must be in range [0,workers_count())
 		//worker threads should have par_range_t::tid>=1. tid==0 is reserved to main thread.

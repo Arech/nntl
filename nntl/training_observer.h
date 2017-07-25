@@ -48,7 +48,7 @@ namespace nntl {
 		typedef math::smatrix_td::vec_len_t vec_len_t;
 		typedef math::smatrix_td::numel_cnt_t numel_cnt_t;
 		
-		typedef std::chrono::nanoseconds nanoseconds;
+		typedef ::std::chrono::nanoseconds nanoseconds;
 
 		//may preprocess train_y/test_y here
 		template<typename iMath>
@@ -84,7 +84,7 @@ namespace nntl {
 	};
 
 	//////////////////////////////////////////////////////////////////////////
-	//simple observer, that outputs only loss function value to std::cout
+	//simple observer, that outputs only loss function value to ::std::cout
 	template<typename RealT = d_interfaces::real_t>
 	class training_observer_simple_stdcout : public i_training_observer<RealT> {
 	protected:
@@ -104,7 +104,7 @@ namespace nntl {
 
 			strchar_t szRep[uBufSize];
 			sprintf_s(szRep, uBufSize, szReportFmt, inDim, outDim, nLP, trainElements, testElements, batchSize, trainElements / batchSize);
-			std::cout << szRep << std::endl;
+			::std::cout << szRep << ::std::endl;
 		}
 
 		//always called before on_training_fragment_end() twice: on the training and on the testing data
@@ -120,16 +120,16 @@ namespace nntl {
 			const real_t secs = real_t(elapsedSincePrevFragment.count()) / real_t(1e9);
 
 			sprintf_s(szRep, uBufSize, szReportFmt, epochEnded+1, m_epochs, secs, trainLoss, testLoss);
-			std::cout << szRep << std::endl;
+			::std::cout << szRep << ::std::endl;
 		}
 
 		void on_training_end(const nanoseconds& trainTime)noexcept {
-			std::cout << "Training time: " << utils::duration_readable(trainTime) << std::endl;
+			::std::cout << "Training time: " << utils::duration_readable(trainTime) << ::std::endl;
 		}
 	};
 
 	//////////////////////////////////////////////////////////////////////////
-	//training_observer, that output results to std::cout
+	//training_observer, that output results to ::std::cout
 	template<typename Evaluator = eval_classification_one_hot<d_interfaces::real_t>>
 	class training_observer_stdcout : public i_training_observer<typename Evaluator::real_t> {
 	protected:
@@ -138,11 +138,11 @@ namespace nntl {
 			size_t correctlyClassified;//in fact, it's kind of a metric... Will refactor in future
 		};
 
-		typedef std::array<CLASSIFICATION_RESULTS, 2> classif_results_t;
+		typedef ::std::array<CLASSIFICATION_RESULTS, 2> classif_results_t;
 	public:
 		typedef Evaluator evaluator_t;
-		static_assert(std::is_base_of<i_nnet_evaluator<real_t>, Evaluator>::value, "Evaluator class must be derived from i_nnet_evaluator");
-		static_assert(std::is_default_constructible<evaluator_t>::value, "Evaluator class must be default constructible");
+		static_assert(::std::is_base_of<i_nnet_evaluator<real_t>, Evaluator>::value, "Evaluator class must be derived from i_nnet_evaluator");
+		static_assert(::std::is_default_constructible<evaluator_t>::value, "Evaluator class must be default constructible");
 
 	protected:
 		classif_results_t m_classifRes;
@@ -167,7 +167,7 @@ namespace nntl {
 
 			strchar_t szRep[uBufSize];
 			sprintf_s(szRep, uBufSize, szReportFmt, inDim, outDim, nLP, trainElements, testElements, batchSize);
-			std::cout << szRep << std::endl;
+			::std::cout << szRep << ::std::endl;
 		}
 
 		//always called before on_training_fragment_end() twice: on the training and on the testing data
@@ -197,11 +197,11 @@ namespace nntl {
 			sprintf_s(szRep, uBufSize, szReportFmt, epochEnded+1, m_epochs, secs, trainLoss, 
 				trErr, trainW, testLoss,tErr, testW);
 			
-			std::cout << szRep << std::endl;
+			::std::cout << szRep << ::std::endl;
 		}
 
 		void on_training_end(const nanoseconds& trainTime)noexcept {
-			std::cout << "Training time: " << utils::duration_readable(trainTime) << std::endl;
+			::std::cout << "Training time: " << utils::duration_readable(trainTime) << ::std::endl;
 		}
 	};
 }

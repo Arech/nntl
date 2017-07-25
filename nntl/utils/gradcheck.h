@@ -94,13 +94,13 @@ namespace nntl {
 			neurons_count_t r = 0;
 			switch (countMode) {
 			case nntl::gradcheck_settingsCountMode::total_min:
-				r = std::min(maxParams, u.paramsToCheck);
+				r = ::std::min(maxParams, u.paramsToCheck);
 				break;
 
 			case nntl::gradcheck_settingsCountMode::percent_or_min:
-				r = std::max(
+				r = ::std::max(
 					(maxParams * u.perc.NPercents) / 100
-					, std::min(maxParams, u.perc.paramsToCheck)
+					, ::std::min(maxParams, u.perc.paramsToCheck)
 				);
 				break;
 

@@ -95,7 +95,7 @@ namespace nntl {
 		
 		template <typename LowerLayerT>
 		const unsigned bprop(realmtxdef_t& dLdA, const LowerLayerT& lowerLayer, realmtxdef_t& dLdAPrev)noexcept {
-			static_assert(std::is_base_of<_i_layer_trainable, LowerLayerT>::value, "Template parameter LowerLayer must implement _i_layer_trainable");
+			static_assert(::std::is_base_of<_i_layer_trainable, LowerLayerT>::value, "Template parameter LowerLayer must implement _i_layer_trainable");
 
 			//#TODO this routine shouldn't be invisible for an iInspector, however if we to pass dLdA to an inspector here, it
 			//should break layer's gradient check
@@ -115,21 +115,21 @@ namespace nntl {
 		}
 		
 // 	private:
-// 		//support for boost::serialization
+// 		//support for ::boost::serialization
 // 		#TODO
-// 		friend class boost::serialization::access;
+// 		friend class ::boost::serialization::access;
 // 		template<class Archive> void serialize(Archive & ar, const unsigned int version) {
 // 			ar & serialization::make_named_struct(m_laLayer.get_layer_name_str().c_str(), m_laLayer);
 // 		}
 	};
 
 	template<template <class FpcT> class LayerTpl, typename ...LossAddsTs>
-	class LPA final : public _layer_penalized_activations<LPA<LayerTpl, LossAddsTs...>, LayerTpl, std::tuple<LossAddsTs...>> {
+	class LPA final : public _layer_penalized_activations<LPA<LayerTpl, LossAddsTs...>, LayerTpl, ::std::tuple<LossAddsTs...>> {
 	public:
 		~LPA() noexcept {};
 		template<typename... ArgsTs>
 		LPA(const char* pCustomName, ArgsTs... _args) noexcept
-			: _layer_penalized_activations<LPA<LayerTpl, LossAddsTs...>, LayerTpl, std::tuple<LossAddsTs...>>(pCustomName, _args...) {};
+			: _layer_penalized_activations<LPA<LayerTpl, LossAddsTs...>, LayerTpl, ::std::tuple<LossAddsTs...>>(pCustomName, _args...) {};
 	};
 
 	template <template <class FpcT> class LayerTpl, typename ..._T>

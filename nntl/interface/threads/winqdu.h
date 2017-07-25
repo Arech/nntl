@@ -59,13 +59,13 @@ namespace threads {
 		WinQDU& operator=(const WinQDU& rhs) noexcept = delete;
 		
 	protected:
-		typedef std::function<void(const par_range_t& r)> func_run_t;
-		typedef std::function<real_t(const par_range_t& r)> func_reduce_t;
+		typedef ::std::function<void(const par_range_t& r)> func_run_t;
+		typedef ::std::function<real_t(const par_range_t& r)> func_reduce_t;
 
 		enum class JobType{Run, Reduce};
 
 	public:
-		typedef std::vector<std::thread> threads_cont_t;
+		typedef ::std::vector<::std::thread> threads_cont_t;
 		typedef threads_cont_t::iterator ThreadObjIterator_t;
 
 		static constexpr char* name = "WinQDU";
@@ -79,9 +79,9 @@ namespace threads {
 		volatile long m_workingCnt;
 		JobType m_jobType;
 
-		std::vector<par_range_t> m_ranges;
+		::std::vector<par_range_t> m_ranges;
 		func_run_t m_fnRun;
-		std::vector<real_t> m_reduceCache;
+		::std::vector<real_t> m_reduceCache;
 		func_reduce_t m_fnReduce;
 
 		const thread_id_t m_workersCnt;
@@ -116,7 +116,7 @@ namespace threads {
 			for (thread_id_t i = 0; i < m_workersCnt; ++i) {
 				//worker threads should have par_range_t::tid>=1. tid==0 is reserved to main thread
 				m_ranges.push_back(par_range_t(0, 0, i + 1));
-				m_threads[i] = std::thread(_s_worker, this, i);
+				m_threads[i] = ::std::thread(_s_worker, this, i);
 			}
 			m_ranges.shrink_to_fit();
 			NNTL_ASSERT(m_ranges.size() == m_workersCnt);
@@ -131,7 +131,7 @@ namespace threads {
 		}
 
 		static thread_id_t workers_count()noexcept {
-			return std::thread::hardware_concurrency();
+			return ::std::thread::hardware_concurrency();
 		}
 		auto get_worker_threads(thread_id_t& threadsCnt)noexcept ->ThreadObjIterator_t {
 			threadsCnt = m_workersCnt;
@@ -144,7 +144,7 @@ namespace threads {
 			//DONE: well, it worth less than 9mks to parallelize execution therefore won't bother...
 			if (cnt <= 1) {
 				if (pThreadsUsed) *pThreadsUsed = 1;
-				std::forward<Func>(F)(par_range_t(cnt));
+				::std::forward<Func>(F)(par_range_t(cnt));
 			} else {
 				AcquireSRWLockExclusive(&m_srwlock);
 				m_fnRun = F;
@@ -157,7 +157,7 @@ namespace threads {
 				WakeAllConditionVariable(&m_waitingOrders);
 				ReleaseSRWLockExclusive(&m_srwlock);
 
-				std::forward<Func>(F)(par_range_t(prevOfs, cnt - prevOfs, 0));
+				::std::forward<Func>(F)(par_range_t(prevOfs, cnt - prevOfs, 0));
 
 				if (m_workingCnt > 0) {
 					AcquireSRWLockExclusive(&m_srwlock);
@@ -174,7 +174,7 @@ namespace threads {
 			//TODO: decide whether it is worth to use workers here
 			//DONE: well, it worth less than 9mks to parallelize execution therefore won't bother...
 			if (cnt <= 1) {
-				return std::forward<Func>(FRed)( par_range_t(cnt) );
+				return ::std::forward<Func>(FRed)( par_range_t(cnt) );
 			} else {
 				AcquireSRWLockExclusive(&m_srwlock);
 				m_fnReduce = FRed;
@@ -191,7 +191,7 @@ namespace threads {
 				WakeAllConditionVariable(&m_waitingOrders);
 				ReleaseSRWLockExclusive(&m_srwlock);
 
-				*rc = std::forward<Func>(FRed)(par_range_t(prevOfs, cnt - prevOfs, 0));
+				*rc = ::std::forward<Func>(FRed)(par_range_t(prevOfs, cnt - prevOfs, 0));
 
 				if (m_workingCnt > 0) {
 					AcquireSRWLockExclusive(&m_srwlock);
@@ -200,7 +200,7 @@ namespace threads {
 					}
 					ReleaseSRWLockExclusive(&m_srwlock);
 				}
-				return std::forward<FinalReduceFunc>(FRF)(rc, workersOnReduce);
+				return ::std::forward<FinalReduceFunc>(FRF)(rc, workersOnReduce);
 			}
 		}
 
@@ -212,7 +212,7 @@ namespace threads {
 			const thread_id_t useNThreads = _useNThreads > 1 && _useNThreads <= m_workersCnt + 1 ? _useNThreads - 1 : m_workersCnt;
 
 			const thread_id_t _workingCnt = cnt > useNThreads ? useNThreads : static_cast<thread_id_t>(cnt - 1);
-			m_workingCnt = static_cast<std::remove_volatile<decltype(m_workingCnt)>::type> (_workingCnt);
+			m_workingCnt = static_cast<::std::remove_volatile<decltype(m_workingCnt)>::type> (_workingCnt);
 			const range_t totalWorkers = _workingCnt + 1;
 			range_t eachCnt = cnt / totalWorkers;
 			const range_t residual = cnt % totalWorkers;

@@ -59,15 +59,15 @@ namespace nntl {
 	template <typename ...Layrs>
 	class layers 
 		: public math::smatrix_td
-		, public interfaces_td<typename std::remove_reference<typename std::tuple_element<0, std::tuple<Layrs&...>>::type>::type::interfaces_t> {
+		, public interfaces_td<typename ::std::remove_reference<typename ::std::tuple_element<0, ::std::tuple<Layrs&...>>::type>::type::interfaces_t> {
 	public:
-		typedef const std::tuple<Layrs&...> _layers;
+		typedef const ::std::tuple<Layrs&...> _layers;
 
 		static constexpr size_t layers_count = sizeof...(Layrs);
 		static_assert(layers_count > 1, "Hey, what kind of NN with 1 layer you are gonna use?");
-		typedef typename std::remove_reference<typename std::tuple_element<0, _layers>::type>::type input_layer_t;
-		typedef typename std::remove_reference<typename std::tuple_element<layers_count - 1, _layers>::type>::type output_layer_t;
-		typedef typename std::remove_reference<typename std::tuple_element<layers_count - 2, _layers>::type>::type preoutput_layer_t;
+		typedef typename ::std::remove_reference<typename ::std::tuple_element<0, _layers>::type>::type input_layer_t;
+		typedef typename ::std::remove_reference<typename ::std::tuple_element<layers_count - 1, _layers>::type>::type output_layer_t;
+		typedef typename ::std::remove_reference<typename ::std::tuple_element<layers_count - 2, _layers>::type>::type preoutput_layer_t;
 
 		//matrix type to feed into forward propagation
 
@@ -78,14 +78,14 @@ namespace nntl {
 		typedef typename iMath_t::realmtxdef_t realmtxdef_t;
 
 		typedef _nnet_errs::ErrorCode ErrorCode;
-		typedef std::pair<ErrorCode, layer_index_t> layer_error_t;
+		typedef ::std::pair<ErrorCode, layer_index_t> layer_error_t;
 
 		//we need 2 matrices for bprop()
-		typedef std::array<realmtxdef_t, 2> realmtxdef_array_t;
+		typedef ::std::array<realmtxdef_t, 2> realmtxdef_array_t;
 
 		//test whether the first layer is m_layer_input and the last is m_layer_output derived
-		static_assert(std::is_base_of<m_layer_input, input_layer_t>::value, "First/input layer must derive from m_layer_input!");
-		static_assert(std::is_base_of<m_layer_output, output_layer_t>::value, "Last/output layer must derive from m_layer_output!");
+		static_assert(::std::is_base_of<m_layer_input, input_layer_t>::value, "First/input layer must derive from m_layer_input!");
+		static_assert(::std::is_base_of<m_layer_output, output_layer_t>::value, "Last/output layer must derive from m_layer_output!");
 
 		//////////////////////////////////////////////////////////////////////////
 	protected:
@@ -111,7 +111,7 @@ namespace nntl {
 		//////////////////////////////////////////////////////////////////////////
 		//Serialization support
 	private:
-		friend class boost::serialization::access;
+		friend class ::boost::serialization::access;
 		template<class Archive>
 		void serialize(Archive & ar, const unsigned int version) {
 			for_each_packed_layer([&ar](auto& l) {
@@ -146,38 +146,38 @@ namespace nntl {
 		//and apply function _Func(auto& layer) to each underlying (non-pack) layer here
 		template<typename _Func>
 		void for_each_layer(_Func&& f)noexcept {
-			//tuple_utils::for_each_up(m_layers, std::move(f));
-			tuple_utils::for_each_up(m_layers, [&func{ std::forward<_Func>(f) }](auto& l) {
-				call_F_for_each_layer(std::forward<_Func>(func), l);
+			//tuple_utils::for_each_up(m_layers, ::std::move(f));
+			tuple_utils::for_each_up(m_layers, [&func{ ::std::forward<_Func>(f) }](auto& l) {
+				call_F_for_each_layer(::std::forward<_Func>(func), l);
 			});
 		}
 		//This will apply f to every layer, packed in tuple no matter whether it is a _pack_* kind of layer or no
 		template<typename _Func>
 		void for_each_packed_layer(_Func&& f)noexcept {
-			tuple_utils::for_each_up(m_layers, std::forward<_Func>(f));
+			tuple_utils::for_each_up(m_layers, ::std::forward<_Func>(f));
 		}
 
 		//and apply function _Func(auto& layer) to each underlying (non-pack) layer here excluding the first
 		template<typename _Func>
 		void for_each_layer_exc_input(_Func&& f)noexcept {
-			//tuple_utils::for_each_exc_first_up(m_layers, std::move(f));
-			tuple_utils::for_each_exc_first_up(m_layers, [&func{ std::forward<_Func>(f) }](auto& l) {
-				call_F_for_each_layer(std::forward<_Func>(func), l);
+			//tuple_utils::for_each_exc_first_up(m_layers, ::std::move(f));
+			tuple_utils::for_each_exc_first_up(m_layers, [&func{ ::std::forward<_Func>(f) }](auto& l) {
+				call_F_for_each_layer(::std::forward<_Func>(func), l);
 			});
 		}
 		//This will apply f to every layer excluding the first, packed in tuple no matter whether it is a _pack_* kind of layer or no
 		template<typename _Func>
 		void for_each_packed_layer_exc_input(_Func&& f)noexcept {
-			tuple_utils::for_each_exc_first_up(m_layers, std::forward<_Func>(f));
+			tuple_utils::for_each_exc_first_up(m_layers, ::std::forward<_Func>(f));
 		}
 		template<typename _Func>
 		void for_each_packed_layer_exc_input_down(_Func&& f)noexcept {
-			tuple_utils::for_each_exc_first_down(m_layers, std::forward<_Func>(f));
+			tuple_utils::for_each_exc_first_down(m_layers, ::std::forward<_Func>(f));
 		}
 
-		input_layer_t& input_layer()const noexcept { return std::get<0>(m_layers); }
-		output_layer_t& output_layer()const noexcept { return std::get<layers_count-1>(m_layers); }
-		preoutput_layer_t& preoutput_layer()const noexcept { return std::get<layers_count - 2>(m_layers); }
+		input_layer_t& input_layer()const noexcept { return ::std::get<0>(m_layers); }
+		output_layer_t& output_layer()const noexcept { return ::std::get<layers_count-1>(m_layers); }
+		preoutput_layer_t& preoutput_layer()const noexcept { return ::std::get<layers_count - 2>(m_layers); }
 
 		//perform layers initialization before training begins.
 		layer_error_t init(const common_data_t& cd, _impl::layers_mem_requirements& LMR) noexcept
@@ -293,18 +293,18 @@ namespace nntl {
 	//////////////////////////////////////////////////////////////////////////
 	// helpers to change various layer properties that may or may not exist
 	struct hlpr_layer_set_learning_rate {
-		template<typename _L> std::enable_if_t<nntl::layer_has_gradworks<_L>::value> operator()(_L& l, const typename _L::real_t& lr)const noexcept {
+		template<typename _L> ::std::enable_if_t<nntl::layer_has_gradworks<_L>::value> operator()(_L& l, const typename _L::real_t& lr)const noexcept {
 			l.m_gradientWorks.learning_rate(lr);
 		}
-		template<typename _L> std::enable_if_t<!nntl::layer_has_gradworks<_L>::value> operator()(_L& l, const typename _L::real_t& lr)const noexcept {}
+		template<typename _L> ::std::enable_if_t<!nntl::layer_has_gradworks<_L>::value> operator()(_L& l, const typename _L::real_t& lr)const noexcept {}
 	};
 	struct hlpr_layer_learning_rate_decay {
 		template<typename _L>
-		std::enable_if_t<nntl::layer_has_gradworks<_L>::value> operator()(_L& l, const typename _L::real_t& decayCoeff)const noexcept {
+		::std::enable_if_t<nntl::layer_has_gradworks<_L>::value> operator()(_L& l, const typename _L::real_t& decayCoeff)const noexcept {
 			l.m_gradientWorks.learning_rate(l.m_gradientWorks.learning_rate()*decayCoeff);
 		}
 		template<typename _L>
-		std::enable_if_t<!nntl::layer_has_gradworks<_L>::value> operator()(_L& l, const typename _L::real_t& decayCoeff)const noexcept {}
+		::std::enable_if_t<!nntl::layer_has_gradworks<_L>::value> operator()(_L& l, const typename _L::real_t& decayCoeff)const noexcept {}
 	};
 
 	template<typename RealT>
@@ -315,24 +315,24 @@ namespace nntl {
 		hlpr_learning_rate_decay(const real_t& d)noexcept:decayVal(d){}
 
 		template<typename _L>
-		std::enable_if_t<nntl::layer_has_gradworks<_L>::value> operator()(_L& l)const noexcept {
+		::std::enable_if_t<nntl::layer_has_gradworks<_L>::value> operator()(_L& l)const noexcept {
 			l.m_gradientWorks.learning_rate(l.m_gradientWorks.learning_rate()*decayVal);
 		}
 		template<typename _L>
-		std::enable_if_t<!nntl::layer_has_gradworks<_L>::value> operator()(_L& l)const noexcept {}
+		::std::enable_if_t<!nntl::layer_has_gradworks<_L>::value> operator()(_L& l)const noexcept {}
 	};
 
 	struct hlpr_layer_set_nesterov_momentum {
-		template<typename _L> std::enable_if_t<nntl::layer_has_gradworks<_L>::value> operator()(_L& l, const typename _L::real_t& nm)const noexcept {
+		template<typename _L> ::std::enable_if_t<nntl::layer_has_gradworks<_L>::value> operator()(_L& l, const typename _L::real_t& nm)const noexcept {
 			l.m_gradientWorks.nesterov_momentum(nm);
 		}
-		template<typename _L> std::enable_if_t<!nntl::layer_has_gradworks<_L>::value> operator()(_L& l, const typename _L::real_t& nm)const noexcept {}
+		template<typename _L> ::std::enable_if_t<!nntl::layer_has_gradworks<_L>::value> operator()(_L& l, const typename _L::real_t& nm)const noexcept {}
 	};
 
 	struct hlpr_layer_apply_func2gradworks_layer {
-		template<typename _L, typename F> std::enable_if_t<nntl::layer_has_gradworks<_L>::value> operator()(_L& l, F&& f)noexcept {
-			(std::forward<F>(f))(l);
+		template<typename _L, typename F> ::std::enable_if_t<nntl::layer_has_gradworks<_L>::value> operator()(_L& l, F&& f)noexcept {
+			(::std::forward<F>(f))(l);
 		}
-		template<typename _L, typename F> std::enable_if_t<!nntl::layer_has_gradworks<_L>::value> operator()(_L& l, F&& f)noexcept {}
+		template<typename _L, typename F> ::std::enable_if_t<!nntl::layer_has_gradworks<_L>::value> operator()(_L& l, F&& f)noexcept {}
 	};
 };

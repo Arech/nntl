@@ -84,10 +84,10 @@ TEST(TestBinFile, ReadTrainData) {
 	ASSERT_EQ(ErrorCode::Success, ec) << r.get_last_error_str();
 
 	//biased (default) version:
-	const std::array<std::array<real_t, 3>, 5> train_x_data{ 77,80,19,49,45,65,71,75,28,68,66,16 ,1,1,1 };
-	const std::array<std::array<real_t, 3>, 1> train_y_data{ 12,50,96 };
-	const std::array<std::array<real_t, 2>, 5> test_x_data{ 34,59,22,75,26,51,70,89 ,1,1 };
-	const std::array<std::array<real_t, 2>, 1> test_y_data{ 96,55 };
+	const ::std::array<::std::array<real_t, 3>, 5> train_x_data{ 77,80,19,49,45,65,71,75,28,68,66,16 ,1,1,1 };
+	const ::std::array<::std::array<real_t, 3>, 1> train_y_data{ 12,50,96 };
+	const ::std::array<::std::array<real_t, 2>, 5> test_x_data{ 34,59,22,75,26,51,70,89 ,1,1 };
+	const ::std::array<::std::array<real_t, 2>, 1> test_y_data{ 96,55 };
 
 	mtx_size_t train_x_size(static_cast<vec_len_t>(train_x_data[0].size()), static_cast<vec_len_t>(train_x_data.size())),
 		train_y_size(static_cast<vec_len_t>(train_y_data[0].size()), static_cast<vec_len_t>(train_y_data.size())),

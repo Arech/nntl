@@ -41,7 +41,7 @@ using namespace nntl;
 
 TEST(TestSimpleMatrix, Basics) {
 	math::smatrix<float> m(1, 2);
-	math::smatrix<float> t(std::move(m));
+	math::smatrix<float> t(::std::move(m));
 
 	EXPECT_TRUE(m.empty());
 
@@ -49,7 +49,7 @@ TEST(TestSimpleMatrix, Basics) {
 	EXPECT_EQ(t.cols(), 2);
 	EXPECT_TRUE(!t.empty());
 
-	math::smatrix<float> k = std::move(t);
+	math::smatrix<float> k = ::std::move(t);
 
 	EXPECT_TRUE(t.empty());
 
@@ -85,7 +85,7 @@ TEST(TestSimpleMatrix, ExtractRowsFromColMajor) {
 	mtx src(5, 2),destCM(3,2),destRM(3,2);
 	for (mtx::numel_cnt_t i = 0, im = src.numel(); i < im; ++i) src.data()[i] = static_cast<int>(i);
 
-	std::vector<mtx::vec_len_t> v(3);
+	::std::vector<mtx::vec_len_t> v(3);
 	v[0]=1; v[1]=2; v[2]=4;
 	
 	src.extractRows(v.begin(), 3, destCM);

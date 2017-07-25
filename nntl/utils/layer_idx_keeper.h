@@ -40,9 +40,9 @@ namespace utils {
 	//helper to store current layer index. Maximum depth is hardcoded into _maxDepth. It is checked only during DEBUG builds,
 	// though it is ok if the actual depth is bigger, because container would just reallocate its memory to suit new needs
 	template<typename IdxT, IdxT defaultVal, size_t _maxDepth>
-	class layer_idx_keeper : private std::stack<IdxT, std::vector<IdxT>> {
+	class layer_idx_keeper : private ::std::stack<IdxT, ::std::vector<IdxT>> {
 	private:
-		typedef std::stack<IdxT, std::vector<IdxT>> _base_class_t;
+		typedef ::std::stack<IdxT, ::std::vector<IdxT>> _base_class_t;
 	public:
 		typedef IdxT value_t;
 		//typedef const value_t& cref_value_t;
@@ -64,7 +64,7 @@ namespace utils {
 		}
 		void push(value_t&& v)noexcept {
 			NNTL_ASSERT(size() < maxDepth);
-			_base_class_t::push(std::move(v));//#exceptions STL
+			_base_class_t::push(::std::move(v));//#exceptions STL
 		}
 
 		void pop()noexcept {
@@ -79,10 +79,10 @@ namespace utils {
 			return _base_class_t::top();
 		}
 		value_t top_n(const size_type& n)const noexcept {
-			return _base_class_t::size()>=n ? *std::prev(_base_class_t::_Get_container().end(), n) : default_value;
+			return _base_class_t::size()>=n ? *::std::prev(_base_class_t::_Get_container().end(), n) : default_value;
 		}
 		const value_t& top_n_unsafe(const size_type& n)const noexcept {
-			return *std::prev(_base_class_t::_Get_container().end(), n);
+			return *::std::prev(_base_class_t::_Get_container().end(), n);
 		}*/
 
 		operator value_t()const noexcept {
@@ -91,7 +91,7 @@ namespace utils {
 
 		//checks whether the previous entry is the same as current
 		bool bUpperLayerDifferent()const noexcept {
-			return _base_class_t::size() < 2 || _base_class_t::top() != *std::prev(_base_class_t::_Get_container().end(), 2);
+			return _base_class_t::size() < 2 || _base_class_t::top() != *::std::prev(_base_class_t::_Get_container().end(), 2);
 		}
 
 		size_type nestingLevel()const noexcept {
@@ -99,7 +99,7 @@ namespace utils {
 			const auto s = _base_class_t::size();
 			const auto t = _base_class_t::top();
 			for (size_type i = 2; i <= s; ++i) {
-				if (t != std::prev(_base_class_t::_Get_container().end(), i)) {
+				if (t != ::std::prev(_base_class_t::_Get_container().end(), i)) {
 					break;
 				}
 				++nl;

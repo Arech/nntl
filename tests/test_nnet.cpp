@@ -60,7 +60,7 @@ typedef nntl_supp::binfile reader_t;
 //////////////////////////////////////////////////////////////////////////
 template<typename real_t>
 struct testWeightsL1L2_res {
-	std::array<real_t, 3> w;
+	::std::array<real_t, 3> w;
 };
 void testL2L1(const bool bL2, train_data<real_t>& td, const real_t coeff, uint64_t rngSeed, testWeightsL1L2_res<real_t>& res, const size_t maxEpochs=3, const real_t LR=.02, const char* pDumpFileName=nullptr) noexcept {
 	if (bL2) {
@@ -111,7 +111,7 @@ void testL2L1(const bool bL2, train_data<real_t>& td, const real_t coeff, uint64
 	if (pDumpFileName) {
 		nntl_supp::omatfile<> mf;
 		mf.turn_on_all_options();
-		mf.open(std::string(pDumpFileName));
+		mf.open(::std::string(pDumpFileName));
 		mf << serialization::make_nvp("outpW", outp.get_weights());
 		mf << serialization::make_nvp("fcl2W", fcl2.get_weights());
 		mf << serialization::make_nvp("fclW", fcl.get_weights());
@@ -136,7 +136,7 @@ TEST(TestNnet, WeightsConstraintsL2L1) {
 
 	STDCOUTL("*************** Testing L2 regularizer ******************* ");
 	for (unsigned i = 0; i < im; ++i) {
-		auto sv = std::time(0);
+		auto sv = ::std::time(0);
 		testL2L1(true,td, 0, sv, noReg);
 		testL2L1(true,td, real_t(.01), sv, wReg);
 		STDCOUTL("Sum of squared weights without regularizer vs with regularizer:");
@@ -144,12 +144,12 @@ TEST(TestNnet, WeightsConstraintsL2L1) {
 			STDCOUT("Layer#" << idx << ": " << noReg.w[idx] << " - " << wReg.w[idx] << "    ");
 			ASSERT_GT(noReg.w[idx], wReg.w[idx]) << "Comparison for the layer failed!";
 		}
-		STDCOUT(std::endl);
+		STDCOUT(::std::endl);
 	}
 
 	STDCOUTL("*************** Testing L1 regularizer ******************* ");
 	for (unsigned i = 0; i < im; ++i) {
-		auto sv = std::time(0);
+		auto sv = ::std::time(0);
 		testL2L1(false, td, 0, sv, noReg);
 		testL2L1(false, td, real_t(.01), sv, wReg);
 		STDCOUTL("Sum of squared weights without regularizer vs with regularizer:");
@@ -157,7 +157,7 @@ TEST(TestNnet, WeightsConstraintsL2L1) {
 			STDCOUT("Layer#" << idx << ": " << noReg.w[idx] << " - " << wReg.w[idx] << "    ");
 			ASSERT_GT(noReg.w[idx], wReg.w[idx]) << "Comparison for the layer failed!";
 		}
-		STDCOUT(std::endl);
+		STDCOUT(::std::endl);
 	}
 }
 
@@ -188,7 +188,7 @@ void test_LSUVExt(train_data<RealT>& td, bool bCentNorm, bool bScaleNorm, bool b
 
 	const bool bUseLSUVExt = bCentNorm || bScaleNorm;
 	SCOPED_TRACE(bUseLSUVExt ? "test_LSUVExt, bUseLSUVExt=true" : "test_LSUVExt, bUseLSUVExt=false");
-	STDCOUT(std::endl << "Running with ");
+	STDCOUT(::std::endl << "Running with ");
 	if (bUseLSUVExt) {
 		STDCOUTL("LSUVExt bCentNorm=" << bCentNorm << ", bScaleNorm=" << bScaleNorm << ", bIndNeurons=" << bIndNeurons);
 	} else {
@@ -229,8 +229,8 @@ void test_LSUVExt(train_data<RealT>& td, bool bCentNorm, bool bScaleNorm, bool b
 	nn.get_layer_pack().for_each_layer_exc_input([&iR = nn.get_iRng(), &iM = nn.get_iMath()](auto& lyr) {
 		math::smatrix<real_t> W;
 		ASSERT_TRUE(W.resize(lyr.get_neurons_cnt(), lyr.get_incoming_neurons_cnt() + 1));
-		ASSERT_TRUE(std::decay_t<decltype(lyr)>::Weights_Init_t::init(W, iR, iM));
-		ASSERT_TRUE(lyr.set_weights(std::move(W)));
+		ASSERT_TRUE(::std::decay_t<decltype(lyr)>::Weights_Init_t::init(W, iR, iM));
+		ASSERT_TRUE(lyr.set_weights(::std::move(W)));
 		lyr.m_gradientWorks.set_type(decltype(lyr.m_gradientWorks)::Adam);
 	});
 
@@ -253,7 +253,7 @@ void test_LSUVExt(train_data<RealT>& td, bool bCentNorm, bool bScaleNorm, bool b
 		obj.setts().add(outp.get_layer_idx(), outpS);
 
 		//individual neuron stats requires a lot of data to be correctly evaluated
-		if (!obj.run(std::min(vec_len_t(bIndNeurons ? td.train_x().rows() : 2000), td.train_x().rows()), td.train_x())) {
+		if (!obj.run(::std::min(vec_len_t(bIndNeurons ? td.train_x().rows() : 2000), td.train_x().rows()), td.train_x())) {
 			STDCOUTL("*** Layer with ID="<<obj.m_firstFailedLayerIdx<<" was the first to fail convergence. There might be more of them.");
 		}
 	}
@@ -269,7 +269,7 @@ TEST(TestNnet, LSUVExt) {
 	train_data<real_t> td;
 	readTd(td);
 
-	const size_t s = std::time(0);
+	const size_t s = ::std::time(0);
 	STDCOUTL("Seed = " << s);
 
 	test_LSUVExt<real_t>(td, false, false, false, s);

@@ -49,8 +49,8 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 //#include <tchar.h>
 
-#define STDCOUT(args) std::cout << args
-#define STDCOUTL(args) STDCOUT(args) << std::endl
+#define STDCOUT(args) ::std::cout << args
+#define STDCOUTL(args) STDCOUT(args) << ::std::endl
 
 #pragma warning(disable: 28182)
 #include <gtest/gtest.h>

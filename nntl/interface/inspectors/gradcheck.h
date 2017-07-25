@@ -42,7 +42,7 @@ namespace inspector {
 
 	template<typename RealT, typename BaseInspT = _impl::_base<RealT>, size_t maxNnetDepth = 32>
 	class GradCheck  : public BaseInspT {
-		static_assert(std::is_base_of<_i_inspector<RealT>, BaseInspT>::value, "BaseInspT must derive from _i_inspector<>!");
+		static_assert(::std::is_base_of<_i_inspector<RealT>, BaseInspT>::value, "BaseInspT must derive from _i_inspector<>!");
 	private:
 		typedef BaseInspT _base_class_t;
 	protected:
@@ -69,7 +69,7 @@ namespace inspector {
 
 		real_t m_stepSize;
 		real_t m_analyticalValue;
-		static_assert(std::numeric_limits<real_t>::has_quiet_NaN, "real_t MUST have quiet NaN available!");
+		static_assert(::std::numeric_limits<real_t>::has_quiet_NaN, "real_t MUST have quiet NaN available!");
 
 		real_t* m_pChangedEl;
 		real_t m_origElVal;
@@ -100,14 +100,14 @@ namespace inspector {
 			//return *this;
 		}
 		const real_t& get_analytical_value()const noexcept {
-			NNTL_ASSERT(!std::isnan(m_analyticalValue));
+			NNTL_ASSERT(!::std::isnan(m_analyticalValue));
 			NNTL_ASSERT(nntl::_impl::gradcheck_phase::df_analytical == m_checkPhase);
 			return m_analyticalValue;
 		}
 
 		void gc_set_phase(nntl::_impl::gradcheck_phase ph)noexcept {
 			m_checkPhase = ph;
-			m_analyticalValue = std::numeric_limits<real_t>::quiet_NaN();
+			m_analyticalValue = ::std::numeric_limits<real_t>::quiet_NaN();
 		}
 
 		//////////////////////////////////////////////////////////////////////////
@@ -187,7 +187,7 @@ namespace inspector {
 				&& nntl::_impl::gradcheck_phase::df_analytical == m_checkPhase
 				&& m_curLayer.bUpperLayerDifferent())
 			{
-				NNTL_ASSERT(std::isnan(m_analyticalValue));
+				NNTL_ASSERT(::std::isnan(m_analyticalValue));
 				m_analyticalValue = dLdA.get(m_coord);
 			}
 			_base_class_t::bprop_finaldLdA(dLdA);
@@ -202,7 +202,7 @@ namespace inspector {
 				// but it's not necessary now, because we expect only a single bprop_dLdW() call per layer.
 				)
 			{
-				NNTL_ASSERT(std::isnan(m_analyticalValue));
+				NNTL_ASSERT(::std::isnan(m_analyticalValue));
 				m_analyticalValue = dLdW.get(m_coord);
 			}
 			_base_class_t::bprop_dLdW(dLdZ, prevAct, dLdW);
@@ -214,10 +214,10 @@ namespace inspector {
 		}
 	};
 
-	template< class, class = std::void_t<> >
-	struct is_gradcheck_inspector : std::false_type { };
+	template< class, class = ::std::void_t<> >
+	struct is_gradcheck_inspector : ::std::false_type { };
 	template< class T >
-	struct is_gradcheck_inspector<T, std::void_t<typename T::gradcheck_inspector_t>> : std::true_type {};
+	struct is_gradcheck_inspector<T, ::std::void_t<typename T::gradcheck_inspector_t>> : ::std::true_type {};
 
 }
 }

@@ -32,7 +32,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #pragma once
 
-//this header contains necessary includes of boost::serialization headers and additional
+//this header contains necessary includes of ::boost::serialization headers and additional
 //definitions of types that are helpful in nntl objects serialization.
 
 #include <type_traits>
@@ -96,7 +96,7 @@ namespace serialization {
 	class simple_archive {
 	public:
 		typedef FinalChildT self_t;
-		NNTL_METHODS_SELF_CHECKED((std::is_base_of<simple_archive, FinalChildT>::value), "FinalChildT must inherit from simple_archive");
+		NNTL_METHODS_SELF_CHECKED((::std::is_base_of<simple_archive, FinalChildT>::value), "FinalChildT must inherit from simple_archive");
 
 		~simple_archive()noexcept {}
 		simple_archive() noexcept {}
@@ -111,27 +111,27 @@ namespace serialization {
 		// this can be a no-op since we ignore pointer polymorphism
 		template<class T> void register_type(const T * = NULL) {}
 		nntl_interface unsigned int get_library_version() { return 0; }
-		nntl_interface void save_binary(const void *address, std::size_t count) { static_assert(!"save_binary"); }
-		nntl_interface void load_binary(void *address, std::size_t count) { static_assert(!"load_binary"); }
+		nntl_interface void save_binary(const void *address, ::std::size_t count) { static_assert(!"save_binary"); }
+		nntl_interface void load_binary(void *address, ::std::size_t count) { static_assert(!"load_binary"); }
 
 		template<class T>
 		self_ref_t operator<<(T const & t) {
-			boost::serialization::serialize_adl(get_self(), const_cast<T &>(t), ::boost::serialization::version< T >::value);
+			::boost::serialization::serialize_adl(get_self(), const_cast<T &>(t), ::boost::serialization::version< T >::value);
 			return get_self();
 		}
 		template<class T>
 		self_ref_t operator>>(T& t) {
-			boost::serialization::serialize_adl(get_self(), t, ::boost::serialization::version< T >::value);
+			::boost::serialization::serialize_adl(get_self(), t, ::boost::serialization::version< T >::value);
 			return get_self();
 		}
 
 		// the & operator 
 		template<class T, bool b = bSavingArchive>
-		std::enable_if_t<b, self_ref_t> operator&(const T & t) {
+		::std::enable_if_t<b, self_ref_t> operator&(const T & t) {
 			return get_self() << t;
 		}
 		template<class T, bool b = bSavingArchive>
-		std::enable_if_t<!b, self_ref_t> operator&(T & t) {
+		::std::enable_if_t<!b, self_ref_t> operator&(T & t) {
 			return get_self() >> t;
 		}
 	};

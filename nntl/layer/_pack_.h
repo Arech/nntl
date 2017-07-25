@@ -63,7 +63,7 @@ namespace nntl {
 
 		template<typename _L = phl_original_t>
 		PHL(phl_original_t& _l, const neurons_count_t _ofs, const neurons_count_t _cnt
-			, typename std::enable_if<std::is_base_of<m_layer_autoneurons_cnt, _L>::value>::type* = 0)noexcept
+			, typename ::std::enable_if<::std::is_base_of<m_layer_autoneurons_cnt, _L>::value>::type* = 0)noexcept
 			:l(_l), coord(_ofs,_cnt) //m_offset(_ofs), m_count(_cnt)
 		{
 			l._set_neurons_cnt(_cnt);
@@ -71,7 +71,7 @@ namespace nntl {
 
 		template<typename _L = phl_original_t >
 		PHL(phl_original_t& _l, const neurons_count_t _ofs, const neurons_count_t _cnt
-			, typename std::enable_if<!std::is_base_of<m_layer_autoneurons_cnt, _L>::value>::type* = 0)noexcept
+			, typename ::std::enable_if<!::std::is_base_of<m_layer_autoneurons_cnt, _L>::value>::type* = 0)noexcept
 			:l(_l), coord(_ofs, _cnt) //m_offset(_ofs), m_count(_cnt)
 		{ }
 	};
@@ -183,20 +183,20 @@ namespace nntl {
 		//////////////////////////////////////////////////////////////////////////
 		// Helper traits recognizer
 		// primary template handles types that have no nested ::wrapped_layer_t member:
-		template< class, class = std::void_t<> >
-		struct is_layer_wrapper : std::false_type { };
+		template< class, class = ::std::void_t<> >
+		struct is_layer_wrapper : ::std::false_type { };
 		// specialization recognizes types that do have a nested ::wrapped_layer_t member:
 		template< class T >
-		struct is_layer_wrapper<T, std::void_t<typename T::wrapped_layer_t>> : std::true_type {};
+		struct is_layer_wrapper<T, ::std::void_t<typename T::wrapped_layer_t>> : ::std::true_type {};
 
 		//////////////////////////////////////////////////////////////////////////
 		// Helper for the LPH to recognize if a LayerT class has .OuterLayerCustomFlag1Eval(const PhlsTupleT&) function to calculate bLPH_CustomFlag1 var
-		template<class, class, class, class = std::void_t<>>
-		struct layer_has_OuterLayerCustomFlag1Eval : std::false_type {};
+		template<class, class, class, class = ::std::void_t<>>
+		struct layer_has_OuterLayerCustomFlag1Eval : ::std::false_type {};
 
 		template<class LayerT, class PhlsTupleT, class LayerInitDataT>
 		struct layer_has_OuterLayerCustomFlag1Eval<LayerT, PhlsTupleT, LayerInitDataT
-			, std::void_t<decltype(std::declval<LayerT>()
-				.OuterLayerCustomFlag1Eval(std::declval<const PhlsTupleT&>(),std::declval<const LayerInitDataT&>()))>> : std::true_type {};
+			, ::std::void_t<decltype(::std::declval<LayerT>()
+				.OuterLayerCustomFlag1Eval(::std::declval<const PhlsTupleT&>(),::std::declval<const LayerInitDataT&>()))>> : ::std::true_type {};
 	}
 }

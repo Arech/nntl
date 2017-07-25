@@ -36,8 +36,8 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //links to wrong library and access violation happens in run-time.
 
 #include <complex>
-#define lapack_complex_float std::complex<float>
-#define lapack_complex_double std::complex<double>
+#define lapack_complex_float ::std::complex<float>
+#define lapack_complex_double ::std::complex<double>
 #include <lapacke.h>
 
 //#include "../../../utils/denormal_floats.h"
@@ -84,13 +84,13 @@ namespace math {
 		// LEVEL 1
 		// AXPY y=a*x+y
 		template<typename sz_t, typename fl_t>
-		static typename std::enable_if_t< std::is_same< std::remove_pointer_t<fl_t>, double>::value > axpy(
+		static typename ::std::enable_if_t< ::std::is_same< ::std::remove_pointer_t<fl_t>, double>::value > axpy(
 			const sz_t n, const fl_t alpha, const fl_t *x, const sz_t incx, fl_t *y, const sz_t incy)
 		{	
 			cblas_daxpy(static_cast<blasint>(n), alpha, x, static_cast<blasint>(incx), y, static_cast<blasint>(incy));
 		}
 		template<typename sz_t, typename fl_t>
-		static typename std::enable_if_t< std::is_same< std::remove_pointer_t<fl_t>, float>::value > axpy(
+		static typename ::std::enable_if_t< ::std::is_same< ::std::remove_pointer_t<fl_t>, float>::value > axpy(
 			const sz_t n, const fl_t alpha, const fl_t *x, const sz_t incx, fl_t *y, const sz_t incy)
 		{
 			cblas_saxpy(static_cast<blasint>(n), alpha, x, static_cast<blasint>(incx), y, static_cast<blasint>(incy));
@@ -135,7 +135,7 @@ namespace math {
 		//		equal to zero, in which case c need not be set on entry.
 		// ldc - Specifies the leading dimension of c as declared in the calling (sub)program. ldc must be at least max(1, m).
 		template<typename sz_t, typename fl_t>
-		static typename std::enable_if_t< std::is_same< std::remove_pointer_t<fl_t>, double>::value >
+		static typename ::std::enable_if_t< ::std::is_same< ::std::remove_pointer_t<fl_t>, double>::value >
 			gemm( //const enum CBLAS_TRANSPOSE TransA, const enum CBLAS_TRANSPOSE TransB,
 			const bool bTransposeA, const bool bTransposeB,
 			const sz_t& M, const sz_t& N, const sz_t& K, const fl_t& alpha, const fl_t *A, const sz_t& lda,
@@ -147,7 +147,7 @@ namespace math {
 			//global_denormalized_floats_mode();
 		}
 		template<typename sz_t, typename fl_t>
-		static typename std::enable_if_t< std::is_same< std::remove_pointer_t<fl_t>, float>::value >
+		static typename ::std::enable_if_t< ::std::is_same< ::std::remove_pointer_t<fl_t>, float>::value >
 			gemm( //const enum CBLAS_TRANSPOSE TransA, const enum CBLAS_TRANSPOSE TransB,
 			const bool bTransposeA, const bool bTransposeB,
 			const sz_t& M, const sz_t& N, const sz_t& K, const fl_t& alpha, const fl_t *A, const sz_t& lda,
@@ -172,7 +172,7 @@ namespace math {
 		//		C is an n-by-n symmetric matrix,
 		//		A is an n-by-k matrix in the first case and a k-by-n matrix in the second case.
 		template<typename sz_t, typename fl_t>
-		static typename std::enable_if_t< std::is_same< std::remove_pointer_t<fl_t>, double>::value >
+		static typename ::std::enable_if_t< ::std::is_same< ::std::remove_pointer_t<fl_t>, double>::value >
 			syrk( const bool bCLowerTriangl, const bool bFirstATransposed, const sz_t& N, const sz_t& K, const fl_t& alpha
 				, const fl_t *A, const sz_t& lda, const fl_t& beta, fl_t *C, const sz_t& ldc)
 		{
@@ -181,7 +181,7 @@ namespace math {
 			//global_denormalized_floats_mode();
 		}
 		template<typename sz_t, typename fl_t>
-		static typename std::enable_if_t< std::is_same< std::remove_pointer_t<fl_t>, float>::value >
+		static typename ::std::enable_if_t< ::std::is_same< ::std::remove_pointer_t<fl_t>, float>::value >
 			syrk(const bool bCLowerTriangl, const bool bFirstATransposed, const sz_t& N, const sz_t& K, const fl_t& alpha
 				, const fl_t *A, const sz_t& lda, const fl_t& beta, fl_t *C, const sz_t& ldc)
 		{
@@ -203,7 +203,7 @@ namespace math {
 		//		A is a symmetric matrix,
 		//		B and C are m - by - n matrices.
 		template<typename sz_t, typename fl_t>
-		static typename std::enable_if_t< std::is_same< std::remove_pointer_t<fl_t>, double>::value >
+		static typename ::std::enable_if_t< ::std::is_same< ::std::remove_pointer_t<fl_t>, double>::value >
 			symm(const bool bSymmAatLeft, const bool bALowerTriangl, const sz_t& M, const sz_t& N, const fl_t& alpha
 				, const fl_t *A, const sz_t& lda, const fl_t *B, const sz_t& ldb, const fl_t& beta, fl_t *C, const sz_t& ldc)
 		{
@@ -213,7 +213,7 @@ namespace math {
 			//global_denormalized_floats_mode();
 		}
 		template<typename sz_t, typename fl_t>
-		static typename std::enable_if_t< std::is_same< std::remove_pointer_t<fl_t>, float>::value >
+		static typename ::std::enable_if_t< ::std::is_same< ::std::remove_pointer_t<fl_t>, float>::value >
 			symm(const bool bSymmAatLeft, const bool bALowerTriangl, const sz_t& M, const sz_t& N, const fl_t& alpha
 				, const fl_t *A, const sz_t& lda, const fl_t *B, const sz_t& ldb, const fl_t& beta, fl_t *C, const sz_t& ldc)
 		{
@@ -231,7 +231,7 @@ namespace math {
 		// ?gesvd
 		// https://software.intel.com/en-us/node/521150
 		template<typename sz_t, typename fl_t>
-		static typename std::enable_if_t< std::is_same< std::remove_pointer_t<fl_t>, double>::value, int>
+		static typename ::std::enable_if_t< ::std::is_same< ::std::remove_pointer_t<fl_t>, double>::value, int>
 			gesvd(/*int matrix_layout,*/ const char jobu, const char jobvt,
 				const sz_t& m, const sz_t& n, fl_t* A,
 				const sz_t& lda, fl_t* S, fl_t* U, const sz_t& ldu,
@@ -241,7 +241,7 @@ namespace math {
 				, A, static_cast<lapack_int>(lda), S, U, static_cast<lapack_int>(ldu), Vt, static_cast<lapack_int>(ldvt), superb));
 		}
 		template<typename sz_t, typename fl_t>
-		static typename std::enable_if_t< std::is_same< std::remove_pointer_t<fl_t>, float>::value, int>
+		static typename ::std::enable_if_t< ::std::is_same< ::std::remove_pointer_t<fl_t>, float>::value, int>
 			gesvd(/*int matrix_layout,*/ const char jobu, const char jobvt,
 				const sz_t& m, const sz_t& n, fl_t* A,
 				const sz_t& lda, fl_t* S, fl_t* U, const sz_t& ldu,
@@ -280,7 +280,7 @@ namespace math {
 		//			If trans = 'T' or 't' or 'C' or 'c', this parameter must be at least max(1, rows)
 		//			If trans = 'N' or 'n' or 'R' or 'r', this parameter must be at least max(1, cols)
 		template<typename sz_t, typename fl_t>
-		static typename std::enable_if_t< std::is_same< std::remove_pointer_t<fl_t>, double>::value >
+		static typename ::std::enable_if_t< ::std::is_same< ::std::remove_pointer_t<fl_t>, double>::value >
 			omatcopy(const bool bTranspose, const sz_t rows, const sz_t cols, const fl_t alpha,
 				const fl_t* pA, const sz_t lda, fl_t* pB, const sz_t ldb)
 		{
@@ -289,7 +289,7 @@ namespace math {
 				pA, static_cast<blasint>(lda), pB, static_cast<blasint>(ldb));
 		}
 		template<typename sz_t, typename fl_t>
-		static typename std::enable_if_t< std::is_same< std::remove_pointer_t<fl_t>, float>::value >
+		static typename ::std::enable_if_t< ::std::is_same< ::std::remove_pointer_t<fl_t>, float>::value >
 			omatcopy(const bool bTranspose, const sz_t rows, const sz_t cols, const fl_t alpha,
 				const fl_t* pA, const sz_t lda, fl_t* pB, const sz_t ldb)
 		{

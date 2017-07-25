@@ -53,7 +53,7 @@ namespace nntl {
 
 				_iCntTotal
 			};
-			std::array<vec_len_t, _iCntTotal> m_asArray;
+			::std::array<vec_len_t, _iCntTotal> m_asArray;
 
 		public:
 			void update(const bool& bGroundTrue, const bool& bModelPredictsTrue)noexcept {
@@ -87,12 +87,12 @@ namespace nntl {
 			vec_len_t DataPosCnt()const noexcept { return TP() + FN(); }
 			vec_len_t DataNegCnt()const noexcept { return TN() + FP(); }
 
-			vec_len_t AllCnt()const noexcept { return std::accumulate(m_asArray.begin(), m_asArray.end(), 0); }
+			vec_len_t AllCnt()const noexcept { return ::std::accumulate(m_asArray.begin(), m_asArray.end(), 0); }
 
 			
-			real_t Sensivity()const noexcept { return static_cast<real_t>(TP()) / DataPosCnt(); }
-			real_t Recall()const noexcept { return Sensivity(); }
-			real_t TPR()const noexcept { return Sensivity(); }
+			real_t Sensitivity()const noexcept { return static_cast<real_t>(TP()) / DataPosCnt(); }
+			real_t Recall()const noexcept { return Sensitivity(); }
+			real_t TPR()const noexcept { return Sensitivity(); }
 
 			real_t Specificity()const noexcept { return static_cast<real_t>(TN()) / DataNegCnt(); }
 			real_t TNR()const noexcept { return Specificity(); }
@@ -109,7 +109,7 @@ namespace nntl {
 			
 			real_t MCC()const noexcept {
 				const auto den = (TP() + FP())*(TP() + FN())*(TN() + FP())*(TN() + FN());
-				return den ? static_cast<real_t>(TP()*TN() - FP()*FN()) / std::sqrt(static_cast<real_t>(den))  : real_t(0.);
+				return den ? static_cast<real_t>(TP()*TN() - FP()*FN()) / ::std::sqrt(static_cast<real_t>(den))  : real_t(0.);
 			}
 
 			real_t F1Score()const noexcept {
@@ -131,7 +131,7 @@ namespace nntl {
 			~ConfusionMtx()noexcept {}
 
 			void clear()noexcept {
-				std::fill(m_asArray.begin(), m_asArray.end(), 0);
+				::std::fill(m_asArray.begin(), m_asArray.end(), 0);
 			}
 			bool operator==(const ConfusionMtx& rhs)const noexcept {
 				return m_asArray == rhs.m_asArray;

@@ -47,40 +47,40 @@ namespace utils {
 	//////////////////////////////////////////////////////////////////////////
 	// thanks to http://en.cppreference.com/w/cpp/types/void_t
 	// primary template handles types that have no nested ::options_t member:
-	template< class, class = std::void_t<> >
-	struct has_options : std::false_type { };
+	template< class, class = ::std::void_t<> >
+	struct has_options : ::std::false_type { };
 	// specialization recognizes types that do have a nested ::options_t member:
 	template< class T >
-	struct has_options<T, std::void_t<typename T::options_t>> : std::true_type {};
+	struct has_options<T, ::std::void_t<typename T::options_t>> : ::std::true_type {};
 
 	//////////////////////////////////////////////////////////////////////////
 	template<typename EnumT>
 	struct binary_options : public options<binary_options<EnumT>> {
 		typedef EnumT binary_options_enum_t;
 
-		std::bitset<binary_options_enum_t::total_options> m_binary_options;
+		::std::bitset<binary_options_enum_t::total_options> m_binary_options;
 
 		void turn_on_all_options()noexcept { m_binary_options.set(); }
 		void turn_off_all_options()noexcept { m_binary_options.reset(); }
 	};
 
 	// primary template handles types that have no nested ::options_t and ::binary_options_enum_t members:
-	template< class, class = std::void_t<> >
-	struct has_binary_options : std::false_type { };
+	template< class, class = ::std::void_t<> >
+	struct has_binary_options : ::std::false_type { };
 	// specialization recognizes types that do have a nested ::options_t and binary_options_enum_t members:
 	template< class T >
-	struct has_binary_options<T, std::void_t<typename T::options_t, typename T::binary_options_enum_t>> : std::true_type {};
+	struct has_binary_options<T, ::std::void_t<typename T::options_t, typename T::binary_options_enum_t>> : ::std::true_type {};
 
 
 	//////////////////////////////////////////////////////////////////////////
 	// helper function that can provide default binary options for classes, that don't derived from options class
 	// first - defaults to false
 	template<bool bDefault = false, typename ClassT>
-	inline std::enable_if_t<has_binary_options<ClassT>::value, bool> binary_option(const ClassT& ar, const typename ClassT::binary_options_enum_t optId)noexcept {
+	inline ::std::enable_if_t<has_binary_options<ClassT>::value, bool> binary_option(const ClassT& ar, const typename ClassT::binary_options_enum_t optId)noexcept {
 		return ar.m_binary_options[optId];
 	}
 	template<bool bDefault = false, typename ClassT>
-	inline std::enable_if_t<!has_binary_options<ClassT>::value, constexpr bool> binary_option(const ClassT& ar, const size_t optId)noexcept {
+	inline ::std::enable_if_t<!has_binary_options<ClassT>::value, constexpr bool> binary_option(const ClassT& ar, const size_t optId)noexcept {
 		return bDefault;
 	}
 

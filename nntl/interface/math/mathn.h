@@ -63,7 +63,7 @@ namespace math {
 		using base_class_t::vec_len_t;
 
 		//TODO: probably don't need this assert
-		static_assert(std::is_base_of<_impl::MATHN_THR<real_t>, Thresholds_t>::value, "Thresholds_t must be derived from _impl::MATHN_THR<real_t>");
+		static_assert(::std::is_base_of<_impl::MATHN_THR<real_t>, Thresholds_t>::value, "Thresholds_t must be derived from _impl::MATHN_THR<real_t>");
 				
 		//////////////////////////////////////////////////////////////////////////
 		// members
@@ -78,15 +78,15 @@ namespace math {
 			_mrw_SOFTMAXPARTS(const real_t*const _pMax, real_t*const _pNum)noexcept : pMax(_pMax), pNumerator(_pNum) {}
 
 			template<_OperationType OpType, typename BaseT>
-			std::enable_if_t<OpType == mrw_cw> op(const BaseT& mtxElm, BaseT& vecElm, const vec_len_t r, const vec_len_t c, const size_t mtxRows)noexcept {
-				const auto numerator = std::exp(mtxElm - *(pMax + r));
+			::std::enable_if_t<OpType == mrw_cw> op(const BaseT& mtxElm, BaseT& vecElm, const vec_len_t r, const vec_len_t c, const size_t mtxRows)noexcept {
+				const auto numerator = ::std::exp(mtxElm - *(pMax + r));
 				vecElm += numerator;
 				*(pNumerator + r) = numerator;
 			}
 
 			template<_OperationType OpType, typename BaseT>
-			std::enable_if_t<OpType == mrw_rw> op(const BaseT& mtxElm, BaseT& vecElm, const vec_len_t r, const vec_len_t c, const size_t mtxRows)noexcept {
-				const auto numerator = std::exp(mtxElm - *pMx);
+			::std::enable_if_t<OpType == mrw_rw> op(const BaseT& mtxElm, BaseT& vecElm, const vec_len_t r, const vec_len_t c, const size_t mtxRows)noexcept {
+				const auto numerator = ::std::exp(mtxElm - *pMx);
 				vecElm += numerator;
 				*pNum = numerator;
 				pNum += mtxRows;
@@ -291,7 +291,7 @@ namespace math {
 
 			template<typename BaseT>
 			void op(BaseT& elm)noexcept {
-				static_assert(!std::is_const<BaseT>::value, "BaseT mustn't have a const specifier");
+				static_assert(!::std::is_const<BaseT>::value, "BaseT mustn't have a const specifier");
 				//NNTL_ASSERT(elm >= BaseT(0.0) && elm <= BaseT(1.0));
 				elm = elm > frac ? BaseT(1.0) : BaseT(0.0);
 			}
@@ -341,7 +341,7 @@ namespace math {
 		static void _imExtractRows_st_naive(const realmtx_t& src, const SeqIt& ridxsItBegin, realmtx_t& dest, const elms_range& er)noexcept {
 			NNTL_ASSERT(!dest.empty() && !src.empty());
 			src.assert_storage_does_not_intersect(dest);
-			static_assert(std::is_same<vec_len_t, SeqIt::value_type>::value, "Contnr type should contain vec_len_t data");
+			static_assert(::std::is_same<vec_len_t, SeqIt::value_type>::value, "Contnr type should contain vec_len_t data");
 
 			const numel_cnt_t destRows = dest.rows(), srcRows = src.rows();
 			NNTL_ASSERT(dest.cols() == src.cols() && destRows <= srcRows && !(src.emulatesBiases() ^ dest.emulatesBiases()));
@@ -380,7 +380,7 @@ namespace math {
 		void mExtractRows_mt_naive(const realmtx_t& src, const SeqIt& ridxsItBegin, realmtx_t& dest)noexcept {
 			NNTL_ASSERT(!dest.empty() && !src.empty());
 			src.assert_storage_does_not_intersect(dest);
-			static_assert(std::is_same<vec_len_t, SeqIt::value_type>::value, "Contnr type should contain vec_len_t data");
+			static_assert(::std::is_same<vec_len_t, SeqIt::value_type>::value, "Contnr type should contain vec_len_t data");
 			NNTL_ASSERT(dest.cols() == src.cols() && dest.rows() <= src.rows());
 
 			m_threads.run([&src, &dest, &ridxsItBegin](const par_range_t& r) {
@@ -499,12 +499,12 @@ namespace math {
 			// Making newNorm slightly less, than maxNormSquared to make sure the result will be less than max norm.
 			//const real_t newNorm = maxNormSquared - math::real_t_limits<real_t>::eps_lower_n(maxNormSquared, sCheck_normalize_rows_MULT);
 			// removed. it's not a big deal if resulting norm will be slightly bigger
-			const real_t newNorm = maxNormSquared;// -2 * std::sqrt(math::real_t_limits<real_t>::eps_lower(maxNormSquared));
+			const real_t newNorm = maxNormSquared;// -2 * ::std::sqrt(math::real_t_limits<real_t>::eps_lower(maxNormSquared));
 			auto pCurNorm = pTmp;
 			const auto pTmpE = pTmp + mRows;
 			while (pCurNorm != pTmpE) {
 				const auto rowNorm = *pCurNorm;
-				*pCurNorm++ = rowNorm > maxNormSquared ? std::sqrt(newNorm / rowNorm) : real_t(1.0);
+				*pCurNorm++ = rowNorm > maxNormSquared ? ::std::sqrt(newNorm / rowNorm) : real_t(1.0);
 			}
 
 			//renormalize (multiply each rowvector to corresponding coefficient from pTmp)
@@ -525,11 +525,11 @@ namespace math {
 
 			// calc scaling coefficients
 			const auto pRowNormE = pTmpStor + mRows;
-			const real_t newNorm = maxNormSquared;// -2 * std::sqrt(math::real_t_limits<real_t>::eps_lower(maxNormSquared));
+			const real_t newNorm = maxNormSquared;// -2 * ::std::sqrt(math::real_t_limits<real_t>::eps_lower(maxNormSquared));
 			auto pCurNorm = pTmpStor;
 			while (pCurNorm != pRowNormE) {
 				const auto rowNorm = *pCurNorm;
-				*pCurNorm++ = rowNorm > maxNormSquared ? std::sqrt(newNorm / rowNorm) : real_t(1.0);
+				*pCurNorm++ = rowNorm > maxNormSquared ? ::std::sqrt(newNorm / rowNorm) : real_t(1.0);
 			}
 
 			// 3. multiplying
@@ -594,7 +594,7 @@ namespace math {
 
 			auto p = m.data();
 			//utils::boost::algorithm::clamp_range(p, p + m.numel(), p, lo, hi);
-			boost::algorithm::clamp_range(p, p + m.numel(), p, lo, hi);
+			::boost::algorithm::clamp_range(p, p + m.numel(), p, lo, hi);
 		}
 		void evClamp_mt(realmtx_t& m, real_t lo, real_t hi)noexcept {
 			NNTL_ASSERT(m.numel() > 0 && !m.empty());
@@ -604,7 +604,7 @@ namespace math {
 			m_threads.run([ptr, lo, hi](const par_range_t& r) {
 				auto p = ptr + r.offset();
 				//utils::boost::algorithm::clamp_range(p, p + r.cnt(), p, lo, hi);
-				boost::algorithm::clamp_range(p, p + r.cnt(), p, lo, hi);
+				::boost::algorithm::clamp_range(p, p + r.cnt(), p, lo, hi);
 			}, m.numel());
 		}
 
@@ -1353,7 +1353,7 @@ namespace math {
 			const auto pS = src.data();
 			auto pD = dest.data();
 			const auto dataCnt = src.numel();
-			for (numel_cnt_t i = 0; i < dataCnt; ++i)  pD[i] = std::abs(pS[i]);
+			for (numel_cnt_t i = 0; i < dataCnt; ++i)  pD[i] = ::std::abs(pS[i]);
 		}
 		void evAbs_mt(realmtx_t& dest, const realmtx_t& src)noexcept {
 			NNTL_ASSERT(dest.size() == src.size());
@@ -1363,7 +1363,7 @@ namespace math {
 			m_threads.run([pS, pD](const par_range_t& r) {
 				const auto ofs = r.offset();
 				const auto im = ofs + r.cnt();
-				for (numel_cnt_t i = ofs; i < im; ++i)  pD[i] = std::abs(pS[i]);
+				for (numel_cnt_t i = ofs; i < im; ++i)  pD[i] = ::std::abs(pS[i]);
 			}, src.numel());
 		}
 		//////////////////////////////////////////////////////////////////////////
@@ -1379,7 +1379,7 @@ namespace math {
 			real_t ret(0.0);
 			auto p = A.data();
 			const auto pE = p + A.numel();
-			while (p != pE) ret += std::abs(*p++);
+			while (p != pE) ret += ::std::abs(*p++);
 			return ret;
 		}
 		real_t vSumAbs_mt(const realmtx_t& A)noexcept {
@@ -1390,7 +1390,7 @@ namespace math {
 				real_t ret(0.0);
 				auto p = pA + r.offset();
 				const auto pE = p + r.cnt();
-				while (p != pE) ret += std::abs(*p++);
+				while (p != pE) ret += ::std::abs(*p++);
 				return ret;
 			}, _vec_sum<false, real_t>, A.numel());
 		}
@@ -1448,7 +1448,7 @@ namespace math {
 
 #if NNTL_DEBUGBREAK_ON_OPENBLAS_DENORMALS
 			enable_denormals();
-			if (std::fpclassify(alpha) == FP_SUBNORMAL) {
+			if (::std::fpclassify(alpha) == FP_SUBNORMAL) {
 				__debugbreak();
 			}
 			A.breakWhenDenormal();
@@ -1517,7 +1517,7 @@ namespace math {
 			const bool bGetU = m >= n;
 			const auto minmn = bGetU ? n : m;
 
-			std::vector<real_t> S(2 * minmn);
+			::std::vector<real_t> S(2 * minmn);
 
 #if NNTL_DEBUGBREAK_ON_OPENBLAS_DENORMALS
 			A.breakWhenDenormal();
@@ -1530,7 +1530,7 @@ namespace math {
 			enable_denormals();
 			A.breakWhenDenormal();
 			for (auto& e : S) {
-				if (std::fpclassify(e) == FP_SUBNORMAL) {
+				if (::std::fpclassify(e) == FP_SUBNORMAL) {
 					__debugbreak();
 				}
 			}
@@ -1572,7 +1572,7 @@ namespace math {
 			bool r = true;
 			for (vec_len_t ri = 0; ri < opArows; ++ri) {
 				for (vec_len_t ci = 0; ci < opArows; ++ci) {
-					if ( std::abs(real_t(ri==ci) - ICand.get(ri,ci)) > epsV  ) {
+					if ( ::std::abs(real_t(ri==ci) - ICand.get(ri,ci)) > epsV  ) {
 						r = false;
 						break;
 					}
@@ -1701,12 +1701,12 @@ namespace math {
 		static void _isigm_st(realmtx_t& srcdest, const elms_range& er) noexcept {
 			NNTL_ASSERT(!srcdest.empty());
 // 			const auto ptr = srcdest.data();
-// 			for (range_t i = er.elmBegin; i < er.elmEnd; ++i) ptr[i] = real_t(1.0) / (real_t(1.0) + std::exp(-ptr[i]));
+// 			for (range_t i = er.elmBegin; i < er.elmEnd; ++i) ptr[i] = real_t(1.0) / (real_t(1.0) + ::std::exp(-ptr[i]));
 			auto pA = srcdest.data() + er.elmBegin;
 			const auto pAE = pA + er.totalElements();
 			while (pA != pAE) {
 				const auto x = *pA;
-				*pA++ = real_t(1.0) / (real_t(1.0) + std::exp(-x));
+				*pA++ = real_t(1.0) / (real_t(1.0) + ::std::exp(-x));
 
 			}
 		}
@@ -1909,9 +1909,9 @@ namespace math {
 			const auto pVE = pV + er.totalElements();
 			while (pV != pVE) {
 				const auto v = *pV;
-				/*if (v < real_t(+0.0)) *pV = (std::exp(v) - real_t(1.0))*alpha;
+				/*if (v < real_t(+0.0)) *pV = (::std::exp(v) - real_t(1.0))*alpha;
 				++pV;*/
-				//*pV++ = v < real_t(0.) ? (std::exp(v) - real_t(1.0))*alpha : v;
+				//*pV++ = v < real_t(0.) ? (::std::exp(v) - real_t(1.0))*alpha : v;
 				*pV++ = v < real_t(0.) ? math::expm1(v)*alpha : v;
 			}
 		}
@@ -1964,9 +1964,9 @@ namespace math {
 			const auto pVE = pV + er.totalElements();
 			while (pV != pVE) {
 				const auto v = *pV;
-				/*if (v < real_t(+0.0)) *pV = (std::exp(v) - real_t(1.0));
+				/*if (v < real_t(+0.0)) *pV = (::std::exp(v) - real_t(1.0));
 				++pV;*/
-				//*pV++ = v < real_t(0.0) ? (std::exp(v) - real_t(1.0)) : v;
+				//*pV++ = v < real_t(0.0) ? (::std::exp(v) - real_t(1.0)) : v;
 				*pV++ = v < real_t(0.0) ? math::expm1(v) : v;
 			}
 		}
@@ -2017,12 +2017,12 @@ namespace math {
 			NNTL_ASSERT(!srcdest.empty());
 			NNTL_ASSERT(alpha > real_t(0.0));
 			NNTL_ASSERT(b > real_t(1.0));
-			const real_t lbi = real_t(1.) / std::log(b);
+			const real_t lbi = real_t(1.) / ::std::log(b);
 			auto pV = srcdest.data() + er.elmBegin;
 			const auto pVE = pV + er.totalElements();
 			while (pV != pVE) {
 				const auto v = *pV;
-				//*pV++ = v < real_t(0.0) ? (std::exp(v) - real_t(1.))*alpha : log(v + real_t(1.))*lbi;
+				//*pV++ = v < real_t(0.0) ? (::std::exp(v) - real_t(1.))*alpha : log(v + real_t(1.))*lbi;
 				*pV++ = v < real_t(0.0) ? math::expm1(v)*alpha : math::log1p(v)*lbi;
 			}
 		}
@@ -2049,14 +2049,14 @@ namespace math {
 			NNTL_ASSERT(b > real_t(1.0));
 			NNTL_ASSERT(!f_df.empty());
 
-			const ext_real_t _lb = std::log(ext_real_t(b));
-			const real_t nllb = -static_cast<real_t>(std::log(_lb)), nlb = -static_cast<real_t>(_lb);
+			const ext_real_t _lb = ::std::log(ext_real_t(b));
+			const real_t nllb = -static_cast<real_t>(::std::log(_lb)), nlb = -static_cast<real_t>(_lb);
 
 			auto ptrDF = f_df.data() + er.elmBegin;
 			const auto ptrDFE = ptrDF + er.totalElements();
 			while (ptrDF != ptrDFE) {
 				const auto v = *ptrDF;
-				*ptrDF++ = v < real_t(0.) ? (v + alpha) : std::exp(v*nlb + nllb);
+				*ptrDF++ = v < real_t(0.) ? (v + alpha) : ::std::exp(v*nlb + nllb);
 			}
 		}
 		void delogu_mt(realmtx_t& f_df, const real_t& alpha, const real_t& b) noexcept {
@@ -2081,12 +2081,12 @@ namespace math {
 		static void _ielogu_ua_st(realmtx_t& srcdest, const real_t b, const elms_range& er) noexcept {
 			NNTL_ASSERT(!srcdest.empty());
 			NNTL_ASSERT(b > real_t(1.0));
-			const real_t lbi = real_t(1.) / std::log(b);
+			const real_t lbi = real_t(1.) / ::std::log(b);
 			auto pV = srcdest.data() + er.elmBegin;
 			const auto pVE = pV + er.totalElements();
 			while (pV != pVE) {
 				const auto v = *pV;
-				//*pV++ = v < real_t(0.0) ? (std::exp(v) - real_t(1.)) : log(v + real_t(1.))*lbi;
+				//*pV++ = v < real_t(0.0) ? (::std::exp(v) - real_t(1.)) : log(v + real_t(1.))*lbi;
 				*pV++ = v < real_t(0.0) ? math::expm1(v) : math::log1p(v)*lbi;
 			}
 		}
@@ -2111,14 +2111,14 @@ namespace math {
 			NNTL_ASSERT(b > real_t(1.0));
 			NNTL_ASSERT(!f_df.empty());
 
-			const ext_real_t _lb = std::log(ext_real_t(b));
-			const real_t nllb = -static_cast<real_t>(std::log(_lb)), nlb = -static_cast<real_t>(_lb);
+			const ext_real_t _lb = ::std::log(ext_real_t(b));
+			const real_t nllb = -static_cast<real_t>(::std::log(_lb)), nlb = -static_cast<real_t>(_lb);
 
 			auto ptrDF = f_df.data() + er.elmBegin;
 			const auto ptrDFE = ptrDF + er.totalElements();
 			while (ptrDF != ptrDFE) {
 				const auto v = *ptrDF;
-				*ptrDF++ = v < real_t(0.) ? (v + real_t(1.)) : std::exp(v*nlb + nllb);
+				*ptrDF++ = v < real_t(0.) ? (v + real_t(1.)) : ::std::exp(v*nlb + nllb);
 			}
 		}
 		void delogu_ua_mt(realmtx_t& f_df, const real_t& b) noexcept {
@@ -2146,7 +2146,7 @@ namespace math {
 			const auto pVE = pV + er.totalElements();
 			while (pV != pVE) {
 				const auto v = *pV;
-				//*pV++ = v < real_t(0.0) ? (std::exp(v) - real_t(1.))*alpha : log(v + real_t(1.));
+				//*pV++ = v < real_t(0.0) ? (::std::exp(v) - real_t(1.))*alpha : log(v + real_t(1.));
 				*pV++ = v < real_t(0.0) ? math::expm1(v)*alpha : math::log1p(v);
 			}
 		}
@@ -2175,7 +2175,7 @@ namespace math {
 			const auto ptrDFE = ptrDF + er.totalElements();
 			while (ptrDF != ptrDFE) {
 				const auto v = *ptrDF;
-				*ptrDF++ = v < real_t(0.) ? (v + alpha) : std::exp(-v);
+				*ptrDF++ = v < real_t(0.) ? (v + alpha) : ::std::exp(-v);
 			}
 		}
 		void delogu_nb_mt(realmtx_t& f_df, const real_t& alpha) noexcept {
@@ -2201,7 +2201,7 @@ namespace math {
 			const auto pVE = pV + er.totalElements();
 			while (pV != pVE) {
 				const auto v = *pV;
-				//*pV++ = v < real_t(0.0) ? (std::exp(v) - real_t(1.)) : log(v + real_t(1.));
+				//*pV++ = v < real_t(0.0) ? (::std::exp(v) - real_t(1.)) : log(v + real_t(1.));
 				*pV++ = v < real_t(0.0) ? math::expm1(v) : math::log1p(v);
 			}
 		}
@@ -2227,7 +2227,7 @@ namespace math {
 			const auto ptrDFE = ptrDF + er.totalElements();
 			while (ptrDF != ptrDFE) {
 				const auto v = *ptrDF;
-				*ptrDF++ = v < real_t(0.) ? (v + real_t(1.)) : std::exp(-v);
+				*ptrDF++ = v < real_t(0.) ? (v + real_t(1.)) : ::std::exp(-v);
 			}
 		}
 		void delogu_ua_nb_mt(realmtx_t& f_df) noexcept {
@@ -2252,8 +2252,8 @@ namespace math {
 			NNTL_ASSERT(!srcdest.empty());
 			NNTL_ASSERT(b_neg > real_t(1.0));
 			NNTL_ASSERT(b_pos > real_t(1.0));
-			const real_t lbposi = real_t(ext_real_t(1.) / std::log(ext_real_t(b_pos)))
-				, nlbnegi = real_t(ext_real_t (-1.) / std::log(ext_real_t(b_neg)));
+			const real_t lbposi = real_t(ext_real_t(1.) / ::std::log(ext_real_t(b_pos)))
+				, nlbnegi = real_t(ext_real_t (-1.) / ::std::log(ext_real_t(b_neg)));
 			auto pV = srcdest.data() + er.elmBegin;
 			const auto pVE = pV + er.totalElements();
 			while (pV != pVE) {
@@ -2261,10 +2261,10 @@ namespace math {
 				//const auto isNeg = v < real_t(0.0);
 // 				const auto lv = isNeg ? (real_t(1.) - v) : (v + real_t(1.));
 // 				const auto bv = isNeg ? nlbnegi : lbposi;
-// 				*pV++ = bv*std::log(lv);
+// 				*pV++ = bv*::std::log(lv);
 
 				//*pV++ = (isNeg ? nlbnegi : lbposi)*math::log1p(isNeg ? -v : v);
-				*pV++ = (v < real_t(0.0) ? nlbnegi : lbposi)*math::log1p(std::fabs(v));//a bit faster
+				*pV++ = (v < real_t(0.0) ? nlbnegi : lbposi)*math::log1p(::std::fabs(v));//a bit faster
 			}
 		}
 		void loglogu_mt(realmtx_t& srcdest, const real_t& b_neg, const real_t& b_pos) noexcept {
@@ -2289,14 +2289,14 @@ namespace math {
 			NNTL_ASSERT(b_neg > real_t(1.0));
 			NNTL_ASSERT(b_pos > real_t(1.0));
 			NNTL_ASSERT(!f_df.empty());
-			const ext_real_t _lbpos = std::log(ext_real_t(b_pos)), _lbneg = std::log(ext_real_t(b_neg));
-			const real_t nllbpos = -static_cast<real_t>(std::log(_lbpos)), nlbpos = -static_cast<real_t>(_lbpos);
-			const real_t nllbneg = -static_cast<real_t>(std::log(_lbneg)), lbneg = static_cast<real_t>(_lbneg);
+			const ext_real_t _lbpos = ::std::log(ext_real_t(b_pos)), _lbneg = ::std::log(ext_real_t(b_neg));
+			const real_t nllbpos = -static_cast<real_t>(::std::log(_lbpos)), nlbpos = -static_cast<real_t>(_lbpos);
+			const real_t nllbneg = -static_cast<real_t>(::std::log(_lbneg)), lbneg = static_cast<real_t>(_lbneg);
 			auto ptrDF = f_df.data() + er.elmBegin;
 			const auto ptrDFE = ptrDF + er.totalElements();
 			while (ptrDF != ptrDFE) {
 				const auto v = *ptrDF;
-				*ptrDF++ = std::exp(v < real_t(0.) ? (v*lbneg + nllbneg) : (v*nlbpos + nllbpos));
+				*ptrDF++ = ::std::exp(v < real_t(0.) ? (v*lbneg + nllbneg) : (v*nlbpos + nllbpos));
 			}
 		}
 		void dloglogu_mt(realmtx_t& f_df, const real_t& b_neg, const real_t& b_pos) noexcept {
@@ -2320,7 +2320,7 @@ namespace math {
 		static void _iloglogu_nbn_st(realmtx_t& srcdest, const real_t b_pos, const elms_range& er) noexcept {
 			NNTL_ASSERT(!srcdest.empty());
 			NNTL_ASSERT(b_pos > real_t(1.0));
-			const real_t lbposi = real_t(ext_real_t(1.) / std::log(ext_real_t(b_pos)));
+			const real_t lbposi = real_t(ext_real_t(1.) / ::std::log(ext_real_t(b_pos)));
 			auto pV = srcdest.data() + er.elmBegin;
 			const auto pVE = pV + er.totalElements();
 			while (pV != pVE) {
@@ -2353,13 +2353,13 @@ namespace math {
 		static void _idloglogu_nbn_st(realmtx_t& f_df, const real_t b_pos, const elms_range& er) noexcept {
 			NNTL_ASSERT(b_pos > real_t(1.0));
 			NNTL_ASSERT(!f_df.empty());
-			const ext_real_t _lbpos = std::log(ext_real_t(b_pos));
-			const real_t nllbpos = -static_cast<real_t>(std::log(_lbpos)), nlbpos = -static_cast<real_t>(_lbpos);
+			const ext_real_t _lbpos = ::std::log(ext_real_t(b_pos));
+			const real_t nllbpos = -static_cast<real_t>(::std::log(_lbpos)), nlbpos = -static_cast<real_t>(_lbpos);
 			auto ptrDF = f_df.data() + er.elmBegin;
 			const auto ptrDFE = ptrDF + er.totalElements();
 			while (ptrDF != ptrDFE) {
 				const auto v = *ptrDF;
-				*ptrDF++ = std::exp(v < real_t(0.) ? v : (v*nlbpos + nllbpos));
+				*ptrDF++ = ::std::exp(v < real_t(0.) ? v : (v*nlbpos + nllbpos));
 			}
 		}
 		void dloglogu_nbn_mt(realmtx_t& f_df, const real_t& b_pos) noexcept {
@@ -2381,7 +2381,7 @@ namespace math {
 		static void _iloglogu_nbp_st(realmtx_t& srcdest, const real_t b_neg, const elms_range& er) noexcept {
 			NNTL_ASSERT(!srcdest.empty());
 			NNTL_ASSERT(b_neg > real_t(1.0));			
-			const real_t nlbnegi = real_t(ext_real_t (-1.) / std::log(ext_real_t(b_neg)));
+			const real_t nlbnegi = real_t(ext_real_t (-1.) / ::std::log(ext_real_t(b_neg)));
 			auto pV = srcdest.data() + er.elmBegin;
 			const auto pVE = pV + er.totalElements();
 			while (pV != pVE) {
@@ -2414,13 +2414,13 @@ namespace math {
 		static void _idloglogu_nbp_st(realmtx_t& f_df, const real_t b_neg, const elms_range& er) noexcept {
 			NNTL_ASSERT(b_neg > real_t(1.0));			
 			NNTL_ASSERT(!f_df.empty());
-			const ext_real_t _lbneg = std::log(ext_real_t(b_neg));
-			const real_t nllbneg = -static_cast<real_t>(std::log(_lbneg)), lbneg = static_cast<real_t>(_lbneg);
+			const ext_real_t _lbneg = ::std::log(ext_real_t(b_neg));
+			const real_t nllbneg = -static_cast<real_t>(::std::log(_lbneg)), lbneg = static_cast<real_t>(_lbneg);
 			auto ptrDF = f_df.data() + er.elmBegin;
 			const auto ptrDFE = ptrDF + er.totalElements();
 			while (ptrDF != ptrDFE) {
 				const auto v = *ptrDF;
-				*ptrDF++ = std::exp(v < real_t(0.) ? (v*lbneg + nllbneg) : -v);
+				*ptrDF++ = ::std::exp(v < real_t(0.) ? (v*lbneg + nllbneg) : -v);
 			}
 		}
 		void dloglogu_nbp_mt(realmtx_t& f_df, const real_t& b_neg) noexcept {
@@ -2477,7 +2477,7 @@ namespace math {
 			const auto ptrDFE = ptrDF + er.totalElements();
 			while (ptrDF != ptrDFE) {
 				const auto v = *ptrDF;
-				*ptrDF++ = std::exp(v < real_t(0.) ? v : -v);
+				*ptrDF++ = ::std::exp(v < real_t(0.) ? v : -v);
 			}
 		}
 		void dloglogu_nbn_nbp_mt(realmtx_t& f_df) noexcept {
@@ -2505,7 +2505,7 @@ namespace math {
 			const auto pVE = pV + er.totalElements();
 			while (pV != pVE) {
 				const auto v = *pV;
-				*pV++ = v/(a+std::abs(v));
+				*pV++ = v/(a+::std::abs(v));
 			}
 		}
 		void softsign_mt(realmtx_t& srcdest, const real_t& a) noexcept {
@@ -2532,7 +2532,7 @@ namespace math {
 			while (ptrDF != ptrDFE) {
 				const auto v = *ptrDF;
 				NNTL_ASSERT(real_t(-1.) <= v && v <= real_t(1.));
-				const auto s = real_t(1.) - std::abs(v);
+				const auto s = real_t(1.) - ::std::abs(v);
 				*ptrDF++ = s*s;
 			}
 		}
@@ -2561,7 +2561,7 @@ namespace math {
 			while (ptrDF != ptrDFE) {
 				const auto v = *ptrDF;
 				NNTL_ASSERT(real_t(-1.) <= v && v <= real_t(1.));
-				const auto s = real_t(1.) - std::abs(v);
+				const auto s = real_t(1.) - ::std::abs(v);
 				*ptrDF++ = ainv*s*s;
 			}
 		}
@@ -2591,7 +2591,7 @@ namespace math {
 			const auto pVE = pV + er.totalElements();
 			while (pV != pVE) {
 				const auto v = *pV;
-				*pV++ = real_t(.5) + real_t(.5)* v / (a + std::abs(v));
+				*pV++ = real_t(.5) + real_t(.5)* v / (a + ::std::abs(v));
 			}
 		}
 		void softsigm_mt(realmtx_t& srcdest, const real_t& a) noexcept {
@@ -2620,7 +2620,7 @@ namespace math {
 			while (ptrDF != ptrDFE) {
 				const auto v = *ptrDF;
 				NNTL_ASSERT(real_t(0.) <= v && v <= real_t(1.));
-				const auto s = real_t(.5) - std::abs(v - real_t(.5));
+				const auto s = real_t(.5) - ::std::abs(v - real_t(.5));
 				*ptrDF++ = dainv*s*s;
 			}
 		}
@@ -2662,7 +2662,7 @@ namespace math {
 				NNTL_ASSERT(real_t(0.) <= av && av <= real_t(1.));
 				const auto y = *pY++;
 				NNTL_ASSERT(real_t(0.) <= y && y <= real_t(1.));
-				const auto s = real_t(.5) - std::abs(av - real_t(.5));
+				const auto s = real_t(.5) - ::std::abs(av - real_t(.5));
 				*pSD++ = (av - y)*dainv*s*s;
 			}
 		}
@@ -2704,7 +2704,7 @@ namespace math {
 				const auto y = *pY++;
 				NNTL_ASSERT(real_t(0.) <= y && y <= real_t(1.));
 
-				const auto s = real_t(.5) - std::abs(av - real_t(.5));
+				const auto s = real_t(.5) - ::std::abs(av - real_t(.5));
 				//#numstab
 				*pSD++ = (av - y)*((s*s*dainv) / (av*(real_t(1.) - av)));
 			}
@@ -2737,9 +2737,9 @@ namespace math {
 			const auto pVE = pV + er.totalElements();
 			while (pV != pVE) {
 				const auto v = *pV;
-				/*if (v < real_t(+0.0)) *pV = (std::exp(v) - real_t(1.0))*alpha;
+				/*if (v < real_t(+0.0)) *pV = (::std::exp(v) - real_t(1.0))*alpha;
 				++pV;*/
-				//*pV++ = v < real_t(0.) ? (std::exp(v) - real_t(1.0))*alpha : v;
+				//*pV++ = v < real_t(0.) ? (::std::exp(v) - real_t(1.0))*alpha : v;
 				*pV++ = v < real_t(0.) ? math::expm1(v)*alpha_t_lambda : v*lambda;
 			}
 		}
@@ -3042,7 +3042,7 @@ namespace math {
 				const auto y = -pY[i];
 				NNTL_ASSERT(a >= real_t(0.0) && a <= real_t(1.0));
 				NNTL_ASSERT(y <= real_t(0.0) && y >= real_t(-1.0));
-				a = a > real_t(0.0) ? std::log(a) : math::real_t_limits<real_t>::log_almost_zero;
+				a = a > real_t(0.0) ? ::std::log(a) : math::real_t_limits<real_t>::log_almost_zero;
 				ret += y*a;
 				NNTL_ASSERT(!isnan(ret));
 			}
@@ -3087,7 +3087,7 @@ namespace math {
 				const auto w = *pW;
 				const auto rms = emaDecay*(*pF) + w*w*_1_emaDecay;
 				*pF = rms;
-				*pW = learningRate*(w / (std::sqrt(rms) + numericStabilizer));
+				*pW = learningRate*(w / (::std::sqrt(rms) + numericStabilizer));
 			}
 		}
 		void RMSProp_Hinton_mt(realmtx_t& dW, realmtx_t& rmsF, const real_t learningRate,
@@ -3109,7 +3109,7 @@ namespace math {
 					const auto w = *pW;
 					const auto rms = emaDecay*(*pF) + w*w*_1_emaDecay;
 					*pF = rms;
-					*pW = learningRate*(w / (std::sqrt(rms) + numericStabilizer));
+					*pW = learningRate*(w / (::std::sqrt(rms) + numericStabilizer));
 				}
 			}, dW.numel());
 		}
@@ -3143,7 +3143,7 @@ namespace math {
 				*pF = rF;
 				const auto rG = emaDecay*(*pG) + wdec;
 				*pG = rG;
-				*pW = learningRate*(w / (std::sqrt(rF - rG*rG + numericStabilizer)));
+				*pW = learningRate*(w / (::std::sqrt(rF - rG*rG + numericStabilizer)));
 			}
 		}
 		void RMSProp_Graves_mt(realmtx_t& dW, realmtx_t& rmsF, realmtx_t& rmsG, const real_t learningRate,
@@ -3170,7 +3170,7 @@ namespace math {
 					*pF = rF;
 					const auto rG = emaDecay*(*pG) + wdec;
 					*pG = rG;
-					*pW = learningRate*(w / (std::sqrt(rF - rG*rG + numericStabilizer)));
+					*pW = learningRate*(w / (::std::sqrt(rF - rG*rG + numericStabilizer)));
 				}
 			}, dW.numel());
 		}
@@ -3226,7 +3226,7 @@ namespace math {
 				const auto pW = pdW + i;
 				const auto pF = prmsF + i;
 				const auto w = *pW;
-				const auto ema = (*pF)*emaDecay + std::abs(w)*_1_emaDecay;
+				const auto ema = (*pF)*emaDecay + ::std::abs(w)*_1_emaDecay;
 				*pF = ema;
 				*pW = learningRate*(w / (ema + numericStabilizer));
 			}
@@ -3250,7 +3250,7 @@ namespace math {
 					const auto pW = pdW + i;
 					const auto pF = prmsF + i;
 					const auto w = *pW;
-					const auto ema = (*pF)*emaDecay + std::abs(w)*_1_emaDecay;
+					const auto ema = (*pF)*emaDecay + ::std::abs(w)*_1_emaDecay;
 					*pF = ema;
 					*pW = learningRate*(w / (ema + numericStabilizer));
 				}
@@ -3288,10 +3288,10 @@ namespace math {
 				NNTL_ASSERT(beta1t < real_t(1.));
 				NNTL_ASSERT(beta2t < real_t(1.));
 			}
-			const auto alphat = learningRate*std::sqrt(real_t(1.) - beta2t) / (real_t(1.) - beta1t);
+			const auto alphat = learningRate*::std::sqrt(real_t(1.) - beta2t) / (real_t(1.) - beta1t);
 			const auto ombeta1 = real_t(1.) - beta1, ombeta2 = real_t(1.) - beta2;
 
-// 			if (std::isnan(alphat)) {
+// 			if (::std::isnan(alphat)) {
 // 				__debugbreak();
 // 			}
 
@@ -3301,11 +3301,11 @@ namespace math {
 				const auto g = *pdW;
 				const auto m = (*pMt)*beta1 + g*ombeta1;
 				*pMt++ = m;
-				const auto v = (*pVt)*beta2 + g*g*ombeta2;
+				const auto v = (*pVt)*beta2 + (g*g)*ombeta2;
 				*pVt++ = v;
 
-				const auto ndw = alphat*m / (std::sqrt(v) + numericStabilizer);
-// 				if (std::isnan(g) || std::isnan(m) || std::isnan(v) || std::isnan(ndw)) {
+				const auto ndw = alphat*m / (::std::sqrt(v) + numericStabilizer);
+// 				if (::std::isnan(g) || ::std::isnan(m) || ::std::isnan(v) || ::std::isnan(ndw)) {
 // 					__debugbreak();
 // 				}
 				*pdW++ = ndw;
@@ -3322,7 +3322,7 @@ namespace math {
 				*pM = m;
 				const auto v = (*pV)*beta2 + g*g*ombeta2;
 				*pV = v;
-				*pG = alphat*m / (std::sqrt(v) + numericStabilizer);
+				*pG = alphat*m / (::std::sqrt(v) + numericStabilizer);
 			}*/
 		}
 		void Adam_mt(realmtx_t& dW, realmtx_t& Mt, realmtx_t& Vt, real_t& beta1t, real_t& beta2t, const real_t learningRate,
@@ -3381,7 +3381,7 @@ namespace math {
 				const auto g = *pdW;
 				const auto m = (*pMt)*beta1 + g*ombeta1;
 				*pMt++ = m;
-				const auto u = std::max({std::abs(g),beta2*(*pUt)});
+				const auto u = ::std::max({::std::abs(g),beta2*(*pUt)});
 				*pUt++ = u;
 				*pdW++ = alphat*m / (u + numericStabilizer);
 			}
@@ -3458,7 +3458,7 @@ namespace math {
 
 				const auto n = (*pNt)*eta_t + (g*g)*o_m_eta_t;
 				*pNt++ = n;
-				const auto n_hat = std::sqrt(n) + numericStabilizer;
+				const auto n_hat = ::std::sqrt(n) + numericStabilizer;
 
 				const auto m = (*pMt)*mu_t + g*o_m_mu_t;
 				*pMt++ = m;
@@ -3470,7 +3470,7 @@ namespace math {
 				
 #if NNTL_DEBUGBREAK_ON_DENORMALS
 				enable_denormals();
-				if (std::fpclassify(ndw) == FP_SUBNORMAL) {
+				if (::std::fpclassify(ndw) == FP_SUBNORMAL) {
 					__debugbreak();
 				}
 				global_denormalized_floats_mode();
@@ -3613,7 +3613,7 @@ namespace math {
 			dLossdVals.breakWhenDenormal();
 			CovMtx.breakWhenDenormal();
 			DeMeaned.breakWhenDenormal();
-			if (std::fpclassify(cmnScale) == FP_SUBNORMAL) {
+			if (::std::fpclassify(cmnScale) == FP_SUBNORMAL) {
 				__debugbreak();
 			}
 			global_denormalized_floats_mode();

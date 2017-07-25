@@ -65,7 +65,7 @@ constexpr unsigned TEST_PERF_REPEATS_COUNT = 400;
 void test_rng_perf(realmtx_t::vec_len_t rowsCnt, realmtx_t::vec_len_t colsCnt = 10) {
 	typedef realmtx_t::numel_cnt_t numel_cnt_t;
 	
-	using namespace std::chrono;
+	using namespace ::std::chrono;
 	const auto dataSize = realmtx_t::sNumel(rowsCnt, colsCnt);
 	STDCOUTL("******* testing rng performance over " << rowsCnt << "x" << colsCnt << " matrix (" << dataSize << " elements) **************");
 
@@ -135,7 +135,7 @@ TEST(TestRNG, RngPerf) {
 //////////////////////////////////////////////////////////////////////////
 template<typename AFRng, typename iThreadsT>
 void test_rngmt(iThreadsT&iT, realmtx_t& m) {
-	using namespace std::chrono;
+	using namespace ::std::chrono;
 	steady_clock::time_point bt;
 	nanoseconds diff;
 	constexpr unsigned maxReps = 5*TEST_PERF_REPEATS_COUNT;
@@ -196,7 +196,7 @@ template<> struct NormDistrCompat_EPS<float> { static constexpr float eps = 5e-2
 TEST(TestRNG, NormDistrCompat) {
 	typedef d_interfaces::iRng_t iRng_t;
 	typedef nntl::d_interfaces::iThreads_t def_threads_t;
-	typedef std::vector<real_t> vec_t;
+	typedef ::std::vector<real_t> vec_t;
 
 	static constexpr real_t targMean(real_t(.5)), targStddev(real_t(2.));
 	static constexpr unsigned maxReps = 5, totalElms = 1000000;
@@ -208,20 +208,20 @@ TEST(TestRNG, NormDistrCompat) {
 	rng::distr_normal_naive<iRng_t> d(iR, targMean, targStddev);
 
 	for (unsigned i = 0; i < maxReps; ++i) {
-		std::fill(dest.begin(), dest.end(), real_t(0.));
+		::std::fill(dest.begin(), dest.end(), real_t(0.));
 		d.gen_vector(&dest.front(), totalElms);
 
 		//see http://www.boost.org/doc/libs/1_63_0/doc/html/accumulators/user_s_guide.html
 
-		boost::accumulators::accumulator_set<real_t, boost::accumulators::stats<
-			boost::accumulators::tag::mean
-			, boost::accumulators::tag::lazy_variance >
+		::boost::accumulators::accumulator_set<real_t, ::boost::accumulators::stats<
+			::boost::accumulators::tag::mean
+			, ::boost::accumulators::tag::lazy_variance >
 		> acc;
 		for (const auto& v : dest) {
 			acc(v);
 		}
-		const real_t _mean = boost::accumulators::extract_result< boost::accumulators::tag::mean >(acc)
-			, _std = std::sqrt(boost::accumulators::extract_result< boost::accumulators::tag::lazy_variance >(acc));
+		const real_t _mean = ::boost::accumulators::extract_result< ::boost::accumulators::tag::mean >(acc)
+			, _std = ::std::sqrt(::boost::accumulators::extract_result< ::boost::accumulators::tag::lazy_variance >(acc));
 		STDCOUTL("Mean = " << _mean << ", std = " << _std);
 		ASSERT_NEAR(_mean, targMean, NormDistrCompat_EPS<real_t>::eps) << "Wrong mean!!!";
 		ASSERT_NEAR(_std, targStddev, NormDistrCompat_EPS<real_t>::eps) << "Wrong StdDev!!!";

@@ -44,7 +44,7 @@ namespace nntl {
 		//members
 	protected:
 		//TODO: vector may throw exceptions...
-		std::vector<bool> m_flgEvalPerf;
+		::std::vector<bool> m_flgEvalPerf;
 
 	public:
 		~vector_conditions()noexcept {}
@@ -63,7 +63,7 @@ namespace nntl {
 			verbose(startsAt, maxEpoch, stride);
 			verbose(maxEpoch - 1);
 		}
-		vector_conditions(vector_conditions&& src)noexcept : m_flgEvalPerf(std::move(src.m_flgEvalPerf)) {}
+		vector_conditions(vector_conditions&& src)noexcept : m_flgEvalPerf(::std::move(src.m_flgEvalPerf)) {}
 
 		//!! copy constructor not needed
 		vector_conditions(const vector_conditions& other)noexcept = delete;

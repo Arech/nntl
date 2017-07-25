@@ -36,12 +36,19 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 namespace nntl {
 namespace activation {
 
+	//activation types should not be templated (probably besides real_t), because they are intended to be used
+	//as means to recognize activation function type
+	struct type_elogu {};
+
 	//////////////////////////////////////////////////////////////////////////
 	//////////////////////////////////////////////////////////////////////////
 	//ELogU : log(x+1)/log(b) | x>0,  alpha*(exp(x)-1) | x<0
 	template<typename RealT, unsigned int Alpha1e3 = 1000, unsigned int LogBase1e3 = 2000
 		, typename WeightsInitScheme = weights_init::He_Zhang<>, typename DropoutT = Dropout<RealT>>
-	class elogu : public _i_activation<DropoutT, WeightsInitScheme> {
+	class elogu 
+		: public _i_activation<DropoutT, WeightsInitScheme>
+		, public type_elogu
+	{
 	public:
 		//typedef WeightsInitScheme weights_scheme;
 		static constexpr real_t Alpha = real_t(Alpha1e3) / real_t(1000.0);
@@ -53,47 +60,47 @@ namespace activation {
 	public:
 		//apply f to each srcdest matrix element. The biases (if any) must be left untouched!
 		template <typename iMath, bool bUnitAlpha = bIsUnitAlpha, bool bNatB = bIsNaturalBase>
-		static std::enable_if_t<!bUnitAlpha && !bNatB> f(realmtx_t& srcdest, iMath& m) noexcept {
-			static_assert(std::is_base_of<math::_i_math<real_t>, iMath>::value, "iMath should implement math::_i_math");
+		static ::std::enable_if_t<!bUnitAlpha && !bNatB> f(realmtx_t& srcdest, iMath& m) noexcept {
+			static_assert(::std::is_base_of<math::_i_math<real_t>, iMath>::value, "iMath should implement math::_i_math");
 			m.elogu(srcdest, Alpha, LogBase);
 		};
 		template <typename iMath, bool bUnitAlpha = bIsUnitAlpha, bool bNatB = bIsNaturalBase>
-		static std::enable_if_t<bUnitAlpha && !bNatB> f(realmtx_t& srcdest, iMath& m) noexcept {
-			static_assert(std::is_base_of<math::_i_math<real_t>, iMath>::value, "iMath should implement math::_i_math");
+		static ::std::enable_if_t<bUnitAlpha && !bNatB> f(realmtx_t& srcdest, iMath& m) noexcept {
+			static_assert(::std::is_base_of<math::_i_math<real_t>, iMath>::value, "iMath should implement math::_i_math");
 			m.elogu_ua(srcdest, LogBase);
 		};
 		template <typename iMath, bool bUnitAlpha = bIsUnitAlpha, bool bNatB = bIsNaturalBase>
-		static std::enable_if_t<!bUnitAlpha && bNatB> f(realmtx_t& srcdest, iMath& m) noexcept {
-			static_assert(std::is_base_of<math::_i_math<real_t>, iMath>::value, "iMath should implement math::_i_math");
+		static ::std::enable_if_t<!bUnitAlpha && bNatB> f(realmtx_t& srcdest, iMath& m) noexcept {
+			static_assert(::std::is_base_of<math::_i_math<real_t>, iMath>::value, "iMath should implement math::_i_math");
 			m.elogu_nb(srcdest, Alpha);
 		};
 		template <typename iMath, bool bUnitAlpha = bIsUnitAlpha, bool bNatB = bIsNaturalBase>
-		static std::enable_if_t<bUnitAlpha && bNatB> f(realmtx_t& srcdest, iMath& m) noexcept {
-			static_assert(std::is_base_of<math::_i_math<real_t>, iMath>::value, "iMath should implement math::_i_math");
+		static ::std::enable_if_t<bUnitAlpha && bNatB> f(realmtx_t& srcdest, iMath& m) noexcept {
+			static_assert(::std::is_base_of<math::_i_math<real_t>, iMath>::value, "iMath should implement math::_i_math");
 			m.elogu_ua_nb(srcdest);
 		};
 
 		template <typename iMath, bool bUnitAlpha = bIsUnitAlpha, bool bNatB = bIsNaturalBase>
-		static std::enable_if_t<!bUnitAlpha && !bNatB> df(realmtx_t& f_df, iMath& m) noexcept {
-			static_assert(std::is_base_of<math::_i_math<real_t>, iMath>::value, "iMath should implement math::_i_math");
+		static ::std::enable_if_t<!bUnitAlpha && !bNatB> df(realmtx_t& f_df, iMath& m) noexcept {
+			static_assert(::std::is_base_of<math::_i_math<real_t>, iMath>::value, "iMath should implement math::_i_math");
 			NNTL_ASSERT(!f_df.emulatesBiases());
 			m.delogu(f_df, Alpha, LogBase);
 		}
 		template <typename iMath, bool bUnitAlpha = bIsUnitAlpha, bool bNatB = bIsNaturalBase>
-		static std::enable_if_t<bUnitAlpha && !bNatB> df(realmtx_t& f_df, iMath& m) noexcept {
-			static_assert(std::is_base_of<math::_i_math<real_t>, iMath>::value, "iMath should implement math::_i_math");
+		static ::std::enable_if_t<bUnitAlpha && !bNatB> df(realmtx_t& f_df, iMath& m) noexcept {
+			static_assert(::std::is_base_of<math::_i_math<real_t>, iMath>::value, "iMath should implement math::_i_math");
 			NNTL_ASSERT(!f_df.emulatesBiases());
 			m.delogu_ua(f_df, LogBase);
 		}
 		template <typename iMath, bool bUnitAlpha = bIsUnitAlpha, bool bNatB = bIsNaturalBase>
-		static std::enable_if_t<!bUnitAlpha && bNatB> df(realmtx_t& f_df, iMath& m) noexcept {
-			static_assert(std::is_base_of<math::_i_math<real_t>, iMath>::value, "iMath should implement math::_i_math");
+		static ::std::enable_if_t<!bUnitAlpha && bNatB> df(realmtx_t& f_df, iMath& m) noexcept {
+			static_assert(::std::is_base_of<math::_i_math<real_t>, iMath>::value, "iMath should implement math::_i_math");
 			NNTL_ASSERT(!f_df.emulatesBiases());
 			m.delogu_nb(f_df, Alpha);
 		}
 		template <typename iMath, bool bUnitAlpha = bIsUnitAlpha, bool bNatB = bIsNaturalBase>
-		static std::enable_if_t<bUnitAlpha && bNatB> df(realmtx_t& f_df, iMath& m) noexcept {
-			static_assert(std::is_base_of<math::_i_math<real_t>, iMath>::value, "iMath should implement math::_i_math");
+		static ::std::enable_if_t<bUnitAlpha && bNatB> df(realmtx_t& f_df, iMath& m) noexcept {
+			static_assert(::std::is_base_of<math::_i_math<real_t>, iMath>::value, "iMath should implement math::_i_math");
 			NNTL_ASSERT(!f_df.emulatesBiases());
 			m.delogu_ua_nb(f_df);
 		}

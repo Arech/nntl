@@ -31,7 +31,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 #pragma once
 
-#include <cstdlib>      // std::rand, std::srand
+#include <cstdlib>      // ::std::rand, ::std::srand
 
 // this file will be included by default.
 // It defines an interface to a rng generators, provided by STL.
@@ -53,13 +53,13 @@ namespace rng {
 	public:
 		
 		CStd()noexcept {
-			seed(static_cast<seed_t>(s64to32(std::time(0))));
+			seed(static_cast<seed_t>(s64to32(::std::time(0))));
 		}
 		CStd(seed_t s)noexcept {
 			seed(s);
 		}
 
-		static void seed(seed_t s) noexcept { std::srand(s); }// _64to32(s)); }
+		static void seed(seed_t s) noexcept { ::std::srand(s); }// _64to32(s)); }
 
 		//////////////////////////////////////////////////////////////////////////
 		// family of generator subfunctions
@@ -127,7 +127,7 @@ namespace rng {
 
 		static real_rand_max_t _rand_max()noexcept { return UINT_MAX; }
 #else
-		static int _rand()noexcept { return std::rand(); }
+		static int _rand()noexcept { return ::std::rand(); }
 		static real_rand_max_t _rand_max()noexcept { return RAND_MAX; }
 #endif // _CRT_RAND_S
 		

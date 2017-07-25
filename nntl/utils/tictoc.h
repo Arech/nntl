@@ -40,10 +40,10 @@ namespace utils {
 
 	class tictoc {
 	public:
-		typedef std::chrono::nanoseconds duration_t;
+		typedef ::std::chrono::nanoseconds duration_t;
 
 	public:
-		std::chrono::steady_clock::time_point m_tStart;
+		::std::chrono::steady_clock::time_point m_tStart;
 		duration_t m_dFirstRun, m_dBestRun, m_dAllRun;
 		uint64_t m_repeats;
 
@@ -54,23 +54,23 @@ namespace utils {
 		void reset()noexcept {
 			m_repeats = 0;
 			m_dFirstRun = duration_t(0);
-			m_dBestRun = duration_t(std::numeric_limits< duration_t::rep >::max());
+			m_dBestRun = duration_t(::std::numeric_limits< duration_t::rep >::max());
 			m_dAllRun = duration_t(0);
 		}
 
 		void tic()noexcept {
-			m_tStart = std::chrono::steady_clock::now();
+			m_tStart = ::std::chrono::steady_clock::now();
 		}
 
 		void toc()noexcept {
-			const auto dur = std::chrono::steady_clock::now() - m_tStart;
+			const auto dur = ::std::chrono::steady_clock::now() - m_tStart;
 			if (0 == m_repeats) m_dFirstRun = dur;
-			m_dBestRun = std::min(dur, m_dBestRun);
+			m_dBestRun = ::std::min(dur, m_dBestRun);
 			m_dAllRun += dur;
 			++m_repeats;
 		}
 
-		std::string to_string() const {
+		::std::string to_string() const {
 			return m_repeats > 0
 				? nntl::utils::duration_readable(m_dFirstRun) + "  "
 				+ nntl::utils::duration_readable(m_dBestRun) + "  "
@@ -79,18 +79,18 @@ namespace utils {
 		}
 
 		/*void say(const char* desr = "?", const char* spc = ":\t")const {
-			std::cout << desr << spc << to_string() << std::endl;
+			::std::cout << desr << spc << to_string() << ::std::endl;
 		}*/
 		void say(const char* desr = "?", unsigned minWidth=10)const {
 			constexpr unsigned _MAXW = 64, _MAXFMT = 16;
 			char _buf[_MAXW], _fmt[_MAXFMT];
 			sprintf_s(_fmt, "%%-%ds:", minWidth);
 			sprintf_s(_buf, _fmt, desr);
-			std::cout << _buf << to_string() << std::endl;
+			::std::cout << _buf << to_string() << ::std::endl;
 		}
 	};
 
-	inline std::ostream& operator<<(std::ostream& os, const tictoc& tt) {
+	inline ::std::ostream& operator<<(::std::ostream& os, const tictoc& tt) {
 		os << tt.to_string();
 		return os;
 	}

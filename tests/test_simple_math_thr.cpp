@@ -209,7 +209,7 @@ void test_mrwDivideByVec(vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 
 	realmtx_t A(rowsCnt, colsCnt);
 	ASSERT_TRUE(!A.isAllocationFailed());
-	std::vector<real_t> vDiv(rowsCnt);
+	::std::vector<real_t> vDiv(rowsCnt);
 
 	d_interfaces::iRng_t rg;
 	rg.set_ithreads(iM.ithreads());
@@ -295,7 +295,7 @@ void test_mrwMulByVec(vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 
 	realmtx_t A(rowsCnt, colsCnt);
 	ASSERT_TRUE(!A.isAllocationFailed());
-	std::vector<real_t> vMul(rowsCnt);
+	::std::vector<real_t> vMul(rowsCnt);
 
 	d_interfaces::iRng_t rg;
 	rg.set_ithreads(iM.ithreads());
@@ -375,7 +375,7 @@ void test_mrwIdxsOfMax_perf(vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 	constexpr unsigned maxReps = TEST_PERF_REPEATS_COUNT;
 	realmtx_t A(rowsCnt, colsCnt);
 	ASSERT_TRUE(!A.isAllocationFailed());
-	std::vector<vec_len_t> idxs(rowsCnt);
+	::std::vector<vec_len_t> idxs(rowsCnt);
 
 	iM.preinit(A.numel());
 	ASSERT_TRUE(iM.init());
@@ -387,49 +387,49 @@ void test_mrwIdxsOfMax_perf(vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 
 	for (unsigned r = 0; r < maxReps; ++r) {
 		
-		std::fill(idxs.begin(), idxs.end(), vec_len_t(0));		rg.gen_matrix(A, 10);
+		::std::fill(idxs.begin(), idxs.end(), vec_len_t(0));		rg.gen_matrix(A, 10);
 		tStRwSmall.tic();
 		iM.mrwIdxsOfMax_st_rw_small(A, &idxs[0]);
 		tStRwSmall.toc();
 		
-		std::fill(idxs.begin(), idxs.end(), vec_len_t(0));		rg.gen_matrix(A, 10);
+		::std::fill(idxs.begin(), idxs.end(), vec_len_t(0));		rg.gen_matrix(A, 10);
 		tStRw.tic();
 		iM.mrwIdxsOfMax_st_rw(A, &idxs[0]);
 		tStRw.toc();
 
-		std::fill(idxs.begin(), idxs.end(), vec_len_t(0)); 		rg.gen_matrix(A, 10);
+		::std::fill(idxs.begin(), idxs.end(), vec_len_t(0)); 		rg.gen_matrix(A, 10);
 		tStCw.tic();
 		iM.mrwIdxsOfMax_st_cw(A, &idxs[0]);
 		tStCw.toc();
 
-		std::fill(idxs.begin(), idxs.end(), vec_len_t(0));		rg.gen_matrix(A, 10);
+		::std::fill(idxs.begin(), idxs.end(), vec_len_t(0));		rg.gen_matrix(A, 10);
 		tSt.tic();
 		iM.mrwIdxsOfMax_st(A, &idxs[0]);
 		tSt.toc();
 
 		if (colsCnt > SMath_t::Thresholds_t::mrwIdxsOfMax_ColsPerThread) {
-			std::fill(idxs.begin(), idxs.end(), vec_len_t(0));			rg.gen_matrix(A, 10);
+			::std::fill(idxs.begin(), idxs.end(), vec_len_t(0));			rg.gen_matrix(A, 10);
 			tMtCw.tic();
 			iM.mrwIdxsOfMax_mt_cw(A, &idxs[0]);
 			tMtCw.toc();
 
-			std::fill(idxs.begin(), idxs.end(), vec_len_t(0));		rg.gen_matrix(A, 10);
+			::std::fill(idxs.begin(), idxs.end(), vec_len_t(0));		rg.gen_matrix(A, 10);
 			tMtCwSmall.tic();
 			iM.mrwIdxsOfMax_mt_cw_small(A, &idxs[0]);
 			tMtCwSmall.toc();
 		}
 
-		std::fill(idxs.begin(), idxs.end(), vec_len_t(0));		rg.gen_matrix(A, 10);
+		::std::fill(idxs.begin(), idxs.end(), vec_len_t(0));		rg.gen_matrix(A, 10);
 		tMtRw.tic();
 		iM.mrwIdxsOfMax_mt_rw(A, &idxs[0]);
 		tMtRw.toc();
 
-		std::fill(idxs.begin(), idxs.end(), vec_len_t(0));		rg.gen_matrix(A, 10);
+		::std::fill(idxs.begin(), idxs.end(), vec_len_t(0));		rg.gen_matrix(A, 10);
 		tMt.tic();
 		iM.mrwIdxsOfMax_mt(A, &idxs[0]);
 		tMt.toc();
 
-		std::fill(idxs.begin(), idxs.end(), vec_len_t(0));		rg.gen_matrix(A, 10);
+		::std::fill(idxs.begin(), idxs.end(), vec_len_t(0));		rg.gen_matrix(A, 10);
 		tB.tic();
 		iM.mrwIdxsOfMax(A, &idxs[0]);
 		tB.toc();
@@ -463,7 +463,7 @@ TEST(TestSMathThr, mrwIdxsOfMax) {
 //////////////////////////////////////////////////////////////////////////
 
 void test_mrwMax_perf(vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
-	typedef std::vector<real_t> vec_t;
+	typedef ::std::vector<real_t> vec_t;
 
 	STDCOUTL("**** testing mrwMax() over " << rowsCnt << "x" << colsCnt << " matrix (" << realmtx_t::sNumel(rowsCnt, colsCnt) << " elements) ****");
 	constexpr unsigned maxReps = TEST_PERF_REPEATS_COUNT;
@@ -480,44 +480,44 @@ void test_mrwMax_perf(vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 	utils::prioritize_workers<utils::PriorityClass::PerfTesting, iThreads_t> pw(iM.ithreads());
 
 	for (unsigned r = 0; r < maxReps; ++r) {
-		std::fill(vmax.begin(), vmax.end(), std::numeric_limits<real_t>::lowest()); 		rg.gen_matrix(m, 10);
+		::std::fill(vmax.begin(), vmax.end(), ::std::numeric_limits<real_t>::lowest()); 		rg.gen_matrix(m, 10);
 		tStRwSmall.tic();
 		iM.mrwMax_st_rw_small(m, &vmax[0]);
 		tStRwSmall.toc();
 		
-		std::fill(vmax.begin(), vmax.end(), std::numeric_limits<real_t>::lowest()); 		rg.gen_matrix(m, 10);
+		::std::fill(vmax.begin(), vmax.end(), ::std::numeric_limits<real_t>::lowest()); 		rg.gen_matrix(m, 10);
 		tStRw.tic();
 		iM.mrwMax_st_rw(m, &vmax[0]);
 		tStRw.toc();
 		
-		std::fill(vmax.begin(), vmax.end(), std::numeric_limits<real_t>::lowest()); 		rg.gen_matrix(m, 10);
+		::std::fill(vmax.begin(), vmax.end(), ::std::numeric_limits<real_t>::lowest()); 		rg.gen_matrix(m, 10);
 		tStCw.tic();
 		iM.mrwMax_st_cw(m, &vmax[0]);
 		tStCw.toc();
 		
-		std::fill(vmax.begin(), vmax.end(), std::numeric_limits<real_t>::lowest()); 		rg.gen_matrix(m, 10);
+		::std::fill(vmax.begin(), vmax.end(), ::std::numeric_limits<real_t>::lowest()); 		rg.gen_matrix(m, 10);
 		tSt.tic();
 		iM.mrwMax_st(m, &vmax[0]);
 		tSt.toc();
 		
 		if (colsCnt > SMath_t::Thresholds_t::mrwMax_mt_cw_ColsPerThread) {
-			std::fill(vmax.begin(), vmax.end(), std::numeric_limits<real_t>::lowest());			rg.gen_matrix(m, 10);
+			::std::fill(vmax.begin(), vmax.end(), ::std::numeric_limits<real_t>::lowest());			rg.gen_matrix(m, 10);
 			tMtCw.tic();
 			iM.mrwMax_mt_cw(m, &vmax[0]);
 			tMtCw.toc();
 		}
 
-		std::fill(vmax.begin(), vmax.end(), std::numeric_limits<real_t>::lowest());		rg.gen_matrix(m, 10);
+		::std::fill(vmax.begin(), vmax.end(), ::std::numeric_limits<real_t>::lowest());		rg.gen_matrix(m, 10);
 		tMtRw.tic();
 		iM.mrwMax_mt_rw(m, &vmax[0]);
 		tMtRw.toc();
 
-		std::fill(vmax.begin(), vmax.end(), std::numeric_limits<real_t>::lowest());		rg.gen_matrix(m, 10);
+		::std::fill(vmax.begin(), vmax.end(), ::std::numeric_limits<real_t>::lowest());		rg.gen_matrix(m, 10);
 		tMt.tic();
 		iM.mrwMax_mt(m, &vmax[0]);
 		tMt.toc();
 
-		std::fill(vmax.begin(), vmax.end(), std::numeric_limits<real_t>::lowest());		rg.gen_matrix(m, 10);
+		::std::fill(vmax.begin(), vmax.end(), ::std::numeric_limits<real_t>::lowest());		rg.gen_matrix(m, 10);
 		tB.tic();
 		iM.mrwMax(m, &vmax[0]);
 		tB.toc();
@@ -627,7 +627,7 @@ void test_mrwSum_perf(vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 	STDCOUTL("**** testing mrwSum() variations over " << rowsCnt << "x" << colsCnt << " matrix (" << realmtx_t::sNumel(rowsCnt, colsCnt) << " elements) ****");
 	constexpr unsigned maxReps = TEST_PERF_REPEATS_COUNT;
 	realmtx_t A(rowsCnt, colsCnt);
-	std::vector<real_t> vec_test(rowsCnt);
+	::std::vector<real_t> vec_test(rowsCnt);
 	ASSERT_TRUE(!A.isAllocationFailed());
 	iM.preinit(A.numel());
 	ASSERT_TRUE(iM.init());
@@ -710,7 +710,7 @@ void test_mrwOr_perf(vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 	STDCOUTL("**** testing mrwOr() variations over " << rowsCnt << "x" << colsCnt << " matrix (" << realmtx_t::sNumel(rowsCnt, colsCnt) << " elements) ****");
 	constexpr unsigned maxReps = TEST_PERF_REPEATS_COUNT;
 	realmtx_t A(rowsCnt, colsCnt);
-	std::vector<real_t> vec_test(rowsCnt);
+	::std::vector<real_t> vec_test(rowsCnt);
 	ASSERT_TRUE(!A.isAllocationFailed());
 	iM.preinit(A.numel());
 	ASSERT_TRUE(iM.init());
@@ -778,8 +778,8 @@ void test_mrwOr_perf(vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 }
 TEST(TestSMathThr, mrwOr) {
 	//it is not a way to find out the best execution route
-	/*std::array<vec_len_t, 4> ccols = { 2, 10,100,500 };
-	std::array<numel_cnt_t, 7> dsize = {20000, 50000, 100000, 500000, 1000000, 5000000, 10000000};
+	/*::std::array<vec_len_t, 4> ccols = { 2, 10,100,500 };
+	::std::array<numel_cnt_t, 7> dsize = {20000, 50000, 100000, 500000, 1000000, 5000000, 10000000};
 
 	for (const auto& ds : dsize) {
 		for (const auto& cc : ccols) {
@@ -921,7 +921,7 @@ void test_mcwMean(vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 
 	realmtx_t A(rowsCnt, colsCnt), A2(rowsCnt, colsCnt), A3(rowsCnt, colsCnt);
 	ASSERT_TRUE(!A.isAllocationFailed() && !A2.isAllocationFailed() && !A3.isAllocationFailed());
-	std::vector<real_t> vMean(colsCnt), vMean2(colsCnt), vMean3(colsCnt);
+	::std::vector<real_t> vMean(colsCnt), vMean2(colsCnt), vMean3(colsCnt);
 
 	d_interfaces::iRng_t rg;
 	rg.set_ithreads(iM.ithreads());
@@ -969,7 +969,7 @@ void test_mcwSub_ip(vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 
 	realmtx_t A(rowsCnt, colsCnt), A2(rowsCnt, colsCnt), A3(rowsCnt, colsCnt);// , A4(rowsCnt, colsCnt);
 	ASSERT_TRUE(!A.isAllocationFailed() && !A2.isAllocationFailed() && !A3.isAllocationFailed());// && !A4.isAllocationFailed());
-	std::vector<real_t> vVec1(colsCnt), vVec2(colsCnt), vVec3(colsCnt);// , vVec4(colsCnt);
+	::std::vector<real_t> vVec1(colsCnt), vVec2(colsCnt), vVec3(colsCnt);// , vVec4(colsCnt);
 
 	d_interfaces::iRng_t rg;
 	rg.set_ithreads(iM.ithreads());

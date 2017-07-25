@@ -51,7 +51,7 @@ namespace nntl {
 			IntelTBB& operator=(const IntelTBB& rhs) noexcept = delete;
 
 		protected:
-			typedef std::function<void(real_t*, numel_cnt_t)> func_t;
+			typedef ::std::function<void(real_t*, numel_cnt_t)> func_t;
 
 		public:
 			~IntelTBB()noexcept {

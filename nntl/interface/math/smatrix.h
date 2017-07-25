@@ -53,8 +53,8 @@ namespace math {
 		//#todo: size_t should be here?
 		typedef uint64_t numel_cnt_t;
 		
-		typedef std::pair<const vec_len_t, const vec_len_t> mtx_size_t;
-		typedef std::pair<vec_len_t, vec_len_t> mtx_coords_t;
+		typedef ::std::pair<const vec_len_t, const vec_len_t> mtx_size_t;
+		typedef ::std::pair<vec_len_t, vec_len_t> mtx_coords_t;
 	};
 
 	//////////////////////////////////////////////////////////////////////////
@@ -69,7 +69,7 @@ namespace math {
 		//////////////////////////////////////////////////////////////////////////
 		//members
 	protected:
-		// no std::unique_ptr here because of exception unsafety.
+		// no ::std::unique_ptr here because of exception unsafety.
 		value_ptr_t m_pData;
 		vec_len_t m_rows, m_cols;
 
@@ -100,7 +100,7 @@ namespace math {
 			} else {
 				delete[] m_pData;
 				if (m_rows > 0 && m_cols > 0) {
-					m_pData = new(std::nothrow) value_type[numel()];
+					m_pData = new(::std::nothrow) value_type[numel()];
 				} else {
 					m_rows = 0;
 					m_cols = 0;
@@ -277,7 +277,7 @@ namespace math {
 			NNTL_ASSERT(!empty() && m_rows && m_cols);
 			NNTL_ASSERT(c < m_cols);
 			const auto pC = colDataAsVec(c);
-			std::fill(pC, pC + m_rows, v);
+			::std::fill(pC, pC + m_rows, v);
 		}
 
 		void set_biases() noexcept {
@@ -387,7 +387,7 @@ namespace math {
 			auto pS = m_pData;
 			const auto pE = end();
 			while (pS != pE) {
-				if (std::fpclassify(*pS++) == FP_SUBNORMAL) {
+				if (::std::fpclassify(*pS++) == FP_SUBNORMAL) {
 					__debugbreak();
 				}
 			}
@@ -443,16 +443,16 @@ namespace math {
 		}
 		//returns (ri,ci) coordinates of the element with index k of upper/lower (toggled by template parameter bool bLowerTriangl) triangular matrix
 		template<bool bLowerTriangl>
-		static std::enable_if_t<!bLowerTriangl> sTrianglCoordsFromIdx(const vec_len_t& n, const numel_cnt_t& k, vec_len_t& ri, vec_len_t& ci) noexcept {
+		static ::std::enable_if_t<!bLowerTriangl> sTrianglCoordsFromIdx(const vec_len_t& n, const numel_cnt_t& k, vec_len_t& ri, vec_len_t& ci) noexcept {
 			NNTL_ASSERT(k <= sNumelTriangl(n));
-			const auto _ci = static_cast<numel_cnt_t>(std::ceil((std::sqrt(static_cast<real_t>(8 * k + 9)) - 1) / 2));
+			const auto _ci = static_cast<numel_cnt_t>(::std::ceil((::std::sqrt(static_cast<real_t>(8 * k + 9)) - 1) / 2));
 			ci = static_cast<vec_len_t>(_ci);
 			NNTL_ASSERT(ci <= n);
 			ri = static_cast<vec_len_t>(k - _ci*(_ci - 1) / 2);
 			NNTL_ASSERT(static_cast<int>(ri) >= 0 && ri < n);
 		}
 		template<bool bLowerTriangl>
-		static std::enable_if_t<bLowerTriangl> sTrianglCoordsFromIdx(const vec_len_t& n, const numel_cnt_t& k, vec_len_t& ri, vec_len_t& ci) noexcept {
+		static ::std::enable_if_t<bLowerTriangl> sTrianglCoordsFromIdx(const vec_len_t& n, const numel_cnt_t& k, vec_len_t& ri, vec_len_t& ci) noexcept {
 			const auto trNumel = sNumelTriangl(n);
 			NNTL_ASSERT(k <= trNumel);
 			const auto nm1 = n - 1;
@@ -461,7 +461,7 @@ namespace math {
 				ci = nm1;
 			} else {
 				const auto _k = trNumel - k - 1;
-				const auto _ci = static_cast<numel_cnt_t>(std::ceil((std::sqrt(static_cast<real_t>(8 * _k + 9)) - 1) / 2));
+				const auto _ci = static_cast<numel_cnt_t>(::std::ceil((::std::sqrt(static_cast<real_t>(8 * _k + 9)) - 1) / 2));
 				NNTL_ASSERT(_ci < n);				
 				ci = nm1 - static_cast<vec_len_t>(_ci);
 				ri = nm1 - static_cast<vec_len_t>(_k - _ci*(_ci - 1) / 2);
@@ -486,7 +486,7 @@ namespace math {
 
 		const bool empty()const noexcept { return nullptr == m_pData; }
 
-		//to conform std::vector API
+		//to conform ::std::vector API
 		value_ptr_t data()noexcept {
 			NNTL_ASSERT(!empty() && m_cols > 0 && m_rows > 0);
 			return m_pData;
@@ -574,21 +574,21 @@ namespace math {
 		}
 		void ones()noexcept {
 			NNTL_ASSERT(!empty());
-			std::fill(m_pData, m_pData + numel(), value_type(1.0));
+			::std::fill(m_pData, m_pData + numel(), value_type(1.0));
 			m_bHoleyBiases = false;
 		}
 
 		// fills matrix with data from pSrc doing type conversion. Bias units left untouched.
 		template<typename OtherBaseT>
-		std::enable_if_t<!std::is_same<value_type, OtherBaseT>::value> fill_from_array_no_bias(const OtherBaseT*const pSrc)noexcept {
-			static_assert(std::is_arithmetic<OtherBaseT>::value, "OtherBaseT must be a simple arithmetic data type");
+		::std::enable_if_t<!::std::is_same<value_type, OtherBaseT>::value> fill_from_array_no_bias(const OtherBaseT*const pSrc)noexcept {
+			static_assert(::std::is_arithmetic<OtherBaseT>::value, "OtherBaseT must be a simple arithmetic data type");
 			NNTL_ASSERT(!empty() && numel() > 0);
 			const auto ne = numel_no_bias();
 			const auto p = data();
 			for (numel_cnt_t i = 0; i < ne; ++i) p[i] = static_cast<value_type>(pSrc[i]);
 		}
 		template<typename OtherBaseT>
-		std::enable_if_t<std::is_same<value_type, OtherBaseT>::value> fill_from_array_no_bias(const OtherBaseT*const pSrc)noexcept {
+		::std::enable_if_t<::std::is_same<value_type, OtherBaseT>::value> fill_from_array_no_bias(const OtherBaseT*const pSrc)noexcept {
 			NNTL_ASSERT(!empty() && numel() > 0);
 			memcpy(m_pData, pSrc, byte_size_no_bias());
 		}
@@ -601,7 +601,7 @@ namespace math {
 			useExternalStorage(src.data(), src.rows(), src.cols_no_bias(), false, false);
 		}
 		void useExternalStorage(smatrix& src)noexcept {
-			useExternalStorage(src.data(), src.rows(), src.cols_no_bias(), src.emulatesBiases(), src.isHoleyBiases());
+			useExternalStorage(src.data(), src.rows(), src.cols(), src.emulatesBiases(), src.isHoleyBiases());
 		}
 		void useExternalStorage(value_ptr_t ptr, const mtx_size_t& sizeLikeThis, bool bEmulateBiases = false, bool bHBiases = false)noexcept {
 			useExternalStorage(ptr, sizeLikeThis.first, sizeLikeThis.second, bEmulateBiases, bHBiases);
@@ -669,7 +669,7 @@ namespace math {
 #endif // NNTL_DEBUG
 		}
 
-		smatrix_deform(smatrix&& src)noexcept : _base_class(std::move(src)) {
+		smatrix_deform(smatrix&& src)noexcept : _base_class(::std::move(src)) {
 #ifdef NNTL_DEBUG
 			m_maxSize = numel();
 #endif // NNTL_DEBUG
@@ -677,7 +677,7 @@ namespace math {
 
 		smatrix_deform& operator=(smatrix&& rhs) noexcept {
 			if (this != &rhs) {
-				_base_class::operator =(std::move(rhs));
+				_base_class::operator =(::std::move(rhs));
 #ifdef NNTL_DEBUG
 				m_maxSize = numel();
 #endif // NNTL_DEBUG
@@ -729,7 +729,7 @@ namespace math {
 		const bool resize(const numel_cnt_t ne)noexcept {
 			NNTL_ASSERT(ne > 0);
 			_free();
-			auto ptr = new(std::nothrow) value_type[ne];
+			auto ptr = new(::std::nothrow) value_type[ne];
 			if (nullptr == ptr) {
 				NNTL_ASSERT(!"Memory allocation failed!");
 				return false;
@@ -749,7 +749,7 @@ namespace math {
 			useExternalStorage(ptr, sizeLikeThis.rows(), sizeLikeThis.cols(), sizeLikeThis.emulatesBiases(), bHBiases);
 		}
 		void useExternalStorage(value_ptr_t ptr, numel_cnt_t cnt, bool bEmulateBiases = false, bool bHBiases = false)noexcept {
-			NNTL_ASSERT(cnt < std::numeric_limits<vec_len_t>::max());
+			NNTL_ASSERT(cnt < ::std::numeric_limits<vec_len_t>::max());
 			_base_class::useExternalStorage(ptr, static_cast<vec_len_t>(cnt), 1, bEmulateBiases, bHBiases);
 #ifdef NNTL_DEBUG
 			m_maxSize = cnt;

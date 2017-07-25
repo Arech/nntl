@@ -36,12 +36,19 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 namespace nntl {
 namespace activation {
 
+	//activation types should not be templated (probably besides real_t), because they are intended to be used
+	//as means to recognize activation function type
+	struct type_softsigm{};
+
 	//////////////////////////////////////////////////////////////////////////
 	//////////////////////////////////////////////////////////////////////////
 	// SoftSigm, y = (x/(2*(a+|x|)) +.5), dy/dx = (.5-|y-.5|)^2 * 2/a, parameter 'a' controls the slope of the curve
 	template<typename RealT, unsigned int A1e3 = 1000
 		, typename WeightsInitScheme = weights_init::He_Zhang<>, typename DropoutT = Dropout<RealT>>
-	class softsigm : public _i_activation<DropoutT, WeightsInitScheme> {
+	class softsigm
+		: public _i_activation<DropoutT, WeightsInitScheme>
+		, public type_softsigm
+	{
 	public:
 		static constexpr real_t A = real_t(A1e3) / real_t(1000.0);
 
@@ -49,13 +56,13 @@ namespace activation {
 		//apply f to each srcdest matrix element. The biases (if any) must be left untouched!
 		template <typename iMath>
 		static void f(realmtx_t& srcdest, iMath& m) noexcept {
-			static_assert(std::is_base_of<math::_i_math<real_t>, iMath>::value, "iMath should implement math::_i_math");
+			static_assert(::std::is_base_of<math::_i_math<real_t>, iMath>::value, "iMath should implement math::_i_math");
 			m.softsigm(srcdest, A);
 		};
 
 		template <typename iMath>
 		static void df(realmtx_t& f_df, iMath& m) noexcept {
-			static_assert(std::is_base_of<math::_i_math<real_t>, iMath>::value, "iMath should implement math::_i_math");
+			static_assert(::std::is_base_of<math::_i_math<real_t>, iMath>::value, "iMath should implement math::_i_math");
 			NNTL_ASSERT(!f_df.emulatesBiases());
 			m.dsoftsigm(f_df, A);
 		}
@@ -73,18 +80,18 @@ namespace activation {
 	public:
 		template <typename iMath>
 		static void dLdZ(const realmtx_t& data_y, realmtx_t& act_dLdZ, iMath& m)noexcept {
-			static_assert(std::is_base_of<math::_i_math<real_t>, iMath>::value, "iMath should implement math::_i_math");
+			static_assert(::std::is_base_of<math::_i_math<real_t>, iMath>::value, "iMath should implement math::_i_math");
 			m.dSoftSigmQuadLoss_dZ(data_y, act_dLdZ, A);
 		}
 
 		template <typename iMath, bool bNS = bNumericStable>
-		static std::enable_if_t<!bNS, real_t> loss(const realmtx_t& activations, const realmtx_t& data_y, iMath& m)noexcept {
-			static_assert(std::is_base_of<math::_i_math<real_t>, iMath>::value, "iMath should implement math::_i_math");
+		static ::std::enable_if_t<!bNS, real_t> loss(const realmtx_t& activations, const realmtx_t& data_y, iMath& m)noexcept {
+			static_assert(::std::is_base_of<math::_i_math<real_t>, iMath>::value, "iMath should implement math::_i_math");
 			return m.loss_quadratic(activations, data_y);
 		}
 		template <typename iMath, bool bNS = bNumericStable>
-		static std::enable_if_t<bNS, real_t> loss(const realmtx_t& activations, const realmtx_t& data_y, iMath& m)noexcept {
-			static_assert(std::is_base_of<math::_i_math<real_t>, iMath>::value, "iMath should implement math::_i_math");
+		static ::std::enable_if_t<bNS, real_t> loss(const realmtx_t& activations, const realmtx_t& data_y, iMath& m)noexcept {
+			static_assert(::std::is_base_of<math::_i_math<real_t>, iMath>::value, "iMath should implement math::_i_math");
 			return m.loss_quadratic_ns(activations, data_y);
 		}
 	};
@@ -94,14 +101,14 @@ namespace activation {
 	public:
 		template <typename iMath>
 		static void dLdZ(const realmtx_t& data_y, realmtx_t& act_dLdZ, iMath& m)noexcept {
-			static_assert(std::is_base_of<math::_i_math<real_t>, iMath>::value, "iMath should implement math::_i_math");
+			static_assert(::std::is_base_of<math::_i_math<real_t>, iMath>::value, "iMath should implement math::_i_math");
 			//m.dSoftSigmQuadLoss_dZ(data_y, act_dLdZ, A);
 			act_dLdZ.zeros();
 		}
 
 		template <typename iMath>
 		static real_t loss(const realmtx_t& activations, const realmtx_t& data_y, iMath& m)noexcept {
-			static_assert(std::is_base_of<math::_i_math<real_t>, iMath>::value, "iMath should implement math::_i_math");
+			static_assert(::std::is_base_of<math::_i_math<real_t>, iMath>::value, "iMath should implement math::_i_math");
 			//return m.loss_quadratic(activations, data_y);
 			return real_t(0.);
 		}
@@ -113,19 +120,19 @@ namespace activation {
 	public:
 		template <typename iMath>
 		static void dLdZ(const realmtx_t& data_y, realmtx_t& act_dLdZ, iMath& m)noexcept {
-			static_assert(std::is_base_of<math::_i_math<real_t>, iMath>::value, "iMath should implement math::_i_math");
+			static_assert(::std::is_base_of<math::_i_math<real_t>, iMath>::value, "iMath should implement math::_i_math");
 			m.dSoftSigmXEntropyLoss_dZ(data_y, act_dLdZ, A);
 		}
 
 		template <typename iMath, bool bNS = bNumericStable>
-		static std::enable_if_t<!bNS, real_t> loss(const realmtx_t& activations, const realmtx_t& data_y, iMath& m)noexcept {
-			static_assert(std::is_base_of<math::_i_math<real_t>, iMath>::value, "iMath should implement math::_i_math");
+		static ::std::enable_if_t<!bNS, real_t> loss(const realmtx_t& activations, const realmtx_t& data_y, iMath& m)noexcept {
+			static_assert(::std::is_base_of<math::_i_math<real_t>, iMath>::value, "iMath should implement math::_i_math");
 			return m.loss_xentropy(activations, data_y);
 		}
 
 		template <typename iMath, bool bNS = bNumericStable>
-		static std::enable_if_t<bNS, real_t> loss(const realmtx_t& activations, const realmtx_t& data_y, iMath& m)noexcept {
-			static_assert(std::is_base_of<math::_i_math<real_t>, iMath>::value, "iMath should implement math::_i_math");
+		static ::std::enable_if_t<bNS, real_t> loss(const realmtx_t& activations, const realmtx_t& data_y, iMath& m)noexcept {
+			static_assert(::std::is_base_of<math::_i_math<real_t>, iMath>::value, "iMath should implement math::_i_math");
 			return m.loss_xentropy_ns(activations, data_y);
 		}
 	};

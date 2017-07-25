@@ -52,7 +52,7 @@ namespace nntl {
 		//////////////////////////////////////////////////////////////////////////
 		//Serialization support
 	private:
-		friend class boost::serialization::access;
+		friend class ::boost::serialization::access;
 		template<class Archive>
 		void serialize(Archive & ar, const unsigned int version) {
 			ar & serialization::make_nvp("train_x", m_train_x);
@@ -60,8 +60,8 @@ namespace nntl {
 			ar & serialization::make_nvp("test_x", m_test_x);
 			ar & serialization::make_nvp("test_y", m_test_y);
 			NNTL_ASSERT(absorbsion_will_succeed(m_train_x, m_train_y, m_test_x, m_test_y));
-// 			STDCOUTL("serialize_training_parameters is " << std::boolalpha
-// 				<< utils::binary_option(ar, serialization::serialize_training_parameters) << std::noboolalpha);
+// 			STDCOUTL("serialize_training_parameters is " << ::std::boolalpha
+// 				<< utils::binary_option(ar, serialization::serialize_training_parameters) << ::std::noboolalpha);
 		}
 
 	public:
@@ -102,10 +102,10 @@ namespace nntl {
 			NNTL_ASSERT(_train_x.test_biases_ok());
 			NNTL_ASSERT(_test_x.test_biases_ok());
 
-			m_train_x = std::move(_train_x);
-			m_train_y = std::move(_train_y);
-			m_test_x = std::move(_test_x);
-			m_test_y = std::move(_test_y);
+			m_train_x = ::std::move(_train_x);
+			m_train_y = ::std::move(_train_y);
+			m_test_x = ::std::move(_test_x);
+			m_test_y = ::std::move(_test_y);
 			return true;
 		}
 
@@ -137,8 +137,8 @@ namespace nntl {
 		bool replace_Y(mtx_t&& _train_y, mtx_t&& _test_y)noexcept {
 			if (!replace_Y_will_succeed(_train_y, _test_y)) return false;
 
-			m_train_y = std::move(_train_y);
-			m_test_y = std::move(_test_y);
+			m_train_y = ::std::move(_train_y);
+			m_test_y = ::std::move(_test_y);
 			return true;
 		}
 	};

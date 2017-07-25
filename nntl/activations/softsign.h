@@ -36,12 +36,19 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 namespace nntl {
 namespace activation {
 
+	//activation types should not be templated (probably besides real_t), because they are intended to be used
+	//as means to recognize activation function type
+	struct type_softsign {};
+
 	//////////////////////////////////////////////////////////////////////////
 	//////////////////////////////////////////////////////////////////////////
 	// SoftSign, y = (x/(a+|x|)), dy/dx = (1-|y|)^2 /a, parameter 'a' controls the slope of the curve
 	template<typename RealT, unsigned int A1e3 = 1000
 		, typename WeightsInitScheme = weights_init::He_Zhang<>, typename DropoutT = Dropout<RealT>>
-	class softsign : public _i_activation<DropoutT, WeightsInitScheme> {
+	class softsign
+		: public _i_activation<DropoutT, WeightsInitScheme>
+		, public type_softsign
+	{
 	public:
 		static constexpr real_t A = real_t(A1e3) / real_t(1000.0);
 		static constexpr bool bIsUnitA = (A1e3 == 1000);
@@ -50,19 +57,19 @@ namespace activation {
 		//apply f to each srcdest matrix element. The biases (if any) must be left untouched!
 		template <typename iMath>
 		static void f(realmtx_t& srcdest, iMath& m) noexcept {
-			static_assert(std::is_base_of<math::_i_math<real_t>, iMath>::value, "iMath should implement math::_i_math");
+			static_assert(::std::is_base_of<math::_i_math<real_t>, iMath>::value, "iMath should implement math::_i_math");
 			m.softsign(srcdest, A);
 		};
 
 		template <typename iMath, bool bUnitA = bIsUnitA>
-		static std::enable_if_t<!bUnitA> df(realmtx_t& f_df, iMath& m) noexcept {
-			static_assert(std::is_base_of<math::_i_math<real_t>, iMath>::value, "iMath should implement math::_i_math");
+		static ::std::enable_if_t<!bUnitA> df(realmtx_t& f_df, iMath& m) noexcept {
+			static_assert(::std::is_base_of<math::_i_math<real_t>, iMath>::value, "iMath should implement math::_i_math");
 			NNTL_ASSERT(!f_df.emulatesBiases());
 			m.dsoftsign(f_df, A);
 		}
 		template <typename iMath, bool bUnitA = bIsUnitA>
-		static std::enable_if_t<bUnitA> df(realmtx_t& f_df, iMath& m) noexcept {
-			static_assert(std::is_base_of<math::_i_math<real_t>, iMath>::value, "iMath should implement math::_i_math");
+		static ::std::enable_if_t<bUnitA> df(realmtx_t& f_df, iMath& m) noexcept {
+			static_assert(::std::is_base_of<math::_i_math<real_t>, iMath>::value, "iMath should implement math::_i_math");
 			NNTL_ASSERT(!f_df.emulatesBiases());
 			m.dsoftsign_ua(f_df);
 		}

@@ -147,9 +147,9 @@ namespace nntl {
 	public:
 		//we're restricting the use of the layer_identity to the layer_pack_horizontal only
 		template <typename LowerLayerWrapper>
-		std::enable_if_t<_impl::is_layer_wrapper<LowerLayerWrapper>::value> fprop(const LowerLayerWrapper& lowerLayer)noexcept
+		::std::enable_if_t<_impl::is_layer_wrapper<LowerLayerWrapper>::value> fprop(const LowerLayerWrapper& lowerLayer)noexcept
 		{
-			static_assert(std::is_base_of<_i_layer_fprop, LowerLayerWrapper>::value, "Template parameter LowerLayerWrapper must implement _i_layer_fprop");
+			static_assert(::std::is_base_of<_i_layer_fprop, LowerLayerWrapper>::value, "Template parameter LowerLayerWrapper must implement _i_layer_fprop");
 			NNTL_ASSERT(lowerLayer.get_activations().test_biases_ok());
 			get_self()._fprop(lowerLayer.get_activations());
 			NNTL_ASSERT(lowerLayer.get_activations().test_biases_ok());
@@ -157,7 +157,7 @@ namespace nntl {
 		}
 
 		template <typename LowerLayerWrapper>
-		std::enable_if_t<_impl::is_layer_wrapper<LowerLayerWrapper>::value, const unsigned>
+		::std::enable_if_t<_impl::is_layer_wrapper<LowerLayerWrapper>::value, const unsigned>
 			bprop(realmtx_t& dLdA, const LowerLayerWrapper& lowerLayer, realmtx_t& dLdAPrev)noexcept
 		{
 			NNTL_ASSERT(m_bActivationsValid);
@@ -207,7 +207,7 @@ namespace nntl {
 	private:
 		//////////////////////////////////////////////////////////////////////////
 		//Serialization support
-		friend class boost::serialization::access;
+		friend class ::boost::serialization::access;
 		template<class Archive> void serialize(Archive & ar, const unsigned int version) {
 			if (utils::binary_option<true>(ar, serialization::serialize_activations)) ar & NNTL_SERIALIZATION_NVP(m_activations);
 		}
@@ -274,11 +274,11 @@ namespace nntl {
 	private:
 		//////////////////////////////////////////////////////////////////////////
 		//Serialization support
-		friend class boost::serialization::access;
+		friend class ::boost::serialization::access;
 		template<class Archive> void serialize(Archive & ar, const unsigned int version) {
 			//#todo must correctly call base class serialize()
 			//NNTL_ASSERT(!"must correctly call base class serialize()");
-			ar & boost::serialization::base_object<_base_class>(*this);
+			ar & ::boost::serialization::base_object<_base_class>(*this);
 			//ar & serialization::serialize_base_class<_base_class>(*this);
 		}
 	};

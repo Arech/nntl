@@ -205,44 +205,44 @@ TEST(TestMatfile, ManualStructsWriting) {
 
 		//////////////////////////////////////////////////////////////////////////
 		// testing simple struct saving
-		ASSERT_EQ(mf.ErrorCode::Success, mf.save_struct_begin(std::string(pNS_normal), false, false)) << mf.get_last_error_str();
+		ASSERT_EQ(mf.ErrorCode::Success, mf.save_struct_begin(::std::string(pNS_normal), false, false)) << mf.get_last_error_str();
 		mf << serialization::make_nvp("VarD", dET);
 		ASSERT_EQ(mf.ErrorCode::Success, mf.save_struct_end()) << mf.get_last_error_str();
 
 		//////////////////////////////////////////////////////////////////////////
 		// testing overwriting
-		ASSERT_EQ(mf.ErrorCode::Success, mf.save_struct_begin(std::string(pNS_overwrite), false, false)) << mf.get_last_error_str();
+		ASSERT_EQ(mf.ErrorCode::Success, mf.save_struct_begin(::std::string(pNS_overwrite), false, false)) << mf.get_last_error_str();
 		mf << serialization::make_nvp("VarF", f2ET);
 		mf << serialization::make_nvp("VarD", dET);
 		ASSERT_EQ(mf.ErrorCode::Success, mf.save_struct_end()) << mf.get_last_error_str();
 
-		ASSERT_EQ(mf.ErrorCode::Success, mf.save_struct_begin(std::string(pNS_overwrite), false, false)) << mf.get_last_error_str();
+		ASSERT_EQ(mf.ErrorCode::Success, mf.save_struct_begin(::std::string(pNS_overwrite), false, false)) << mf.get_last_error_str();
 		mf << serialization::make_nvp("VarF", fET);
 		ASSERT_EQ(mf.ErrorCode::Success, mf.save_struct_end()) << mf.get_last_error_str();
 
 		//////////////////////////////////////////////////////////////////////////
 		// testing updating
-		ASSERT_EQ(mf.ErrorCode::Success, mf.save_struct_begin(std::string(pNS_update), false, false)) << mf.get_last_error_str();
+		ASSERT_EQ(mf.ErrorCode::Success, mf.save_struct_begin(::std::string(pNS_update), false, false)) << mf.get_last_error_str();
 		mf << serialization::make_nvp("VarF", f2ET);
 		mf << serialization::make_nvp("VarD", dET);
 		ASSERT_EQ(mf.ErrorCode::Success, mf.save_struct_end()) << mf.get_last_error_str();
 
-		ASSERT_EQ(mf.ErrorCode::Success, mf.save_struct_begin(std::string(pNS_update), true, false)) << mf.get_last_error_str();
+		ASSERT_EQ(mf.ErrorCode::Success, mf.save_struct_begin(::std::string(pNS_update), true, false)) << mf.get_last_error_str();
 		mf << serialization::make_nvp("VarF", fET);
 		ASSERT_EQ(mf.ErrorCode::Success, mf.save_struct_end()) << mf.get_last_error_str();
 
 		//////////////////////////////////////////////////////////////////////////
 		// testing nested calls
-		ASSERT_EQ(mf.ErrorCode::Success, mf.save_struct_begin(std::string("Sf_1"), false, false)) << mf.get_last_error_str();
-		ASSERT_EQ(mf.ErrorCode::Success, mf.save_struct_begin(std::string("Sd_1"), false, true)) << mf.get_last_error_str();
+		ASSERT_EQ(mf.ErrorCode::Success, mf.save_struct_begin(::std::string("Sf_1"), false, false)) << mf.get_last_error_str();
+		ASSERT_EQ(mf.ErrorCode::Success, mf.save_struct_begin(::std::string("Sd_1"), false, true)) << mf.get_last_error_str();
 		mf << serialization::make_nvp("VarD", dET);
 		ASSERT_EQ(mf.ErrorCode::Success, mf.save_struct_end()) << mf.get_last_error_str();
 		mf << serialization::make_nvp("VarF", fET);
 		ASSERT_EQ(mf.ErrorCode::Success, mf.save_struct_end()) << mf.get_last_error_str();
 
-		ASSERT_EQ(mf.ErrorCode::Success, mf.save_struct_begin(std::string("Sf_2"), false, false)) << mf.get_last_error_str();
+		ASSERT_EQ(mf.ErrorCode::Success, mf.save_struct_begin(::std::string("Sf_2"), false, false)) << mf.get_last_error_str();
 		mf << serialization::make_nvp("VarF", f2ET);
-		ASSERT_EQ(mf.ErrorCode::Success, mf.save_struct_begin(std::string("Sd_2"), false, true)) << mf.get_last_error_str();
+		ASSERT_EQ(mf.ErrorCode::Success, mf.save_struct_begin(::std::string("Sd_2"), false, true)) << mf.get_last_error_str();
 		mf << serialization::make_nvp("VarD", d2ET);
 		ASSERT_EQ(mf.ErrorCode::Success, mf.save_struct_end()) << mf.get_last_error_str();
 		ASSERT_EQ(mf.ErrorCode::Success, mf.save_struct_end()) << mf.get_last_error_str();

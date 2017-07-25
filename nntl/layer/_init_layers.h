@@ -43,16 +43,16 @@ namespace nntl {
 	struct m_layer_input {};
 	struct m_layer_output {};
 
-	//this class marks a layer as learnable. It must provide get_weights/set_weights(), bLayerIsLinear()/setLayerLinear()
+	//this class marks a layer as learnable. It must provide get_weights/set_weights/reinit_weights(), bLayerIsLinear()/setLayerLinear()
 	// and get_gradWorks() functions,
 	// as well as compute dL/dW during bprop()
 	struct m_layer_learnable {};
 
 	template<typename LayerT>
-	struct is_layer_learnable : public std::is_base_of<m_layer_learnable, LayerT> {};
+	struct is_layer_learnable : public ::std::is_base_of<m_layer_learnable, LayerT> {};
 
 	template<typename LayerT>
-	struct is_layer_output : public std::is_base_of<m_layer_output, LayerT> {};
+	struct is_layer_output : public ::std::is_base_of<m_layer_output, LayerT> {};
 
 
 	//when a layer is derived from this class, it is expected to be used inside of some layer_pack_* objects and it
@@ -63,11 +63,11 @@ namespace nntl {
 
 	namespace _impl {
 
-		template< class, class = std::void_t<> >
+		template< class, class = ::std::void_t<> >
 		struct m_prop_input_marker { };
 		// specialization recognizes types derived from m_layer_input
 		template< class T >
-		struct m_prop_input_marker<T, std::void_t<typename std::enable_if< std::is_base_of<m_layer_input,T>::value >::type > > : m_layer_input {};
+		struct m_prop_input_marker<T, ::std::void_t<typename ::std::enable_if< ::std::is_base_of<m_layer_input,T>::value >::type > > : m_layer_input {};
 
 		//////////////////////////////////////////////////////////////////////////
 		class init_layer_index {
@@ -115,11 +115,11 @@ namespace nntl {
 			// To use with class layers{}
 			template <typename LCur, typename LPrev>
 			void operator()(LCur& lcur, LPrev& lprev, const bool bFirst)noexcept {
-				static_assert(std::is_base_of<_i_layer<typename std::remove_reference<LCur>::type::real_t >
-					, std::remove_reference<LCur>::type>::value, "Each layer must derive from i_layer");
-				static_assert(std::is_base_of<_i_layer<typename std::remove_reference<LCur>::type::real_t >
-					, std::remove_reference<LPrev>::type>::value, "Each layer must derive from i_layer");
-				static_assert(std::is_same<LCur::interfaces_t, LPrev::interfaces_t>::value, "interfaces_t must be the same for all layers!");
+				static_assert(::std::is_base_of<_i_layer<typename ::std::remove_reference<LCur>::type::real_t >
+					, ::std::remove_reference<LCur>::type>::value, "Each layer must derive from i_layer");
+				static_assert(::std::is_base_of<_i_layer<typename ::std::remove_reference<LCur>::type::real_t >
+					, ::std::remove_reference<LPrev>::type>::value, "Each layer must derive from i_layer");
+				static_assert(::std::is_same<LCur::interfaces_t, LPrev::interfaces_t>::value, "interfaces_t must be the same for all layers!");
 
 				if (bFirst) lprev._preinit_layer(m_ILI, _incNeurons);
 				lcur._preinit_layer(m_ILI, lprev.get_neurons_cnt());
@@ -129,28 +129,28 @@ namespace nntl {
 			// some machinery necessary for the layer_pack_horizontal class
 			bool preparePHLCheck()noexcept {
 				NNTL_ASSERT(_incNeurons && !m_pPHLCheckStorage);
-				m_pPHLCheckStorage = new(std::nothrow) char[_incNeurons];
+				m_pPHLCheckStorage = new(::std::nothrow) char[_incNeurons];
 				if (m_pPHLCheckStorage) memset(m_pPHLCheckStorage, 0, _incNeurons);
 				return nullptr != m_pPHLCheckStorage;
 			}
 
 			// variation to comply with tuple_utils::for_each_up() callback. For use with PHL structures in _layer_pack_horizontal
 			template<typename PHLT>
-			std::enable_if_t<is_PHL<PHLT>::value> operator()(PHLT& phl)noexcept {
-				static_assert(std::is_base_of<_i_layer<PHLT::phl_original_t::real_t>, PHLT::phl_original_t>::value, "Each layer must derive from i_layer");
-				static_assert(!std::is_base_of<m_layer_input, PHLT::phl_original_t>::value && !std::is_base_of<m_layer_output, PHLT::phl_original_t>::value,
+			::std::enable_if_t<is_PHL<PHLT>::value> operator()(PHLT& phl)noexcept {
+				static_assert(::std::is_base_of<_i_layer<PHLT::phl_original_t::real_t>, PHLT::phl_original_t>::value, "Each layer must derive from i_layer");
+				static_assert(!::std::is_base_of<m_layer_input, PHLT::phl_original_t>::value && !::std::is_base_of<m_layer_output, PHLT::phl_original_t>::value,
 					"No input/output layers is allowed within _layer_pack_horizontal");
 				
 				NNTL_ASSERT(m_pPHLCheckStorage && phl.coord.m_count && phl.coord.m_offset < _incNeurons && (phl.coord.m_offset + phl.coord.m_count) <= _incNeurons);
 				const auto pBeg = m_pPHLCheckStorage + phl.coord.m_offset;
-				std::fill(pBeg, pBeg + phl.coord.m_count, char(1));
+				::std::fill(pBeg, pBeg + phl.coord.m_count, char(1));
 
 				phl.l._preinit_layer(m_ILI, phl.coord.m_count);
 			}
 
 			bool PHLCheck()noexcept {
 				NNTL_ASSERT(m_pPHLCheckStorage);
-				const bool r = std::all_of(m_pPHLCheckStorage, m_pPHLCheckStorage + _incNeurons, [](const char c)->bool {
+				const bool r = ::std::all_of(m_pPHLCheckStorage, m_pPHLCheckStorage + _incNeurons, [](const char c)->bool {
 					return c == char(1);
 				});
 				delete[] m_pPHLCheckStorage;
@@ -161,7 +161,7 @@ namespace nntl {
 			//////////////////////////////////////////////////////////////////////////
 			// variation to use in other case just to preinit single layer
 			template<typename Layr>
-			std::enable_if_t<!is_PHL<Layr>::value> operator()(Layr& layr)noexcept {
+			::std::enable_if_t<!is_PHL<Layr>::value> operator()(Layr& layr)noexcept {
 				layr._preinit_layer(m_ILI, _incNeurons);
 			}
 		};
@@ -278,9 +278,9 @@ namespace nntl {
 
 			//used by compound layers to gather data from layers encapsulated into them.
 			void update(const _layer_init_data& o)noexcept {
-				maxMemFPropRequire = std::max(maxMemFPropRequire, o.maxMemFPropRequire);
-				maxMemTrainingRequire = std::max(maxMemTrainingRequire, o.maxMemTrainingRequire);
-				max_dLdA_numel = std::max(max_dLdA_numel, o.max_dLdA_numel);
+				maxMemFPropRequire = ::std::max(maxMemFPropRequire, o.maxMemFPropRequire);
+				maxMemTrainingRequire = ::std::max(maxMemTrainingRequire, o.maxMemTrainingRequire);
+				max_dLdA_numel = ::std::max(max_dLdA_numel, o.max_dLdA_numel);
 				nParamsToLearn += o.nParamsToLearn;
 				bHasLossAddendum |= o.bHasLossAddendum;
 				bLossAddendumDependsOnActivations |= o.bLossAddendumDependsOnActivations;
@@ -323,9 +323,9 @@ namespace nntl {
 				, const bool _HasLossAddendum, const bool _bLossAddendumDependsOnActivations
 				, const bool _OutputDifferentDuringTraining)noexcept
 			{
-				maxMemLayerTrainingRequire = std::max({ maxMemLayerTrainingRequire, mmlF, mmlB });
-				maxMemLayersFPropRequire = std::max(maxMemLayersFPropRequire, mmlF);
-				maxSingledLdANumel = std::max(maxSingledLdANumel, maxdLdA);
+				maxMemLayerTrainingRequire = ::std::max({ maxMemLayerTrainingRequire, mmlF, mmlB });
+				maxMemLayersFPropRequire = ::std::max(maxMemLayersFPropRequire, mmlF);
+				maxSingledLdANumel = ::std::max(maxSingledLdANumel, maxdLdA);
 				totalParamsToLearn += nLP;
 				bHasLossAddendum |= _HasLossAddendum;
 				bLossAddendumDependsOnActivations |= _bLossAddendumDependsOnActivations;

@@ -45,7 +45,7 @@ namespace rng {
 	public:
 		typedef AgnerFogRNG base_rng_t;
 
-		AFRand()noexcept : m_rng(static_cast<int>(s64to32(std::time(0)))) {}
+		AFRand()noexcept : m_rng(static_cast<int>(s64to32(::std::time(0)))) {}
 		AFRand(seed_t s)noexcept : m_rng(static_cast<int>(s)) {}
 
 		void seed(seed_t s) noexcept { m_rng.RandomInit(static_cast<int>(s)); }

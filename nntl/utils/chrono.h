@@ -40,32 +40,32 @@ namespace utils {
 
 	namespace chrono {
 		template<typename per_t> struct period_3oom_bigger {
-			typedef std::chrono::seconds type;
+			typedef ::std::chrono::seconds type;
 		};
-		template<> struct period_3oom_bigger<std::chrono::nanoseconds> {
-			typedef std::chrono::microseconds type;
+		template<> struct period_3oom_bigger<::std::chrono::nanoseconds> {
+			typedef ::std::chrono::microseconds type;
 		};
-		template<> struct period_3oom_bigger<std::chrono::microseconds> {
-			typedef std::chrono::milliseconds type;
+		template<> struct period_3oom_bigger<::std::chrono::microseconds> {
+			typedef ::std::chrono::milliseconds type;
 		};
 
 		template<typename per_t> struct period_name {
 			//static constexpr const strchar_t* name = NNTL_STRING("???");
 			static constexpr const char* name = "??";
 		};
-		template<> struct period_name<std::chrono::seconds> {
+		template<> struct period_name<::std::chrono::seconds> {
 			//static constexpr const strchar_t* name = NNTL_STRING("s");
 			static constexpr const char* name = "s";
 		};
-		template<> struct period_name<std::chrono::milliseconds> {
+		template<> struct period_name<::std::chrono::milliseconds> {
 			//static constexpr const strchar_t* name = NNTL_STRING("ms");
 			static constexpr const char* name = "ms";
 		};
-		template<> struct period_name<std::chrono::microseconds> {
+		template<> struct period_name<::std::chrono::microseconds> {
 			//static constexpr const strchar_t* name = NNTL_STRING("mcs");
 			static constexpr const char* name = "us";
 		};
-		template<> struct period_name<std::chrono::nanoseconds> {
+		template<> struct period_name<::std::chrono::nanoseconds> {
 			//static constexpr const strchar_t* name = NNTL_STRING("ns");
 			static constexpr const char* name = "ns";
 		};
@@ -73,7 +73,7 @@ namespace utils {
 	
 
 	template <typename durType>
-	static inline std::string duration_readable(durType d, uint64_t repeats=1, double* ptrSingleTime=nullptr)noexcept {
+	static inline ::std::string duration_readable(durType d, uint64_t repeats=1, double* ptrSingleTime=nullptr)noexcept {
 		double t = static_cast<double>(d.count())/repeats;
 		if (ptrSingleTime) *ptrSingleTime = t;
 		const char* name;
@@ -92,9 +92,9 @@ namespace utils {
 		constexpr unsigned MAX_STR_SIZE = 256;
 		char str[MAX_STR_SIZE];
 #pragma warning(disable : 6031)
-		std::snprintf(str, MAX_STR_SIZE, "%8.3f %-2s", t, name);
+		::std::snprintf(str, MAX_STR_SIZE, "%8.3f %-2s", t, name);
 #pragma warning(default : 6031)
-		return std::string(str);
+		return ::std::string(str);
 	};
 
 }

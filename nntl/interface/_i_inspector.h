@@ -67,7 +67,7 @@ namespace inspector {
 		~_i_inspector()noexcept {}
 		_i_inspector()noexcept {}
 
-		static_assert(std::is_unsigned<layer_index_t>::value, "layer_index_t must be unsigned!");
+		static_assert(::std::is_unsigned<layer_index_t>::value, "layer_index_t must be unsigned!");
 		static constexpr layer_index_t _NoLayerIdxSpecified = layer_index_t(-1);
 
 	public:

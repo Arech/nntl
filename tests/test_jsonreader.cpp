@@ -61,7 +61,7 @@ TEST(TestJsonreader, ReadingAndParsingMatrix) {
 	ErrCode ec = reader.read(NNTL_STRING("./test_data/mtx4-2.json"), m);
 	ASSERT_EQ(ErrCode::Success, ec) << "Error code description: " << reader.get_last_error_string();
 
-	const std::array<std::array<real_t, 4>, 2> train_x_data{ 81,91,13,91,63,10,28,55 };
+	const ::std::array<::std::array<real_t, 4>, 2> train_x_data{ 81,91,13,91,63,10,28,55 };
 
 	mtx_size_t train_x_size(static_cast<vec_len_t>(train_x_data[0].size()), static_cast<vec_len_t>(train_x_data.size()));
 
@@ -88,15 +88,15 @@ TEST(TestJsonreader, ReadingAndParsingTrainData) {
 	ErrCode ec = reader.read(NNTL_STRING("./test_data/traindata.json"), td);
 	ASSERT_EQ(ErrCode::Success, ec) << "Error code description: " << reader.get_last_error_string();
 
-	/*const std::array<std::array<real_t, 3>, 4> train_x_data{ 77,80,19,49,45,65,71,75,28,68,66,16 };
-	const std::array<std::array<real_t, 3>, 1> train_y_data{ 12,50,96 };
-	const std::array<std::array<real_t, 2>, 4> test_x_data{ 34,59,22,75,26,51,70,89 };
-	const std::array<std::array<real_t, 2>, 1> test_y_data{ 96,55 };*/
+	/*const ::std::array<::std::array<real_t, 3>, 4> train_x_data{ 77,80,19,49,45,65,71,75,28,68,66,16 };
+	const ::std::array<::std::array<real_t, 3>, 1> train_y_data{ 12,50,96 };
+	const ::std::array<::std::array<real_t, 2>, 4> test_x_data{ 34,59,22,75,26,51,70,89 };
+	const ::std::array<::std::array<real_t, 2>, 1> test_y_data{ 96,55 };*/
 	//biased (default) version:
-	const std::array<std::array<real_t, 3>, 5> train_x_data{ 77,80,19,49,45,65,71,75,28,68,66,16 ,1,1,1 };
-	const std::array<std::array<real_t, 3>, 1> train_y_data{ 12,50,96 };
-	const std::array<std::array<real_t, 2>, 5> test_x_data{ 34,59,22,75,26,51,70,89 ,1,1 };
-	const std::array<std::array<real_t, 2>, 1> test_y_data{ 96,55 };
+	const ::std::array<::std::array<real_t, 3>, 5> train_x_data{ 77,80,19,49,45,65,71,75,28,68,66,16 ,1,1,1 };
+	const ::std::array<::std::array<real_t, 3>, 1> train_y_data{ 12,50,96 };
+	const ::std::array<::std::array<real_t, 2>, 5> test_x_data{ 34,59,22,75,26,51,70,89 ,1,1 };
+	const ::std::array<::std::array<real_t, 2>, 1> test_y_data{ 96,55 };
 
 	mtx_size_t train_x_size(static_cast<vec_len_t>(train_x_data[0].size()), static_cast<vec_len_t>(train_x_data.size())),
 		train_y_size(static_cast<vec_len_t>(train_y_data[0].size()), static_cast<vec_len_t>(train_y_data.size())),

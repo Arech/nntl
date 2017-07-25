@@ -44,8 +44,8 @@ namespace utils {
 		typedef _bwlist self_t;
 		NNTL_METHODS_SELF();
 
-		typedef std::vector<layer_type_id_t> layer_types_list_t;
-		typedef std::vector<layer_index_t> layer_idx_list_t;
+		typedef ::std::vector<layer_type_id_t> layer_types_list_t;
+		typedef ::std::vector<layer_index_t> layer_idx_list_t;
 
 	protected:
 		vector_conditions m_dumpLayerCond;
@@ -65,17 +65,17 @@ namespace utils {
 		}
 
 		template<typename LtlT>
-		std::enable_if_t< std::is_same<layer_type_id_t, std::remove_cv_t<typename LtlT::value_type>>::value, self_ref_t>
+		::std::enable_if_t< ::std::is_same<layer_type_id_t, ::std::remove_cv_t<typename LtlT::value_type>>::value, self_ref_t>
 			_addToList(LtlT&& tl)noexcept {
 			NNTL_ASSERT(!m_layerTypes.size());
-			m_layerTypes = std::forward<LtlT>(tl);
+			m_layerTypes = ::std::forward<LtlT>(tl);
 			return get_self();
 		}
 		template<typename LilT>
-		std::enable_if_t< std::is_same<layer_index_t, std::remove_cv_t<typename LilT::value_type>>::value, self_ref_t>
+		::std::enable_if_t< ::std::is_same<layer_index_t, ::std::remove_cv_t<typename LilT::value_type>>::value, self_ref_t>
 			_addToList(LilT&& lil)noexcept {
 			NNTL_ASSERT(!m_layerIdxs.size());
-			m_layerIdxs = std::forward<LilT>(lil);
+			m_layerIdxs = ::std::forward<LilT>(lil);
 			return get_self();
 		}
 
@@ -103,9 +103,9 @@ namespace utils {
 			NNTL_ASSERT(lIdx < m_dumpLayerCond.size());
 
 			if (
-				(m_layerTypes.size() && std::any_of(m_layerTypes.begin(), m_layerTypes.end(), [layerTypeId](const layer_type_id_t& e)->bool {
+				(m_layerTypes.size() && ::std::any_of(m_layerTypes.begin(), m_layerTypes.end(), [layerTypeId](const layer_type_id_t& e)->bool {
 				return e == layerTypeId;
-			})) || (m_layerIdxs.size() && std::any_of(m_layerIdxs.begin(), m_layerIdxs.end(), [lIdx](const layer_index_t& e)->bool {
+			})) || (m_layerIdxs.size() && ::std::any_of(m_layerIdxs.begin(), m_layerIdxs.end(), [lIdx](const layer_index_t& e)->bool {
 				return e == lIdx;
 			}))
 				) {
@@ -142,20 +142,20 @@ namespace utils {
 			return _addToList(p);
 		}
 		template<typename LtlT>
-		std::enable_if_t< std::is_same<layer_type_id_t, std::remove_cv_t<typename LtlT::value_type>>::value, self_ref_t>
+		::std::enable_if_t< ::std::is_same<layer_type_id_t, ::std::remove_cv_t<typename LtlT::value_type>>::value, self_ref_t>
 			whitelist(LtlT&& p)noexcept {
 			_checksetWhitelist();
-			return _addToList(std::forward<LtlT>(p));
+			return _addToList(::std::forward<LtlT>(p));
 		}
 		self_ref_t whitelist(const layer_index_t& p)noexcept {
 			_checksetWhitelist();
 			return _addToList(p);
 		}
 		template<typename LilT>
-		std::enable_if_t< std::is_same<layer_index_t, std::remove_cv_t<typename LilT::value_type>>::value, self_ref_t>
+		::std::enable_if_t< ::std::is_same<layer_index_t, ::std::remove_cv_t<typename LilT::value_type>>::value, self_ref_t>
 			whitelist(LilT&& p)noexcept {
 			_checksetWhitelist();
-			return _addToList(std::forward<LilT>(p));
+			return _addToList(::std::forward<LilT>(p));
 		}
 
 		self_ref_t blacklist(const layer_type_id_t& p)noexcept {
@@ -163,20 +163,20 @@ namespace utils {
 			return _addToList(p);
 		}
 		template<typename LtlT>
-		std::enable_if_t< std::is_same<layer_type_id_t, std::remove_cv_t<typename LtlT::value_type>>::value, self_ref_t>
+		::std::enable_if_t< ::std::is_same<layer_type_id_t, ::std::remove_cv_t<typename LtlT::value_type>>::value, self_ref_t>
 			blacklist(LtlT&& p)noexcept {
 			_checksetBlacklist();
-			return _addToList(std::forward<LtlT>(p));
+			return _addToList(::std::forward<LtlT>(p));
 		}
 		self_ref_t blacklist(const layer_index_t& p)noexcept {
 			_checksetBlacklist();
 			return _addToList(p);
 		}
 		template<typename LilT>
-		std::enable_if_t< std::is_same<layer_index_t, std::remove_cv_t<typename LilT::value_type>>::value, self_ref_t>
+		::std::enable_if_t< ::std::is_same<layer_index_t, ::std::remove_cv_t<typename LilT::value_type>>::value, self_ref_t>
 			blacklist(LilT&& p)noexcept {
 			_checksetBlacklist();
-			return _addToList(std::forward<LilT>(p));
+			return _addToList(::std::forward<LilT>(p));
 		}
 	};
 

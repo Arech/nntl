@@ -59,14 +59,14 @@ namespace rng {
 
 		//////////////////////////////////////////////////////////////////////////
 		// iRng object should provide the following types of random numbers:
-		// - fixed point number in range [0, A], where A is given. This numbers are going to used primarily by std::random_shuffle()
+		// - fixed point number in range [0, A], where A is given. This numbers are going to used primarily by ::std::random_shuffle()
 		//		and should be implicitly convertible to ptrdiff_t.
-		// - fixed point number in its full range. To be used by distributions generators such as std::normal_distribution.
+		// - fixed point number in its full range. To be used by distributions generators such as ::std::normal_distribution.
 		//		This rng must obey UniformRandomBitGenerator concept.
 		// - floating point number in ranges [0,1], [0,A] and [-A,A]
 
 		//////////////////////////////////////////////////////////////////////////
-		// std::random_shuffle() support
+		// ::std::random_shuffle() support
 		//
 		// ptrdiff_t is either int on 32bits or int64 on 64bits. Type required by random_shuffle()
 		typedef ptrdiff_t int_4_random_shuffle_t;
@@ -75,7 +75,7 @@ namespace rng {
 		nntl_interface int_4_random_shuffle_t operator()(int_4_random_shuffle_t lessThan)noexcept;// { return gen_i(lessThan); }
 
 		//////////////////////////////////////////////////////////////////////////
-		// std::*_distribution<> support. This API must conform UniformRandomBitGenerator concept
+		// ::std::*_distribution<> support. This API must conform UniformRandomBitGenerator concept
 		//
 		typedef int int_4_distribution_t;
 		nntl_interface int_4_distribution_t operator()()noexcept;//returns values that are uniformly distributed between min() and max().
@@ -125,7 +125,7 @@ namespace rng {
 	struct rng_helper : public _i_rng<RealT> {
 	protected:
 		typedef FinalPolymorphChild self_t;
-		NNTL_METHODS_SELF_CHECKED((std::is_base_of<rng_helper<real_t, int4ShuffleT, int4DistribsT, FinalPolymorphChild>, FinalPolymorphChild>::value)
+		NNTL_METHODS_SELF_CHECKED((::std::is_base_of<rng_helper<real_t, int4ShuffleT, int4DistribsT, FinalPolymorphChild>, FinalPolymorphChild>::value)
 			, "FinalPolymorphChild must derive from _i_rng_helper<RealT,FinalPolymorphChild>");
 
 	public:
@@ -138,17 +138,17 @@ namespace rng {
 		}
 
 		//////////////////////////////////////////////////////////////////////////
-		// std::random_shuffle() support
+		// ::std::random_shuffle() support
 		int_4_random_shuffle_t operator()(int_4_random_shuffle_t lessThan)noexcept { return get_self().gen_i(lessThan); }
 
 		//////////////////////////////////////////////////////////////////////////
-		// std::*_distribution<> support. This API must conform UniformRandomBitGenerator concept
+		// ::std::*_distribution<> support. This API must conform UniformRandomBitGenerator concept
 		int_4_distribution_t operator()()noexcept { return get_self().gen_int(); }
 		//returns the minimum value that is returned by the generator's operator().
-		//static constexpr int_4_distribution_t min()const noexcept { return std::numeric_limits<int_4_distribution_t>::min() + 1; } //+1 is essential
-		static constexpr int_4_distribution_t min() noexcept { return std::numeric_limits<int_4_distribution_t>::min(); }
+		//static constexpr int_4_distribution_t min()const noexcept { return ::std::numeric_limits<int_4_distribution_t>::min() + 1; } //+1 is essential
+		static constexpr int_4_distribution_t min() noexcept { return ::std::numeric_limits<int_4_distribution_t>::min(); }
 		//returns the maximum value that is returned by the generator's operator().
-		static constexpr int_4_distribution_t max() noexcept { return std::numeric_limits<int_4_distribution_t>::max(); }
+		static constexpr int_4_distribution_t max() noexcept { return ::std::numeric_limits<int_4_distribution_t>::max(); }
 
 		//////////////////////////////////////////////////////////////////////////
 		//generate FP value in range [0,a]

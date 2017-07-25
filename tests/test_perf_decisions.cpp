@@ -53,7 +53,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "imath_etalons.h"
 
 using namespace nntl;
-using namespace std::chrono;
+using namespace ::std::chrono;
 using namespace nntl::utils;
 
 //////////////////////////////////////////////////////////////////////////
@@ -96,8 +96,8 @@ void makeDropoutMask_vec(math::smatrix<RealT>& dropoutMask, const RealT dpa)noex
 	while (pDM != pDME) {
 		const auto v = *pDM;
 		NNTL_ASSERT(v >= real_t(0.0) && v <= real_t(1.0));
-		*pDM++ = dropPercActInv*std::floor(dpa + v);
-		//*pDM++ = std::floor(dpa + v);
+		*pDM++ = dropPercActInv*::std::floor(dpa + v);
+		//*pDM++ = ::std::floor(dpa + v);
 	}
 	/*pDM = dropoutMask.data();
 	while (pDM != pDME) {
@@ -164,7 +164,7 @@ TEST(TestPerfDecisions, makeDropoutMask) {
 
 real_t t_sum_stdacc(const real_t* pVec, const numel_cnt_t& n)noexcept {
 	//current implementation of accumulate is similar to while{} statement, however it's also for() based
-	return std::accumulate(pVec, pVec + n, real_t(0.));
+	return ::std::accumulate(pVec, pVec + n, real_t(0.));
 }
 //this seems a bit faster 
 real_t t_sum_for(const real_t* pVec, const numel_cnt_t& n)noexcept {
@@ -181,7 +181,7 @@ void t_sum(vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 
 	constexpr unsigned maxReps = TEST_PERF_REPEATS_COUNT;
 	
-	std::vector<real_t> vec1(dataSize), vec2(dataSize), vec3(dataSize);
+	::std::vector<real_t> vec1(dataSize), vec2(dataSize), vec3(dataSize);
 
 	typedef math::SMath<real_t, d_interfaces::iThreads_t> SMath_t;
 
@@ -234,12 +234,12 @@ void softmax_parts_st_cw(const realmtx_t& act, const real_t* pMax, real_t* pDeno
 	const auto rm = act.rows(), cm = act.cols();
 	auto pA = act.data();
 	const auto pME = pMax + rm;
-	std::fill(pDenominator, pDenominator + rm, real_t(0.0));
+	::std::fill(pDenominator, pDenominator + rm, real_t(0.0));
 	for (vec_len_t c = 0; c < cm; ++c) {
 		auto pDen = pDenominator;
 		auto pM = pMax;
 		while (pM != pME) {
-			const auto num = std::exp(*pA++ - *pM++);
+			const auto num = ::std::exp(*pA++ - *pM++);
 			*pDen++ += num;
 			*pNumerator++ = num;
 		}
@@ -255,7 +255,7 @@ void softmax_parts_st_rw(const realmtx_t& act, const real_t* pMax, real_t* pDeno
 		const auto m = pMax[r];
 		auto den = real_t(0.0);
 		for (vec_len_t c = 0; c < cm; ++c) {
-			const auto num = std::exp(pA[ofs] - m);
+			const auto num = ::std::exp(pA[ofs] - m);
 			den += num;
 			pNumerator[ofs] = num;
 			ofs += rm;
@@ -276,7 +276,7 @@ void check_softmax_parts(iMath& iM, vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 
 	realmtx_t A(rowsCnt, colsCnt);
 	ASSERT_TRUE(!A.isAllocationFailed());
-	std::vector<real_t> vec_max(rowsCnt), vec_den(rowsCnt), vec_num(dataSize);
+	::std::vector<real_t> vec_max(rowsCnt), vec_den(rowsCnt), vec_num(dataSize);
 
 	iM.preinit(dataSize);
 	ASSERT_TRUE(iM.init());
@@ -284,7 +284,7 @@ void check_softmax_parts(iMath& iM, vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 	rg.set_ithreads(iM.ithreads());
 
 	{
-		std::vector<real_t> vec_den2(rowsCnt), vec_num2(dataSize);
+		::std::vector<real_t> vec_den2(rowsCnt), vec_num2(dataSize);
 
 		for (unsigned rr = 0; rr < testCorrRepCnt; ++rr) {
 			rg.gen_matrix(A, 2);
@@ -292,14 +292,14 @@ void check_softmax_parts(iMath& iM, vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 
 			softmax_parts_ET(A, &vec_max[0], &vec_den[0], &vec_num[0]);
 
-			std::fill(vec_den2.begin(), vec_den2.end(), real_t(0));
-			std::fill(vec_num2.begin(), vec_num2.end(), real_t(0));
+			::std::fill(vec_den2.begin(), vec_den2.end(), real_t(0));
+			::std::fill(vec_num2.begin(), vec_num2.end(), real_t(0));
 			softmax_parts_st_cw(A, &vec_max[0], &vec_den2[0], &vec_num2[0]);
 			ASSERT_VECTOR_NEAR(vec_den, vec_den2, "st_cw() failed denominator vector comparision", softmax_parts_EPS<real_t>::eps);
 			ASSERT_VECTOR_NEAR(vec_num, vec_num2, "st_cw() failed numerator matrix comparision", softmax_parts_EPS<real_t>::eps);
 
-			std::fill(vec_den2.begin(), vec_den2.end(), real_t(0));
-			std::fill(vec_num2.begin(), vec_num2.end(), real_t(0));
+			::std::fill(vec_den2.begin(), vec_den2.end(), real_t(0));
+			::std::fill(vec_num2.begin(), vec_num2.end(), real_t(0));
 			softmax_parts_st_rw(A, &vec_max[0], &vec_den2[0], &vec_num2[0]);
 			ASSERT_VECTOR_NEAR(vec_den, vec_den2, "st_rw() failed denominator vector comparision", softmax_parts_EPS<real_t>::eps);
 			ASSERT_VECTOR_NEAR(vec_num, vec_num2, "st_rw() failed numerator matrix comparision", softmax_parts_EPS<real_t>::eps);
@@ -315,16 +315,16 @@ void check_softmax_parts(iMath& iM, vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 	for (unsigned r = 0; r < maxReps; ++r) {
 		rg.gen_matrix(A, 2);
 		mrwMax_ET(A, &vec_max[0]);
-		std::fill(vec_den.begin(), vec_den.end(), real_t(0));
-		std::fill(vec_num.begin(), vec_num.end(), real_t(0));
+		::std::fill(vec_den.begin(), vec_den.end(), real_t(0));
+		::std::fill(vec_num.begin(), vec_num.end(), real_t(0));
 		tStCw.tic();
 		softmax_parts_st_cw(A, &vec_max[0], &vec_den[0], &vec_num[0]);
 		tStCw.toc();
 
 		rg.gen_matrix(A, 2);
 		mrwMax_ET(A, &vec_max[0]);
-		std::fill(vec_den.begin(), vec_den.end(), real_t(0));
-		std::fill(vec_num.begin(), vec_num.end(), real_t(0));
+		::std::fill(vec_den.begin(), vec_den.end(), real_t(0));
+		::std::fill(vec_num.begin(), vec_num.end(), real_t(0));
 		tStRw.tic();
 		softmax_parts_st_rw(A, &vec_max[0], &vec_den[0], &vec_num[0]);
 		tStRw.toc();
@@ -358,7 +358,7 @@ void mrwIdxsOfMax_st_rw(const realmtx_t& m, vec_len_t* pDest)noexcept {
 	for (vec_len_t ri = 0; ri < rim; ++ri) {
 		auto pV = &pD[ri];
 		const auto pVEnd = pV + ne;
-		auto m = std::numeric_limits<real_t>::lowest();
+		auto m = ::std::numeric_limits<real_t>::lowest();
 		vec_len_t mIdx = 0;
 		vec_len_t c = 0;
 		while (pV != pVEnd) {
@@ -435,16 +435,16 @@ void check_maxRowwise(iMath& iM, vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 
 	realmtx_t A(rowsCnt, colsCnt);
 	ASSERT_TRUE(!A.isAllocationFailed());
-	std::vector<vec_len_t> idxs_st_naive(rowsCnt), idxs_st_memf(rowsCnt);
-	std::vector<real_t> max_st_memf(rowsCnt);
+	::std::vector<vec_len_t> idxs_st_naive(rowsCnt), idxs_st_memf(rowsCnt);
+	::std::vector<real_t> max_st_memf(rowsCnt);
 
 	d_interfaces::iRng_t rg;
 	rg.set_ithreads(iM.ithreads());
 
 	//vec_len_t* pDummy = nullptr;
 	{
-		std::vector<vec_len_t> idxs_et(rowsCnt);
-		std::vector<real_t> max_et(rowsCnt);
+		::std::vector<vec_len_t> idxs_et(rowsCnt);
+		::std::vector<real_t> max_et(rowsCnt);
 
 		for (unsigned rr = 0; rr < testCorrRepCnt; ++rr) {
 			//pDummy++;
@@ -749,7 +749,7 @@ real_t rowvecs_renorm_ET(realmtx_t& m, real_t* pTmp)noexcept {
 	}
 
 	//finding average norm
-	real_t meanNorm = std::accumulate(pTmp, pTmp+mRows, 0.0) / mRows;
+	real_t meanNorm = ::std::accumulate(pTmp, pTmp+mRows, 0.0) / mRows;
 
 	//test and renormalize
 	//const real_t newNorm = meanNorm - sqrt(math::real_t_limits<real_t>::eps_lower_n(meanNorm, rowvecs_renorm_MULT));
@@ -954,8 +954,8 @@ void check_rowvecs_renorm(iMath& iM, vec_len_t rowsCnt, vec_len_t colsCnt = 10) 
 	const real_t scale = 5, newNormSq=1;
 	realmtx_t W(rowsCnt, colsCnt), srcW(rowsCnt, colsCnt), etW(rowsCnt, colsCnt);
 	ASSERT_TRUE(!W.isAllocationFailed() && !srcW.isAllocationFailed() && !etW.isAllocationFailed());
-	std::vector<real_t> tmp(rowsCnt);
-	std::vector<size_t> ofs(rowsCnt);
+	::std::vector<real_t> tmp(rowsCnt);
+	::std::vector<size_t> ofs(rowsCnt);
 
 	d_interfaces::iRng_t rg;
 	rg.set_ithreads(iM.ithreads());
@@ -1081,21 +1081,21 @@ void check_rowwiseNormsq(iMath& iM, vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 	real_t scale = 5;
 	realmtx_t W(rowsCnt, colsCnt);
 	ASSERT_TRUE(!W.isAllocationFailed());
-	std::vector<real_t> normvecEt(rowsCnt), normvec(rowsCnt);
+	::std::vector<real_t> normvecEt(rowsCnt), normvec(rowsCnt);
 	
 	d_interfaces::iRng_t rg;
 	rg.set_ithreads(iM.ithreads());
 
 	rg.gen_matrix(W, scale);
 	rowwise_normsq_ET(W, &normvecEt[0]);
-	real_t meanNorm = std::accumulate(normvecEt.begin(), normvecEt.end(), real_t(0.0)) / rowsCnt;
+	real_t meanNorm = ::std::accumulate(normvecEt.begin(), normvecEt.end(), real_t(0.0)) / rowsCnt;
 	STDCOUTL("Mean norm value is "<< meanNorm);
 
-	std::fill(normvec.begin(), normvec.end(), real_t(10.0));
+	::std::fill(normvec.begin(), normvec.end(), real_t(10.0));
 	rowwise_normsq_naive(W, &normvec[0]);
 	ASSERT_TRUE(0 == memcmp(&normvec[0], &normvecEt[0], rowsCnt*sizeof(real_t))) << "rowwise_normsq_naive wrong implementation";
 
-	std::fill(normvec.begin(), normvec.end(), real_t(10.0));
+	::std::fill(normvec.begin(), normvec.end(), real_t(10.0));
 	rowwise_normsq_clmnw(W, &normvec[0]);
 	ASSERT_TRUE(0 == memcmp(&normvec[0], &normvecEt[0], rowsCnt*sizeof(real_t))) << "rowwise_normsq_clmnw wrong implementation";
 
@@ -1154,7 +1154,7 @@ real_t sigm_loss_xentropy_naive(const realmtx_t& activations, const realmtx_t& d
 		NNTL_ASSERT(a >= real_t(0.0) && a <= real_t(1.0));
 
 		//ql += y*(a == real_t(0.0) ? log_zero : log(a)) + (real_t(1.0) - y)*(oma == real_t(0.0) ? log_zero : log(oma));
-		ql += y*(a == real_t(0.0) ? log_zero : std::log(a)) + (real_t(1.0) - y)*(a == real_t(1.0) ? log_zero : nntl::math::log1p(-a));
+		ql += y*(a == real_t(0.0) ? log_zero : ::std::log(a)) + (real_t(1.0) - y)*(a == real_t(1.0) ? log_zero : nntl::math::log1p(-a));
 		NNTL_ASSERT(!isnan(ql));
 	}
 	return -ql / activations.rows();
@@ -1173,7 +1173,7 @@ real_t sigm_loss_xentropy_naive_part(const realmtx_t& activations, const realmtx
 		NNTL_ASSERT(a >= real_t(0.0) && a <= real_t(1.0));
 
 		if (y > real_t(0.0)) {
-			ql += (a == real_t(0.0) ? log_zero : std::log(a));
+			ql += (a == real_t(0.0) ? log_zero : ::std::log(a));
 		} else {
 			//const auto oma = real_t(1.0) - a;
 			//ql += (oma == real_t(0.0) ? log_zero : log(oma));
@@ -1190,7 +1190,7 @@ real_t sigm_loss_xentropy_vec(const realmtx_t& activations, const realmtx_t& dat
 	const auto dataCnt = activations.numel();
 	const auto ptrA = activations.data(), ptrY = data_y.data();
 	const auto p1 = t1.data(), p2 = t2.data();
-	constexpr auto realmin = std::numeric_limits<real_t>::min();
+	constexpr auto realmin = ::std::numeric_limits<real_t>::min();
 	real_t ql = 0;
 	for (numel_cnt_t i = 0; i < dataCnt; ++i) {
 		const auto a = ptrA[i], oma = real_t(1.0) - a;
@@ -1199,7 +1199,7 @@ real_t sigm_loss_xentropy_vec(const realmtx_t& activations, const realmtx_t& dat
 	}
 	for (numel_cnt_t i = 0; i < dataCnt; ++i) {
 		const auto y = ptrY[i];
-		ql += y*std::log(p1[i]) + (real_t(1.0) - y)*std::log(p2[i]);
+		ql += y*::std::log(p1[i]) + (real_t(1.0) - y)*::std::log(p2[i]);
 		NNTL_ASSERT(!isnan(ql));
 	}
 	return -ql / activations.rows();
@@ -1363,7 +1363,7 @@ TEST(TestPerfDecisions, applyMomentum) {
 
 //////////////////////////////////////////////////////////////////////////
 template <typename T> T sgncopysign(T magn, T val) {
-	return val == 0 ? T(0) : std::copysign(magn, val);
+	return val == 0 ? T(0) : ::std::copysign(magn, val);
 }
 template<typename iMath>
 void test_sign_perf(iMath& iM, vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
@@ -1388,10 +1388,10 @@ void test_sign_perf(iMath& iM, vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 
 	real_t pz = real_t(+0.0), nz = real_t(-0.0), p1 = real_t(1), n1 = real_t(-1);
 
-	//boost::sign
+	//::boost::sign
 	/*{
-		auto c_pz = boost::math::sign(pz), c_nz = boost::math::sign(nz), c_p1 = boost::math::sign(p1), c_n1 = boost::math::sign(n1);
-		STDCOUTL("boost::sign\t: +0.0=" << c_pz << " -0.0=" << c_nz << " +1=" << c_p1 << " -1=" << c_n1);
+		auto c_pz = ::boost::math::sign(pz), c_nz = ::boost::math::sign(nz), c_p1 = ::boost::math::sign(p1), c_n1 = ::boost::math::sign(n1);
+		STDCOUTL("::boost::sign\t: +0.0=" << c_pz << " -0.0=" << c_nz << " +1=" << c_p1 << " -1=" << c_n1);
 		EXPECT_EQ(0, c_pz);
 		EXPECT_EQ(0, c_nz);
 		EXPECT_EQ(1, c_p1);
@@ -1404,7 +1404,7 @@ void test_sign_perf(iMath& iM, vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 		const auto pE = p + dW.numel();
 		bt = steady_clock::now();
 		while (p!=pE) {
-			*p++ = lr*boost::math::sign(*p);
+			*p++ = lr*::boost::math::sign(*p);
 		}
 		diff += steady_clock::now() - bt;
 	}
@@ -1537,7 +1537,7 @@ void test_rmsproph_perf(iMath& iM, vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 	typedef typename realmtx_t::value_type real_t;
 	typedef typename realmtx_t::numel_cnt_t numel_cnt_t;
 
-	using namespace std::chrono;
+	using namespace ::std::chrono;
 	const auto dataSize = realmtx_t::sNumel(rowsCnt, colsCnt);
 	STDCOUTL("******* testing RMSPropHinton variations over " << rowsCnt << "x" << colsCnt << " matrix (" << dataSize << " elements) **************");
 
@@ -1639,7 +1639,7 @@ void test_dropout_perf(iMath& iM, vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 	typedef typename realmtx_t::value_type real_t;
 	typedef typename realmtx_t::numel_cnt_t numel_cnt_t;
 
-	using namespace std::chrono;
+	using namespace ::std::chrono;
 	const auto dataSize = realmtx_t::sNumel(rowsCnt, colsCnt);
 	STDCOUTL("******* testing dropout variations over " << rowsCnt << "x" << colsCnt << " matrix (" << dataSize << " elements) **************");
 
@@ -1719,7 +1719,7 @@ void pt_iact_asymm_st(realmtx_t& srcdest, FunctorT&& fnc) noexcept {
 	while (pV != pVE) {
 		const auto v = *pV;
 		//*pV++ = v < real_t(+0.0) ? FunctorT::f_neg(v) : FunctorT::f_pos(v);
-		*pV++ = (std::forward<FunctorT>(fnc)).f( v );
+		*pV++ = (::std::forward<FunctorT>(fnc)).f( v );
 	}
 }
 //slightly faster (177vs192)

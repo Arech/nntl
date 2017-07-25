@@ -36,21 +36,28 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 namespace nntl {
 namespace activation {
 
+	//activation types should not be templated (probably besides real_t), because they are intended to be used
+	//as means to recognize activation function type
+	struct type_step {};
+
 	//////////////////////////////////////////////////////////////////////////
 	//////////////////////////////////////////////////////////////////////////
 	//stepwise activation: y = 0|x<0 & 1|x>=0
 	template<typename RealT, typename WeightsInitScheme = weights_init::He_Zhang<>, typename DropoutT = Dropout<RealT>>
-	class step : public _i_activation<DropoutT, WeightsInitScheme> {
+	class step
+		: public _i_activation<DropoutT, WeightsInitScheme>
+		, public type_step
+	{
 	public:
 		//apply f to each srcdest matrix element to compute activation values. The biases (if any) must be left untouched!
 		template <typename iMath>
 		static void f(realmtx_t& srcdest, iMath& m) noexcept {
-			static_assert(std::is_base_of<math::_i_math<real_t>, iMath>::value, "iMath should implement math::_i_math");
+			static_assert(::std::is_base_of<math::_i_math<real_t>, iMath>::value, "iMath should implement math::_i_math");
 			m.step(srcdest);
 		};
 		template <typename iMath>
 		static void df(realmtx_t& f_df, iMath& m) noexcept {
-			static_assert(std::is_base_of<math::_i_math<real_t>, iMath>::value, "iMath should implement math::_i_math");
+			static_assert(::std::is_base_of<math::_i_math<real_t>, iMath>::value, "iMath should implement math::_i_math");
 			NNTL_ASSERT(!f_df.emulatesBiases());
 			f_df.zeros();
 		}

@@ -90,13 +90,13 @@ namespace nntl {
 				constexpr ext_real_t scalingCoeff = ext_real_t(scalingCoeff1e6) / ext_real_t(1000000);
 
 				const auto prevLayerNeuronsCnt = W.cols() - 1;
-				const real_t stdDev = real_t(scalingCoeff*std::sqrt(ext_real_t(2.) / prevLayerNeuronsCnt));
+				const real_t stdDev = real_t(scalingCoeff*::std::sqrt(ext_real_t(2.) / prevLayerNeuronsCnt));
 
 				rng::distr_normal_naive<iRng_t> d(iR, real_t(0.0), stdDev);
 				d.gen_vector(W.data(), realmtx_t::sNumel(W.rows(), prevLayerNeuronsCnt));
 
 				auto pBiases = W.colDataAsVec(prevLayerNeuronsCnt);
-				std::fill(pBiases, pBiases + W.rows(), real_t(0.0));
+				::std::fill(pBiases, pBiases + W.rows(), real_t(0.0));
 				return true;
 			}
 		};
@@ -114,14 +114,14 @@ namespace nntl {
 				constexpr ext_real_t paramCoeff = ext_real_t(paramCoeff1e6) / ext_real_t(1000000);
 
 				const auto prevLayerNeuronsCnt = W.cols() - 1;
-				const real_t stdDev = real_t( std::sqrt(paramCoeff / prevLayerNeuronsCnt));
+				const real_t stdDev = real_t( ::std::sqrt(paramCoeff / prevLayerNeuronsCnt));
 
 				rng::distr_normal_naive<iRng_t> d(iR, real_t(0.0), stdDev);
 
 				d.gen_vector(W.data(), realmtx_t::sNumel(W.rows(), prevLayerNeuronsCnt));
 
 				auto pBiases = W.colDataAsVec(prevLayerNeuronsCnt);
-				std::fill(pBiases, pBiases + W.rows(), real_t(0.0));
+				::std::fill(pBiases, pBiases + W.rows(), real_t(0.0));
 
 				return true;
 			}
@@ -163,7 +163,7 @@ namespace nntl {
 				constexpr real_t stdDev = real_t(StdDev1e6) / real_t(1000000);
 
 				//making random indexes of weights to set
-				std::unique_ptr<vec_len_t[]> columnIdxs(new(std::nothrow) vec_len_t[prevLayerNeuronsCnt]);
+				::std::unique_ptr<vec_len_t[]> columnIdxs(new(::std::nothrow) vec_len_t[prevLayerNeuronsCnt]);
 				auto pIdxs = columnIdxs.get();
 				if (nullptr == pIdxs) return false;
 				const auto pIdxsE = pIdxs + prevLayerNeuronsCnt;
@@ -179,7 +179,7 @@ namespace nntl {
 				//setting rowwise (don't think we can significantly speed up this code and leave the same quality of randomness - but that's
 				// not a performance critical code)
 				for (vec_len_t r = 0; r < thisLayerNeuronsCnt; ++r) {
-					std::random_shuffle(pIdxs, pIdxsE, iR);
+					::std::random_shuffle(pIdxs, pIdxsE, iR);
 					for (vec_len_t cIdx = 0; cIdx < NonZeroUnitsCount; ++cIdx) {
 						W.set(r, pIdxs[cIdx], *pS++);
 					}
@@ -187,7 +187,7 @@ namespace nntl {
 
 				if (biases != real_t(0.0)) {
 					auto pBiases = W.colDataAsVec(prevLayerNeuronsCnt);
-					std::fill(pBiases, pBiases + thisLayerNeuronsCnt, biases);
+					::std::fill(pBiases, pBiases + thisLayerNeuronsCnt, biases);
 				}
 				return true;
 			}

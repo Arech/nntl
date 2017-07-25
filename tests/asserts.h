@@ -75,7 +75,7 @@ void _ASSERT_MTX_EQ(const BaseT& c1, const BaseT& c2, const char* descr = "") no
 }
 
 template<typename BaseT>
-std::enable_if_t<std::is_integral<BaseT>::value>
+::std::enable_if_t<::std::is_integral<BaseT>::value>
 _ASSERT_MTX_EQ(const nntl::math::smatrix<BaseT>& c1, const nntl::math::smatrix<BaseT>& c2, const char* descr = "") noexcept {
 	ASSERT_EQ(c1.size(), c2.size()) << descr;
 	ASSERT_EQ(c1.emulatesBiases(), c2.emulatesBiases()) << descr;
@@ -114,7 +114,7 @@ inline void _ASSERT_MTX_EQ(const nntl::math::smatrix<double>& c1, const nntl::ma
 //////////////////////////////////////////////////////////////////////////
 
 template<typename BaseT>
-void _ASSERT_VECTOR_NEAR(const std::vector<BaseT>& v1, const std::vector<BaseT>& v2, const char* descr, const double eps) noexcept {
+void _ASSERT_VECTOR_NEAR(const ::std::vector<BaseT>& v1, const ::std::vector<BaseT>& v2, const char* descr, const double eps) noexcept {
 	ASSERT_EQ(v1.size(), v2.size()) << descr;
 	const auto im = v1.size();
 	for (numel_cnt_t i = 0; i < im; ++i) {
@@ -124,11 +124,11 @@ void _ASSERT_VECTOR_NEAR(const std::vector<BaseT>& v1, const std::vector<BaseT>&
 #define ASSERT_VECTOR_NEAR(c1,c2,descr,eps) ASSERT_NO_FATAL_FAILURE(_ASSERT_VECTOR_NEAR(c1,c2,descr,eps));
 
 template<typename BaseT>
-void _ASSERT_VECTOR_EQ(const std::vector<BaseT>& v1, const std::vector<BaseT>& v2, const char* descr) noexcept {
+void _ASSERT_VECTOR_EQ(const ::std::vector<BaseT>& v1, const ::std::vector<BaseT>& v2, const char* descr) noexcept {
 	static_assert(false, "WTF");
 }
 template<>
-inline void _ASSERT_VECTOR_EQ(const std::vector<double>& v1, const std::vector<double>& v2, const char* descr) noexcept {
+inline void _ASSERT_VECTOR_EQ(const ::std::vector<double>& v1, const ::std::vector<double>& v2, const char* descr) noexcept {
 	ASSERT_EQ(v1.size(), v2.size()) << descr;
 	if (!descr) descr = "";
 	const auto im = v1.size();
@@ -137,7 +137,7 @@ inline void _ASSERT_VECTOR_EQ(const std::vector<double>& v1, const std::vector<d
 	}
 }
 template<>
-inline void _ASSERT_VECTOR_EQ(const std::vector<float>& v1, const std::vector<float>& v2, const char* descr) noexcept {
+inline void _ASSERT_VECTOR_EQ(const ::std::vector<float>& v1, const ::std::vector<float>& v2, const char* descr) noexcept {
 	ASSERT_EQ(v1.size(), v2.size()) << descr;
 	if (!descr) descr = "";
 	const auto im = v1.size();

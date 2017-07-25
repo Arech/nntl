@@ -79,7 +79,7 @@ TEST(TestSelu, GradCheck_alphaDropout) {
 
 	gradcheck_settings<real_t> ngcSetts(true, true, 1e-4);
 	//ngcSetts.evalSetts.bIgnoreZerodLdWInUndelyingLayer = true;
-	//ngcSetts.evalSetts.dLdW_setts.relErrFailThrsh = real_t(5e-3);//numeric errors due to dLdAPrev addition in LPH stacks up significantly
+	ngcSetts.evalSetts.dLdW_setts.relErrFailThrsh = real_t(5e-3);
 
 	ngcSetts.evalSetts.dLdA_setts.percOfZeros = 70;
 	ngcSetts.evalSetts.dLdW_setts.percOfZeros = 70;
@@ -101,10 +101,10 @@ protected:
 
 	layer_index_t m_lastLayerIdxToCheck;
 
-	typedef boost::accumulators::accumulator_set<ext_real_t
-		, boost::accumulators::stats<
-		boost::accumulators::tag::mean
-		, boost::accumulators::tag::lazy_variance
+	typedef ::boost::accumulators::accumulator_set<ext_real_t
+		, ::boost::accumulators::stats<
+		::boost::accumulators::tag::mean
+		, ::boost::accumulators::tag::lazy_variance
 		>
 	> stats_t;
 
@@ -113,7 +113,7 @@ protected:
 		stats_t sVar;
 	};
 
-	typedef std::vector<layers_stats_t> a_layers_stat_t;
+	typedef ::std::vector<layers_stats_t> a_layers_stat_t;
 	a_layers_stat_t m_layersStats;
 
 	void _calc_neuronwise_stats(const realmtx_t& act, const layer_index_t lidx)noexcept {
@@ -129,8 +129,8 @@ protected:
 				st(*pA++);
 			}
 
-			lStats.sMean(boost::accumulators::extract_result<boost::accumulators::tag::mean>(st));
-			lStats.sVar(boost::accumulators::extract_result<boost::accumulators::tag::lazy_variance>(st));
+			lStats.sMean(::boost::accumulators::extract_result<::boost::accumulators::tag::mean>(st));
+			lStats.sVar(::boost::accumulators::extract_result<::boost::accumulators::tag::lazy_variance>(st));
 		}
 	}
 
@@ -153,11 +153,11 @@ public:
 	template<typename base_t> struct stats_EPS {};
 	template<> struct stats_EPS<double> {
 		static constexpr double mean_eps = .07;
-		static constexpr double var_eps = .14;
+		static constexpr double var_eps = .17;
 	};
 	template<> struct stats_EPS<float> { 
 		static constexpr float mean_eps = .07f;
-		static constexpr float var_eps = .14f;
+		static constexpr float var_eps = .17f;
 	};
 
 	void report_stats()const noexcept {
@@ -166,10 +166,10 @@ public:
 
 			const auto& lStats = m_layersStats[i];
 
-			const auto mean_of_mean = boost::accumulators::extract_result<boost::accumulators::tag::mean>(lStats.sMean);
-			const auto var_of_mean = boost::accumulators::extract_result<boost::accumulators::tag::lazy_variance>(lStats.sMean);
-			const auto mean_of_var = boost::accumulators::extract_result<boost::accumulators::tag::mean>(lStats.sVar);
-			const auto var_of_var = boost::accumulators::extract_result<boost::accumulators::tag::lazy_variance>(lStats.sVar);
+			const auto mean_of_mean = ::boost::accumulators::extract_result<::boost::accumulators::tag::mean>(lStats.sMean);
+			const auto var_of_mean = ::boost::accumulators::extract_result<::boost::accumulators::tag::lazy_variance>(lStats.sMean);
+			const auto mean_of_var = ::boost::accumulators::extract_result<::boost::accumulators::tag::mean>(lStats.sVar);
+			const auto var_of_var = ::boost::accumulators::extract_result<::boost::accumulators::tag::lazy_variance>(lStats.sVar);
 
 			printf_s("mean = %05.3f +/- %06.4f, variance = %05.3f +/- %06.4f\n", mean_of_mean, var_of_mean, mean_of_var, var_of_var);
 
@@ -193,7 +193,7 @@ void _test_selu_make_td(train_data< typename iRngT::real_t >& td, const vec_len_
 
 	iR.gen_matrix_norm(trY), iR.gen_matrix_norm(tY);
 
-	ASSERT_TRUE(td.absorb(std::move(trX), std::move(trY), std::move(tX), std::move(tY)));
+	ASSERT_TRUE(td.absorb(::std::move(trX), ::std::move(trY), ::std::move(tX), ::std::move(tY)));
 }
 
 template<typename RealT>
@@ -282,7 +282,7 @@ void test_selu_distr(const size_t seedVal, const RealT dpa, const neurons_count_
 TEST(TestSelu, SELU_Distribution) {
 	typedef float real_t;
 
-	const size_t t = std::time(0);
+	const size_t t = ::std::time(0);
 
 	STDCOUTL("================ No weight renormalizing ================");
 	ASSERT_NO_FATAL_FAILURE(test_selu_distr(t, real_t(1.), 10, 30, false));

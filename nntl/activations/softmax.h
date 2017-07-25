@@ -36,19 +36,27 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 namespace nntl {
 namespace activation {
 
+	//activation types should not be templated (probably besides real_t), because they are intended to be used
+	//as means to recognize activation function type
+	struct type_softmax {};
+
 	//////////////////////////////////////////////////////////////////////////
 	//////////////////////////////////////////////////////////////////////////
 	// SoftMax (for output layer only - it's easier to get dL/dL than dA/dL for SoftMax)
 	// #TODO: which weight initialization scheme is better for SoftMax?
 	// #TODO: may be it's worth to implement SoftMax activation for hidden layers, i.e. make a dA/dZ implementation
 	template<typename RealT, typename WeightsInitScheme = weights_init::Martens_SI_sigm<>>
-	class softmax_xentropy_loss : public _i_function<NoDropout<RealT>, WeightsInitScheme>, public _i_xentropy_loss<RealT> {
+	class softmax_xentropy_loss
+		: public _i_function<NoDropout<RealT>, WeightsInitScheme>
+		, public _i_xentropy_loss<RealT>
+		, public type_softmax
+	{
 	public:
 
 		//apply f to each srcdest matrix element. The biases (if any) must be left untouched!
 		template <typename iMath>
 		static void f(realmtxdef_t& srcdest, iMath& m) noexcept {
-			static_assert(std::is_base_of<math::_i_math<real_t>, iMath>::value, "iMath should implement math::_i_math");
+			static_assert(::std::is_base_of<math::_i_math<real_t>, iMath>::value, "iMath should implement math::_i_math");
 			m.softmax(srcdest);
 		};
 		//get requirements on temporary memory size needed to calculate f() over matrix act (need it for memory
@@ -60,7 +68,7 @@ namespace activation {
 
 		template <typename iMath>
 		static void dLdZ(const realmtx_t& data_y, realmtx_t& act_dLdZ, iMath& m)noexcept {
-			static_assert(std::is_base_of<math::_i_math<real_t>, iMath>::value, "iMath should implement math::_i_math");
+			static_assert(::std::is_base_of<math::_i_math<real_t>, iMath>::value, "iMath should implement math::_i_math");
 			//SoftMax dL/dZ = dL/dA * dA/dZ = (a-y)
 			NNTL_ASSERT(!act_dLdZ.emulatesBiases() && !data_y.emulatesBiases());
 			m.evSub_ip(act_dLdZ, data_y);
@@ -68,7 +76,7 @@ namespace activation {
 
 		template <typename iMath>
 		static real_t loss(const realmtx_t& activations, const realmtx_t& data_y, iMath& m)noexcept {
-			static_assert(std::is_base_of<math::_i_math<real_t>, iMath>::value, "iMath should implement math::_i_math");
+			static_assert(::std::is_base_of<math::_i_math<real_t>, iMath>::value, "iMath should implement math::_i_math");
 			return m.loss_softmax_xentropy(activations, data_y);
 		}
 	};

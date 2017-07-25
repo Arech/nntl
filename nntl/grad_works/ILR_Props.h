@@ -57,7 +57,7 @@ namespace GW { //GW namespace is for grad_works mixins and other stuff, that hel
 		}
 
 		constexpr ILR_props()noexcept:mulDecr(real_t(0.0)), mulIncr(real_t(0.0)), capLow(real_t(0.0)), capHigh(real_t(0.0)) {}
-		constexpr ILR_props(const real_t decr, const real_t incr, const real_t cLow, const real_t cHigh, const std::nullptr_t _tag)noexcept 
+		constexpr ILR_props(const real_t decr, const real_t incr, const real_t cLow, const real_t cHigh, const ::std::nullptr_t _tag)noexcept 
 			: mulDecr(decr), mulIncr(incr), capLow(cLow), capHigh(cHigh) {}
 
 		ILR_props(const real_t& decr, const real_t& incr, const real_t& cLow, const real_t& cHigh)noexcept {
@@ -81,7 +81,7 @@ namespace GW { //GW namespace is for grad_works mixins and other stuff, that hel
 		//////////////////////////////////////////////////////////////////////////
 		//Serialization support
 	private:
-		friend class boost::serialization::access;
+		friend class ::boost::serialization::access;
 		template<class Archive>
 		void serialize(Archive & ar, const unsigned int version) {
 			ar & NNTL_SERIALIZATION_NVP(mulDecr);

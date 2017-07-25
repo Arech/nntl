@@ -54,12 +54,12 @@ namespace nntl {
 		}
 		
 		//Also, derived class may define a function with the following interface to provide customized messages
-		/ *std::string get_last_error_string()const noexcept {
-			std::string les(get_last_error_str());
+		/ *::std::string get_last_error_string()const noexcept {
+			::std::string les(get_last_error_str());
 
 			if (ErrorCode::FailedToParseJson == get_last_error()) {
 				les = les + " Rapidjson: " + rapidjson::GetParseError_En(get_parse_error())
-					+ " Offset: " + std::to_string(get_parse_error_offset());
+					+ " Offset: " + ::std::to_string(get_parse_error_offset());
 			}
 			return les;
 		}* /

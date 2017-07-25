@@ -63,14 +63,14 @@ namespace matlab {
 
 	template<> struct type2id<bool> { static constexpr mxClassID id = mxLOGICAL_CLASS; };
 
-	template<> struct type2id<std::int8_t> { static constexpr mxClassID id = mxINT8_CLASS; };
-	template<> struct type2id<std::uint8_t> { static constexpr  mxClassID id = mxUINT8_CLASS; };
+	template<> struct type2id<::std::int8_t> { static constexpr mxClassID id = mxINT8_CLASS; };
+	template<> struct type2id<::std::uint8_t> { static constexpr  mxClassID id = mxUINT8_CLASS; };
 
-	template<> struct type2id<std::int32_t> { static constexpr  mxClassID id = mxINT32_CLASS; };
-	template<> struct type2id<std::uint32_t> { static constexpr  mxClassID id = mxUINT32_CLASS; };
+	template<> struct type2id<::std::int32_t> { static constexpr  mxClassID id = mxINT32_CLASS; };
+	template<> struct type2id<::std::uint32_t> { static constexpr  mxClassID id = mxUINT32_CLASS; };
 
-	template<> struct type2id<std::int64_t> { static constexpr  mxClassID id = mxINT64_CLASS; };
-	template<> struct type2id<std::uint64_t> { static constexpr  mxClassID id = mxUINT64_CLASS; };
+	template<> struct type2id<::std::int64_t> { static constexpr  mxClassID id = mxINT64_CLASS; };
+	template<> struct type2id<::std::uint64_t> { static constexpr  mxClassID id = mxUINT64_CLASS; };
 
 	template<> struct type2id<float> { static constexpr mxClassID id = mxSINGLE_CLASS; };
 	template<> struct type2id<double> { static constexpr  mxClassID id = mxDOUBLE_CLASS; };
@@ -93,15 +93,15 @@ namespace matlab {
 				break;
 			case mxINT64_CLASS:
 			case mxUINT64_CLASS:
-				d.fill_from_array_no_bias(static_cast<const std::uint64_t*>(pSrc));
+				d.fill_from_array_no_bias(static_cast<const ::std::uint64_t*>(pSrc));
 				break;
 			case mxINT32_CLASS:
 			case mxUINT32_CLASS:
-				d.fill_from_array_no_bias(static_cast<const std::uint32_t*>(pSrc));
+				d.fill_from_array_no_bias(static_cast<const ::std::uint32_t*>(pSrc));
 				break;
 			case mxINT8_CLASS:
 			case mxUINT8_CLASS:
-				d.fill_from_array_no_bias(static_cast<const std::uint8_t*>(pSrc));
+				d.fill_from_array_no_bias(static_cast<const ::std::uint8_t*>(pSrc));
 				break;
 			case mxLOGICAL_CLASS:
 				d.fill_from_array_no_bias(static_cast<const bool*>(pSrc));

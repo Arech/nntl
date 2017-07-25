@@ -94,5 +94,5 @@ void makeTdForGatedSetup(const train_data<real_t>& td, train_data<real_t>& tdGat
 	td.train_y().clone_to(ntry);
 	td.test_y().clone_to(nty);
 
-	ASSERT_TRUE(tdGated.absorb(std::move(ntr), std::move(ntry), std::move(nt), std::move(nty)));
+	ASSERT_TRUE(tdGated.absorb(::std::move(ntr), ::std::move(ntry), ::std::move(nt), ::std::move(nty)));
 }

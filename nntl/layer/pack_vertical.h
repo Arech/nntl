@@ -57,37 +57,37 @@ namespace nntl {
 
 	template<typename FinalPolymorphChild, typename LayrsRefTuple>
 	class _layer_pack_vertical : public _layer_base_forwarder<FinalPolymorphChild,
-		typename std::remove_reference<typename std::tuple_element<0, LayrsRefTuple>::type>::type::interfaces_t>
+		typename ::std::remove_reference<typename ::std::tuple_element<0, LayrsRefTuple>::type>::type::interfaces_t>
 	{
 	private:
 		typedef _layer_base_forwarder<FinalPolymorphChild,
-			typename std::remove_reference<typename std::tuple_element<0, LayrsRefTuple>::type>::type::interfaces_t
+			typename ::std::remove_reference<typename ::std::tuple_element<0, LayrsRefTuple>::type>::type::interfaces_t
 		> _base_class_t;
 
 	public:
 		//LayerPack_t is used to distinguish ordinary layers from layer packs (for example, to implement call_F_for_each_layer())
 		typedef self_t LayerPack_t;
 
-		//typedef const std::tuple<Layrs&...> _layers;
+		//typedef const ::std::tuple<Layrs&...> _layers;
 		typedef const LayrsRefTuple _layers;
 		//static constexpr size_t layers_count = sizeof...(Layrs);
-		static constexpr size_t layers_count = std::tuple_size<LayrsRefTuple>::value;
+		static constexpr size_t layers_count = ::std::tuple_size<LayrsRefTuple>::value;
 
 		static_assert(layers_count > 1, "For vertical pack with a single inner layer use that layer instead");
-		typedef typename std::remove_reference<typename std::tuple_element<0, _layers>::type>::type lowmost_layer_t;
-		typedef typename std::remove_reference<typename std::tuple_element<layers_count - 1, _layers>::type>::type topmost_layer_t;
+		typedef typename ::std::remove_reference<typename ::std::tuple_element<0, _layers>::type>::type lowmost_layer_t;
+		typedef typename ::std::remove_reference<typename ::std::tuple_element<layers_count - 1, _layers>::type>::type topmost_layer_t;
 		//fprop() goes from the lowmost_layer_t to the topmost_layer_t layer.
 
 		//the first layer mustn't be input layer, the last - can't be output layer
-		static_assert(!std::is_base_of<m_layer_input, lowmost_layer_t>::value, "First layer can't be the input layer!");
-		static_assert(!std::is_base_of<m_layer_output, topmost_layer_t>::value, "Last layer can't be the output layer!");
+		static_assert(!::std::is_base_of<m_layer_input, lowmost_layer_t>::value, "First layer can't be the input layer!");
+		static_assert(!::std::is_base_of<m_layer_output, topmost_layer_t>::value, "Last layer can't be the output layer!");
 
 		typedef typename lowmost_layer_t::_layer_init_data_t _layer_init_data_t;
 		typedef typename lowmost_layer_t::common_data_t common_data_t;
 
 	protected:
 		//we need 2 matrices for bprop()
-		typedef std::array<realmtxdef_t*, 2> realmtxdefptr_array_t;
+		typedef ::std::array<realmtxdef_t*, 2> realmtxdefptr_array_t;
 
 	protected:
 		_layers m_layers;
@@ -116,9 +116,9 @@ namespace nntl {
 		}
 
 		//first layer is lowmost layer
-		lowmost_layer_t& lowmost_layer()const noexcept { return std::get<0>(m_layers); }
+		lowmost_layer_t& lowmost_layer()const noexcept { return ::std::get<0>(m_layers); }
 		//last layer is topmost layer
-		topmost_layer_t& topmost_layer()const noexcept { return std::get<layers_count - 1>(m_layers); }
+		topmost_layer_t& topmost_layer()const noexcept { return ::std::get<layers_count - 1>(m_layers); }
 
 	public:
 		//used by _layer_base_forwarder<> functions to forward various data from the topmost_layer()
@@ -130,7 +130,7 @@ namespace nntl {
 		{
 			//#todo this better be done with a single static_assert in the class scope
 			tuple_utils::for_each_up(m_layers, [](auto& l)noexcept {
-				static_assert(!std::is_base_of<m_layer_input, decltype(l)>::value && !std::is_base_of<m_layer_output, decltype(l)>::value,
+				static_assert(!::std::is_base_of<m_layer_input, decltype(l)>::value && !::std::is_base_of<m_layer_output, decltype(l)>::value,
 					"Inner layers of _layer_pack_vertical mustn't be input or output layers!");
 			});
 		}
@@ -140,25 +140,25 @@ namespace nntl {
 		//and apply function _Func(auto& layer) to each underlying (non-pack) layer here
 		template<typename _Func>
 		void for_each_layer(_Func&& f)const noexcept {
-			tuple_utils::for_each_up(m_layers, [&func{ std::forward<_Func>(f) }](auto& l)noexcept {
-				call_F_for_each_layer(std::forward<_Func>(func), l);
+			tuple_utils::for_each_up(m_layers, [&func{ ::std::forward<_Func>(f) }](auto& l)noexcept {
+				call_F_for_each_layer(::std::forward<_Func>(func), l);
 			});
 		}
 		template<typename _Func>
 		void for_each_layer_down(_Func&& f)const noexcept {
-			tuple_utils::for_each_down(m_layers, [&func{ std::forward<_Func>(f) }](auto& l)noexcept {
-				call_F_for_each_layer_down(std::forward<_Func>(func), l);
+			tuple_utils::for_each_down(m_layers, [&func{ ::std::forward<_Func>(f) }](auto& l)noexcept {
+				call_F_for_each_layer_down(::std::forward<_Func>(func), l);
 			});
 		}
 
 		//This will apply f to every layer, packed in tuple no matter whether it is a _pack_* kind of layer or no
 		template<typename _Func>
 		void for_each_packed_layer(_Func&& f)const noexcept {
-			tuple_utils::for_each_up(m_layers, std::forward<_Func>(f));
+			tuple_utils::for_each_up(m_layers, ::std::forward<_Func>(f));
 		}
 		template<typename _Func>
 		void for_each_packed_layer_down(_Func&& f)const noexcept {
-			tuple_utils::for_each_down(m_layers, std::forward<_Func>(f));
+			tuple_utils::for_each_down(m_layers, ::std::forward<_Func>(f));
 		}
 
 		const layer_index_t& get_layer_idx() const noexcept { return m_layerIdx; }
@@ -184,7 +184,7 @@ namespace nntl {
 /*
 deprecated:
 		template<typename PhlsTupleT>
-		std::enable_if_t< _impl::layer_has_OuterLayerCustomFlag1Eval<topmost_layer_t, PhlsTupleT, _layer_init_data_t>::value, bool>
+		::std::enable_if_t< _impl::layer_has_OuterLayerCustomFlag1Eval<topmost_layer_t, PhlsTupleT, _layer_init_data_t>::value, bool>
 			OuterLayerCustomFlag1Eval(const PhlsTupleT& lphTuple, const _layer_init_data_t& lphLid)const noexcept
 		{
 			return topmost_layer().OuterLayerCustomFlag1Eval(lphTuple, lphLid);
@@ -254,14 +254,14 @@ deprecated:
 		//////////////////////////////////////////////////////////////////////////
 		//variation of fprop for normal layer
 		template <typename LowerLayer>
-		std::enable_if_t<!_impl::is_layer_wrapper<LowerLayer>::value> fprop(const LowerLayer& lowerLayer)noexcept
+		::std::enable_if_t<!_impl::is_layer_wrapper<LowerLayer>::value> fprop(const LowerLayer& lowerLayer)noexcept
 		{
-			static_assert(std::is_base_of<_i_layer_fprop, LowerLayer>::value, "Template parameter LowerLayer must implement _i_layer_fprop");
+			static_assert(::std::is_base_of<_i_layer_fprop, LowerLayer>::value, "Template parameter LowerLayer must implement _i_layer_fprop");
 			get_self().fprop(_impl::trainable_layer_wrapper<LowerLayer>(lowerLayer.get_activations()));
 		}
 		//variation of fprop for layerwrappers
 		template <typename LowerLayerWrapper>
-		std::enable_if_t<_impl::is_layer_wrapper<LowerLayerWrapper>::value> fprop(const LowerLayerWrapper& lowerLayer)noexcept
+		::std::enable_if_t<_impl::is_layer_wrapper<LowerLayerWrapper>::value> fprop(const LowerLayerWrapper& lowerLayer)noexcept
 		{
 			auto& iI = get_self().get_iInspect();
 			iI.fprop_begin(get_self().get_layer_idx(), lowerLayer.get_activations(), get_self().get_common_data().is_training_mode());
@@ -281,7 +281,7 @@ deprecated:
 
 		template <typename LowerLayer>
 		const unsigned bprop(realmtxdef_t& dLdA, const LowerLayer& lowerLayer, realmtxdef_t& dLdAPrev)noexcept {
-			static_assert(std::is_base_of<_i_layer_trainable, LowerLayer>::value, "Template parameter LowerLayer must implement _i_layer_trainable");
+			static_assert(::std::is_base_of<_i_layer_trainable, LowerLayer>::value, "Template parameter LowerLayer must implement _i_layer_trainable");
 
 			auto& iI = get_self().get_iInspect();
 			iI.bprop_begin(get_self().get_layer_idx(), dLdA);
@@ -289,7 +289,7 @@ deprecated:
 
 			NNTL_ASSERT(lowerLayer.get_activations().test_biases_ok());
 			NNTL_ASSERT(dLdA.size() == topmost_layer().get_activations().size_no_bias());
-			NNTL_ASSERT( (std::is_base_of<m_layer_input, LowerLayer>::value) || dLdAPrev.size() == lowerLayer.get_activations().size_no_bias());
+			NNTL_ASSERT( (::std::is_base_of<m_layer_input, LowerLayer>::value) || dLdAPrev.size() == lowerLayer.get_activations().size_no_bias());
 
 			realmtxdefptr_array_t a_dLdA = { &dLdA, &dLdAPrev };
 			unsigned mtxIdx = 0;
@@ -308,7 +308,7 @@ deprecated:
 			});
 
 			const unsigned nextMtxIdx = mtxIdx ^ 1;
-			if (std::is_base_of<m_layer_input, LowerLayer>::value) {
+			if (::std::is_base_of<m_layer_input, LowerLayer>::value) {
 				a_dLdA[nextMtxIdx]->deform(0, 0);
 			}else a_dLdA[nextMtxIdx]->deform_like_no_bias(lowerLayer.get_activations());
 			const unsigned bAlternate = get_self().lowmost_layer().bprop(*a_dLdA[mtxIdx], lowerLayer, *a_dLdA[nextMtxIdx]);
@@ -330,8 +330,8 @@ deprecated:
 		}
 
 	private:
-		//support for boost::serialization
-		friend class boost::serialization::access;
+		//support for ::boost::serialization
+		friend class ::boost::serialization::access;
 		template<class Archive> void serialize(Archive & ar, const unsigned int version) {
 			get_self().for_each_packed_layer([&ar](auto& l) {
 				ar & serialization::make_named_struct(l.get_layer_name_str().c_str(), l);
@@ -344,14 +344,14 @@ deprecated:
 	// final implementation of layer with all functionality of _layer_pack_vertical
 	// If you need to derive a new class, derive it from _layer_pack_vertical (to make static polymorphism work)
 	template <typename ...Layrs>
-	class LPV final : public _layer_pack_vertical<LPV<Layrs...>, std::tuple<Layrs&...>>
+	class LPV final : public _layer_pack_vertical<LPV<Layrs...>, ::std::tuple<Layrs&...>>
 	{
 	public:
 		~LPV() noexcept {};
 		LPV(Layrs&... layrs) noexcept
-			: _layer_pack_vertical<LPV<Layrs...>, std::tuple<Layrs&...>>(nullptr, std::tie(layrs...)) {};
+			: _layer_pack_vertical<LPV<Layrs...>, ::std::tuple<Layrs&...>>(nullptr, ::std::tie(layrs...)) {};
 		LPV(const char* pCustomName, Layrs&... layrs) noexcept
-			: _layer_pack_vertical<LPV<Layrs...>, std::tuple<Layrs&...>>(pCustomName, std::tie(layrs...)) {};
+			: _layer_pack_vertical<LPV<Layrs...>, ::std::tuple<Layrs&...>>(pCustomName, ::std::tie(layrs...)) {};
 	};
 
 	template <typename ..._T>

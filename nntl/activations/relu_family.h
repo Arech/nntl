@@ -36,33 +36,47 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 namespace nntl {
 namespace activation {
 
+	//activation types should not be templated (probably besides real_t), because they are intended to be used
+	//as means to recognize activation function type
+	struct type_relu {};
+
 	//////////////////////////////////////////////////////////////////////////
 	//////////////////////////////////////////////////////////////////////////
 	//ReLU
 	template<typename RealT, typename WeightsInitScheme = weights_init::He_Zhang<>, typename DropoutT = Dropout<RealT>>
-	class relu : public _i_activation<DropoutT, WeightsInitScheme> {
+	class relu
+		: public _i_activation<DropoutT, WeightsInitScheme>
+		, public type_relu
+	{
 	public:
 		//apply f to each srcdest matrix element. The biases (if any) must be left untouched!
 		template <typename iMath>
 		static void f(realmtx_t& srcdest, iMath& m) noexcept {
-			static_assert(std::is_base_of<math::_i_math<real_t>, iMath>::value, "iMath should implement math::_i_math");
+			static_assert(::std::is_base_of<math::_i_math<real_t>, iMath>::value, "iMath should implement math::_i_math");
 			m.relu(srcdest);
 		};
 
 		template <typename iMath>
 		static void df(realmtx_t& f_df, iMath& m) noexcept {
-			static_assert(std::is_base_of<math::_i_math<real_t>, iMath>::value, "iMath should implement math::_i_math");
+			static_assert(::std::is_base_of<math::_i_math<real_t>, iMath>::value, "iMath should implement math::_i_math");
 			NNTL_ASSERT(!f_df.emulatesBiases());
 			m.drelu(f_df);
 		}
 	};
+
+	//activation types should not be templated (probably besides real_t), because they are intended to be used
+	//as means to recognize activation function type
+	struct type_leakyrelu {};
 
 	//////////////////////////////////////////////////////////////////////////
 	//////////////////////////////////////////////////////////////////////////
 	// Leaky Relu
 	template<typename RealT, unsigned int LeakKInv100 = 10000
 		, typename WeightsInitScheme = weights_init::He_Zhang<>, typename DropoutT = Dropout<RealT>>
-	class leaky_relu : public _i_activation<DropoutT, WeightsInitScheme> {
+	class leaky_relu
+		: public _i_activation<DropoutT, WeightsInitScheme>
+		, public type_leakyrelu
+	{
 	public:
 		static constexpr real_t LeakK = real_t(100.0) / real_t(LeakKInv100);
 
@@ -70,13 +84,13 @@ namespace activation {
 		//apply f to each srcdest matrix element. The biases (if any) must be left untouched!
 		template <typename iMath>
 		static void f(realmtx_t& srcdest, iMath& m) noexcept {
-			static_assert(std::is_base_of<math::_i_math<real_t>, iMath>::value, "iMath should implement math::_i_math");
+			static_assert(::std::is_base_of<math::_i_math<real_t>, iMath>::value, "iMath should implement math::_i_math");
 			m.leakyrelu(srcdest, LeakK);
 		};
 
 		template <typename iMath>
 		static void df(realmtx_t& f_df, iMath& m) noexcept {
-			static_assert(std::is_base_of<math::_i_math<real_t>, iMath>::value, "iMath should implement math::_i_math");
+			static_assert(::std::is_base_of<math::_i_math<real_t>, iMath>::value, "iMath should implement math::_i_math");
 			NNTL_ASSERT(!f_df.emulatesBiases());
 			m.dleakyrelu(f_df, LeakK);
 		}

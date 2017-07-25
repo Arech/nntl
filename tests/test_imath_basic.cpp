@@ -66,7 +66,7 @@ static imath_basic_t iM;
 const vec_len_t g_MinDataSizeDelta = 2 * iM.ithreads().workers_count() + 2;
 
 
-using namespace std::chrono;
+using namespace ::std::chrono;
 
 #ifdef TESTS_SKIP_LONGRUNNING
 constexpr unsigned TEST_PERF_REPEATS_COUNT = 10;
@@ -149,7 +149,7 @@ void test_dLoss_deCov(vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 	ASSERT_TRUE(!A.isAllocationFailed() && !A2.isAllocationFailed() && !tDM.isAllocationFailed() && !tCov.isAllocationFailed());
 	realmtx_t dL_ET(rowsCnt, colsCnt), dL(rowsCnt, colsCnt);
 	ASSERT_TRUE(!dL_ET.isAllocationFailed() && !dL.isAllocationFailed());
-	std::vector<real_t> tMean(colsCnt);
+	::std::vector<real_t> tMean(colsCnt);
 
 	iM.preinit(iM.loss_DeCov_tempMemReqs(true, A));
 	ASSERT_TRUE(iM.init());
@@ -220,7 +220,7 @@ void test_loss_deCov(vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 
 	realmtx_t A(rowsCnt, colsCnt, true), A2(rowsCnt, colsCnt, true), tDM(rowsCnt, colsCnt), tCov(colsCnt, colsCnt);
 	ASSERT_TRUE(!A.isAllocationFailed() && !A2.isAllocationFailed() && !tDM.isAllocationFailed() && !tCov.isAllocationFailed());
-	std::vector<real_t> tMean(colsCnt);
+	::std::vector<real_t> tMean(colsCnt);
 
 	iM.preinit(iM.loss_DeCov_tempMemReqs(false, A));
 	ASSERT_TRUE(iM.init());
@@ -413,15 +413,15 @@ void test_ewBinarize_corr(vec_len_t rowsCnt, vec_len_t colsCnt = 10, const real_
 
 		ewBinarize_ET(DestET, A, frac);
 
-		std::fill(Dest.begin(), Dest.end(), binmtx_t::value_type(-1));
+		::std::fill(Dest.begin(), Dest.end(), binmtx_t::value_type(-1));
 		iM.ewBinarize_st(Dest, A, frac);
 		ASSERT_MTX_EQ(DestET, Dest, "st() failed correctness test");
 
-		std::fill(Dest.begin(), Dest.end(), binmtx_t::value_type(-1));
+		::std::fill(Dest.begin(), Dest.end(), binmtx_t::value_type(-1));
 		iM.ewBinarize_mt(Dest, A, frac);
 		ASSERT_MTX_EQ(DestET, Dest, "mt() failed correctness test");
 
-		std::fill(Dest.begin(), Dest.end(), binmtx_t::value_type(-1));
+		::std::fill(Dest.begin(), Dest.end(), binmtx_t::value_type(-1));
 		iM.ewBinarize(Dest, A, frac);
 		ASSERT_MTX_EQ(DestET, Dest, "() failed correctness test");
 	}
@@ -459,7 +459,7 @@ void test_softmax_parts(vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 	realmtx_t A(rowsCnt, colsCnt);
 	ASSERT_TRUE(!A.isAllocationFailed());
 	const auto denominatorElmsMax = realmtx_t::sNumel(rowsCnt, iM.ithreads().workers_count());
-	std::vector<real_t> vec_max(rowsCnt), vec_den(denominatorElmsMax), vec_num(dataSize), vec_den2(denominatorElmsMax), vec_num2(dataSize);
+	::std::vector<real_t> vec_max(rowsCnt), vec_den(denominatorElmsMax), vec_num(dataSize), vec_den2(denominatorElmsMax), vec_num2(dataSize);
 
 	iM.preinit(dataSize);
 	ASSERT_TRUE(iM.init());
@@ -472,52 +472,52 @@ void test_softmax_parts(vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 
 		softmax_parts_ET(A, &vec_max[0], &vec_den[0], &vec_num[0]);
 
-		std::fill(vec_den2.begin(), vec_den2.end(), real_t(-1));
-		std::fill(vec_num2.begin(), vec_num2.end(), real_t(-1));
+		::std::fill(vec_den2.begin(), vec_den2.end(), real_t(-1));
+		::std::fill(vec_num2.begin(), vec_num2.end(), real_t(-1));
 		iM.softmax_parts_st_rw(A, &vec_max[0], &vec_den2[0], &vec_num2[0]);
 		//real denominator takes only a first row of vec_den
 		for (unsigned i = 0; i < rowsCnt; ++i) ASSERT_NEAR(vec_den[i], vec_den2[i], softmax_parts_EPS<real_t>::eps) << "st_rw() failed denominator vector comparision @ " << i;
 		ASSERT_VECTOR_NEAR(vec_num, vec_num2, "st_rw() failed numerator matrix comparision", softmax_parts_EPS<real_t>::eps);
 
-		std::fill(vec_den2.begin(), vec_den2.end(), real_t(-1));
-		std::fill(vec_num2.begin(), vec_num2.end(), real_t(-1));
+		::std::fill(vec_den2.begin(), vec_den2.end(), real_t(-1));
+		::std::fill(vec_num2.begin(), vec_num2.end(), real_t(-1));
 		iM.softmax_parts_st_cw(A, &vec_max[0], &vec_den2[0], &vec_num2[0]);
 		//real denominator takes only a first row of vec_den
 		for (unsigned i = 0; i < rowsCnt; ++i) ASSERT_NEAR(vec_den[i], vec_den2[i], softmax_parts_EPS<real_t>::eps) << "st_cw() failed denominator vector comparision @ " << i;
 		ASSERT_VECTOR_NEAR(vec_num, vec_num2, "st_cw() failed numerator matrix comparision", softmax_parts_EPS<real_t>::eps);
 
-		std::fill(vec_den2.begin(), vec_den2.end(), real_t(-1));
-		std::fill(vec_num2.begin(), vec_num2.end(), real_t(-1));
+		::std::fill(vec_den2.begin(), vec_den2.end(), real_t(-1));
+		::std::fill(vec_num2.begin(), vec_num2.end(), real_t(-1));
 		iM.softmax_parts_st(A, &vec_max[0], &vec_den2[0], &vec_num2[0]);
 		//real denominator takes only a first row of vec_den
 		for (unsigned i = 0; i < rowsCnt; ++i) ASSERT_NEAR(vec_den[i], vec_den2[i], softmax_parts_EPS<real_t>::eps) << "st() failed denominator vector comparision @ " << i;
 		ASSERT_VECTOR_NEAR(vec_num, vec_num2, "st() failed numerator matrix comparision", softmax_parts_EPS<real_t>::eps);
 
 		if (colsCnt > imath_basic_t::Thresholds_t::softmax_parts_mt_cw_ColsPerThread) {
-			std::fill(vec_den2.begin(), vec_den2.end(), real_t(-1));
-			std::fill(vec_num2.begin(), vec_num2.end(), real_t(-1));
+			::std::fill(vec_den2.begin(), vec_den2.end(), real_t(-1));
+			::std::fill(vec_num2.begin(), vec_num2.end(), real_t(-1));
 			iM.softmax_parts_mt_cw(A, &vec_max[0], &vec_den2[0], &vec_num2[0]);
 			//real denominator takes only a first row of vec_den
 			for (unsigned i = 0; i < rowsCnt; ++i) ASSERT_NEAR(vec_den[i], vec_den2[i], softmax_parts_EPS<real_t>::eps) << "mt_cw() failed denominator vector comparision @ " << i;
 			ASSERT_VECTOR_NEAR(vec_num, vec_num2, "mt_cw() failed numerator matrix comparision", softmax_parts_EPS<real_t>::eps);
 		}
 		
-		std::fill(vec_den2.begin(), vec_den2.end(), real_t(-1));
-		std::fill(vec_num2.begin(), vec_num2.end(), real_t(-1));
+		::std::fill(vec_den2.begin(), vec_den2.end(), real_t(-1));
+		::std::fill(vec_num2.begin(), vec_num2.end(), real_t(-1));
 		iM.softmax_parts_mt_rw(A, &vec_max[0], &vec_den2[0], &vec_num2[0]);
 		//real denominator takes only a first row of vec_den
 		for (unsigned i = 0; i < rowsCnt; ++i) ASSERT_NEAR(vec_den[i], vec_den2[i], softmax_parts_EPS<real_t>::eps) << "mt_rw() failed denominator vector comparision @ " << i;
 		ASSERT_VECTOR_NEAR(vec_num, vec_num2, "mt_rw() failed numerator matrix comparision", softmax_parts_EPS<real_t>::eps);
 				
-		std::fill(vec_den2.begin(), vec_den2.end(), real_t(-1));
-		std::fill(vec_num2.begin(), vec_num2.end(), real_t(-1));
+		::std::fill(vec_den2.begin(), vec_den2.end(), real_t(-1));
+		::std::fill(vec_num2.begin(), vec_num2.end(), real_t(-1));
 		iM.softmax_parts_mt(A, &vec_max[0], &vec_den2[0], &vec_num2[0]);
 		//real denominator takes only a first row of vec_den
 		for (unsigned i = 0; i < rowsCnt; ++i) ASSERT_NEAR(vec_den[i], vec_den2[i], softmax_parts_EPS<real_t>::eps) << "mt() failed denominator vector comparision @ " << i;
 		ASSERT_VECTOR_NEAR(vec_num, vec_num2, "mt() failed numerator matrix comparision", softmax_parts_EPS<real_t>::eps);
 
-		std::fill(vec_den2.begin(), vec_den2.end(), real_t(-1));
-		std::fill(vec_num2.begin(), vec_num2.end(), real_t(-1));
+		::std::fill(vec_den2.begin(), vec_den2.end(), real_t(-1));
+		::std::fill(vec_num2.begin(), vec_num2.end(), real_t(-1));
 		iM.softmax_parts(A, &vec_max[0], &vec_den2[0], &vec_num2[0]);
 		//real denominator takes only a first row of vec_den
 		for (unsigned i = 0; i < rowsCnt; ++i) ASSERT_NEAR(vec_den[i], vec_den2[i], softmax_parts_EPS<real_t>::eps) << "() failed denominator vector comparision @ " << i;
@@ -2234,8 +2234,8 @@ TEST(TestMathN, vCountSameNaive) {
 	typedef math::MathN<real_t, def_threads_t> iMB;
 
 	constexpr unsigned dataCnt = 9;
-	const std::array<unsigned, dataCnt> src1 = { 3,55,32, 35,63,5, 2,400,6 };
-	const std::array<unsigned, dataCnt> src2 = { 3,55,33, 35,63,5, 4,400,6 };
+	const ::std::array<unsigned, dataCnt> src1 = { 3,55,32, 35,63,5, 2,400,6 };
+	const ::std::array<unsigned, dataCnt> src2 = { 3,55,33, 35,63,5, 4,400,6 };
 
 	iMB iM;
 	ASSERT_EQ(iM.vCountSame_st_naive(src1, src2), dataCnt-2);
@@ -2244,7 +2244,7 @@ TEST(TestMathN, vCountSameNaive) {
 TEST(TestMathN, vCountSameMtCorrectness) {
 	typedef nntl::d_interfaces::iThreads_t def_threads_t;
 	typedef math::MathN<real_t, def_threads_t> iMB;
-	typedef std::vector<realmtx_t::vec_len_t> vec_t;
+	typedef ::std::vector<realmtx_t::vec_len_t> vec_t;
 
 #ifdef NNTL_DEBUG
 	constexpr unsigned rowsCnt = 100;
@@ -2266,7 +2266,7 @@ TEST(TestMathN, vCountSameMtCorrectness) {
 
 template<typename iMath>
 void test_vCountSame_perf(iMath& iM, vec_len_t rowsCnt) {
-	typedef std::vector<realmtx_t::vec_len_t> vec_t;
+	typedef ::std::vector<realmtx_t::vec_len_t> vec_t;
 	STDCOUTL("******* testing vCountSame() over " << rowsCnt << " elements) **************");
 
 	double tstNaive, tmtNaive, tBest;
@@ -2324,7 +2324,7 @@ TEST(TestMathN, vCountSamePerf) {
 //////////////////////////////////////////////////////////////////////////
 template<typename iMath>
 void test_evClamp_perf(iMath& iM, vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
-	typedef std::vector<realmtx_t::vec_len_t> vec_t;
+	typedef ::std::vector<realmtx_t::vec_len_t> vec_t;
 
 	const auto dataSize = realmtx_t::sNumel(rowsCnt, colsCnt);
 	STDCOUTL("******* testing evClamp() over " << rowsCnt << "x" << colsCnt << " matrix (" << dataSize << " elements) **************");
@@ -2391,7 +2391,7 @@ TEST(TestMathN, mExtractRowsCorrectness) {
 	auto pSrc = src.data();
 	for (numel_cnt_t i = 0, im = src.numel(); i < im; ++i) pSrc[i] = static_cast<real_t>(i);
 
-	std::vector<vec_len_t> vec(extrCnt);
+	::std::vector<vec_len_t> vec(extrCnt);
 	iMB iM;
 	d_interfaces::iRng_t rg;
 	rg.set_ithreads(iM.ithreads());
@@ -2412,7 +2412,7 @@ TEST(TestMathN, mExtractRowsCorrectness) {
 
 template<typename iMath>
 void test_mExtractRows_perf(iMath& iM, vec_len_t rowsCnt, vec_len_t extrCnt, vec_len_t colsCnt = 10) {
-	typedef std::vector<realmtx_t::vec_len_t> vec_t;
+	typedef ::std::vector<realmtx_t::vec_len_t> vec_t;
 
 	const auto dataSize = realmtx_t::sNumel(rowsCnt, colsCnt);
 	STDCOUTL("******* testing mExtractRows() over " << rowsCnt << "x" << colsCnt << " matrix (" << dataSize << " elems) ExtractRows="<< extrCnt 

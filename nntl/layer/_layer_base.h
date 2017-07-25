@@ -44,36 +44,36 @@ namespace nntl {
 	//////////////////////////////////////////////////////////////////////////
 	//each layer_pack_* layer is expected to have a special typedef self_t LayerPack_t
 	// and it must implement for_each_layer() and for_each_packed_layer() function families
-
+	
 	//recognizer of layer_pack_* classes
 	// primary template handles types that have no nested ::LayerPack_t member:
-	template< class, class = std::void_t<> >
-	struct is_layer_pack : std::false_type { };
+	template< class, class = ::std::void_t<> >
+	struct is_layer_pack : ::std::false_type { };
 	// specialization recognizes types that do have a nested ::LayerPack_t member:
 	template< class T >
-	struct is_layer_pack<T, std::void_t<typename T::LayerPack_t>> : std::true_type {};
+	struct is_layer_pack<T, ::std::void_t<typename T::LayerPack_t>> : ::std::true_type {};
 
 	//helper function to call internal _for_each_layer(f) for layer_pack_* classes
 	template<typename Func, typename LayerT> inline
-		std::enable_if_t<is_layer_pack<LayerT>::value> call_F_for_each_layer(Func&& F, LayerT& l)noexcept
+		::std::enable_if_t<is_layer_pack<LayerT>::value> call_F_for_each_layer(Func&& F, LayerT& l)noexcept
 	{
-		l.for_each_layer(std::forward<Func>(F));
+		l.for_each_layer(::std::forward<Func>(F));
 	}
 	template<typename Func, typename LayerT> inline
-		std::enable_if_t<!is_layer_pack<LayerT>::value> call_F_for_each_layer(Func&& F, LayerT& l)noexcept
+		::std::enable_if_t<!is_layer_pack<LayerT>::value> call_F_for_each_layer(Func&& F, LayerT& l)noexcept
 	{
-		std::forward<Func>(F)(l);
+		::std::forward<Func>(F)(l);
 	}
 
 	template<typename Func, typename LayerT> inline
-		std::enable_if_t<is_layer_pack<LayerT>::value> call_F_for_each_layer_down(Func&& F, LayerT& l)noexcept
+		::std::enable_if_t<is_layer_pack<LayerT>::value> call_F_for_each_layer_down(Func&& F, LayerT& l)noexcept
 	{
-		l.for_each_layer_down(std::forward<Func>(F));
+		l.for_each_layer_down(::std::forward<Func>(F));
 	}
 	template<typename Func, typename LayerT> inline
-		std::enable_if_t<!is_layer_pack<LayerT>::value> call_F_for_each_layer_down(Func&& F, LayerT& l)noexcept
+		::std::enable_if_t<!is_layer_pack<LayerT>::value> call_F_for_each_layer_down(Func&& F, LayerT& l)noexcept
 	{
-		std::forward<Func>(F)(l);
+		::std::forward<Func>(F)(l);
 	}
 
 	//////////////////////////////////////////////////////////////////////////
@@ -81,11 +81,11 @@ namespace nntl {
 	// layer with ::grad_works_t type defined is expected to have m_gradientWorks member
 	// (nonstandartized at this moment)
 
-	template< class, class = std::void_t<> >
-	struct layer_has_gradworks : std::false_type { };
+	template< class, class = ::std::void_t<> >
+	struct layer_has_gradworks : ::std::false_type { };
 	// specialization recognizes types that do have a nested ::grad_works_t member:
 	template< class T >
-	struct layer_has_gradworks<T, std::void_t<typename T::grad_works_t>> : std::true_type {};
+	struct layer_has_gradworks<T, ::std::void_t<typename T::grad_works_t>> : ::std::true_type {};
 
 
 	//////////////////////////////////////////////////////////////////////////
@@ -95,7 +95,7 @@ namespace nntl {
 		typedef RealT real_t;
 		typedef math::smatrix<real_t> realmtx_t;
 		typedef math::smatrix_deform<real_t> realmtxdef_t;
-		static_assert(std::is_base_of<realmtx_t, realmtxdef_t>::value, "smatrix_deform must be derived from smatrix!");
+		static_assert(::std::is_base_of<realmtx_t, realmtxdef_t>::value, "smatrix_deform must be derived from smatrix!");
 	};
 
 	////////////////////////////////////////////////////////////////////////// 
@@ -195,7 +195,7 @@ namespace nntl {
 		nntl_interface auto set_custom_name(const char* pCustName)noexcept;
 		nntl_interface const char* get_custom_name()const noexcept;
 		nntl_interface void get_layer_name(char* pName, const size_t cnt)const noexcept;
-		nntl_interface std::string get_layer_name_str()const noexcept;
+		nntl_interface ::std::string get_layer_name_str()const noexcept;
 
 	private:
 		//redefine in derived class in public scope. Array-style definition MUST be preserved.
@@ -318,8 +318,8 @@ namespace nntl {
 		nntl_interface bool hasLossAddendum()const noexcept;
 
 	private:
-		//support for boost::serialization
-		friend class boost::serialization::access;
+		//support for ::boost::serialization
+		friend class ::boost::serialization::access;
 		template<class Archive> nntl_interface void serialize(Archive & ar, const unsigned int version) {}
 	};
 
@@ -333,7 +333,7 @@ namespace nntl {
 		//////////////////////////////////////////////////////////////////////////
 		//typedefs
 		typedef FinalPolymorphChild self_t;
-		NNTL_METHODS_SELF_CHECKED((std::is_base_of<_cpolym_layer_base, FinalPolymorphChild>::value)
+		NNTL_METHODS_SELF_CHECKED((::std::is_base_of<_cpolym_layer_base, FinalPolymorphChild>::value)
 			, "FinalPolymorphChild must derive from _cpolym_layer_base<FinalPolymorphChild>");
 
 		//can't work here
@@ -380,11 +380,11 @@ namespace nntl {
 		void get_layer_name(char* pName, const size_t cnt)const noexcept {
 			sprintf_s(pName, cnt, "%s_%d", get_self().get_custom_name(),static_cast<unsigned>(get_self().get_layer_idx()));
 		}
-		std::string get_layer_name_str()const noexcept {
+		::std::string get_layer_name_str()const noexcept {
 			constexpr size_t ml = layerNameMaxChars;
 			char n[ml];
 			get_self().get_layer_name(n, ml);
-			return std::string(n);
+			return ::std::string(n);
 		}
 
 	private:
@@ -508,10 +508,10 @@ namespace nntl {
 		//////////////////////////////////////////////////////////////////////////
 
 		template<bool c = is_layer_learnable<self_t>::value >
-		std::enable_if_t<c, bool> bLayerIsLinear()const noexcept { return m_bLayerIsLinear; }
+		::std::enable_if_t<c, bool> bLayerIsLinear()const noexcept { return m_bLayerIsLinear; }
 
 		template<bool c = is_layer_learnable<self_t>::value >
-		std::enable_if_t<c> setLayerLinear(const bool b)noexcept { m_bLayerIsLinear = b; }
+		::std::enable_if_t<c> setLayerLinear(const bool b)noexcept { m_bLayerIsLinear = b; }
 
 		//////////////////////////////////////////////////////////////////////////
 		// other funcs
@@ -535,7 +535,7 @@ namespace nntl {
 	private:
 		//////////////////////////////////////////////////////////////////////////
 		//Serialization support
-		friend class boost::serialization::access;
+		friend class ::boost::serialization::access;
 		//nothing to do here at this moment, also leave nntl_interface marker to prevent calls.
 		//#TODO serialization function must be provided
 		template<class Archive> nntl_interface void serialize(Archive & ar, const unsigned int version);
@@ -570,11 +570,11 @@ namespace nntl {
 		iInspect_t& get_iInspect()const noexcept { return get_self()._forwarder_layer().get_iInspect(); }
 
 		template<bool B = bAllowToBlockLearning>
-		std::enable_if_t<B, const bool> isLearningBlocked()const noexcept {
+		::std::enable_if_t<B, const bool> isLearningBlocked()const noexcept {
 			return get_self()._forwarder_layer().isLearningBlocked();
 		}
 		template<bool B = bAllowToBlockLearning>
-		constexpr std::enable_if_t<!B, bool> isLearningBlocked() const noexcept { return false; }
+		constexpr ::std::enable_if_t<!B, bool> isLearningBlocked() const noexcept { return false; }
 
 		/*const vec_len_t max_fprop_batch_size()const noexcept { return get_self()._forwarder_layer().max_fprop_batch_size(); }
 		const vec_len_t training_batch_size()const noexcept { return get_self()._forwarder_layer().training_batch_size(); }

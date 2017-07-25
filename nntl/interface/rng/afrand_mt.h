@@ -45,7 +45,7 @@ namespace nntl {
 
 		template<typename RealT, typename AgnerFogRNG, typename iThreadsT>
 		class AFRand_mt final : public rng_helper<RealT, ptrdiff_t, uint32_t, AFRand_mt<RealT, AgnerFogRNG, iThreadsT>> {
-			static_assert(std::is_base_of<threads::_i_threads<RealT, typename iThreadsT::range_t>, iThreadsT>::value, "iThreads must implement threads::_i_threads");
+			static_assert(::std::is_base_of<threads::_i_threads<RealT, typename iThreadsT::range_t>, iThreadsT>::value, "iThreads must implement threads::_i_threads");
 
 		public:
 			typedef AgnerFogRNG base_rng_t;
@@ -57,7 +57,7 @@ namespace nntl {
 			typedef _impl::AFRAND_MT_THR<base_rng_t,real_t> Thresholds_t;
 
 		protected:
-			typedef std::vector<base_rng_t> rng_vector_t;
+			typedef ::std::vector<base_rng_t> rng_vector_t;
 
 		protected:
 			ithreads_t* m_pThreads;
@@ -84,7 +84,7 @@ namespace nntl {
 			bool set_ithreads(ithreads_t& t)noexcept {
 				if (m_pThreads) return false;
 				m_pThreads = &t;
-				_construct_rngs(static_cast<int>(s64to32(std::time(0))));
+				_construct_rngs(static_cast<int>(s64to32(::std::time(0))));
 				return true;
 			}
 			bool set_ithreads(ithreads_t& t, seed_t s)noexcept {
@@ -97,7 +97,7 @@ namespace nntl {
 			ithreads_t& ithreads()noexcept { return *m_pThreads; }
 
 			AFRand_mt(ithreads_t& t)noexcept : m_pThreads(&t) {
-				_construct_rngs(static_cast<int>(s64to32(std::time(0))));
+				_construct_rngs(static_cast<int>(s64to32(::std::time(0))));
 			}
 			AFRand_mt(ithreads_t& t, seed_t s)noexcept : m_pThreads(&t) {
 				_construct_rngs(static_cast<int>(s));

@@ -40,13 +40,13 @@ namespace nntl {
 	//typename for referring layer numbers, indexes, counts and so on. *640k* 256 layers should enough for everyone :-D
 	//Damn, I've never thought, it'll not be enought so soon!)
 	// must be unsigned
-	typedef std::uint16_t layer_index_t;
+	typedef ::std::uint16_t layer_index_t;
 
 	// must be unsigned
-	typedef std::uint32_t neurons_count_t;
+	typedef ::std::uint32_t neurons_count_t;
 
 	//by convention layer_type_id_t can't be zero
-	typedef std::uint64_t layer_type_id_t;
+	typedef ::std::uint64_t layer_type_id_t;
 
 	//real_t with extended precision for some temporarily calculations
 	typedef double ext_real_t;

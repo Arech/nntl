@@ -37,11 +37,11 @@ namespace utils {
 	template<typename _T, bool _bOwning>
 	class _own_or_use_ptr {
 	public:
-		typedef typename std::remove_pointer<_T>::type value_t;
+		typedef typename ::std::remove_pointer<_T>::type value_t;
 		typedef value_t* value_ptr_t;
 		typedef value_t& value_ref_t;
 
-		static_assert(_bOwning != std::is_pointer<_T>::value, "WTF?");
+		static_assert(_bOwning != ::std::is_pointer<_T>::value, "WTF?");
 
 	public:
 		static constexpr bool bOwning = _bOwning;
@@ -91,13 +91,13 @@ namespace utils {
 		typedef _own_or_use_ptr<_T, true> _base_class;
 	public:
 		typedef own_or_use_ptr<_T> type;
-		static_assert(!std::is_pointer<_T>::value, "WTF?");
+		static_assert(!::std::is_pointer<_T>::value, "WTF?");
 
 		~own_or_use_ptr()noexcept {}
 		own_or_use_ptr()noexcept {
-			m_ptr = new(std::nothrow) value_t;
+			m_ptr = new(::std::nothrow) value_t;
 		}
-// 		own_or_use_ptr(own_or_use_ptr&& other)noexcept : _base_class(std::move(other)) {}
+// 		own_or_use_ptr(own_or_use_ptr&& other)noexcept : _base_class(::std::move(other)) {}
 // 		_own_or_use_ptr& operator=(_own_or_use_ptr&& other) noexcept;
 	};
 
@@ -106,7 +106,7 @@ namespace utils {
 	private:
 		typedef _own_or_use_ptr<_T*, false> _base_class;
 	public:
-		static_assert(!std::is_pointer<_T>::value, "WTF?");
+		static_assert(!::std::is_pointer<_T>::value, "WTF?");
 		typedef own_or_use_ptr<_T*> type;
 
 		~own_or_use_ptr()noexcept {}
@@ -115,16 +115,16 @@ namespace utils {
 		own_or_use_ptr(_T* ptr)noexcept {
 			m_ptr = ptr;
 		}
-		//own_or_use_ptr(own_or_use_ptr&& other)noexcept : _base_class(std::move(other)) {}
+		//own_or_use_ptr(own_or_use_ptr&& other)noexcept : _base_class(::std::move(other)) {}
 	};
 
 
-	template <typename ptr_t, typename = typename std::enable_if< std::is_pointer<ptr_t>::value, bool>::type>
+	template <typename ptr_t, typename = typename ::std::enable_if< ::std::is_pointer<ptr_t>::value, bool>::type>
 	inline constexpr own_or_use_ptr<ptr_t> make_own_or_use_ptr(ptr_t ptr)noexcept {
 		return own_or_use_ptr<ptr_t>(ptr);
 	}
 
-	template <typename nonptr_t, typename = typename std::enable_if<!std::is_pointer<nonptr_t>::value, bool>::type>
+	template <typename nonptr_t, typename = typename ::std::enable_if<!::std::is_pointer<nonptr_t>::value, bool>::type>
 	inline constexpr own_or_use_ptr<nonptr_t> make_own_or_use_ptr()noexcept {
 		return own_or_use_ptr<nonptr_t>();
 	}

@@ -48,9 +48,11 @@ namespace utils {
 
 		realmtxdef_t m_batchX, m_batchY;
 
-		std::vector<vec_len_t> m_rowsIdxs;
-		std::vector<vec_len_t>::const_iterator m_next;
+		::std::vector<vec_len_t> m_rowsIdxs;
+		::std::vector<vec_len_t>::const_iterator m_next;
 		
+		bool m_bBatchSizeFixed;
+
 	public:
 		~dataHolder()noexcept {
 			deinit();
@@ -60,11 +62,11 @@ namespace utils {
 			m_batchY.dont_emulate_biases();
 		}
 		
-		const std::vector<vec_len_t>::const_iterator curBatchIdxs()const noexcept {
+		const ::std::vector<vec_len_t>::const_iterator curBatchIdxs()const noexcept {
 			NNTL_ASSERT(m_rowsIdxs.size() > 0 && m_next<=m_rowsIdxs.cend());
 			return m_next - curBatchSize();
 		}
-		const std::vector<vec_len_t>::const_iterator& curBatchIdxsEnd()const noexcept {
+		const ::std::vector<vec_len_t>::const_iterator& curBatchIdxsEnd()const noexcept {
 			NNTL_ASSERT(m_rowsIdxs.size() > 0 && m_next <= m_rowsIdxs.cend());
 			return m_next;
 		}
@@ -85,7 +87,7 @@ namespace utils {
 			m_pDataX = nullptr;
 			m_pDataY = nullptr;
 		}
-		void init(const vec_len_t maxBatchSize, const realmtx_t& data_x, const realmtx_t* pData_y = nullptr)noexcept {
+		void init(const vec_len_t maxBatchSize, const bool bBatchSizeFixed, const realmtx_t& data_x, const realmtx_t* pData_y = nullptr)noexcept {
 			NNTL_ASSERT(maxBatchSize > 0 && maxBatchSize <= data_x.rows() && (!pData_y || data_x.rows() == pData_y->rows()));
 			NNTL_ASSERT(data_x.emulatesBiases() && (!pData_y || !pData_y->emulatesBiases()));
 			NNTL_ASSERT(m_batchX.empty() && m_batchY.empty());
@@ -93,31 +95,54 @@ namespace utils {
 
 			m_pDataX = &data_x;
 			m_pDataY = pData_y;
-			m_batchX.resize(maxBatchSize, data_x.cols_no_bias());
-			if (pData_y) m_batchY.resize(maxBatchSize, pData_y->cols());
+			m_bBatchSizeFixed = bBatchSizeFixed;
+
+			if (bBatchSizeFixed && maxBatchSize==data_x.rows()) {
+				//dropping const just to use useExternalStorage() api. Anyway, we're not going to allow modification of batch_x
+				m_batchX.useExternalStorage(const_cast<realmtx_t&>(data_x));
+				if (pData_y) m_batchY.useExternalStorage(const_cast<realmtx_t&>(*pData_y));
+			} else {
+				m_batchX.resize(maxBatchSize, data_x.cols_no_bias());
+				if (pData_y) m_batchY.resize(maxBatchSize, pData_y->cols());
+			}
 
 			m_rowsIdxs.resize(data_x.rows());
-			std::iota(m_rowsIdxs.begin(), m_rowsIdxs.end(), 0);
+			::std::iota(m_rowsIdxs.begin(), m_rowsIdxs.end(), 0);
 			m_next = m_rowsIdxs.cend();
 		}
 
+		bool isFullBatch()const noexcept {
+			return m_batchX.rows() == m_pDataX->rows();
+		}
+		bool isBatchAliasToData()const noexcept {
+			return m_bBatchSizeFixed && isFullBatch();
+		}
+
 		void prepateToBatchSize(const vec_len_t batchSize)noexcept {
-			m_batchX.deform_rows(batchSize);
-			if (m_pDataY) m_batchY.deform_rows(batchSize);
+			if (isBatchAliasToData()) {
+				NNTL_ASSERT(batchSize == m_batchX.rows());
+			} else {
+				m_batchX.deform_rows(batchSize);
+				if (m_pDataY) m_batchY.deform_rows(batchSize);
+			}
 		}
 		const vec_len_t curBatchSize()const noexcept { return m_batchX.rows(); }
 
 		template<typename iRngT, typename iMathT>
 		void nextBatch(iRngT& iR, iMathT& iM)noexcept {
-			NNTL_ASSERT(m_rowsIdxs.size());
-			if (m_next >= m_rowsIdxs.cend() - curBatchSize()) {
-				m_next = m_rowsIdxs.cbegin();
-				std::random_shuffle(m_rowsIdxs.begin(), m_rowsIdxs.end(), iR);
-			}
-			iM.mExtractRows(*m_pDataX, m_next, m_batchX);
-			if (m_pDataY) iM.mExtractRows(*m_pDataY, m_next, m_batchY);
+			if (isBatchAliasToData()) {
+				//nothing to do here
+			} else {
+				NNTL_ASSERT(m_rowsIdxs.size());
+				if (m_next >= m_rowsIdxs.cend() - curBatchSize()) {
+					m_next = m_rowsIdxs.cbegin();
+					::std::random_shuffle(m_rowsIdxs.begin(), m_rowsIdxs.end(), iR);
+				}
+				iM.mExtractRows(*m_pDataX, m_next, m_batchX);
+				if (m_pDataY) iM.mExtractRows(*m_pDataY, m_next, m_batchY);
 
-			m_next += curBatchSize();
+				m_next += curBatchSize();
+			}
 		}
 	};
 

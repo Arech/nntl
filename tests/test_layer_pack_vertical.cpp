@@ -257,10 +257,10 @@ TEST(TestLPV, LayerPackVertical) {
 	ASSERT_TRUE(td.train_x().emulatesBiases());
 	ASSERT_TRUE(td.test_x().emulatesBiases());
 
-	ASSERT_NO_FATAL_FAILURE(test_LayerPackVertical1(td, std::time(0)));
-	ASSERT_NO_FATAL_FAILURE(test_LayerPackVertical2(td, std::time(0)));
-	ASSERT_NO_FATAL_FAILURE(test_LayerPackVertical3(td, std::time(0)));
-	ASSERT_NO_FATAL_FAILURE(test_LayerPackVertical4(td, std::time(0)));
+	ASSERT_NO_FATAL_FAILURE(test_LayerPackVertical1(td, ::std::time(0)));
+	ASSERT_NO_FATAL_FAILURE(test_LayerPackVertical2(td, ::std::time(0)));
+	ASSERT_NO_FATAL_FAILURE(test_LayerPackVertical3(td, ::std::time(0)));
+	ASSERT_NO_FATAL_FAILURE(test_LayerPackVertical4(td, ::std::time(0)));
 }
 
 //////////////////////////////////////////////////////////////////////////

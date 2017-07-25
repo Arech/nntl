@@ -130,9 +130,9 @@ namespace nntl {
 		: public _layer_base<FinalPolymorphChild, typename LayerT::interfaces_t>
 	{
 	private:
-		static_assert(!std::is_base_of<m_layer_input, LayerT>::value && !std::is_base_of<m_layer_output, LayerT>::value,
+		static_assert(!::std::is_base_of<m_layer_input, LayerT>::value && !::std::is_base_of<m_layer_output, LayerT>::value,
 			"Tiled layer LayerT can't be an input or output layer!");
-		static_assert(std::is_base_of<_i_layer<real_t>, LayerT>::value,
+		static_assert(::std::is_base_of<_i_layer<real_t>, LayerT>::value,
 			"LayerT parameter must implement _i_layer interface!");
 
 		typedef _layer_base<FinalPolymorphChild, typename LayerT::interfaces_t> _base_class;
@@ -220,14 +220,14 @@ namespace nntl {
 		//and apply function _Func(auto& layer) to each underlying (non-pack) layer here
 		template<typename _Func>
 		void for_each_layer(_Func&& f)const noexcept {
-			call_F_for_each_layer(std::forward<_Func>(f), m_tiledLayer);
+			call_F_for_each_layer(::std::forward<_Func>(f), m_tiledLayer);
 		}
 		template<typename _Func>
 		void for_each_layer_down(_Func&& f)const noexcept {
-			call_F_for_each_layer_down(std::forward<_Func>(f), m_tiledLayer);
+			call_F_for_each_layer_down(::std::forward<_Func>(f), m_tiledLayer);
 		}
-		template<typename _Func> void for_each_packed_layer(_Func&& f)const noexcept { std::forward<_Func>(f)(m_tiledLayer); }
-		template<typename _Func> void for_each_packed_layer_down(_Func&& f)const noexcept { std::forward<_Func>(f)(m_tiledLayer); }
+		template<typename _Func> void for_each_packed_layer(_Func&& f)const noexcept { ::std::forward<_Func>(f)(m_tiledLayer); }
+		template<typename _Func> void for_each_packed_layer_down(_Func&& f)const noexcept { ::std::forward<_Func>(f)(m_tiledLayer); }
 
 		//////////////////////////////////////////////////////////////////////////
 		//should return true, if the layer has a value to add to Loss function value (there's some regularizer attached)
@@ -251,7 +251,7 @@ namespace nntl {
 			
 			const auto maxInnerFPropRowsCount = get_self().get_common_data().max_fprop_batch_size()*tiles_count;
 			const auto maxInnerBPropRowsCount = get_self().get_common_data().training_batch_size()*tiles_count;
-			const auto biggestInnerRowsCount = std::max(maxInnerFPropRowsCount, maxInnerBPropRowsCount);
+			const auto biggestInnerRowsCount = ::std::max(maxInnerFPropRowsCount, maxInnerBPropRowsCount);
 			const auto biggestBatchSize = get_self().get_common_data().biggest_batch_size();
 
 			//initialize common data for the m_tiledLayer
@@ -286,7 +286,7 @@ namespace nntl {
 
 			//we're going to use dLdA & dLdAPrev variables to also hold dLdA & dLdAPrev for the tiled layer.
 			//Therefore biggest dLdA could have a size of [max_BPropRowsCount, max(get_neurons_cnt(), m_tiledLayer.get_incoming_neurons_cnt())]
-			lid.max_dLdA_numel = std::max(
+			lid.max_dLdA_numel = ::std::max(
 				realmtx_t::sNumel(get_self().get_common_data().training_batch_size(), get_self().get_neurons_cnt()),//dLdA coming into this layer
 				realmtx_t::sNumel(maxInnerBPropRowsCount, m_tiledLayer.get_incoming_neurons_cnt()) //sizeof dLdAPrev for m_tiledLayer
 			);
@@ -326,7 +326,7 @@ namespace nntl {
 			if (get_self().is_drop_samples_mbc()) {
 				const auto maxInnerFPropRowsCount = get_self().get_common_data().max_fprop_batch_size()*tiles_count;
 				const auto maxInnerBPropRowsCount = get_self().get_common_data().training_batch_size()*tiles_count;
-				const auto biggestInnerRowsCount = std::max(maxInnerFPropRowsCount, maxInnerBPropRowsCount);
+				const auto biggestInnerRowsCount = ::std::max(maxInnerFPropRowsCount, maxInnerBPropRowsCount);
 				m_dropSamplesMask.useExternalStorage(ptr, biggestInnerRowsCount, 1, false);
 				const auto ne = m_dropSamplesMask.numel();
 				ptr += ne;
@@ -385,9 +385,9 @@ namespace nntl {
 		////////////////////////////////////////////////////////////////////////////
 		// FProp for the incoming data that was properly transformed for use in a tiled layer
 		template <typename LowerLayer, bool _C = bExpectSpecialDataX>
-		std::enable_if_t<_C> fprop(const LowerLayer& lowerLayer)noexcept {
-			static_assert(std::is_base_of<_i_layer_fprop, LowerLayer>::value, "Template parameter LowerLayer must implement _i_layer_fprop");
-			static_assert(std::is_base_of<m_layer_input, LowerLayer>::value, "When bExpectSpecialDataX is set the lowerLayer must be layer_input!");
+		::std::enable_if_t<_C> fprop(const LowerLayer& lowerLayer)noexcept {
+			static_assert(::std::is_base_of<_i_layer_fprop, LowerLayer>::value, "Template parameter LowerLayer must implement _i_layer_fprop");
+			static_assert(::std::is_base_of<m_layer_input, LowerLayer>::value, "When bExpectSpecialDataX is set the lowerLayer must be layer_input!");
 			//and moreover, it must produce specially prepared data!
 			auto& iI = get_self().get_iInspect();
 			iI.fprop_begin(get_self().get_layer_idx(), lowerLayer.get_activations(), get_self().get_common_data().is_training_mode());
@@ -419,8 +419,8 @@ namespace nntl {
 		}
 		// FProp for the incoming data that wasn't transformed for use in a tiled layer
 		template <typename LowerLayer, bool _C = bExpectSpecialDataX>
-		std::enable_if_t<!_C> fprop(const LowerLayer& lowerLayer)noexcept {
-			static_assert(std::is_base_of<_i_layer_fprop, LowerLayer>::value, "Template parameter LowerLayer must implement _i_layer_fprop");
+		::std::enable_if_t<!_C> fprop(const LowerLayer& lowerLayer)noexcept {
+			static_assert(::std::is_base_of<_i_layer_fprop, LowerLayer>::value, "Template parameter LowerLayer must implement _i_layer_fprop");
 			auto& iI = get_self().get_iInspect();
 			iI.fprop_begin(get_self().get_layer_idx(), lowerLayer.get_activations(), get_self().get_common_data().is_training_mode());
 
@@ -450,7 +450,7 @@ namespace nntl {
 		// in order to implement backprop for the m_tiledLayer, we must provide it with a correct dLdA and dLdAPrev
 		template <typename LowerLayer>
 		const unsigned bprop(realmtxdef_t& dLdA, const LowerLayer& lowerLayer, realmtxdef_t& dLdAPrev)noexcept {
-			static_assert(std::is_base_of<_i_layer_trainable, LowerLayer>::value, "Template parameter LowerLayer must implement _i_layer_trainable");
+			static_assert(::std::is_base_of<_i_layer_trainable, LowerLayer>::value, "Template parameter LowerLayer must implement _i_layer_trainable");
 
 			NNTL_ASSERT(m_bActivationsValid);
 			m_bActivationsValid = false;
@@ -467,7 +467,7 @@ namespace nntl {
 
 			NNTL_ASSERT(dLdA.size() == m_activations.size_no_bias());
 
-			NNTL_ASSERT((std::is_base_of<m_layer_input, LowerLayer>::value) || dLdAPrev.size() == lowerLayer.get_activations().size_no_bias());
+			NNTL_ASSERT((::std::is_base_of<m_layer_input, LowerLayer>::value) || dLdAPrev.size() == lowerLayer.get_activations().size_no_bias());
 
 			// The only problem now is in size of dLdA and dLdAPrev. Therefore we'll change matrices size appropriately and
 			// then transform dLdA into dLdAPrev storage. Then we'll use dLdAPrev as dLdA and vice versa. Once the bprop() finishes
@@ -478,7 +478,7 @@ namespace nntl {
 			auto& iM = get_self().get_iMath();
 			iM.mTilingRoll(dLdA, dLdAPrev);
 
-			constexpr bool bProducedLdAPrev = !std::is_base_of<m_layer_input, LowerLayer>::value;
+			constexpr bool bProducedLdAPrev = !::std::is_base_of<m_layer_input, LowerLayer>::value;
 			//now the correct dLdA for the m_tiledLayer is actually in dLdAPrev. We're going to store dLdAPrev in dLdA
 			//BTW: we've just switched the matrices, therefore at this moment we must return (1^switchMtxs) from bprop()
 			if (bProducedLdAPrev) {
@@ -555,8 +555,8 @@ namespace nntl {
 
 
 	private:
-		//support for boost::serialization
-		friend class boost::serialization::access;
+		//support for ::boost::serialization
+		friend class ::boost::serialization::access;
 		template<class Archive> void serialize(Archive & ar, const unsigned int version) {
 			if (utils::binary_option<true>(ar, serialization::serialize_activations)) ar & NNTL_SERIALIZATION_NVP(m_activations);
 			if (utils::binary_option<true>(ar, serialization::serialize_data_x)) ar & NNTL_SERIALIZATION_NVP(m_innerLowerLayerActivations);

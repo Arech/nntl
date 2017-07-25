@@ -95,17 +95,17 @@ TEST(TestLayerPackHorizontalGated, GradCheck_nonoverlapping) {
 
 //////////////////////////////////////////////////////////////////////////
 /*
-template<bool b, typename _U, typename _G, class = std::void_t<> >
+template<bool b, typename _U, typename _G, class = ::std::void_t<> >
 struct gate_type_obj {};
 //specialization
 template<bool b, typename _U, typename _G>
-struct gate_type_obj<b, _U, _G, std::void_t<typename std::enable_if_t<!b> >> {
+struct gate_type_obj<b, _U, _G, ::std::void_t<typename ::std::enable_if_t<!b> >> {
 	typedef LPGFI<_U, _G> type;
 	type value;
 	gate_type_obj(_U&u, _G&g) : value(make_layer_pack_gated_from_input(u, g)) {}
 };
 template<bool b, typename _U, typename _G>
-struct gate_type_obj<b, _U, _G, std::void_t<typename std::enable_if_t<b> >> {
+struct gate_type_obj<b, _U, _G, ::std::void_t<typename ::std::enable_if_t<b> >> {
 	typedef LPG <_U, _G> type;
 	type value;
 	gate_type_obj(_U&u, _G&g) : value(make_layer_pack_gated(u, g)) {}
@@ -114,7 +114,7 @@ struct gate_type_obj<b, _U, _G, std::void_t<typename std::enable_if_t<b> >> {
 //NN implementation on layer_pack_gated
 template<typename commonInfoT, bool bBinarize>
 void comparative_gated(train_data<real_t>& td, const vec_len_t gateIdx, nnet_td_eval_results<real_t>& res, const uint64_t seedV = 0) {
-	SCOPED_TRACE(std::string("comparative_gated ") + (bBinarize ? "binarized" : "plain"));
+	SCOPED_TRACE(::std::string("comparative_gated ") + (bBinarize ? "binarized" : "plain"));
 	STDCOUTL("Working in comparative_gated, bBinarize is " << (bBinarize ? "TRUE" : "FALSE"));
 
 	layer_input<> inp(td.train_x().cols_no_bias());
@@ -159,11 +159,11 @@ void comparative_gated(train_data<real_t>& td, const vec_len_t gateIdx, nnet_td_
 }*/
 //////////////////////////////////////////////////////////////////////////
 
-template<bool b, typename _U, typename _G, class = std::void_t<> >
+template<bool b, typename _U, typename _G, class = ::std::void_t<> >
 struct horzgate_type_obj {};
 //specialization
 template<bool b, typename _U, typename _G>
-struct horzgate_type_obj<b, _U, _G, std::void_t<typename std::enable_if_t<!b> >> {
+struct horzgate_type_obj<b, _U, _G, ::std::void_t<typename ::std::enable_if_t<!b> >> {
 	typedef LPHGFI< PHL<_G>, PHL<_U> > type;
 	type value;
 	horzgate_type_obj(_U&u, _G&g, const vec_len_t nc) : value(make_layer_pack_horizontal_gated_from_input(
@@ -172,7 +172,7 @@ struct horzgate_type_obj<b, _U, _G, std::void_t<typename std::enable_if_t<!b> >>
 	)) {}
 };
 template<bool b, typename _U, typename _G>
-struct horzgate_type_obj<b, _U, _G, std::void_t<typename std::enable_if_t<b> >> {
+struct horzgate_type_obj<b, _U, _G, ::std::void_t<typename ::std::enable_if_t<b> >> {
 	typedef LPHG < PHL<_G>, PHL<_U> > type;
 	type value;
 	horzgate_type_obj(_U&u, _G&g, const vec_len_t nc) : value(make_layer_pack_horizontal_gated(
@@ -184,7 +184,7 @@ struct horzgate_type_obj<b, _U, _G, std::void_t<typename std::enable_if_t<b> >> 
 //NN implementation on layer_pack_horizontal_gated
 template<typename commonInfoT, bool bBinarize>
 void comparative_horzgated(train_data<real_t>& td, const vec_len_t gateIdx, nnet_td_eval_results<real_t>& res, const uint64_t seedV = 0) {
-	SCOPED_TRACE(std::string("comparative_horzgated ") + (bBinarize ? "binarized" : "plain"));
+	SCOPED_TRACE(::std::string("comparative_horzgated ") + (bBinarize ? "binarized" : "plain"));
 	STDCOUTL("Working in comparative_horzgated, bBinarize is " << (bBinarize ? "TRUE" : "FALSE"));
 
 	layer_input<> inp(td.train_x().cols_no_bias());
@@ -305,7 +305,7 @@ template<typename commonInfoT, bool bBinarize>
 void comparative_multi_gated(train_data<real_t>& td, const vec_len_t gateIdx, const vec_len_t gatesCnt
 	, nnet_td_eval_results<real_t>& res, const uint64_t seedV = 0)
 {
-	SCOPED_TRACE(std::string("comparative_multi_gated ") + (bBinarize ? "binarized" : "plain"));
+	SCOPED_TRACE(::std::string("comparative_multi_gated ") + (bBinarize ? "binarized" : "plain"));
 	ASSERT_TRUE(gatesCnt == 3) << "The code expects only 3 gates here!";
 
 	STDCOUTL("Working in comparative_multi_gated, bBinarize is " << (bBinarize ? "TRUE" : "FALSE"));
@@ -375,11 +375,11 @@ void comparative_multi_gated(train_data<real_t>& td, const vec_len_t gateIdx, co
 }*/
 //////////////////////////////////////////////////////////////////////////
 
-template<bool b, typename U1,typename U2, typename U3, typename _G, class = std::void_t<> >
+template<bool b, typename U1,typename U2, typename U3, typename _G, class = ::std::void_t<> >
 struct multihorzgate_type_obj {};
 //specialization
 template<bool b, typename U1, typename U2, typename U3, typename _G>
-struct multihorzgate_type_obj<b, U1,U2,U3, _G, std::void_t<typename std::enable_if_t<!b> >> {
+struct multihorzgate_type_obj<b, U1,U2,U3, _G, ::std::void_t<typename ::std::enable_if_t<!b> >> {
 	typedef LPHGFI< PHL<_G>, PHL<U1>, PHL<U2>, PHL<U3> > type;
 	type value;
 	multihorzgate_type_obj(U1&u1, U2&u2, U3&u3, _G&g, vec_len_t nc1, vec_len_t nc2, vec_len_t nc3) : value(make_layer_pack_horizontal_gated_from_input(
@@ -390,7 +390,7 @@ struct multihorzgate_type_obj<b, U1,U2,U3, _G, std::void_t<typename std::enable_
 	)) {}
 };
 template<bool b, typename U1, typename U2, typename U3, typename _G>
-struct multihorzgate_type_obj<b, U1, U2, U3, _G, std::void_t<typename std::enable_if_t<b> >> {
+struct multihorzgate_type_obj<b, U1, U2, U3, _G, ::std::void_t<typename ::std::enable_if_t<b> >> {
 	typedef LPHG < PHL<_G>, PHL<U1>, PHL<U2>, PHL<U3> > type;
 	type value;
 	multihorzgate_type_obj(U1&u1, U2&u2, U3&u3, _G&g, vec_len_t nc1, vec_len_t nc2, vec_len_t nc3) : value(make_layer_pack_horizontal_gated(
@@ -406,7 +406,7 @@ template<typename commonInfoT, bool bBinarize>
 void comparative_multi_horzgated(train_data<real_t>& td, const vec_len_t gateIdx, const vec_len_t gatesCnt
 	, nnet_td_eval_results<real_t>& res, const uint64_t seedV = 0)
 {
-	SCOPED_TRACE(std::string("comparative_multi_horzgated ") + (bBinarize ? "binarized" : "plain"));
+	SCOPED_TRACE(::std::string("comparative_multi_horzgated ") + (bBinarize ? "binarized" : "plain"));
 	ASSERT_TRUE(gatesCnt == 3) << "The code expects only 3 gates here!";
 
 	STDCOUTL("Working in comparative_horzgated, bBinarize is " << (bBinarize ? "TRUE" : "FALSE"));

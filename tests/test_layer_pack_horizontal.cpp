@@ -105,7 +105,7 @@ void __test_same_layers(train_data<real_t>& td, uint64_t rngSeed) {
 	auto Alp = make_layers(Ainp, Aund, Aint, Aout);
 
 	vector_conditions Acee(epochs);
-	nnet_train_opts<decltype(Acee)> Aopts(std::move(Acee));
+	nnet_train_opts<decltype(Acee)> Aopts(::std::move(Acee));
 	Aopts.calcFullLossValue(true).batchSize(100).ImmediatelyDeinit(false);
 
 	auto Ann = make_nnet(Alp);
@@ -131,7 +131,7 @@ void __test_same_layers(train_data<real_t>& td, uint64_t rngSeed) {
 	auto Blp = make_layers(Binp, Bund, lpHor, Bout);
 
 	vector_conditions Bcee(epochs);
-	nnet_train_opts<decltype(Bcee)> Bopts(std::move(Bcee));
+	nnet_train_opts<decltype(Bcee)> Bopts(::std::move(Bcee));
 	Bopts.calcFullLossValue(true).batchSize(100).ImmediatelyDeinit(false);
 
 	auto Bnn = make_nnet(Blp);
@@ -166,7 +166,7 @@ void test_same_layers(train_data<real_t>& td, uint64_t rngSeed) {
 	layer_fully_connected< activation::sigm<real_t> > Aint(inrNeuronsCnt, learningRate);
 	
 	//assembling into list of layers
-	auto AlayersTuple = std::make_tuple(std::ref(Ainp), std::ref(Aund), std::ref(Aint));
+	auto AlayersTuple = ::std::make_tuple(::std::ref(Ainp), ::std::ref(Aund), ::std::ref(Aint));
 	layer_index_t alc(0);
 	tuple_utils::for_eachwp_up(AlayersTuple, _impl::_preinit_layers(alc));
 
@@ -198,7 +198,7 @@ void test_same_layers(train_data<real_t>& td, uint64_t rngSeed) {
 	
 	ASSERT_TRUE(lmr.maxSingledLdANumel > 0 && lmr.maxMemLayerTrainingRequire > 0);
 	const numel_cnt_t AtotalTempMemSize = lmr.maxMemLayerTrainingRequire + 2 * lmr.maxSingledLdANumel;
-	std::unique_ptr<real_t[]> AtempMemStorage(new(std::nothrow)real_t[AtotalTempMemSize]);
+	::std::unique_ptr<real_t[]> AtempMemStorage(new(::std::nothrow)real_t[AtotalTempMemSize]);
 	ASSERT_TRUE(nullptr != AtempMemStorage.get());
 	realmtxdef_t AdLdA1, AdLdA2;
 	{
@@ -226,7 +226,7 @@ void test_same_layers(train_data<real_t>& td, uint64_t rngSeed) {
 	auto lpHor = make_layer_pack_horizontal(make_PHL(Bifcl1, 0, undNeuronsCnt), make_PHL(Bifcl2, 0, undNeuronsCnt));
 
 	//assembling into list of layers
-	auto BlayersTuple = std::make_tuple(std::ref(Binp), std::ref(Bund), std::ref(lpHor));
+	auto BlayersTuple = ::std::make_tuple(::std::ref(Binp), ::std::ref(Bund), ::std::ref(lpHor));
 	layer_index_t blc(0);
 	tuple_utils::for_eachwp_up(BlayersTuple, _impl::_preinit_layers(blc));
 
@@ -252,7 +252,7 @@ void test_same_layers(train_data<real_t>& td, uint64_t rngSeed) {
 
 	ASSERT_TRUE(lmr.maxSingledLdANumel > 0 && lmr.maxMemLayerTrainingRequire > 0);
 	const numel_cnt_t BtotalTempMemSize = lmr.maxMemLayerTrainingRequire + 2 * lmr.maxSingledLdANumel;
-	std::unique_ptr<real_t[]> BtempMemStorage(new(std::nothrow)real_t[BtotalTempMemSize]);
+	::std::unique_ptr<real_t[]> BtempMemStorage(new(::std::nothrow)real_t[BtotalTempMemSize]);
 	ASSERT_TRUE(nullptr != BtempMemStorage.get());
 
 	realmtxdef_t BdLdA1, BdLdA2;
@@ -280,7 +280,7 @@ void test_same_layers(train_data<real_t>& td, uint64_t rngSeed) {
 	ASSERT_EQ(Aint.get_weights().size(), Bifcl2.get_weights().size());
 	realmtx_t tmpMtx;
 	Aint.get_weights().clone_to(tmpMtx);
-	Bifcl2.set_weights(std::move(tmpMtx));
+	Bifcl2.set_weights(::std::move(tmpMtx));
 
 	//////////////////////////////////////////////////////////////////////////
 	// doing and checking forward pass
@@ -347,7 +347,7 @@ TEST(TestLayerPackHorizontal, SameLayers) {
 	ASSERT_TRUE(td.test_x().emulatesBiases());
 
 	ASSERT_NO_FATAL_FAILURE(test_same_layers(td, 0));
-	ASSERT_NO_FATAL_FAILURE(test_same_layers(td, std::time(0)));
+	ASSERT_NO_FATAL_FAILURE(test_same_layers(td, ::std::time(0)));
 }
 
 
@@ -471,7 +471,7 @@ public:
 
 TEST(TestLayerPackHorizontal, GradCheck_overlapping_ns) {
 	typedef double real_t;
-	const size_t rngSeed = std::time(0);
+	const size_t rngSeed = ::std::time(0);
 
 	nntl::train_data<real_t> td;
 	readTd(td);

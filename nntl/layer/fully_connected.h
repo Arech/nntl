@@ -51,7 +51,7 @@ namespace nntl {
 		static_assert(bActivationForHidden, "ActivFunc template parameter should be derived from activation::_i_activation");
 
 		typedef GradWorks grad_works_t;
-		static_assert(std::is_base_of<_impl::_i_grad_works<real_t>, grad_works_t>::value, "GradWorks template parameter should be derived from _i_grad_works");
+		static_assert(::std::is_base_of<_impl::_i_grad_works<real_t>, grad_works_t>::value, "GradWorks template parameter should be derived from _i_grad_works");
 
 		static constexpr const char _defName[] = "fcl";
 
@@ -80,7 +80,7 @@ namespace nntl {
 		//////////////////////////////////////////////////////////////////////////
 		//Serialization support
 	private:
-		friend class boost::serialization::access;
+		friend class ::boost::serialization::access;
 		template<class Archive>
 		void serialize(Archive & ar, const unsigned int version) {
 			//NB: DONT touch ANY of .useExternalStorage() matrices here, because it's absolutely temporary meaningless data
@@ -127,10 +127,14 @@ namespace nntl {
 				return false;
 			}
 
-			//m_weights = std::move(W);
-			m_weights = std::forward<realmtx_t>(W);
+			//m_weights = ::std::move(W);
+			m_weights = ::std::forward<realmtx_t>(W);
 			m_bWeightsInitialized = true;
 			return true;
+		}
+
+		bool reinit_weights()noexcept {
+			return _activation_init_weights(m_weights);
 		}
 
 		ErrorCode init(_layer_init_data_t& lid, real_t* pNewActivationStorage = nullptr)noexcept {
@@ -158,7 +162,7 @@ namespace nntl {
 				// initializing
 				if (!m_weights.resize(neurons_cnt, get_incoming_neurons_cnt() + 1)) return ErrorCode::CantAllocateMemoryForWeights;
 
-				if (!_activation_init_weights(m_weights)) return ErrorCode::CantInitializeWeights;
+				if (!reinit_weights()) return ErrorCode::CantInitializeWeights;
 
 				m_bWeightsInitialized = true;
 			}
@@ -171,7 +175,7 @@ namespace nntl {
 			// m_weights, m_dLdW - (m_neurons_cnt, get_incoming_neurons_cnt() + 1)
 			// m_activations - (biggestBatchSize, m_neurons_cnt+1) and unbiased matrices derived from m_activations - such as m_dAdZ
 			// prevActivations - size (m_training_batch_size, get_incoming_neurons_cnt() + 1)
-			get_self().get_iMath().preinit(std::max({
+			get_self().get_iMath().preinit(::std::max({
 				m_weights.numel()
 				, _activation_tmp_mem_reqs()
 				,realmtx_t::sNumel(training_batch_size, get_incoming_neurons_cnt() + 1)
@@ -359,7 +363,7 @@ namespace nntl {
 	public:
 		template <typename LowerLayer>
 		void fprop(const LowerLayer& lowerLayer)noexcept {
-			static_assert(std::is_base_of<_i_layer_fprop, LowerLayer>::value, "Template parameter LowerLayer must implement _i_layer_fprop");
+			static_assert(::std::is_base_of<_i_layer_fprop, LowerLayer>::value, "Template parameter LowerLayer must implement _i_layer_fprop");
 			NNTL_ASSERT(lowerLayer.get_activations().test_biases_ok());
 			get_self()._fprop(lowerLayer.get_activations());
 			NNTL_ASSERT(lowerLayer.get_activations().test_biases_ok());
@@ -367,9 +371,9 @@ namespace nntl {
 
 		template <typename LowerLayer>
 		const unsigned bprop(realmtx_t& dLdA, const LowerLayer& lowerLayer, realmtx_t& dLdAPrev)noexcept {
-			static_assert(std::is_base_of<_i_layer_trainable, LowerLayer>::value, "Template parameter LowerLayer must implement _i_layer_trainable");
+			static_assert(::std::is_base_of<_i_layer_trainable, LowerLayer>::value, "Template parameter LowerLayer must implement _i_layer_trainable");
 			NNTL_ASSERT(lowerLayer.get_activations().test_biases_ok());
-			get_self()._bprop(dLdA, lowerLayer.get_activations(), std::is_base_of<m_layer_input, LowerLayer>::value, dLdAPrev);
+			get_self()._bprop(dLdA, lowerLayer.get_activations(), ::std::is_base_of<m_layer_input, LowerLayer>::value, dLdAPrev);
 			NNTL_ASSERT(lowerLayer.get_activations().test_biases_ok());
 			return 1;
 		}

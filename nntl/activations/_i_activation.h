@@ -39,8 +39,15 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 namespace nntl {
 namespace activation {
 
+	template<typename ActT, typename TestActT>
+	using is_type_of = ::std::is_base_of<ActT, TestActT>;
+
+	//////////////////////////////////////////////////////////////////////////
+	//////////////////////////////////////////////////////////////////////////
+
 	template<typename DropoutT, typename WeightsInitT>
-	class _i_function : public math::smatrix_td {
+	class _i_function : public math::smatrix_td
+	{
 	public:
 		typedef DropoutT Dropout_t;
 
@@ -83,9 +90,13 @@ namespace activation {
 		//to support linear layers
 		template <typename iMath>
 		static void dIdentity(realmtx_t& f_df, iMath& m) noexcept {
-			static_assert(std::is_base_of<math::_i_math<real_t>, iMath>::value, "iMath should implement math::_i_math");
+			static_assert(::std::is_base_of<math::_i_math<real_t>, iMath>::value, "iMath should implement math::_i_math");
 			NNTL_ASSERT(!f_df.emulatesBiases());
 			m.dIdentity(f_df);
+		}
+
+		static constexpr real_t act_scaling_coeff()noexcept {
+			return real_t(1.);
 		}
 	};
 
@@ -118,7 +129,7 @@ namespace activation {
 		static void dLdZIdentity(const typename iMath::realmtx_t& data_y,
 			IN OUT typename iMath::realmtx_t& act_dLdZ, iMath& m) noexcept
 		{
-			static_assert(std::is_base_of<math::_i_math<RealT>, iMath>::value, "iMath should implement math::_i_math");
+			static_assert(::std::is_base_of<math::_i_math<RealT>, iMath>::value, "iMath should implement math::_i_math");
 			NNTL_ASSERT(!data_y.emulatesBiases() && !act_dLdZ.emulatesBiases());
 			m.dIdentityQuadLoss_dZ(data_y, act_dLdZ);
 		}
@@ -131,7 +142,7 @@ namespace activation {
 		static void dLdZIdentity(const typename iMath::realmtx_t& data_y,
 			IN OUT typename iMath::realmtx_t& act_dLdZ, iMath& m) noexcept
 		{
-			static_assert(std::is_base_of<math::_i_math<RealT>, iMath>::value, "iMath should implement math::_i_math");
+			static_assert(::std::is_base_of<math::_i_math<RealT>, iMath>::value, "iMath should implement math::_i_math");
 			NNTL_ASSERT(!data_y.emulatesBiases() && !act_dLdZ.emulatesBiases());
 			m.dIdentityXEntropyLoss_dZ(data_y, act_dLdZ);
 		}

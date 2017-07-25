@@ -41,7 +41,7 @@ namespace nntl {
 
 			//dumps first batch of an epoch
 			struct EpochNum : public math::smatrix_td {
-				typedef std::vector<size_t> epochs_to_dump_t;
+				typedef ::std::vector<size_t> epochs_to_dump_t;
 				//static constexpr bool bNewBatch2NewFile = true;
 
 				vector_conditions m_dumpEpochCond;
@@ -75,7 +75,7 @@ namespace nntl {
 
 				void on_init_nnet(const size_t totalEpochs, const vec_len_t totalBatches)noexcept {
 					parent_t::on_init_nnet(totalEpochs, totalBatches);
-					bDumpInitialErr = std::any_of(m_epochsToDump.begin(), m_epochsToDump.end(), [](const auto& V)->bool {
+					bDumpInitialErr = ::std::any_of(m_epochsToDump.begin(), m_epochsToDump.end(), [](const auto& V)->bool {
 						return V == static_cast<size_t>(-1);
 					});
 				}
@@ -133,14 +133,14 @@ namespace nntl {
 		{
 		public:
 			typedef FinalChildT self_t;
-			NNTL_METHODS_SELF_CHECKED((std::is_base_of<_dumper_base, FinalChildT>::value), "FinalChildT must derive from _dumper_base");
+			NNTL_METHODS_SELF_CHECKED((::std::is_base_of<_dumper_base, FinalChildT>::value), "FinalChildT must derive from _dumper_base");
 
 			typedef ArchiveT archive_t;
 			typedef typename archive_t::ErrorCode ArchiveError_t;
 
 			typedef CondDumpT cond_dump_t;
 
-			typedef std::vector<std::string> layer_names_t;
+			typedef ::std::vector<::std::string> layer_names_t;
 
 		protected:
 			typedef utils::layer_idx_keeper<layer_index_t, _NoLayerIdxSpecified, maxNnetDepth> keeper_t;
@@ -161,7 +161,7 @@ namespace nntl {
 
 			keeper_t m_curLayer;
 
-			std::string m_DirToDump;
+			::std::string m_DirToDump;
 
 			bool m_bDoDump;//it's 'protected' for some rare special unforeseen cases. Use the bDoDump() or the CondDumpT
 
@@ -176,16 +176,16 @@ namespace nntl {
 			
 
 			template<bool b=bVerbose>
-			std::enable_if_t<!b> _verbalize(const char*)const noexcept {}
+			::std::enable_if_t<!b> _verbalize(const char*)const noexcept {}
 			template<bool b = bVerbose>
-			std::enable_if_t<b> _verbalize(const char* s)const noexcept {
+			::std::enable_if_t<b> _verbalize(const char* s)const noexcept {
 				STDCOUTL(_layer_name() << " - " << s);
 			}
 
 		private:
-			void _make_archive(std::nullptr_t pA)noexcept{
+			void _make_archive(::std::nullptr_t pA)noexcept{
 				NNTL_ASSERT(m_bOwnArch);
-				m_pArch = new (std::nothrow) archive_t;
+				m_pArch = new (::std::nothrow) archive_t;
 			}
 			void _make_archive(archive_t* pA)noexcept {
 				NNTL_ASSERT(pA);
@@ -211,7 +211,7 @@ namespace nntl {
 				NNTL_ASSERT(m_pArch);
 			}
 
-			template<typename PArchT = std::nullptr_t>
+			template<typename PArchT = ::std::nullptr_t>
 			_dumper_base(const char* pDirToDump, PArchT pA=nullptr)noexcept  : m_bOwnArch(!pA) {
 				_ctor();
 				if (pDirToDump) set_dir_to_dump(pDirToDump);
@@ -240,11 +240,11 @@ namespace nntl {
 			}
 
 			/*template<bool b = cond_dump_t::bNewBatch2NewFile>
-			std::enable_if_t<b, const char*> _make_var_name(const char* szBaseName, char* dest, const size_t ds)const noexcept {
+			::std::enable_if_t<b, const char*> _make_var_name(const char* szBaseName, char* dest, const size_t ds)const noexcept {
 				return szBaseName;
 			}
 			template<bool b = cond_dump_t::bNewBatch2NewFile>
-			std::enable_if_t<!b, const char*> _make_var_name(const char* szBaseName, char* dest, const size_t ds)const noexcept {
+			::std::enable_if_t<!b, const char*> _make_var_name(const char* szBaseName, char* dest, const size_t ds)const noexcept {
 				sprintf_s(dest, ds, "%s_%d", szBaseName, m_batchIdx);
 				return dest;
 			}*/
@@ -257,7 +257,7 @@ namespace nntl {
 			};
 
 			template<bool b = bSplitFiles>
-			std::enable_if_t<b> _make_file_name(char* n, const size_t ml, const _ToDump omode)const noexcept {
+			::std::enable_if_t<b> _make_file_name(char* n, const size_t ml, const _ToDump omode)const noexcept {
 				NNTL_ASSERT(!m_DirToDump.empty());
 				if (m_DirToDump.empty()) _epic_fail("m_DirToDump is not set!");
 				if (omode == _ToDump::FProp || omode == _ToDump::BProp) {
@@ -274,7 +274,7 @@ namespace nntl {
 				}
 			}
 			template<bool b = bSplitFiles>
-			std::enable_if_t<!b> _make_file_name(char* n, const size_t ml, const _ToDump omode)const noexcept {
+			::std::enable_if_t<!b> _make_file_name(char* n, const size_t ml, const _ToDump omode)const noexcept {
 				NNTL_ASSERT(!m_DirToDump.empty());
 				if (m_DirToDump.empty()) _epic_fail("m_DirToDump is not set!");
 				if (omode == _ToDump::FProp || omode == _ToDump::BProp) {
@@ -327,7 +327,7 @@ namespace nntl {
 			template<typename S>
 			self_ref_t set_dir_to_dump(S&& str)noexcept {
 				NNTL_ASSERT(!str.empty());
-				m_DirToDump = std::forward<S>(str);
+				m_DirToDump = ::std::forward<S>(str);
 				if (m_DirToDump.length() > maxDirNameLength) _epic_fail(NNTL_FUNCTION, ": Too long directory name");
 				return get_self();
 			}
@@ -365,7 +365,7 @@ namespace nntl {
 			void init_layer(const layer_index_t lIdx, StrT&& LayerName, const layer_type_id_t layerTypeId)noexcept {
 				NNTL_ASSERT(lIdx < m_layersCount);
 				//#exceptions STL
-				m_layerNames[lIdx].assign(std::forward<StrT>(LayerName));
+				m_layerNames[lIdx].assign(::std::forward<StrT>(LayerName));
 				_bwlist_updateLayer(lIdx, layerTypeId);
 			};
 

@@ -56,8 +56,8 @@ namespace procedural {
 			_base(nnet_t& nn)noexcept : m_nn(nn) {}
 
 		protected:
-			void init(const vec_len_t batchSize, const realmtx_t& data_x)noexcept {
-				m_data.init(batchSize, data_x);
+			void init(const vec_len_t batchSize, const bool bBatchSizeFixed, const realmtx_t& data_x)noexcept {
+				m_data.init(batchSize, bBatchSizeFixed, data_x);
 			}
 			void deinit()noexcept {
 				m_data.deinit();

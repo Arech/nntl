@@ -55,16 +55,16 @@ using namespace nntl;
 
 template<typename real_t>
 struct testActL1L2_res {
-	std::array<real_t, 2> w;
+	::std::array<real_t, 2> w;
 };
 template<bool bRegularize, typename LayerT>
-std::enable_if_t<bRegularize> _testActivationsL2L1_setupAddendum(const real_t& coeff, LayerT& lyr)noexcept {
+::std::enable_if_t<bRegularize> _testActivationsL2L1_setupAddendum(const real_t& coeff, LayerT& lyr)noexcept {
 	auto& reg = lyr.addendum<0>();
 	reg.scale(coeff);
 	STDCOUTL("Regularizer " << reg.getName() << " is used for " << lyr.get_layer_name_str() << ". Scale coefficient = " << reg.scale());
 }
 template<bool bRegularize, typename LayerT>
-std::enable_if_t<!bRegularize> _testActivationsL2L1_setupAddendum(const real_t& coeff, LayerT& lyr)noexcept {
+::std::enable_if_t<!bRegularize> _testActivationsL2L1_setupAddendum(const real_t& coeff, LayerT& lyr)noexcept {
 	STDCOUTL("No regularizer is used for " << lyr.get_layer_name_str());
 }
 
@@ -80,7 +80,7 @@ struct testActivationsL2L1_td {
 	using _MyLFC_tpl = _layer_fully_connected<FpcT, activ_func, grad_works<d_interfaces>>;
 
 	static constexpr bool bRegularize = loss_addendum::is_loss_addendum<LossAddT>::value;
-	typedef std::conditional_t<bRegularize, LPA<_MyLFC_tpl, LossAddT>, _MyLFC> MyLFC;
+	typedef ::std::conditional_t<bRegularize, LPA<_MyLFC_tpl, LossAddT>, _MyLFC> MyLFC;
 
 	typedef layer_output<activation::sigm_xentropy_loss<real_t>> MyOutput;
 };
@@ -124,7 +124,7 @@ void testActivationsL2L1(train_data<real_t>& td, const real_t coeff, uint64_t rn
 	if (pDumpFileName) {
 		nntl_supp::omatfile<> mf;
 		mf.turn_on_all_options();
-		mf.open(std::string(pDumpFileName));
+		mf.open(::std::string(pDumpFileName));
 		mf << serialization::make_nvp("outpW", outp.get_weights());
 		mf << serialization::make_nvp("fcl2W", fcl2.get_weights());
 		mf << serialization::make_nvp("fclW", fcl.get_weights());
@@ -143,25 +143,25 @@ TEST(TestLPA, ActivationsConstraintsL2L1) {
 	testActL1L2_res<real_t> noReg, wReg;
 
 	for (unsigned i = 0; i < im; ++i) {
-		auto sv = std::time(0);
+		auto sv = ::std::time(0);
 		testActivationsL2L1<void>(td, 0, sv, noReg);
-		STDCOUT(std::endl);
+		STDCOUT(::std::endl);
 
 		testActivationsL2L1<loss_addendum::L1<real_t>>(td, real_t(.01), sv, wReg);
-		STDCOUTL(std::endl << "Sum of squared activations without regularizer vs with L1 regularizer:");
+		STDCOUTL(::std::endl << "Sum of squared activations without regularizer vs with L1 regularizer:");
 		for (size_t idx = 0; idx < noReg.w.size(); ++idx) {
 			STDCOUT("Layer#" << idx << ": " << noReg.w[idx] << " - " << wReg.w[idx] << "    ");
 			ASSERT_GT(noReg.w[idx], wReg.w[idx]) << "Comparison for the layer failed!";
 		}
-		STDCOUT(std::endl << std::endl << std::endl);
+		STDCOUT(::std::endl << ::std::endl << ::std::endl);
 
 		testActivationsL2L1<loss_addendum::L2<real_t>>(td, real_t(.01), sv, wReg);
-		STDCOUTL(std::endl<<"Sum of squared activations without regularizer vs with L2 regularizer:");
+		STDCOUTL(::std::endl<<"Sum of squared activations without regularizer vs with L2 regularizer:");
 		for (size_t idx = 0; idx < noReg.w.size(); ++idx) {
 			STDCOUT("Layer#" << idx << ": " << noReg.w[idx] << " - " << wReg.w[idx] << "    ");
 			ASSERT_GT(noReg.w[idx], wReg.w[idx]) << "Comparison for the layer failed!";
 		}
-		STDCOUT(std::endl << std::endl << std::endl);
+		STDCOUT(::std::endl << ::std::endl << ::std::endl);
 	}
 }
 

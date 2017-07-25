@@ -66,7 +66,7 @@ namespace weights_init {
 			real_t targetScale;
 			real_t ScaleTolerance, CentralTolerance;
 
-			unsigned maxTries;
+			unsigned maxTries, maxReinitTries;
 
 			bool bCentralNormalize;
 			bool bScaleNormalize;
@@ -82,15 +82,15 @@ namespace weights_init {
 				, ScaleTolerance(real_t(.01)), CentralTolerance(real_t(.01))
 				, maxTries(20), bCentralNormalize(false), bNormalizeIndividualNeurons(false)
 				, bOverPreActivations(false), bVerbose(true), bScaleNormalize(true)
-				, bScaleChangeBiasesToo(true)
+				, bScaleChangeBiasesToo(true), maxReinitTries(5)
 			{}
 		};
 
 		//this code doesn't have to be very fast, so we can use boost and leave a lot of math code here instead of moving it into iMath
 
 		template<typename NnetT
-			, typename ScaleMeasureT = boost::accumulators::tag::lazy_variance
-			, typename CentralMeasureT = boost::accumulators::tag::mean
+			, typename ScaleMeasureT = ::boost::accumulators::tag::lazy_variance
+			, typename CentralMeasureT = ::boost::accumulators::tag::mean
 		>
 		struct LSUVExt : public _impl::_base<NnetT> {
 		private:
@@ -114,7 +114,7 @@ namespace weights_init {
 					pCurGatingColumn = pGatingMask->colDataAsVec(curGatingMaskColumn);
 				}
 			};
-			typedef std::vector<gating_context_t> gating_ctx_stack_t;
+			typedef ::std::vector<gating_context_t> gating_ctx_stack_t;
 
 		public:
 			setts_keeper_t m_setts;
@@ -133,7 +133,7 @@ namespace weights_init {
 
 			template<typename ST>
 			LSUVExt(nnet_t& nn, ST&& defSetts) noexcept 
-				: _base_class_t(nn), m_firstFailedLayerIdx(0), m_setts(std::forward<ST>(defSetts))
+				: _base_class_t(nn), m_firstFailedLayerIdx(0), m_setts(::std::forward<ST>(defSetts))
 			{}/*
 			LSUVExt(nnet_t& nn, const LayerSetts_t& defSetts) noexcept
 				: _base_class_t(nn), m_firstFailedLayerIdx(0), m_setts(defSetts)
@@ -142,7 +142,7 @@ namespace weights_init {
 			setts_keeper_t& setts()noexcept { return m_setts; }
 
 			bool run(const vec_len_t& batchSize, const realmtx_t& data_x)noexcept {
-				_base_class_t::init(batchSize, data_x);
+				_base_class_t::init(batchSize, true, data_x);
 				m_firstFailedLayerIdx = 0;
 				m_data.prepateToBatchSize(batchSize);
 				m_gatingStack.clear();
@@ -205,14 +205,14 @@ namespace weights_init {
 			// tiled layers under gates, because they have different batchSizes and a gating mask must be applied appropriately.
 
 			template<typename LayerT>
-			std::enable_if_t<is_layer_pack<LayerT>::value> _checkInnerLayers(LayerT& lyr)noexcept {
+			::std::enable_if_t<is_layer_pack<LayerT>::value> _checkInnerLayers(LayerT& lyr)noexcept {
 				lyr.for_each_packed_layer(*this);
 			}
-			template<typename LayerT> std::enable_if_t<!is_layer_pack<LayerT>::value> _checkInnerLayers(LayerT& lyr)const noexcept {}
+			template<typename LayerT> ::std::enable_if_t<!is_layer_pack<LayerT>::value> _checkInnerLayers(LayerT& lyr)const noexcept {}
 
 
 			template<typename LayerT>
-			std::enable_if_t<is_pack_gated<LayerT>::value> _packGatingPrologue(LayerT& lyr)noexcept {
+			::std::enable_if_t<is_pack_gated<LayerT>::value> _packGatingPrologue(LayerT& lyr)noexcept {
 				if (m_gatingStack.size() > 0) {
 					//#todo we should make a mix of two masks - the new one and the previous
 					STDCOUTL("*** attention, LSUVExt code for enclosed gated layers is not yet written. Proceed as there's only a single gated layer");
@@ -220,40 +220,41 @@ namespace weights_init {
 				gating_context_t ctx;
 				lyr.get_gating_info(ctx);
 				ctx.pCurGatingColumn = nullptr;
-				m_gatingStack.push_back(std::move(ctx));
+				m_gatingStack.push_back(::std::move(ctx));
 
 				m_bImmediatelyUnderGated = true;
 			}
-			template<typename LayerT> std::enable_if_t<!is_pack_gated<LayerT>::value> _packGatingPrologue(LayerT& lyr)const noexcept {}
+			template<typename LayerT> ::std::enable_if_t<!is_pack_gated<LayerT>::value> _packGatingPrologue(LayerT& lyr)const noexcept {}
 
 			template<typename LayerT>
-			std::enable_if_t<is_pack_gated<LayerT>::value> _packGatingEpilogue(LayerT& lyr)noexcept {
+			::std::enable_if_t<is_pack_gated<LayerT>::value> _packGatingEpilogue(LayerT& lyr)noexcept {
 				m_gatingStack.pop_back();
 			}
-			template<typename LayerT> std::enable_if_t<!is_pack_gated<LayerT>::value> _packGatingEpilogue(LayerT& lyr)const noexcept {}
+			template<typename LayerT> ::std::enable_if_t<!is_pack_gated<LayerT>::value> _packGatingEpilogue(LayerT& lyr)const noexcept {}
 
 
 			template<typename LayerT>
-			std::enable_if_t<is_pack_tiled<LayerT>::value> _packTilingPrologue(LayerT& lyr)noexcept {
+			::std::enable_if_t<is_pack_tiled<LayerT>::value> _packTilingPrologue(LayerT& lyr)noexcept {
 				//#todo
 				static_assert(false, "There must be code to synchronize current gating mask with a different batch size of tiled layer");
 				//if you will not use a LPT under a LPHG, you may safely comment out the assert and leave everything as it is now.
 			}
-			template<typename LayerT> std::enable_if_t<!is_pack_tiled<LayerT>::value> _packTilingPrologue(LayerT& lyr)const noexcept {}
+			template<typename LayerT> ::std::enable_if_t<!is_pack_tiled<LayerT>::value> _packTilingPrologue(LayerT& lyr)const noexcept {}
 
 			template<typename LayerT>
-			std::enable_if_t<is_pack_tiled<LayerT>::value> _packTilingEpilogue(LayerT& lyr)noexcept {
+			::std::enable_if_t<is_pack_tiled<LayerT>::value> _packTilingEpilogue(LayerT& lyr)noexcept {
 
 			}
-			template<typename LayerT> std::enable_if_t<!is_pack_tiled<LayerT>::value> _packTilingEpilogue(LayerT& lyr)const noexcept {}
+			template<typename LayerT> ::std::enable_if_t<!is_pack_tiled<LayerT>::value> _packTilingEpilogue(LayerT& lyr)const noexcept {}
 
 
 			template<typename LayerT>
-			std::enable_if_t<!is_layer_learnable<LayerT>::value> _processLayer(LayerT& lyr) const noexcept {}
+			::std::enable_if_t<!is_layer_learnable<LayerT>::value> _processLayer(LayerT& lyr) const noexcept {}
 
 			template<typename LayerT>
-			std::enable_if_t<is_layer_learnable<LayerT>::value> _processLayer(LayerT& lyr) noexcept {
-				const LayerSetts_t& lSetts = m_setts[lyr.get_layer_idx()];
+			::std::enable_if_t<is_layer_learnable<LayerT>::value> _processLayer(LayerT& lyr) noexcept {
+				const auto lIdx = lyr.get_layer_idx();
+				const LayerSetts_t& lSetts = m_setts[lIdx];
 
 				if (!lSetts.bCentralNormalize && !lSetts.bScaleNormalize) {
 					if (lSetts.bVerbose) STDCOUTL(lyr.get_layer_name_str() << ": --skipped");
@@ -264,22 +265,40 @@ namespace weights_init {
 
 				lyr.setLayerLinear(lSetts.bOverPreActivations);
 
-				if (lSetts.bNormalizeIndividualNeurons) {
-					if (!_processWeights_individual(lyr.get_weights(), lyr.get_activations(), lSetts) && !m_firstFailedLayerIdx)
-						m_firstFailedLayerIdx = lyr.get_layer_idx();
-				} else {
-					if (!_processWeights_shared(lyr.get_weights(), lyr.get_activations(), lSetts) && !m_firstFailedLayerIdx)
-						m_firstFailedLayerIdx = lyr.get_layer_idx();
+				const real_t actScaling = lSetts.bOverPreActivations ? real_t(1.) : lyr.act_scaling_coeff();
+				//const real_t actScaling = real_t(1.);
+
+				unsigned rt;
+				for (rt = 0; rt < lSetts.maxReinitTries; ++rt) {
+					const bool bSuccess = lSetts.bNormalizeIndividualNeurons 
+						? _processWeights_individual(lyr.get_weights(), lyr.get_activations(), lSetts, actScaling)
+						: _processWeights_shared(lyr.get_weights(), lyr.get_activations(), lSetts, actScaling);
+
+					if (bSuccess) {
+						break;
+					} else {
+						STDCOUT("Reinitializing weights, try " << rt + 1);
+						if (lyr.reinit_weights()) {
+							STDCOUT(::std::endl);
+						}else{
+							STDCOUTL(" ***** failed!!! ****");
+						}
+					}
+				}
+				if (rt >= lSetts.maxReinitTries) {
+					if (!m_firstFailedLayerIdx) m_firstFailedLayerIdx = lIdx;
+					STDCOUTL("******* layer " << lyr.get_layer_name_str() << " failed to converge! *********");
 				}
 
 				lyr.setLayerLinear(false);
 			}
 			
-			bool _processWeights_shared(realmtx_t& weights, const realmtx_t& activations, const LayerSetts_t& lSetts)noexcept {
+			bool _processWeights_shared(realmtx_t& weights, const realmtx_t& activations, const LayerSetts_t& lSetts, const real_t actScaling)noexcept {
 				NNTL_ASSERT(weights.rows() == activations.cols_no_bias());
+				NNTL_ASSERT(actScaling > real_t(0));
 
 				const real_t*const pCurGatingColumn = m_gatingStack.size() > 0 ? m_gatingStack.back().pCurGatingColumn : nullptr;
-				bool bScaleIsOk = true, bCentralIsOk = true;
+				bool bScaleIsOk = true, bCentralIsOk = true, bForceReinit = false;
 
 				if (lSetts.bScaleNormalize) {
 					for (unsigned i = 0; i < lSetts.maxTries; ++i) {
@@ -287,50 +306,64 @@ namespace weights_init {
 
 						const auto stat = _calc<ScaleMeasureT>(activations.begin(), activations.end_no_bias(), activations.rows(), pCurGatingColumn);
 
-						bScaleIsOk = (std::abs(stat - lSetts.targetScale) < lSetts.ScaleTolerance);
+						if (::std::isnan(stat) || real_t(0) == stat || !::std::isfinite(stat)) {
+							STDCOUTL("*** got invalid scale statistic, will try to reinit weights");
+							bForceReinit = true;
+							bScaleIsOk = false;
+							break;
+						}
+
+						bScaleIsOk = (::std::abs(stat - lSetts.targetScale) < lSetts.ScaleTolerance);
 
 						if (lSetts.bVerbose) STDCOUTL("#" << i << " scale (\"variance\") = " << stat << (bScaleIsOk ? "(ok)" : ""));
 						
 						if (!bScaleIsOk) {
+							NNTL_ASSERT(stat != real_t(0));
+							const auto mulVal = ::std::sqrt(lSetts.targetScale / stat);
+							NNTL_ASSERT(!isnan(mulVal) && isfinite(mulVal));
+
 							if (lSetts.bScaleChangeBiasesToo) {
-								m_nn.get_iMath().evMulC_ip(weights, std::sqrt(lSetts.targetScale / stat));
+								m_nn.get_iMath().evMulC_ip(weights, mulVal);
 							} else {
 								realmtx_t nW;
 								nW.useExternalStorage(weights.data(), weights.rows(), weights.cols() - 1);
-								m_nn.get_iMath().evMulC_ip(nW, std::sqrt(lSetts.targetScale / stat));
+								m_nn.get_iMath().evMulC_ip(nW, mulVal);
 							}
 						} else break;
 					}
-					if (!bScaleIsOk) _say_failed();
+					//if (!bScaleIsOk) _say_failed();
 				}
 				//offsetting bias weights breaks orthogonality of weight matrix (when OrthoInit was used). Therefore to change
 				//it little less we'll update biases after we've reached correct scale.
-				if (lSetts.bCentralNormalize) {
+				if (bScaleIsOk && lSetts.bCentralNormalize) {
 					for (unsigned i = 0; i < lSetts.maxTries; ++i) {
 						_fprop();
 
 						const auto stat = _calc<CentralMeasureT>(activations.begin(), activations.end_no_bias(), activations.rows(), pCurGatingColumn);
-						bCentralIsOk = (std::abs(stat - real_t(0.)) < lSetts.CentralTolerance);
+						bCentralIsOk = (::std::abs(stat - real_t(0.)) < lSetts.CentralTolerance);
 
 						if (lSetts.bVerbose) STDCOUTL("#" << i << " central (\"mean\") = " << stat << (bCentralIsOk ? "(ok)" : ""));
 
 						if (!bCentralIsOk) {
 							auto pB = weights.colDataAsVec(weights.cols() - 1);
 							const auto pBE = weights.end();
-							while (pB < pBE) *pB++ -= stat;
+							while (pB < pBE) *pB++ -= stat*actScaling;
 						}else break;
 					}
-					if (!bCentralIsOk) _say_failed();
+					//if (!bCentralIsOk) _say_failed();
 				}
-				return bScaleIsOk && bCentralIsOk;
+				return !bForceReinit && bScaleIsOk && bCentralIsOk;
 			}
 
-			bool _processWeights_individual(realmtx_t& weights, const realmtx_t& activations, const LayerSetts_t& lSetts)noexcept {
+			bool _processWeights_individual(realmtx_t& weights, const realmtx_t& activations, const LayerSetts_t& lSetts, const real_t actScaling)noexcept {
 				NNTL_ASSERT(weights.rows() == activations.cols_no_bias());
+				NNTL_ASSERT(actScaling > real_t(0));
+
 				const neurons_count_t total_nc = activations.cols_no_bias();
-				const ptrdiff_t batchSize = activations.rows(), _total_nc = total_nc;
+				const ptrdiff_t batchSize = static_cast<ptrdiff_t>(activations.rows());
+				const ptrdiff_t _total_nc = static_cast<ptrdiff_t>(total_nc);
 				const real_t*const pCurGatingColumn = m_gatingStack.size() > 0 ? m_gatingStack.back().pCurGatingColumn : nullptr;
-				bool bScaleStatOK = true, bCentralStatOK = true;
+				bool bScaleStatOK = true, bCentralStatOK = true, bForceReinit = false;
 				if (lSetts.bScaleNormalize) {
 					for (unsigned i = 0; i < lSetts.maxTries; ++i) {
 						_fprop();
@@ -340,13 +373,23 @@ namespace weights_init {
 						for (neurons_count_t nrn = 0; nrn < total_nc; ++nrn) {
 							const auto pD = activations.colDataAsVec(nrn);
 							const auto stat = _calc<ScaleMeasureT>(pD, pD + batchSize, batchSize, pCurGatingColumn);
-							const bool bScaleIsOk = (std::abs(stat - lSetts.targetScale) < lSetts.ScaleTolerance);
+
+							if (::std::isnan(stat) || real_t(0)==stat || !::std::isfinite(stat)) {
+								STDCOUTL("*** got invalid scale statistic, will try to reinit weights");
+								bForceReinit = true;
+								bScaleStatOK = false;
+								break;
+							}
+
+							const bool bScaleIsOk = (::std::abs(stat - lSetts.targetScale) < lSetts.ScaleTolerance);
 
 							statSum += stat;
 
 							if (!bScaleIsOk) {
 								bScaleStatOK = false;
-								const auto mulVal = std::sqrt(lSetts.targetScale / stat);
+								NNTL_ASSERT(stat != real_t(0.));
+								const auto mulVal = ::std::sqrt(lSetts.targetScale / stat);
+								NNTL_ASSERT(!isnan(mulVal) && isfinite(mulVal));
 								auto pW = weights.data() + nrn;
 								const auto pWE = weights.colDataAsVec(weights.cols() - !lSetts.bScaleChangeBiasesToo);
 								while (pW < pWE) {
@@ -356,14 +399,14 @@ namespace weights_init {
 							}
 						}
 
-						if (lSetts.bVerbose) STDCOUTL("#" << i << " avg scale (\"variance\") = " << statSum / total_nc << (bScaleStatOK ? "(ok)" : ""));
-						if (bScaleStatOK) break;
+						if (!bForceReinit && lSetts.bVerbose) STDCOUTL("#" << i << " avg scale (\"variance\") = " << statSum / total_nc << (bScaleStatOK ? "(ok)" : ""));
+						if (bScaleStatOK || bForceReinit) break;
 					}
-					if (!bScaleStatOK) _say_failed();
+					//if (!bScaleStatOK) _say_failed();
 				}
 				//offsetting bias weights breaks orthogonality of weight matrix (when OrthoInit is being used). Therefore to change
 				//it little less we'll update biases after we've reached the correct scale.
-				if (lSetts.bCentralNormalize) {
+				if (bScaleStatOK && lSetts.bCentralNormalize) {
 					for (unsigned i = 0; i < lSetts.maxTries; ++i) {
 						_fprop();
 
@@ -373,27 +416,27 @@ namespace weights_init {
 						for (neurons_count_t nrn = 0; nrn < total_nc; ++nrn) {
 							const auto pD = activations.colDataAsVec(nrn);
 							const auto stat = _calc<CentralMeasureT>(pD, pD + batchSize, batchSize, pCurGatingColumn);
-							const bool bCentralIsOk = (std::abs(stat - real_t(0.)) < lSetts.CentralTolerance);
+							const bool bCentralIsOk = (::std::abs(stat - real_t(0.)) < lSetts.CentralTolerance);
 							statSum += stat;
 							
 							if (!bCentralIsOk) {
 								bCentralStatOK = false;
-								weights.get(nrn, weights.cols() - 1) -= stat;
+								weights.get(nrn, weights.cols() - 1) -= stat*actScaling;
 							}
 						}
 
 						if (lSetts.bVerbose) STDCOUTL("#" << i << " avg central (\"mean\") = " << statSum / total_nc << (bCentralStatOK ? "(ok)" : ""));
 						if (bCentralStatOK) break;
 					}
-					if (!bCentralStatOK) _say_failed();
+					//if (!bCentralStatOK) _say_failed();
 				}
 
-				return bCentralStatOK && bScaleStatOK;
+				return !bForceReinit && bCentralStatOK && bScaleStatOK;
 			}
 
-			void _say_failed()noexcept {
+			/*void _say_failed()noexcept {
 				STDCOUTL("**** failed to converge");
-			}
+			}*/
 
 			void _fprop()noexcept {
 				m_data.nextBatch(m_nn.get_iRng(), m_nn.get_iMath());
@@ -402,7 +445,7 @@ namespace weights_init {
 
 			template<typename TagStatT>
 			real_t _calc_simple(const real_t* pBegin, const real_t*const pEnd)noexcept {
-				using namespace boost::accumulators;
+				using namespace ::boost::accumulators;
 
 				accumulator_set<real_t, stats<TagStatT>> acc;
 				while (pBegin < pEnd) {
@@ -414,7 +457,7 @@ namespace weights_init {
 			real_t _calc_with_mask(const real_t* pBegin, const real_t*const pEnd, const size_t rowsCnt, const real_t*const pMask)noexcept {
 				NNTL_ASSERT(static_cast<double>(pEnd - pBegin) / rowsCnt == (pEnd - pBegin) / rowsCnt);
 
-				using namespace boost::accumulators;
+				using namespace ::boost::accumulators;
 
 				accumulator_set<real_t, stats<TagStatT>> acc;
 				while (pBegin < pEnd) {
@@ -435,11 +478,13 @@ namespace weights_init {
 			real_t _calc(const real_t* pBegin, const real_t*const pEnd, const size_t rowsCnt, const real_t*const pMask)noexcept {
 				NNTL_ASSERT(static_cast<double>(pEnd - pBegin) / rowsCnt == (pEnd - pBegin) / rowsCnt);
 
-				return pMask ? _calc_with_mask<TagStatT>(pBegin, pEnd, rowsCnt, pMask) : _calc_simple<TagStatT>(pBegin, pEnd);
+				const auto r= pMask ? _calc_with_mask<TagStatT>(pBegin, pEnd, rowsCnt, pMask) : _calc_simple<TagStatT>(pBegin, pEnd);
+				NNTL_ASSERT(!isnan(r) && isfinite(r));
+				return r;
 			}
 
 			/*void _calc(const real_t* pBegin, const real_t*const pEnd, _calcRes& res, const ptrdiff_t stride=1)noexcept {
-				using namespace boost::accumulators;
+				using namespace ::boost::accumulators;
 
 				accumulator_set<real_t, stats<CentralMeasureT, ScaleMeasureT>> acc;
 				while (pBegin < pEnd) {
@@ -449,8 +494,8 @@ namespace weights_init {
 				res.central = extract_result<CentralMeasureT>(acc);
 				res.scale = extract_result<ScaleMeasureT>(acc);
 
-				res.bCentralIsOk = !m_bCentralNormalize || (std::abs(res.central - real_t(0.)) < m_CentralTolerance);
-				res.bScaleIsOk = !m_bScaleNormalize || (std::abs(res.scale - m_targetScale) < m_ScaleTolerance);
+				res.bCentralIsOk = !m_bCentralNormalize || (::std::abs(res.central - real_t(0.)) < m_CentralTolerance);
+				res.bScaleIsOk = !m_bScaleNormalize || (::std::abs(res.scale - m_targetScale) < m_ScaleTolerance);
 			}*/
 
 		};

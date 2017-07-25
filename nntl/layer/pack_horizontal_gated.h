@@ -64,7 +64,7 @@ namespace nntl {
 		typedef _layer_pack_horizontal<FinalPolymorphChild, PHLsTuple, AddendumsTupleT> _base_class;
 
 	public:
-		static_assert(std::is_base_of<_i_layer_gate<real_t>, first_layer_t>::value,
+		static_assert(::std::is_base_of<_i_layer_gate<real_t>, first_layer_t>::value,
 			"First layer within _layer_pack_horizontal_gated MUST be a gate with a corresponding width!");
 		//BTW, gate width must be equal to phl_count-1. We can't check it with a static_assert, but
 		// will check it later in runtime		
@@ -260,7 +260,7 @@ namespace nntl {
 
 		// version without binarization
 		template<bool bg = sbBinarizeGate>
-		std::enable_if_t< !bg, self_ref_t> make_gating_mask()noexcept {
+		::std::enable_if_t< !bg, self_ref_t> make_gating_mask()noexcept {
 			const auto& gate = get_self().gating_layer().get_gate();
 
 			NNTL_ASSERT(gate.isBinary());
@@ -285,7 +285,7 @@ namespace nntl {
 		}
 		// version with binarization
 		template<bool bg = sbBinarizeGate>
-		std::enable_if_t<bg, self_ref_t> make_gating_mask()noexcept {
+		::std::enable_if_t<bg, self_ref_t> make_gating_mask()noexcept {
 			NNTL_ASSERT(_bAllocateGatingMask());
 			const auto& gate = get_self().gating_layer().get_gate();
 
@@ -370,7 +370,7 @@ namespace nntl {
 	public:
 		template <typename LowerLayer>
 		void fprop(const LowerLayer& lowerLayer)noexcept {
-			static_assert(std::is_base_of<_i_layer_fprop, LowerLayer>::value, "Template parameter LowerLayer must implement _i_layer_fprop");
+			static_assert(::std::is_base_of<_i_layer_fprop, LowerLayer>::value, "Template parameter LowerLayer must implement _i_layer_fprop");
 			auto& iI = get_self().get_iInspect();
 			iI.fprop_begin(get_self().get_layer_idx(), lowerLayer.get_activations(), get_self().get_common_data().is_training_mode());
 
@@ -396,7 +396,7 @@ namespace nntl {
 
 		template <typename LowerLayer>
 		const unsigned bprop(realmtxdef_t& dLdA, const LowerLayer& lowerLayer, realmtxdef_t& dLdAPrev)noexcept {
-			static_assert(std::is_base_of<_i_layer_trainable, LowerLayer>::value, "Template parameter LowerLayer must implement _i_layer_trainable");
+			static_assert(::std::is_base_of<_i_layer_trainable, LowerLayer>::value, "Template parameter LowerLayer must implement _i_layer_trainable");
 			auto& iI = get_self().get_iInspect();
 			iI.bprop_begin(get_self().get_layer_idx(), dLdA);
 
@@ -406,7 +406,7 @@ namespace nntl {
 			NNTL_ASSERT(m_gatingMask.cols() == get_self().gating_layer().get_gate_width());
 
 			NNTL_ASSERT(get_self().get_activations().size_no_bias() == dLdA.size());
-			NNTL_ASSERT((std::is_base_of<m_layer_input, LowerLayer>::value) || dLdAPrev.size() == lowerLayer.get_activations().size_no_bias());
+			NNTL_ASSERT((::std::is_base_of<m_layer_input, LowerLayer>::value) || dLdAPrev.size() == lowerLayer.get_activations().size_no_bias());
 
 			get_self().drop_dLdA_by_mask(dLdA);
 
@@ -445,8 +445,8 @@ namespace nntl {
 
 
 	private:
-		//support for boost::serialization
-		friend class boost::serialization::access;
+		//support for ::boost::serialization
+		friend class ::boost::serialization::access;
 		template<class Archive> void serialize(Archive & ar, const unsigned int version) {
 			if (utils::binary_option<true>(ar, serialization::serialize_gating_mask)) ar & NNTL_SERIALIZATION_NVP(m_gatingMask);
 			if (utils::binary_option<true>(ar, serialization::serialize_training_parameters)) {
@@ -455,7 +455,7 @@ namespace nntl {
 			}
 			//ar & serialization::make_named_struct(m_undLayer.get_layer_name_str(), m_undLayer);
 			//ar & serialization::serialize_base_class<_base_class>(*this);
-			ar & boost::serialization::base_object<_base_class>(*this);
+			ar & ::boost::serialization::base_object<_base_class>(*this);
 		}
 	};
 
@@ -467,14 +467,14 @@ namespace nntl {
 	//to shorten class name to get rid of C4503
 	template <typename ...PHLsT>
 	class LPHG final
-		: public _layer_pack_horizontal_gated<LPHG<PHLsT...>, 500000, std::tuple<PHLsT...>>
+		: public _layer_pack_horizontal_gated<LPHG<PHLsT...>, 500000, ::std::tuple<PHLsT...>>
 	{
 	public:
 		~LPHG() noexcept {};
 		LPHG(PHLsT&... phls) noexcept
-			: _layer_pack_horizontal_gated<LPHG<PHLsT...>, 500000, std::tuple<PHLsT...>>(nullptr, std::make_tuple(phls...)) {};
+			: _layer_pack_horizontal_gated<LPHG<PHLsT...>, 500000, ::std::tuple<PHLsT...>>(nullptr, ::std::make_tuple(phls...)) {};
 		LPHG(const char* pCustomName, PHLsT&... phls) noexcept
-			: _layer_pack_horizontal_gated<LPHG<PHLsT...>, 500000, std::tuple<PHLsT...>>(pCustomName, std::make_tuple(phls...)) {};
+			: _layer_pack_horizontal_gated<LPHG<PHLsT...>, 500000, ::std::tuple<PHLsT...>>(pCustomName, ::std::make_tuple(phls...)) {};
 	};
 
 	template <typename ..._T>
@@ -493,14 +493,14 @@ namespace nntl {
 
 	template <typename ...PHLsT>
 	class LPHGFI final
-		: public _layer_pack_horizontal_gated<LPHGFI<PHLsT...>, 0, std::tuple<PHLsT...>>
+		: public _layer_pack_horizontal_gated<LPHGFI<PHLsT...>, 0, ::std::tuple<PHLsT...>>
 	{
 	public:
 		~LPHGFI() noexcept {};
 		LPHGFI(PHLsT&... phls) noexcept
-			: _layer_pack_horizontal_gated<LPHGFI<PHLsT...>, 0, std::tuple<PHLsT...>>(nullptr, std::make_tuple(phls...)) {};
+			: _layer_pack_horizontal_gated<LPHGFI<PHLsT...>, 0, ::std::tuple<PHLsT...>>(nullptr, ::std::make_tuple(phls...)) {};
 		LPHGFI(const char* pCustomName, PHLsT&... phls) noexcept
-			: _layer_pack_horizontal_gated<LPHGFI<PHLsT...>, 0, std::tuple<PHLsT...>>(pCustomName, std::make_tuple(phls...)) {};
+			: _layer_pack_horizontal_gated<LPHGFI<PHLsT...>, 0, ::std::tuple<PHLsT...>>(pCustomName, ::std::make_tuple(phls...)) {};
 	};
 
 	template <typename ..._T>
@@ -520,25 +520,25 @@ namespace nntl {
 	
 	template <typename AddendumsTupleT, typename ...PHLsT>
 	class LPHG_PA final
-		: public _layer_pack_horizontal_gated<LPHG_PA<AddendumsTupleT, PHLsT...>, 500000, std::tuple<PHLsT...>, AddendumsTupleT>
+		: public _layer_pack_horizontal_gated<LPHG_PA<AddendumsTupleT, PHLsT...>, 500000, ::std::tuple<PHLsT...>, AddendumsTupleT>
 	{
 	public:
 		~LPHG_PA() noexcept {};
 		LPHG_PA(PHLsT&... phls) noexcept
-			: _layer_pack_horizontal_gated<LPHG_PA<AddendumsTupleT, PHLsT...>, 500000, std::tuple<PHLsT...>, AddendumsTupleT>(nullptr, std::make_tuple(phls...)) {};
+			: _layer_pack_horizontal_gated<LPHG_PA<AddendumsTupleT, PHLsT...>, 500000, ::std::tuple<PHLsT...>, AddendumsTupleT>(nullptr, ::std::make_tuple(phls...)) {};
 		LPHG_PA(const char* pCustomName, PHLsT&... phls) noexcept
-			: _layer_pack_horizontal_gated<LPHG_PA<AddendumsTupleT, PHLsT...>, 500000, std::tuple<PHLsT...>, AddendumsTupleT>(pCustomName, std::make_tuple(phls...)) {};
+			: _layer_pack_horizontal_gated<LPHG_PA<AddendumsTupleT, PHLsT...>, 500000, ::std::tuple<PHLsT...>, AddendumsTupleT>(pCustomName, ::std::make_tuple(phls...)) {};
 	};
 
 	template <typename AddendumsTupleT, typename ...PHLsT>
 	class LPHGFI_PA final
-		: public _layer_pack_horizontal_gated<LPHGFI_PA<AddendumsTupleT, PHLsT...>, 0, std::tuple<PHLsT...>, AddendumsTupleT>
+		: public _layer_pack_horizontal_gated<LPHGFI_PA<AddendumsTupleT, PHLsT...>, 0, ::std::tuple<PHLsT...>, AddendumsTupleT>
 	{
 	public:
 		~LPHGFI_PA() noexcept {};
 		LPHGFI_PA(PHLsT&... phls) noexcept
-			: _layer_pack_horizontal_gated<LPHGFI_PA<AddendumsTupleT, PHLsT...>, 0, std::tuple<PHLsT...>, AddendumsTupleT>(nullptr, std::make_tuple(phls...)) {};
+			: _layer_pack_horizontal_gated<LPHGFI_PA<AddendumsTupleT, PHLsT...>, 0, ::std::tuple<PHLsT...>, AddendumsTupleT>(nullptr, ::std::make_tuple(phls...)) {};
 		LPHGFI_PA(const char* pCustomName, PHLsT&... phls) noexcept
-			: _layer_pack_horizontal_gated<LPHGFI_PA<AddendumsTupleT, PHLsT...>, 0, std::tuple<PHLsT...>, AddendumsTupleT>(pCustomName, std::make_tuple(phls...)) {};
+			: _layer_pack_horizontal_gated<LPHGFI_PA<AddendumsTupleT, PHLsT...>, 0, ::std::tuple<PHLsT...>, AddendumsTupleT>(pCustomName, ::std::make_tuple(phls...)) {};
 	};
 }

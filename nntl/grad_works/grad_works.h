@@ -192,7 +192,7 @@ namespace nntl {
 		real_t m_optBeta1t, m_optBeta2t;//storage for coefficients some optimizers (Adam, AdaMax) needed
 
 	public:
-		//std::bitset<opts_total> m_flags;
+		//::std::bitset<opts_total> m_flags;
 		//unfortunately, it must be left inside public scope at this moment
 		// #TODO: should be private/protected
 		utils::mixins::binary_options_storage<mixin_opts_ofs, TotalOpts> m_opts;//never use it directly! Only via get_opt()/set_opt()
@@ -207,7 +207,7 @@ namespace nntl {
 		//////////////////////////////////////////////////////////////////////////
 		//Serialization support
 	private:
-		friend class boost::serialization::access;
+		friend class ::boost::serialization::access;
 		template<class Archive>
 		void serialize(Archive & ar, const unsigned int version) {
 			//NB: DONT touch ANY of .useExternalStorage() matrices here, because it's absolutely temporary meaningless data
@@ -347,7 +347,7 @@ namespace nntl {
 
 			auto& iM = get_iMath();
 
-			//changing nesterov momentum vars with fresh dL/dW (should do the same with classical momentum #todo)
+			/*//changing nesterov momentum vars with fresh dL/dW (should do the same with classical momentum #todo)
 			if (use_momentums() && get_opt(f_UseNesterovMomentum)) {
 				NNTL_ASSERT(m_Vw.size() == dLdW.size());
 				// (3)  vW(t+1) = momentum*vW(t) + scaling*grad_Loss( W(t)-momentum*vW(t))
@@ -359,7 +359,7 @@ namespace nntl {
 				// (4)  W(t+1)  = W(t) - vW(t+1) 
 				//				= W(t) - vW`(t+1) - scaling*grad_Loss( W`(t+1) )
 				//				= W`(t+1) - scaling * grad_Loss( W`(t+1) )
-			}
+			}*/
 
 			switch (m_type) {
 			case ClassicalConstant:
@@ -434,12 +434,38 @@ namespace nntl {
 
 			ILR_apply(bFirstRun, dLdW, m_Vw);
 
-			if (use_momentums() && !get_opt(f_UseNesterovMomentum)) {
+			/*if (use_momentums() && !get_opt(f_UseNesterovMomentum)) {
 				//Vw = momentum.*Vw + dW
 				iM.apply_momentum(m_Vw, m_momentum, dLdW);
 				iI.apply_grad_update(weights, m_Vw);
 				iM.evSub_ip(weights, m_Vw);
 			} else {
+				iI.apply_grad_update(weights, dLdW);
+				iM.evSub_ip(weights, dLdW);
+			}*/
+
+			bool bApplydLdW2Weights = true;
+			if (use_momentums()) {
+				NNTL_ASSERT(m_Vw.size() == dLdW.size());
+				if (get_opt(f_UseNesterovMomentum)) {
+					// (3)  vW(t+1) = momentum*vW(t) + scaling*grad_Loss( W(t)-momentum*vW(t))
+					//				= vW`(t+1) + scaling*grad_Loss( W`(t+1) )
+					iI.apply_grad_preNesterovMomentum(m_Vw, dLdW);
+					iM.evAdd_ip(m_Vw, dLdW);
+					iI.apply_grad_postNesterovMomentum(m_Vw);
+					// (4)  W(t+1)  = W(t) - vW(t+1) 
+					//				= W(t) - vW`(t+1) - scaling*grad_Loss( W`(t+1) )
+					//				= W`(t+1) - scaling * grad_Loss( W`(t+1) )
+				} else {
+					//Vw = momentum.*Vw + dW
+					iM.apply_momentum(m_Vw, m_momentum, dLdW);
+					iI.apply_grad_update(weights, m_Vw);
+					iM.evSub_ip(weights, m_Vw);
+					bApplydLdW2Weights = false;
+				}
+			}
+
+			if (bApplydLdW2Weights) {
 				iI.apply_grad_update(weights, dLdW);
 				iM.evSub_ip(weights, dLdW);
 			}

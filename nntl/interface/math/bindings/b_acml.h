@@ -49,7 +49,7 @@ namespace math {
 	struct b_ACML {
 
 		template<typename sz_t, typename fl_t>
-		static typename std::enable_if_t< std::is_same< std::remove_pointer_t<fl_t>, double>::value > gemm(
+		static typename ::std::enable_if_t< ::std::is_same< ::std::remove_pointer_t<fl_t>, double>::value > gemm(
 			const enum CBLAS_TRANSPOSE TransA, const enum CBLAS_TRANSPOSE TransB,
 			const sz_t M, const sz_t N, const sz_t K,
 			const fl_t alpha, const fl_t *A, const sz_t lda,
@@ -64,7 +64,7 @@ namespace math {
 		}
 
 		template<typename sz_t, typename fl_t>
-		static typename std::enable_if_t< std::is_same< std::remove_pointer_t<fl_t>, float>::value > gemm(
+		static typename ::std::enable_if_t< ::std::is_same< ::std::remove_pointer_t<fl_t>, float>::value > gemm(
 			const enum CBLAS_TRANSPOSE TransA, const enum CBLAS_TRANSPOSE TransB,
 			const sz_t M, const sz_t N, const sz_t K,
 			const fl_t alpha, const fl_t *A, const sz_t lda,

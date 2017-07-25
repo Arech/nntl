@@ -36,6 +36,10 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 namespace nntl {
 namespace activation {
 
+	//activation types should not be templated (probably besides real_t), because they are intended to be used
+	//as means to recognize activation function type
+	struct type_selu{};
+
 	//////////////////////////////////////////////////////////////////////////
 	//////////////////////////////////////////////////////////////////////////
 	// SELU, arxiv:1706.02515 "Self-Normalizing Neural Networks", by Günter Klambauer et al.
@@ -45,7 +49,10 @@ namespace activation {
 		, typename WeightsInitScheme = weights_init::SNNInit
 		, typename DropoutT = AlphaDropout<RealT, Alpha1e9, Lambda1e9, fpMean1e6, fpVar1e6>
 	>
-	class selu : public _i_activation<DropoutT, WeightsInitScheme> {
+	class selu 
+		: public _i_activation<DropoutT, WeightsInitScheme> 
+		, public type_selu
+	{
 	public:
 		static constexpr ext_real_t AlphaExt = Alpha1e9 ? ext_real_t(Alpha1e9) / ext_real_t(1e9) : ext_real_t(1.6732632423543772848170429916717);
 		static constexpr ext_real_t LambdaExt = Lambda1e9 ? ext_real_t(Lambda1e9) / ext_real_t(1e9) : ext_real_t(1.0507009873554804934193349852946);
@@ -58,14 +65,18 @@ namespace activation {
 		//apply f to each srcdest matrix element. The biases (if any) must be left untouched!
 		template <typename iMath>
 		static void f(realmtx_t& srcdest, iMath& m) noexcept {
-			static_assert(std::is_base_of<math::_i_math<real_t>, iMath>::value, "iMath should implement math::_i_math");
+			static_assert(::std::is_base_of<math::_i_math<real_t>, iMath>::value, "iMath should implement math::_i_math");
 			m.selu(srcdest, Alpha_t_Lambda, Lambda);
 		};
 		template <typename iMath>
 		static void df(realmtx_t& f_df, iMath& m) noexcept {
-			static_assert(std::is_base_of<math::_i_math<real_t>, iMath>::value, "iMath should implement math::_i_math");
+			static_assert(::std::is_base_of<math::_i_math<real_t>, iMath>::value, "iMath should implement math::_i_math");
 			NNTL_ASSERT(!f_df.emulatesBiases());
 			m.dselu(f_df, Alpha_t_Lambda, Lambda);
+		}
+
+		static constexpr real_t act_scaling_coeff()noexcept {
+			return Lambda;
 		}
 	};
 

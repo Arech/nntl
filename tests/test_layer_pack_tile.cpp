@@ -198,15 +198,15 @@ TEST(TestLayerPackTile, ComparativeNonSpecialX) {
 	ec = Bnn.___init(batchSize, batchSize, false);
 
 	//setting the same layer weights
-	ASSERT_TRUE(Bund.set_weights(std::move(AundW)));
+	ASSERT_TRUE(Bund.set_weights(::std::move(AundW)));
 
 	AtlfcW.clone_to(AundW);
-	ASSERT_TRUE(Blfc1.set_weights(std::move(AundW)));
+	ASSERT_TRUE(Blfc1.set_weights(::std::move(AundW)));
 	AtlfcW.clone_to(AundW);
-	ASSERT_TRUE(Blfc2.set_weights(std::move(AundW)));
-	ASSERT_TRUE(Blfc3.set_weights(std::move(AtlfcW)));
+	ASSERT_TRUE(Blfc2.set_weights(::std::move(AundW)));
+	ASSERT_TRUE(Blfc3.set_weights(::std::move(AtlfcW)));
 
-	ASSERT_TRUE(Boutp.set_weights(std::move(AoutpW)));
+	ASSERT_TRUE(Boutp.set_weights(::std::move(AoutpW)));
 
 	// doing fprop
 	Bnn.___get_common_data().set_mode_and_batch_size(true, batchSize);

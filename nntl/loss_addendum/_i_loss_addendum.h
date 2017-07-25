@@ -91,12 +91,12 @@ namespace loss_addendum {
 	};
 
 	template<typename LaT>
-	struct is_loss_addendum_impl : public std::is_base_of<_i_loss_addendum<typename LaT::real_t>, LaT>{};
+	struct is_loss_addendum_impl : public ::std::is_base_of<_i_loss_addendum<typename LaT::real_t>, LaT>{};
 	
 	template<typename AnyT>
-	struct is_loss_addendum : public std::conditional_t<has_real_t<AnyT>::value
+	struct is_loss_addendum : public ::std::conditional_t<has_real_t<AnyT>::value
 		, is_loss_addendum_impl<AnyT>
-		, std::false_type>
+		, ::std::false_type>
 	{};
 
 	template<typename RealT>

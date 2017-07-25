@@ -45,8 +45,8 @@ namespace nntl {
 		class _activation_wrapper
 			: public _layer_base<FinalPolymorphChild, InterfacesT>
 			, private ActivFuncT
-			, public std::conditional_t <
-				std::is_base_of <activation::_i_activation_loss< typename ActivFuncT::real_t >, ActivFuncT>::value
+			, public ::std::conditional_t <
+				::std::is_base_of <activation::_i_activation_loss< typename ActivFuncT::real_t >, ActivFuncT>::value
 				, _impl::_No_Dropout_at_All <typename ActivFuncT::real_t>
 				, typename ActivFuncT::Dropout_t
 			>
@@ -64,10 +64,10 @@ namespace nntl {
 			typedef typename Activation_t::weights_scheme_t Weights_Init_t;
 			//we'll define Dropout_t conditioning on bActivationForOutput
 
-			static constexpr bool bActivationForOutput = std::is_base_of <activation::_i_activation_loss<real_t>, Activation_t>::value;
-			static constexpr bool bActivationForHidden = std::is_base_of<activation::_i_activation<typename Activation_t::Dropout_t, Weights_Init_t>, Activation_t>::value;
+			static constexpr bool bActivationForOutput = ::std::is_base_of <activation::_i_activation_loss<real_t>, Activation_t>::value;
+			static constexpr bool bActivationForHidden = ::std::is_base_of<activation::_i_activation<typename Activation_t::Dropout_t, Weights_Init_t>, Activation_t>::value;
 			
-			typedef std::conditional_t<bActivationForOutput, _impl::_No_Dropout_at_All<real_t>, typename Activation_t::Dropout_t> Dropout_t;
+			typedef ::std::conditional_t<bActivationForOutput, _impl::_No_Dropout_at_All<real_t>, typename Activation_t::Dropout_t> Dropout_t;
 
 		protected:
 			// matrix of layer neurons activations: <batch_size rows> x <m_neurons_cnt+1(bias) cols> for fully connected layer
@@ -97,7 +97,7 @@ namespace nntl {
 			}
 
 			template<bool _b = bActivationForOutput>
-			std::enable_if_t<_b, real_t> calc_loss(const realmtx_t& data_y)const noexcept {
+			::std::enable_if_t<_b, real_t> calc_loss(const realmtx_t& data_y)const noexcept {
 				return Activation_t::loss(m_activations, data_y, get_self().get_iMath());
 			}
 
@@ -128,6 +128,10 @@ namespace nntl {
 				NNTL_ASSERT(m_activations.emulatesBiases() ^ is_layer_output<self_t>::value);
 				m_activations.clear();
 				_base_class_t::deinit();
+			}
+
+			real_t act_scaling_coeff() const noexcept {
+				return Activation_t::act_scaling_coeff();
 			}
 
 			void on_batch_size_change(real_t*const pNewActivationStorage = nullptr)noexcept {
@@ -179,7 +183,7 @@ namespace nntl {
 			}
 
 			template<typename iMathT, bool _b = bActivationForHidden>
-			std::enable_if_t<_b>
+			::std::enable_if_t<_b>
 			_activation_bprop(realmtx_t& act2dAdZ_nb,iMathT& iM)noexcept {
 				NNTL_ASSERT(m_activations.emulatesBiases() && !act2dAdZ_nb.emulatesBiases());
 				NNTL_ASSERT(m_activations.data() == act2dAdZ_nb.data() && m_activations.size_no_bias() == act2dAdZ_nb.size());
@@ -191,7 +195,7 @@ namespace nntl {
 			}
 
 			template<typename iMathT, bool _b = bActivationForOutput>
-			std::enable_if_t<_b> _activation_bprop_output(const realmtx_t& data_y, iMathT& iM)noexcept {
+			::std::enable_if_t<_b> _activation_bprop_output(const realmtx_t& data_y, iMathT& iM)noexcept {
 				NNTL_ASSERT(!m_activations.emulatesBiases() && !data_y.emulatesBiases());
 				if (bLayerIsLinear()) {
 					Activation_t::dLdZIdentity(data_y, m_activations, iM);

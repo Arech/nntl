@@ -888,7 +888,7 @@ void test_softmax_parts_perf(vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 	realmtx_t A(rowsCnt, colsCnt);
 	ASSERT_TRUE(!A.isAllocationFailed());
 	const auto denominatorElmsMax = realmtx_t::sNumel(rowsCnt, iM.ithreads().workers_count());
-	std::vector<real_t> vec_max(rowsCnt), vec_den(denominatorElmsMax), vec_num(dataSize);
+	::std::vector<real_t> vec_max(rowsCnt), vec_den(denominatorElmsMax), vec_num(dataSize);
 
 	iM.preinit(dataSize);
 	ASSERT_TRUE(iM.init());

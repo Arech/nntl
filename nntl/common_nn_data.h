@@ -119,9 +119,9 @@ namespace _impl {
 		iInspect_t& iInspect()const noexcept { NNTL_ASSERT(m_pInspect); return *m_pInspect; }
 
 		template<bool B = bAllowToBlockLearning>
-		std::enable_if_t<B, const bool> isLearningBlocked()const noexcept { NNTL_ASSERT(m_pbNotLearningNow); return *m_pbNotLearningNow; }
+		::std::enable_if_t<B, const bool> isLearningBlocked()const noexcept { NNTL_ASSERT(m_pbNotLearningNow); return *m_pbNotLearningNow; }
 		template<bool B = bAllowToBlockLearning>
-		constexpr std::enable_if_t<!B, bool> isLearningBlocked()const noexcept { return false; }
+		constexpr ::std::enable_if_t<!B, bool> isLearningBlocked()const noexcept { return false; }
 
 		void set_training_mode(bool bTraining)noexcept { m_bInTraining = bTraining; }
 		const bool is_training_mode()const noexcept { return m_bInTraining; }
@@ -149,7 +149,7 @@ namespace _impl {
 		const vec_len_t biggest_batch_size()const noexcept {
 			NNTL_ASSERT(m_pMath && m_pRng && m_pInspect);//must be preinitialized!
 			NNTL_ASSERT(m_max_fprop_batch_size > 0);
-			return std::max(m_training_batch_size, m_max_fprop_batch_size);
+			return ::std::max(m_training_batch_size, m_max_fprop_batch_size);
 		}
 
 		const bool is_training_possible()const noexcept {
@@ -196,12 +196,12 @@ namespace _impl {
 		iInspect_t& get_iInspect()const noexcept { NNTL_ASSERT(m_pCommonData); return m_pCommonData->iInspect(); }
 
 		template<bool B = bAllowToBlockLearning>
-		std::enable_if_t<B, const bool> isLearningBlocked()const noexcept {
+		::std::enable_if_t<B, const bool> isLearningBlocked()const noexcept {
 			NNTL_ASSERT(m_pCommonData);
 			return m_pCommonData->isLearningBlocked();
 		}
 		template<bool B = bAllowToBlockLearning>
-		constexpr std::enable_if_t<!B, bool> isLearningBlocked() const noexcept { return false; }
+		constexpr ::std::enable_if_t<!B, bool> isLearningBlocked() const noexcept { return false; }
 
 		//////////////////////////////////////////////////////////////////////////
 		//everything besides written above should be accessed via get_common_data()
@@ -272,27 +272,27 @@ namespace _impl {
 			NNTL_ASSERT(!bOwnInspect);
 			m_pInspect = pI;
 		}
-		void _make_Inspector(std::nullptr_t pI)noexcept {
+		void _make_Inspector(::std::nullptr_t pI)noexcept {
 			NNTL_ASSERT(bOwnInspect);
-			m_pInspect = new(std::nothrow) iInspect_t;
+			m_pInspect = new(::std::nothrow) iInspect_t;
 		}
 		void _make_Math(iMath_t* pM)noexcept {
 			NNTL_ASSERT(!bOwnMath);
 			NNTL_ASSERT(pM);
 			m_pMath = pM;
 		}
-		void _make_Math(std::nullptr_t pM)noexcept {
+		void _make_Math(::std::nullptr_t pM)noexcept {
 			NNTL_ASSERT(bOwnMath);
-			m_pMath = new(std::nothrow) iMath_t;
+			m_pMath = new(::std::nothrow) iMath_t;
 		}
 		void _make_Rng(iRng_t* pR)noexcept {
 			NNTL_ASSERT(!bOwnRng);
 			NNTL_ASSERT(pR);
 			m_pRng = pR;
 		}
-		void _make_Rng(std::nullptr_t pR)noexcept {
+		void _make_Rng(::std::nullptr_t pR)noexcept {
 			NNTL_ASSERT(bOwnRng);
-			m_pRng = new(std::nothrow) iRng_t;
+			m_pRng = new(::std::nothrow) iRng_t;
 		}
 
 	public:
@@ -302,7 +302,7 @@ namespace _impl {
 			if (bOwnInspect) delete m_pInspect;
 		}
 
-		template<typename PInspT = std::nullptr_t, typename PMathT = std::nullptr_t, typename PRngT = std::nullptr_t>
+		template<typename PInspT = ::std::nullptr_t, typename PMathT = ::std::nullptr_t, typename PRngT = ::std::nullptr_t>
 		interfaces_keeper(PInspT pI = nullptr, PMathT pM = nullptr, PRngT pR = nullptr)noexcept
 			: bOwnMath(!pM), bOwnRng(!pR), bOwnInspect(!pI), m_bLearningBlockedFlag(false)
 		{
@@ -329,16 +329,16 @@ namespace _impl {
 
 	protected:
 		template<bool B = bAllowToBlockLearning>
-		std::enable_if_t<B, void> _blockLearning() noexcept { m_bLearningBlockedFlag = true; }
+		::std::enable_if_t<B, void> _blockLearning() noexcept { m_bLearningBlockedFlag = true; }
 		template<bool B = bAllowToBlockLearning>
-		std::enable_if_t<B, void> _unblockLearning() noexcept { m_bLearningBlockedFlag = false; }
+		::std::enable_if_t<B, void> _unblockLearning() noexcept { m_bLearningBlockedFlag = false; }
 
 		template<bool B = bAllowToBlockLearning>
-		std::enable_if_t<!B, static void> _blockLearning() noexcept {
+		::std::enable_if_t<!B, static void> _blockLearning() noexcept {
 			static_assert(false, "this feature is designed to be used with a numeric gradient check!");
 		}
 		template<bool B = bAllowToBlockLearning>
-		std::enable_if_t<!B, static void> _unblockLearning() noexcept {
+		::std::enable_if_t<!B, static void> _unblockLearning() noexcept {
 			static_assert(false, "this feature is designed to be used with a numeric gradient check!");
 		}
 

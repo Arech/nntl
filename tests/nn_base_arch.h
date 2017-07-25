@@ -121,7 +121,7 @@ namespace nntl_tests {
 
 			LayerInit(const ArchPrmsT& P) noexcept : Prms(P) {}
 
-			template<typename _L> std::enable_if_t<nntl::layer_has_gradworks<_L>::value> operator()(_L& l)const noexcept {
+			template<typename _L> ::std::enable_if_t<nntl::layer_has_gradworks<_L>::value> operator()(_L& l)const noexcept {
 				l.m_gradientWorks
 					//.set_type(decltype(l.m_gradientWorks)::RProp)
 					//.set_type(decltype(l.m_gradientWorks)::RMSProp_Hinton)
@@ -140,7 +140,7 @@ namespace nntl_tests {
 					//.set_ILR(Prms.ilrProps)
 					;
 			}
-			template<typename _L> std::enable_if_t<!nntl::layer_has_gradworks<_L>::value> operator()(_L& l)const noexcept {}
+			template<typename _L> ::std::enable_if_t<!nntl::layer_has_gradworks<_L>::value> operator()(_L& l)const noexcept {}
 		};
 
 		//////////////////////////////////////////////////////////////////////////

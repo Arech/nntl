@@ -39,7 +39,7 @@ namespace inspector {
 	template<typename RealT, size_t maxNnetDepth=10>
 	class stdcout : public _impl::_base<RealT>{
 	public:
-		typedef std::vector<std::string> layer_names_t;
+		typedef ::std::vector<::std::string> layer_names_t;
 		typedef stdcout<real_t, maxNnetDepth> self_t;
 
 	protected:
@@ -67,13 +67,13 @@ namespace inspector {
 
 		//////////////////////////////////////////////////////////////////////////
 		//
-		template<typename VarT> std::enable_if_t<!std::is_base_of<realmtx_t, VarT>::value>
+		template<typename VarT> ::std::enable_if_t<!::std::is_base_of<realmtx_t, VarT>::value>
 		inspect(const VarT& v, const char*const pVarName = nullptr, const layer_index_t lIdx = _NoLayerIdxSpecified)const noexcept
 		{
 			STDCOUT(_layer_name(lIdx));
 			STDCOUTL("@" << m_epochIdx << "#" << m_batchIdx << " var \'" << (pVarName ? pVarName : "unk") << "\' = " << v);
 		}
-		template<typename VarT> std::enable_if_t<std::is_base_of<realmtx_t, VarT>::value>
+		template<typename VarT> ::std::enable_if_t<::std::is_base_of<realmtx_t, VarT>::value>
 		inspect(const VarT& v, const char*const pVarName = nullptr, const layer_index_t lIdx = _NoLayerIdxSpecified)const noexcept
 		{
 			STDCOUT(_layer_name(lIdx));
@@ -97,8 +97,8 @@ namespace inspector {
 		void init_layer(const layer_index_t lIdx, StrT&& LayerName, const layer_type_id_t layerTypeId)noexcept {
 			NNTL_ASSERT(lIdx < m_layersCount);
 			//#exceptions STL
-			m_layerNames[lIdx].assign(std::forward<StrT>(LayerName));
-			STDCOUTL("Layer " << m_layerNames[lIdx] << " of type 0x" << std::hex << layerTypeId << std::dec << " is being initialized");
+			m_layerNames[lIdx].assign(::std::forward<StrT>(LayerName));
+			STDCOUTL("Layer " << m_layerNames[lIdx] << " of type 0x" << ::std::hex << layerTypeId << ::std::dec << " is being initialized");
 		};
 
 		void train_epochBegin(const size_t epochIdx)noexcept {

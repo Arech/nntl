@@ -60,17 +60,17 @@ namespace nntl {
 	class _penalized_activations_base : private math::smatrix_td
 	{
 	public:
-		//typedef std::tuple<LossAddsTs...> addendums_tuple_t;
+		//typedef ::std::tuple<LossAddsTs...> addendums_tuple_t;
 		//static constexpr size_t addendums_count = sizeof...(LossAddsTs);
 		typedef AddendumsTupleT addendums_tuple_t;
-		static constexpr size_t addendums_count = std::tuple_size<AddendumsTupleT>::value;
+		static constexpr size_t addendums_count = ::std::tuple_size<AddendumsTupleT>::value;
 		static_assert(addendums_count > 0, "Use the layer directly instead of LPA<>");
 
 	protected:
 		addendums_tuple_t m_addendumsTuple;
 
 	private:
-		typedef typename std::tuple_element<0, addendums_tuple_t>::type _first_addendum_t;
+		typedef typename ::std::tuple_element<0, addendums_tuple_t>::type _first_addendum_t;
 		typedef typename _first_addendum_t::real_t real_t;
 		typedef typename math::smatrix<real_t> realmtx_t;
 		typedef typename math::smatrix_deform<real_t> realmtxdef_t;
@@ -79,9 +79,9 @@ namespace nntl {
 		addendums_tuple_t& addendums()noexcept { return m_addendumsTuple; }
 
 		template<size_t idx>
-		auto& addendum()noexcept { return std::get<idx>(m_addendumsTuple); }
+		auto& addendum()noexcept { return ::std::get<idx>(m_addendumsTuple); }
 		template<class LaT>
-		auto& addendum()noexcept { return std::get<LaT>(m_addendumsTuple); }
+		auto& addendum()noexcept { return ::std::get<LaT>(m_addendumsTuple); }
 
 	protected:
 		//should return true, if the layer has a value to add to Loss function value (there's some regularizer attached)
@@ -125,7 +125,7 @@ namespace nntl {
 			const auto bRestoreBiases = act.hide_biases();
 
 			tuple_utils::for_each_up(m_addendumsTuple, [&act, &dLdA, &iM, &iI](auto& la) {
-				typedef std::decay_t<decltype(la)> la_t;
+				typedef ::std::decay_t<decltype(la)> la_t;
 				static_assert(loss_addendum::is_loss_addendum<la_t>::value, "Every Loss_addendum class must implement loss_addendum::_i_loss_addendum<>");
 
 				if (la.bEnabled()) {
@@ -154,25 +154,25 @@ namespace nntl {
 		static constexpr bool bL2Available = (idxL2 < addendums_count);
 
 		template<bool b = bL1Available>
-		std::enable_if_t<b, real_t> L1()const noexcept { return addendum<LA_L1_t>().scale(); }
+		::std::enable_if_t<b, real_t> L1()const noexcept { return addendum<LA_L1_t>().scale(); }
 
 		template<bool b = bL2Available>
-		std::enable_if_t<b, real_t> L2()const noexcept { return addendum<LA_L2_t>().scale(); }*/
+		::std::enable_if_t<b, real_t> L2()const noexcept { return addendum<LA_L2_t>().scale(); }*/
 	};
 
 	//////////////////////////////////////////////////////////////////////////
 	// Helper traits recognizer
 	// primary template handles types that have no nested ::addendums_tuple_t member:
-	template< class, class = std::void_t<> >
-	struct can_penalize_activations : std::false_type { };
+	template< class, class = ::std::void_t<> >
+	struct can_penalize_activations : ::std::false_type { };
 	// specialization recognizes types that do have a nested ::addendums_tuple_t member:
 	template< class T >
-	struct can_penalize_activations<T, std::void_t<typename T::addendums_tuple_t>> : std::true_type {};
+	struct can_penalize_activations<T, ::std::void_t<typename T::addendums_tuple_t>> : ::std::true_type {};
 
 
 	template<typename AddendumsTupleT>
-	using _penalized_activations_base_selector = typename std::conditional<
-		std::is_fundamental<AddendumsTupleT>::value
+	using _penalized_activations_base_selector = typename ::std::conditional<
+		::std::is_fundamental<AddendumsTupleT>::value
 		, _penalized_activations_base_dummy
 		, _penalized_activations_base<AddendumsTupleT>
 	>::type;

@@ -43,10 +43,10 @@ namespace inspector {
 		dummy()noexcept {}
 	};
 
-	template< class, class = std::void_t<> >
-	struct is_dummy_inspector : std::false_type { };
+	template< class, class = ::std::void_t<> >
+	struct is_dummy_inspector : ::std::false_type { };
 	template< class T >
-	struct is_dummy_inspector<T, std::void_t<typename std::enable_if< std::is_same<dummy<typename T::real_t>, T>::value >::type > > : std::true_type {};
+	struct is_dummy_inspector<T, ::std::void_t<typename ::std::enable_if< ::std::is_same<dummy<typename T::real_t>, T>::value >::type > > : ::std::true_type {};
 
 }
 }

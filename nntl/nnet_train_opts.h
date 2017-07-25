@@ -85,7 +85,7 @@ namespace nntl {
 	// options of training algo
 	template <typename TrainingObserver = training_observer_stdcout<>>
 	class nnet_train_opts : public math::smatrix_td {
-		static_assert(std::is_base_of<i_training_observer<typename TrainingObserver::real_t>, TrainingObserver>::value,
+		static_assert(::std::is_base_of<i_training_observer<typename TrainingObserver::real_t>, TrainingObserver>::value,
 			"TrainingObserver template parameter must be derived from i_training_observer");
 
 	public:

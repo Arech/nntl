@@ -82,7 +82,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 
 //////////////////////////////////////////////////////////////////////////
-//if NNTL_CFG_CAREFULL_LOG_EXP is specified and set, nntl uses special std::log1p() and std::expm1() functions where possible
+//if NNTL_CFG_CAREFULL_LOG_EXP is specified and set, nntl uses special ::std::log1p() and ::std::expm1() functions where possible
 // to gain some numeric stability (therefore, more precise calculation) at the cost of
 // about 40% slowdown (measured for loglogu at my HW with /fp:precise)
 #if !defined(NNTL_CFG_CAREFULL_LOG_EXP) || 1!=NNTL_CFG_CAREFULL_LOG_EXP
@@ -95,7 +95,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #pragma message("NNTL_CFG_CAREFULL_LOG_EXP: will NOT use log1p()/expm1() in favor of speed of log()/exp()")
 #endif
 
-//TODO: there are faster implementations of stl vectors available. Find, evaluate and use them instead of std::vector
+//TODO: there are faster implementations of stl vectors available. Find, evaluate and use them instead of ::std::vector
 //#include <vector>
 
 #include "_defs.h"
@@ -103,11 +103,11 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 namespace nntl {
 
-	template< class, class = std::void_t<> >
-	struct has_real_t : std::false_type { };
+	template< class, class = ::std::void_t<> >
+	struct has_real_t : ::std::false_type { };
 	// specialization recognizes types that do have a nested ::real_t member:
 	template< class T >
-	struct has_real_t<T, std::void_t<typename T::real_t>> : std::true_type {};
+	struct has_real_t<T, ::std::void_t<typename T::real_t>> : ::std::true_type {};
 
 namespace math {
 
@@ -119,17 +119,17 @@ namespace math {
 	template <typename T> T log1p(T v)noexcept {
 		NNTL_ASSERT(v >= T(-1.));
 #if NNTL_CFG_CAREFULL_LOG_EXP
-		return std::log1p(v);
+		return ::std::log1p(v);
 #else
-		return std::log(T(1.0) + v);
+		return ::std::log(T(1.0) + v);
 #endif
 	}
 	//computes exp(x)-1
 	template <typename T> T expm1(T v)noexcept {
 #if NNTL_CFG_CAREFULL_LOG_EXP
-		return std::expm1(v);
+		return ::std::expm1(v);
 #else
-		return std::exp(v) - T(1.0);
+		return ::std::exp(v) - T(1.0);
 #endif
 	}
 
@@ -138,20 +138,20 @@ namespace math {
 
 	template <typename T> T log_eps(T v)noexcept {
 		NNTL_ASSERT(v >= T(0.));
-		return std::log(v + std::numeric_limits<T>::min());
+		return ::std::log(v + ::std::numeric_limits<T>::min());
 	}
 
 	template <typename T> T log1p_eps(T v)noexcept {
 		NNTL_ASSERT(v >= T(-1.));
 //#if NNTL_CFG_CAREFULL_LOG_EXP
-//		return std::log1p(v + std::numeric_limits<T>::epsilon());
+//		return ::std::log1p(v + ::std::numeric_limits<T>::epsilon());
 		//we can't use is, because we have to add epsilon() to move v out of -1 (worst case scenario), however the error near v==0
 		//becomes too big;
 //#else
 #if NNTL_CFG_CAREFULL_LOG_EXP
-#pragma message("Warning! nntl::math::log1p_eps() will NOT use std::log1p(), error is too large")
+#pragma message("Warning! nntl::math::log1p_eps() will NOT use ::std::log1p(), error is too large")
 #endif
-		return std::log((T(1.0) + v) + std::numeric_limits<T>::min());
+		return ::std::log((T(1.0) + v) + ::std::numeric_limits<T>::min());
 //#endif
 	}
 
@@ -172,7 +172,7 @@ namespace math {
 
 		//returns minimum value greater than zero, that can be added to v and the result be represented by double
 		static double eps_greater(double v)noexcept {
-			return std::nextafter(v, std::numeric_limits<double>::infinity()) - v;
+			return ::std::nextafter(v, ::std::numeric_limits<double>::infinity()) - v;
 		}
 		static double eps_greater_n(double v,double n)noexcept {
 			return n*eps_greater(v);
@@ -180,13 +180,13 @@ namespace math {
 
 		//returns minimum value greater than zero, that can be subtracted from v and the result be represented by double
 		static double eps_lower(double v)noexcept {
-			return v - std::nextafter(v, -std::numeric_limits<double>::infinity());
+			return v - ::std::nextafter(v, -::std::numeric_limits<double>::infinity());
 		}
 		static double eps_lower_n(double v, double n)noexcept {
 			return n*eps_lower(v);
 		}
 
-		typedef std::uint64_t similar_FWI_t;
+		typedef ::std::uint64_t similar_FWI_t;
 		static_assert(sizeof(double) == sizeof(similar_FWI_t),"Wrong type sizes!");
 
 	};
@@ -196,7 +196,7 @@ namespace math {
 
 		//returns minimum value greater than zero, that can be added to v and the result be represented by float
 		static float eps_greater(float v)noexcept {
-			return std::nextafter(v, std::numeric_limits<float>::infinity()) - v;
+			return ::std::nextafter(v, ::std::numeric_limits<float>::infinity()) - v;
 		}
 		static float eps_greater_n(float v, float n)noexcept {
 			return n*eps_greater(v);
@@ -204,13 +204,13 @@ namespace math {
 
 		//returns minimum value greater than zero, that can be subtracted from v and the result be represented by float
 		static float eps_lower(float v)noexcept {
-			return v - std::nextafter(v, -std::numeric_limits<float>::infinity());
+			return v - ::std::nextafter(v, -::std::numeric_limits<float>::infinity());
 		}
 		static float eps_lower_n(float v, float n)noexcept {
 			return n*eps_lower(v);
 		}
 
-		typedef std::uint32_t similar_FWI_t;
+		typedef ::std::uint32_t similar_FWI_t;
 		static_assert(sizeof(float) == sizeof(similar_FWI_t), "Wrong type sizes!");
 	};
 }

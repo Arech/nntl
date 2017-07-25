@@ -144,7 +144,7 @@ void mColumnsCov_ET(const nntl::math::smatrix<typename iMathT::real_t>& A, nntl:
 
 template<bool bLowerTriangl, typename iMathT>
 auto loss_deCov_ET(const nntl::math::smatrix<typename iMathT::real_t>& A, nntl::math::smatrix<typename iMathT::real_t>& tDM
-	, nntl::math::smatrix<typename iMathT::real_t>& tCov, std::vector<typename iMathT::real_t>& vMean, iMathT& iM)noexcept
+	, nntl::math::smatrix<typename iMathT::real_t>& tCov, ::std::vector<typename iMathT::real_t>& vMean, iMathT& iM)noexcept
 {
 	NNTL_ASSERT(!tDM.emulatesBiases() && !tCov.emulatesBiases());
 	NNTL_ASSERT(A.cols_no_bias() == tDM.cols() && A.rows() == tDM.rows());
@@ -165,7 +165,7 @@ template<bool bLowerTriangl, typename iMathT>
 void dLoss_deCov_ET(const nntl::math::smatrix<typename iMathT::real_t>& A
 	, nntl::math::smatrix<typename iMathT::real_t>& dL
 	, nntl::math::smatrix<typename iMathT::real_t>& tDM
-	, nntl::math::smatrix<typename iMathT::real_t>& tCov, std::vector<typename iMathT::real_t>& vMean, iMathT& iM)noexcept
+	, nntl::math::smatrix<typename iMathT::real_t>& tCov, ::std::vector<typename iMathT::real_t>& vMean, iMathT& iM)noexcept
 {
 	NNTL_ASSERT(!tDM.emulatesBiases() && !tCov.emulatesBiases() && !dL.emulatesBiases());
 	NNTL_ASSERT(A.cols_no_bias() == tDM.cols() && A.rows() == tDM.rows() && tDM.size() == dL.size());

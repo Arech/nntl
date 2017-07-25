@@ -141,8 +141,8 @@ namespace nntl_supp {
 		// If readInto_t == nntl::train_data, then all X data will be created with emulateBiases() feature and bMakeMtxBiased param will be ignored
 		template <typename readInto_t>
 		const ErrorCode read(const char* fname, readInto_t& dest) {
-			static_assert(std::is_same<train_data<typename readInto_t::value_type>, readInto_t>::value
-				|| std::is_same<smatrix<typename readInto_t::value_type>, readInto_t>::value,
+			static_assert(::std::is_same<train_data<typename readInto_t::value_type>, readInto_t>::value
+				|| ::std::is_same<smatrix<typename readInto_t::value_type>, readInto_t>::value,
 				"Only nntl::train_data or nntl::train_data::mtx_t is supported as readInto_t template parameter");
 
 			FILE* fp=nullptr;
@@ -201,11 +201,11 @@ namespace nntl_supp {
 				const auto err = _read_field_entry(fp, m, fieldId, true);
 				if (ErrorCode::Success != err) return err;
 				if (!mtxs[fieldId].empty())  return _set_last_error(ErrorCode::FieldHasBeenRead);
-				mtxs[fieldId] = std::move(m);
+				mtxs[fieldId] = ::std::move(m);
 			}
 			
-			if (!dest.absorb(std::move(mtxs[_root_members::train_x]), std::move(mtxs[_root_members::train_y])
-				, std::move(mtxs[_root_members::test_x]), std::move(mtxs[_root_members::test_y])))
+			if (!dest.absorb(::std::move(mtxs[_root_members::train_x]), ::std::move(mtxs[_root_members::train_y])
+				, ::std::move(mtxs[_root_members::test_x]), ::std::move(mtxs[_root_members::test_y])))
 			{
 				return _set_last_error(ErrorCode::FailedToMakeTDOutOfReadData);
 			}
@@ -301,11 +301,11 @@ namespace nntl_supp {
 		}*/
 
 		template <typename readInto_t>
-		typename std::enable_if_t< std::is_same<smatrix<typename readInto_t::value_type>, readInto_t>::value, bool> elements_count_correct(decltype(bin_file::HEADER::wFieldsCount) cnt)const noexcept {
+		typename ::std::enable_if_t< ::std::is_same<smatrix<typename readInto_t::value_type>, readInto_t>::value, bool> elements_count_correct(decltype(bin_file::HEADER::wFieldsCount) cnt)const noexcept {
 			return 1 == cnt;
 		}
 		template <typename readInto_t>
-		typename std::enable_if_t< std::is_same<train_data<typename readInto_t::value_type>, readInto_t>::value, bool> elements_count_correct(decltype(bin_file::HEADER::wFieldsCount) cnt)const noexcept {
+		typename ::std::enable_if_t< ::std::is_same<train_data<typename readInto_t::value_type>, readInto_t>::value, bool> elements_count_correct(decltype(bin_file::HEADER::wFieldsCount) cnt)const noexcept {
 			return 4 == cnt;
 		}
 

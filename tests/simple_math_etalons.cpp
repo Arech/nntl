@@ -160,7 +160,7 @@ void mrwMax_ET(const realmtx_t& m, real_t* pMax, vec_len_t* pColIdxs) noexcept {
 
 	const auto rm = m.rows(), cm = m.cols();
 	for (vec_len_t r = 0; r < rm; ++r) {
-		auto mn = std::numeric_limits<real_t>::lowest();
+		auto mn = ::std::numeric_limits<real_t>::lowest();
 		vec_len_t mi = 0;
 		for (vec_len_t c = 0; c < cm; ++c) {
 			const auto v = m.get(r, c);
@@ -202,7 +202,7 @@ void mCloneCols_ET(const realmtx_t& srcCols, realmtx_t& dest, const vec_len_t*co
 	NNTL_ASSERT(!srcCols.empty() && !dest.empty());
 	NNTL_ASSERT(pColSpec && srcCols.cols());
 	NNTL_ASSERT(srcCols.rows() == dest.rows());
-	NNTL_ASSERT(dest.cols() == std::accumulate(pColSpec, pColSpec + srcCols.cols(), vec_len_t(0)));
+	NNTL_ASSERT(dest.cols() == ::std::accumulate(pColSpec, pColSpec + srcCols.cols(), vec_len_t(0)));
 
 	auto pSrc = srcCols.data();
 	auto pDest = dest.data();

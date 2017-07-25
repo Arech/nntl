@@ -50,8 +50,8 @@ namespace utils {
 		NNTL_TYPEDEFS_SELF();
 
 	protected:
-		typedef std::forward_list<setts_t> layer_setts_keeper_t;
-		typedef std::map<layer_index_t, const setts_t*> layer_setts_map_t;
+		typedef ::std::forward_list<setts_t> layer_setts_keeper_t;
+		typedef ::std::map<layer_index_t, const setts_t*> layer_setts_map_t;
 
 	protected:
 		layer_setts_keeper_t m_keeper;
@@ -62,7 +62,7 @@ namespace utils {
 		~layer_settings()noexcept{}
 		template<typename ST>
 		layer_settings(ST&& def)noexcept {
-			m_keeper.push_front(std::forward<ST>(def));
+			m_keeper.push_front(::std::forward<ST>(def));
 		}
 		layer_settings()noexcept {
 			m_keeper.emplace_front(setts_t());
@@ -76,7 +76,7 @@ namespace utils {
 		self_ref_t set_default(ST&& def)noexcept {
 			if (!m_keeper.empty())
 				m_keeper.pop_front();
-			m_keeper.push_front(std::forward<ST>(def));
+			m_keeper.push_front(::std::forward<ST>(def));
 		}
 
 		const setts_t& get(const layer_index_t& idx)const noexcept {
@@ -91,13 +91,13 @@ namespace utils {
 			NNTL_ASSERT(!m_keeper.empty());
 			NNTL_ASSERT(0 == m_map.count(idx));
 
-			m_keeper.insert_after(m_keeper.begin(), std::forward<ST>(sett));
-			m_map[idx] = &(*std::next(m_keeper.begin()));
+			m_keeper.insert_after(m_keeper.begin(), ::std::forward<ST>(sett));
+			m_map[idx] = &(*::std::next(m_keeper.begin()));
 			return *this;
 		}
 
 		template<typename LIdxsSeqT, typename ST>
-		std::enable_if_t<std::is_same<layer_index_t, std::remove_cv_t<typename LIdxsSeqT::value_type>>::value, self_ref_t>
+		::std::enable_if_t<::std::is_same<layer_index_t, ::std::remove_cv_t<typename LIdxsSeqT::value_type>>::value, self_ref_t>
 			add(const LIdxsSeqT& idxsSeq, ST&& sett)noexcept
 		{
 			NNTL_ASSERT(!m_keeper.empty());
@@ -106,8 +106,8 @@ namespace utils {
 				NNTL_ASSERT(0 == m_map.count(i));
 			}
 #endif // NNTL_DEBUG
-			m_keeper.insert_after(m_keeper.begin(), std::forward<ST>(sett));
-			const setts_t* pSett = &(*std::next(m_keeper.begin()));
+			m_keeper.insert_after(m_keeper.begin(), ::std::forward<ST>(sett));
+			const setts_t* pSett = &(*::std::next(m_keeper.begin()));
 			for (const auto& i : idxsSeq) {
 				m_map[i] = pSett;
 			}

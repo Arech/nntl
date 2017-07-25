@@ -44,7 +44,7 @@ int __cdecl main(int argc, char **argv)
 	::testing::InitGoogleTest(&argc, argv);
 
 	int r = RUN_ALL_TESTS();
-	//std::cin.ignore();
+	//::std::cin.ignore();
 	return r;
 }
 

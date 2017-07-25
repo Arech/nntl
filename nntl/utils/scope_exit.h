@@ -36,16 +36,16 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 namespace nntl {
 namespace utils {
 
-	//#TODO can we get rid of std::function here?
+	//#TODO can we get rid of ::std::function here?
 	struct scope_exit {
-		//scope_exit(std::function<void(void)> f) : f_(f) {}
+		//scope_exit(::std::function<void(void)> f) : f_(f) {}
 
 		template<typename FuncF>
-		scope_exit(FuncF&& f) : f_(std::forward<FuncF>(f)) {}
+		scope_exit(FuncF&& f) : f_(::std::forward<FuncF>(f)) {}
 
 		~scope_exit(void) { f_(); }
 	private:
-		std::function<void(void)> f_;
+		::std::function<void(void)> f_;
 	};
 
 }

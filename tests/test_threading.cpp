@@ -128,7 +128,7 @@ TEST(TestThreading, StdBasics) {
 #ifndef TESTS_SKIP_THREADING_PERFS
 
 TEST(TestThreading, PerfComparision) {
-	using namespace std::chrono;
+	using namespace ::std::chrono;
 
 	typedef math::smatrix_td::numel_cnt_t numel_cnt_t;
 	STDCOUTL("The test may require a few seconds to complete. Define TESTS_SKIP_THREADING_PERFS to skip.");
@@ -145,7 +145,7 @@ TEST(TestThreading, PerfComparision) {
 		thr wint;
 		//v is used to make sure compiler doesn't optimize away all machinery. Also it almost doesn't change time ratio between
 		//WinQDU and Std in debug and release and almost doesn't change absolute times in release.
-		std::atomic_ptrdiff_t v = 0, v2 = 0;
+		::std::atomic_ptrdiff_t v = 0, v2 = 0;
 		nanoseconds diff(0), diffNE(0);
 
 		for (uint64_t i = 0; i < maxreps; ++i) {
@@ -171,7 +171,7 @@ TEST(TestThreading, PerfComparision) {
 		typedef threads::Std<real_t, numel_cnt_t> thr;
 		typedef thr::par_range_t par_range_t;
 		thr stdt;
-		std::atomic_ptrdiff_t v = 0;
+		::std::atomic_ptrdiff_t v = 0;
 
 		auto bt = steady_clock::now();
 		for (uint64_t i = 0; i < maxreps; ++i) {
@@ -184,7 +184,7 @@ TEST(TestThreading, PerfComparision) {
 	}
 	
 
-	STDCOUTL("threads::WinQDU  is " << std::setprecision(3) << tStd/tWinQDU << " times faster than threads::Std");
+	STDCOUTL("threads::WinQDU  is " << ::std::setprecision(3) << tStd/tWinQDU << " times faster than threads::Std");
 }
 
 #endif // !TESTS_SKIP_THREADING_PERFS
@@ -205,7 +205,7 @@ void threading_delay_test(TT& t) {
 	rng::CStd<real_t> r;
 	for (uint64_t i = 0; i < maxreps; ++i) {
 		t.run([=, &r](const TT::par_range_t&) {
-			std::this_thread::sleep_for(std::chrono::microseconds(r.gen_i(max_mks)));
+			::std::this_thread::sleep_for(::std::chrono::microseconds(r.gen_i(max_mks)));
 		}, 100000000);
 	}
 }

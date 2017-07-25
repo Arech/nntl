@@ -117,14 +117,14 @@ void test_mcwSub_ip_corr(vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 	constexpr unsigned testCorrRepCnt = TEST_CORRECTN_REPEATS_COUNT;
 	realmtx_t A(rowsCnt, colsCnt), A2(rowsCnt, colsCnt), A3(rowsCnt, colsCnt);;
 	ASSERT_TRUE(!A.isAllocationFailed() && !A2.isAllocationFailed() && !A3.isAllocationFailed());
-	std::vector<real_t> vVec(colsCnt), vVec2(colsCnt);
+	::std::vector<real_t> vVec(colsCnt), vVec2(colsCnt);
 
 	d_interfaces::iRng_t rg;
 	rg.set_ithreads(iM.ithreads());
 	for (unsigned rr = 0; rr < testCorrRepCnt; ++rr) {
 		rg.gen_matrix(A, 10); rg.gen_vector(&vVec[0], colsCnt, real_t(5));
 		A.clone_to(A2); A.clone_to(A3);
-		std::copy(vVec.cbegin(), vVec.cend(), vVec2.begin());
+		::std::copy(vVec.cbegin(), vVec.cend(), vVec2.begin());
 
 		mcwSub_ip_ET(A, &vVec[0]);
 		ASSERT_VECTOR_EQ(vVec, vVec2, "_ET changed const source vVec!");
@@ -174,7 +174,7 @@ void test_mcwMean_corr(vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 	constexpr unsigned testCorrRepCnt = TEST_CORRECTN_REPEATS_COUNT;
 	realmtx_t A(rowsCnt, colsCnt), A2(rowsCnt, colsCnt);
 	ASSERT_TRUE(!A.isAllocationFailed() && !A2.isAllocationFailed());
-	std::vector<real_t> vMeanET(colsCnt), vMean(colsCnt);
+	::std::vector<real_t> vMeanET(colsCnt), vMean(colsCnt);
 
 	d_interfaces::iRng_t rg;
 	rg.set_ithreads(iM.ithreads());
@@ -535,7 +535,7 @@ void test_mCloneCols_corr(vec_len_t srcRowsCnt, vec_len_t srcColsCnt, vec_len_t 
 	constexpr unsigned testCorrRepCnt = TEST_CORRECTN_REPEATS_COUNT;
 	realmtx_t src(srcRowsCnt, srcColsCnt);
 	ASSERT_TRUE(!src.isAllocationFailed());
-	std::vector<vec_len_t> colSpec(srcColsCnt);
+	::std::vector<vec_len_t> colSpec(srcColsCnt);
 	
 	d_interfaces::iRng_t rg;
 	rg.set_ithreads(iM.ithreads());
@@ -634,7 +634,7 @@ void test_mrwDivideByVec_corr(vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 	constexpr unsigned testCorrRepCnt = TEST_CORRECTN_REPEATS_COUNT;
 	realmtx_t A(rowsCnt, colsCnt), A2(rowsCnt, colsCnt), A3(rowsCnt, colsCnt);
 	ASSERT_TRUE(!A.isAllocationFailed() && !A2.isAllocationFailed() && !A3.isAllocationFailed());
-	std::vector<real_t> vDiv(rowsCnt);
+	::std::vector<real_t> vDiv(rowsCnt);
 
 	d_interfaces::iRng_t rg;
 	rg.set_ithreads(iM.ithreads());
@@ -690,7 +690,7 @@ void test_mrwMulByVec_corr(vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 	constexpr unsigned testCorrRepCnt = TEST_CORRECTN_REPEATS_COUNT;
 	realmtx_t A(rowsCnt, colsCnt), A2(rowsCnt, colsCnt), A3(rowsCnt, colsCnt);
 	ASSERT_TRUE(!A.isAllocationFailed() && !A2.isAllocationFailed() && !A3.isAllocationFailed());
-	std::vector<real_t> vMul(rowsCnt);
+	::std::vector<real_t> vMul(rowsCnt);
 
 	d_interfaces::iRng_t rg;
 	rg.set_ithreads(iM.ithreads());
@@ -743,7 +743,7 @@ TEST(TestSMath, mrwMulByVec) {
 //#TODO this test might fail _mt() checks when identical source values are processed by different threads.
 //(they may return different indexes). It shouldn't be an issue for nntl, however it may annoy a user...
 void test_mrwIdxsOfMaxCorrectness(vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
-	typedef std::vector<realmtx_t::vec_len_t> vec_t;
+	typedef ::std::vector<realmtx_t::vec_len_t> vec_t;
 	MTXSIZE_SCOPED_TRACE(rowsCnt, colsCnt, "mrwIdxsOfMax");
 	constexpr unsigned testCorrRepCnt = TEST_CORRECTN_REPEATS_COUNT;
 	realmtx_t A(rowsCnt, colsCnt);
@@ -759,41 +759,41 @@ void test_mrwIdxsOfMaxCorrectness(vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 		rg.gen_matrix(A, 1000000);
 		mrwMax_ET(A, nullptr, &vec_et[0]);
 
-		std::fill(vec_test.begin(), vec_test.end(), vec_t::value_type(-1));
+		::std::fill(vec_test.begin(), vec_test.end(), vec_t::value_type(-1));
 		iM.mrwIdxsOfMax_st_cw(A, &vec_test[0]);
 		ASSERT_EQ(vec_et, vec_test) << "st_cw";
 		
-		std::fill(vec_test.begin(), vec_test.end(), vec_t::value_type(-1));
+		::std::fill(vec_test.begin(), vec_test.end(), vec_t::value_type(-1));
 		iM.mrwIdxsOfMax_st_rw(A, &vec_test[0]);
 		ASSERT_EQ(vec_et, vec_test) << "st_rw";
 
-		std::fill(vec_test.begin(), vec_test.end(), vec_t::value_type(-1));
+		::std::fill(vec_test.begin(), vec_test.end(), vec_t::value_type(-1));
 		iM.mrwIdxsOfMax_st_rw_small(A, &vec_test[0]);
 		ASSERT_EQ(vec_et, vec_test) << "st_rw_small";
 
-		std::fill(vec_test.begin(), vec_test.end(), vec_t::value_type(-1));
+		::std::fill(vec_test.begin(), vec_test.end(), vec_t::value_type(-1));
 		iM.mrwIdxsOfMax_st(A, &vec_test[0]);
 		ASSERT_EQ(vec_et, vec_test) << "st";
 
 		if (colsCnt > SMath_t::Thresholds_t::mrwIdxsOfMax_ColsPerThread) {
-			std::fill(vec_test.begin(), vec_test.end(), vec_t::value_type(-1));
+			::std::fill(vec_test.begin(), vec_test.end(), vec_t::value_type(-1));
 			iM.mrwIdxsOfMax_mt_cw(A, &vec_test[0]);
 			ASSERT_EQ(vec_et, vec_test) << "mt_cw";
 
-			std::fill(vec_test.begin(), vec_test.end(), vec_t::value_type(-1));
+			::std::fill(vec_test.begin(), vec_test.end(), vec_t::value_type(-1));
 			iM.mrwIdxsOfMax_mt_cw_small(A, &vec_test[0]);
 			ASSERT_EQ(vec_et, vec_test) << "mt_cw_small";
 		}
 
-		std::fill(vec_test.begin(), vec_test.end(), vec_t::value_type(-1));
+		::std::fill(vec_test.begin(), vec_test.end(), vec_t::value_type(-1));
 		iM.mrwIdxsOfMax_mt_rw(A, &vec_test[0]);
 		ASSERT_EQ(vec_et, vec_test) << "mt_rw";
 
-		std::fill(vec_test.begin(), vec_test.end(), vec_t::value_type(-1));
+		::std::fill(vec_test.begin(), vec_test.end(), vec_t::value_type(-1));
 		iM.mrwIdxsOfMax_mt(A, &vec_test[0]);
 		ASSERT_EQ(vec_et, vec_test) << "mt";
 
-		std::fill(vec_test.begin(), vec_test.end(), vec_t::value_type(-1));
+		::std::fill(vec_test.begin(), vec_test.end(), vec_t::value_type(-1));
 		iM.mrwIdxsOfMax(A, &vec_test[0]);
 		ASSERT_EQ(vec_et, vec_test) << "()";
 	}
@@ -811,7 +811,7 @@ TEST(TestSMath, mrwIdxsOfMax) {
 //////////////////////////////////////////////////////////////////////////
 
 void test_mrwMax_corr(vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
-	typedef std::vector<real_t> vec_t;
+	typedef ::std::vector<real_t> vec_t;
 	MTXSIZE_SCOPED_TRACE(rowsCnt, colsCnt, "mrwMax");
 	constexpr unsigned testCorrRepCnt = TEST_CORRECTN_REPEATS_COUNT/2;
 	realmtx_t A(rowsCnt, colsCnt);
@@ -827,37 +827,37 @@ void test_mrwMax_corr(vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 		rg.gen_matrix(A, 1000000);
 		mrwMax_ET(A, &vec_et[0]);
 
-		std::fill(vec_test.begin(), vec_test.end(), std::numeric_limits<real_t>::lowest());
+		::std::fill(vec_test.begin(), vec_test.end(), ::std::numeric_limits<real_t>::lowest());
 		iM.mrwMax_st_cw(A, &vec_test[0]);
 		ASSERT_EQ(vec_et, vec_test) << "st_cw";
 
-		std::fill(vec_test.begin(), vec_test.end(), std::numeric_limits<real_t>::lowest());
+		::std::fill(vec_test.begin(), vec_test.end(), ::std::numeric_limits<real_t>::lowest());
 		iM.mrwMax_st_rw_small(A, &vec_test[0]);
 		ASSERT_EQ(vec_et, vec_test) << "st_rw_small";
 
-		std::fill(vec_test.begin(), vec_test.end(), std::numeric_limits<real_t>::lowest());
+		::std::fill(vec_test.begin(), vec_test.end(), ::std::numeric_limits<real_t>::lowest());
 		iM.mrwMax_st_rw(A, &vec_test[0]);
 		ASSERT_EQ(vec_et, vec_test) << "st_rw";
 
-		std::fill(vec_test.begin(), vec_test.end(), std::numeric_limits<real_t>::lowest());
+		::std::fill(vec_test.begin(), vec_test.end(), ::std::numeric_limits<real_t>::lowest());
 		iM.mrwMax_st(A, &vec_test[0]);
 		ASSERT_EQ(vec_et, vec_test) << "st";
 
 		if (colsCnt > SMath_t::Thresholds_t::mrwMax_mt_cw_ColsPerThread) {
-			std::fill(vec_test.begin(), vec_test.end(), std::numeric_limits<real_t>::lowest());
+			::std::fill(vec_test.begin(), vec_test.end(), ::std::numeric_limits<real_t>::lowest());
 			iM.mrwMax_mt_cw(A, &vec_test[0]);
 			ASSERT_EQ(vec_et, vec_test) <<"mt_cw";
 		}
 
-		std::fill(vec_test.begin(), vec_test.end(), std::numeric_limits<real_t>::lowest());
+		::std::fill(vec_test.begin(), vec_test.end(), ::std::numeric_limits<real_t>::lowest());
 		iM.mrwMax_mt_rw(A, &vec_test[0]);
 		ASSERT_EQ(vec_et, vec_test) << "mt_rw";
 
-		std::fill(vec_test.begin(), vec_test.end(), std::numeric_limits<real_t>::lowest());
+		::std::fill(vec_test.begin(), vec_test.end(), ::std::numeric_limits<real_t>::lowest());
 		iM.mrwMax_mt(A, &vec_test[0]);
 		ASSERT_EQ(vec_et, vec_test) << "mt";
 
-		std::fill(vec_test.begin(), vec_test.end(), std::numeric_limits<real_t>::lowest());
+		::std::fill(vec_test.begin(), vec_test.end(), ::std::numeric_limits<real_t>::lowest());
 		iM.mrwMax(A, &vec_test[0]);
 		ASSERT_EQ(vec_et, vec_test) <<"()";
 	}
@@ -950,7 +950,7 @@ void test_mrwSum_corr(vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 	ASSERT_TRUE(!A.isAllocationFailed());
 	iM.preinit(A.numel());
 	ASSERT_TRUE(iM.init());
-	std::vector<real_t> vec_et(rowsCnt), vec_test(rowsCnt);
+	::std::vector<real_t> vec_et(rowsCnt), vec_test(rowsCnt);
 	d_interfaces::iRng_t rg;
 	rg.set_ithreads(iM.ithreads());
 	for (unsigned rr = 0; rr < testCorrRepCnt; ++rr) {
@@ -958,36 +958,36 @@ void test_mrwSum_corr(vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 		mrwSum_ET(A, &vec_et[0]);
 
 		if (colsCnt>1) {
-			std::fill(vec_test.begin(), vec_test.end(), std::numeric_limits<real_t>::infinity());
+			::std::fill(vec_test.begin(), vec_test.end(), ::std::numeric_limits<real_t>::infinity());
 			iM.mrwSum_st_cw(A, &vec_test[0]);
 			ASSERT_VECTOR_NEAR(vec_et, vec_test, "st_cw() failed", mrwSum_EPS<real_t>::eps);
 
-			std::fill(vec_test.begin(), vec_test.end(), std::numeric_limits<real_t>::infinity());
+			::std::fill(vec_test.begin(), vec_test.end(), ::std::numeric_limits<real_t>::infinity());
 			iM.mrwSum_st_rw(A, &vec_test[0]);
 			ASSERT_VECTOR_NEAR(vec_et, vec_test, "st_rw() failed", mrwSum_EPS<real_t>::eps);
 		}
 
-		std::fill(vec_test.begin(), vec_test.end(), std::numeric_limits<real_t>::infinity());
+		::std::fill(vec_test.begin(), vec_test.end(), ::std::numeric_limits<real_t>::infinity());
 		iM.mrwSum_st(A, &vec_test[0]);
 		ASSERT_VECTOR_NEAR(vec_et, vec_test, "st() failed", mrwSum_EPS<real_t>::eps);
 
 		if (colsCnt > SMath_t::Thresholds_t::mrwSum_mt_cw_colsPerThread) {
-			std::fill(vec_test.begin(), vec_test.end(), std::numeric_limits<real_t>::infinity());
+			::std::fill(vec_test.begin(), vec_test.end(), ::std::numeric_limits<real_t>::infinity());
 			iM.mrwSum_mt_cw(A, &vec_test[0]);
 			ASSERT_VECTOR_NEAR(vec_et, vec_test, "mt_cw() failed", mrwSum_EPS<real_t>::eps);
 		}
 
 		if (colsCnt>1) {
-			std::fill(vec_test.begin(), vec_test.end(), std::numeric_limits<real_t>::infinity());
+			::std::fill(vec_test.begin(), vec_test.end(), ::std::numeric_limits<real_t>::infinity());
 			iM.mrwSum_mt_rw(A, &vec_test[0]);
 			ASSERT_VECTOR_NEAR(vec_et, vec_test, "mt_rw() failed", mrwSum_EPS<real_t>::eps);
 		}
 
-		std::fill(vec_test.begin(), vec_test.end(), std::numeric_limits<real_t>::infinity());
+		::std::fill(vec_test.begin(), vec_test.end(), ::std::numeric_limits<real_t>::infinity());
 		iM.mrwSum_mt(A, &vec_test[0]);
 		ASSERT_VECTOR_NEAR(vec_et, vec_test, "mt() failed", mrwSum_EPS<real_t>::eps);
 
-		std::fill(vec_test.begin(), vec_test.end(), std::numeric_limits<real_t>::infinity());
+		::std::fill(vec_test.begin(), vec_test.end(), ::std::numeric_limits<real_t>::infinity());
 		iM.mrwSum(A, &vec_test[0]);
 		ASSERT_VECTOR_NEAR(vec_et, vec_test, "() failed", mrwSum_EPS<real_t>::eps);
 	}
@@ -1011,7 +1011,7 @@ void test_mrwOr_corr(vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 	ASSERT_TRUE(!A.isAllocationFailed());
 	iM.preinit(A.numel());
 	ASSERT_TRUE(iM.init());
-	std::vector<real_t> vec_et(rowsCnt), vec_test(rowsCnt);
+	::std::vector<real_t> vec_et(rowsCnt), vec_test(rowsCnt);
 	d_interfaces::iRng_t rg;
 	rg.set_ithreads(iM.ithreads());
 	const real_t binFrac = real_t(.5);
@@ -1023,36 +1023,36 @@ void test_mrwOr_corr(vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 		mrwBinaryOR_ET(A, &vec_et[0]);
 
 		if (colsCnt > 1) {
-			std::fill(vec_test.begin(), vec_test.end(), std::numeric_limits<real_t>::infinity());
+			::std::fill(vec_test.begin(), vec_test.end(), ::std::numeric_limits<real_t>::infinity());
 			iM.mrwOr_st_cw(A, &vec_test[0]);
 			_ASSERT_VECTOR_EQ(vec_et, vec_test, "st_cw() failed");
 
-			std::fill(vec_test.begin(), vec_test.end(), std::numeric_limits<real_t>::infinity());
+			::std::fill(vec_test.begin(), vec_test.end(), ::std::numeric_limits<real_t>::infinity());
 			iM.mrwOr_st_rw(A, &vec_test[0]);
 			_ASSERT_VECTOR_EQ(vec_et, vec_test, "st_rw() failed");
 		}
 
-		std::fill(vec_test.begin(), vec_test.end(), std::numeric_limits<real_t>::infinity());
+		::std::fill(vec_test.begin(), vec_test.end(), ::std::numeric_limits<real_t>::infinity());
 		iM.mrwOr_st(A, &vec_test[0]);
 		_ASSERT_VECTOR_EQ(vec_et, vec_test, "st() failed");
 
 		if (colsCnt > SMath_t::Thresholds_t::mrwBinaryOR_mt_cw_colsPerThread) {
-			std::fill(vec_test.begin(), vec_test.end(), std::numeric_limits<real_t>::infinity());
+			::std::fill(vec_test.begin(), vec_test.end(), ::std::numeric_limits<real_t>::infinity());
 			iM.mrwOr_mt_cw(A, &vec_test[0]);
 			_ASSERT_VECTOR_EQ(vec_et, vec_test, "mt_cw() failed");
 		}
 
 		if (colsCnt > 1) {
-			std::fill(vec_test.begin(), vec_test.end(), std::numeric_limits<real_t>::infinity());
+			::std::fill(vec_test.begin(), vec_test.end(), ::std::numeric_limits<real_t>::infinity());
 			iM.mrwOr_mt_rw(A, &vec_test[0]);
 			_ASSERT_VECTOR_EQ(vec_et, vec_test, "mt_rw() failed");
 		}
 
-		std::fill(vec_test.begin(), vec_test.end(), std::numeric_limits<real_t>::infinity());
+		::std::fill(vec_test.begin(), vec_test.end(), ::std::numeric_limits<real_t>::infinity());
 		iM.mrwOr_mt(A, &vec_test[0]);
 		_ASSERT_VECTOR_EQ(vec_et, vec_test, "mt() failed");
 
-		std::fill(vec_test.begin(), vec_test.end(), std::numeric_limits<real_t>::infinity());
+		::std::fill(vec_test.begin(), vec_test.end(), ::std::numeric_limits<real_t>::infinity());
 		iM.mrwOr(A, &vec_test[0]);
 		_ASSERT_VECTOR_EQ(vec_et, vec_test, "() failed");
 	}
