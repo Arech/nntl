@@ -63,7 +63,7 @@ I wouldn't state the NNTL is the fastest CPU implementation of feedforward neura
   * **Nadam** and **Radam** (Timothy Dozat, ICLR 2016, "Incorporating Nesterov Momentum into Adam", https://github.com/tdozat/Optimization)
 * Classical **momentum** (a.k.a. Polyak's momentum) and **Nesterov momentum** (a.k.a. Nesterov Accelerated Gradient or NAG for short)
 * Regularizers:
-  * **Dropout** (actually, it's so called "inverted dropout" where activations is scaled only at a training time; during a testing activations/weights with and without dropout remains the same).
+  * **Dropout** (actually, it's so called "inverted dropout" where activations is scaled only at a training time; during a testing activations/weights with and without dropout remains the same) and **Alpha Dropout** (ArXiv:1706.02515 "Self-Normalizing Neural Networks", by Günter Klambauer et al.)
   * **L1** and **L2** regularizers is applicable to weights and activation values. Custom regularizers are easy to add by implementing loss_addendum::_i_loss_addendum interface.
   * **DeCov** activations values regularizer is implemented almost as described by Michael Cogswell et.al in the paper "Reducing Overfitting in Deep Neural Networks by Decorrelating Representations", 2015, arXiv:1511.06068. The only difference is in that the NNTL uses a correct derivative of the loss function (which is twice bigger than the published derivative).
     * One may apply a single **DeCov** regularizer to a number of layers simultaneously to reduce covariance between these layers activations values. Just use layer_penalized_activations with DeCov over a horizontal pack of layers.
