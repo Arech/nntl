@@ -2489,15 +2489,15 @@ namespace math {
 		//////////////////////////////////////////////////////////////////////////
 		//////////////////////////////////////////////////////////////////////////
 		// y = (x/(a+|x|)), dy/dx = (1-|y|)^2 /a, parameter 'a' controls the slope of the curve
-		void softsign(realmtx_t& srcdest, const real_t& a) noexcept {
+		void softsign_uc(realmtx_t& srcdest, const real_t& a) noexcept {
 			if (srcdest.numel_no_bias() < Thresholds_t::softsign) {
-				get_self().softsign_st(srcdest, a);
-			} else get_self().softsign_mt(srcdest, a);
+				get_self().softsign_uc_st(srcdest, a);
+			} else get_self().softsign_uc_mt(srcdest, a);
 		}
-		void softsign_st(realmtx_t& srcdest, const real_t& a, const elms_range*const pER = nullptr) const noexcept {
-			get_self()._isoftsign_st(srcdest, a, pER ? *pER : elms_range(0, srcdest.numel_no_bias()));
+		void softsign_uc_st(realmtx_t& srcdest, const real_t& a, const elms_range*const pER = nullptr) const noexcept {
+			get_self()._isoftsign_uc_st(srcdest, a, pER ? *pER : elms_range(0, srcdest.numel_no_bias()));
 		}
-		static void _isoftsign_st(realmtx_t& srcdest, const real_t a, const elms_range& er) noexcept {
+		static void _isoftsign_uc_st(realmtx_t& srcdest, const real_t a, const elms_range& er) noexcept {
 			NNTL_ASSERT(!srcdest.empty());
 			NNTL_ASSERT(a > real_t(0.0));
 
@@ -2505,27 +2505,57 @@ namespace math {
 			const auto pVE = pV + er.totalElements();
 			while (pV != pVE) {
 				const auto v = *pV;
-				*pV++ = v/(a+::std::abs(v));
+				*pV++ = v / (a + ::std::abs(v));
 			}
 		}
-		void softsign_mt(realmtx_t& srcdest, const real_t& a) noexcept {
+		void softsign_uc_mt(realmtx_t& srcdest, const real_t& a) noexcept {
 			NNTL_ASSERT(!srcdest.empty());
 			NNTL_ASSERT(a > real_t(0.0));
 			m_threads.run([&srcdest, &a, this](const par_range_t& r) {
-				get_self()._isoftsign_st(srcdest, a, elms_range(r));
+				get_self()._isoftsign_uc_st(srcdest, a, elms_range(r));
+			}, srcdest.numel_no_bias());
+		}
+		//////////////////////////////////////////////////////////////////////////
+		// y = c*(x/(a+|x|)), dy/dx = (c-|y|)^2 /(c*a), parameter 'a' controls the slope of the curve, c- amplitude
+		void softsign(realmtx_t& srcdest, const real_t a, const real_t c) noexcept {
+			if (srcdest.numel_no_bias() < Thresholds_t::softsign) {
+				get_self().softsign_st(srcdest, a, c);
+			} else get_self().softsign_mt(srcdest, a, c);
+		}
+		void softsign_st(realmtx_t& srcdest, const real_t a, const real_t c, const elms_range*const pER = nullptr) const noexcept {
+			get_self()._isoftsign_st(srcdest, a, c, pER ? *pER : elms_range(0, srcdest.numel_no_bias()));
+		}
+		static void _isoftsign_st(realmtx_t& srcdest, const real_t a, const real_t c, const elms_range& er) noexcept {
+			NNTL_ASSERT(!srcdest.empty());
+			NNTL_ASSERT(a > real_t(0.0));
+			NNTL_ASSERT(c > real_t(0.0));
+
+			auto pV = srcdest.data() + er.elmBegin;
+			const auto pVE = pV + er.totalElements();
+			while (pV != pVE) {
+				const auto v = *pV;
+				*pV++ = (c*v) / (a + ::std::abs(v));
+			}
+		}
+		void softsign_mt(realmtx_t& srcdest, const real_t a, const real_t c) noexcept {
+			NNTL_ASSERT(!srcdest.empty());
+			NNTL_ASSERT(a > real_t(0.0));
+			NNTL_ASSERT(c > real_t(0.0));
+			m_threads.run([&srcdest, a, c, this](const par_range_t& r) {
+				get_self()._isoftsign_st(srcdest, a, c, elms_range(r));
 			}, srcdest.numel_no_bias());
 		}
 		//////////////////////////////////////////////////////////////////////////
 		//dy / dx = (1 - |y|)^2
-		void dsoftsign_ua(realmtx_t& f_df) noexcept {
-			if (f_df.numel() < Thresholds_t::dsoftsign_ua) {
-				get_self().dsoftsign_ua_st(f_df);
-			} else get_self().dsoftsign_ua_mt(f_df);
+		void dsoftsign_ua_uc(realmtx_t& f_df) noexcept {
+			if (f_df.numel() < Thresholds_t::dsoftsign_ua_uc) {
+				get_self().dsoftsign_ua_uc_st(f_df);
+			} else get_self().dsoftsign_ua_uc_mt(f_df);
 		}
-		void dsoftsign_ua_st(realmtx_t& f_df, const elms_range*const pER = nullptr) const noexcept {
-			get_self()._idsoftsign_ua_st(f_df, pER ? *pER : elms_range(f_df));
+		void dsoftsign_ua_uc_st(realmtx_t& f_df, const elms_range*const pER = nullptr) const noexcept {
+			get_self()._idsoftsign_ua_uc_st(f_df, pER ? *pER : elms_range(f_df));
 		}
-		static void _idsoftsign_ua_st(realmtx_t& f_df, const elms_range& er) noexcept {
+		static void _idsoftsign_ua_uc_st(realmtx_t& f_df, const elms_range& er) noexcept {
 			NNTL_ASSERT(!f_df.empty());
 			auto ptrDF = f_df.data() + er.elmBegin;
 			const auto ptrDFE = ptrDF + er.totalElements();
@@ -2536,40 +2566,42 @@ namespace math {
 				*ptrDF++ = s*s;
 			}
 		}
-		void dsoftsign_ua_mt(realmtx_t& f_df) noexcept {
+		void dsoftsign_ua_uc_mt(realmtx_t& f_df) noexcept {
 			NNTL_ASSERT(!f_df.empty());
 			m_threads.run([&f_df, this](const par_range_t& r) {
-				get_self()._idsoftsign_ua_st(f_df, elms_range(r));
+				get_self()._idsoftsign_ua_uc_st(f_df, elms_range(r));
 			}, f_df.numel());
 		}
 		//////////////////////////////////////////////////////////////////////////
-		//dy/dx = (1-|y|)^2 /a
-		void dsoftsign(realmtx_t& f_df, const real_t& a) noexcept {
+		//dy/dx = (c-|y|)^2 /(c*a)
+		void dsoftsign(realmtx_t& f_df, const real_t a, const real_t c) noexcept {
 			if (f_df.numel() < Thresholds_t::dsoftsign) {
-				get_self().dsoftsign_st(f_df, a);
-			} else get_self().dsoftsign_mt(f_df, a);
+				get_self().dsoftsign_st(f_df, a, c);
+			} else get_self().dsoftsign_mt(f_df, a, c);
 		}
-		void dsoftsign_st(realmtx_t& f_df, const real_t& a, const elms_range*const pER = nullptr) const noexcept {
-			get_self()._idsoftsign_st(f_df, a, pER ? *pER : elms_range(f_df));
+		void dsoftsign_st(realmtx_t& f_df, const real_t a, const real_t c, const elms_range*const pER = nullptr) const noexcept {
+			get_self()._idsoftsign_st(f_df, a, c, pER ? *pER : elms_range(f_df));
 		}
-		static void _idsoftsign_st(realmtx_t& f_df, const real_t a, const elms_range& er) noexcept {
+		static void _idsoftsign_st(realmtx_t& f_df, const real_t a, const real_t c, const elms_range& er) noexcept {
 			NNTL_ASSERT(a > real_t(0.0));
+			NNTL_ASSERT(c > real_t(0.0));
 			NNTL_ASSERT(!f_df.empty());
-			const auto ainv = real_t(1.) / a;
+			const auto mult = real_t(1.) / (c*a);
 			auto ptrDF = f_df.data() + er.elmBegin;
 			const auto ptrDFE = ptrDF + er.totalElements();
 			while (ptrDF != ptrDFE) {
 				const auto v = *ptrDF;
-				NNTL_ASSERT(real_t(-1.) <= v && v <= real_t(1.));
-				const auto s = real_t(1.) - ::std::abs(v);
-				*ptrDF++ = ainv*s*s;
+				NNTL_ASSERT(real_t(-c) <= v && v <= c);
+				const auto s = c - ::std::abs(v);
+				*ptrDF++ = mult*(s*s);
 			}
 		}
-		void dsoftsign_mt(realmtx_t& f_df, const real_t& a) noexcept {
+		void dsoftsign_mt(realmtx_t& f_df, const real_t a, const real_t c) noexcept {
 			NNTL_ASSERT(!f_df.empty());
 			NNTL_ASSERT(a > real_t(0.0));
-			m_threads.run([&f_df, &a, this](const par_range_t& r) {
-				get_self()._idsoftsign_st(f_df, a, elms_range(r));
+			NNTL_ASSERT(c > real_t(0.0));
+			m_threads.run([&f_df, a, c, this](const par_range_t& r) {
+				get_self()._idsoftsign_st(f_df, a, c, elms_range(r));
 			}, f_df.numel());
 		}
 		//////////////////////////////////////////////////////////////////////////

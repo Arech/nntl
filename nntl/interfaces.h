@@ -46,7 +46,9 @@ namespace nntl {
 
 		typedef threads::Std<real_t, math::smatrix_td::numel_cnt_t> iThreads_t;
 
-		typedef math::MathN_mt<real_t, iThreads_t> iMath_t;
+		//_mt is deprecated. Going to make run-time profiler sometime
+		//typedef math::MathN_mt<real_t, iThreads_t> iMath_t;
+		typedef math::MathN<real_t, iThreads_t> iMath_t;
 
 		typedef rng::AFRand_mt<real_t, AFog::CRandomSFMT0, iThreads_t> iRng_t;
 	};

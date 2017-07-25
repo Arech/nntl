@@ -376,34 +376,43 @@ TEST(TestMathNThr, DLogLogU_nbn_nbp) {
 	}
 }
 //////////////////////////////////////////////////////////////////////////
-
 TEST(TestMathNThr, SoftSign) {
-	constexpr real_t alpha = real_t(2.);
-	const auto fst = [alpha](realmtx_t& X) { iM.softsign_st(X, alpha); };
-	const auto fmt = [alpha](realmtx_t& X) {iM.softsign_mt(X, alpha); };
-	const auto fb = [alpha](realmtx_t& X) {iM.softsign(X, alpha); };
+	constexpr real_t alpha = real_t(2.), c = real_t(1.6);
+	const auto fst = [alpha,c](realmtx_t& X) { iM.softsign_st(X, alpha,c); };
+	const auto fmt = [alpha, c](realmtx_t& X) {iM.softsign_mt(X, alpha,c); };
+	const auto fb = [alpha, c](realmtx_t& X) {iM.softsign(X, alpha,c); };
 
 	NNTL_RUN_TEST2(imath_basic_t::Thresholds_t::softsign, 10) {
 		test_f_x_perf(fst, fmt, fb, "softsign", i, 10);
 	}
 }
-TEST(TestMathNThr, DSoftSign) {
+TEST(TestMathNThr, SoftSign_uc) {
 	constexpr real_t alpha = real_t(2.);
-	const auto fst = [alpha](realmtx_t& F_DF) { iM.dsoftsign_st(F_DF, alpha); };
-	const auto fmt = [alpha](realmtx_t& F_DF) {iM.dsoftsign_mt(F_DF, alpha); };
-	const auto fb = [alpha](realmtx_t& F_DF) {iM.dsoftsign(F_DF, alpha); };
+	const auto fst = [alpha](realmtx_t& X) { iM.softsign_uc_st(X, alpha); };
+	const auto fmt = [alpha](realmtx_t& X) {iM.softsign_uc_mt(X, alpha); };
+	const auto fb = [alpha](realmtx_t& X) {iM.softsign_uc(X, alpha); };
+
+	NNTL_RUN_TEST2(imath_basic_t::Thresholds_t::softsign_uc, 10) {
+		test_f_x_perf(fst, fmt, fb, "softsign_uc", i, 10);
+	}
+}
+TEST(TestMathNThr, DSoftSign) {
+	constexpr real_t alpha = real_t(2.), c = real_t(1.6);
+	const auto fst = [alpha,c](realmtx_t& F_DF) { iM.dsoftsign_st(F_DF, alpha, c); };
+	const auto fmt = [alpha, c](realmtx_t& F_DF) {iM.dsoftsign_mt(F_DF, alpha, c); };
+	const auto fb = [alpha, c](realmtx_t& F_DF) {iM.dsoftsign(F_DF, alpha, c); };
 
 	NNTL_RUN_TEST2(imath_basic_t::Thresholds_t::dsoftsign, 10) {
 		test_f_x_perf<1000>(fst, fmt, fb, "dsoftsign", i, 10);
 	}
 }
-TEST(TestMathNThr, DSoftSign_ua) {
-	const auto fst = [](realmtx_t& F_DF) { iM.dsoftsign_ua_st(F_DF); };
-	const auto fmt = [](realmtx_t& F_DF) {iM.dsoftsign_ua_mt(F_DF); };
-	const auto fb = [](realmtx_t& F_DF) {iM.dsoftsign_ua(F_DF); };
+TEST(TestMathNThr, DSoftSign_ua_uc) {
+	const auto fst = [](realmtx_t& F_DF) { iM.dsoftsign_ua_uc_st(F_DF); };
+	const auto fmt = [](realmtx_t& F_DF) {iM.dsoftsign_ua_uc_mt(F_DF); };
+	const auto fb = [](realmtx_t& F_DF) {iM.dsoftsign_ua_uc(F_DF); };
 
-	NNTL_RUN_TEST2(imath_basic_t::Thresholds_t::dsoftsign_ua, 10) {
-		test_f_x_perf<1000>(fst, fmt, fb, "dsoftsign_ua", i, 10);
+	NNTL_RUN_TEST2(imath_basic_t::Thresholds_t::dsoftsign_ua_uc, 10) {
+		test_f_x_perf<1000>(fst, fmt, fb, "dsoftsign_ua_uc", i, 10);
 	}
 }
 TEST(TestMathNThr, SoftSigm) {

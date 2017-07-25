@@ -3363,12 +3363,12 @@ void test_softsign_corr(vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 	constexpr unsigned testCorrRepCnt = 10;
 	realmtx_t X(rowsCnt, colsCnt, true), F(rowsCnt, colsCnt, true)
 		, F_ET(rowsCnt, colsCnt, true)
-		, FUA_ET(rowsCnt, colsCnt, true);
+		, FUC_ET(rowsCnt, colsCnt, true);
 
 	ASSERT_TRUE(!X.isAllocationFailed() && !F.isAllocationFailed() && !F_ET.isAllocationFailed()
-		&& !FUA_ET.isAllocationFailed());
+		&& !FUC_ET.isAllocationFailed());
 
-	constexpr real_t ua = real_t(1), a = real_t(2);
+	constexpr real_t c = real_t(1.7), a = real_t(2.3);
 
 	d_interfaces::iRng_t rg;
 	rg.set_ithreads(iM.ithreads());
@@ -3376,31 +3376,34 @@ void test_softsign_corr(vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 		rg.gen_matrix_no_bias(X, 5);
 		ASSERT_TRUE(X.test_biases_ok());
 
-		softsign_ET(X, F_ET, a);
+		softsign_ET(X, F_ET, a, c);
 		ASSERT_TRUE(F_ET.test_biases_ok());
-		softsign_ET(X, FUA_ET, ua);
-		ASSERT_TRUE(FUA_ET.test_biases_ok());
+		softsign_ET(X, FUC_ET, a, real_t(1));
+		ASSERT_TRUE(FUC_ET.test_biases_ok());
 		
 		X.clone_to(F);
-		iM.softsign_st(F, a);
-		ASSERT_REALMTX_NEAR(F, F_ET, "softsign_st() failed", softsign_EPS<real_t>::eps);
-		X.clone_to(F);
-		iM.softsign_st(F, ua);
-		ASSERT_REALMTX_NEAR(F, FUA_ET, "softsign_st(ua) failed", softsign_EPS<real_t>::eps);
+		iM.softsign_st(F, a, c);
+		ASSERT_REALMTX_NEAR(F, F_ET, "softsign_st(ua) failed", softsign_EPS<real_t>::eps);
 
 		X.clone_to(F);
-		iM.softsign_mt(F, a);
+		iM.softsign_uc_st(F, a);
+		ASSERT_REALMTX_NEAR(F, FUC_ET, "softsign_uc_st() failed", softsign_EPS<real_t>::eps);
+
+		X.clone_to(F);
+		iM.softsign_mt(F, a, c);
 		ASSERT_REALMTX_NEAR(F, F_ET, "softsign_mt() failed", softsign_EPS<real_t>::eps);
-		X.clone_to(F);
-		iM.softsign_mt(F, ua);
-		ASSERT_REALMTX_NEAR(F, FUA_ET, "softsign_mt(ua) failed", softsign_EPS<real_t>::eps);
 
 		X.clone_to(F);
-		iM.softsign(F, a);
-		ASSERT_REALMTX_NEAR(F, F_ET, "softsign() failed", softsign_EPS<real_t>::eps);
+		iM.softsign_uc_mt(F, a);
+		ASSERT_REALMTX_NEAR(F, FUC_ET, "softsign_uc_mt() failed", softsign_EPS<real_t>::eps);
+
 		X.clone_to(F);
-		iM.softsign(F, ua);
-		ASSERT_REALMTX_NEAR(F, FUA_ET, "softsign(ua) failed", softsign_EPS<real_t>::eps);
+		iM.softsign(F, a, c);
+		ASSERT_REALMTX_NEAR(F, F_ET, "softsign() failed", softsign_EPS<real_t>::eps);
+
+		X.clone_to(F);
+		iM.softsign_uc(F, a);
+		ASSERT_REALMTX_NEAR(F, FUC_ET, "softsign_uc() failed", softsign_EPS<real_t>::eps);
 	}
 }
 TEST(TestMathN, SoftSign_family) {
@@ -3417,11 +3420,11 @@ void test_dsoftsign_corr(vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 	MTXSIZE_SCOPED_TRACE(rowsCnt, colsCnt, "test_dsoftsign_corr");
 	constexpr unsigned testCorrRepCnt = 10;
 	realmtx_t X(rowsCnt, colsCnt, true), F(rowsCnt, colsCnt, true), DF(rowsCnt, colsCnt, false)
-		, df_ET(rowsCnt, colsCnt, false), dfUA_ET(rowsCnt, colsCnt, false);
+		, df_ET(rowsCnt, colsCnt, false), dfUAUC_ET(rowsCnt, colsCnt, false);
 	ASSERT_TRUE(!X.isAllocationFailed() && !F.isAllocationFailed() && !DF.isAllocationFailed()
-		&& !df_ET.isAllocationFailed() && !dfUA_ET.isAllocationFailed());
+		&& !df_ET.isAllocationFailed() && !dfUAUC_ET.isAllocationFailed());
 
-	constexpr real_t a = real_t(2), ua = real_t(1.);
+	constexpr real_t a = real_t(2.3), c = real_t(1.7);
 
 	d_interfaces::iRng_t rg;
 	rg.set_ithreads(iM.ithreads());
@@ -3429,38 +3432,37 @@ void test_dsoftsign_corr(vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 		rg.gen_matrix_no_bias(X, 5);
 		ASSERT_TRUE(X.test_biases_ok());
 
-		dsoftsign_ET(X, df_ET, a);
-		dsoftsign_ET(X, dfUA_ET, ua);
-
-		softsign_ET(X, F, a);
+		dsoftsign_ET(X, df_ET, a, c);
+		softsign_ET(X, F, a, c);
 		ASSERT_TRUE(F.test_biases_ok());
 
 		ASSERT_TRUE(F.clone_to_no_bias(DF));
-		iM.dsoftsign_st(DF, a);
+		iM.dsoftsign_st(DF, a, c);
 		ASSERT_REALMTX_NEAR(df_ET, DF, "dsoftsign_st() failed", dsoftsign_EPS<real_t>::eps);
 
 		ASSERT_TRUE(F.clone_to_no_bias(DF));
-		iM.dsoftsign_mt(DF, a);
+		iM.dsoftsign_mt(DF, a, c);
 		ASSERT_REALMTX_NEAR(df_ET, DF, "dsoftsign_mt() failed", dsoftsign_EPS<real_t>::eps);
 
 		ASSERT_TRUE(F.clone_to_no_bias(DF));
-		iM.dsoftsign(DF, a);
+		iM.dsoftsign(DF, a, c);
 		ASSERT_REALMTX_NEAR(df_ET, DF, "dsoftsign() failed", dsoftsign_EPS<real_t>::eps);
 
-		softsign_ET(X, F, ua);
+		dsoftsign_ET(X, dfUAUC_ET, real_t(1), real_t(1));
+		softsign_ET(X, F, real_t(1), real_t(1));
 		ASSERT_TRUE(F.test_biases_ok());
 
 		ASSERT_TRUE(F.clone_to_no_bias(DF));
-		iM.dsoftsign_ua_st(DF);
-		ASSERT_REALMTX_NEAR(dfUA_ET, DF, "dsoftsign_ua_st() failed", dsoftsign_EPS<real_t>::eps);
+		iM.dsoftsign_ua_uc_st(DF);
+		ASSERT_REALMTX_NEAR(dfUAUC_ET, DF, "dsoftsign_ua_uc_st() failed", dsoftsign_EPS<real_t>::eps);
 
 		ASSERT_TRUE(F.clone_to_no_bias(DF));
-		iM.dsoftsign_ua_mt(DF);
-		ASSERT_REALMTX_NEAR(dfUA_ET, DF, "dsoftsign_ua_mt() failed", dsoftsign_EPS<real_t>::eps);
+		iM.dsoftsign_ua_uc_mt(DF);
+		ASSERT_REALMTX_NEAR(dfUAUC_ET, DF, "dsoftsign_ua_uc_mt() failed", dsoftsign_EPS<real_t>::eps);
 
 		ASSERT_TRUE(F.clone_to_no_bias(DF));
-		iM.dsoftsign_ua(DF);
-		ASSERT_REALMTX_NEAR(dfUA_ET, DF, "dsoftsign_ua() failed", dsoftsign_EPS<real_t>::eps);
+		iM.dsoftsign_ua_uc(DF);
+		ASSERT_REALMTX_NEAR(dfUAUC_ET, DF, "dsoftsign_ua_uc() failed", dsoftsign_EPS<real_t>::eps);
 	}
 }
 TEST(TestMathN, DSoftSign_family) {

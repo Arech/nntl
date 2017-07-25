@@ -37,6 +37,8 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 // #todo this is probably not an acceptable solution at all. It offers no real benefits over a plain MathN class and probably should be removed
 
+//DEPRECATED
+
 #include "mathn.h"
 
 namespace nntl {
@@ -364,15 +366,15 @@ namespace math {
 		}
 
 		//////////////////////////////////////////////////////////////////////////
-		void softsign(realmtx_t& srcdest, const real_t& a) noexcept {
-			softsign_mt(srcdest, a);
+		/*void softsign_uc(realmtx_t& srcdest, const real_t& a) noexcept {
+			softsign_uc_mt(srcdest, a);
 		}
-		void dsoftsign_ua(realmtx_t& f_df) noexcept {
-			dsoftsign_ua_mt(f_df);
+		void dsoftsign_ua_uc(realmtx_t& f_df) noexcept {
+			dsoftsign_ua_uc_mt(f_df);
 		}
 		void dsoftsign(realmtx_t& f_df, const real_t& a) noexcept {
 			dsoftsign_mt(f_df, a);
-		}
+		}*/
 		void softsigm(realmtx_t& srcdest, const real_t& a) noexcept {
 			softsigm_mt(srcdest, a);
 		}

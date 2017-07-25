@@ -130,8 +130,8 @@ void dloglogu_nbp_ET(const realmtx_t& x, realmtx_t& df, const real_t& b_neg);
 void loglogu_nbn_nbp_ET(const realmtx_t& x, realmtx_t& f);
 void dloglogu_nbn_nbp_ET(const realmtx_t& x, realmtx_t& df);
 
-void softsign_ET(const realmtx_t& x, realmtx_t& f, const real_t& a);
-void dsoftsign_ET(const realmtx_t& x, realmtx_t& df, const real_t& a);
+void softsign_ET(const realmtx_t& x, realmtx_t& f, const real_t a, const real_t c);
+void dsoftsign_ET(const realmtx_t& x, realmtx_t& df, const real_t a, const real_t c);
 
 void softsigm_ET(const realmtx_t& x, realmtx_t& f, const real_t& a);
 void dsoftsigm_ET(const realmtx_t& x, realmtx_t& df, const real_t& a);

@@ -124,8 +124,9 @@ namespace _impl {
 		static constexpr size_t dloglogu_nbn_nbp = 3000;
 
 		static constexpr size_t softsign = 15000;
+		static constexpr size_t softsign_uc = 15000;
 		static constexpr size_t dsoftsign = 20000;
-		static constexpr size_t dsoftsign_ua = 21000;
+		static constexpr size_t dsoftsign_ua_uc = 21000;
 		static constexpr size_t softsigm = 15000;
 		static constexpr size_t dsoftsigm = 15000;
 
@@ -234,9 +235,10 @@ namespace _impl {
 		static constexpr size_t loglogu_nbn_nbp = 600;//*1020 for log(x)+1
 		static constexpr size_t dloglogu_nbn_nbp = 8900;//*
 
-		static constexpr size_t softsign = 8000;//*
-		static constexpr size_t dsoftsign = 18500;//*
-		static constexpr size_t dsoftsign_ua = 35700;//*
+		static constexpr size_t softsign = 7900;//*
+		static constexpr size_t softsign_uc = 8200;//*
+		static constexpr size_t dsoftsign = 21400;//*
+		static constexpr size_t dsoftsign_ua_uc = 39000;//*
 		static constexpr size_t softsigm = 6700;//*
 		static constexpr size_t dsoftsigm = 11500;//*
 

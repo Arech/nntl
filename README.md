@@ -43,7 +43,7 @@ I wouldn't state the NNTL is the fastest CPU implementation of feedforward neura
   * Scaled Exponential Linear Units (**SELU**), see ArXiv:1706.02515 "Self-Normalizing Neural Networks", by Günter Klambauer et al.
   * Exponential logarithmic Units (**ELogU**) ( alpha*(exp(x)-1) for x<0 and log(x+1)/log(b) for x>0 ). I haven't seen a description of this kind of units in academic papers, however, I'm sure someone else has also tryed them. They are good to squash too big output (you may get from ReLU-family units) to more reasonable values and aren't saturating contrary to sigmoids.
   * Logarithmic units (**LogLogU**) is -log(1-x)/log(b_neg) for x<0 and log(x+1)/log(b_pos) for x>0. See the note for the ELogU.
-  * **SoftSign** (y=x/(a+|x|)) and SoftSigm (version of softsign scaled to a range of (0,1)) units. These units offer a better learning performance in some setups as they saturate much slower than corresponding sigmoids (they approach their limits in a polynomial way instead of exponential).
+  * **SoftSign** (y=_c_*x/(_a_+|x|), where _a_ and _c_ are constants; _a_ controls the slope, _c_ controls the amplitude) and SoftSigm (version of softsign scaled to a range of (0,1)) units. These units offer a better learning performance in some setups as they saturate much slower than corresponding sigmoids (they approach their limits in a polynomial way instead of exponential).
   * Nondiffirentiable step unit (y = 0|x<0 & 1|x>=0)
 * Neuron weights initialization schemes:
   * According to **Xavier** et al. "Understanding the difficulty of training deep feedforward neural networks" 2010 (so called "Xavier initialization" - good for sigmoids)
