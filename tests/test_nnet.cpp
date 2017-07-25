@@ -201,7 +201,7 @@ void test_LSUVExt(train_data<RealT>& td, bool bCentNorm, bool bScaleNorm, bool b
 	typedef dt_interfaces<real_t> myIntf;
 	typedef grad_works<myIntf> myGW;
 	typedef weights_init::OrthoInit<10000000> w_init_scheme;//10e6 used here to make plain nnet learn somehow
-	typedef activation::softsign<real_t, 1000, 1000, w_init_scheme> activ_func;
+	typedef activation::softsign<real_t, 1000000, 1000000, w_init_scheme> activ_func;
 	//typedef activation::leaky_relu_100<real_t, w_init_scheme> activ_func;
 
 	layer_input<myIntf> inp(td.train_x().cols_no_bias());
