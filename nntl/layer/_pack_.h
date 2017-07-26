@@ -158,6 +158,8 @@ namespace nntl {
 			const mtx_size_t get_activations_size()const noexcept { return m_act.size(); }
 		};
 
+		//#TODO seems like we don't need WrappedLayer parameter here. Better make it type-less and 
+		//update LPH::bprop and other related code
 		//final wrapper
 		template<typename WrappedLayer>
 		class trainable_partial_layer_wrapper 

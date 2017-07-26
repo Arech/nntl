@@ -411,6 +411,11 @@ namespace nntl {
 			m_bActivationsValid = true;
 		}
 
+		//redefine in derived class if necessary
+		void _applydLdAPenalty(realmtx_t& dLdA)noexcept {
+			_pab_update_dLdA(dLdA, get_self().get_activations(), get_self().get_iMath(), get_self().get_iInspect());
+		}
+
 		// in order to implement backprop for the inner layers, we must provide them with a correct dLdA and dLdAPrev, each of which must
 		// address at least _layer_init_data_t::max_dLdA_numel elements, that layers returned during init() phase.
 		// Some things to consider:
@@ -433,7 +438,7 @@ namespace nntl {
 			auto& iI = get_self().get_iInspect();
 			iI.bprop_begin(get_self().get_layer_idx(), dLdA);
 
-			_pab_update_dLdA(dLdA, get_self().get_activations(), get_self().get_iMath(), iI);
+			get_self()._applydLdAPenalty(dLdA);
 
 			iI.bprop_finaldLdA(dLdA);
 

@@ -57,7 +57,7 @@ namespace nntl {
 	//nBinarize1e6 - if this parameter has non-zero value, then gating neuron values are binarized according
 	//to relation to value of real_t(nBinarize1e6/1e6).
 	// 
-	template<typename FinalPolymorphChild, int32_t nBinarize1e6, typename PHLsTuple, typename AddendumsTupleT = void>
+	template<typename FinalPolymorphChild, int32_t nBinarize1e6, typename PHLsTuple, typename AddendumsTupleT = void, bool _bAddendumsAppliesToGate = false>
 	class _layer_pack_horizontal_gated : public _layer_pack_horizontal<FinalPolymorphChild, PHLsTuple, AddendumsTupleT>
 	{
 	private:
@@ -74,6 +74,8 @@ namespace nntl {
 
 		static constexpr real_t sBinarizeFrac = real_t(nBinarize1e6) / real_t(1e6);
 		static constexpr bool sbBinarizeGate = (0 != nBinarize1e6);
+
+		static constexpr bool bAddendumsAppliesToGate = _bAddendumsAppliesToGate;
 
 	protected:
 		// gating matrix has the width equal to the gate width.
@@ -392,6 +394,23 @@ namespace nntl {
 			NNTL_ASSERT(lowerLayer.get_activations().test_biases_ok());
 
 			iI.fprop_end(m_activations);
+		}
+
+		//redefining the call to _pab_update_dLdA to remove the gating layer from dLdA and activations if it's desirable
+		template<bool bApplies = bAddendumsAppliesToGate>
+		::std::enable_if_t<!bApplies> _applydLdAPenalty(realmtx_t& dLdA)noexcept
+		{
+			//we won't modify activations, just a trick to create a wrapper matrix 
+			auto& fullAct = const_cast<realmtxdef_t&>( get_self().get_activations());
+			const auto bs = fullAct.rows();
+			NNTL_ASSERT(fullAct.emulatesBiases() && fullAct.size_no_bias() == dLdA.size());
+			NNTL_ASSERT(!dLdA.emulatesBiases());
+
+			//first gated_layers_count neurons in activations are for the gate. Just skipping them
+			realmtxdef_t noGateAct(fullAct.colDataAsVec(gated_layers_count), bs, fullAct.cols() - gated_layers_count, fullAct.emulatesBiases(), fullAct.isHoleyBiases());
+			realmtx_t noGatedLdA(dLdA.colDataAsVec(gated_layers_count), bs, dLdA.cols() - gated_layers_count, dLdA.emulatesBiases(), false);
+
+			_pab_update_dLdA(noGatedLdA, noGateAct, get_self().get_iMath(), get_self().get_iInspect());
 		}
 
 		template <typename LowerLayer>

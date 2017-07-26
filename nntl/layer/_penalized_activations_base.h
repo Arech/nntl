@@ -52,7 +52,7 @@ namespace nntl {
 		}
 
 		template<typename iMathT, typename iInspectT>
-		static constexpr void _pab_update_dLdA(const math::smatrix_deform<typename iMathT::real_t>& dLdA
+		static constexpr void _pab_update_dLdA(const math::smatrix<typename iMathT::real_t>& dLdA
 			, const math::smatrix_deform<typename iMathT::real_t>& ThisActivations, const iMathT& iM, const iInspectT& iI)noexcept{}
 	};
 
@@ -119,7 +119,8 @@ namespace nntl {
 		//#note: if we actually need to work with the output_layer, then there must be very special handling of this case because of how
 		//bprop() is implemented for output_layer now
 		template<typename iMathT, typename iInspectT>
-		void _pab_update_dLdA(realmtxdef_t& dLdA, const realmtxdef_t& ThisActivations, iMathT& iM, iInspectT& iI)noexcept {
+		void _pab_update_dLdA(realmtx_t& dLdA, const realmtxdef_t& ThisActivations, iMathT& iM, iInspectT& iI)noexcept {
+			//dropping const only to hide+restore biases
 			realmtxdef_t& act = const_cast<realmtxdef_t&>(ThisActivations);
 			NNTL_ASSERT(act.emulatesBiases());
 			const auto bRestoreBiases = act.hide_biases();
