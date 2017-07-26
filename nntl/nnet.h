@@ -522,8 +522,20 @@ namespace nntl {
 			return _set_last_error(ErrorCode::Success);
 		}
 
+		ErrorCode init4fixedBatchFprop(const vec_len_t dataSize)noexcept {
+			NNTL_ASSERT(dataSize);
+			const auto ec = _init(dataSize);
+			if (ErrorCode::Success != ec) return _set_last_error(ec);
+			set_mode_and_batch_size(dataSize);
+			return _set_last_error(ec);
+		}
+		void doFixedBatchFprop(const realmtx_t& data_x)noexcept {
+			NNTL_ASSERT(data_x.rows() == get_common_data().get_cur_batch_size());
+			m_Layers.fprop(data_x);
+		}
+
 		ErrorCode fprop(const realmtx_t& data_x)noexcept {
-			auto ec = _init(data_x.rows());
+			const auto ec = _init(data_x.rows());
 			if (ErrorCode::Success != ec) return _set_last_error(ec);
 
 			_fprop(data_x);
@@ -562,6 +574,7 @@ namespace nntl {
 			return ec;
 		}
 		
+		//////////////////////////////////////////////////////////////////////////
 		//////////////////////////////////////////////////////////////////////////
 		// numeric gradient check
 		// 
@@ -615,7 +628,7 @@ namespace nntl {
 			//////////////////////////////////////////////////////////////////////////
 
 			bool performCheck(const vec_len_t batchSize, const realmtx_t& data_x, const realmtx_t& data_y)noexcept {
-				m_data.init(batchSize, false, data_x, &data_y);
+				m_data.init(batchSize == data_x.rows() ? 0 : batchSize, data_x, &data_y);
 				
 				bool bRet = false;
 				NNTL_ASSERT(m_ngcSetts.onlineBatchSize > 0);
@@ -703,13 +716,15 @@ namespace nntl {
 				m_mode = mode;
 			}
 			void _launchCheck(_impl::gradcheck_mode mode, const vec_len_t batchSize)noexcept {
+				NNTL_ASSERT(batchSize);
 				_setMode(mode);
-				m_data.prepateToBatchSize(batchSize);
+				m_data.prepareToBatchSize(batchSize);
 				_prepNetToBatchSize(true, batchSize);
 				m_nn.m_Layers.for_each_packed_layer_exc_input_down(*this);
 			}
 
 			void _prepNetToBatchSize(const bool bTraining, const vec_len_t batchSize)noexcept {
+				NNTL_ASSERT(batchSize);
 				m_nn.get_common_data().set_mode_and_batch_size(bTraining, batchSize);
 				m_nn.m_Layers.on_batch_size_change();
 			}

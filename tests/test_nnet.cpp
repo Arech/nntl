@@ -238,22 +238,27 @@ void test_LSUVExt(train_data<RealT>& td, bool bCentNorm, bool bScaleNorm, bool b
 		typedef weights_init::procedural::LSUVExt<decltype(nn)> winit_t;
 		winit_t::LayerSetts_t def, outpS;
 		
+		//individual neuron stats requires a lot of data to be correctly evaluated
+		const auto batchSize = ::std::min(vec_len_t(bIndNeurons ? td.train_x().rows() : 2000), td.train_x().rows());
+
 		//just to illustrate separate settings for a layer (most commonly it'll be an output_layer)
 		outpS.bOverPreActivations = true;
 		outpS.bCentralNormalize = bCentNorm;
 		outpS.bScaleNormalize = bScaleNorm;
 		outpS.bNormalizeIndividualNeurons = bIndNeurons;
+		outpS.batchSize = batchSize;
 
 		def.bOverPreActivations = true;
 		def.bCentralNormalize = bCentNorm;
 		def.bScaleNormalize = bScaleNorm;
 		def.bNormalizeIndividualNeurons = bIndNeurons;
+		def.batchSize = batchSize;
 		
 		winit_t obj(nn,def);
 		obj.setts().add(outp.get_layer_idx(), outpS);
 
-		//individual neuron stats requires a lot of data to be correctly evaluated
-		if (!obj.run(::std::min(vec_len_t(bIndNeurons ? td.train_x().rows() : 2000), td.train_x().rows()), td.train_x())) {
+		
+		if (!obj.run(td.train_x())) {
 			STDCOUTL("*** Layer with ID="<<obj.m_firstFailedLayerIdx<<" was the first to fail convergence. There might be more of them.");
 		}
 	}

@@ -265,7 +265,7 @@ void test_selu_distr(const size_t seedVal, const RealT dpa, const neurons_count_
 		obj.setts().add(outp.get_layer_idx(), outpS);
 
 		//individual neuron stats requires a lot of data to be correctly evaluated
-		if (!obj.run(td.train_x().rows(), td.train_x())) {
+		if (!obj.run(td.train_x())) {
 			STDCOUTL("*** Layer with ID=" << obj.m_firstFailedLayerIdx << " was the first to fail convergence. There might be more of them.");
 		}
 	}

@@ -43,21 +43,19 @@ namespace utils {
 		typedef nntl::math::smatrix_deform<real_t> realmtxdef_t;
 
 	protected:
-		const realmtx_t* m_pDataX;
-		const realmtx_t* m_pDataY;
+		const realmtx_t *m_pDataX, *m_pDataY;
+		const realmtx_t *m_pBatchX, *m_pBatchY;
 
 		realmtxdef_t m_batchX, m_batchY;
 
 		::std::vector<vec_len_t> m_rowsIdxs;
 		::std::vector<vec_len_t>::const_iterator m_next;
-		
-		bool m_bBatchSizeFixed;
 
 	public:
 		~dataHolder()noexcept {
 			deinit();
 		}
-		dataHolder()noexcept : m_pDataX(nullptr), m_pDataY(nullptr) {
+		dataHolder()noexcept : m_pDataX(nullptr), m_pDataY(nullptr), m_pBatchX(nullptr), m_pBatchY(nullptr) {
 			m_batchX.will_emulate_biases();
 			m_batchY.dont_emulate_biases();
 		}
@@ -72,12 +70,16 @@ namespace utils {
 		}
 
 		const realmtx_t& batchX()const noexcept {
-			NNTL_ASSERT(!m_batchX.empty() && m_batchX.numel() > 0);
-			return m_batchX;
+// 			NNTL_ASSERT(!m_batchX.empty() && m_batchX.numel() > 0);
+// 			return m_batchX;
+			NNTL_ASSERT(m_pBatchX && !m_pBatchX->empty() && m_pBatchX->numel() && m_pBatchX->emulatesBiases());
+			return *m_pBatchX;
 		}
 		const realmtx_t& batchY()const noexcept {
-			NNTL_ASSERT(m_pDataY && !m_batchY.empty() && m_batchY.numel() > 0);
-			return m_batchY;
+// 			NNTL_ASSERT(m_pDataY && !m_batchY.empty() && m_batchY.numel() > 0);
+// 			return m_batchY;
+			NNTL_ASSERT(m_pBatchY && !m_pBatchY->empty() && m_pBatchY->numel() && !m_pBatchY->emulatesBiases());
+			return *m_pBatchY;
 		}
 
 		void deinit()noexcept {
@@ -86,51 +88,70 @@ namespace utils {
 			m_rowsIdxs.clear();
 			m_pDataX = nullptr;
 			m_pDataY = nullptr;
+			m_pBatchX = nullptr;
+			m_pBatchY = nullptr;
 		}
-		void init(const vec_len_t maxBatchSize, const bool bBatchSizeFixed, const realmtx_t& data_x, const realmtx_t* pData_y = nullptr)noexcept {
-			NNTL_ASSERT(maxBatchSize > 0 && maxBatchSize <= data_x.rows() && (!pData_y || data_x.rows() == pData_y->rows()));
+
+		//If a full-batch is the only possible batchsize, then pass 0 to maxBatchSize. Else pass actual maxBatchSize
+		// that strictly less than data_x.rows(). Full batch mode will still be possible in that case, however it'll be optimized
+		void init(const vec_len_t maxBatchSize, const realmtx_t& data_x, const realmtx_t* pData_y = nullptr)noexcept {
+			NNTL_ASSERT(!maxBatchSize || maxBatchSize < data_x.rows());//see the comment above on the maxBatchSize
+			NNTL_ASSERT(!pData_y || data_x.rows() == pData_y->rows());
 			NNTL_ASSERT(data_x.emulatesBiases() && (!pData_y || !pData_y->emulatesBiases()));
 			NNTL_ASSERT(m_batchX.empty() && m_batchY.empty());
 			NNTL_ASSERT(m_batchX.emulatesBiases() && !m_batchY.emulatesBiases());
 
 			m_pDataX = &data_x;
 			m_pDataY = pData_y;
-			m_bBatchSizeFixed = bBatchSizeFixed;
+			m_pBatchY = nullptr;
 
-			if (bBatchSizeFixed && maxBatchSize==data_x.rows()) {
-				//dropping const just to use useExternalStorage() api. Anyway, we're not going to allow modification of batch_x
-				m_batchX.useExternalStorage(const_cast<realmtx_t&>(data_x));
-				if (pData_y) m_batchY.useExternalStorage(const_cast<realmtx_t&>(*pData_y));
-			} else {
+			if (maxBatchSize) {
+				NNTL_ASSERT(maxBatchSize < data_x.rows());
 				m_batchX.resize(maxBatchSize, data_x.cols_no_bias());
 				if (pData_y) m_batchY.resize(maxBatchSize, pData_y->cols());
 			}
+
+			prepareToBatchSize(maxBatchSize ? maxBatchSize : data_x.rows());
 
 			m_rowsIdxs.resize(data_x.rows());
 			::std::iota(m_rowsIdxs.begin(), m_rowsIdxs.end(), 0);
 			m_next = m_rowsIdxs.cend();
 		}
 
+		template<bool bRecursive = false>
 		bool isFullBatch()const noexcept {
-			return m_batchX.rows() == m_pDataX->rows();
+			const auto r = m_pBatchX->rows() == m_pDataX->rows();
+			NNTL_ASSERT(bRecursive || !(r ^ isBatchAliasToData<true>()));
+			return r;
 		}
+		template<bool bRecursive = false>
 		bool isBatchAliasToData()const noexcept {
-			return m_bBatchSizeFixed && isFullBatch();
+			const auto r = m_pBatchX == m_pDataX;
+			NNTL_ASSERT(bRecursive || !(r ^ isFullBatch<true>()));
+			return r;
 		}
 
-		void prepateToBatchSize(const vec_len_t batchSize)noexcept {
-			if (isBatchAliasToData()) {
-				NNTL_ASSERT(batchSize == m_batchX.rows());
+		void prepareToBatchSize(const vec_len_t batchSize)noexcept {
+			if (batchSize >= m_pDataX->rows()) {
+				NNTL_ASSERT(batchSize == m_pDataX->rows());
+				m_pBatchX = m_pDataX;
+				m_pBatchY = m_pDataY;
 			} else {
+				NNTL_ASSERT(batchSize);
+				NNTL_ASSERT(!m_batchX.empty());
 				m_batchX.deform_rows(batchSize);
-				if (m_pDataY) m_batchY.deform_rows(batchSize);
+				m_pBatchX = &m_batchX;
+				if (m_pDataY) {
+					m_batchY.deform_rows(batchSize);
+					m_pBatchY = &m_batchY;
+				};
 			}
 		}
-		const vec_len_t curBatchSize()const noexcept { return m_batchX.rows(); }
+		const vec_len_t curBatchSize()const noexcept { return m_pBatchX->rows(); }
 
 		template<typename iRngT, typename iMathT>
 		void nextBatch(iRngT& iR, iMathT& iM)noexcept {
-			if (isBatchAliasToData()) {
+			if (isFullBatch()) {
 				//nothing to do here
 			} else {
 				NNTL_ASSERT(m_rowsIdxs.size());

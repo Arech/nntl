@@ -58,7 +58,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <iostream>
 
 //to get rid of '... decorated name length exceeded, name was truncated'
-//#pragma warning( disable : 4503 )
+#pragma warning( disable : 4503 )
 
 #define STDCOUT(args) ::std::cout << args
 #define STDCOUTL(args) STDCOUT(args) << ::std::endl

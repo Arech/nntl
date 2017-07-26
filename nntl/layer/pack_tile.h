@@ -207,6 +207,7 @@ namespace nntl {
 			NNTL_ASSERT(m_bActivationsValid);
 			return m_activations;
 		}
+		const realmtxdef_t* get_activations_storage()const noexcept { return &m_activations; }
 		const mtx_size_t get_activations_size()const noexcept { return m_activations.size(); }
 
 		const bool is_activations_shared()const noexcept {

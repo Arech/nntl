@@ -60,11 +60,13 @@ namespace weights_init {
 	namespace procedural {
 
 		template<typename RealT>
-		struct WeightNormSetts {
+		struct WeightNormSetts : public math::smatrix_td {
 			typedef RealT real_t;
 
 			real_t targetScale;
 			real_t ScaleTolerance, CentralTolerance;
+
+			vec_len_t batchSize;//set to 0 for a full-batch mode (default)
 
 			unsigned maxTries, maxReinitTries;
 
@@ -82,7 +84,7 @@ namespace weights_init {
 				, ScaleTolerance(real_t(.01)), CentralTolerance(real_t(.01))
 				, maxTries(20), bCentralNormalize(false), bNormalizeIndividualNeurons(false)
 				, bOverPreActivations(false), bVerbose(true), bScaleNormalize(true)
-				, bScaleChangeBiasesToo(true), maxReinitTries(5)
+				, bScaleChangeBiasesToo(true), maxReinitTries(5), batchSize(0)
 			{}
 		};
 
@@ -126,6 +128,7 @@ namespace weights_init {
 			layer_index_t m_firstFailedLayerIdx;
 
 		protected:
+			vec_len_t m_fullBatchSize;
 			bool m_bImmediatelyUnderGated;
 
 		public:
@@ -134,6 +137,7 @@ namespace weights_init {
 			template<typename ST>
 			LSUVExt(nnet_t& nn, ST&& defSetts) noexcept 
 				: _base_class_t(nn), m_firstFailedLayerIdx(0), m_setts(::std::forward<ST>(defSetts))
+				, m_fullBatchSize(0)
 			{}/*
 			LSUVExt(nnet_t& nn, const LayerSetts_t& defSetts) noexcept
 				: _base_class_t(nn), m_firstFailedLayerIdx(0), m_setts(defSetts)
@@ -141,14 +145,26 @@ namespace weights_init {
 
 			setts_keeper_t& setts()noexcept { return m_setts; }
 
-			bool run(const vec_len_t& batchSize, const realmtx_t& data_x)noexcept {
-				_base_class_t::init(batchSize, true, data_x);
+			bool run(const realmtx_t& data_x)noexcept {
+				vec_len_t secondBiggestBatch = 0, biggestBatch = 0;
+				const auto fullBatch = data_x.rows();
+				m_fullBatchSize = fullBatch;
+				m_setts.for_each([&secondBiggestBatch, &biggestBatch, fullBatch](const LayerSetts_t& ls)noexcept
+				{
+					biggestBatch = ::std::max(biggestBatch, ls.batchSize);
+					if (ls.batchSize < fullBatch) {
+						secondBiggestBatch = ::std::max(secondBiggestBatch, ls.batchSize);
+					}
+				});
+
+				_base_class_t::init(secondBiggestBatch, data_x);
+
 				m_firstFailedLayerIdx = 0;
-				m_data.prepateToBatchSize(batchSize);
 				m_gatingStack.clear();
 				m_bImmediatelyUnderGated = false;
 
 				//to fully initialize the nn and its layers
+				prepareToBatchSize(biggestBatch);
 				_fprop();
 
 				m_nn.get_layer_pack().for_each_packed_layer_exc_input(*this);
@@ -268,11 +284,13 @@ namespace weights_init {
 				const real_t actScaling = lSetts.bOverPreActivations ? real_t(1.) : lyr.act_scaling_coeff();
 				//const real_t actScaling = real_t(1.);
 
+				prepareToBatchSize(lSetts.batchSize);
+
 				unsigned rt;
 				for (rt = 0; rt < lSetts.maxReinitTries; ++rt) {
 					const bool bSuccess = lSetts.bNormalizeIndividualNeurons 
-						? _processWeights_individual(lyr.get_weights(), lyr.get_activations(), lSetts, actScaling)
-						: _processWeights_shared(lyr.get_weights(), lyr.get_activations(), lSetts, actScaling);
+						? _processWeights_individual(lyr.get_weights(), lyr.get_activations_storage(), lSetts, actScaling)
+						: _processWeights_shared(lyr.get_weights(), lyr.get_activations_storage(), lSetts, actScaling);
 
 					if (bSuccess) {
 						break;
@@ -292,9 +310,16 @@ namespace weights_init {
 
 				lyr.setLayerLinear(false);
 			}
+
+			void prepareToBatchSize(const vec_len_t _bs)noexcept {
+				const auto bs = _bs ? _bs : m_fullBatchSize;
+				m_data.prepareToBatchSize(bs);
+				m_nn.init4fixedBatchFprop(bs);
+			}
 			
-			bool _processWeights_shared(realmtx_t& weights, const realmtx_t& activations, const LayerSetts_t& lSetts, const real_t actScaling)noexcept {
-				NNTL_ASSERT(weights.rows() == activations.cols_no_bias());
+			bool _processWeights_shared(realmtx_t& weights, const realmtx_t*const pAct, const LayerSetts_t& lSetts, const real_t actScaling)noexcept {
+				NNTL_ASSERT(pAct);
+				NNTL_ASSERT(weights.rows() == pAct->cols_no_bias());
 				NNTL_ASSERT(actScaling > real_t(0));
 
 				const real_t*const pCurGatingColumn = m_gatingStack.size() > 0 ? m_gatingStack.back().pCurGatingColumn : nullptr;
@@ -304,7 +329,7 @@ namespace weights_init {
 					for (unsigned i = 0; i < lSetts.maxTries; ++i) {
 						_fprop();
 
-						const auto stat = _calc<ScaleMeasureT>(activations.begin(), activations.end_no_bias(), activations.rows(), pCurGatingColumn);
+						const auto stat = _calc<ScaleMeasureT>(pAct->begin(), pAct->end_no_bias(), pAct->rows(), pCurGatingColumn);
 
 						if (::std::isnan(stat) || real_t(0) == stat || !::std::isfinite(stat)) {
 							STDCOUTL("*** got invalid scale statistic, will try to reinit weights");
@@ -339,7 +364,7 @@ namespace weights_init {
 					for (unsigned i = 0; i < lSetts.maxTries; ++i) {
 						_fprop();
 
-						const auto stat = _calc<CentralMeasureT>(activations.begin(), activations.end_no_bias(), activations.rows(), pCurGatingColumn);
+						const auto stat = _calc<CentralMeasureT>(pAct->begin(), pAct->end_no_bias(), pAct->rows(), pCurGatingColumn);
 						bCentralIsOk = (::std::abs(stat - real_t(0.)) < lSetts.CentralTolerance);
 
 						if (lSetts.bVerbose) STDCOUTL("#" << i << " central (\"mean\") = " << stat << (bCentralIsOk ? "(ok)" : ""));
@@ -355,12 +380,13 @@ namespace weights_init {
 				return !bForceReinit && bScaleIsOk && bCentralIsOk;
 			}
 
-			bool _processWeights_individual(realmtx_t& weights, const realmtx_t& activations, const LayerSetts_t& lSetts, const real_t actScaling)noexcept {
-				NNTL_ASSERT(weights.rows() == activations.cols_no_bias());
+			bool _processWeights_individual(realmtx_t& weights, const realmtx_t*const pAct, const LayerSetts_t& lSetts, const real_t actScaling)noexcept {
+				NNTL_ASSERT(pAct);
+				NNTL_ASSERT(weights.rows() == pAct->cols_no_bias());
 				NNTL_ASSERT(actScaling > real_t(0));
 
-				const neurons_count_t total_nc = activations.cols_no_bias();
-				const ptrdiff_t batchSize = static_cast<ptrdiff_t>(activations.rows());
+				const neurons_count_t total_nc = pAct->cols_no_bias();
+				const ptrdiff_t batchSize = static_cast<ptrdiff_t>(pAct->rows());
 				const ptrdiff_t _total_nc = static_cast<ptrdiff_t>(total_nc);
 				const real_t*const pCurGatingColumn = m_gatingStack.size() > 0 ? m_gatingStack.back().pCurGatingColumn : nullptr;
 				bool bScaleStatOK = true, bCentralStatOK = true, bForceReinit = false;
@@ -371,7 +397,7 @@ namespace weights_init {
 						bScaleStatOK = true;
 
 						for (neurons_count_t nrn = 0; nrn < total_nc; ++nrn) {
-							const auto pD = activations.colDataAsVec(nrn);
+							const auto pD = pAct->colDataAsVec(nrn);
 							const auto stat = _calc<ScaleMeasureT>(pD, pD + batchSize, batchSize, pCurGatingColumn);
 
 							if (::std::isnan(stat) || real_t(0)==stat || !::std::isfinite(stat)) {
@@ -414,7 +440,7 @@ namespace weights_init {
 						bCentralStatOK = true;
 
 						for (neurons_count_t nrn = 0; nrn < total_nc; ++nrn) {
-							const auto pD = activations.colDataAsVec(nrn);
+							const auto pD = pAct->colDataAsVec(nrn);
 							const auto stat = _calc<CentralMeasureT>(pD, pD + batchSize, batchSize, pCurGatingColumn);
 							const bool bCentralIsOk = (::std::abs(stat - real_t(0.)) < lSetts.CentralTolerance);
 							statSum += stat;
@@ -440,7 +466,7 @@ namespace weights_init {
 
 			void _fprop()noexcept {
 				m_data.nextBatch(m_nn.get_iRng(), m_nn.get_iMath());
-				m_nn.fprop(m_data.batchX());
+				m_nn.doFixedBatchFprop(m_data.batchX());
 			}
 
 			template<typename TagStatT>

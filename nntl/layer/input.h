@@ -77,6 +77,7 @@ namespace nntl {
 			NNTL_ASSERT(m_bActivationsValid);
 			return *m_pActivations;
 		}
+		const realmtx_t* get_activations_storage()const noexcept { return m_pActivations; }
 		const mtx_size_t get_activations_size()const noexcept { 
 			NNTL_ASSERT(m_pActivations);
 			return m_pActivations->size();

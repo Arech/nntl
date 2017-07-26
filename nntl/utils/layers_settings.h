@@ -35,7 +35,9 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //It's not meant to be very efficient and fast
 
 #include <map>
-#include <forward_list>
+//#include <forward_list>
+#include <list>
+#include <algorithm>
 
 namespace nntl {
 namespace utils {
@@ -50,8 +52,9 @@ namespace utils {
 		NNTL_TYPEDEFS_SELF();
 
 	protected:
-		typedef ::std::forward_list<setts_t> layer_setts_keeper_t;
-		typedef ::std::map<layer_index_t, const setts_t*> layer_setts_map_t;
+		//typedef ::std::forward_list<setts_t> layer_setts_keeper_t;
+		typedef ::std::list<setts_t> layer_setts_keeper_t;
+		typedef ::std::map<layer_index_t, typename layer_setts_keeper_t::iterator> layer_setts_map_t;
 
 	protected:
 		layer_setts_keeper_t m_keeper;
@@ -79,22 +82,35 @@ namespace utils {
 			m_keeper.push_front(::std::forward<ST>(def));
 		}
 
-		const setts_t& get(const layer_index_t& idx)const noexcept {
+		const setts_t& get(const layer_index_t idx)const noexcept {
 			return 0 == m_map.count(idx) 
 				? get_default() 
 				: *(m_map.at(idx));
 		}
-		const setts_t& operator[](const layer_index_t& idx)const noexcept { return get(idx); }
+		const setts_t& operator[](const layer_index_t idx)const noexcept { return get(idx); }
+
+		template<typename _F>
+		void for_each(_F&& f)noexcept {
+			NNTL_ASSERT(!m_keeper.empty());
+			::std::for_each(m_keeper.begin(), m_keeper.end(), ::std::forward<_F>(f));
+		}
 
 		template<typename ST>
-		self_ref_t add(const layer_index_t& idx, ST&& sett)noexcept {
+		self_ref_t add(const layer_index_t idx, ST&& sett)noexcept {
 			NNTL_ASSERT(!m_keeper.empty());
-			NNTL_ASSERT(0 == m_map.count(idx));
+			if (0 != m_map.count(idx)) {
+				//removing from the m_keeper
+				m_keeper.erase(m_map.at(idx));
+			}
 
-			m_keeper.insert_after(m_keeper.begin(), ::std::forward<ST>(sett));
-			m_map[idx] = &(*::std::next(m_keeper.begin()));
+			//m_keeper.insert_after(m_keeper.begin(), ::std::forward<ST>(sett));
+			//m_map[idx] = &(*::std::next(m_keeper.begin()));
+			m_map[idx] = m_keeper.insert(m_keeper.end(), ::std::forward<ST>(sett));
 			return *this;
 		}
+
+		//too much doings with unused function
+/*
 
 		template<typename LIdxsSeqT, typename ST>
 		::std::enable_if_t<::std::is_same<layer_index_t, ::std::remove_cv_t<typename LIdxsSeqT::value_type>>::value, self_ref_t>
@@ -102,17 +118,26 @@ namespace utils {
 		{
 			NNTL_ASSERT(!m_keeper.empty());
 #ifdef NNTL_DEBUG
-			for (const auto& i : idxsSeq) {
+			for (const auto i : idxsSeq) {
 				NNTL_ASSERT(0 == m_map.count(i));
+				if (0 != m_map.count(i)) {
+					m_keeper.erase(m_map.at(i));
+					//#BUGBUG must store erased iterator from m_map.at(i) somewhere to prevent double erasing.
+					// Other i's from idxsSeq references might have the same iterator.
+				}
 			}
 #endif // NNTL_DEBUG
-			m_keeper.insert_after(m_keeper.begin(), ::std::forward<ST>(sett));
-			const setts_t* pSett = &(*::std::next(m_keeper.begin()));
-			for (const auto& i : idxsSeq) {
+
+			//m_keeper.insert_after(m_keeper.begin(), ::std::forward<ST>(sett));
+			//const setts_t* pSett = &(*::std::next(m_keeper.begin()));
+			//auto &pSett = ::std::next(m_keeper.begin());
+
+			auto pSett = m_keeper.insert(m_keeper.end(), ::std::forward<ST>(sett));
+			for (const auto i : idxsSeq) {
 				m_map[i] = pSett;
 			}
 			return *this;
-		}
+		}*/
 
 
 	};

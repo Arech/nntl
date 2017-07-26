@@ -116,11 +116,17 @@ namespace nntl {
 	public:
 		//It is allowed to call get_activations() after fprop() and before bprop() only. bprop() invalidates activation values!
 		//Furthermore, DON'T ever change the activation matrix values from the ouside of the layer!
-		// Layer object expects them to be unchanged between fprop()/bprop() calls
+		// Layer object expects it to be unchanged between fprop()/bprop() calls.
 		nntl_interface const realmtxdef_t& get_activations()const noexcept;
 		nntl_interface const mtx_size_t get_activations_size()const noexcept;
 		//shared activations implies that the bias column may hold not biases, but activations of some another layer
 		nntl_interface const bool is_activations_shared()const noexcept;
+
+		//essentially the same as get_activations(), however, it is allowed to call this function anytime to obtain the pointer
+		//However, if you are going to dereference the pointer, the same restrictions as for get_activations() applies.
+		//NOTE: It won't trigger assert if it's dereferenced in a wrong moment, therefore you'll get invalid values,
+		// so use it wisely only when you absolutely can't use the get_activations()
+		nntl_interface const realmtxdef_t* get_activations_storage()const noexcept;
 
 	protected:
 		//see _layer_base::m_bIsDropSamplesMightBeCalled member comment
@@ -587,6 +593,7 @@ namespace nntl {
 		const neurons_count_t get_incoming_neurons_cnt()const noexcept { return  get_self()._forwarder_layer().get_incoming_neurons_cnt(); }
 
 		const realmtxdef_t& get_activations()const noexcept { return get_self()._forwarder_layer().get_activations(); }
+		const realmtxdef_t* get_activations_storage()const noexcept { return get_self()._forwarder_layer().get_activations_storage(); }
 		const mtx_size_t get_activations_size()const noexcept { return get_self()._forwarder_layer().get_activations_size(); }
 		const bool is_activations_shared()const noexcept { return get_self()._forwarder_layer().is_activations_shared(); }
 
