@@ -54,7 +54,7 @@ namespace activation {
 	>
 	class selu 
 		: public _i_activation<RealT, WeightsInitScheme>
-		, public _impl::SNN_common_td<RealT, Alpha1e9, Lambda1e9, fpMean1e6, fpVar1e6, corrType>
+		, public _impl::SNN_td<RealT, Alpha1e9, Lambda1e9, fpMean1e6, fpVar1e6, corrType>
 		, public type_selu
 	{
 	public:

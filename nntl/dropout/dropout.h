@@ -72,8 +72,9 @@ namespace nntl {
 			}
 
 			bool _dropout_init(const bool isTrainingPossible, const vec_len_t max_batch_size, const neurons_count_t neurons_cnt)noexcept {
-				NNTL_ASSERT(max_batch_size && neurons_cnt);
+				NNTL_ASSERT(neurons_cnt);
 				if (isTrainingPossible) {
+					NNTL_ASSERT(max_batch_size);
 					//we don't check bDropout() here because assume that if the dropout enabled, it'll be used
 					//even if now it's disabled.
 					NNTL_ASSERT(!m_dropoutMask.emulatesBiases());

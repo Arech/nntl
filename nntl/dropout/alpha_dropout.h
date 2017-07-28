@@ -58,7 +58,7 @@ namespace nntl {
 	>
 	struct AlphaDropout 
 		: public _impl::_dropout_base<RealT>
-		, public _impl::SNN_common_td<RealT, Alpha1e9, Lambda1e9, fpMean1e6, fpVar1e6, corrType>
+		, public _impl::SNN_td<RealT, Alpha1e9, Lambda1e9, fpMean1e6, fpVar1e6, corrType>
 	{
 	private:
 		typedef _impl::_dropout_base<RealT> _base_class_t;
@@ -89,10 +89,11 @@ namespace nntl {
 		}
 
 		bool _dropout_init(const bool isTrainingPossible, const vec_len_t max_batch_size, const neurons_count_t neurons_cnt)noexcept {
-			NNTL_ASSERT(max_batch_size && neurons_cnt);
+			NNTL_ASSERT(neurons_cnt);
 			if (!_base_class_t::_dropout_init(isTrainingPossible, max_batch_size, neurons_cnt))  return false;
 
 			if (isTrainingPossible) {
+				NNTL_ASSERT(max_batch_size);
 				//condition means if (there'll be a training session) and (we're going to use dropout)
 				NNTL_ASSERT(!m_mtxB.emulatesBiases());
 				//resize to the biggest possible size during training
@@ -152,7 +153,7 @@ namespace nntl {
 			iM.evMul_ip(dLdA, m_dropoutMask);
 
 			_iI.bprop_preCancelDropout(activations, m_dropoutPercentActive);
-			iM.evSubMtxMulC_ip_nb(activations, m_mtxB, real_t(1.) / m_a);
+			iM.evSubMtxMulC_ip_nb(activations, m_mtxB, static_cast<real_t>(ext_real_t(1.) / m_a));
 			_iI.bprop_postCancelDropout(activations);
 		}
 

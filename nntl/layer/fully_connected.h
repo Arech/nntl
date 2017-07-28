@@ -40,12 +40,12 @@ namespace nntl {
 	//#todo: add AddendumsTupleT template parameter, as done in LPH
 
 	template<typename FinalPolymorphChild, typename ActivFunc, typename GradWorks, typename DropoutT>
-	class _layer_fully_connected 
+	class _LFC 
 		: public m_layer_learnable
-		, public _impl::_activation_wrapper<FinalPolymorphChild, typename GradWorks::interfaces_t, ActivFunc, DropoutT>
+		, public _impl::_act_wrap<FinalPolymorphChild, typename GradWorks::interfaces_t, ActivFunc, DropoutT>
 	{
 	private:
-		typedef _impl::_activation_wrapper<FinalPolymorphChild, typename GradWorks::interfaces_t, ActivFunc, DropoutT> _base_class_t;
+		typedef _impl::_act_wrap<FinalPolymorphChild, typename GradWorks::interfaces_t, ActivFunc, DropoutT> _base_class_t;
 
 	public:
 		static_assert(bActivationForHidden, "ActivFunc template parameter should be derived from activation::_i_activation");
@@ -99,8 +99,8 @@ namespace nntl {
 		//////////////////////////////////////////////////////////////////////////
 		// functions
 	public:
-		~_layer_fully_connected() noexcept {};
-		_layer_fully_connected(const char* pCustomName
+		~_LFC() noexcept {};
+		_LFC(const char* pCustomName
 			, const neurons_count_t _neurons_cnt
 			, const real_t learningRate = real_t(.01)
 			, const real_t dpa = real_t(1.0) //"dropout_percent_alive"
@@ -420,27 +420,30 @@ namespace nntl {
 		}
 	};
 
+	template<typename FinalPolymorphChild, typename ActivFunc, typename GradWorks, typename DropoutT>
+	using _layer_fully_connected = _LFC<FinalPolymorphChild, ActivFunc, GradWorks, DropoutT>;
+
 	//////////////////////////////////////////////////////////////////////////
-	// final implementation of layer with all functionality of _layer_fully_connected
-	// If you need to derive a new class, derive it from _layer_fully_connected (to make static polymorphism work)
+	// final implementation of layer with all functionality of _LFC
+	// If you need to derive a new class, derive it from _LFC (to make static polymorphism work)
 	template <
 		typename ActivFunc = activation::sigm<d_interfaces::real_t>
 		, typename GradWorks = grad_works<d_interfaces>
 		, typename DropoutT = default_dropout_for<ActivFunc>
 	> class LFC final 
-		: public _layer_fully_connected<LFC<ActivFunc, GradWorks, DropoutT>, ActivFunc, GradWorks, DropoutT>
+		: public _LFC<LFC<ActivFunc, GradWorks, DropoutT>, ActivFunc, GradWorks, DropoutT>
 	{
 	public:
 		~LFC() noexcept {};
 		LFC(const neurons_count_t _neurons_cnt, const real_t learningRate = real_t(.01)
 			, const real_t dropoutFrac = real_t(0.0), const char* pCustomName = nullptr
 		)noexcept
-			: _layer_fully_connected<LFC<ActivFunc, GradWorks, DropoutT>, ActivFunc, GradWorks, DropoutT>
+			: _LFC<LFC<ActivFunc, GradWorks, DropoutT>, ActivFunc, GradWorks, DropoutT>
 			(pCustomName, _neurons_cnt, learningRate, dropoutFrac) {};
 		LFC(const char* pCustomName, const neurons_count_t _neurons_cnt, const real_t learningRate = real_t(.01)
 			, const real_t dropoutFrac = real_t(0.0)
 		)noexcept
-			: _layer_fully_connected<LFC<ActivFunc, GradWorks, DropoutT>, ActivFunc, GradWorks, DropoutT>
+			: _LFC<LFC<ActivFunc, GradWorks, DropoutT>, ActivFunc, GradWorks, DropoutT>
 			(pCustomName, _neurons_cnt, learningRate, dropoutFrac) {};
 	};
 

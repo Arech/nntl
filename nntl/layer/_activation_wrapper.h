@@ -43,7 +43,7 @@ namespace nntl {
 	namespace _impl {
 
 		template<typename FinalPolymorphChild, typename InterfacesT, typename ActivFuncT, typename DropoutT>
-		class _activation_wrapper
+		class _act_wrap
 			: public _layer_base<FinalPolymorphChild, InterfacesT>
 			, private ActivFuncT
 			, public DropoutT
@@ -78,8 +78,8 @@ namespace nntl {
 			realmtxdef_t m_activations;
 
 		protected:
-			~_activation_wrapper()noexcept {}
-			_activation_wrapper(const neurons_count_t _neurons_cnt, const char* pCustomName = nullptr)noexcept 
+			~_act_wrap()noexcept {}
+			_act_wrap(const neurons_count_t _neurons_cnt, const char* pCustomName = nullptr)noexcept 
 				: _base_class_t(_neurons_cnt, pCustomName)
 			{}
 

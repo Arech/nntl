@@ -44,6 +44,7 @@ namespace activation {
 	//////////////////////////////////////////////////////////////////////////
 	// SoftSign, y = c*(x/(a+|x|)), dy/dx = (c-|y|)^2 /(c*a), parameter 'a' controls the slope of the curve, c - amplitude
 	// pass 0 to C1e3 to get predefined c=1.59253... (see https://www.reddit.com/r/MachineLearning/comments/6g5tg1/r_selfnormalizing_neural_networks_improved_elu/diwq7rb/)
+	// Remember, correct scaling (for the unit variance) depends on the A!
 	template<typename RealT, unsigned int A1e6 = 1000000, unsigned int C1e6=1000000
 		, typename WeightsInitScheme = weights_init::He_Zhang<>>
 	class softsign

@@ -43,7 +43,7 @@ namespace nntl {
 	namespace _impl {
 
 		template<typename RealT, int64_t Alpha1e9 = 0, int64_t Lambda1e9 = 0, int fpMean1e6 = 0, int fpVar1e6 = 1000000, ADCorr corrType = ADCorr::no>
-		struct SNN_common_td {
+		struct SNN_td {
 			typedef RealT real_t;
 
 			static constexpr int64_t _TP_alpha = Alpha1e9;

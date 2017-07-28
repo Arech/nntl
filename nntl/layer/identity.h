@@ -49,7 +49,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 namespace nntl {
 
 	template<typename FinalPolymorphChild, typename Interfaces>
-	class _layer_identity : public _layer_base<FinalPolymorphChild, Interfaces>, public m_layer_autoneurons_cnt
+	class _LI : public _layer_base<FinalPolymorphChild, Interfaces>, public m_layer_autoneurons_cnt
 	{
 	private:
 		typedef _layer_base<FinalPolymorphChild, Interfaces> _base_class;
@@ -60,12 +60,12 @@ namespace nntl {
 		realmtxdef_t m_activations;
 
 	public:
-		~_layer_identity()noexcept {}
-		_layer_identity(const char* pCustomName)noexcept : _base_class(0, pCustomName) {
+		~_LI()noexcept {}
+		_LI(const char* pCustomName)noexcept : _base_class(0, pCustomName) {
 			m_activations.will_emulate_biases();
 		}
 
-		static constexpr const char _defName[] = "id";
+		static constexpr const char _defName[] = "li";
 
 		static constexpr bool hasLossAddendum()noexcept { return false; }
 		//returns a loss function summand, that's caused by this layer (for example, L2 regularizer adds term
@@ -217,11 +217,11 @@ namespace nntl {
 
 	//////////////////////////////////////////////////////////////////////////
 	template<typename FinalPolymorphChild, typename Interfaces>
-	class _layer_identity_gate : public _layer_identity<FinalPolymorphChild, Interfaces>
+	class _LIG : public _LI<FinalPolymorphChild, Interfaces>
 		, public _i_layer_gate<typename Interfaces::iMath_t::real_t>
 	{
 	private:
-		typedef _layer_identity<FinalPolymorphChild, Interfaces> _base_class;
+		typedef _LI<FinalPolymorphChild, Interfaces> _base_class;
 
 	public:
 		using _base_class::real_t;
@@ -234,11 +234,11 @@ namespace nntl {
 		realmtxdef_t m_gate;
 
 	public:
-		~_layer_identity_gate()noexcept {}
-		_layer_identity_gate(const char* pCustomName)noexcept : _base_class(pCustomName) {
+		~_LIG()noexcept {}
+		_LIG(const char* pCustomName)noexcept : _base_class(pCustomName) {
 			m_gate.dont_emulate_biases();
 		}
-		static constexpr const char _defName[] = "idg";
+		static constexpr const char _defName[] = "lig";
 
 		//////////////////////////////////////////////////////////////////////////
 		const realmtx_t& get_gate()const noexcept {
@@ -288,21 +288,21 @@ namespace nntl {
 	//
 	// 
 	template <typename Interfaces = d_interfaces>
-	class layer_identity final : public _layer_identity<layer_identity<Interfaces>, Interfaces>
+	class layer_identity final : public _LI<layer_identity<Interfaces>, Interfaces>
 	{
 	public:
 		~layer_identity() noexcept {};
 		layer_identity(const char* pCustomName = nullptr) noexcept 
-			: _layer_identity<layer_identity<Interfaces>, Interfaces> (pCustomName) {};
+			: _LI<layer_identity<Interfaces>, Interfaces> (pCustomName) {};
 	};
 
 	template <typename Interfaces = d_interfaces>
-	class layer_identity_gate final : public _layer_identity_gate<layer_identity_gate<Interfaces>, Interfaces>
+	class layer_identity_gate final : public _LIG<layer_identity_gate<Interfaces>, Interfaces>
 	{
 	public:
 		~layer_identity_gate() noexcept {};
 		layer_identity_gate(const char* pCustomName = nullptr) noexcept 
-			: _layer_identity_gate<layer_identity_gate<Interfaces>, Interfaces>(pCustomName) {};
+			: _LIG<layer_identity_gate<Interfaces>, Interfaces>(pCustomName) {};
 	};
 
 }

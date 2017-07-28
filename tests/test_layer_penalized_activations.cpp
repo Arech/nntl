@@ -77,7 +77,7 @@ struct testActivationsL2L1_td {
 	typedef LFC<activ_func> _MyLFC;
 
 	template<typename FpcT>
-	using _MyLFC_tpl = _layer_fully_connected<FpcT, activ_func, grad_works<d_interfaces>, default_dropout_for<activ_func>>;
+	using _MyLFC_tpl = _LFC<FpcT, activ_func, grad_works<d_interfaces>, default_dropout_for<activ_func>>;
 
 	static constexpr bool bRegularize = loss_addendum::is_loss_addendum<LossAddT>::value;
 	typedef ::std::conditional_t<bRegularize, LPA<_MyLFC_tpl, LossAddT>, _MyLFC> MyLFC;
@@ -171,7 +171,7 @@ TEST(TestLPA, ActivationsConstraintsL2L1) {
 template<typename ArchPrmsT>
 struct GC_LPA_deCov : public nntl_tests::NN_base_arch_td<ArchPrmsT> {
 	template<typename FpcT>
-	using _MyLFC_tpl = _layer_fully_connected<FpcT, myActivation, myGradWorks, default_dropout_for<myActivation>>;
+	using _MyLFC_tpl = _LFC<FpcT, myActivation, myGradWorks, default_dropout_for<myActivation>>;
 
 	typedef LPA<_MyLFC_tpl, loss_addendum::DeCov<real_t, true>> MyLPA;
 	//typedef myLFC MyLPA;

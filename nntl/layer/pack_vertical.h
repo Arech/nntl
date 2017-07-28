@@ -56,7 +56,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 namespace nntl {
 
 	template<typename FinalPolymorphChild, typename LayrsRefTuple>
-	class _layer_pack_vertical : public _layer_base_forwarder<FinalPolymorphChild,
+	class _LPV : public _layer_base_forwarder<FinalPolymorphChild,
 		typename ::std::remove_reference<typename ::std::tuple_element<0, LayrsRefTuple>::type>::type::interfaces_t>
 	{
 	private:
@@ -124,14 +124,14 @@ namespace nntl {
 		//used by _layer_base_forwarder<> functions to forward various data from the topmost_layer()
 		auto& _forwarder_layer()const noexcept { return topmost_layer(); }
 
-		~_layer_pack_vertical()noexcept {}
-		_layer_pack_vertical(const char* pCustomName, const LayrsRefTuple& layrs)noexcept
+		~_LPV()noexcept {}
+		_LPV(const char* pCustomName, const LayrsRefTuple& layrs)noexcept
 			: _base_class_t(pCustomName), m_layers(layrs), m_layerIdx(0)
 		{
 			//#todo this better be done with a single static_assert in the class scope
 			tuple_utils::for_each_up(m_layers, [](auto& l)noexcept {
 				static_assert(!::std::is_base_of<m_layer_input, decltype(l)>::value && !::std::is_base_of<m_layer_output, decltype(l)>::value,
-					"Inner layers of _layer_pack_vertical mustn't be input or output layers!");
+					"Inner layers of _LPV mustn't be input or output layers!");
 			});
 		}
 		static constexpr const char _defName[] = "lpv";
@@ -341,17 +341,17 @@ deprecated:
 
 
 	//////////////////////////////////////////////////////////////////////////
-	// final implementation of layer with all functionality of _layer_pack_vertical
-	// If you need to derive a new class, derive it from _layer_pack_vertical (to make static polymorphism work)
+	// final implementation of layer with all functionality of _LPV
+	// If you need to derive a new class, derive it from _LPV (to make static polymorphism work)
 	template <typename ...Layrs>
-	class LPV final : public _layer_pack_vertical<LPV<Layrs...>, ::std::tuple<Layrs&...>>
+	class LPV final : public _LPV<LPV<Layrs...>, ::std::tuple<Layrs&...>>
 	{
 	public:
 		~LPV() noexcept {};
 		LPV(Layrs&... layrs) noexcept
-			: _layer_pack_vertical<LPV<Layrs...>, ::std::tuple<Layrs&...>>(nullptr, ::std::tie(layrs...)) {};
+			: _LPV<LPV<Layrs...>, ::std::tuple<Layrs&...>>(nullptr, ::std::tie(layrs...)) {};
 		LPV(const char* pCustomName, Layrs&... layrs) noexcept
-			: _layer_pack_vertical<LPV<Layrs...>, ::std::tuple<Layrs&...>>(pCustomName, ::std::tie(layrs...)) {};
+			: _LPV<LPV<Layrs...>, ::std::tuple<Layrs&...>>(pCustomName, ::std::tie(layrs...)) {};
 	};
 
 	template <typename ..._T>

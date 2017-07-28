@@ -52,12 +52,12 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 namespace nntl {
 	
-	//AddendumsTupleT was introduced only to overcome compiler bug when using _layer_penalized_activations<> wrapper
+	//AddendumsTupleT was introduced only to overcome compiler bug when using _LPA<> wrapper
 
 	template<typename FinalPolymorphChild, typename PHLsTuple, typename AddendumsTupleT = void>
-	class _layer_pack_horizontal 
+	class _LPH 
 		: public _layer_base<FinalPolymorphChild, typename ::std::remove_reference<typename ::std::tuple_element<0, PHLsTuple>::type>::type::phl_original_t::interfaces_t>
-		, public _penalized_activations_base_selector<AddendumsTupleT>
+		, public _PA_base_selector<AddendumsTupleT>
 	{
 	private:
 		typedef _layer_base<FinalPolymorphChild, typename ::std::remove_reference<typename ::std::tuple_element<0, PHLsTuple>
@@ -78,8 +78,8 @@ namespace nntl {
 		static constexpr size_t phl_count = ::std::tuple_size<PHLsTuple>::value;
 		static_assert(phl_count > 1, "For a pack with a single inner layer use that layer instead");
 
-		static_assert(is_PHL<typename ::std::remove_reference<typename ::std::tuple_element<0, _phl_tuple>::type>::type>::value, "_layer_pack_horizontal must be assembled from PHL objects!");
-		static_assert(is_PHL<typename ::std::remove_reference<typename ::std::tuple_element<phl_count - 1, _phl_tuple>::type>::type>::value, "_layer_pack_horizontal must be assembled from PHL objects!");
+		static_assert(is_PHL<typename ::std::remove_reference<typename ::std::tuple_element<0, _phl_tuple>::type>::type>::value, "_LPH must be assembled from PHL objects!");
+		static_assert(is_PHL<typename ::std::remove_reference<typename ::std::tuple_element<phl_count - 1, _phl_tuple>::type>::type>::value, "_LPH must be assembled from PHL objects!");
 
 		typedef typename ::std::remove_reference<typename ::std::tuple_element<0, _phl_tuple>::type>::type::phl_original_t first_layer_t;
 		typedef typename ::std::remove_reference<typename ::std::tuple_element<phl_count - 1, _phl_tuple>::type>::type::phl_original_t last_layer_t;
@@ -114,7 +114,7 @@ namespace nntl {
 			if (initializer.preparePHLCheck()) {
 				tuple_utils::for_each_up(m_phl_tuple, initializer);
 				if (!initializer.PHLCheck()) {
-					NNTL_ASSERT(!"All lower layer activations must be covered by a set of inner layers of _layer_pack_horizontal!");
+					NNTL_ASSERT(!"All lower layer activations must be covered by a set of inner layers of _LPH!");
 					//#todo: probably need a better way to return error
 					abort();
 				}
@@ -138,9 +138,9 @@ namespace nntl {
 				typedef typename PHL_t::phl_original_t Layer_t;
 
 				static_assert(::std::is_same<real_t, typename Layer_t::real_t>::value, "Invalid real_t");
-				static_assert(is_PHL<PHL_t>::value, "_layer_pack_horizontal must be assembled from PHL objects!");
+				static_assert(is_PHL<PHL_t>::value, "_LPH must be assembled from PHL objects!");
 				static_assert(!is_layer_input<Layer_t>::value && !is_layer_output<Layer_t>::value
-					, "Inner layers of _layer_pack_horizontal mustn't be input or output layers!");
+					, "Inner layers of _LPH mustn't be input or output layers!");
 				static_assert(::std::is_base_of<_i_layer<real_t>, Layer_t>::value, "Each layer must derive from i_layer");
 
 				nc += phl.l.get_neurons_cnt();
@@ -149,8 +149,8 @@ namespace nntl {
 		}
 
 	public:
-		~_layer_pack_horizontal()noexcept {}
-		_layer_pack_horizontal(const char* pCustomName, const PHLsTuple& phls)noexcept
+		~_LPH()noexcept {}
+		_LPH(const char* pCustomName, const PHLsTuple& phls)noexcept
 			: _base_class_t(_calcNeuronsCnt(phls),pCustomName)
 			, m_phl_tuple(phls), m_pTmpBiasStorage(nullptr), m_layers_max_dLdA_numel(0)
 		{
@@ -551,23 +551,26 @@ namespace nntl {
 		}
 	};
 
+	template<typename FinalPolymorphChild, typename PHLsTuple, typename AddendumsTupleT = void>
+	using _layer_pack_horizontal = _LPH<FinalPolymorphChild, PHLsTuple, AddendumsTupleT>;
+
 
 	//////////////////////////////////////////////////////////////////////////
-	// final implementation of layer with all functionality of _layer_pack_horizontal
-	// If you need to derive a new class, derive it from _layer_pack_horizontal (to make static polymorphism work)
+	// final implementation of layer with all functionality of _LPH
+	// If you need to derive a new class, derive it from _LPH (to make static polymorphism work)
 
 	//to shorten class name to get rid of C4503
 	template <typename ...PHLsT>
 	class LPH final
-		: public _layer_pack_horizontal < LPH<PHLsT...>, ::std::tuple<PHLsT...>>
+		: public _LPH < LPH<PHLsT...>, ::std::tuple<PHLsT...>>
 	{
 	public:
 		~LPH() noexcept {};
 		LPH(PHLsT&... phls) noexcept
-			: _layer_pack_horizontal<LPH<PHLsT...>, ::std::tuple<PHLsT...>>(nullptr, ::std::make_tuple(phls...)) {};
+			: _LPH<LPH<PHLsT...>, ::std::tuple<PHLsT...>>(nullptr, ::std::make_tuple(phls...)) {};
 
 		LPH(const char* pCustomName, PHLsT&... phls) noexcept
-			: _layer_pack_horizontal<LPH<PHLsT...>, ::std::tuple<PHLsT...>>(pCustomName, ::std::make_tuple(phls...)) {};
+			: _LPH<LPH<PHLsT...>, ::std::tuple<PHLsT...>>(pCustomName, ::std::make_tuple(phls...)) {};
 	};
 
 	template <typename ..._T>
@@ -585,16 +588,16 @@ namespace nntl {
 	//////////////////////////////////////////////////////////////////////////
 	template <typename LossAddsTuple, typename ...PHLsT>
 	class LPH_PA final
-		: public _layer_pack_horizontal < LPH_PA<LossAddsTuple, PHLsT...>, ::std::tuple<PHLsT...>, LossAddsTuple>
+		: public _LPH < LPH_PA<LossAddsTuple, PHLsT...>, ::std::tuple<PHLsT...>, LossAddsTuple>
 	{
 	public:
 		static constexpr const char _defName[] = "lph_pa";
 
 		~LPH_PA() noexcept {};
 		LPH_PA(PHLsT&... phls) noexcept
-			: _layer_pack_horizontal<LPH_PA<LossAddsTuple, PHLsT...>, ::std::tuple<PHLsT...>, LossAddsTuple>(nullptr, ::std::make_tuple(phls...)) {};
+			: _LPH<LPH_PA<LossAddsTuple, PHLsT...>, ::std::tuple<PHLsT...>, LossAddsTuple>(nullptr, ::std::make_tuple(phls...)) {};
 
 		LPH_PA(const char* pCustomName, PHLsT&... phls) noexcept
-			: _layer_pack_horizontal<LPH_PA<LossAddsTuple, PHLsT...>, ::std::tuple<PHLsT...>, LossAddsTuple>(pCustomName, ::std::make_tuple(phls...)) {};
+			: _LPH<LPH_PA<LossAddsTuple, PHLsT...>, ::std::tuple<PHLsT...>, LossAddsTuple>(pCustomName, ::std::make_tuple(phls...)) {};
 	};
 }

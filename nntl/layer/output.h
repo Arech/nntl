@@ -39,10 +39,10 @@ namespace nntl {
 	class _layer_output 
 		: public m_layer_output
 		, public m_layer_learnable
-		, public _impl::_activation_wrapper<FinalPolymorphChild, typename GradWorks::interfaces_t, ActivFunc, _impl::_No_Dropout_at_All<typename GradWorks::real_t>>
+		, public _impl::_act_wrap<FinalPolymorphChild, typename GradWorks::interfaces_t, ActivFunc, _impl::_No_Dropout_at_All<typename GradWorks::real_t>>
 	{
 	private:
-		typedef _impl::_activation_wrapper<FinalPolymorphChild, typename GradWorks::interfaces_t
+		typedef _impl::_act_wrap<FinalPolymorphChild, typename GradWorks::interfaces_t
 			, ActivFunc, _impl::_No_Dropout_at_All<typename GradWorks::real_t>> _base_class_t;
 
 	public:

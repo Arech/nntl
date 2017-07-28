@@ -56,4 +56,22 @@ namespace nntl {
 	//TODO: Don't think it is good idea to solve it now.
 	// OBSOLETTE, use char instead
 	typedef char strchar_t;
+
+	namespace utils {
+		//////////////////////////////////////////////////////////////////////////
+		//https://bitbucket.org/martinhofernandes/wheels/src/default/include/wheels/meta/type_traits.h%2B%2B?fileviewer=file-view-default#cl-161
+		//! Tests if T is a specialization of Template
+		template <typename T, template <typename...> class Template>
+		struct is_specialization_of : ::std::false_type {};
+		template <template <typename...> class Template, typename... Args>
+		struct is_specialization_of<Template<Args...>, Template> : ::std::true_type {};
+
+		// 		template <typename T>
+		// 		using is_tuple2 = is_specialization_of<T, ::std::tuple>;
+
+		template <typename T>
+		struct is_tuple : ::std::false_type {};
+		template <typename... Args>
+		struct is_tuple <::std::tuple<Args...>> : ::std::true_type {};
+	}
 }

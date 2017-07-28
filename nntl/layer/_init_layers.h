@@ -94,7 +94,7 @@ namespace nntl {
 		class _preinit_layers {
 		public:
 			char* m_pPHLCheckStorage;//variable to hold a pointer to an array, that's used to check whether inner layers
-							// of _layer_pack_horizontal cover all activation units of the range of underlying layer
+							// of _LPH cover all activation units of the range of underlying layer
 							// Initialized to nullptr by default in constructors.
 
 			init_layer_index m_ILI;
@@ -137,12 +137,12 @@ namespace nntl {
 				return nullptr != m_pPHLCheckStorage;
 			}
 
-			// variation to comply with tuple_utils::for_each_up() callback. For use with PHL structures in _layer_pack_horizontal
+			// variation to comply with tuple_utils::for_each_up() callback. For use with PHL structures in _LPH
 			template<typename PHLT>
 			::std::enable_if_t<is_PHL<PHLT>::value> operator()(PHLT& phl)noexcept {
 				static_assert(::std::is_base_of<_i_layer<PHLT::phl_original_t::real_t>, PHLT::phl_original_t>::value, "Each layer must derive from i_layer");
 				static_assert(!::std::is_base_of<m_layer_input, PHLT::phl_original_t>::value && !::std::is_base_of<m_layer_output, PHLT::phl_original_t>::value,
-					"No input/output layers is allowed within _layer_pack_horizontal");
+					"No input/output layers is allowed within _LPH");
 				
 				NNTL_ASSERT(m_pPHLCheckStorage && phl.coord.m_count && phl.coord.m_offset < _incNeurons && (phl.coord.m_offset + phl.coord.m_count) <= _incNeurons);
 				const auto pBeg = m_pPHLCheckStorage + phl.coord.m_offset;

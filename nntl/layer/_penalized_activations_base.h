@@ -40,7 +40,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 namespace nntl {
 
-	class _penalized_activations_base_dummy {
+	class _PA_base_dummy {
 	protected:
 		static constexpr bool _pab_hasLossAddendum()noexcept {
 			return false;
@@ -57,7 +57,7 @@ namespace nntl {
 	};
 
 	template<typename AddendumsTupleT>
-	class _penalized_activations_base : private math::smatrix_td
+	class _PA_base : private math::smatrix_td
 	{
 	public:
 		//typedef ::std::tuple<LossAddsTs...> addendums_tuple_t;
@@ -172,9 +172,9 @@ namespace nntl {
 
 
 	template<typename AddendumsTupleT>
-	using _penalized_activations_base_selector = typename ::std::conditional<
-		::std::is_fundamental<AddendumsTupleT>::value
-		, _penalized_activations_base_dummy
-		, _penalized_activations_base<AddendumsTupleT>
+	using _PA_base_selector = typename ::std::conditional<
+		utils::is_tuple<AddendumsTupleT>::value
+		, _PA_base<AddendumsTupleT>
+		, _PA_base_dummy
 	>::type;
 }

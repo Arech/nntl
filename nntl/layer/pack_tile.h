@@ -126,7 +126,7 @@ namespace nntl {
 	//		transformed.
 	// 
 	template<typename FinalPolymorphChild, typename LayerT, neurons_count_t K_tiles, bool bExpectSpecialDataX>
-	class _layer_pack_tile 
+	class _LPT 
 		: public _layer_base<FinalPolymorphChild, typename LayerT::interfaces_t>
 	{
 	private:
@@ -191,8 +191,8 @@ namespace nntl {
 		}
 		
 	public:
-		~_layer_pack_tile()noexcept {}
-		_layer_pack_tile(const char* pCustomName, tiled_layer_t& tl)noexcept
+		~_LPT()noexcept {}
+		_LPT(const char* pCustomName, tiled_layer_t& tl)noexcept
 			: _base_class(tiles_count*tl.get_neurons_cnt(), pCustomName)
 			, m_tiledLayer(tl), m_innerCD()//initialize m_innerCD by default
 		{
@@ -570,22 +570,22 @@ namespace nntl {
 
 
 	//////////////////////////////////////////////////////////////////////////
-	// final implementation of layer with all functionality of _layer_pack_tile
-	// If you need to derive a new class, derive it from _layer_pack_tile (to make static polymorphism work)
+	// final implementation of layer with all functionality of _LPT
+	// If you need to derive a new class, derive it from _LPT (to make static polymorphism work)
 
 	//to shorten class name to get rid of C4503
 	template <typename LayerT, neurons_count_t K_tiles, bool bExpectSpecialDataX>
 	class LPT final
-		: public _layer_pack_tile<LPT<LayerT, K_tiles, bExpectSpecialDataX>, LayerT, K_tiles, bExpectSpecialDataX>
+		: public _LPT<LPT<LayerT, K_tiles, bExpectSpecialDataX>, LayerT, K_tiles, bExpectSpecialDataX>
 	{
 	public:
 		~LPT() noexcept {};
 		LPT(LayerT& tl, const char* pCustomName=nullptr) noexcept
-			: _layer_pack_tile<LPT<LayerT, K_tiles, bExpectSpecialDataX>, LayerT, K_tiles, bExpectSpecialDataX>(pCustomName, tl)
+			: _LPT<LPT<LayerT, K_tiles, bExpectSpecialDataX>, LayerT, K_tiles, bExpectSpecialDataX>(pCustomName, tl)
 		{};
 
 		LPT(const char* pCustomName, LayerT& tl) noexcept
-			: _layer_pack_tile<LPT<LayerT, K_tiles, bExpectSpecialDataX>, LayerT, K_tiles, bExpectSpecialDataX>(pCustomName, tl)
+			: _LPT<LPT<LayerT, K_tiles, bExpectSpecialDataX>, LayerT, K_tiles, bExpectSpecialDataX>(pCustomName, tl)
 		{};
 	};
 

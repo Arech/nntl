@@ -58,14 +58,14 @@ namespace nntl {
 	//to relation to value of real_t(nBinarize1e6/1e6).
 	// 
 	template<typename FinalPolymorphChild, int32_t nBinarize1e6, typename PHLsTuple, typename AddendumsTupleT = void, bool _bAddendumsAppliesToGate = false>
-	class _layer_pack_horizontal_gated : public _layer_pack_horizontal<FinalPolymorphChild, PHLsTuple, AddendumsTupleT>
+	class _LPHG : public _LPH<FinalPolymorphChild, PHLsTuple, AddendumsTupleT>
 	{
 	private:
-		typedef _layer_pack_horizontal<FinalPolymorphChild, PHLsTuple, AddendumsTupleT> _base_class;
+		typedef _LPH<FinalPolymorphChild, PHLsTuple, AddendumsTupleT> _base_class;
 
 	public:
 		static_assert(::std::is_base_of<_i_layer_gate<real_t>, first_layer_t>::value,
-			"First layer within _layer_pack_horizontal_gated MUST be a gate with a corresponding width!");
+			"First layer within _LPHG MUST be a gate with a corresponding width!");
 		//BTW, gate width must be equal to phl_count-1. We can't check it with a static_assert, but
 		// will check it later in runtime		
 		typedef first_layer_t gating_layer_t;
@@ -98,8 +98,8 @@ namespace nntl {
 		bool m_bDropSamplesWasCalled;
 
 		//this flag differs from the one instantiated in the parent _layer_base. This flag informs whether the
-		//_layer_pack_horizontal_gated::drop_samples() could be called (this depends on init(lid)). The flag
-		//inside the _layer_base class informs whether the _layer_pack_horizontal::drop_samples() could be called (it'll be set to true
+		//_LPHG::drop_samples() could be called (this depends on init(lid)). The flag
+		//inside the _layer_base class informs whether the _LPH::drop_samples() could be called (it'll be set to true
 		// by our's init() procedure). We won't redefine the .is_drop_samples_mbc() here and leave it as is.
 		// Derived classes must choose the proper variable depending on the task
 		bool m_bIsGatedDropSamplesMightBeCalled;
@@ -114,8 +114,8 @@ namespace nntl {
 		//#BUGBUG this trick doesn't work, _defName remains NULLed!
 		static constexpr const char _defName[sizeof(_defNameS<sbBinarizeGate>::n)] = _defNameS<sbBinarizeGate>::n;
 
-		~_layer_pack_horizontal_gated()noexcept {}
-		_layer_pack_horizontal_gated(const char* pCustomName, const PHLsTuple& phls)noexcept : _base_class(pCustomName, phls)
+		~_LPHG()noexcept {}
+		_LPHG(const char* pCustomName, const PHLsTuple& phls)noexcept : _base_class(pCustomName, phls)
 			, m_bIsGatedDropSamplesMightBeCalled(false), m_bDropSamplesWasCalled(false)
 		{
 			//at this point all neuron counts in gating layers must be initialized and therefore we can check whether
@@ -480,20 +480,20 @@ namespace nntl {
 
 
 	//////////////////////////////////////////////////////////////////////////
-	// final implementation of layer with all functionality of _layer_pack_horizontal_gated
-	// If you need to derive a new class, derive it from _layer_pack_horizontal_gated (to make static polymorphism work)
+	// final implementation of layer with all functionality of _LPHG
+	// If you need to derive a new class, derive it from _LPHG (to make static polymorphism work)
 
 	//to shorten class name to get rid of C4503
 	template <typename ...PHLsT>
 	class LPHG final
-		: public _layer_pack_horizontal_gated<LPHG<PHLsT...>, 500000, ::std::tuple<PHLsT...>>
+		: public _LPHG<LPHG<PHLsT...>, 500000, ::std::tuple<PHLsT...>>
 	{
 	public:
 		~LPHG() noexcept {};
 		LPHG(PHLsT&... phls) noexcept
-			: _layer_pack_horizontal_gated<LPHG<PHLsT...>, 500000, ::std::tuple<PHLsT...>>(nullptr, ::std::make_tuple(phls...)) {};
+			: _LPHG<LPHG<PHLsT...>, 500000, ::std::tuple<PHLsT...>>(nullptr, ::std::make_tuple(phls...)) {};
 		LPHG(const char* pCustomName, PHLsT&... phls) noexcept
-			: _layer_pack_horizontal_gated<LPHG<PHLsT...>, 500000, ::std::tuple<PHLsT...>>(pCustomName, ::std::make_tuple(phls...)) {};
+			: _LPHG<LPHG<PHLsT...>, 500000, ::std::tuple<PHLsT...>>(pCustomName, ::std::make_tuple(phls...)) {};
 	};
 
 	template <typename ..._T>
@@ -512,14 +512,14 @@ namespace nntl {
 
 	template <typename ...PHLsT>
 	class LPHGFI final
-		: public _layer_pack_horizontal_gated<LPHGFI<PHLsT...>, 0, ::std::tuple<PHLsT...>>
+		: public _LPHG<LPHGFI<PHLsT...>, 0, ::std::tuple<PHLsT...>>
 	{
 	public:
 		~LPHGFI() noexcept {};
 		LPHGFI(PHLsT&... phls) noexcept
-			: _layer_pack_horizontal_gated<LPHGFI<PHLsT...>, 0, ::std::tuple<PHLsT...>>(nullptr, ::std::make_tuple(phls...)) {};
+			: _LPHG<LPHGFI<PHLsT...>, 0, ::std::tuple<PHLsT...>>(nullptr, ::std::make_tuple(phls...)) {};
 		LPHGFI(const char* pCustomName, PHLsT&... phls) noexcept
-			: _layer_pack_horizontal_gated<LPHGFI<PHLsT...>, 0, ::std::tuple<PHLsT...>>(pCustomName, ::std::make_tuple(phls...)) {};
+			: _LPHG<LPHGFI<PHLsT...>, 0, ::std::tuple<PHLsT...>>(pCustomName, ::std::make_tuple(phls...)) {};
 	};
 
 	template <typename ..._T>
@@ -539,25 +539,25 @@ namespace nntl {
 	
 	template <typename AddendumsTupleT, typename ...PHLsT>
 	class LPHG_PA final
-		: public _layer_pack_horizontal_gated<LPHG_PA<AddendumsTupleT, PHLsT...>, 500000, ::std::tuple<PHLsT...>, AddendumsTupleT>
+		: public _LPHG<LPHG_PA<AddendumsTupleT, PHLsT...>, 500000, ::std::tuple<PHLsT...>, AddendumsTupleT>
 	{
 	public:
 		~LPHG_PA() noexcept {};
 		LPHG_PA(PHLsT&... phls) noexcept
-			: _layer_pack_horizontal_gated<LPHG_PA<AddendumsTupleT, PHLsT...>, 500000, ::std::tuple<PHLsT...>, AddendumsTupleT>(nullptr, ::std::make_tuple(phls...)) {};
+			: _LPHG<LPHG_PA<AddendumsTupleT, PHLsT...>, 500000, ::std::tuple<PHLsT...>, AddendumsTupleT>(nullptr, ::std::make_tuple(phls...)) {};
 		LPHG_PA(const char* pCustomName, PHLsT&... phls) noexcept
-			: _layer_pack_horizontal_gated<LPHG_PA<AddendumsTupleT, PHLsT...>, 500000, ::std::tuple<PHLsT...>, AddendumsTupleT>(pCustomName, ::std::make_tuple(phls...)) {};
+			: _LPHG<LPHG_PA<AddendumsTupleT, PHLsT...>, 500000, ::std::tuple<PHLsT...>, AddendumsTupleT>(pCustomName, ::std::make_tuple(phls...)) {};
 	};
 
 	template <typename AddendumsTupleT, typename ...PHLsT>
 	class LPHGFI_PA final
-		: public _layer_pack_horizontal_gated<LPHGFI_PA<AddendumsTupleT, PHLsT...>, 0, ::std::tuple<PHLsT...>, AddendumsTupleT>
+		: public _LPHG<LPHGFI_PA<AddendumsTupleT, PHLsT...>, 0, ::std::tuple<PHLsT...>, AddendumsTupleT>
 	{
 	public:
 		~LPHGFI_PA() noexcept {};
 		LPHGFI_PA(PHLsT&... phls) noexcept
-			: _layer_pack_horizontal_gated<LPHGFI_PA<AddendumsTupleT, PHLsT...>, 0, ::std::tuple<PHLsT...>, AddendumsTupleT>(nullptr, ::std::make_tuple(phls...)) {};
+			: _LPHG<LPHGFI_PA<AddendumsTupleT, PHLsT...>, 0, ::std::tuple<PHLsT...>, AddendumsTupleT>(nullptr, ::std::make_tuple(phls...)) {};
 		LPHGFI_PA(const char* pCustomName, PHLsT&... phls) noexcept
-			: _layer_pack_horizontal_gated<LPHGFI_PA<AddendumsTupleT, PHLsT...>, 0, ::std::tuple<PHLsT...>, AddendumsTupleT>(pCustomName, ::std::make_tuple(phls...)) {};
+			: _LPHG<LPHGFI_PA<AddendumsTupleT, PHLsT...>, 0, ::std::tuple<PHLsT...>, AddendumsTupleT>(pCustomName, ::std::make_tuple(phls...)) {};
 	};
 }

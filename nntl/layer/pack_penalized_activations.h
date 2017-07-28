@@ -39,12 +39,12 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 namespace nntl {
 
-	//If possible prefer the _layer_penalized_activations<> over the _layer_pack_penalized_activations<>. However, in complicated
-	// cases compiler's bugs may leave you no option but to use _layer_pack_penalized_activations<>.
+	//If possible prefer the _LPA<> over the _LPPA<>. However, in complicated
+	// cases compiler's bugs may leave you no option but to use _LPPA<>.
 	template<typename FinalPolymorphChild, class LayerT, typename LossAddsTuple>
-	class _layer_pack_penalized_activations 
+	class _LPPA 
 		: public _layer_base_forwarder<FinalPolymorphChild, typename LayerT::interfaces_t>
-		, public _penalized_activations_base<LossAddsTuple>
+		, public _PA_base<LossAddsTuple>
 	{
 	private:
 		typedef _layer_base_forwarder<FinalPolymorphChild, typename LayerT::interfaces_t> _base_class_t;
@@ -84,8 +84,8 @@ namespace nntl {
 		}
 
 	public:
-		~_layer_pack_penalized_activations()noexcept {}
-		_layer_pack_penalized_activations(const char* pCustomName, LayerT& ul)noexcept
+		~_LPPA()noexcept {}
+		_LPPA(const char* pCustomName, LayerT& ul)noexcept
 			: _base_class_t(pCustomName), m_undLayer(ul), m_layerIdx(0)
 		{}
 
@@ -193,11 +193,11 @@ namespace nntl {
 	};
 
 	template<class LayerT, typename ...LossAddsTs>
-	class LPPA final : public _layer_pack_penalized_activations<LPPA<LayerT, LossAddsTs...>, LayerT, ::std::tuple<LossAddsTs...>> {
+	class LPPA final : public _LPPA<LPPA<LayerT, LossAddsTs...>, LayerT, ::std::tuple<LossAddsTs...>> {
 	public:
 		~LPPA() noexcept {};
 		LPPA(const char* pCustomName, LayerT& ul) noexcept
-			: _layer_pack_penalized_activations<LPPA<LayerT, LossAddsTs...>, LayerT, ::std::tuple<LossAddsTs...>>(pCustomName, ul) {};
+			: _LPPA<LPPA<LayerT, LossAddsTs...>, LayerT, ::std::tuple<LossAddsTs...>>(pCustomName, ul) {};
 	};
 
 	template <class LayerT, typename ..._T>
