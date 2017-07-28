@@ -233,6 +233,9 @@ namespace nntl {
 			//lies next to some other (activation) matrices in memory, therefore layer must NOT touch a bias column in all cases except it
 			//was ordered by a call to drop_samples(...,true) (applies to gating layers - the only type of layers now, that can
 			// change the bias column)
+			// Be aware, that the fact that the pNewActivationStorage was passed to init() does NOT always mean bActivationsShareSpace will be true
+			// Consider layer_pack_tile - it substitutes activations for the inner layer, but that never means that 
+			// bActivationsShareSpace will be true for that layer
 
 			OUT bool bHasLossAddendum;//to be set by layer.init()
 			OUT bool bOutputDifferentDuringTraining;//set by layer.init() to note that the layer output (fprop results)

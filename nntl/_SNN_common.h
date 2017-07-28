@@ -31,37 +31,49 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 #pragma once
 
-#include "_i_activation.h"
-
 namespace nntl {
-namespace activation {
 
-	//activation types should not be templated (probably besides real_t), because they are intended to be used
-	//as means to recognize activation function type
-	struct type_step {};
-
-	//////////////////////////////////////////////////////////////////////////
-	//////////////////////////////////////////////////////////////////////////
-	//stepwise activation: y = 0|x<0 & 1|x>=0
-	template<typename RealT, typename WeightsInitScheme = weights_init::He_Zhang<>>
-	class step
-		: public _i_activation<RealT, WeightsInitScheme>
-		, public type_step
-	{
-	public:
-		//apply f to each srcdest matrix element to compute activation values. The biases (if any) must be left untouched!
-		template <typename iMath>
-		static void f(realmtx_t& srcdest, iMath& m) noexcept {
-			static_assert(::std::is_base_of<math::_i_math<real_t>, iMath>::value, "iMath should implement math::_i_math");
-			m.step(srcdest);
-		};
-		template <typename iMath>
-		static void df(realmtx_t& f_df, iMath& m) noexcept {
-			static_assert(::std::is_base_of<math::_i_math<real_t>, iMath>::value, "iMath should implement math::_i_math");
-			NNTL_ASSERT(!f_df.emulatesBiases());
-			f_df.zeros();
-		}
+	enum class ADCorr {
+		no,
+		correctDoVal,
+		correctVar,
+		correctDoAndVar
 	};
 
-}
+	namespace _impl {
+
+		template<typename RealT, int64_t Alpha1e9 = 0, int64_t Lambda1e9 = 0, int fpMean1e6 = 0, int fpVar1e6 = 1000000, ADCorr corrType = ADCorr::no>
+		struct SNN_common_td {
+			typedef RealT real_t;
+
+			static constexpr int64_t _TP_alpha = Alpha1e9;
+			static constexpr int64_t _TP_lambda = Lambda1e9;
+			static constexpr int _TP_fpMean = fpMean1e6;
+			static constexpr int _TP_fpVar = fpVar1e6;
+			static constexpr ADCorr _TP_corrType = corrType;
+
+
+			static constexpr ext_real_t AlphaExt = Alpha1e9 ? ext_real_t(Alpha1e9) / ext_real_t(1e9) : ext_real_t(1.6732632423543772848170429916717);
+			static constexpr ext_real_t LambdaExt = Lambda1e9 ? ext_real_t(Lambda1e9) / ext_real_t(1e9) : ext_real_t(1.0507009873554804934193349852946);
+
+			static constexpr ext_real_t AlphaExt_t_LambdaExt = AlphaExt*LambdaExt;
+			static constexpr ext_real_t Neg_AlphaExt_t_LambdaExt = -AlphaExt_t_LambdaExt;
+
+			static constexpr real_t Alpha = real_t(AlphaExt);
+			static constexpr real_t Lambda = real_t(LambdaExt);
+			static constexpr real_t Alpha_t_Lambda = real_t(AlphaExt*LambdaExt);
+			static constexpr real_t Neg_Alpha_t_Lambda = -Alpha_t_Lambda;
+
+			static constexpr ext_real_t FixedPointMeanExt = ext_real_t(fpMean1e6) / ext_real_t(1e6);
+			static constexpr ext_real_t FixedPointVarianceExt = ext_real_t(fpVar1e6) / ext_real_t(1e6);
+
+			static constexpr real_t FixedPointMean = real_t(FixedPointMeanExt);
+			static constexpr real_t FixedPointVariance = real_t(FixedPointVarianceExt);
+
+		};
+
+			
+
+	}
+
 }

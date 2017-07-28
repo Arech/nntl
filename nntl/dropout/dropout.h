@@ -45,6 +45,10 @@ namespace nntl {
 		public:
 			typedef math::smatrix_deform<real_t> realmtxdef_t;
 
+		public:
+			//DON'T redefine in derived classes!
+			static constexpr bool bDropoutWorksAtEvaluationToo = false;
+
 		protected:
 			//////////////////////////////////////////////////////////////////////////
 			//vars
@@ -67,23 +71,26 @@ namespace nntl {
 					ar & NNTL_SERIALIZATION_NVP(m_dropoutMask);
 			}
 
-			bool _dropout_init(const vec_len_t training_batch_size, const neurons_count_t neurons_cnt)noexcept {
-				//NNTL_ASSERT(get_self().has_common_data());
-				if (training_batch_size > 0) {
-					//condition means if (there'll be a training session) and (we're going to use dropout)
+			bool _dropout_init(const bool isTrainingPossible, const vec_len_t max_batch_size, const neurons_count_t neurons_cnt)noexcept {
+				NNTL_ASSERT(max_batch_size && neurons_cnt);
+				if (isTrainingPossible) {
+					//we don't check bDropout() here because assume that if the dropout enabled, it'll be used
+					//even if now it's disabled.
 					NNTL_ASSERT(!m_dropoutMask.emulatesBiases());
 					//resize to the biggest possible size during training
-					if (!m_dropoutMask.resize(training_batch_size, neurons_cnt)) return false;
+					if (!m_dropoutMask.resize(max_batch_size, neurons_cnt)) return false;
 				}
 				return true;
 			}
 
 			void _dropout_deinit()noexcept {
 				m_dropoutMask.clear();
+				//we mustn't clear settings here
 			}
 
-			void _dropout_on_batch_size_change(const vec_len_t batchSize)noexcept {
-				if (bDropout()) {
+			void _dropout_on_batch_size_change(const bool isTrainingMode, const vec_len_t batchSize)noexcept {
+				NNTL_ASSERT(batchSize);
+				if (isTrainingMode && bDropout()) {
 					NNTL_ASSERT(!m_dropoutMask.empty());
 					m_dropoutMask.deform_rows(batchSize);
 				}
@@ -98,9 +105,6 @@ namespace nntl {
 				NNTL_ASSERT(real_t(0.) <= dpa && dpa <= real_t(1.));
 				m_dropoutPercentActive = (dpa <= real_t(+0.) || dpa > real_t(1.)) ? real_t(1.) : dpa;
 			}
-
-			const realmtx_t* _dropout_get_mask()const noexcept { return &m_dropoutMask; }
-			//real_t _dropout_activations_scaleInverse()const noexcept { return m_dropoutPercentActive; }
 		};
 	}
 
@@ -155,10 +159,6 @@ namespace nntl {
 				_iI.fprop_preDropout(activations, m_dropoutPercentActive, m_dropoutMask);
 				iM.make_dropout(activations, m_dropoutPercentActive, m_dropoutMask);
 				_iI.fprop_postDropout(activations, m_dropoutMask);
-			} else {
-				//only applying dropoutPercentActive -- we don't need to do this since make_dropout() implements so called 
-				// "inverse dropout" that doesn't require this step
-				//_Math.evMulC_ip_Anb(m_activations, real_t(1.0) - m_dropoutPercentActive);
 			}
 		}
 

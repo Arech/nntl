@@ -39,13 +39,14 @@ namespace nntl {
 	class _layer_output 
 		: public m_layer_output
 		, public m_layer_learnable
-		, public _impl::_activation_wrapper<FinalPolymorphChild, typename GradWorks::interfaces_t, ActivFunc>
+		, public _impl::_activation_wrapper<FinalPolymorphChild, typename GradWorks::interfaces_t, ActivFunc, _impl::_No_Dropout_at_All<typename GradWorks::real_t>>
 	{
 	private:
-		typedef _impl::_activation_wrapper<FinalPolymorphChild, typename GradWorks::interfaces_t, ActivFunc> _base_class_t;
+		typedef _impl::_activation_wrapper<FinalPolymorphChild, typename GradWorks::interfaces_t
+			, ActivFunc, _impl::_No_Dropout_at_All<typename GradWorks::real_t>> _base_class_t;
 
 	public:
-		static_assert(::std::is_base_of<activation::_i_function<typename Activation_t::Dropout_t, Weights_Init_t>, Activation_t>::value, "ActivFunc template parameter should be derived from activation::_i_function");
+		static_assert(::std::is_base_of<activation::_i_function<real_t, Weights_Init_t>, Activation_t>::value, "ActivFunc template parameter should be derived from activation::_i_function");
 		static_assert(bActivationForOutput, "ActivFunc template parameter should be derived from activation::_i_activation_loss");
 		static_assert(is_dummy_dropout<Dropout_t>::value, "WTF? There must be no dropout!");
 		static_assert(!layer_has_dropout<self_t>::value, "WTF? There must be no dropout!");

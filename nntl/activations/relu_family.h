@@ -43,9 +43,9 @@ namespace activation {
 	//////////////////////////////////////////////////////////////////////////
 	//////////////////////////////////////////////////////////////////////////
 	//ReLU
-	template<typename RealT, typename WeightsInitScheme = weights_init::He_Zhang<>, typename DropoutT = Dropout<RealT>>
+	template<typename RealT, typename WeightsInitScheme = weights_init::He_Zhang<>>
 	class relu
-		: public _i_activation<DropoutT, WeightsInitScheme>
+		: public _i_activation<RealT, WeightsInitScheme>
 		, public type_relu
 	{
 	public:
@@ -72,9 +72,9 @@ namespace activation {
 	//////////////////////////////////////////////////////////////////////////
 	// Leaky Relu
 	template<typename RealT, unsigned int LeakKInv100 = 10000
-		, typename WeightsInitScheme = weights_init::He_Zhang<>, typename DropoutT = Dropout<RealT>>
+		, typename WeightsInitScheme = weights_init::He_Zhang<>>
 	class leaky_relu
-		: public _i_activation<DropoutT, WeightsInitScheme>
+		: public _i_activation<RealT, WeightsInitScheme>
 		, public type_leakyrelu
 	{
 	public:

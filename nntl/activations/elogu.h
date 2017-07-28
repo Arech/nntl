@@ -44,9 +44,9 @@ namespace activation {
 	//////////////////////////////////////////////////////////////////////////
 	//ELogU : log(x+1)/log(b) | x>0,  alpha*(exp(x)-1) | x<0
 	template<typename RealT, unsigned int Alpha1e3 = 1000, unsigned int LogBase1e3 = 2000
-		, typename WeightsInitScheme = weights_init::He_Zhang<>, typename DropoutT = Dropout<RealT>>
+		, typename WeightsInitScheme = weights_init::He_Zhang<>>
 	class elogu 
-		: public _i_activation<DropoutT, WeightsInitScheme>
+		: public _i_activation<RealT, WeightsInitScheme>
 		, public type_elogu
 	{
 	public:

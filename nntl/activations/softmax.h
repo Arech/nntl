@@ -47,7 +47,7 @@ namespace activation {
 	// #TODO: may be it's worth to implement SoftMax activation for hidden layers, i.e. make a dA/dZ implementation
 	template<typename RealT, typename WeightsInitScheme = weights_init::Martens_SI_sigm<>>
 	class softmax_xentropy_loss
-		: public _i_function<NoDropout<RealT>, WeightsInitScheme>
+		: public _i_function<RealT, WeightsInitScheme>
 		, public _i_xentropy_loss<RealT>
 		, public type_softmax
 	{

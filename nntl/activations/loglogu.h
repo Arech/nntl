@@ -44,9 +44,9 @@ namespace activation {
 	//////////////////////////////////////////////////////////////////////////
 	//LogLogU : -log(1-x)/log(b_neg) | x<0,   log(x+1)/log(b_pos) | x>0
 	template<typename RealT, unsigned int LogBaseNeg1e3 = 2718, unsigned int LogBasePos1e3 = 2000
-		, typename WeightsInitScheme = weights_init::He_Zhang<>, typename DropoutT = Dropout<RealT>>
+		, typename WeightsInitScheme = weights_init::He_Zhang<>>
 	class loglogu 
-		: public _i_activation<DropoutT, WeightsInitScheme>
+		: public _i_activation<RealT, WeightsInitScheme>
 		, public type_loglogu
 	{
 	public:

@@ -33,9 +33,11 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include "_i_activation.h"
 
+//#include "../dropout/alpha_dropout.h"
+#include "../_SNN_common.h"
+
 namespace nntl {
 namespace activation {
-
 	//activation types should not be templated (probably besides real_t), because they are intended to be used
 	//as means to recognize activation function type
 	struct type_selu{};
@@ -48,19 +50,15 @@ namespace activation {
 		, int fpMean1e6 = 0, int fpVar1e6 = 1000000
 		, ADCorr corrType = ADCorr::no
 		, typename WeightsInitScheme = weights_init::SNNInit
-		, typename DropoutT = AlphaDropout<RealT, Alpha1e9, Lambda1e9, fpMean1e6, fpVar1e6, corrType>
+		//, typename DropoutT = AlphaDropout<RealT, Alpha1e9, Lambda1e9, fpMean1e6, fpVar1e6, corrType>
 	>
 	class selu 
-		: public _i_activation<DropoutT, WeightsInitScheme> 
+		: public _i_activation<RealT, WeightsInitScheme>
+		, public _impl::SNN_common_td<RealT, Alpha1e9, Lambda1e9, fpMean1e6, fpVar1e6, corrType>
 		, public type_selu
 	{
 	public:
-		static constexpr ext_real_t AlphaExt = Alpha1e9 ? ext_real_t(Alpha1e9) / ext_real_t(1e9) : ext_real_t(1.6732632423543772848170429916717);
-		static constexpr ext_real_t LambdaExt = Lambda1e9 ? ext_real_t(Lambda1e9) / ext_real_t(1e9) : ext_real_t(1.0507009873554804934193349852946);
-
-		static constexpr real_t Alpha = real_t(AlphaExt);
-		static constexpr real_t Lambda = real_t(LambdaExt);
-		static constexpr real_t Alpha_t_Lambda = real_t(AlphaExt*LambdaExt);
+		typedef RealT real_t;
 
 	public:
 		//apply f to each srcdest matrix element. The biases (if any) must be left untouched!

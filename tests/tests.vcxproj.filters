@@ -453,6 +453,9 @@
     <ClInclude Include="..\nntl\dropout\alpha_dropout.h">
       <Filter>nntl\dropout</Filter>
     </ClInclude>
+    <ClInclude Include="..\nntl\_SNN_common.h">
+      <Filter>nntl</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="stdafx.cpp">

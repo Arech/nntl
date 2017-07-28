@@ -45,9 +45,9 @@ namespace activation {
 	// SoftSign, y = c*(x/(a+|x|)), dy/dx = (c-|y|)^2 /(c*a), parameter 'a' controls the slope of the curve, c - amplitude
 	// pass 0 to C1e3 to get predefined c=1.59253... (see https://www.reddit.com/r/MachineLearning/comments/6g5tg1/r_selfnormalizing_neural_networks_improved_elu/diwq7rb/)
 	template<typename RealT, unsigned int A1e6 = 1000000, unsigned int C1e6=1000000
-		, typename WeightsInitScheme = weights_init::He_Zhang<>, typename DropoutT = Dropout<RealT>>
+		, typename WeightsInitScheme = weights_init::He_Zhang<>>
 	class softsign
-		: public _i_activation<DropoutT, WeightsInitScheme>
+		: public _i_activation<RealT, WeightsInitScheme>
 		, public type_softsign
 	{
 	public:
@@ -85,8 +85,8 @@ namespace activation {
 		}
 	};
 
-	template<typename RealT, typename WeightsInitScheme = weights_init::He_Zhang<>, typename DoT=Dropout<RealT>>
-	using softsign_uc_ua = softsign<RealT, 1000000, 1000000, WeightsInitScheme, DoT>;
+	template<typename RealT, typename WeightsInitScheme = weights_init::He_Zhang<>>
+	using softsign_uc_ua = softsign<RealT, 1000000, 1000000, WeightsInitScheme>;
 
 }
 }

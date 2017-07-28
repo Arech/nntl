@@ -44,9 +44,9 @@ namespace activation {
 	//////////////////////////////////////////////////////////////////////////
 	// ELU
 	template<typename RealT, unsigned int Alpha1e3 = 1000
-		, typename WeightsInitScheme = weights_init::He_Zhang<>, typename DropoutT = Dropout<RealT>>
+		, typename WeightsInitScheme = weights_init::He_Zhang<>>
 	class elu
-		: public _i_activation<DropoutT, WeightsInitScheme>
+		: public _i_activation<RealT, WeightsInitScheme>
 		, public type_elu
 	{
 	public:

@@ -33,14 +33,9 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include "dropout.h"
 
-namespace nntl {
+#include "../_SNN_common.h"
 
-	enum class ADCorr {
-		no,
-		correctDoVal,
-		correctVar,
-		correctDoAndVar
-	};
+namespace nntl {
 
 	//////////////////////////////////////////////////////////////////////////
 	// Default parameters corresponds to a "standard" SELU with stable fixed point at (0,1)
@@ -61,27 +56,14 @@ namespace nntl {
 		, int64_t Alpha1e9 = 0, int64_t Lambda1e9 = 0, int fpMean1e6 = 0, int fpVar1e6 = 1000000
 		, ADCorr corrType = ADCorr::no
 	>
-	struct AlphaDropout : public _impl::_dropout_base<RealT> {
+	struct AlphaDropout 
+		: public _impl::_dropout_base<RealT>
+		, public _impl::SNN_common_td<RealT, Alpha1e9, Lambda1e9, fpMean1e6, fpVar1e6, corrType>
+	{
 	private:
 		typedef _impl::_dropout_base<RealT> _base_class_t;
-
 	public:
-		static constexpr ext_real_t AlphaExt = Alpha1e9 ? ext_real_t(Alpha1e9) / ext_real_t(1e9) : ext_real_t(1.6732632423543772848170429916717);
-		static constexpr ext_real_t LambdaExt = Lambda1e9 ? ext_real_t(Lambda1e9) / ext_real_t(1e9) : ext_real_t(1.0507009873554804934193349852946);
-
-		static constexpr ext_real_t AlphaExt_t_LambdaExt = AlphaExt*LambdaExt;
-		static constexpr ext_real_t Neg_AlphaExt_t_LambdaExt = -AlphaExt_t_LambdaExt;
-
-		static constexpr real_t Alpha = real_t(AlphaExt);
-		static constexpr real_t Lambda = real_t(LambdaExt);
-		static constexpr real_t Alpha_t_Lambda = real_t(AlphaExt*LambdaExt);
-		static constexpr real_t Neg_Alpha_t_Lambda = -Alpha_t_Lambda;
-
-		static constexpr ext_real_t FixedPointMeanExt = ext_real_t(fpMean1e6) / ext_real_t(1e6);
-		static constexpr ext_real_t FixedPointVarianceExt = ext_real_t(fpVar1e6) / ext_real_t(1e6);
-
-		static constexpr real_t FixedPointMean = real_t(FixedPointMeanExt);
-		static constexpr real_t FixedPointVariance = real_t(FixedPointVarianceExt);
+		using _base_class_t::real_t;
 
 	protected:
 		realmtxdef_t m_mtxB;
@@ -106,14 +88,15 @@ namespace nntl {
 			_base_class_t::_dropout_serialize(ar, version);
 		}
 
-		bool _dropout_init(const vec_len_t training_batch_size, const neurons_count_t neurons_cnt)noexcept {
-			if (!_base_class_t::_dropout_init(training_batch_size, neurons_cnt))  return false;
+		bool _dropout_init(const bool isTrainingPossible, const vec_len_t max_batch_size, const neurons_count_t neurons_cnt)noexcept {
+			NNTL_ASSERT(max_batch_size && neurons_cnt);
+			if (!_base_class_t::_dropout_init(isTrainingPossible, max_batch_size, neurons_cnt))  return false;
 
-			if (training_batch_size > 0) {
+			if (isTrainingPossible) {
 				//condition means if (there'll be a training session) and (we're going to use dropout)
 				NNTL_ASSERT(!m_mtxB.emulatesBiases());
 				//resize to the biggest possible size during training
-				if (!m_mtxB.resize(training_batch_size, neurons_cnt)) return false;
+				if (!m_mtxB.resize(max_batch_size, neurons_cnt)) return false;
 
 				NNTL_ASSERT(m_mtxB.size() == m_dropoutMask.size());
 
@@ -128,9 +111,10 @@ namespace nntl {
 			_base_class_t::_dropout_deinit();
 		}
 
-		void _dropout_on_batch_size_change(const vec_len_t batchSize) noexcept {
-			_base_class_t::_dropout_on_batch_size_change(batchSize);
-			if (bDropout()) {
+		void _dropout_on_batch_size_change(const bool isTrainingMode, const vec_len_t batchSize) noexcept {
+			NNTL_ASSERT(batchSize);
+			_base_class_t::_dropout_on_batch_size_change(isTrainingMode, batchSize);
+			if (isTrainingMode && bDropout()) {
 				NNTL_ASSERT(!m_mtxB.empty());
 				m_mtxB.deform_rows(batchSize);
 				NNTL_ASSERT(m_mtxB.size() == m_dropoutMask.size());

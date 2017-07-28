@@ -134,12 +134,14 @@ namespace nntl {
 		static const neurons_count_t _calcNeuronsCnt(const _phl_tuple& tupl) noexcept {
 			neurons_count_t nc = 0;
 			tuple_utils::for_each_up(tupl, [&nc](const auto& phl)noexcept {
-				static_assert(is_PHL<::std::remove_reference_t<decltype(phl)>>::value, "_layer_pack_horizontal must be assembled from PHL objects!");
-				static_assert(!::std::is_base_of<m_layer_input, ::std::remove_reference_t<decltype(phl)>::phl_original_t>::value
-					&& !::std::is_base_of<m_layer_output, ::std::remove_reference_t<decltype(phl)>::phl_original_t>::value
+				typedef ::std::remove_reference_t<decltype(phl)> PHL_t;
+				typedef typename PHL_t::phl_original_t Layer_t;
+
+				static_assert(::std::is_same<real_t, typename Layer_t::real_t>::value, "Invalid real_t");
+				static_assert(is_PHL<PHL_t>::value, "_layer_pack_horizontal must be assembled from PHL objects!");
+				static_assert(!is_layer_input<Layer_t>::value && !is_layer_output<Layer_t>::value
 					, "Inner layers of _layer_pack_horizontal mustn't be input or output layers!");
-				static_assert(::std::is_base_of<_i_layer<::std::remove_reference_t<decltype(phl)>::phl_original_t::real_t>
-					, ::std::remove_reference_t<decltype(phl)>::phl_original_t>::value, "Each layer must derive from i_layer");
+				static_assert(::std::is_base_of<_i_layer<real_t>, Layer_t>::value, "Each layer must derive from i_layer");
 
 				nc += phl.l.get_neurons_cnt();
 			});

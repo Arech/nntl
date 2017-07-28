@@ -39,13 +39,13 @@ namespace nntl {
 
 	//#todo: add AddendumsTupleT template parameter, as done in LPH
 
-	template<typename FinalPolymorphChild, typename ActivFunc, typename GradWorks>
+	template<typename FinalPolymorphChild, typename ActivFunc, typename GradWorks, typename DropoutT>
 	class _layer_fully_connected 
 		: public m_layer_learnable
-		, public _impl::_activation_wrapper<FinalPolymorphChild, typename GradWorks::interfaces_t, ActivFunc>
+		, public _impl::_activation_wrapper<FinalPolymorphChild, typename GradWorks::interfaces_t, ActivFunc, DropoutT>
 	{
 	private:
-		typedef _impl::_activation_wrapper<FinalPolymorphChild, typename GradWorks::interfaces_t, ActivFunc> _base_class_t;
+		typedef _impl::_activation_wrapper<FinalPolymorphChild, typename GradWorks::interfaces_t, ActivFunc, DropoutT> _base_class_t;
 
 	public:
 		static_assert(bActivationForHidden, "ActivFunc template parameter should be derived from activation::_i_activation");
@@ -181,9 +181,15 @@ namespace nntl {
 				,realmtx_t::sNumel(training_batch_size, get_incoming_neurons_cnt() + 1)
 			}));
 
+			if (!_dropout_init(get_self().get_common_data().is_training_possible()
+				, Dropout_t::bDropoutWorksAtEvaluationToo ? get_self().get_common_data().biggest_batch_size() : training_batch_size
+				, neurons_cnt) )
+			{
+				return ErrorCode::DropoutInitFailed;
+			}
+
 			if (get_self().get_common_data().is_training_possible()) {
 				//it'll be training session, therefore must allocate necessary supplementary matrices and form temporary memory reqs.
-				if (!_dropout_init(training_batch_size, neurons_cnt))return ErrorCode::CantAllocateMemoryForDropoutMask;
 
 				lid.max_dLdA_numel = realmtx_t::sNumel(training_batch_size, neurons_cnt);
 				// we'll need 1 temporarily matrix for bprop(): it is a dL/dW [m_neurons_cnt x get_incoming_neurons_cnt()+1]
@@ -220,9 +226,7 @@ namespace nntl {
 			_base_class_t::on_batch_size_change(pNewActivationStorage);
 
 			const auto& CD = get_self().get_common_data();
-			if (CD.is_training_mode()){
-				_dropout_on_batch_size_change(CD.get_cur_batch_size());
-			}
+			_dropout_on_batch_size_change(CD.is_training_mode(), CD.get_cur_batch_size());
 		}
 
 	protected:
@@ -419,22 +423,24 @@ namespace nntl {
 	//////////////////////////////////////////////////////////////////////////
 	// final implementation of layer with all functionality of _layer_fully_connected
 	// If you need to derive a new class, derive it from _layer_fully_connected (to make static polymorphism work)
-	template <typename ActivFunc = activation::sigm<d_interfaces::real_t>,
-		typename GradWorks = grad_works<d_interfaces>
+	template <
+		typename ActivFunc = activation::sigm<d_interfaces::real_t>
+		, typename GradWorks = grad_works<d_interfaces>
+		, typename DropoutT = default_dropout_for<ActivFunc>
 	> class LFC final 
-		: public _layer_fully_connected<LFC<ActivFunc, GradWorks>, ActivFunc, GradWorks>
+		: public _layer_fully_connected<LFC<ActivFunc, GradWorks, DropoutT>, ActivFunc, GradWorks, DropoutT>
 	{
 	public:
 		~LFC() noexcept {};
 		LFC(const neurons_count_t _neurons_cnt, const real_t learningRate = real_t(.01)
 			, const real_t dropoutFrac = real_t(0.0), const char* pCustomName = nullptr
 		)noexcept
-			: _layer_fully_connected<LFC<ActivFunc, GradWorks>, ActivFunc, GradWorks>
+			: _layer_fully_connected<LFC<ActivFunc, GradWorks, DropoutT>, ActivFunc, GradWorks, DropoutT>
 			(pCustomName, _neurons_cnt, learningRate, dropoutFrac) {};
 		LFC(const char* pCustomName, const neurons_count_t _neurons_cnt, const real_t learningRate = real_t(.01)
 			, const real_t dropoutFrac = real_t(0.0)
 		)noexcept
-			: _layer_fully_connected<LFC<ActivFunc, GradWorks>, ActivFunc, GradWorks>
+			: _layer_fully_connected<LFC<ActivFunc, GradWorks, DropoutT>, ActivFunc, GradWorks, DropoutT>
 			(pCustomName, _neurons_cnt, learningRate, dropoutFrac) {};
 	};
 

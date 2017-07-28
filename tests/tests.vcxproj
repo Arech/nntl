@@ -284,6 +284,7 @@
     <ClInclude Include="..\nntl\nntl.h" />
     <ClInclude Include="..\nntl\utils.h" />
     <ClInclude Include="..\nntl\_nnet_errs.h" />
+    <ClInclude Include="..\nntl\_SNN_common.h" />
     <ClInclude Include="..\nntl\_supp\io\binfile.h" />
     <ClInclude Include="..\nntl\_supp\io\jsonreader.h" />
     <ClInclude Include="..\nntl\_supp\io\matfile.h" />

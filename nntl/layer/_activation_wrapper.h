@@ -37,19 +37,16 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include "_layer_base.h"
 #include "../activation.h"
+#include "../dropout.h"
 
 namespace nntl {
 	namespace _impl {
 
-		template<typename FinalPolymorphChild, typename InterfacesT, typename ActivFuncT>
+		template<typename FinalPolymorphChild, typename InterfacesT, typename ActivFuncT, typename DropoutT>
 		class _activation_wrapper
 			: public _layer_base<FinalPolymorphChild, InterfacesT>
 			, private ActivFuncT
-			, public ::std::conditional_t <
-				::std::is_base_of <activation::_i_activation_loss< typename ActivFuncT::real_t >, ActivFuncT>::value
-				, _impl::_No_Dropout_at_All <typename ActivFuncT::real_t>
-				, typename ActivFuncT::Dropout_t
-			>
+			, public DropoutT
 		{
 		private:
 			typedef _layer_base<FinalPolymorphChild, InterfacesT> _base_class_t;
@@ -60,16 +57,19 @@ namespace nntl {
 			using _base_class_t::realmtxdef_t;
 			//using _base_class_t::numel_cnt_t;
 
+			static_assert(::std::is_same<typename InterfacesT::real_t, typename ActivFuncT::real_t>::value, "Invalid real_t");
+			static_assert(::std::is_same<typename DropoutT::real_t, typename ActivFuncT::real_t>::value, "Invalid real_t");
+
 			typedef ActivFuncT Activation_t;
 			typedef typename Activation_t::weights_scheme_t Weights_Init_t;
-			//we'll define Dropout_t conditioning on bActivationForOutput
 
 			static constexpr bool bActivationForOutput = ::std::is_base_of <activation::_i_activation_loss<real_t>, Activation_t>::value;
-			static constexpr bool bActivationForHidden = ::std::is_base_of<activation::_i_activation<typename Activation_t::Dropout_t, Weights_Init_t>, Activation_t>::value;
+			static constexpr bool bActivationForHidden = ::std::is_base_of<activation::_i_activation<real_t, Weights_Init_t>, Activation_t>::value;
 			
-			typedef ::std::conditional_t<bActivationForOutput, _impl::_No_Dropout_at_All<real_t>, typename Activation_t::Dropout_t> Dropout_t;
+			static_assert(!bActivationForOutput || is_dummy_dropout<DropoutT>::value, "There must be no dropout for output activation function");
 
-			//typedef typename ::std::conditional<bActivationForOutput, _impl::_No_Dropout_at_All<real_t>, typename Activation_t::Dropout_t>::type Dropout_t;
+			typedef DropoutT Dropout_t;
+
 
 		protected:
 			// matrix of layer neurons activations: <batch_size rows> x <m_neurons_cnt+1(bias) cols> for fully connected layer

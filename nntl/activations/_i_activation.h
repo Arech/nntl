@@ -34,7 +34,6 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "../_defs.h"
 #include "../common.h"
 #include "../weights_init.h"
-#include "../dropout.h"
 
 namespace nntl {
 namespace activation {
@@ -45,13 +44,11 @@ namespace activation {
 	//////////////////////////////////////////////////////////////////////////
 	//////////////////////////////////////////////////////////////////////////
 
-	template<typename DropoutT, typename WeightsInitT>
+	template<typename RealT, typename WeightsInitT>
 	class _i_function : public math::smatrix_td
 	{
 	public:
-		typedef DropoutT Dropout_t;
-
-		typedef typename Dropout_t::real_t real_t;
+		typedef RealT real_t;
 		
 		typedef WeightsInitT weights_scheme_t;
 
@@ -79,8 +76,8 @@ namespace activation {
 
 	//class defines interface for activation functions. It's intended to be used as a parent class only
 	//usually, _i_activation implementation class is nothing more than a thunk into iMath, which contains efficient code
-	template<typename DropoutT, typename WeightsInitT>
-	class _i_activation : public _i_function<DropoutT, WeightsInitT> {
+	template<typename RealT, typename WeightsInitT>
+	class _i_activation : public _i_function<RealT, WeightsInitT> {
 	public:
 		//computes activation function derivative by using its value.
 		//i.e. computes y' based on y value ( not the x-value, where y=y(x) )

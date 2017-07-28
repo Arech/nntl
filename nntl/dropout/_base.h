@@ -47,16 +47,25 @@ namespace nntl {
 	//this class defines a dropout class interface as well as dummy class that removes dropout
 	template<typename RealT>
 	class NoDropout : public _impl::_No_Dropout_at_All<RealT> {
+	public:
+		//This flag means, that all dropout implementation-related functions might be called not only during training phase,
+		//but during evaluation too
+		static constexpr bool bDropoutWorksAtEvaluationToo = false;
+
 	protected:
+		//////////////////////////////////////////////////////////////////////////
+		//The following functions will always be called no matter what
 		template<class Archive>
 		static constexpr void _dropout_serialize(Archive & ar, const unsigned int version) noexcept {}
-
-		static constexpr bool _dropout_init(const vec_len_t training_batch_size, const neurons_count_t neurons_cnt)noexcept {
-			return true;
-		}
 		static constexpr void _dropout_deinit() noexcept {}
-		static constexpr void _dropout_on_batch_size_change(const vec_len_t batchSize) noexcept {}
 
+		static constexpr bool _dropout_init(const bool isTrainingPossible, const vec_len_t max_batch_size, const neurons_count_t neurons_cnt)noexcept {
+			return true;
+		}		
+		static constexpr void _dropout_on_batch_size_change(const bool isTrainingMode, const vec_len_t batchSize) noexcept {}
+
+		//////////////////////////////////////////////////////////////////////////
+		//The following functions will be called only if bDropout() returns true
 		template<typename iMathT, typename iRngT, typename iInspectT>
 		static constexpr void _dropout_apply(realmtx_t& activations, const bool bTrainingMode
 			, iMathT& iM, iRngT& iR, iInspectT& _iI) noexcept {}
@@ -72,9 +81,6 @@ namespace nntl {
 				STDCOUTL("**BE AWARE: Trying to set dropout rate for a class without dropout implementation");
 			}
 		}
-
-		// if it returns a real pointer, then an activation value is considered dropped out iff corresponding mask value is zero
-		static constexpr const realmtx_t* _dropout_get_mask() noexcept { return nullptr; }
 	};
 
 	//////////////////////////////////////////////////////////////////////////
