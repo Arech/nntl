@@ -69,6 +69,8 @@ namespace nntl {
 			
 			typedef ::std::conditional_t<bActivationForOutput, _impl::_No_Dropout_at_All<real_t>, typename Activation_t::Dropout_t> Dropout_t;
 
+			//typedef typename ::std::conditional<bActivationForOutput, _impl::_No_Dropout_at_All<real_t>, typename Activation_t::Dropout_t>::type Dropout_t;
+
 		protected:
 			// matrix of layer neurons activations: <batch_size rows> x <m_neurons_cnt+1(bias) cols> for fully connected layer
 			// Class assumes, that it's content on the beginning of the bprop() is the same as it was on exit from fprop().

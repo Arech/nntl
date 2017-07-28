@@ -76,6 +76,9 @@
     <Filter Include="nntl\activations">
       <UniqueIdentifier>{0dda5f75-1bcd-4e7b-8570-deed66944c6d}</UniqueIdentifier>
     </Filter>
+    <Filter Include="nntl\dropout">
+      <UniqueIdentifier>{b05e69e7-3b17-48c4-85ff-ac84b58651a1}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <Text Include="ReadMe.txt" />
@@ -440,6 +443,15 @@
     </ClInclude>
     <ClInclude Include="..\nntl\dropout.h">
       <Filter>nntl</Filter>
+    </ClInclude>
+    <ClInclude Include="..\nntl\dropout\_base.h">
+      <Filter>nntl\dropout</Filter>
+    </ClInclude>
+    <ClInclude Include="..\nntl\dropout\dropout.h">
+      <Filter>nntl\dropout</Filter>
+    </ClInclude>
+    <ClInclude Include="..\nntl\dropout\alpha_dropout.h">
+      <Filter>nntl\dropout</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

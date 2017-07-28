@@ -160,7 +160,7 @@ public:
 		static constexpr float var_eps = .17f;
 	};
 
-	void report_stats()const noexcept {
+	void report_stats(bool bDoAsserts = true)const noexcept {
 		for (unsigned i = 0; i <= m_lastLayerIdxToCheck; ++i) {
 			STDCOUTL("Reporting data distribution for layer#" << i << (i ? " -- SELU" : " -- input data"));
 
@@ -173,8 +173,10 @@ public:
 
 			printf_s("mean = %05.3f +/- %06.4f, variance = %05.3f +/- %06.4f\n", mean_of_mean, var_of_mean, mean_of_var, var_of_var);
 
-			ASSERT_NEAR(mean_of_mean, real_t(0), stats_EPS<real_t>::mean_eps);
-			ASSERT_NEAR(mean_of_var, real_t(1), stats_EPS<real_t>::var_eps);
+			if (bDoAsserts) {
+				ASSERT_NEAR(mean_of_mean, real_t(0), stats_EPS<real_t>::mean_eps);
+				ASSERT_NEAR(mean_of_var, real_t(1), stats_EPS<real_t>::var_eps);
+			}
 		}
 	}
 
@@ -196,16 +198,16 @@ void _test_selu_make_td(train_data< typename iRngT::real_t >& td, const vec_len_
 	ASSERT_TRUE(td.absorb(::std::move(trX), ::std::move(trY), ::std::move(tX), ::std::move(tY)));
 }
 
-template<typename RealT>
+template<typename RealT/*, bool bCorrectDO=false*/>
 void test_selu_distr(const size_t seedVal, const RealT dpa, const neurons_count_t xwidth = 10, const neurons_count_t nc = 30
-	, const bool bApplyWeightNorm = false
+	, const bool bApplyWeightNorm = false, const bool bVerbose = true
 	, const vec_len_t batchSize = 1000, const vec_len_t batchesCnt = 100)noexcept
 {
 	typedef RealT real_t;
 
 	constexpr unsigned _scopeMsgLen = 128;
 	char _scopeMsg[_scopeMsgLen];
-	sprintf_s(_scopeMsg, "SELU_Distribution for X=%d/nc=%d with dropout dpa=%03.1f", xwidth, nc, dpa);
+	sprintf_s(_scopeMsg, "SELU_Distribution for X=%d/nc=%d with dropout dpa=%04.3f", xwidth, nc, dpa);
 	SCOPED_TRACE(_scopeMsg);
 	STDCOUTL(_scopeMsg);
 
@@ -219,12 +221,15 @@ void test_selu_distr(const size_t seedVal, const RealT dpa, const neurons_count_
 		, GW::Loss_Addendums_dummy
 	> GrW;
 
+	//typedef activation::selu<real_t, 0, 0, 0, 1000000, bCorrectDO> mySelu_t;
+	typedef activation::selu<real_t, 0, 0, 0, 1000000, ADCorr::no> mySelu_t;
+
 	layer_input<myIntf> inp(xwidth);
-	LFC<activation::selu<real_t>, GrW> fcl(nc, learningRate, dpa);
+	LFC<mySelu_t, GrW> fcl(nc, learningRate, dpa);
 #ifndef TESTS_SKIP_LONGRUNNING
-	LFC<activation::selu<real_t>, GrW> fcl2(nc, learningRate, dpa);
-	LFC<activation::selu<real_t>, GrW> fcl3(nc, learningRate, dpa);
-	LFC<activation::selu<real_t>, GrW> fcl4(nc, learningRate, dpa);
+	LFC<mySelu_t, GrW> fcl2(nc, learningRate, dpa);
+	LFC<mySelu_t, GrW> fcl3(nc, learningRate, dpa);
+	LFC<mySelu_t, GrW> fcl4(nc, learningRate, dpa);
 #endif
 
 	layer_output<activation::softsigm_quad_loss<real_t>, GrW> outp(1, learningRate);
@@ -256,9 +261,11 @@ void test_selu_distr(const size_t seedVal, const RealT dpa, const neurons_count_
 		def.bNormalizeIndividualNeurons = true;
 		def.maxTries = 10;
 		def.targetScale = real_t(1.);
+		def.bVerbose = bVerbose;
 
 		outpS.bCentralNormalize = false;
 		outpS.bScaleNormalize = false;
+		outpS.bVerbose = bVerbose;
 
 		winit_t obj(nn, def);
 		
@@ -275,7 +282,7 @@ void test_selu_distr(const size_t seedVal, const RealT dpa, const neurons_count_
 	auto ec = nn.train(td, opts);
 	ASSERT_EQ(decltype(nn)::ErrorCode::Success, ec) << "Error code description: " << nn.get_last_error_string();
 
-	ASSERT_NO_FATAL_FAILURE(nn.get_iInspect().report_stats());
+	ASSERT_NO_FATAL_FAILURE(nn.get_iInspect().report_stats(bVerbose));
 
 }
 
@@ -306,3 +313,27 @@ TEST(TestSelu, SELU_Distribution) {
 	ASSERT_NO_FATAL_FAILURE(test_selu_distr(t, real_t(.6), 100, 400, true));
 #endif
 }
+
+/*
+TEST(TestSelu, AlphaDropoutDistributionWithCorrection) {
+	typedef float real_t;
+
+	const size_t t = ::std::time(0);
+
+	vec_len_t xW = 20;
+
+	for (neurons_count_t nc = 5; nc <= 30; nc+=5) {
+		real_t dpa = real_t(0.97);
+		STDCOUTL(::std::endl<<"================ No correction ================");
+		ASSERT_NO_FATAL_FAILURE((test_selu_distr<real_t, false>(t, dpa, xW, nc, true, false)));
+		STDCOUTL("================ With correction ================");
+		ASSERT_NO_FATAL_FAILURE((test_selu_distr<real_t, true>(t, dpa, xW, nc, true, false)));
+
+		dpa = real_t(0.7);
+		STDCOUTL("================ No correction ================");
+		ASSERT_NO_FATAL_FAILURE((test_selu_distr<real_t, false>(t, dpa, xW, nc, true, false)));
+		STDCOUTL("================ With correction ================");
+		ASSERT_NO_FATAL_FAILURE((test_selu_distr<real_t, true>(t, dpa, xW, nc, true, false)));
+	}
+
+}*/

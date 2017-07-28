@@ -194,7 +194,7 @@ namespace nntl {
 
 			lid.bHasLossAddendum = hasLossAddendum();
 
-			lid.bOutputDifferentDuringTraining = !is_dummy_dropout_class<self_t>::value && get_self().get_common_data().is_training_possible();
+			lid.bOutputDifferentDuringTraining = layer_has_dropout<self_t>::value && get_self().get_common_data().is_training_possible();
 
 			bSuccessfullyInitialized = true;
 			return ec;

@@ -31,7 +31,6 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 #pragma once
 
-//#include "_layer_base.h"
 #include "_activation_wrapper.h"
 
 namespace nntl {
@@ -48,11 +47,12 @@ namespace nntl {
 	public:
 		static_assert(::std::is_base_of<activation::_i_function<typename Activation_t::Dropout_t, Weights_Init_t>, Activation_t>::value, "ActivFunc template parameter should be derived from activation::_i_function");
 		static_assert(bActivationForOutput, "ActivFunc template parameter should be derived from activation::_i_activation_loss");
-		static_assert(is_dummy_dropout_class<Dropout_t>::value, "WTF? There must be no dropout!");
+		static_assert(is_dummy_dropout<Dropout_t>::value, "WTF? There must be no dropout!");
+		static_assert(!layer_has_dropout<self_t>::value, "WTF? There must be no dropout!");
 
 		typedef GradWorks grad_works_t;
 		static_assert(::std::is_base_of<_impl::_i_grad_works<real_t>, grad_works_t>::value, "GradWorks template parameter should be derived from _i_grad_works");
-
+		
 		//////////////////////////////////////////////////////////////////////////
 		//members
 	protected:

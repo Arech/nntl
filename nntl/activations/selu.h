@@ -46,8 +46,9 @@ namespace activation {
 	// Default parameters corresponds to a "standard" SELU with stable fixed point at (0,1)
 	template<typename RealT, int64_t Alpha1e9 = 0, int64_t Lambda1e9 = 0
 		, int fpMean1e6 = 0, int fpVar1e6 = 1000000
+		, ADCorr corrType = ADCorr::no
 		, typename WeightsInitScheme = weights_init::SNNInit
-		, typename DropoutT = AlphaDropout<RealT, Alpha1e9, Lambda1e9, fpMean1e6, fpVar1e6>
+		, typename DropoutT = AlphaDropout<RealT, Alpha1e9, Lambda1e9, fpMean1e6, fpVar1e6, corrType>
 	>
 	class selu 
 		: public _i_activation<DropoutT, WeightsInitScheme> 

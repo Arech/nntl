@@ -54,6 +54,9 @@ namespace nntl {
 	template<typename LayerT>
 	struct is_layer_output : public ::std::is_base_of<m_layer_output, LayerT> {};
 
+	template<typename LayerT>
+	struct is_layer_input : public ::std::is_base_of<m_layer_input, LayerT> {};
+
 
 	//when a layer is derived from this class, it is expected to be used inside of some layer_pack_* objects and it
 	// doesn't have a neurons count specified in constructor. Instead, compound layer (or it's support objects) specifies
@@ -243,37 +246,34 @@ namespace nntl {
 			}
 
 		protected:
-			void _clean()noexcept {
+			void _clean(const bool bDropSamplesMBC = false, const bool bActShareSp = false, const unsigned nTT = 1)noexcept {
 				maxMemFPropRequire = 0;
 				maxMemTrainingRequire = 0;
 				max_dLdA_numel = 0;
 				nParamsToLearn = 0;
-				nTiledTimes = 1;
+				nTiledTimes = nTT;
 				
-				bDropSamplesMightBeCalled = false;
-				bActivationsShareSpace = false;
+				bDropSamplesMightBeCalled = bDropSamplesMBC;
+				bActivationsShareSpace = bActShareSp;
 				bHasLossAddendum = false;
 				bLossAddendumDependsOnActivations = false;
 				bOutputDifferentDuringTraining = false;
+			}
+			void _clean(const _layer_init_data& o)noexcept {
+				_clean(o.bDropSamplesMightBeCalled, o.bActivationsShareSpace, o.nTiledTimes);
 			}
 			
 		public:
 			//this function must be called on the object before it is passed to layer.init()
 			//i.e. _i_layer.init() expects the object to be clean()'ed
 			void clean_using(const _layer_init_data& o)noexcept {
-				_clean();
-				bDropSamplesMightBeCalled = o.bDropSamplesMightBeCalled;
-				bActivationsShareSpace = o.bActivationsShareSpace;
-				nTiledTimes = o.nTiledTimes;
+				_clean(o);
 			}
-			void clean_using(const bool& bDropSamplesMBC = false, const bool& bActShareSp = false)noexcept {
-				_clean();
-				bDropSamplesMightBeCalled = bDropSamplesMBC;
-				bActivationsShareSpace = bActShareSp;
+			void clean_using(const bool bDropSamplesMBC = false, const bool bActShareSp = false)noexcept {
+				_clean(bDropSamplesMBC, bActShareSp, 1);
 			}
 			void clean_passing(const _layer_init_data& o)noexcept {
-				_clean();
-				nTiledTimes = o.nTiledTimes;
+				_clean(false, false, o.nTiledTimes);
 			}
 
 			//used by compound layers to gather data from layers encapsulated into them.

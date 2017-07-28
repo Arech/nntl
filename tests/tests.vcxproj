@@ -193,6 +193,9 @@
     <ClInclude Include="..\nntl\common.h" />
     <ClInclude Include="..\nntl\common_nn_data.h" />
     <ClInclude Include="..\nntl\dropout.h" />
+    <ClInclude Include="..\nntl\dropout\alpha_dropout.h" />
+    <ClInclude Include="..\nntl\dropout\dropout.h" />
+    <ClInclude Include="..\nntl\dropout\_base.h" />
     <ClInclude Include="..\nntl\errors.h" />
     <ClInclude Include="..\nntl\grad_works\grad_works.h" />
     <ClInclude Include="..\nntl\grad_works\ILR.h" />

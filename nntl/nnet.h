@@ -686,18 +686,6 @@ namespace nntl {
 			}
 
 		protected:
-			/*template<typename LayerT>
-			::std::enable_if_t<is_dummy_dropout_class<LayerT>::value> _doCheckdLdA(LayerT& lyr)noexcept {
-				_checkdLdA(lyr.get_layer_idx(), lyr.get_neurons_cnt(), nullptr);
-			}
-			template<typename LayerT>
-			::std::enable_if_t<!is_dummy_dropout_class<LayerT>::value> _doCheckdLdA(LayerT& lyr)noexcept {
-				const bool bDO = lyr.bDropout();
-				_checkdLdA(lyr.get_layer_idx(), lyr.get_neurons_cnt()
-					, bDO ? lyr._dropout_get_mask() : nullptr
-					, bDO ? lyr._dropout_activations_scaleInverse() : real_t(1.));
-			}
-*/
 
 			template<typename LayerT>
 			::std::enable_if_t<is_layer_learnable<LayerT>::value> _doCheckdLdW(LayerT& lyr) noexcept {
