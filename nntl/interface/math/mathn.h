@@ -999,7 +999,6 @@ namespace math {
 		void evSubMtxMulC_ip_nb_st(realmtx_t& A, const realmtx_t& M, const real_t c, const elms_range*const pER = nullptr)noexcept {
 			NNTL_ASSERT(!A.empty() && A.numel_no_bias() > 0);
 			NNTL_ASSERT(!M.empty() && A.size_no_bias() == M.size());
-			NNTL_ASSERT(A.emulatesBiases && !M.emulatesBiases());
 			NNTL_ASSERT(c);
 			NNTL_ASSERT(!pER || pER->elmEnd <= A.numel_no_bias());
 			get_self()._ievSubMMulC_ip_nb_st(A.data(), M.data(), c, pER ? *pER : elms_range(M));
@@ -1015,7 +1014,6 @@ namespace math {
 		void evSubMtxMulC_ip_nb_mt(realmtx_t& A, const realmtx_t& M, const real_t c)noexcept {
 			NNTL_ASSERT(!A.empty() && A.numel_no_bias() > 0);
 			NNTL_ASSERT(!M.empty() && A.size_no_bias() == M.size());
-			NNTL_ASSERT(A.emulatesBiases && !M.emulatesBiases());
 			NNTL_ASSERT(c);
 			m_threads.run([pA = A.data(), pM = M.data(), c, this](const par_range_t& pr) {
 				get_self()._ievSubMMulC_ip_nb_st(pA, pM, c, elms_range(pr));
