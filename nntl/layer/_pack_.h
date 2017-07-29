@@ -50,7 +50,7 @@ namespace nntl {
 
 	//////////////////////////////////////////////////////////////////////////
 	template<typename LayerT>
-	struct PHL {//"let me speak from my heart in English" (c): that's a Part of Horizontal Layer :-D
+	struct PHL {//"let me speak from my heart in English" (c): that's a Part of a Horizontal Layer :-D
 
 		//this typedef will also help to distinguish between PHL and other structs.
 		typedef LayerT phl_original_t;

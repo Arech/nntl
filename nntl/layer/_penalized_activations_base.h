@@ -173,7 +173,7 @@ namespace nntl {
 
 	template<typename AddendumsTupleT>
 	using _PA_base_selector = typename ::std::conditional<
-		utils::is_tuple<AddendumsTupleT>::value
+		utils::is_tuple< typename utils::assert_tuple_or_void<AddendumsTupleT>::type >::value
 		, _PA_base<AddendumsTupleT>
 		, _PA_base_dummy
 	>::type;

@@ -34,6 +34,9 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 // layer_penalized_activations implements a layer wrapper that offers a way to impose some restrictions, such as L1 or L2, over
 // a layer activations values.
 // 
+// Be sure to install https://support.microsoft.com/en-us/help/3207317/visual-c-optimizer-fixes-for-visual-studio-2015-update-3
+// if your are going to use this class.
+// 
 // #todo: _i_loss_addendum interface should be extended to allow optimizations (caching) for a fullbatch learning with full error calculation
 
 #include "_penalized_activations_base.h"
@@ -41,8 +44,13 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 namespace nntl {
 
 	//LayerTpl is a template of base layer whose activations should be penalized. See ../../tests/test_layer_penalized_activations.cpp for a use-case
-	//If possible prefer the _LPA<> over the _LPPA<>. However, in many even not very
-	// complicated cases of LayerTpl definition, compiler's bugs may leave you no option but to use _LPPA<>.
+	//If possible prefer the _LPA<> over the _LPPA<>.
+	
+	// However, in many even not very complicated cases of LayerTpl definition, compiler's bugs may leave you no option
+	// but to use _LPPA<>. ---- looks like this is no longer true with a new compiler fix	
+	// Be sure to install https://support.microsoft.com/en-us/help/3207317/visual-c-optimizer-fixes-for-visual-studio-2015-update-3
+	// if your are going to use this class.
+
 	template<typename FinalPolymorphChild, template <class FpcT> class LayerTpl, typename LossAddsTuple>
 	class _LPA : public LayerTpl<FinalPolymorphChild>, public _PA_base<LossAddsTuple>
 	{
@@ -51,6 +59,8 @@ namespace nntl {
 		static_assert(!is_layer_output<_base_class_t>::value, "What the reason to penalize output layer activations?");
 		//#note: if we actually need to work with the output_layer, then there must be very special handling of this case because of how
 		//bprop() is implemented for output_layer now
+
+		typedef _PA_base<LossAddsTuple> _PAB_t;
 
 	public:
 		typedef typename _base_class_t::real_t real_t;
@@ -76,14 +86,14 @@ namespace nntl {
 		//////////////////////////////////////////////////////////////////////////
 		//should return true, if the layer has a value to add to Loss function value (there's some regularizer attached)
 		const bool hasLossAddendum()const noexcept {
-			const bool b = _pab_hasLossAddendum();
+			const bool b = _PAB_t::_pab_hasLossAddendum();
 			return b ? b : _base_class_t::hasLossAddendum();
 		}
 
 		//returns a loss function summand, that's caused by this layer (for example, L2 regularizer adds term
 		// l2Coefficient*Sum(weights.^2) )
 		real_t lossAddendum()const noexcept {
-			return _pab_lossAddendum(get_self().get_activations(), get_self().get_iMath())
+			return _PAB_t::_pab_lossAddendum(get_self().get_activations(), get_self().get_iMath())
 				+ (_base_class_t::hasLossAddendum() ? _base_class_t::lossAddendum() : real_t(0));
 		}
 
@@ -103,7 +113,7 @@ namespace nntl {
 			auto& iI = get_self().get_iInspect();
 			iI.bprop_begin(get_self().get_layer_idx(), dLdA);
 
-			_pab_update_dLdA(dLdA, get_self().get_activations(), get_self().get_iMath(), iI);
+			_PAB_t::_pab_update_dLdA(dLdA, get_self().get_activations(), get_self().get_iMath(), iI);
 
 			iI.bprop_finaldLdA(dLdA);
 

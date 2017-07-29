@@ -31,16 +31,16 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 #pragma once
 
-// layer_identity defines a layer that just passes it's incoming neurons as activation neurons without any processing.
+// LI defines a layer that just passes it's incoming neurons as activation neurons without any processing.
 // Can be used to pass a source data unmodified to some upper feature detectors.
 // 
-// layer_identity_gate can also serve as a gating source for the layer_pack_horizontal_gated.
+// LIG can also serve as a gating source for the layer_pack_horizontal_gated.
 // 
-// Also, be aware that if the drop_samples() of layer_identity/layer_identity_gate gets called, then the mask
+// Also, be aware that if the drop_samples() of LI/LIG gets called, then the mask
 // passed to the drop_samples() does NOT get passed to the donoring/lower layer. This is an intentional behavior and it won't hurt
 // you provided you've assembled right NN architecture.
 // 
-// Both classes (layer_identity/layer_identity_gate) are intended to be used within a layer_pack_horizontal (and can't/shouldn't be used elsewhere)
+// Both classes (LI/LIG) are intended to be used within a layer_pack_horizontal (and can't/shouldn't be used elsewhere)
 
 #include <type_traits>
 
@@ -146,7 +146,7 @@ namespace nntl {
 		}
 
 	public:
-		//we're restricting the use of the layer_identity to the layer_pack_horizontal only
+		//we're restricting the use of the LI to the layer_pack_horizontal only
 		template <typename LowerLayerWrapper>
 		::std::enable_if_t<_impl::is_layer_wrapper<LowerLayerWrapper>::value> fprop(const LowerLayerWrapper& lowerLayer)noexcept
 		{
@@ -288,21 +288,26 @@ namespace nntl {
 	//
 	// 
 	template <typename Interfaces = d_interfaces>
-	class layer_identity final : public _LI<layer_identity<Interfaces>, Interfaces>
+	class LI final : public _LI<LI<Interfaces>, Interfaces>
 	{
 	public:
-		~layer_identity() noexcept {};
-		layer_identity(const char* pCustomName = nullptr) noexcept 
-			: _LI<layer_identity<Interfaces>, Interfaces> (pCustomName) {};
+		~LI() noexcept {};
+		LI(const char* pCustomName = nullptr) noexcept 
+			: _LI<LI<Interfaces>, Interfaces> (pCustomName) {};
 	};
 
 	template <typename Interfaces = d_interfaces>
-	class layer_identity_gate final : public _LIG<layer_identity_gate<Interfaces>, Interfaces>
+	using layer_identity = LI<Interfaces>;
+
+	template <typename Interfaces = d_interfaces>
+	class LIG final : public _LIG<LIG<Interfaces>, Interfaces>
 	{
 	public:
-		~layer_identity_gate() noexcept {};
-		layer_identity_gate(const char* pCustomName = nullptr) noexcept 
-			: _LIG<layer_identity_gate<Interfaces>, Interfaces>(pCustomName) {};
+		~LIG() noexcept {};
+		LIG(const char* pCustomName = nullptr) noexcept 
+			: _LIG<LIG<Interfaces>, Interfaces>(pCustomName) {};
 	};
 
+	template <typename Interfaces = d_interfaces>
+	using layer_identity_gate = LIG<Interfaces>;
 }

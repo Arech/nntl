@@ -73,5 +73,12 @@ namespace nntl {
 		struct is_tuple : ::std::false_type {};
 		template <typename... Args>
 		struct is_tuple <::std::tuple<Args...>> : ::std::true_type {};
+
+		template <typename T>
+		struct assert_tuple_or_void {
+			typedef T type;
+			static_assert(is_tuple<T>::value || ::std::is_same<T, void>::value
+				, "Type must be a void or a std::tuple specialization!");
+		};
 	}
 }

@@ -61,7 +61,7 @@ namespace nntl {
 	//when a layer is derived from this class, it is expected to be used inside of some layer_pack_* objects and it
 	// doesn't have a neurons count specified in constructor. Instead, compound layer (or it's support objects) specifies
 	// the number of neurons during their construction via _set_neurons_cnt().
-	// See layer_identity for an example
+	// See LI for an example
 	struct m_layer_autoneurons_cnt {};
 
 	namespace _impl {

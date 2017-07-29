@@ -48,7 +48,7 @@ typedef nntl_supp::binfile reader_t;
 
 template<typename ArchPrmsT>
 struct GC_LPHG_NO : public nntl_tests::NN_base_arch_td<ArchPrmsT> {
-	layer_identity_gate<myInterfaces_t> lGate;
+	LIG<myInterfaces_t> lGate;
 	myLFC l1;
 	myLFC l2;
 	LPHG<PHL<decltype(lGate)>,PHL<decltype(l1)>, PHL<decltype(l2)>> lFinal;
@@ -123,7 +123,7 @@ void comparative_gated(train_data<real_t>& td, const vec_len_t gateIdx, nnet_td_
 	layer_fully_connected<commonInfoT::act_hid> fcl2(commonInfoT::simple_l2nc, commonInfoT::learningRate);
 	auto lBaseline = make_layer_pack_vertical(fcl, fcl2);
 
-	layer_identity_gate<> lid;
+	LIG<> lid;
 
 	layer_fully_connected<commonInfoT::act_hid> lFd1(commonInfoT::simple_lFd1nc, commonInfoT::learningRate);
 	layer_fully_connected<commonInfoT::act_hid> lFd2(commonInfoT::simple_lFd2nc, commonInfoT::learningRate);
@@ -193,7 +193,7 @@ void comparative_horzgated(train_data<real_t>& td, const vec_len_t gateIdx, nnet
 	layer_fully_connected<commonInfoT::act_hid> fcl2(commonInfoT::simple_l2nc, commonInfoT::learningRate);
 	auto lBaseline = make_layer_pack_vertical(fcl, fcl2);
 
-	layer_identity_gate<> lid;
+	LIG<> lid;
 
 	layer_fully_connected<commonInfoT::act_hid> lFd1(commonInfoT::simple_lFd1nc, commonInfoT::learningRate);
 	layer_fully_connected<commonInfoT::act_hid> lFd2(commonInfoT::simple_lFd2nc, commonInfoT::learningRate);
@@ -313,7 +313,7 @@ void comparative_multi_gated(train_data<real_t>& td, const vec_len_t gateIdx, co
 	layer_input<> inp(td.train_x().cols_no_bias());
 
 	typedef layer_fully_connected<commonInfoT::act_hid> LH;
-	typedef layer_identity_gate<> LIG;
+	//typedef LIG<> LIG;
 
 	LH fcl(commonInfoT::simple_l1nc, commonInfoT::learningRate);
 	LH fcl2(commonInfoT::simple_l2nc, commonInfoT::learningRate);
@@ -414,13 +414,13 @@ void comparative_multi_horzgated(train_data<real_t>& td, const vec_len_t gateIdx
 	layer_input<> inp(td.train_x().cols_no_bias());
 
 	typedef layer_fully_connected<commonInfoT::act_hid> LH;
-	typedef layer_identity_gate<> LIG;
+	//typedef LIG<> LIG;
 
 	LH fcl(commonInfoT::simple_l1nc, commonInfoT::learningRate);
 	LH fcl2(commonInfoT::simple_l2nc, commonInfoT::learningRate);
 	auto lBaseline = make_layer_pack_vertical(fcl, fcl2);
 
-	LIG lid;
+	LIG<> lid;
 
 	LH lFd11(commonInfoT::simple_lFd1nc, commonInfoT::learningRate);
 	LH lFd21(commonInfoT::simple_lFd2nc, commonInfoT::learningRate);
