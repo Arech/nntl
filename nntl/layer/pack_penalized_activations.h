@@ -31,16 +31,21 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 #pragma once
 
+// Deprecated. Worked as compiler bug workaround.
 // Same as layer_penalized_activations, but gets underlying layer by reference
 // 
 // #todo: _i_loss_addendum interface should be extended to allow optimizations (caching) for a fullbatch learning with full error calculation
 
 #include "_penalized_activations_base.h"
 
+#include "_pack_traits.h"
+
 namespace nntl {
 
 	//If possible prefer the _LPA<> over the _LPPA<>. However, in complicated
 	// cases compiler's bugs may leave you no option but to use _LPPA<>.
+	//upd: after https://support.microsoft.com/en-us/help/3207317/visual-c-optimizer-fixes-for-visual-studio-2015-update-3
+	// this class seems obsolette. Probably will drop it in future
 	template<typename FinalPolymorphChild, class LayerT, typename LossAddsTuple>
 	class _LPPA 
 		: public _layer_base_forwarder<FinalPolymorphChild, typename LayerT::interfaces_t>
@@ -117,20 +122,22 @@ namespace nntl {
 		//should return true, if the layer has a value to add to Loss function value (there's some regularizer attached)
 		const bool hasLossAddendum()const noexcept {
 			const bool b = _pab_hasLossAddendum();
-			return b ? b : m_undLayer.hasLossAddendum();
+			return b || m_undLayer.hasLossAddendum();
 		}
 
 		//returns a loss function summand, that's caused by this layer (for example, L2 regularizer adds term
 		// l2Coefficient*Sum(weights.^2) )
 		real_t lossAddendum()const noexcept {
-			return _pab_lossAddendum(get_self().get_activations(), get_self().get_iMath())
-				+ (m_undLayer.hasLossAddendum() ? m_undLayer.lossAddendum() : real_t(0));
+// 			return _pab_lossAddendum(get_self().get_activations(), get_self().get_iMath())
+// 				+ (m_undLayer.hasLossAddendum() ? m_undLayer.lossAddendum() : real_t(0));
+			return _pab_lossAddendum(get_self().get_activations(), get_self().get_iMath()) + m_undLayer.lossAddendum();
 		}
 
 		ErrorCode init(_layer_init_data_t& lid, real_t* pNewActivationStorage = nullptr)noexcept {
 			_base_class_t::init();
 			const auto r = m_undLayer.init(lid, pNewActivationStorage);
 			lid.bLossAddendumDependsOnActivations = true;
+			lid.bHasLossAddendum = true;
 			return r;
 		}
 		void deinit() noexcept {
@@ -155,6 +162,31 @@ namespace nntl {
 			iI.fprop_end(get_self().get_activations());
 		}
 
+	protected:
+		//we shouldn't apply dLdA penalty to the gating layer, it's useless but moreover it may even hurt DeCov
+		template<bool c = is_pack_gated<LayerT>::value>
+		::std::enable_if_t<c> _update_dLdA(realmtx_t& dLdA, iInspect_t& iI) noexcept {
+			//we won't modify activations, just a trick to create a wrapper matrix 
+			auto& fullAct = const_cast<realmtxdef_t&>(get_self().get_activations());
+			NNTL_ASSERT(fullAct.emulatesBiases() && fullAct.size_no_bias() == dLdA.size());
+			NNTL_ASSERT(!dLdA.emulatesBiases());
+			const auto bs = fullAct.rows();
+
+			//first LayerT::gated_layers_count neurons in activations are for the gate. Just skipping them
+			realmtxdef_t noGateAct(fullAct.colDataAsVec(LayerT::gated_layers_count), bs
+				, fullAct.cols() - LayerT::gated_layers_count, fullAct.emulatesBiases(), fullAct.isHoleyBiases());
+			realmtx_t noGatedLdA(dLdA.colDataAsVec(LayerT::gated_layers_count), bs
+				, dLdA.cols() - LayerT::gated_layers_count, false, false);
+
+			_PAB_t::_pab_update_dLdA(noGatedLdA, noGateAct, get_self().get_iMath(), iI);
+		}
+
+		template<bool c = is_pack_gated<LayerT>::value>
+		::std::enable_if_t<!c> _update_dLdA(realmtx_t& dLdA, iInspect_t& iI) noexcept {
+			_PAB_t::_pab_update_dLdA(dLdA, get_self().get_activations(), get_self().get_iMath(), iI);
+		}
+
+	public:
 
 		template <typename LowerLayerT>
 		const unsigned bprop(realmtxdef_t& dLdA, const LowerLayerT& lowerLayer, realmtxdef_t& dLdAPrev)noexcept {
@@ -163,7 +195,7 @@ namespace nntl {
 			auto& iI = get_self().get_iInspect();
 			iI.bprop_begin(get_self().get_layer_idx(), dLdA);
 
-			_pab_update_dLdA(dLdA, get_self().get_activations(), get_self().get_iMath(), iI);
+			_update_dLdA(dLdA, iI);
 
 			iI.bprop_finaldLdA(dLdA);
 

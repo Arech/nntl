@@ -31,6 +31,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 #pragma once
 
+//deprecated in favor of LEx
 // layer_penalized_activations implements a layer wrapper that offers a way to impose some restrictions, such as L1 or L2, over
 // a layer activations values.
 // 
@@ -40,6 +41,8 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 // #todo: _i_loss_addendum interface should be extended to allow optimizations (caching) for a fullbatch learning with full error calculation
 
 #include "_penalized_activations_base.h"
+
+#include "_pack_traits.h"
 
 namespace nntl {
 
@@ -51,6 +54,7 @@ namespace nntl {
 	// Be sure to install https://support.microsoft.com/en-us/help/3207317/visual-c-optimizer-fixes-for-visual-studio-2015-update-3
 	// if your are going to use this class.
 
+	/*
 	template<typename FinalPolymorphChild, template <class FpcT> class LayerTpl, typename LossAddsTuple>
 	class _LPA : public LayerTpl<FinalPolymorphChild>, public _PA_base<LossAddsTuple>
 	{
@@ -68,6 +72,7 @@ namespace nntl {
 		typedef typename _base_class_t::realmtxdef_t realmtxdef_t;
 		typedef typename _base_class_t::ErrorCode ErrorCode;
 		typedef typename _base_class_t::_layer_init_data_t _layer_init_data_t;
+		typedef typename _base_class_t::iInspect_t iInspect_t;
 
 		typedef typename _base_class_t::self_t self_t;
 		typedef typename _base_class_t::self_ref_t self_ref_t;
@@ -77,8 +82,8 @@ namespace nntl {
 		~_LPA()noexcept{}
 
 		template<typename... ArgsTs>
-		_LPA(const char* pCustomName, ArgsTs... _args)noexcept
-			: _base_class_t(pCustomName, _args...)
+		_LPA(const char* pCustomName, ArgsTs&&... _args)noexcept
+			: _base_class_t(pCustomName, ::std::forward<ArgsTs>(_args)...)
 		{}
 
 		static constexpr const char _defName[] = "lpa";
@@ -87,40 +92,65 @@ namespace nntl {
 		//should return true, if the layer has a value to add to Loss function value (there's some regularizer attached)
 		const bool hasLossAddendum()const noexcept {
 			const bool b = _PAB_t::_pab_hasLossAddendum();
-			return b ? b : _base_class_t::hasLossAddendum();
+			return b || _base_class_t::hasLossAddendum();
 		}
 
 		//returns a loss function summand, that's caused by this layer (for example, L2 regularizer adds term
 		// l2Coefficient*Sum(weights.^2) )
 		real_t lossAddendum()const noexcept {
+// 			return _PAB_t::_pab_lossAddendum(get_self().get_activations(), get_self().get_iMath())
+// 				+ (_base_class_t::hasLossAddendum() ? _base_class_t::lossAddendum() : real_t(0));
+// 			//the commented code above costs about 2% of run time comparing to variant without _base_class_t::hasLossAddendum() call
 			return _PAB_t::_pab_lossAddendum(get_self().get_activations(), get_self().get_iMath())
-				+ (_base_class_t::hasLossAddendum() ? _base_class_t::lossAddendum() : real_t(0));
+				+ _base_class_t::lossAddendum();
+
 		}
 
 		ErrorCode init(_layer_init_data_t& lid, real_t* pNewActivationStorage = nullptr)noexcept {
 			const auto r = _base_class_t::init(lid, pNewActivationStorage);
+			lid.bHasLossAddendum = true;
 			lid.bLossAddendumDependsOnActivations = true;
 			return r;
 		}
+
+	protected:
+		//we shouldn't apply dLdA penalty to the gating layer, it's useless but moreover it may even hurt DeCov
+		template<bool c = is_pack_gated<_base_class_t>::value>
+		::std::enable_if_t<c> _update_dLdA(realmtx_t& dLdA, iInspect_t& iI) noexcept {
+			//we won't modify activations, just a trick to create a wrapper matrix 
+			auto& fullAct = const_cast<realmtxdef_t&>( get_self().get_activations());
+			NNTL_ASSERT(fullAct.emulatesBiases() && fullAct.size_no_bias() == dLdA.size());
+			NNTL_ASSERT(!dLdA.emulatesBiases());
+			const auto bs = fullAct.rows();
+
+			//first _base_class_t::gated_layers_count neurons in activations are for the gate. Just skipping them
+			realmtxdef_t noGateAct( fullAct.colDataAsVec(_base_class_t::gated_layers_count), bs
+				, fullAct.cols() - _base_class_t::gated_layers_count, fullAct.emulatesBiases(), fullAct.isHoleyBiases() );
+			realmtx_t noGatedLdA(dLdA.colDataAsVec(_base_class_t::gated_layers_count), bs
+				, dLdA.cols() - _base_class_t::gated_layers_count, false, false);
+
+			_PAB_t::_pab_update_dLdA(noGatedLdA, noGateAct, get_self().get_iMath(), iI);
+		}
+
+		template<bool c = is_pack_gated<_base_class_t>::value>
+		::std::enable_if_t<!c> _update_dLdA(realmtx_t& dLdA, iInspect_t& iI) noexcept {
+			_PAB_t::_pab_update_dLdA(dLdA, get_self().get_activations(), get_self().get_iMath(), iI);
+		}
 		
+	public:
 		template <typename LowerLayerT>
 		const unsigned bprop(realmtxdef_t& dLdA, const LowerLayerT& lowerLayer, realmtxdef_t& dLdAPrev)noexcept {
 			static_assert(::std::is_base_of<_i_layer_trainable, LowerLayerT>::value, "Template parameter LowerLayer must implement _i_layer_trainable");
 
-			//#TODO this routine shouldn't be invisible for an iInspector, however if we to pass dLdA to an inspector here, it
-			//should break layer's gradient check
-
 			auto& iI = get_self().get_iInspect();
 			iI.bprop_begin(get_self().get_layer_idx(), dLdA);
 
-			_PAB_t::_pab_update_dLdA(dLdA, get_self().get_activations(), get_self().get_iMath(), iI);
+			_update_dLdA(dLdA, iI);
 
 			iI.bprop_finaldLdA(dLdA);
 
 			const auto ret = _base_class_t::bprop(dLdA, lowerLayer, dLdAPrev);
-
 			iI.bprop_end(ret ? dLdAPrev : dLdA);
-
 			return ret;
 		}
 		
@@ -132,16 +162,27 @@ namespace nntl {
 // 			ar & serialization::make_named_struct(m_laLayer.get_layer_name_str().c_str(), m_laLayer);
 // 		}
 	};
-
+	*/
+/*
 	template<template <class FpcT> class LayerTpl, typename ...LossAddsTs>
 	class LPA final : public _LPA<LPA<LayerTpl, LossAddsTs...>, LayerTpl, ::std::tuple<LossAddsTs...>> {
 	public:
 		~LPA() noexcept {};
 		template<typename... ArgsTs>
-		LPA(const char* pCustomName, ArgsTs... _args) noexcept
-			: _LPA<LPA<LayerTpl, LossAddsTs...>, LayerTpl, ::std::tuple<LossAddsTs...>>(pCustomName, _args...) {};
+		LPA(const char* pCustomName, ArgsTs&&... _args) noexcept
+			: _LPA<LPA<LayerTpl, LossAddsTs...>, LayerTpl, ::std::tuple<LossAddsTs...>>(pCustomName, ::std::forward<ArgsTs>(_args)...) {};
 	};
 
 	template <template <class FpcT> class LayerTpl, typename ..._T>
 	using layer_penalized_activations = typename LPA<LayerTpl, _T...>;
+
+
+	template<template <class FpcT> class LayerTpl, typename LossAddsTupleT>
+	class LPAt final : public _LPA<LPAt<LayerTpl, LossAddsTupleT>, LayerTpl, LossAddsTupleT> {
+	public:
+		~LPAt() noexcept {};
+		template<typename... ArgsTs>
+		LPAt(const char* pCustomName, ArgsTs&&... _args) noexcept
+			: _LPA<LPAt<LayerTpl, LossAddsTupleT>, LayerTpl, LossAddsTupleT>(pCustomName, ::std::forward<ArgsTs>(_args)...) {};
+	};*/
 }

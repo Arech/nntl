@@ -46,7 +46,7 @@ namespace nntl {
 			typedef math::smatrix_deform<real_t> realmtxdef_t;
 
 		public:
-			//DON'T redefine in derived classes!
+			//DON'T redefine in derived classes! Search for uses and double check if you want to change it
 			static constexpr bool bDropoutWorksAtEvaluationToo = false;
 
 		protected:
@@ -71,9 +71,12 @@ namespace nntl {
 					ar & NNTL_SERIALIZATION_NVP(m_dropoutMask);
 			}
 
-			bool _dropout_init(const bool isTrainingPossible, const vec_len_t max_batch_size, const neurons_count_t neurons_cnt)noexcept {
+			template<typename CommonDataT>
+			bool _dropout_init(const neurons_count_t neurons_cnt, const CommonDataT& CD)noexcept {
 				NNTL_ASSERT(neurons_cnt);
-				if (isTrainingPossible) {
+				static_assert(!bDropoutWorksAtEvaluationToo, "Next if() depends on it");
+				if (CD.is_training_possible()) {
+					const auto max_batch_size = CD.training_batch_size();//!bDropoutWorksAtEvaluationToo !!!!
 					NNTL_ASSERT(max_batch_size);
 					//we don't check bDropout() here because assume that if the dropout enabled, it'll be used
 					//even if now it's disabled.
@@ -89,11 +92,11 @@ namespace nntl {
 				//we mustn't clear settings here
 			}
 
-			void _dropout_on_batch_size_change(const bool isTrainingMode, const vec_len_t batchSize)noexcept {
-				NNTL_ASSERT(batchSize);
-				if (isTrainingMode && bDropout()) {
+			template<typename CommonDataT>
+			void _dropout_on_batch_size_change(const CommonDataT& CD)noexcept {
+				if (CD.is_training_mode() && bDropout()) {
 					NNTL_ASSERT(!m_dropoutMask.empty());
-					m_dropoutMask.deform_rows(batchSize);
+					m_dropoutMask.deform_rows(CD.get_cur_batch_size());
 				}
 			}
 
@@ -147,31 +150,42 @@ namespace nntl {
 		~Dropout()noexcept {}
 		Dropout()noexcept : _base_class_t() {}
 
-		template<typename iMathT, typename iRngT, typename iInspectT>
-		void _dropout_apply(realmtx_t& activations, const bool bTrainingMode, iMathT& iM, iRngT& iR, iInspectT& _iI)noexcept {
+// 		template<typename iMathT, typename iRngT, typename iInspectT>
+// 		void _dropout_apply(realmtx_t& activations, const bool bTrainingMode, iMathT& iM, iRngT& iR, iInspectT& _iI)noexcept {
+
+		template<typename CommonDataT>
+		void _dropout_apply(realmtx_t& activations, const CommonDataT& CD) noexcept {
 			NNTL_ASSERT(bDropout());
 			NNTL_ASSERT(real_t(0.) < m_dropoutPercentActive && m_dropoutPercentActive < real_t(1.));
 
-			if (bTrainingMode) {
+			if (CD.is_training_mode()) {
 				//must make dropoutMask and apply it
 				NNTL_ASSERT(m_dropoutMask.size() == activations.size_no_bias());
-				iR.gen_matrix_norm(m_dropoutMask);
+				CD.iRng().gen_matrix_norm(m_dropoutMask);
 
+				auto& _iI = CD.iInspect();
 				_iI.fprop_preDropout(activations, m_dropoutPercentActive, m_dropoutMask);
-				iM.make_dropout(activations, m_dropoutPercentActive, m_dropoutMask);
+				
+				CD.iMath().make_dropout(activations, m_dropoutPercentActive, m_dropoutMask);
+
 				_iI.fprop_postDropout(activations, m_dropoutMask);
 			}
 		}
 
 		//this function restores zeros (dropped out values) and a proper scaling of dL/dA as well as undoes the scaling
 		//of activation values
-		template<typename iMathT, typename iInspectT>
-		void _dropout_restoreScaling(realmtx_t& dLdA, realmtx_t& activations, iMathT& iM, iInspectT& _iI)noexcept {
+// 		template<typename iMathT, typename iInspectT>
+// 		void _dropout_restoreScaling(realmtx_t& dLdA, realmtx_t& activations, iMathT& iM, iInspectT& _iI)noexcept {
+ 		template<typename CommonDataT>
+		void _dropout_restoreScaling(realmtx_t& dLdA, realmtx_t& activations, const CommonDataT& CD)noexcept {
 			NNTL_ASSERT(bDropout());
 
 			NNTL_ASSERT(m_dropoutMask.size() == dLdA.size());
+
+			auto& iM = CD.iMath();
 			iM.evMul_ip(dLdA, m_dropoutMask);
 
+			auto& _iI = CD.iInspect();
 			_iI.bprop_preCancelDropout(activations, m_dropoutPercentActive);
 			iM.evMulC_ip_Anb(activations, m_dropoutPercentActive);
 			_iI.bprop_postCancelDropout(activations);

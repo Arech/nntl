@@ -37,7 +37,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 // For example: let's imagine one have 3 optional feature sets for a problem. How to process them?
 // One could make the following source data vector: {g1,g2,g3,x1,x2,x3} where g1,g2 and g3 are binary gate values
 // that shows whether the feature data present, and x1,x2 and x3 are feature data sets. Then one may feed gate values
-// into a single layer_identity_gate id1 and x1,x2 and x3 feed into corresponding feature detector layers sets 
+// into a single LIG id1 and x1,x2 and x3 feed into corresponding feature detector layers sets 
 // fd1,fd2 and fd3 (for example, each feature detector could be a set of 2 fully_connected_layers stacked one
 // on top of the other with a layer_pack_vertical). Then these 4 layers (id1, fd1,fd2 and fd3) could be bounded together
 // into a single layer_pack_horizontal_gated that uses corresponding neuron of id1 to control the output and
@@ -57,11 +57,18 @@ namespace nntl {
 	//nBinarize1e6 - if this parameter has non-zero value, then gating neuron values are binarized according
 	//to relation to value of real_t(nBinarize1e6/1e6).
 	// 
-	template<typename FinalPolymorphChild, int32_t nBinarize1e6, typename PHLsTuple, typename AddendumsTupleT = void, bool _bAddendumsAppliesToGate = false>
-	class _LPHG : public _LPH<FinalPolymorphChild, PHLsTuple, AddendumsTupleT>
+	template<
+		typename FinalPolymorphChild
+		, unsigned int nBinarize1e6
+		, typename PHLsTuple
+// 		, typename DropoutT = NoDropout<typename ::std::remove_reference<typename ::std::tuple_element<0, PHLsTuple>::type>::type::phl_original_t::real_t>
+// 		, typename AddendumsTupleT = void
+// 		, bool _bAddendumsAppliesToGate = false
+	>
+	class _LPHG : public _LPH<FinalPolymorphChild, PHLsTuple/*, DropoutT, AddendumsTupleT*/>
 	{
 	private:
-		typedef _LPH<FinalPolymorphChild, PHLsTuple, AddendumsTupleT> _base_class;
+		typedef _LPH<FinalPolymorphChild, PHLsTuple/*, DropoutT, AddendumsTupleT*/> _base_class;
 
 	public:
 		static_assert(::std::is_base_of<_i_layer_gate<real_t>, first_layer_t>::value,
@@ -70,12 +77,16 @@ namespace nntl {
 		// will check it later in runtime		
 		typedef first_layer_t gating_layer_t;
 
+		//////////////////////////////////////////////////////////////////////////
+		//WARNING: _LEx/_LPA<> relies that the first layer is a gating layer! See _LEx/_LPA::_update_dLdA
+		//////////////////////////////////////////////////////////////////////////
+
 		static constexpr size_t gated_layers_count = phl_count - 1;
 
 		static constexpr real_t sBinarizeFrac = real_t(nBinarize1e6) / real_t(1e6);
 		static constexpr bool sbBinarizeGate = (0 != nBinarize1e6);
 
-		static constexpr bool bAddendumsAppliesToGate = _bAddendumsAppliesToGate;
+		//static constexpr bool bAddendumsAppliesToGate = _bAddendumsAppliesToGate;
 
 	protected:
 		// gating matrix has the width equal to the gate width.
@@ -114,10 +125,11 @@ namespace nntl {
 		//#BUGBUG this trick doesn't work, _defName remains NULLed!
 		static constexpr const char _defName[sizeof(_defNameS<sbBinarizeGate>::n)] = _defNameS<sbBinarizeGate>::n;
 
-		~_LPHG()noexcept {}
-		_LPHG(const char* pCustomName, const PHLsTuple& phls)noexcept : _base_class(pCustomName, phls)
-			, m_bIsGatedDropSamplesMightBeCalled(false), m_bDropSamplesWasCalled(false)
-		{
+
+	private:
+		void _ctor()noexcept {
+			m_bIsGatedDropSamplesMightBeCalled = false;
+			m_bDropSamplesWasCalled = false;
 			//at this point all neuron counts in gating layers must be initialized and therefore we can check whether
 			//the whole m_phl_tuple pack has correct number of layers
 			NNTL_ASSERT(get_self().gating_layer().get_gate_width() == gated_layers_count);
@@ -126,6 +138,23 @@ namespace nntl {
 			m_dropSamplesGatingMask.dont_emulate_biases();
 		}
 
+	public:
+		~_LPHG()noexcept {}
+		_LPHG(const char* pCustomName, const PHLsTuple& phls)noexcept : _base_class(pCustomName, phls) {
+			_ctor();
+		}
+		_LPHG(const char* pCustomName, PHLsTuple&& phls)noexcept : _base_class(pCustomName, ::std::move(phls)) {
+			_ctor();
+		}
+		//the next c-tor is deprecated. Don't use it if possible
+		template<typename... PHLsT>
+		_LPHG(const char* pCustomName, PHLsT&&... phls) noexcept
+			: _base_class_t(pCustomName, ::std::make_tuple<::std::remove_reference_t<PHLsT>...>(::std::forward<PHLsT>(phls)...))
+		{
+			_ctor();
+		}
+
+		//////////////////////////////////////////////////////////////////////////
 		const gating_layer_t& gating_layer()const noexcept { return get_self().first_layer(); }
 
 		void get_gating_info(_impl::GatingContext<real_t>& ctx)const noexcept {
@@ -397,24 +426,24 @@ namespace nntl {
 		}
 
 		//redefining the call to _pab_update_dLdA to remove the gating layer from dLdA and activations if it's desirable
-		template<bool bApplies = bAddendumsAppliesToGate>
-		::std::enable_if_t<!bApplies> _applydLdAPenalty(realmtx_t& dLdA)noexcept
-		{
-			//we won't modify activations, just a trick to create a wrapper matrix 
-			auto& fullAct = const_cast<realmtxdef_t&>( get_self().get_activations());
-			const auto bs = fullAct.rows();
-			NNTL_ASSERT(fullAct.emulatesBiases() && fullAct.size_no_bias() == dLdA.size());
-			NNTL_ASSERT(!dLdA.emulatesBiases());
-
-			//first gated_layers_count neurons in activations are for the gate. Just skipping them
-			realmtxdef_t noGateAct(fullAct.colDataAsVec(gated_layers_count), bs, fullAct.cols() - gated_layers_count, fullAct.emulatesBiases(), fullAct.isHoleyBiases());
-			realmtx_t noGatedLdA(dLdA.colDataAsVec(gated_layers_count), bs, dLdA.cols() - gated_layers_count, dLdA.emulatesBiases(), false);
-
-			_pab_update_dLdA(noGatedLdA, noGateAct, get_self().get_iMath(), get_self().get_iInspect());
-		}
+// 		template<bool bApplies = bAddendumsAppliesToGate>
+// 		::std::enable_if_t<!bApplies> _applydLdAPenalty(realmtx_t& dLdA, iInspect_t& iI)noexcept
+// 		{
+// 			//we won't modify activations, just a trick to create a wrapper matrix 
+// 			auto& fullAct = const_cast<realmtxdef_t&>( get_self().get_activations());
+// 			const auto bs = fullAct.rows();
+// 			NNTL_ASSERT(fullAct.emulatesBiases() && fullAct.size_no_bias() == dLdA.size());
+// 			NNTL_ASSERT(!dLdA.emulatesBiases());
+// 
+// 			//first gated_layers_count neurons in activations are for the gate. Just skipping them
+// 			realmtxdef_t noGateAct(fullAct.colDataAsVec(gated_layers_count), bs, fullAct.cols() - gated_layers_count, fullAct.emulatesBiases(), fullAct.isHoleyBiases());
+// 			realmtx_t noGatedLdA(dLdA.colDataAsVec(gated_layers_count), bs, dLdA.cols() - gated_layers_count, dLdA.emulatesBiases(), false);
+// 
+// 			_pab_update_dLdA(noGatedLdA, noGateAct, get_self().get_iMath(), iI);
+// 		}
 
 		template <typename LowerLayer>
-		const unsigned bprop(realmtxdef_t& dLdA, const LowerLayer& lowerLayer, realmtxdef_t& dLdAPrev)noexcept {
+		unsigned bprop(realmtxdef_t& dLdA, const LowerLayer& lowerLayer, realmtxdef_t& dLdAPrev)noexcept {
 			static_assert(::std::is_base_of<_i_layer_trainable, LowerLayer>::value, "Template parameter LowerLayer must implement _i_layer_trainable");
 			auto& iI = get_self().get_iInspect();
 			iI.bprop_begin(get_self().get_layer_idx(), dLdA);
@@ -485,79 +514,94 @@ namespace nntl {
 
 	//to shorten class name to get rid of C4503
 	template <typename ...PHLsT>
-	class LPHG final
-		: public _LPHG<LPHG<PHLsT...>, 500000, ::std::tuple<PHLsT...>>
-	{
+	class LPHG final : public _LPHG<LPHG<PHLsT...>, 500000, ::std::tuple<PHLsT...>> {
 	public:
 		~LPHG() noexcept {};
-		LPHG(PHLsT&... phls) noexcept
+		LPHG(const PHLsT&... phls) noexcept
 			: _LPHG<LPHG<PHLsT...>, 500000, ::std::tuple<PHLsT...>>(nullptr, ::std::make_tuple(phls...)) {};
-		LPHG(const char* pCustomName, PHLsT&... phls) noexcept
+		LPHG(PHLsT&&... phls) noexcept
+			: _LPHG<LPHG<PHLsT...>, 500000, ::std::tuple<PHLsT...>>(nullptr, ::std::make_tuple(::std::move(phls)...)) {};
+
+		LPHG(const char* pCustomName, const PHLsT&... phls) noexcept
 			: _LPHG<LPHG<PHLsT...>, 500000, ::std::tuple<PHLsT...>>(pCustomName, ::std::make_tuple(phls...)) {};
+		LPHG(const char* pCustomName, PHLsT&&... phls) noexcept
+			: _LPHG<LPHG<PHLsT...>, 500000, ::std::tuple<PHLsT...>>(pCustomName, ::std::make_tuple(::std::move(phls)...)) {};
 	};
 
 	template <typename ..._T>
 	using layer_pack_horizontal_gated = typename LPHG<_T...>;
 
 	template <typename ...PHLsT> inline constexpr
-	LPHG <PHLsT...> make_layer_pack_horizontal_gated(PHLsT&... phls) noexcept {
-		return LPHG<PHLsT...>(phls...);
+	LPHG <PHLsT...> make_layer_pack_horizontal_gated(PHLsT&&... phls) noexcept {
+		return LPHG<PHLsT...>(::std::forward<PHLsT>(phls)...);
 	}
 	template <typename ...PHLsT> inline constexpr
-	LPHG <PHLsT...> make_layer_pack_horizontal_gated(const char* pCustomName, PHLsT&... phls) noexcept {
-		return LPHG<PHLsT...>(pCustomName, phls...);
+	LPHG <PHLsT...> make_layer_pack_horizontal_gated(const char* pCustomName, PHLsT&&... phls) noexcept {
+		return LPHG<PHLsT...>(pCustomName, ::std::forward<PHLsT>(phls)...);
 	}
 	//////////////////////////////////////////////////////////////////////////
 	//////////////////////////////////////////////////////////////////////////
 
 	template <typename ...PHLsT>
-	class LPHGFI final
-		: public _LPHG<LPHGFI<PHLsT...>, 0, ::std::tuple<PHLsT...>>
-	{
+	class LPHGFI final : public _LPHG<LPHGFI<PHLsT...>, 0, ::std::tuple<PHLsT...>> {
 	public:
 		~LPHGFI() noexcept {};
-		LPHGFI(PHLsT&... phls) noexcept
+		LPHGFI(const PHLsT&... phls) noexcept
 			: _LPHG<LPHGFI<PHLsT...>, 0, ::std::tuple<PHLsT...>>(nullptr, ::std::make_tuple(phls...)) {};
-		LPHGFI(const char* pCustomName, PHLsT&... phls) noexcept
+		LPHGFI(PHLsT&&... phls) noexcept
+			: _LPHG<LPHGFI<PHLsT...>, 0, ::std::tuple<PHLsT...>>(nullptr, ::std::make_tuple(::std::move(phls)...)) {};
+
+		LPHGFI(const char* pCustomName, const PHLsT&... phls) noexcept
 			: _LPHG<LPHGFI<PHLsT...>, 0, ::std::tuple<PHLsT...>>(pCustomName, ::std::make_tuple(phls...)) {};
+		LPHGFI(const char* pCustomName, PHLsT&&... phls) noexcept
+			: _LPHG<LPHGFI<PHLsT...>, 0, ::std::tuple<PHLsT...>>(pCustomName, ::std::make_tuple(::std::move(phls)...)) {};
 	};
 
 	template <typename ..._T>
 	using layer_pack_horizontal_gated_from_input = typename LPHGFI<_T...>;
 
 	template <typename ...PHLsT> inline constexpr
-	LPHGFI <PHLsT...> make_layer_pack_horizontal_gated_from_input(PHLsT&... phls) noexcept {
-		return LPHGFI<PHLsT...>(phls...);
+	LPHGFI <PHLsT...> make_layer_pack_horizontal_gated_from_input(PHLsT&&... phls) noexcept {
+		return LPHGFI<PHLsT...>(::std::forward<PHLsT>(phls)...);
 	}
 	template <typename ...PHLsT> inline constexpr
-	LPHGFI <PHLsT...> make_layer_pack_horizontal_gated_from_input(const char* pCustomName, PHLsT&... phls) noexcept {
-		return LPHGFI<PHLsT...>(pCustomName, phls...);
+	LPHGFI <PHLsT...> make_layer_pack_horizontal_gated_from_input(const char* pCustomName, PHLsT&&... phls) noexcept {
+		return LPHGFI<PHLsT...>(pCustomName, ::std::forward<PHLsT>(phls)...);
 	}
 
 	//////////////////////////////////////////////////////////////////////////
 	//////////////////////////////////////////////////////////////////////////
 	
+/*
 	template <typename AddendumsTupleT, typename ...PHLsT>
 	class LPHG_PA final
-		: public _LPHG<LPHG_PA<AddendumsTupleT, PHLsT...>, 500000, ::std::tuple<PHLsT...>, AddendumsTupleT>
+		: public _LPHG< LPHG_PA<AddendumsTupleT, PHLsT...>
+		, 500000
+		, ::std::tuple<PHLsT...>
+		, NoDropout<typename ::std::tuple_element_t<0, AddendumsTupleT>::real_t>
+		, AddendumsTupleT>
 	{
 	public:
 		~LPHG_PA() noexcept {};
 		LPHG_PA(PHLsT&... phls) noexcept
-			: _LPHG<LPHG_PA<AddendumsTupleT, PHLsT...>, 500000, ::std::tuple<PHLsT...>, AddendumsTupleT>(nullptr, ::std::make_tuple(phls...)) {};
+			: _LPHG<LPHG_PA<AddendumsTupleT, PHLsT...>, 500000, ::std::tuple<PHLsT...>, NoDropout<typename ::std::tuple_element_t<0, AddendumsTupleT>::real_t>, AddendumsTupleT>(nullptr, ::std::make_tuple(phls...)) {};
 		LPHG_PA(const char* pCustomName, PHLsT&... phls) noexcept
-			: _LPHG<LPHG_PA<AddendumsTupleT, PHLsT...>, 500000, ::std::tuple<PHLsT...>, AddendumsTupleT>(pCustomName, ::std::make_tuple(phls...)) {};
+			: _LPHG<LPHG_PA<AddendumsTupleT, PHLsT...>, 500000, ::std::tuple<PHLsT...>, NoDropout<typename ::std::tuple_element_t<0, AddendumsTupleT>::real_t>, AddendumsTupleT>(pCustomName, ::std::make_tuple(phls...)) {};
 	};
 
 	template <typename AddendumsTupleT, typename ...PHLsT>
 	class LPHGFI_PA final
-		: public _LPHG<LPHGFI_PA<AddendumsTupleT, PHLsT...>, 0, ::std::tuple<PHLsT...>, AddendumsTupleT>
+		: public _LPHG<LPHGFI_PA<AddendumsTupleT, PHLsT...>
+		, 0
+		, ::std::tuple<PHLsT...>
+		, NoDropout<typename ::std::tuple_element_t<0, AddendumsTupleT>::real_t>
+		, AddendumsTupleT>
 	{
 	public:
 		~LPHGFI_PA() noexcept {};
 		LPHGFI_PA(PHLsT&... phls) noexcept
-			: _LPHG<LPHGFI_PA<AddendumsTupleT, PHLsT...>, 0, ::std::tuple<PHLsT...>, AddendumsTupleT>(nullptr, ::std::make_tuple(phls...)) {};
+			: _LPHG<LPHGFI_PA<AddendumsTupleT, PHLsT...>, 0, ::std::tuple<PHLsT...>, NoDropout<typename ::std::tuple_element_t<0, AddendumsTupleT>::real_t>, AddendumsTupleT>(nullptr, ::std::make_tuple(phls...)) {};
 		LPHGFI_PA(const char* pCustomName, PHLsT&... phls) noexcept
-			: _LPHG<LPHGFI_PA<AddendumsTupleT, PHLsT...>, 0, ::std::tuple<PHLsT...>, AddendumsTupleT>(pCustomName, ::std::make_tuple(phls...)) {};
-	};
+			: _LPHG<LPHGFI_PA<AddendumsTupleT, PHLsT...>, 0, ::std::tuple<PHLsT...>, NoDropout<typename ::std::tuple_element_t<0, AddendumsTupleT>::real_t>, AddendumsTupleT>(pCustomName, ::std::make_tuple(phls...)) {};
+	};*/
 }

@@ -89,6 +89,14 @@ namespace GW { //GW namespace is for grad_works mixins and other stuff, that hel
 
 		static constexpr bool defRegularizersIgnoresBiasWeights = true;
 
+		template<typename T>
+		struct _addendums_props : ::std::true_type {
+			static_assert(!::std::is_reference<T>::value, "Must not be a reference");
+			static_assert(!::std::is_const<T>::value, "Must not be a const");
+			static_assert(loss_addendum::is_loss_addendum<T>::value, "must be a real loss_addendum");
+		};
+		static_assert(tuple_utils::assert_each<addendums_tuple_t, _addendums_props >::value, "addendums_tuple_t must be assembled from proper objects!");
+
 	protected:
 		addendums_tuple_t m_addendumsTuple;
 

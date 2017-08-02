@@ -45,6 +45,7 @@ namespace nntl {
 			CantAllocateMemoryForInnerActivations,
 			CantAllocateMemoryForInnerLLActivations,
 			DropoutInitFailed,
+			//PAInitFailed,
 			CantAllocateMemoryForGatingMask,
 			CantAllocateMemoryForTempData,
 			CantAllocateMemoryForWeights,
@@ -68,6 +69,7 @@ namespace nntl {
 			case CantAllocateMemoryForInnerActivations: return NNTL_STRING("Cant allocate memory for inner neurons activations");
 			case CantAllocateMemoryForInnerLLActivations: return NNTL_STRING("Cant allocate memory for inner activations of a lower layer");
 			case DropoutInitFailed: return NNTL_STRING("Dropout initialization routine failed");
+			//case PAInitFailed: return NNTL_STRING("PAB initialization routine failed");
 			case CantAllocateMemoryForGatingMask: return NNTL_STRING("Cant allocate memory for gating mask");
 			case CantAllocateMemoryForTempData: return NNTL_STRING("Cant allocate memory for temporarily data");
 			case CantAllocateMemoryForWeights: return NNTL_STRING("Cant allocate memory for weight matrix");

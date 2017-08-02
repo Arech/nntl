@@ -108,7 +108,9 @@ Just want to stress again: NNTL is not a kind of a Plug-n-Play system to solve t
 * There is almost no documentation at this moment. You shouldn't be scared by necessity of reading a code and a code comments in order to undestand how to use some components. However, I tried to make this process easy by extensively commenting a code and making it clean&clear. You decide if it helps and feel free to contact me if you need clarifications.
 
 ## Compilers Supported
-Developed and tested on the MSVC2015 (update 3 at this moment) on Windows 7. Other modern compilers will probably require some hacks to compile, however, I don't think these hacks would be critical. Please, submit your patches.
+Developed and tested on the MSVC2015 on Windows 7. Be sure to have the latest service pack installed as well as other hotfixes (such as [KB3207317](https://support.microsoft.com/en-us/help/3207317/visual-c-optimizer-fixes-for-visual-studio-2015-update-3) ).
+
+MSVC2017 with the latest updates should probably work out of the box. Other modern compilers will probably require some hacks to compile, however, I don't think these hacks would be critical. Please, submit your patches.
 
 ### How to Use The NNTL
 1. Download the NNTL and unpack it to a some `%NNTL_ROOT%` folder.
@@ -122,7 +124,7 @@ Developed and tested on the MSVC2015 (update 3 at this moment) on Windows 7. Oth
 6. If you have a Matlab installed and want to use `.mat` files to interchange data with the NNTL, then leave the line `#define NNTL_MATLAB_AVAILABLE 1` as is in the `stdafx.h` and see instructions in the `nntl/utils/matlab.h` on how to update solution's build settings. If not, change the difinition to the `#define NNTL_MATLAB_AVAILABLE 0` and don't use the `nntl/_supp/io/matfile.h`.
 7. if I didn't forget anything, now you can take a look at the [.\nntl\examples\simple.cpp](https://github.com/Arech/nntl/blob/master/examples/simple.cpp) to see how to build your first feedforward neural network with the NNTL. I'll write more about it later.
 
-Don't hesitate to ask for help, if you are interested.
+The main rule - don't hesitate to ask for help, if you are interested.
 
 #### Note
 There may be some other projects referenced in the `nntl.sln` solution file, but absent in the distribution, - it's ok, just ignore them.

@@ -295,12 +295,16 @@ TEST(TestNnet, LSUVExt) {
 
 template<typename ArchPrmsT>
 struct GC_DROPOUT : public nntl_tests::NN_base_arch_td<ArchPrmsT> {
-	myLFC lFinal;
+	typedef nntl::LFC_DO<activation::softsign<real_t>, myGradWorks> testedLFC;
+
+	testedLFC lFinal;
 
 	~GC_DROPOUT()noexcept {}
 	GC_DROPOUT(const ArchPrms_t& Prms)noexcept
-		: lFinal(100, Prms.learningRate, Prms.specialDropoutAlivePerc, "lFinal")
-	{}
+		: lFinal(100, Prms.learningRate, "lFinal")
+	{
+		lFinal.dropoutPercentActive(Prms.specialDropoutAlivePerc);
+	}
 };
 TEST(TestNnet, GradCheck_dropout) {
 	typedef double real_t;

@@ -261,5 +261,31 @@ namespace tuple_utils {
 	template <class T, class... Args>
 	constexpr size_t get_element_idx() { return get_element_idx_impl<T, 0, Args...>::value; }
 
+
+	//////////////////////////////////////////////////////////////////////////
+	//////////////////////////////////////////////////////////////////////////
+	// helper to perform static_assert on each tuple element
+	/*template<int I, class Tuple, typename F> struct _assert_each_impl {
+		static void for_each(const Tuple& t) noexcept {
+			_assert_each_impl<I - 1, Tuple, F>::for_each(t);
+			static_assert(F<::std::tuple_element_t<I, Tuple>>::value, "Tuple property assertion failed");
+		}
+	};
+	template<class Tuple, typename F> struct _assert_each_impl<0, Tuple, F> {
+		static void for_each(const Tuple& t)noexcept {
+			static_assert(F<::std::tuple_element_t<0, Tuple>>::value, "Tuple property assertion failed");
+		}
+	};
+	template<class Tuple, typename F>
+	struct assert_each : _assert_each_impl<::std::tuple_size<Tuple>::value - 1, Tuple, F> {};*/
+
+	template<int I, class Tuple, template <class> class F> struct _assert_each_impl : _assert_each_impl<I - 1, Tuple, F> {
+		static_assert(F<::std::tuple_element_t<I, Tuple>>::value, "Tuple property assertion failed");
+	};
+	template<class Tuple, template <class> class F> struct _assert_each_impl<0, Tuple, F> : ::std::true_type {
+		static_assert(F<::std::tuple_element_t<0, Tuple>>::value, "Tuple property assertion failed");
+	};
+	template<class Tuple, template <class> class F>
+	struct assert_each : _assert_each_impl<::std::tuple_size<Tuple>::value - 1, Tuple, F> {};
 }
 }

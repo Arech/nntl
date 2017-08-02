@@ -53,14 +53,16 @@ using namespace nntl;
 
 template<typename ArchPrmsT>
 struct GC_ALPHADROPOUT : public nntl_tests::NN_base_arch_td<ArchPrmsT> {
-	typedef nntl::LFC<activation::selu<real_t>, myGradWorks> testedLFC;
+	typedef nntl::LFC_DO<activation::selu<real_t>, myGradWorks> testedLFC;
 
 	testedLFC lFinal;
 
 	~GC_ALPHADROPOUT()noexcept {}
 	GC_ALPHADROPOUT(const ArchPrms_t& Prms)noexcept
-		: lFinal(500, Prms.learningRate, Prms.specialDropoutAlivePerc, "lFinal")
-	{}
+		: lFinal(500, Prms.learningRate, "lFinal")
+	{
+		lFinal.dropoutPercentActive(Prms.specialDropoutAlivePerc);
+	}
 };
 TEST(TestSelu, GradCheck_alphaDropout) {
 	typedef double real_t;
@@ -226,11 +228,15 @@ void test_selu_distr(const size_t seedVal, const RealT dpa, const neurons_count_
 	typedef activation::selu<real_t, 0, 0, 0, 1000000, ADCorr::no> mySelu_t;
 
 	layer_input<myIntf> inp(xwidth);
-	LFC<mySelu_t, GrW> fcl(nc, learningRate, dpa);
+	LFC_DO<mySelu_t, GrW> fcl(nc, learningRate);
+	fcl.dropoutPercentActive(dpa);
 #ifndef TESTS_SKIP_LONGRUNNING
-	LFC<mySelu_t, GrW> fcl2(nc, learningRate, dpa);
-	LFC<mySelu_t, GrW> fcl3(nc, learningRate, dpa);
-	LFC<mySelu_t, GrW> fcl4(nc, learningRate, dpa);
+	LFC_DO<mySelu_t, GrW> fcl2(nc, learningRate);
+	fcl2.dropoutPercentActive(dpa);
+	LFC_DO<mySelu_t, GrW> fcl3(nc, learningRate);
+	fcl3.dropoutPercentActive(dpa);
+	LFC_DO<mySelu_t, GrW> fcl4(nc, learningRate);
+	fcl4.dropoutPercentActive(dpa);
 #endif
 
 	layer_output<activation::softsigm_quad_loss<real_t>, GrW> outp(1, learningRate);

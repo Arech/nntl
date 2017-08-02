@@ -88,16 +88,17 @@ namespace nntl {
 			_base_class_t::_dropout_serialize(ar, version);
 		}
 
-		bool _dropout_init(const bool isTrainingPossible, const vec_len_t max_batch_size, const neurons_count_t neurons_cnt)noexcept {
+		template<typename CommonDataT>
+		bool _dropout_init(const neurons_count_t neurons_cnt, const CommonDataT& CD)noexcept {
 			NNTL_ASSERT(neurons_cnt);
-			if (!_base_class_t::_dropout_init(isTrainingPossible, max_batch_size, neurons_cnt))  return false;
+			if (!_base_class_t::_dropout_init(neurons_cnt, CD))  return false;
 
-			if (isTrainingPossible) {
-				NNTL_ASSERT(max_batch_size);
+			if (CD.is_training_possible()) {
 				//condition means if (there'll be a training session) and (we're going to use dropout)
 				NNTL_ASSERT(!m_mtxB.emulatesBiases());
 				//resize to the biggest possible size during training
-				if (!m_mtxB.resize(max_batch_size, neurons_cnt)) return false;
+				if (!m_mtxB.resize(CD.training_batch_size(), neurons_cnt))//!bDropoutWorksAtEvaluationToo !!!!
+					return false;
 
 				NNTL_ASSERT(m_mtxB.size() == m_dropoutMask.size());
 
@@ -112,32 +113,35 @@ namespace nntl {
 			_base_class_t::_dropout_deinit();
 		}
 
-		void _dropout_on_batch_size_change(const bool isTrainingMode, const vec_len_t batchSize) noexcept {
-			NNTL_ASSERT(batchSize);
-			_base_class_t::_dropout_on_batch_size_change(isTrainingMode, batchSize);
-			if (isTrainingMode && bDropout()) {
+		template<typename CommonDataT>
+		void _dropout_on_batch_size_change(const CommonDataT& CD) noexcept {
+			_base_class_t::_dropout_on_batch_size_change(CD);
+			if (CD.is_training_mode() && bDropout()) {
 				NNTL_ASSERT(!m_mtxB.empty());
-				m_mtxB.deform_rows(batchSize);
+				m_mtxB.deform_rows(CD.get_cur_batch_size());
 				NNTL_ASSERT(m_mtxB.size() == m_dropoutMask.size());
 			}
 		}
 
-		template<typename iMathT, typename iRngT, typename iInspectT>
-		void _dropout_apply(realmtx_t& activations, const bool bTrainingMode, iMathT& iM, iRngT& iR, iInspectT& _iI) noexcept {
+// 		template<typename iMathT, typename iRngT, typename iInspectT>
+// 		void _dropout_apply(realmtx_t& activations, const bool bTrainingMode, iMathT& iM, iRngT& iR, iInspectT& _iI) noexcept {
+		template<typename CommonDataT>
+		void _dropout_apply(realmtx_t& activations, const CommonDataT& CD) noexcept {
 			NNTL_ASSERT(bDropout());
 			NNTL_ASSERT(real_t(0.) < m_dropoutPercentActive && m_dropoutPercentActive < real_t(1.));
 
-			if (bTrainingMode) {
+			if (CD.is_training_mode()) {
 				//must make dropoutMask and apply it
 				NNTL_ASSERT(m_dropoutMask.size() == activations.size_no_bias());
 				NNTL_ASSERT(m_mtxB.size() == m_dropoutMask.size());
 				NNTL_ASSERT(m_a && m_b && m_mbDropVal);
 
-				iR.gen_matrix_norm(m_dropoutMask);
+				CD.iRng().gen_matrix_norm(m_dropoutMask);
 
+				auto& _iI = CD.iInspect();
 				_iI.fprop_preDropout(activations, m_dropoutPercentActive, m_dropoutMask);
 
-				iM.make_alphaDropout(activations, m_dropoutPercentActive, m_a, m_b, m_mbDropVal, m_dropoutMask, m_mtxB);
+				CD.iMath().make_alphaDropout(activations, m_dropoutPercentActive, m_a, m_b, m_mbDropVal, m_dropoutMask, m_mtxB);
 
 				_iI.fprop_postDropout(activations, m_dropoutMask);
 			}
@@ -146,12 +150,16 @@ namespace nntl {
 		//For the _dropout_restoreScaling() phase we obtain almost original activations by doing A <- (A3-mtxB) ./ a.
 		// Dropped out values will have a value of zero. dL/dA scaling is the same as for the inverted dropout:
 		// dL/dA = dL/dA .* dropoutMask
-		template<typename iMathT, typename iInspectT>
-		void _dropout_restoreScaling(realmtx_t& dLdA, realmtx_t& activations, iMathT& iM, iInspectT& _iI)noexcept {
+		//template<typename iMathT, typename iInspectT>
+		template<typename CommonDataT>
+		void _dropout_restoreScaling(realmtx_t& dLdA, realmtx_t& activations, const CommonDataT& CD)noexcept {
 			NNTL_ASSERT(bDropout());
 			NNTL_ASSERT(m_dropoutMask.size() == dLdA.size());
+
+			auto& iM = CD.iMath();
 			iM.evMul_ip(dLdA, m_dropoutMask);
 
+			auto& _iI = CD.iInspect();
 			_iI.bprop_preCancelDropout(activations, m_dropoutPercentActive);
 			iM.evSubMtxMulC_ip_nb(activations, m_mtxB, static_cast<real_t>(ext_real_t(1.) / m_a));
 			_iI.bprop_postCancelDropout(activations);

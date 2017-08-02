@@ -125,7 +125,7 @@ TEST(Simple, NotSoPlainFFN) {
 
 	//2. define NN layers and their properties
 	size_t epochs = 30;
-	const real_t learningRate(real_t(.001)), dropoutRate(real_t(.5)), momntm(real_t(.9))
+	const real_t learningRate(real_t(.001)), dropoutActiveRate(real_t(.5)), momntm(real_t(.9))
 		, learningRateDecayCoeff(real_t(.97)), numStab(real_t(1e-8));// _impl::NUM_STAB_EPS<real_t>::value);//real_t(1e-8));
 	
 	// a. input layer
@@ -136,8 +136,10 @@ TEST(Simple, NotSoPlainFFN) {
 	typedef activation::sigm<real_t,w_init_scheme> activ_func;
 
 	//b. hidden layers
-	layer_fully_connected<activ_func> fcl(500, learningRate, dropoutRate);
-	layer_fully_connected<activ_func> fcl2(300, learningRate, dropoutRate);
+	LFC_DO<activ_func> fcl(500, learningRate);
+	fcl.dropoutPercentActive(dropoutActiveRate);
+	LFC_DO<activ_func> fcl2(300, learningRate);
+	fcl2.dropoutPercentActive(dropoutActiveRate);
 
 	//c. output layer
 	layer_output<activation::sigm_quad_loss<real_t,w_init_scheme>> outp(td.train_y().cols(), learningRate);
@@ -196,15 +198,15 @@ TEST(Simple, NesterovMomentumAndRMSPropOnly) {
 
 	size_t epochs = 20;
 	const real_t learningRate (real_t(0.0005));
-	const real_t dropoutFrac (real_t(0.)), momntm (real_t(0.9));
+	const real_t momntm (real_t(0.9));
 
 	layer_input<> inp(td.train_x().cols_no_bias());
 
 	typedef weights_init::Martens_SI_sigm<> w_init_scheme;
 	typedef activation::sigm<real_t,w_init_scheme> activ_func;
 
-	layer_fully_connected<activ_func> fcl(500, learningRate, dropoutFrac);
-	layer_fully_connected<activ_func> fcl2(300, learningRate, dropoutFrac);
+	layer_fully_connected<activ_func> fcl(500, learningRate);
+	layer_fully_connected<activ_func> fcl2(300, learningRate);
 
 	auto optType = decltype(fcl)::grad_works_t::RMSProp_Hinton;
 	fcl.m_gradientWorks.nesterov_momentum(momntm).set_type(optType);

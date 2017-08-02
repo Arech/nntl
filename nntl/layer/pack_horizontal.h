@@ -54,10 +54,14 @@ namespace nntl {
 	
 	//AddendumsTupleT was introduced only to overcome compiler bug when using _LPA<> wrapper
 
-	template<typename FinalPolymorphChild, typename PHLsTuple, typename AddendumsTupleT = void>
+	template<typename FinalPolymorphChild
+		, typename PHLsTuple
+// 		, typename DropoutT = NoDropout<typename ::std::remove_reference<typename ::std::tuple_element<0, PHLsTuple>::type>::type::phl_original_t::real_t>
+// 		, typename AddendumsTupleT = void
+	>
 	class _LPH 
 		: public _layer_base<FinalPolymorphChild, typename ::std::remove_reference<typename ::std::tuple_element<0, PHLsTuple>::type>::type::phl_original_t::interfaces_t>
-		, public _PA_base_selector<AddendumsTupleT>
+		//, public _PA_base_selector<AddendumsTupleT>
 	{
 	private:
 		typedef _layer_base<FinalPolymorphChild, typename ::std::remove_reference<typename ::std::tuple_element<0, PHLsTuple>
@@ -71,18 +75,27 @@ namespace nntl {
 		using _base_class_t::realmtx_t;
 		using _base_class_t::realmtxdef_t;
 
-		//typedef const ::std::tuple<PHLsT...> _phl_tuple;
 		typedef const PHLsTuple _phl_tuple;
+		static_assert(utils::is_tuple<_phl_tuple>::value, "Must be a tuple!");
 
-		//static constexpr size_t phl_count = sizeof...(PHLsT);
-		static constexpr size_t phl_count = ::std::tuple_size<PHLsTuple>::value;
+		static constexpr size_t phl_count = ::std::tuple_size<_phl_tuple>::value;
 		static_assert(phl_count > 1, "For a pack with a single inner layer use that layer instead");
 
-		static_assert(is_PHL<typename ::std::remove_reference<typename ::std::tuple_element<0, _phl_tuple>::type>::type>::value, "_LPH must be assembled from PHL objects!");
-		static_assert(is_PHL<typename ::std::remove_reference<typename ::std::tuple_element<phl_count - 1, _phl_tuple>::type>::type>::value, "_LPH must be assembled from PHL objects!");
+		template<typename T>
+		struct _PHL_props : ::std::true_type {
+			static_assert(::std::is_const<T>::value, "Must be a const");
+			static_assert(!::std::is_reference<T>::value, "Must be an object");
+			static_assert(is_PHL<T>::value, "Must be a PHL");
+			typedef typename T::phl_original_t LT;
+			static_assert(::std::is_same<LT, ::std::decay_t<LT>>::value, "wrong type of phl_original_t");
+			static_assert(!::std::is_const<LT>::value, "mustn't be const");
+			static_assert(!is_layer_input<LT>::value && !is_layer_output<LT>::value, "Inner layers mustn't be input or output layers!");
+			static_assert(::std::is_base_of<_i_layer<real_t>, LT>::value, "must derive from _i_layer");
+		};
+		static_assert(tuple_utils::assert_each<_phl_tuple, _PHL_props>::value, "_LPH must be assembled from proper PHL objects!");
 
-		typedef typename ::std::remove_reference<typename ::std::tuple_element<0, _phl_tuple>::type>::type::phl_original_t first_layer_t;
-		typedef typename ::std::remove_reference<typename ::std::tuple_element<phl_count - 1, _phl_tuple>::type>::type::phl_original_t last_layer_t;
+		typedef typename ::std::tuple_element_t<0, _phl_tuple>::phl_original_t first_layer_t;
+		typedef typename ::std::tuple_element_t<phl_count - 1, _phl_tuple>::phl_original_t last_layer_t;
 
 	protected:
 		_phl_tuple m_phl_tuple;
@@ -135,32 +148,60 @@ namespace nntl {
 			neurons_count_t nc = 0;
 			tuple_utils::for_each_up(tupl, [&nc](const auto& phl)noexcept {
 				typedef ::std::remove_reference_t<decltype(phl)> PHL_t;
-				typedef typename PHL_t::phl_original_t Layer_t;
-
-				static_assert(::std::is_same<real_t, typename Layer_t::real_t>::value, "Invalid real_t");
 				static_assert(is_PHL<PHL_t>::value, "_LPH must be assembled from PHL objects!");
+				static_assert(::std::is_const<PHL_t>::value, "Must be const!");
+
+				typedef typename PHL_t::phl_original_t Layer_t;
+				static_assert(!::std::is_const<Layer_t>::value, "PHL_t::phl_original_t must not be const!");
+				static_assert(::std::is_same<Layer_t, ::std::decay_t<Layer_t>>::value, "wrong type of phl_original_t for a layer inside an PHL");
+				static_assert(::std::is_same<real_t, typename Layer_t::real_t>::value, "Invalid real_t");
+				
+				static_assert(::std::is_base_of<_i_layer<real_t>, Layer_t>::value, "Each layer must derive from i_layer");
+
 				static_assert(!is_layer_input<Layer_t>::value && !is_layer_output<Layer_t>::value
 					, "Inner layers of _LPH mustn't be input or output layers!");
-				static_assert(::std::is_base_of<_i_layer<real_t>, Layer_t>::value, "Each layer must derive from i_layer");
 
 				nc += phl.l.get_neurons_cnt();
 			});
 			return nc;
 		}
 
-	public:
-		~_LPH()noexcept {}
-		_LPH(const char* pCustomName, const PHLsTuple& phls)noexcept
-			: _base_class_t(_calcNeuronsCnt(phls),pCustomName)
-			, m_phl_tuple(phls), m_pTmpBiasStorage(nullptr), m_layers_max_dLdA_numel(0)
-		{
+		void _ctor()noexcept {
+			m_pTmpBiasStorage = nullptr;
+			m_layers_max_dLdA_numel = 0;
 			m_activations.will_emulate_biases();
 		}
+
+	public:
+		~_LPH()noexcept {}
+		_LPH(const char* pCustomName, const PHLsTuple& phls)noexcept : _base_class_t(_calcNeuronsCnt(phls), pCustomName)
+			, m_phl_tuple(phls)
+		{
+			_ctor();
+		}
+		_LPH(const char* pCustomName, PHLsTuple&& phls)noexcept : _base_class_t(_calcNeuronsCnt(phls), pCustomName)
+			, m_phl_tuple(::std::move(phls))
+		{
+			_ctor();
+		}
+
+		//the next c-tor is deprecated. Don't use it if possible
+		template<typename... PHLsT>
+		_LPH(const char* pCustomName, PHLsT&&... phls) noexcept
+			: _base_class_t(_calcNeuronsCnt(::std::make_tuple(phls...)), pCustomName)
+			, m_phl_tuple(::std::make_tuple<::std::remove_reference_t<PHLsT>...>(::std::forward<PHLsT>(phls)...) )
+		{
+			_ctor();
+		}
+
 		static constexpr const char _defName[] = "lph";
 
 		const realmtxdef_t& get_activations()const noexcept {
 			NNTL_ASSERT(m_bActivationsValid);
 			return m_activations;
+		}
+		realmtxdef_t& _get_activations_mutable()const noexcept {
+			return const_cast<realmtxdef_t&>(get_activations());
 		}
 		const realmtxdef_t* get_activations_storage()const noexcept { return &m_activations; }
 		const mtx_size_t get_activations_size()const noexcept { return m_activations.size(); }
@@ -202,17 +243,18 @@ namespace nntl {
 
 		//should return true, if the layer has a value to add to Loss function value (there's some regularizer attached)
 		bool hasLossAddendum()const noexcept {
-			bool b = _pab_hasLossAddendum();
-			if (!b) {
-				get_self().for_each_packed_layer([&b](auto& l) {				b |= l.hasLossAddendum();			});
-			}
-			return b;
+// 			bool b = _pab_hasLossAddendum();
+// 			if (!b) {
+// 				get_self().for_each_packed_layer([&b](auto& l) {				b |= l.hasLossAddendum();			});
+// 			}
+// 			return b;
+			get_self().for_each_packed_layer([&b](auto& l) {				b |= l.hasLossAddendum();			});
 		}
 		//returns a loss function summand, that's caused by this layer
 		real_t lossAddendum()const noexcept {
 			real_t la(.0);
 			get_self().for_each_packed_layer([&la](auto& l) {				la += l.lossAddendum();			});
-			return la + _pab_lossAddendum(get_self().get_activations(), get_self().get_iMath());
+			return la;// +_pab_lossAddendum(get_self().get_activations(), get_self().get_iMath());
 		}
 
 	/*
@@ -414,9 +456,9 @@ namespace nntl {
 		}
 
 		//redefine in derived class if necessary
-		void _applydLdAPenalty(realmtx_t& dLdA)noexcept {
-			_pab_update_dLdA(dLdA, get_self().get_activations(), get_self().get_iMath(), get_self().get_iInspect());
-		}
+// 		void _applydLdAPenalty(realmtx_t& dLdA)noexcept {
+// 			_pab_update_dLdA(dLdA, get_self().get_activations(), get_self().get_iMath(), get_self().get_iInspect());
+// 		}
 
 		// in order to implement backprop for the inner layers, we must provide them with a correct dLdA and dLdAPrev, each of which must
 		// address at least _layer_init_data_t::max_dLdA_numel elements, that layers returned during init() phase.
@@ -440,7 +482,7 @@ namespace nntl {
 			auto& iI = get_self().get_iInspect();
 			iI.bprop_begin(get_self().get_layer_idx(), dLdA);
 
-			get_self()._applydLdAPenalty(dLdA);
+			//get_self()._applydLdAPenalty(dLdA);
 
 			iI.bprop_finaldLdA(dLdA);
 
@@ -551,8 +593,8 @@ namespace nntl {
 		}
 	};
 
-	template<typename FinalPolymorphChild, typename PHLsTuple, typename AddendumsTupleT = void>
-	using _layer_pack_horizontal = _LPH<FinalPolymorphChild, PHLsTuple, AddendumsTupleT>;
+	template<typename FinalPolymorphChild, typename PHLsTuple/*, typename DropoutT, typename AddendumsTupleT*/>
+	using _layer_pack_horizontal = _LPH<FinalPolymorphChild, PHLsTuple/*, DropoutT, AddendumsTupleT*/>;
 
 
 	//////////////////////////////////////////////////////////////////////////
@@ -566,38 +608,66 @@ namespace nntl {
 	{
 	public:
 		~LPH() noexcept {};
-		LPH(PHLsT&... phls) noexcept
+		LPH(const PHLsT&... phls) noexcept
 			: _LPH<LPH<PHLsT...>, ::std::tuple<PHLsT...>>(nullptr, ::std::make_tuple(phls...)) {};
 
-		LPH(const char* pCustomName, PHLsT&... phls) noexcept
+		LPH(PHLsT&&... phls) noexcept
+			: _LPH<LPH<PHLsT...>, ::std::tuple<PHLsT...>>(nullptr, ::std::make_tuple(::std::move(phls)...)) {};
+
+		LPH(const char* pCustomName, const PHLsT&... phls) noexcept
 			: _LPH<LPH<PHLsT...>, ::std::tuple<PHLsT...>>(pCustomName, ::std::make_tuple(phls...)) {};
+
+		LPH(const char* pCustomName, PHLsT&&... phls) noexcept
+			: _LPH<LPH<PHLsT...>, ::std::tuple<PHLsT...>>(pCustomName, ::std::make_tuple( ::std::move(phls)...)) {};
 	};
 
 	template <typename ..._T>
 	using layer_pack_horizontal = typename LPH<_T...>;
 
 	template <typename ...PHLsT> inline constexpr
-	LPH <PHLsT...> make_layer_pack_horizontal(PHLsT&... phls) noexcept {
-		return LPH<PHLsT...>(phls...);
+	auto make_layer_pack_horizontal(PHLsT&&... phls) noexcept {
+		return LPH<::std::remove_reference_t<PHLsT>...>( ::std::forward<PHLsT>(phls)...);
 	}
 	template <typename ...PHLsT> inline constexpr
-		LPH <PHLsT...> make_layer_pack_horizontal(const char* pCustomName, PHLsT&... phls) noexcept {
-		return LPH<PHLsT...>(pCustomName, phls...);
+	auto make_layer_pack_horizontal(const char* pCustomName, PHLsT&&... phls) noexcept {
+		return LPH< ::std::remove_reference_t<PHLsT>...>(pCustomName, ::std::forward<PHLsT>(phls)...);
 	}
 
 	//////////////////////////////////////////////////////////////////////////
-	template <typename LossAddsTuple, typename ...PHLsT>
+	template <typename PHLsTuple>
+	class LPHt final : public _LPH < LPHt<PHLsTuple>, PHLsTuple> {
+	public:
+		~LPHt() noexcept {};
+		LPHt(const PHLsTuple& phls) noexcept : _LPH<LPHt<PHLsTuple>, PHLsTuple>(nullptr, phls) {};
+
+		LPHt(PHLsTuple&& phls) noexcept : _LPH<LPHt<PHLsTuple>, PHLsTuple>(nullptr, ::std::move(phls)) {};
+
+		LPHt(const char* pCustomName, const PHLsTuple& phls) noexcept
+			: _LPH<LPHt<PHLsTuple>, PHLsTuple>(pCustomName, phls) {};
+
+		LPHt(const char* pCustomName, PHLsTuple&& phls) noexcept
+			: _LPH<LPHt<PHLsTuple>, PHLsTuple>(pCustomName, ::std::move(phls)) {};
+	};
+
+
+	//////////////////////////////////////////////////////////////////////////
+	//use LPA instead
+	/*template <typename LossAddsTuple, typename ...PHLsT>
 	class LPH_PA final
-		: public _LPH < LPH_PA<LossAddsTuple, PHLsT...>, ::std::tuple<PHLsT...>, LossAddsTuple>
+		: public _LPH <
+		LPH_PA<LossAddsTuple, PHLsT...>
+		, ::std::tuple<PHLsT...>
+		, NoDropout<typename ::std::tuple_element_t<0, LossAddsTuple>::real_t>
+		, LossAddsTuple>
 	{
 	public:
 		static constexpr const char _defName[] = "lph_pa";
 
 		~LPH_PA() noexcept {};
 		LPH_PA(PHLsT&... phls) noexcept
-			: _LPH<LPH_PA<LossAddsTuple, PHLsT...>, ::std::tuple<PHLsT...>, LossAddsTuple>(nullptr, ::std::make_tuple(phls...)) {};
+			: _LPH<LPH_PA<LossAddsTuple, PHLsT...>, ::std::tuple<PHLsT...>, NoDropout<typename ::std::tuple_element_t<0, LossAddsTuple>::real_t>, LossAddsTuple>(nullptr, ::std::make_tuple(phls...)) {};
 
 		LPH_PA(const char* pCustomName, PHLsT&... phls) noexcept
-			: _LPH<LPH_PA<LossAddsTuple, PHLsT...>, ::std::tuple<PHLsT...>, LossAddsTuple>(pCustomName, ::std::make_tuple(phls...)) {};
-	};
+			: _LPH<LPH_PA<LossAddsTuple, PHLsT...>, ::std::tuple<PHLsT...>, NoDropout<typename ::std::tuple_element_t<0, LossAddsTuple>::real_t>, LossAddsTuple>(pCustomName, ::std::make_tuple(phls...)) {};
+	};*/
 }

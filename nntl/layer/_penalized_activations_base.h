@@ -56,6 +56,7 @@ namespace nntl {
 			, const math::smatrix_deform<typename iMathT::real_t>& ThisActivations, const iMathT& iM, const iInspectT& iI)noexcept{}
 	};
 
+	//must be default-constructible
 	template<typename AddendumsTupleT>
 	class _PA_base : private math::smatrix_td
 	{
@@ -65,6 +66,15 @@ namespace nntl {
 		typedef AddendumsTupleT addendums_tuple_t;
 		static constexpr size_t addendums_count = ::std::tuple_size<AddendumsTupleT>::value;
 		static_assert(addendums_count > 0, "Use the layer directly instead of LPA<>");
+
+		static_assert(utils::is_tuple<addendums_tuple_t>::value, "Must be a tuple!");
+		template<typename T>
+		struct _addendums_props : ::std::true_type {
+			static_assert(!::std::is_reference<T>::value, "Must not be a reference");
+			static_assert(!::std::is_const<T>::value, "Must not be a const");
+			static_assert(loss_addendum::is_loss_addendum<T>::value, "must be a real loss_addendum");
+		};
+		static_assert(tuple_utils::assert_each<addendums_tuple_t, _addendums_props >::value, "addendums_tuple_t must be assembled from proper objects!");
 
 	protected:
 		addendums_tuple_t m_addendumsTuple;

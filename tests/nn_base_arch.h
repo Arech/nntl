@@ -52,7 +52,8 @@ namespace nntl_tests {
 		real_t learningRate;
 		real_t outputLearningRate;
 
-		real_t dropoutAlivePerc, specialDropoutAlivePerc;
+		//real_t dropoutAlivePerc;
+		real_t specialDropoutAlivePerc;
 		real_t nesterovMomentum;
 		real_t l2regularizer, l1regularizer;
 		
@@ -64,7 +65,8 @@ namespace nntl_tests {
 			: xCols(td.train_x().cols_no_bias()), yCols(td.train_y().cols())
 			, lUnderlay_nc(37)//any sufficiently big number suits
 			, learningRate(real_t(.001)), outputLearningRate(learningRate)
-			, dropoutAlivePerc(real_t(1.)) , nesterovMomentum(real_t(0.))
+			//, dropoutAlivePerc(real_t(1.))
+			, nesterovMomentum(real_t(0.))
 			, specialDropoutAlivePerc(real_t(1.))
 			, l2regularizer(real_t(0.)), l1regularizer(real_t(0.))
 			,maxNormVal(real_t(0.)), bNormIncludesBias(false)
@@ -148,7 +150,7 @@ namespace nntl_tests {
 		~NN_arch()noexcept {}
 		NN_arch(const ArchPrms_t& Prms) noexcept
 			: lInput(Prms.xCols, "lInput")
-			, lUnderlay(Prms.lUnderlay_nc, Prms.learningRate, Prms.dropoutAlivePerc, "lUnderlay")
+			, lUnderlay(Prms.lUnderlay_nc, Prms.learningRate, "lUnderlay")
 			, ArchObj(Prms)
 			, lOutput(Prms.yCols, Prms.outputLearningRate, "lOutput")
 			, lp(lInput, lUnderlay, ArchObj.lFinal, lOutput)

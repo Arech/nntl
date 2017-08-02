@@ -68,19 +68,27 @@ namespace nntl {
 		//LayerPack_t is used to distinguish ordinary layers from layer packs (for example, to implement call_F_for_each_layer())
 		typedef self_t LayerPack_t;
 
-		//typedef const ::std::tuple<Layrs&...> _layers;
 		typedef const LayrsRefTuple _layers;
-		//static constexpr size_t layers_count = sizeof...(Layrs);
-		static constexpr size_t layers_count = ::std::tuple_size<LayrsRefTuple>::value;
+
+		static_assert(utils::is_tuple<LayrsRefTuple>::value, "Must be a tuple!");
+		static constexpr size_t layers_count = ::std::tuple_size<_layers>::value;
 
 		static_assert(layers_count > 1, "For vertical pack with a single inner layer use that layer instead");
-		typedef typename ::std::remove_reference<typename ::std::tuple_element<0, _layers>::type>::type lowmost_layer_t;
-		typedef typename ::std::remove_reference<typename ::std::tuple_element<layers_count - 1, _layers>::type>::type topmost_layer_t;
-		//fprop() goes from the lowmost_layer_t to the topmost_layer_t layer.
 
-		//the first layer mustn't be input layer, the last - can't be output layer
-		static_assert(!::std::is_base_of<m_layer_input, lowmost_layer_t>::value, "First layer can't be the input layer!");
-		static_assert(!::std::is_base_of<m_layer_output, topmost_layer_t>::value, "Last layer can't be the output layer!");
+		template<typename T>
+		struct _layers_props : ::std::true_type {
+			static_assert(::std::is_lvalue_reference<T>::value, "Must be a reference to a layer");
+
+			typedef ::std::remove_reference_t<T> LT;
+			static_assert(! ::std::is_const< LT >::value, "Must not be a const");
+			static_assert(! is_layer_input<LT>::value && !is_layer_output<LT>::value, "Inner layers of _LPV mustn't be input or output layers!");
+			static_assert(::std::is_base_of<_i_layer<real_t>, LT>::value, "must derive from _i_layer");
+		};
+		static_assert(tuple_utils::assert_each<_layers, _layers_props>::value, "LayrsRefTuple must be assembled from proper objects!");
+
+		typedef ::std::remove_reference_t<::std::tuple_element_t<0, _layers>> lowmost_layer_t;
+		typedef ::std::remove_reference_t<::std::tuple_element_t<layers_count - 1, _layers>> topmost_layer_t;
+		//fprop() goes from the lowmost_layer_t to the topmost_layer_t layer.
 
 		typedef typename lowmost_layer_t::_layer_init_data_t _layer_init_data_t;
 		typedef typename lowmost_layer_t::common_data_t common_data_t;
@@ -127,13 +135,11 @@ namespace nntl {
 		~_LPV()noexcept {}
 		_LPV(const char* pCustomName, const LayrsRefTuple& layrs)noexcept
 			: _base_class_t(pCustomName), m_layers(layrs), m_layerIdx(0)
-		{
-			//#todo this better be done with a single static_assert in the class scope
-			tuple_utils::for_each_up(m_layers, [](auto& l)noexcept {
-				static_assert(!::std::is_base_of<m_layer_input, decltype(l)>::value && !::std::is_base_of<m_layer_output, decltype(l)>::value,
-					"Inner layers of _LPV mustn't be input or output layers!");
-			});
-		}
+		{}
+		_LPV(const char* pCustomName, LayrsRefTuple&& layrs)noexcept
+			: _base_class_t(pCustomName), m_layers(::std::move(layrs)), m_layerIdx(0)
+		{}
+
 		static constexpr const char _defName[] = "lpv";
 				
 		//////////////////////////////////////////////////////////////////////////
@@ -365,4 +371,20 @@ deprecated:
 	LPV <Layrs...> make_layer_pack_vertical(const char* pCustomName, Layrs&... layrs) noexcept {
 		return LPV<Layrs...>(pCustomName, layrs...);
 	}
+
+	//////////////////////////////////////////////////////////////////////////
+	template <typename LayrsTuple>
+	class LPVt final : public _LPV<LPVt<LayrsTuple>, LayrsTuple>
+	{
+	public:
+		~LPVt() noexcept {};
+		LPVt(const LayrsTuple& layrs) noexcept : _LPV<LPVt<LayrsTuple>, LayrsTuple>(nullptr, layrs) {};
+		LPVt(LayrsTuple&& layrs) noexcept : _LPV<LPVt<LayrsTuple>, LayrsTuple>(nullptr, ::std::move(layrs)) {};
+
+		LPVt(const char* pCustomName, const LayrsTuple& layrs) noexcept
+			: _LPV<LPVt<LayrsTuple>, LayrsTuple>(pCustomName, layrs) {};
+
+		LPVt(const char* pCustomName, LayrsTuple&& layrs) noexcept
+			: _LPV<LPVt<LayrsTuple>, LayrsTuple>(pCustomName, ::std::move(layrs)) {};
+	};
 }

@@ -54,4 +54,5 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "layer/pack_tile.h"
 #include "layer/penalized_activations.h"
 #include "layer/pack_penalized_activations.h"
+#include "layer/extensions.h"
 #include "nnet.h"

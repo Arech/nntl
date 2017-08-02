@@ -65,9 +65,25 @@ namespace nntl {
 
 		static constexpr size_t layers_count = sizeof...(Layrs);
 		static_assert(layers_count > 1, "Hey, what kind of NN with 1 layer you are gonna use?");
-		typedef typename ::std::remove_reference<typename ::std::tuple_element<0, _layers>::type>::type input_layer_t;
-		typedef typename ::std::remove_reference<typename ::std::tuple_element<layers_count - 1, _layers>::type>::type output_layer_t;
-		typedef typename ::std::remove_reference<typename ::std::tuple_element<layers_count - 2, _layers>::type>::type preoutput_layer_t;
+
+		template<typename T>
+		struct _layers_props : ::std::true_type {
+			static_assert(::std::is_lvalue_reference<T>::value, "Must be a reference to a layer");
+
+			typedef ::std::remove_reference_t<T> LT;
+			static_assert(!::std::is_const< LT >::value, "Must not be a const");
+			static_assert(::std::is_base_of<_i_layer<real_t>, LT>::value, "must derive from _i_layer");
+		};
+		static_assert(tuple_utils::assert_each<_layers, _layers_props>::value, "_layers must be assembled from proper objects!");
+
+
+		typedef ::std::remove_reference_t<::std::tuple_element_t<0, _layers>> input_layer_t;
+		typedef ::std::remove_reference_t<::std::tuple_element_t<layers_count - 1, _layers>> output_layer_t;
+		typedef ::std::remove_reference_t<::std::tuple_element_t<layers_count - 2, _layers>> preoutput_layer_t;
+
+		//test whether the first layer is m_layer_input and the last is m_layer_output derived
+		static_assert(is_layer_input<input_layer_t>::value, "First/input layer must derive from m_layer_input!");
+		static_assert(is_layer_output<output_layer_t>::value, "Last/output layer must derive from m_layer_output!");
 
 		//matrix type to feed into forward propagation
 
@@ -82,10 +98,6 @@ namespace nntl {
 
 		//we need 2 matrices for bprop()
 		typedef ::std::array<realmtxdef_t, 2> realmtxdef_array_t;
-
-		//test whether the first layer is m_layer_input and the last is m_layer_output derived
-		static_assert(::std::is_base_of<m_layer_input, input_layer_t>::value, "First/input layer must derive from m_layer_input!");
-		static_assert(::std::is_base_of<m_layer_output, output_layer_t>::value, "Last/output layer must derive from m_layer_output!");
 
 		//////////////////////////////////////////////////////////////////////////
 	protected:
@@ -292,6 +304,29 @@ namespace nntl {
 
 	//////////////////////////////////////////////////////////////////////////
 	// helpers to change various layer properties that may or may not exist
+	
+	/*
+	#todo: make generic helper wrapper with variadic templates
+	template<typename HlprT>
+	struct apply_hlpr {
+		template<typename _L, typename... PrmsT>
+		static ::std::enable_if_t<HlprT::cond<_L>::value> operator()(_L& l, PrmsT&&... prms)noexcept {
+			HlprT::op(l, ::std::forward<PrmsT>(prms)...);
+		}
+		template<typename _L, typename... PrmsT>
+		static ::std::enable_if_t<!HlprT<_L>::value> operator()(_L& l, PrmsT&&... prms)noexcept {}
+	};
+
+	struct hlpr_set_learning_rate {
+		template <typename _L>
+		using cond = layer_has_gradworks<_L>;
+
+		template<typename _L> static void op(_L& l, const typename _L::real_t lr)noexcept {
+			l.m_gradientWorks.learning_rate(lr);
+		}
+	};*/
+
+	
 	struct hlpr_layer_set_learning_rate {
 		template<typename _L> ::std::enable_if_t<nntl::layer_has_gradworks<_L>::value> operator()(_L& l, const typename _L::real_t lr)const noexcept {
 			l.m_gradientWorks.learning_rate(lr);

@@ -274,8 +274,8 @@ struct GC_LPV : public nntl_tests::NN_base_arch_td<ArchPrmsT> {
 
 	~GC_LPV()noexcept {}
 	GC_LPV(const ArchPrms_t& Prms)noexcept
-		: l1(50, Prms.learningRate, Prms.dropoutAlivePerc, "l1")
-		, l2(70, Prms.learningRate, Prms.dropoutAlivePerc, "l2")
+		: l1(50, Prms.learningRate, "l1")
+		, l2(70, Prms.learningRate, "l2")
 		, lFinal("lFinal", l1, l2)
 	{}
 };

@@ -66,7 +66,7 @@ TEST(TestInspectors, StdcoutI) {
 	readTd(td, MNIST_FILE_DEBUG);
 
 	size_t epochs = 2, seedVal = 0;
-	const real_t learningRate = real_t(.01), dropoutRate = real_t(1.);
+	const real_t learningRate = real_t(.01);// , dropoutRate = real_t(1.);
 
 	//redefining InterfacesT
 	typedef inspector::stdcout<real_t> myInspector;
@@ -81,8 +81,8 @@ TEST(TestInspectors, StdcoutI) {
 
 	//instantiating layer objects
 	layer_input<myIntf> inp(td.train_x().cols_no_bias(), "Source");
-	layer_fully_connected<myAct, myGW> ifcl1(20, learningRate, dropoutRate, "First");
-	layer_fully_connected<myAct, myGW> ifcl2(15, learningRate, dropoutRate, "Second");
+	layer_fully_connected<myAct, myGW> ifcl1(20, learningRate, "First");
+	layer_fully_connected<myAct, myGW> ifcl2(15, learningRate, "Second");
 	layer_output<myActO, myGW> outp(td.train_y().cols(), learningRate, "Predictor");
 
 	auto lp = make_layers(inp, ifcl1, ifcl2, outp);
@@ -107,7 +107,7 @@ TEST(TestInspectors, DumperMat) {
 	readTd(td, MNIST_FILE_DEBUG);
 
 	size_t epochs = 5, seedVal = 0;
-	const real_t learningRate = real_t(.01), dropoutRate = real_t(1.);
+	const real_t learningRate = real_t(.01);// , dropoutRate = real_t(1.);
 	
 	//redefining InterfacesT
 	typedef inspector::dumper<real_t, nntl_supp::omatfileEx<>> myInspector;
@@ -121,8 +121,8 @@ TEST(TestInspectors, DumperMat) {
 
 	//instantiating layer objects
 	layer_input<myIntf> inp(td.train_x().cols_no_bias(), "Source");
-	layer_fully_connected<myAct, myGW> ifcl1(20, learningRate, dropoutRate, "First");
-	layer_fully_connected<myAct, myGW> ifcl2(15, learningRate, dropoutRate, "Second");
+	layer_fully_connected<myAct, myGW> ifcl1(20, learningRate, "First");
+	layer_fully_connected<myAct, myGW> ifcl2(15, learningRate, "Second");
 	layer_output<myActO, myGW> outp(td.train_y().cols(), learningRate, "Predictor");
 
 	auto lp = make_layers(inp, ifcl1, ifcl2, outp);

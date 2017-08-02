@@ -51,6 +51,8 @@ namespace nntl {
 	//////////////////////////////////////////////////////////////////////////
 	template<typename LayerT>
 	struct PHL {//"let me speak from my heart in English" (c): that's a Part of a Horizontal Layer :-D
+		static_assert(::std::is_same<LayerT, ::std::decay_t<LayerT>>::value, "invalid type for PHL");
+		static_assert(!::std::is_const<LayerT>::value, "PHL_t::phl_original_t must not be const!");
 
 		//this typedef will also help to distinguish between PHL and other structs.
 		typedef LayerT phl_original_t;
@@ -88,11 +90,13 @@ namespace nntl {
 
 		//////////////////////////////////////////////////////////////////////////
 		// trainable_layer_wrapper wraps all activation matrix of a layer
-		template<typename WrappedLayer>
-		class trainable_layer_wrapper : public _i_layer_trainable<typename WrappedLayer::real_t>, public m_prop_input_marker<WrappedLayer> {
+		template<typename WrappedLayerT>
+		class trainable_layer_wrapper : public _i_layer_trainable<typename WrappedLayerT::real_t>, public m_prop_input_marker<WrappedLayerT> {
 		public:
+			static_assert(::std::is_same<WrappedLayerT, ::std::decay_t<WrappedLayerT>>::value, "invalid type for trainable_layer_wrapper");
+
 			//this typedef helps to distinguish *_wrapper classes from other classes
-			typedef WrappedLayer wrapped_layer_t;
+			typedef WrappedLayerT wrapped_layer_t;
 
 		protected:
 			const realmtx_t& m_act;
@@ -158,18 +162,19 @@ namespace nntl {
 			const mtx_size_t get_activations_size()const noexcept { return m_act.size(); }
 		};
 
-		//#TODO seems like we don't need WrappedLayer parameter here. Better make it type-less and 
+		//#TODO seems like we don't need WrappedLayerT parameter here. Better make it type-less and 
 		//update LPH::bprop and other related code
 		//final wrapper
-		template<typename WrappedLayer>
+		template<typename WrappedLayerT>
 		class trainable_partial_layer_wrapper 
-			: public m_prop_input_marker<WrappedLayer>
-			, public _trainable_partial_layer_wrapper<typename WrappedLayer::real_t>
+			: public m_prop_input_marker<WrappedLayerT>
+			, public _trainable_partial_layer_wrapper<typename WrappedLayerT::real_t>
 		{
 		private:
-			typedef _trainable_partial_layer_wrapper<typename WrappedLayer::real_t> _base_class_t;
+			typedef _trainable_partial_layer_wrapper<typename WrappedLayerT::real_t> _base_class_t;
 		public:
-			typedef WrappedLayer wrapped_layer_t;//this typedef helps to distinguish *_wrapper classes from other classes
+			static_assert(::std::is_same<WrappedLayerT, ::std::decay_t<WrappedLayerT>>::value, "invalid type for trainable_layer_wrapper");
+			typedef WrappedLayerT wrapped_layer_t;//this typedef helps to distinguish *_wrapper classes from other classes
 		public:
 			~trainable_partial_layer_wrapper()noexcept {}
 			trainable_partial_layer_wrapper(const realmtx_t& underlyingLayerAct, real_t* pTmpBiasStor, const PHL_coord& phl_coord)

@@ -456,6 +456,12 @@
     <ClInclude Include="..\nntl\_SNN_common.h">
       <Filter>nntl</Filter>
     </ClInclude>
+    <ClInclude Include="..\nntl\layer\extensions.h">
+      <Filter>nntl\layer</Filter>
+    </ClInclude>
+    <ClInclude Include="..\nntl\layer\extender.h">
+      <Filter>nntl\layer</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="stdafx.cpp">

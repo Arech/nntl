@@ -59,19 +59,21 @@ namespace nntl {
 		static constexpr void _dropout_serialize(Archive & ar, const unsigned int version) noexcept {}
 		static constexpr void _dropout_deinit() noexcept {}
 
-		static constexpr bool _dropout_init(const bool isTrainingPossible, const vec_len_t max_batch_size, const neurons_count_t neurons_cnt)noexcept {
+		template<typename CommonDataT>
+		static constexpr bool _dropout_init(const neurons_count_t neurons_cnt, const CommonDataT& CD)noexcept {
 			return true;
-		}		
-		static constexpr void _dropout_on_batch_size_change(const bool isTrainingMode, const vec_len_t batchSize) noexcept {}
+		}
+
+		template<typename CommonDataT>
+		static constexpr void _dropout_on_batch_size_change(const CommonDataT& CD) noexcept {}
 
 		//////////////////////////////////////////////////////////////////////////
 		//The following functions will be called only if bDropout() returns true
-		template<typename iMathT, typename iRngT, typename iInspectT>
-		static constexpr void _dropout_apply(realmtx_t& activations, const bool bTrainingMode
-			, iMathT& iM, iRngT& iR, iInspectT& _iI) noexcept {}
+		template<typename CommonDataT>
+		static constexpr void _dropout_apply(realmtx_t& activations, const CommonDataT& CD) noexcept {}
 
-		template<typename iMathT, typename iInspectT>
-		static constexpr void _dropout_restoreScaling(realmtx_t& dLdZ, realmtx_t& activations, iMathT& iM, iInspectT& _iI)noexcept {}
+		template<typename CommonDataT>
+		static constexpr void _dropout_restoreScaling(realmtx_t& dLdZ, realmtx_t& activations, const CommonDataT& CD)noexcept {}
 
 	public:
 		static constexpr bool bDropout() noexcept { return false; }

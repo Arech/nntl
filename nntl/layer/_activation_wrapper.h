@@ -37,16 +37,16 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include "_layer_base.h"
 #include "../activation.h"
-#include "../dropout.h"
+//#include "../dropout.h"
 
 namespace nntl {
 	namespace _impl {
 
-		template<typename FinalPolymorphChild, typename InterfacesT, typename ActivFuncT, typename DropoutT>
+		template<typename FinalPolymorphChild, typename InterfacesT, typename ActivFuncT/*, typename DropoutT*/>
 		class _act_wrap
 			: public _layer_base<FinalPolymorphChild, InterfacesT>
 			, private ActivFuncT
-			, public DropoutT
+			//, public DropoutT
 		{
 		private:
 			typedef _layer_base<FinalPolymorphChild, InterfacesT> _base_class_t;
@@ -58,7 +58,7 @@ namespace nntl {
 			//using _base_class_t::numel_cnt_t;
 
 			static_assert(::std::is_same<typename InterfacesT::real_t, typename ActivFuncT::real_t>::value, "Invalid real_t");
-			static_assert(::std::is_same<typename DropoutT::real_t, typename ActivFuncT::real_t>::value, "Invalid real_t");
+			//static_assert(::std::is_same<typename DropoutT::real_t, typename ActivFuncT::real_t>::value, "Invalid real_t");
 
 			typedef ActivFuncT Activation_t;
 			typedef typename Activation_t::weights_scheme_t Weights_Init_t;
@@ -66,9 +66,9 @@ namespace nntl {
 			static constexpr bool bActivationForOutput = ::std::is_base_of <activation::_i_activation_loss<real_t>, Activation_t>::value;
 			static constexpr bool bActivationForHidden = ::std::is_base_of<activation::_i_activation<real_t, Weights_Init_t>, Activation_t>::value;
 			
-			static_assert(!bActivationForOutput || is_dummy_dropout<DropoutT>::value, "There must be no dropout for output activation function");
-
-			typedef DropoutT Dropout_t;
+// 			static_assert(!bActivationForOutput || is_dummy_dropout<DropoutT>::value, "There must be no dropout for output activation function");
+// 
+// 			typedef DropoutT Dropout_t;
 
 
 		protected:
@@ -91,6 +91,9 @@ namespace nntl {
 				return m_activations;
 			}
 			const realmtxdef_t* get_activations_storage()const noexcept { return &m_activations; }
+			realmtxdef_t& _get_activations_mutable()const noexcept {
+				return const_cast<realmtxdef_t&>(get_activations());
+			}
 			mtx_size_t get_activations_size()const noexcept { return m_activations.size(); }
 
 			bool is_activations_shared()const noexcept {

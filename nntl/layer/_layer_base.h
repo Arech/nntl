@@ -54,10 +54,17 @@ namespace nntl {
 	struct is_layer_pack<T, ::std::void_t<typename T::LayerPack_t>> : ::std::true_type {};
 
 	//helper function to call internal _for_each_layer(f) for layer_pack_* classes
+	//it iterates through the layers from the lowmost (input) to the highmost (output).
+	// layer_pack's are also passed to F!
+	// Therefore the .for_each_layer() is the main mean to apply F to every layer in a network/pack
 	template<typename Func, typename LayerT> inline
 		::std::enable_if_t<is_layer_pack<LayerT>::value> call_F_for_each_layer(Func&& F, LayerT& l)noexcept
 	{
 		l.for_each_layer(::std::forward<Func>(F));
+		//must also call for the layer itself
+		//F(l);//not should do ::std::forward<Func>(F)(l); here ???
+		::std::forward<Func>(F)(l);
+		// #TODO #BUGBUG shouldn't we use simply F(l) here and everywhere else in the same context???
 	}
 	template<typename Func, typename LayerT> inline
 		::std::enable_if_t<!is_layer_pack<LayerT>::value> call_F_for_each_layer(Func&& F, LayerT& l)noexcept
@@ -65,9 +72,11 @@ namespace nntl {
 		::std::forward<Func>(F)(l);
 	}
 
+	//probably we don't need it, but let it be
 	template<typename Func, typename LayerT> inline
 		::std::enable_if_t<is_layer_pack<LayerT>::value> call_F_for_each_layer_down(Func&& F, LayerT& l)noexcept
 	{
+		::std::forward<Func>(F)(l);
 		l.for_each_layer_down(::std::forward<Func>(F));
 	}
 	template<typename Func, typename LayerT> inline
@@ -127,6 +136,10 @@ namespace nntl {
 		//NOTE: It won't trigger assert if it's dereferenced in a wrong moment, therefore you'll get invalid values,
 		// so use it wisely only when you absolutely can't use the get_activations()
 		nntl_interface const realmtxdef_t* get_activations_storage()const noexcept;
+
+		//use it only if you really know what you're are doing and it won't hurt derivative calculation
+		//SOME LAYERS may NOT implement this function!
+		nntl_interface realmtxdef_t& _get_activations_mutable()const noexcept;
 
 	protected:
 		//see _layer_base::m_bIsDropSamplesMightBeCalled member comment
@@ -393,6 +406,9 @@ namespace nntl {
 			return ::std::string(n);
 		}
 
+		//#todo: need a way to define layer type based on something more versatile than a self_t::_defName
+		//probably based on https://akrzemi1.wordpress.com/2017/06/28/compile-time-string-concatenation/
+		//or https://crazycpp.wordpress.com/2014/10/17/compile-time-strings-with-constexpr/
 	private:
 		template<unsigned LEN>
 		static constexpr layer_type_id_t _get_layer_type_id(const char(&pStr)[LEN], const unsigned pos = 0)noexcept {
@@ -594,6 +610,7 @@ namespace nntl {
 
 		const realmtxdef_t& get_activations()const noexcept { return get_self()._forwarder_layer().get_activations(); }
 		const realmtxdef_t* get_activations_storage()const noexcept { return get_self()._forwarder_layer().get_activations_storage(); }
+		realmtxdef_t& _get_activations_mutable()const noexcept { return get_self()._forwarder_layer()._get_activations_mutable(); }
 		const mtx_size_t get_activations_size()const noexcept { return get_self()._forwarder_layer().get_activations_size(); }
 		const bool is_activations_shared()const noexcept { return get_self()._forwarder_layer().is_activations_shared(); }
 

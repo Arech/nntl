@@ -392,8 +392,8 @@ struct GC_LPH_NO : public nntl_tests::NN_base_arch_td<ArchPrmsT> {
 
 	~GC_LPH_NO()noexcept {}
 	GC_LPH_NO(const ArchPrms_t& Prms)noexcept
-		: l1(50, Prms.learningRate, Prms.dropoutAlivePerc, "l1")
-		, l2(70, Prms.learningRate, Prms.dropoutAlivePerc, "l2")
+		: l1(50, Prms.learningRate, "l1")
+		, l2(70, Prms.learningRate, "l2")
 		, lFinal("lFinal"
 			, make_PHL(l1, 0, Prms.lUnderlay_nc / 2)
 			, make_PHL(l2, Prms.lUnderlay_nc / 2, Prms.lUnderlay_nc - (Prms.lUnderlay_nc / 2))//to get rid of integer division rounding
@@ -428,9 +428,9 @@ struct GC_LPH_OVR : public nntl_tests::NN_base_arch_td<ArchPrmsT> {
 
 	~GC_LPH_OVR()noexcept {}
 	GC_LPH_OVR(const ArchPrms_t& Prms)noexcept
-		: l1(50, Prms.learningRate, Prms.dropoutAlivePerc, "l1")
-		, l2(70, Prms.learningRate, Prms.dropoutAlivePerc, "l2")
-		, l3(90, Prms.learningRate, Prms.dropoutAlivePerc, "l3")
+		: l1(50, Prms.learningRate, "l1")
+		, l2(70, Prms.learningRate, "l2")
+		, l3(90, Prms.learningRate, "l3")
 		, lFinal("lFinal"
 			, make_PHL(l1, 0, Prms.lUnderlay_nc - 1)
 			, make_PHL(l2, 1, Prms.lUnderlay_nc - 1)

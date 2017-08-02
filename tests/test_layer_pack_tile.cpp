@@ -52,7 +52,7 @@ struct GC_LPT : public nntl_tests::NN_base_arch_td<ArchPrmsT> {
 
 	~GC_LPT()noexcept {}
 	GC_LPT(const ArchPrms_t& Prms)noexcept
-		: lBase(50, Prms.learningRate, Prms.dropoutAlivePerc, "lBase")
+		: lBase(50, Prms.learningRate, "lBase")
 		, lFinal(lBase, "lFinal")
 	{}
 };
@@ -85,8 +85,8 @@ struct GC_LPT_LPV : public nntl_tests::NN_base_arch_td<ArchPrmsT> {
 
 	~GC_LPT_LPV()noexcept {}
 	GC_LPT_LPV(const ArchPrms_t& Prms)noexcept
-		: l1(50, Prms.learningRate, Prms.dropoutAlivePerc, "l1")
-		, l2(70, Prms.learningRate, Prms.dropoutAlivePerc, "l2")
+		: l1(50, Prms.learningRate, "l1")
+		, l2(70, Prms.learningRate, "l2")
 		, lBase("lBase", l1, l2)
 		, lFinal(lBase, "lFinal")
 	{}

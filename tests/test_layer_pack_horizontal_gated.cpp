@@ -56,8 +56,8 @@ struct GC_LPHG_NO : public nntl_tests::NN_base_arch_td<ArchPrmsT> {
 	~GC_LPHG_NO()noexcept {}
 	GC_LPHG_NO(const ArchPrms_t& Prms)noexcept
 		: lGate("lGate")
-		, l1(70, Prms.learningRate, Prms.dropoutAlivePerc, "l1")
-		, l2(70, Prms.learningRate, Prms.dropoutAlivePerc, "l2")
+		, l1(70, Prms.learningRate, "l1")
+		, l2(70, Prms.learningRate, "l2")
 		, lFinal("lFinal"
 			, make_PHL(lGate,0,2)
 			, make_PHL(l1, 2, Prms.lUnderlay_nc / 2 - 2)
