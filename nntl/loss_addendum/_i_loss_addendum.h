@@ -66,11 +66,16 @@ namespace loss_addendum {
 		nntl_interface const char* getName()const noexcept;// { return "_LA_name_not_set"; }
 
 		//computes loss addendum for a given matrix of values (for weight-decay Vals parameter is a weight matrix)
-		template <typename iMathT>
-		nntl_interface real_t lossAdd(const realmtx_t& Vals, iMathT& iM) noexcept;
+		template <typename CommonDataT>
+		nntl_interface real_t lossAdd(const realmtx_t& Vals, const CommonDataT& CD) noexcept;
 
-		template <typename iMathT, typename iInspectT>
-		nntl_interface void dLossAdd(const realmtx_t& Vals, realmtx_t& dLossdVals, iMathT& iM, iInspectT& iI) noexcept;
+		//must provide a static constexpr bool calcOnFprop 
+		//static constexpr bool calcOnFprop = false/true;
+		template <typename CommonDataT, bool c = calcOnFprop>
+		nntl_interface ::std::enable_if_t<c> on_fprop(const realmtx_t& Vals, const CommonDataT& CD) noexcept;
+
+		template <typename CommonDataT>
+		nntl_interface void dLossAdd(const realmtx_t& Vals, realmtx_t& dLossdVals, const CommonDataT& CD) noexcept;
 
 		//#todo: computation of some loss functions may be optimized, if some data is cached between corresponding calls to lossAdd/dLossAdd.
 		//However it's really useful only for a fullbatch learning with a full error calculation, which is a quite rare thing.
@@ -84,10 +89,12 @@ namespace loss_addendum {
 		// Performs initialization.
 		//At mininum, it must call iMath.preinit()
 		//override in derived class to suit needs
-		template <typename iMath>
-		static void init(const bool& bWillDoTraining, const realmtx_t& biggestMtx, iMath& iM) noexcept {
-			iM.preinit(biggestMtx.numel_no_bias());
+		template <typename CommonDataT>
+		static bool init(const mtx_size_t biggestMtx, const CommonDataT& CD) noexcept {
+			CD.iMath().preinit( realmtx_t::sNumel(biggestMtx) );
+			return true;
 		}
+		static void deinit()noexcept{}
 	};
 
 	template<typename LaT>
@@ -99,23 +106,53 @@ namespace loss_addendum {
 		, ::std::false_type>
 	{};
 
-	template<typename RealT>
-	class _scaled_addendum : public _i_loss_addendum<RealT> {
-	protected:
-		real_t m_scale;
+	template<typename LaT>
+	using works_on_fprop = ::std::integral_constant<bool, LaT::calcOnFprop>;
 
-	public:
-		_scaled_addendum()noexcept : m_scale(real_t(0.)) {}
+	namespace _impl {
+		template<typename RealT>
+		class scaled_addendum : public _i_loss_addendum<RealT> {
+		protected:
+			real_t m_scale;
 
-		void scale(const real_t& s)noexcept {
-			//NNTL_ASSERT(s >= real_t(0.));
-			m_scale = s;
-		}
-		const real_t& scale()const noexcept { return m_scale; }
+		public:
+			scaled_addendum()noexcept : m_scale(real_t(0.)) {}
 
-		const bool bEnabled()const noexcept { return real_t(0.) != m_scale; }
-	};
+			void scale(const real_t s)noexcept {
+				//NNTL_ASSERT(s >= real_t(0.));
+				m_scale = s;
+			}
+			real_t scale()const noexcept { return m_scale; }
 
+			const bool bEnabled()const noexcept { return real_t(0.) != m_scale; }
+		};
+
+		template<typename RealT, bool bOnFprop>
+		struct scaled_addendum_with_mtx4fprop : public scaled_addendum<RealT> {
+			static constexpr bool calcOnFprop = false;
+		};
+
+		template<typename RealT>
+		struct scaled_addendum_with_mtx4fprop<RealT, true> : public scaled_addendum<RealT> {
+			static constexpr bool calcOnFprop = true;
+		private:
+			typedef scaled_addendum<RealT> _base_class_t;
+		protected:
+			math::smatrix_deform<RealT> m_Mtx;
+
+		public:
+			template <typename CommonDataT>
+			bool init(const mtx_size_t biggestMtx, const CommonDataT& CD) noexcept {
+				if (!_base_class_t::init(biggestMtx, CD))return false;
+				return m_Mtx.resize(biggestMtx);
+			}
+
+			void deinit()noexcept {
+				_base_class_t::deinit();
+				m_Mtx.clear();
+			}
+		};
+	}
 
 }
 }

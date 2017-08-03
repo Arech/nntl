@@ -36,20 +36,38 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 namespace nntl {
 namespace loss_addendum {
 
-	template<typename RealT>
-	class L1 : public _scaled_addendum<RealT> {
+	//if bCalcOnFProp set to true, then it computes the necessary derivate during fprop step and stores it internally
+	//until bprop() phase. This helps to deal with a dropout that modifies some activations and makes some loss_addendums
+	// produce bogus results
+	template<typename RealT, bool bCalcOnFProp = false>
+	class L1 : public _impl::scaled_addendum_with_mtx4fprop<RealT, bCalcOnFProp>{
 	public:
 		static constexpr const char* getName()noexcept { return "L1"; }
 
 		//computes loss addendum for a given matrix of values (for weight-decay Vals parameter is a weight matrix)
-		template <typename iMathT>
-		real_t lossAdd(const realmtx_t& Vals, iMathT& iM) const noexcept {
-			return m_scale* iM.vSumAbs(Vals);
+		template <typename CommonDataT>
+		real_t lossAdd(const realmtx_t& Vals, const CommonDataT& CD) const noexcept {
+			return m_scale* CD.iMath().vSumAbs(Vals);
 		}
 
-		template <typename iMathT, typename iInspectT>
-		void dLossAdd(const realmtx_t& Vals, realmtx_t& dLossdVals, iMathT& iM, iInspectT& iI) const noexcept {
-			iM.evAddScaledSign_ip(dLossdVals, m_scale, Vals);
+		template <typename CommonDataT, bool c = calcOnFprop>
+		::std::enable_if_t<c> on_fprop(const realmtx_t& Vals, const CommonDataT& CD) noexcept {
+			NNTL_ASSERT(!Vals.emulatesBiases());
+			m_Mtx.deform_like(Vals);
+			CD.iMath().evSign(m_Mtx, Vals);
+		}
+
+		template <typename CommonDataT, bool c = calcOnFprop>
+		::std::enable_if_t<c> dLossAdd(const realmtx_t& Vals, realmtx_t& dLossdVals, const CommonDataT& CD) const noexcept {
+			NNTL_ASSERT(m_Mtx.size() == Vals.size() && Vals.size() == dLossdVals.size());
+			NNTL_ASSERT(!Vals.emulatesBiases() && !dLossdVals.emulatesBiases());
+			CD.iMath().evAddScaled_ip(dLossdVals, m_scale, m_Mtx);
+		}
+
+		template <typename CommonDataT, bool c = calcOnFprop>
+		::std::enable_if_t<!c> dLossAdd(const realmtx_t& Vals, realmtx_t& dLossdVals, const CommonDataT& CD) const noexcept {
+			NNTL_ASSERT(!Vals.emulatesBiases() && !dLossdVals.emulatesBiases());
+			CD.iMath().evAddScaledSign_ip(dLossdVals, m_scale, Vals);
 		}
 	};
 

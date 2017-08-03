@@ -282,6 +282,9 @@ namespace nntl {
 			if (!ILR_init(weightsSize))return false;
 
 			set_common_data(cd);
+
+			if (!_la_init(weightsSize))return false;
+
 			set_opt(f_FirstRun,true);
 			return true;
 		}
@@ -290,6 +293,7 @@ namespace nntl {
 			clean_common_data();
 			
 			ILR_deinit();
+			_la_deinit();
 
 			//#TODO: current cleanup code is not compatible with sequential nnet::train() calls
 
@@ -583,10 +587,10 @@ namespace nntl {
 	using grad_works = grad_works_f<
 		InterfacesT
 		, GW::ILR
-		, GW::Loss_Addendums_builder<
+		, GW::Loss_Addendums_builder< ::std::tuple<
 		    loss_addendum::L1<typename InterfacesT::real_t>
 		    , loss_addendum::L2<typename InterfacesT::real_t>
-		>::template type
+		>>::template type
 	>;
 
 }

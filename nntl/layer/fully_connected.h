@@ -42,10 +42,10 @@ namespace nntl {
 	template<typename FinalPolymorphChild, typename ActivFunc, typename GradWorks/*, typename DropoutT*/>
 	class _LFC 
 		: public m_layer_learnable
-		, public _impl::_act_wrap<FinalPolymorphChild, typename GradWorks::interfaces_t, ActivFunc/*, DropoutT*/>
+		, public _impl::_act_wrap<FinalPolymorphChild, typename GradWorks::interfaces_t, ActivFunc>
 	{
 	private:
-		typedef _impl::_act_wrap<FinalPolymorphChild, typename GradWorks::interfaces_t, ActivFunc/*, DropoutT*/> _base_class_t;
+		typedef _impl::_act_wrap<FinalPolymorphChild, typename GradWorks::interfaces_t, ActivFunc> _base_class_t;
 
 	public:
 		static_assert(bActivationForHidden, "ActivFunc template parameter should be derived from activations::_i_activation");
@@ -91,8 +91,6 @@ namespace nntl {
 			if (utils::binary_option<true>(ar, serialization::serialize_weights)) ar & NNTL_SERIALIZATION_NVP(m_weights);
 
 			if (utils::binary_option<true>(ar, serialization::serialize_grad_works)) ar & m_gradientWorks;//dont use nvp or struct here for simplicity
-
-			//_dropout_serialize(ar, version);
 		}
 
 
@@ -103,13 +101,11 @@ namespace nntl {
 		_LFC(const char* pCustomName
 			, const neurons_count_t _neurons_cnt
 			, const real_t learningRate = real_t(.01)
-			//, const real_t dpa = real_t(1.0) //"dropout_percent_alive"
 		)noexcept
 			: _base_class_t(_neurons_cnt, pCustomName), m_weights()
 			, m_bWeightsInitialized(false), m_gradientWorks(learningRate)
 			, m_nTiledTimes(0.)
 		{
-			//dropoutPercentActive(dpa);
 			m_activations.will_emulate_biases();
 		};
 
@@ -118,7 +114,6 @@ namespace nntl {
 			, m_bWeightsInitialized(false), m_gradientWorks(learningRate)
 			, m_nTiledTimes(0.)
 		{
-			//dropoutPercentActive(dpa);
 			m_activations.will_emulate_biases();
 		};
 		
@@ -190,8 +185,6 @@ namespace nntl {
 				,realmtx_t::sNumel(training_batch_size, get_incoming_neurons_cnt() + 1)
 			}));
 
-			//if (!_dropout_init(neurons_cnt, get_self().get_common_data())) return ErrorCode::DropoutInitFailed;
-
 			if (get_self().get_common_data().is_training_possible()) {
 				//it'll be training session, therefore must allocate necessary supplementary matrices and form temporary memory reqs.
 
@@ -204,8 +197,6 @@ namespace nntl {
 
 			lid.bHasLossAddendum = hasLossAddendum();
 
-			//lid.bOutputDifferentDuringTraining = layer_has_dropout<self_t>::value && get_self().get_common_data().is_training_possible();
-
 			bSuccessfullyInitialized = true;
 			return ec;
 		}
@@ -214,7 +205,6 @@ namespace nntl {
 			m_gradientWorks.deinit();
 			m_dLdW.clear();
 			m_nTiledTimes = real_t(0.);
-			//_dropout_deinit();
 			_base_class_t::deinit();
 		}
 
@@ -225,12 +215,6 @@ namespace nntl {
 				NNTL_ASSERT(!m_dLdW.emulatesBiases());
 			}
 		}
-		
-// 		void on_batch_size_change(real_t*const pNewActivationStorage = nullptr)noexcept {
-// 			_base_class_t::on_batch_size_change(pNewActivationStorage);
-// 
-// 			_dropout_on_batch_size_change(get_self().get_common_data());
-// 		}
 
 	protected:
 		//help compiler to isolate fprop functionality from the specific of previous layer
@@ -264,13 +248,7 @@ namespace nntl {
 			_iI.fprop_activations(m_activations);
 
 			NNTL_ASSERT(get_self().is_activations_shared() || m_activations.test_biases_ok());
-
-// 			if (bDropout()) {
-// 				//_dropout_apply(m_activations, bTrainingMode, iM, get_self().get_iRng(), _iI);
-// 				_dropout_apply(m_activations, get_self().get_common_data());
-// 				NNTL_ASSERT(get_self().is_activations_shared() || m_activations.test_biases_ok());
-// 			}
-
+			
 			NNTL_ASSERT(prevActivations.test_biases_ok());
 			_iI.fprop_end(m_activations);
 			m_bActivationsValid = true;
@@ -302,20 +280,7 @@ namespace nntl {
 			NNTL_ASSERT(m_activations.rows() == get_self().get_common_data().get_cur_batch_size());
 			NNTL_ASSERT(mtx_size_t(get_self().get_common_data().get_cur_batch_size(), get_incoming_neurons_cnt() + 1) == prevActivations.size());
 			NNTL_ASSERT(bPrevLayerIsInput || dLdAPrev.size() == prevActivations.size_no_bias());//in vanilla simple BP we shouldn't calculate dLdAPrev for the first layer			
-
-// 			if (bDropout()) {
-// 				//we must cancel activations that was dropped out by the mask (should they've been restored by activation_f_t::df())
-// 				//and restore the scale of dL/dA according to 1/p
-// 				//because the true scaled_dL/dA = 1/p * computed_dL/dA
-// 				//we must undo the scaling step from inverted dropout in order to obtain correct activation values
-// 				//It must be done as a basis to obtain correct dA/dZ
-// 				_dropout_restoreScaling(dLdA, m_activations, get_self().get_common_data());
-// 
-// 				//we must undo the scaling step from inverted dropout in order to obtain correct activation values
-// 				//That is must be done as a basis to obtain correct dA/dZ
-// 				//_dropout_cancelScaling(m_activations, iM, _iI);
-// 			}
-			
+						
 			_iI.bprop_finaldLdA(dLdA);
 
 			_iI.bprop_predAdZ(m_activations);
@@ -432,22 +397,20 @@ namespace nntl {
 	template <
 		typename ActivFunc = activation::sigm<d_interfaces::real_t>
 		, typename GradWorks = grad_works<d_interfaces>
-		//, typename DropoutT = default_dropout_for<ActivFunc>
 	> class LFC final 
-		: public _LFC<LFC<ActivFunc, GradWorks/*, DropoutT*/>, ActivFunc, GradWorks/*, DropoutT*/>
+		: public _LFC<LFC<ActivFunc, GradWorks>, ActivFunc, GradWorks>
 	{
 	public:
 		~LFC() noexcept {};
 		LFC(const neurons_count_t _neurons_cnt, const real_t learningRate = real_t(.01)
-			//, const real_t dropoutFrac = real_t(0.0)
 			, const char* pCustomName = nullptr
 		)noexcept
-			: _LFC<LFC<ActivFunc, GradWorks/*, DropoutT*/>, ActivFunc, GradWorks/*, DropoutT*/>
+			: _LFC<LFC<ActivFunc, GradWorks>, ActivFunc, GradWorks>
 			(pCustomName, _neurons_cnt, learningRate/*, dropoutFrac*/) {};
 		LFC(const char* pCustomName, const neurons_count_t _neurons_cnt, const real_t learningRate = real_t(.01)
 			//, const real_t dropoutFrac = real_t(0.0)
 		)noexcept
-			: _LFC<LFC<ActivFunc, GradWorks/*, DropoutT*/>, ActivFunc, GradWorks/*, DropoutT*/>
+			: _LFC<LFC<ActivFunc, GradWorks>, ActivFunc, GradWorks>
 			(pCustomName, _neurons_cnt, learningRate/*, dropoutFrac*/) {};
 	};
 

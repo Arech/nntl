@@ -1122,62 +1122,81 @@ namespace math {
 		}
 		void evAdd_ip_mt(realmtx_t& A, const realmtx_t& B)noexcept {
 			NNTL_ASSERT(A.size() == B.size() && !A.empty() && !B.empty());
-			m_threads.run([&A, &B](const par_range_t& pr) {
-				_ivAdd_ip_st(A.data(), B.data(), elms_range(pr));
+			m_threads.run([pA=A.data(), pB=B.data(), this](const par_range_t& pr) {
+				get_self()._ivAdd_ip_st(pA, pB, elms_range(pr));
 			}, A.numel());
 		}
 
 		//////////////////////////////////////////////////////////////////////////
 		//inplace elementwise addition of scaled vector: A = A + c*B;
-		void evAddScaled_ip(realmtx_t& A, const real_t& c, const realmtx_t& B)noexcept {
+		void evAddScaled_ip(realmtx_t& A, const real_t c, const realmtx_t& B)noexcept {
 			if (A.numel() < Thresholds_t::evAddScaled_ip) {
 				get_self().evAddScaled_ip_st(A, c, B);
 			} else get_self().evAddScaled_ip_mt(A, c, B);
 		}
-		static void evAddScaled_ip_st(realmtx_t& A, const real_t c, const realmtx_t& B)noexcept {
+		void evAddScaled_ip_st(realmtx_t& A, const real_t c, const realmtx_t& B, const elms_range*const pER = nullptr)noexcept {
 			NNTL_ASSERT(A.size() == B.size() && !A.empty() && !B.empty() && c != real_t(0.0));
-			const auto pA = A.data();
-			const auto dataCnt = A.numel();
-			const auto pB = B.data();
-			for (numel_cnt_t i = 0; i < dataCnt; ++i) pA[i] += c*pB[i];
+			get_self()._ievAddScaled_ip_st(A.data(), c, B.data(), pER ? *pER : elms_range(A));
 		}
-		void evAddScaled_ip_mt(realmtx_t& A, const real_t& c, const realmtx_t& B)noexcept {
+		static void _ievAddScaled_ip_st(real_t*const pA, const real_t c, const real_t*const pB, const elms_range& er)noexcept {
+			NNTL_ASSERT(pA && pB && c);
+			for (numel_cnt_t i = er.elmBegin; i < er.elmEnd; ++i) pA[i] += c*pB[i];
+		}
+		void evAddScaled_ip_mt(realmtx_t& A, const real_t c, const realmtx_t& B)noexcept {
 			NNTL_ASSERT(A.size() == B.size() && !A.empty() && !B.empty() && c != real_t(0.0));
-			const auto pA = A.data();
-			const auto pB = B.data();
-			m_threads.run([pA, pB, c](const par_range_t& r) {
-				const auto ofs = r.offset();
-				const auto im = ofs + r.cnt();
-				for (numel_cnt_t i = ofs; i < im; ++i) pA[i] += c*pB[i];
+			m_threads.run([pA=A.data(), pB=B.data(), c, this](const par_range_t& r) {
+				get_self()._ievAddScaled_ip_st(pA, c, pB, elms_range(r));
 			}, A.numel());
 		}
 
 		//////////////////////////////////////////////////////////////////////////
 		//inplace elementwise addition of scaled signum: A = A + c*sign(B);
 		//(L1 regularization, dLdW update step)
-		void evAddScaledSign_ip(realmtx_t& A, const real_t& c, const realmtx_t& B)noexcept {
+		void evAddScaledSign_ip(realmtx_t& A, const real_t c, const realmtx_t& B)noexcept {
 			if (A.numel() < Thresholds_t::evAddScaledSign_ip) {
 				get_self().evAddScaledSign_ip_st(A, c, B);
 			} else get_self().evAddScaledSign_ip_mt(A, c, B);
 		}
-		static void evAddScaledSign_ip_st(realmtx_t& A, const real_t c, const realmtx_t& B)noexcept {
+
+		void evAddScaledSign_ip_st(realmtx_t& A, const real_t c, const realmtx_t& B, const elms_range*const pER=nullptr)noexcept {
 			NNTL_ASSERT(A.size() == B.size() && !A.empty() && !B.empty() && c != real_t(0.0));
-			const auto pA = A.data();
-			const auto dataCnt = A.numel();
-			const auto pB = B.data();
-			for (numel_cnt_t i = 0; i < dataCnt; ++i) pA[i] += c*math::sign(pB[i]);
+			get_self()._ievAddScaledSign_ip_st(A.data(),c,B.data(), pER ? *pER : elms_range(A));
 		}
-		void evAddScaledSign_ip_mt(realmtx_t& A, const real_t& c, const realmtx_t& B)noexcept {
+		static void _ievAddScaledSign_ip_st(real_t*const pA, const real_t c, const real_t*const pB, const elms_range& er)noexcept {
+			NNTL_ASSERT(pA && pB && c != real_t(0.0));
+			for (numel_cnt_t i = er.elmBegin; i < er.elmEnd; ++i) pA[i] += c*math::sign(pB[i]);
+		}
+		void evAddScaledSign_ip_mt(realmtx_t& A, const real_t c, const realmtx_t& B)noexcept {
 			NNTL_ASSERT(A.size() == B.size() && !A.empty() && !B.empty() && c != real_t(0.0));
-			const auto pA = A.data();
-			const auto pB = B.data();
-			m_threads.run([pA, pB, c](const par_range_t& r) {
-				const auto ofs = r.offset();
-				const auto im = ofs + r.cnt();
-				for (numel_cnt_t i = ofs; i < im; ++i) pA[i] += c*math::sign(pB[i]);
+			m_threads.run([pA=A.data(), pB=B.data(), c, this](const par_range_t& r) {
+				get_self()._ievAddScaledSign_ip_st(pA, c, pB, elms_range(r));
 			}, A.numel());
 		}
 
+		//////////////////////////////////////////////////////////////////////////////
+		//////////////////////////////////////////////////////////////////////////
+		//signum: A = sign(B);
+		void evSign(realmtx_t& A, const realmtx_t& B)noexcept {
+			if (A.numel() < Thresholds_t::evSign) {
+				get_self().evSign_st(A, B);
+			} else get_self().evSign_mt(A, B);
+		}
+		void evSign_st(realmtx_t& A, const realmtx_t& B, const elms_range*const pER = nullptr)noexcept {
+			NNTL_ASSERT(A.size() == B.size() && !A.empty() && !B.empty());
+			get_self()._ievSign_st(A.data(), B.data(), pER ? *pER : elms_range(A));
+		}
+		static void _ievSign_st(real_t*const pA, const real_t*const pB, const elms_range& er)noexcept {
+			NNTL_ASSERT(pA && pB);
+			for (numel_cnt_t i = er.elmBegin; i < er.elmEnd; ++i) pA[i] = math::sign(pB[i]);
+		}
+		void evSign_mt(realmtx_t& A, const real_t c, const realmtx_t& B)noexcept {
+			NNTL_ASSERT(A.size() == B.size() && !A.empty() && !B.empty());
+			m_threads.run([pA = A.data(), pB = B.data(), this](const par_range_t& r) {
+				get_self()._ievSign_st(pA, pB, elms_range(r));
+			}, A.numel());
+		}
+
+		////////////////////////////////////////////////////////////////////////// 
 		//////////////////////////////////////////////////////////////////////////
 		//inplace elementwise subtraction A = A-B
 		void evSub_ip(realmtx_t& A, const realmtx_t& B)noexcept {
@@ -3542,13 +3561,13 @@ namespace math {
 		//////////////////////////////////////////////////////////////////////////
 		// deCov
 		// returns how much internal temporarily memory must be available to the to calculate loss_deCov() and dLoss_deCov
-		static numel_cnt_t loss_DeCov_tempMemReqs(const bool& bWillDoTraining, const realmtx_t& biggestMtx)noexcept {
+		static numel_cnt_t loss_DeCov_tempMemReqs(const bool bWillDoTraining, const smatrix_td::mtx_size_t biggestMtx)noexcept {
 			// we'll need some temporary memory to compute covariation and derivative correctly.
 			// In general, we'll need memory for:
 			// - vector of colwise means of biggestMtx, size == biggestMtx.cols_no_bias() 
 			// - de-mean'ed matrix of the same size as biggestMtx
 			// - covariance matrix of size (biggestMtx.cols_no_bias(), biggestMtx.cols_no_bias()). Will be used after means-vector are freed
-			return biggestMtx.numel_no_bias() + realmtx_t::sNumel(biggestMtx.cols_no_bias(), biggestMtx.cols_no_bias());
+			return realmtx_t::sNumel(biggestMtx) + realmtx_t::sNumel(biggestMtx.second, biggestMtx.second);
 		}
 		// Implements DeCov regularizer from the paper "Reducing Overfitting in Deep Neural Networks by Decorrelating Representations", 2015, ArXiv:1511.06068
 		// (similar to “Discovering Hidden Factors of Variation in Deep Networks”, ArXiv:1412.6583)
@@ -3604,7 +3623,7 @@ namespace math {
 		// C = DM'*DM./N;
 		// dL = (DM*C - diag(C)'.*DM).*2./N;
 		template<bool bLowerTriangl, bool bNumStab>
-		void dLoss_deCov(const realmtx_t& Vals, realmtx_t& dLossdVals/*, const real_t& scale*/)noexcept {
+		void dLoss_deCov(const realmtx_t& Vals, realmtx_t& dLossdVals)noexcept {
 			NNTL_ASSERT(Vals.cols_no_bias() == dLossdVals.cols() && Vals.rows() == dLossdVals.rows());
 			NNTL_ASSERT(!Vals.isHoleyBiases() || !"Current deCov algorithm does not support holey biases!");
 			//to support holey biases algorithm must ignore rows with zeroed biases. Looks like the easiest (and probably the

@@ -56,12 +56,9 @@ namespace nntl {
 
 	template<typename FinalPolymorphChild
 		, typename PHLsTuple
-// 		, typename DropoutT = NoDropout<typename ::std::remove_reference<typename ::std::tuple_element<0, PHLsTuple>::type>::type::phl_original_t::real_t>
-// 		, typename AddendumsTupleT = void
 	>
 	class _LPH 
 		: public _layer_base<FinalPolymorphChild, typename ::std::remove_reference<typename ::std::tuple_element<0, PHLsTuple>::type>::type::phl_original_t::interfaces_t>
-		//, public _PA_base_selector<AddendumsTupleT>
 	{
 	private:
 		typedef _layer_base<FinalPolymorphChild, typename ::std::remove_reference<typename ::std::tuple_element<0, PHLsTuple>
@@ -76,7 +73,7 @@ namespace nntl {
 		using _base_class_t::realmtxdef_t;
 
 		typedef const PHLsTuple _phl_tuple;
-		static_assert(utils::is_tuple<_phl_tuple>::value, "Must be a tuple!");
+		static_assert(tuple_utils::is_tuple<_phl_tuple>::value, "Must be a tuple!");
 
 		static constexpr size_t phl_count = ::std::tuple_size<_phl_tuple>::value;
 		static_assert(phl_count > 1, "For a pack with a single inner layer use that layer instead");
@@ -243,18 +240,13 @@ namespace nntl {
 
 		//should return true, if the layer has a value to add to Loss function value (there's some regularizer attached)
 		bool hasLossAddendum()const noexcept {
-// 			bool b = _pab_hasLossAddendum();
-// 			if (!b) {
-// 				get_self().for_each_packed_layer([&b](auto& l) {				b |= l.hasLossAddendum();			});
-// 			}
-// 			return b;
 			get_self().for_each_packed_layer([&b](auto& l) {				b |= l.hasLossAddendum();			});
 		}
 		//returns a loss function summand, that's caused by this layer
 		real_t lossAddendum()const noexcept {
 			real_t la(.0);
 			get_self().for_each_packed_layer([&la](auto& l) {				la += l.lossAddendum();			});
-			return la;// +_pab_lossAddendum(get_self().get_activations(), get_self().get_iMath());
+			return la;
 		}
 
 	/*

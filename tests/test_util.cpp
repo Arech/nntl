@@ -53,6 +53,32 @@ constexpr unsigned TEST_PERF_REPEATS_COUNT = 400;
 constexpr unsigned TEST_CORRECTN_REPEATS_COUNT = 50;
 #endif // NNTL_DEBUG
 
+
+TEST(TestTupleUtils, TupleDisjunction) {
+	typedef ::std::tuple<int, short, double, char*, void, double, unsigned&> tuple_t;
+	//static_assert(tuple_utils::tuple_disjunction<::std::is_void, tuple_t>::value, "WTF?");
+	static_assert(tuple_utils::aggregate<::std::disjunction,::std::is_void, tuple_t>::value, "WTF?");
+	static_assert(!tuple_utils::aggregate<::std::conjunction, ::std::is_void, tuple_t>::value, "WTF?");
+
+	typedef ::std::tuple<int, short, double, char*, double, unsigned&> tuple2_t;
+	//static_assert(! tuple_utils::tuple_disjunction<::std::is_void, tuple2_t>::value, "WTF?");
+	static_assert(!tuple_utils::aggregate<::std::disjunction,::std::is_void, tuple2_t>::value, "WTF?");
+	static_assert(!tuple_utils::aggregate<::std::conjunction, ::std::is_void, tuple2_t>::value, "WTF?");
+}
+
+TEST(TestTupleUtils, TupleElementIdx) {
+	typedef ::std::tuple<int, short, double, char*, void, double, unsigned&> tuple_t;
+	constexpr auto s = ::std::tuple_size<tuple_t>::value;
+
+	STDCOUTL("Tuple <int, short, double, char*, void, double, unsigned&> size = "<< s);
+	STDCOUTL("idx of void = " << (tuple_utils::tuple_element_idx_safe<void, tuple_t>::value));
+	static_assert(4 == tuple_utils::tuple_element_idx_safe<void, tuple_t>::value, "WTF");
+	STDCOUTL("idx of double = " << (tuple_utils::tuple_element_idx_safe<double, tuple_t>::value));
+	static_assert(2 == tuple_utils::tuple_element_idx_safe<double, tuple_t>::value, "WTF");
+	STDCOUTL("idx of float = " << (tuple_utils::tuple_element_idx_safe<float, tuple_t>::value));
+	static_assert(s == tuple_utils::tuple_element_idx_safe<float, tuple_t>::value, "WTF");
+}
+
 TEST(TestUtils, PrioritizeWorkersPerf) {
 	typedef nntl::d_interfaces::iThreads_t def_threads_t;
 	using namespace ::std::chrono;

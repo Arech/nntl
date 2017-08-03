@@ -36,19 +36,53 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 namespace nntl {
 namespace tuple_utils {
 
+	template <typename T>
+	struct is_tuple : ::std::false_type {};
+	template <typename... Args>
+	struct is_tuple <::std::tuple<Args...>> : ::std::true_type {};
+	template <typename... Args>
+	struct is_tuple <const ::std::tuple<Args...>> : ::std::true_type {};
+
+	template <typename T>
+	struct assert_tuple {
+		typedef T type;
+		static_assert(is_tuple<T>::value, "Type must be a std::tuple specialization!");
+	};
+
+	template <typename T>
+	struct assert_tuple_or_void {
+		typedef T type;
+		static_assert(is_tuple<T>::value || ::std::is_same<T, void>::value
+			, "Type must be a void or a std::tuple specialization!");
+	};
+
+	template <typename T>
+	using is_tuple_or_void = ::std::disjunction<is_tuple<T>, ::std::is_same<T, void>>;
+
 	//////////////////////////////////////////////////////////////////////////
 	//helpers to call f() for each tuple element
 	template<int I, class Tuple, typename F> struct _for_each_up_impl {
+		static void for_each(Tuple& t, F&& f) noexcept {
+			_for_each_up_impl<I - 1, Tuple, F>::for_each(t, ::std::forward<F>(f));
+			::std::forward<F>(f)(::std::get<I>(t));
+		}
 		static void for_each(const Tuple& t, F&& f) noexcept {
 			_for_each_up_impl<I - 1, Tuple, F>::for_each(t, ::std::forward<F>(f));
 			::std::forward<F>(f)(::std::get<I>(t));
 		}
 	};
 	template<class Tuple, typename F> struct _for_each_up_impl<0, Tuple, F> {
+		static void for_each(Tuple& t, F&& f)noexcept {
+			::std::forward<F>(f)(::std::get<0>(t));
+		}
 		static void for_each(const Tuple& t, F&& f)noexcept {
 			::std::forward<F>(f)(::std::get<0>(t));
 		}
 	};
+	template<class Tuple, typename F>
+	inline void for_each_up(Tuple& t, F&& f)noexcept {
+		_for_each_up_impl<::std::tuple_size<Tuple>::value - 1, Tuple, F>::for_each(t, ::std::forward<F>(f));
+	}
 	template<class Tuple, typename F>
 	inline void for_each_up(const Tuple& t, F&& f)noexcept {
 		_for_each_up_impl<::std::tuple_size<Tuple>::value - 1, Tuple, F>::for_each(t, ::std::forward<F>(f));
@@ -261,24 +295,42 @@ namespace tuple_utils {
 	template <class T, class... Args>
 	constexpr size_t get_element_idx() { return get_element_idx_impl<T, 0, Args...>::value; }
 
+	//////////////////////////////////////////////////////////////////////////
+	template <class T, class Tuple>
+	struct tuple_element_idx_safe {
+		static_assert(is_tuple<Tuple>::value, "Not a tuple!");
+		static constexpr std::size_t value = ::std::tuple_size<Tuple>::value;
+	};
+
+	template <class T, class... TupleTypes>
+	struct tuple_element_idx_safe<T, ::std::tuple<T, TupleTypes...>> {
+		static constexpr std::size_t value = 0;
+	};
+
+	template <class T, class U, class... TupleTypes>
+	struct tuple_element_idx_safe<T, ::std::tuple<U, TupleTypes...>> {
+		static constexpr std::size_t value = 1 + tuple_element_idx_safe<T, ::std::tuple<TupleTypes...>>::value;
+	};
+	//////////////////////////////////////////////////////////////////////////
+
+// 	template <template <class> class F, class Tuple>
+// 	struct tuple_disjunction {
+// 		static_assert(is_tuple<Tuple>::value, "Not a tuple!");
+// 	};
+// 	template <template <class> class F, class... TupleTypes>
+// 	struct tuple_disjunction<F, ::std::tuple<TupleTypes...>> : public ::std::disjunction< F<TupleTypes>... > {};
+	
+	template <template<class...> class A, template <class> class F, class Tuple>
+	struct aggregate {
+		static_assert(is_tuple<Tuple>::value, "Not a tuple!");
+	};
+	template <template<class...> class A, template <class> class F, class... TupleTypes>
+	struct aggregate<A, F, ::std::tuple<TupleTypes...>> : public A< F<TupleTypes>... > {};
+
 
 	//////////////////////////////////////////////////////////////////////////
 	//////////////////////////////////////////////////////////////////////////
 	// helper to perform static_assert on each tuple element
-	/*template<int I, class Tuple, typename F> struct _assert_each_impl {
-		static void for_each(const Tuple& t) noexcept {
-			_assert_each_impl<I - 1, Tuple, F>::for_each(t);
-			static_assert(F<::std::tuple_element_t<I, Tuple>>::value, "Tuple property assertion failed");
-		}
-	};
-	template<class Tuple, typename F> struct _assert_each_impl<0, Tuple, F> {
-		static void for_each(const Tuple& t)noexcept {
-			static_assert(F<::std::tuple_element_t<0, Tuple>>::value, "Tuple property assertion failed");
-		}
-	};
-	template<class Tuple, typename F>
-	struct assert_each : _assert_each_impl<::std::tuple_size<Tuple>::value - 1, Tuple, F> {};*/
-
 	template<int I, class Tuple, template <class> class F> struct _assert_each_impl : _assert_each_impl<I - 1, Tuple, F> {
 		static_assert(F<::std::tuple_element_t<I, Tuple>>::value, "Tuple property assertion failed");
 	};

@@ -151,7 +151,7 @@ void test_dLoss_deCov(vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 	ASSERT_TRUE(!dL_ET.isAllocationFailed() && !dL.isAllocationFailed());
 	::std::vector<real_t> tMean(colsCnt);
 
-	iM.preinit(iM.loss_DeCov_tempMemReqs(true, A));
+	iM.preinit(iM.loss_DeCov_tempMemReqs(true, A.size_no_bias()));
 	ASSERT_TRUE(iM.init());
 	d_int_nI<real_t>::iRng_t rg;
 	rg.set_ithreads(iM.ithreads());
@@ -222,7 +222,7 @@ void test_loss_deCov(vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 	ASSERT_TRUE(!A.isAllocationFailed() && !A2.isAllocationFailed() && !tDM.isAllocationFailed() && !tCov.isAllocationFailed());
 	::std::vector<real_t> tMean(colsCnt);
 
-	iM.preinit(iM.loss_DeCov_tempMemReqs(false, A));
+	iM.preinit(iM.loss_DeCov_tempMemReqs(false, A.size_no_bias()));
 	ASSERT_TRUE(iM.init());
 	d_int_nI<real_t>::iRng_t rg;
 	rg.set_ithreads(iM.ithreads());

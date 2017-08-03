@@ -1,5 +1,5 @@
 # nntl
-Neural Network Template Library is a set of C++14 template classes that helps to implement fast vectorized feedforward neural networks. It is multithreaded, x64 friendly and uses OpenBLAS only as a back-end to multiply matrices. NNTL is a header only library and requires no other dependencies, except for OpenBLAS and Boost (header only).
+Neural Network Template Library is a set of C++14 template classes that helps to implement fast vectorized feedforward neural networks. It is multithreaded, x64 friendly and uses OpenBLAS only as a back-end to multiply matrices. NNTL is a header only library and requires no other dependencies, except for OpenBLAS and Boost (header only). It is staticly typed and doesn't use virtual functions except the single one ::std::function that is used to dispatch multithreaded tasks.
 
 ### Performance
 *This paragraph is slightly outdated. The library was improved in many ways since the performance measurements, so current results should be a bit better.
@@ -62,11 +62,10 @@ I wouldn't state the NNTL is the fastest CPU implementation of feedforward neura
   * **Adam** and **AdaMax** (Kingma, Ba "Adam: A Method for Stochastic Optimization" 2014). I've added a numeric stabilizer coefficient to the latter method (it's absent in the original description, though it probably should be there). It's possible to turn it off completely if necessary to get the AdaMax exactly as described in the paper.
   * **Nadam** and **Radam** (Timothy Dozat, ICLR 2016, "Incorporating Nesterov Momentum into Adam", https://github.com/tdozat/Optimization)
 * Classical **momentum** (a.k.a. Polyak's momentum) and **Nesterov momentum** (a.k.a. Nesterov Accelerated Gradient or NAG for short)
-* Regularizers:
+* Regularizers (applicable on per-layer/set of layers basis):
   * **Dropout** (actually, it's so called "inverted dropout" where activations is scaled only at a training time; during a testing activations/weights with and without dropout remains the same) and **Alpha Dropout** (ArXiv:1706.02515 "Self-Normalizing Neural Networks", by Günter Klambauer et al.)
   * **L1** and **L2** regularizers is applicable to weights and activation values. Custom regularizers are easy to add by implementing loss_addendum::_i_loss_addendum interface.
   * **DeCov** activations values regularizer is implemented almost as described by Michael Cogswell et.al in the paper "Reducing Overfitting in Deep Neural Networks by Decorrelating Representations", 2015, arXiv:1511.06068. The only difference is in that the NNTL uses a correct derivative of the loss function (which is twice bigger than the published derivative).
-    * One may apply a single **DeCov** regularizer to a number of layers simultaneously to reduce covariance between these layers activations values. Just use layer_penalized_activations with DeCov over a horizontal pack of layers.
   * Constraint for a total length of a neuron's incoming weight vector - so called **max-norm** regularization. Once a neuron weights grow too much, they are getting scaled so their norm will fit into a some predefined value (Srivastava, Hinton, et.al "Dropout: A Simple Way to Prevent Neural Networks from Overfitting" 2014)
   * Constraints for a magnitude of derivative of a loss function in an output layer (idea taken from the aforementioned “Generating Sequences With Recurrent Neural Networks” (2013) by Alex Graves)
 * Individual Adaptive Learning Rates (an ILR in code) based on a agreement in signs of a current and a previous gradient or a momentum velocity.

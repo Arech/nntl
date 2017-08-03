@@ -390,16 +390,10 @@
     <ClInclude Include="..\nntl\utils\tuple_utils.h">
       <Filter>nntl\utils</Filter>
     </ClInclude>
-    <ClInclude Include="..\nntl\layer\penalized_activations.h">
-      <Filter>nntl\layer</Filter>
-    </ClInclude>
     <ClInclude Include="..\nntl\loss_addendum\DeCov.h">
       <Filter>nntl\loss_addendum</Filter>
     </ClInclude>
     <ClInclude Include="..\nntl\layer\_penalized_activations_base.h">
-      <Filter>nntl\layer</Filter>
-    </ClInclude>
-    <ClInclude Include="..\nntl\layer\pack_penalized_activations.h">
       <Filter>nntl\layer</Filter>
     </ClInclude>
     <ClInclude Include="..\nntl\utils\confusion_mtx.h">

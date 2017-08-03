@@ -141,7 +141,7 @@ namespace nntl {
 			// 			return _PAB_t::_pab_lossAddendum(get_self().get_activations(), get_self().get_iMath())
 			// 				+ (_base_class_t::hasLossAddendum() ? _base_class_t::lossAddendum() : real_t(0));
 			// 			//the commented code above costs about 2% of run time comparing to variant without _base_class_t::hasLossAddendum() call
-			return _PAB_t::_pab_lossAddendum(get_self().get_activations(), get_self().get_iMath())
+			return _PAB_t::_pab_lossAddendum(get_self().get_activations(), get_self().get_common_data())
 				+ _base_class_t::lossAddendum();
 		}
 		template<bool c = bActivationPenalizationAvailable>
@@ -172,6 +172,10 @@ namespace nntl {
 			const auto ec = _base_class_t::init(lid, pNewActivationStorage);
 			if (ec != ErrorCode::Success) return ec;
 
+			auto as = get_self().get_activations_size();
+			if (!_PAB_t::_pab_init(mtx_size_t(as.first, as.second - 1), get_self().get_common_data()))
+				return ErrorCode::CantInitializePAB;
+
 			if (bActivationPenalizationAvailable) {
 				lid.bHasLossAddendum = true;
 				lid.bLossAddendumDependsOnActivations = true;
@@ -180,13 +184,11 @@ namespace nntl {
 			return _init_do(lid) ? ErrorCode::Success : ErrorCode::DropoutInitFailed;
 		}
 
-		template<bool c = bDropoutAvailable>
-		::std::enable_if_t<c> deinit()noexcept {
-			_base_class_t::deinit();
+		void deinit()noexcept {
 			_dropout_deinit();
+			_PAB_t::_pab_deinit();
+			_base_class_t::deinit();
 		}
-		template<bool c = bDropoutAvailable>
-		::std::enable_if_t<!c> deinit()noexcept { _base_class_t::deinit(); }
 		
 		//////////////////////////////////////////////////////////////////////////
 
@@ -201,15 +203,37 @@ namespace nntl {
 			_base_class_t::on_batch_size_change(pNewActivationStorage);
 		}
 
-		//////////////////////////////////////////////////////////////////////////
-		template <typename LowerLayer, bool c = bDropoutAvailable>
-		::std::enable_if_t<!c> fprop(const LowerLayer& lowerLayer)noexcept {
-			_base_class_t::fprop(lowerLayer);
+	protected:
+		//we shouldn't apply dLdA penalty to the gating layer, it's useless but moreover it may even hurt DeCov
+		template<typename T = _base_class_t, bool ba = bActivationPenalizationAvailable>
+		::std::enable_if_t<ba && is_pack_gated<T>::value> _fprop4PA() noexcept {
+			//we won't modify activations, just a trick to create a wrapper matrix 
+			auto& fullAct = const_cast<realmtxdef_t&>(get_self().get_activations());
+			NNTL_ASSERT(fullAct.emulatesBiases());
+
+			//first _base_class_t::gated_layers_count neurons in activations are for the gate. Just skipping them
+			realmtxdef_t noGateAct(fullAct.colDataAsVec(_base_class_t::gated_layers_count), fullAct.rows()
+				, fullAct.cols() - _base_class_t::gated_layers_count, fullAct.emulatesBiases(), fullAct.isHoleyBiases());
+			
+			_PAB_t::_pab_fprop(noGateAct, get_self().get_common_data());
 		}
 
-		template <typename LowerLayer, bool c = bDropoutAvailable>
-		::std::enable_if_t<c> fprop(const LowerLayer& lowerLayer)noexcept {
+		template<typename T = _base_class_t, bool ba = bActivationPenalizationAvailable>
+		::std::enable_if_t<ba && !is_pack_gated<T>::value> _fprop4PA() noexcept {
+			_PAB_t::_pab_fprop(get_self().get_activations(), get_self().get_common_data());
+		}
+
+		template<typename T = _base_class_t, bool ba = bActivationPenalizationAvailable>
+		::std::enable_if_t<!ba> _fprop4PA() const noexcept {}
+
+	public:
+		//////////////////////////////////////////////////////////////////////////
+		template<typename LowerLayer>
+		void fprop(const LowerLayer& lowerLayer)noexcept {
 			_base_class_t::fprop(lowerLayer);
+
+			_fprop4PA();
+
 			if (bDropout()) {
 				_dropout_apply(get_self()._get_activations_mutable(), get_self().get_common_data());
 				NNTL_ASSERT(get_self().is_activations_shared() || get_self().get_activations().test_biases_ok());
@@ -220,7 +244,7 @@ namespace nntl {
 	protected:
 		//we shouldn't apply dLdA penalty to the gating layer, it's useless but moreover it may even hurt DeCov
 		template<typename T = _base_class_t, bool ba = bActivationPenalizationAvailable>
-		::std::enable_if_t<ba && is_pack_gated<T>::value> _update_dLdA4PA(realmtx_t& dLdA, iInspect_t& iI) noexcept {
+		::std::enable_if_t<ba && is_pack_gated<T>::value> _update_dLdA4PA(realmtx_t& dLdA) noexcept {
 			//we won't modify activations, just a trick to create a wrapper matrix 
 			auto& fullAct = const_cast<realmtxdef_t&>(get_self().get_activations());
 			NNTL_ASSERT(fullAct.emulatesBiases() && fullAct.size_no_bias() == dLdA.size());
@@ -233,16 +257,16 @@ namespace nntl {
 			realmtx_t noGatedLdA(dLdA.colDataAsVec(_base_class_t::gated_layers_count), bs
 				, dLdA.cols() - _base_class_t::gated_layers_count, false, false);
 
-			_PAB_t::_pab_update_dLdA(noGatedLdA, noGateAct, get_self().get_iMath(), iI);
+			_PAB_t::_pab_update_dLdA(noGatedLdA, noGateAct, get_self().get_common_data());
 		}
 
 		template<typename T = _base_class_t, bool ba = bActivationPenalizationAvailable>
-		::std::enable_if_t<ba && !is_pack_gated<T>::value> _update_dLdA4PA(realmtx_t& dLdA, iInspect_t& iI) noexcept {
-			_PAB_t::_pab_update_dLdA(dLdA, get_self().get_activations(), get_self().get_iMath(), iI);
+		::std::enable_if_t<ba && !is_pack_gated<T>::value> _update_dLdA4PA(realmtx_t& dLdA) noexcept {
+			_PAB_t::_pab_update_dLdA(dLdA, get_self().get_activations(), get_self().get_common_data());
 		}
 
 		template<typename T = _base_class_t, bool ba = bActivationPenalizationAvailable>
-		::std::enable_if_t<!ba> _update_dLdA4PA(realmtx_t& dLdA, iInspect_t& iI) const noexcept {}
+		::std::enable_if_t<!ba> _update_dLdA4PA(realmtx_t& dLdA) const noexcept {}
 
 		template<bool c = bDropoutAvailable>
 		::std::enable_if_t<c> _update_dLdA4Dropout(realmtx_t& dLdA) noexcept {
@@ -272,7 +296,7 @@ namespace nntl {
 			_update_dLdA4Dropout(dLdA);
 
 			//then apply penalizations
-			_update_dLdA4PA(dLdA, iI);
+			_update_dLdA4PA(dLdA);
 
 			iI.bprop_finaldLdA(dLdA);
 

@@ -54,6 +54,7 @@ namespace nntl {
 			CantInitializeObserver,
 			CantInitializeGradWorks,
 			CantInitializeWeights,
+			CantInitializePAB,
 			NNDiverged,
 		};
 
@@ -78,6 +79,7 @@ namespace nntl {
 			case CantInitializeObserver: return NNTL_STRING("Cant initialize observer");
 			case CantInitializeGradWorks: return NNTL_STRING("Cant initialize grad_works object");
 			case CantInitializeWeights: return NNTL_STRING("Weights initialization failed");
+			case CantInitializePAB: return NNTL_STRING("Activations penalizer initialization failed");
 			case NNDiverged: return NNTL_STRING("NN diverged! (Training loss value surpassed the threshold from opts.divergenceCheckThreshold())");
 			default: NNTL_ASSERT(!"WTF?"); return NNTL_STRING("Unknown code.");
 			}

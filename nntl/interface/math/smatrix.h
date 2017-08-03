@@ -737,6 +737,10 @@ namespace math {
 			return r;
 		}
 
+		bool resize(const mtx_size_t s)noexcept {
+			return resize(s.first, s.second);
+		}
+
 		bool resize(const numel_cnt_t ne)noexcept {
 			NNTL_ASSERT(ne > 0);
 			_free();

@@ -70,7 +70,7 @@ namespace nntl {
 
 		typedef const LayrsRefTuple _layers;
 
-		static_assert(utils::is_tuple<LayrsRefTuple>::value, "Must be a tuple!");
+		static_assert(tuple_utils::is_tuple<LayrsRefTuple>::value, "Must be a tuple!");
 		static constexpr size_t layers_count = ::std::tuple_size<_layers>::value;
 
 		static_assert(layers_count > 1, "For vertical pack with a single inner layer use that layer instead");
