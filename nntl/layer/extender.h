@@ -232,7 +232,9 @@ namespace nntl {
 		void fprop(const LowerLayer& lowerLayer)noexcept {
 			_base_class_t::fprop(lowerLayer);
 
-			_fprop4PA();
+			if (get_self().get_common_data().is_training_mode()) {
+				_fprop4PA();
+			}			
 
 			if (bDropout()) {
 				_dropout_apply(get_self()._get_activations_mutable(), get_self().get_common_data());
