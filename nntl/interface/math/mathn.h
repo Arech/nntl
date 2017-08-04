@@ -257,30 +257,29 @@ namespace math {
 		// ElementWise operations
 		//////////////////////////////////////////////////////////////////////////
 		//binarize elements of real-valued matrix according to their relaion to frac
-		void ewBinarize_ip(realmtx_t& A, const real_t frac, const real_t lBnd = real_t(0.), const real_t uBnd = real_t(1.))noexcept {
+		template<typename T>
+		void ewBinarize_ip(smatrix<T>& A, const T frac, const T lBnd = T(0.), const T uBnd = T(1.))noexcept {
 			if (A.numel() < Thresholds_t::ewBinarize_ip) {
 				get_self().ewBinarize_ip_st(A, frac, lBnd, uBnd);
 			} else get_self().ewBinarize_ip_mt(A, frac, lBnd, uBnd);
 		}
-		static void ewBinarize_ip_st(realmtx_t& A, const real_t frac, const real_t lBnd = real_t(0.), const real_t uBnd = real_t(1.))noexcept {
-			auto pA = A.data();
-			const auto pAE = pA + A.numel();
-			while (pA != pAE) {
-				const auto v = *pA;
-				//NNTL_ASSERT(v >= real_t(0.0) && v <= real_t(1.0));
-				*pA++ = v > frac ? uBnd : lBnd;
+		template<typename T>
+		void ewBinarize_ip_st(smatrix<T>& A, const T frac, const T lBnd = T(0.), const T uBnd = T(1.), const elms_range*const pER = nullptr)noexcept
+		{
+			NNTL_ASSERT(!A.emulatesBiases() && !A.empty());
+			get_self()._iewBinarize_ip_st(A.data(), frac, lBnd, uBnd, pER ? *pER : elms_range(A));
+		}
+		template<typename T>
+		static void _iewBinarize_ip_st(T*const pA, const T frac, const T lBnd, const T uBnd, const elms_range& er)noexcept {
+			for (auto i = er.elmBegin; i < er.elmEnd; ++i) {
+				pA[i] = pA[i] > frac ? uBnd : lBnd;
 			}
 		}
-		void ewBinarize_ip_mt(realmtx_t& A, const real_t frac, const real_t lBnd = real_t(0.), const real_t uBnd = real_t(1.))noexcept {
-			auto pA = A.data();
-			m_threads.run([pA, frac, lBnd, uBnd](const par_range_t& r) {
-				auto p = pA + r.offset();
-				const auto pAE = p + r.cnt();
-				while (p != pAE) {
-					const auto v = *p;
-					//NNTL_ASSERT(v >= real_t(0.0) && v <= real_t(1.0));
-					*p++ = v > frac ? uBnd : lBnd;
-				}
+		template<typename T>
+		void ewBinarize_ip_mt(smatrix<T>& A, const T frac, const T lBnd = T(0.), const T uBnd = T(1.))noexcept {
+			NNTL_ASSERT(!A.emulatesBiases() && !A.empty());
+			m_threads.run([pA = A.data(), frac, lBnd, uBnd, this](const par_range_t& r) {
+				get_self()._iewBinarize_ip_st(pA, frac, lBnd, uBnd, elms_range(r));
 			}, A.numel());
 		}
 
@@ -628,16 +627,22 @@ namespace math {
 			NNTL_ASSERT(dropPercAct > 0 && dropPercAct < 1);
 
 			const real_t dropPercActInv = real_t(1.) / dropPercAct;
-			auto pDM = dropoutMask.data()+er.elmBegin;
+			/*auto pDM = dropoutMask.data()+er.elmBegin;
 			const auto pDME = pDM + er.totalElements();
 			while (pDM != pDME) {
 				const auto v = *pDM;
 				NNTL_ASSERT(v >= real_t(0.0) && v <= real_t(1.0));
 				*pDM++ = v < dropPercAct ? dropPercActInv : real_t(0.);
 			}
-
 			const auto pA = act.data();
-			pDM = dropoutMask.data();
+			pDM = dropoutMask.data();*/
+			const auto pDM = dropoutMask.data();
+			for (auto i = er.elmBegin; i < er.elmEnd; ++i) {
+				const auto v = pDM[i];
+				NNTL_ASSERT(v >= real_t(0.0) && v <= real_t(1.0));
+				pDM[i] = v < dropPercAct ? dropPercActInv : real_t(0.);
+			}
+			const auto pA = act.data();
 			for (numel_cnt_t i = er.elmBegin; i < er.elmEnd; ++i) pA[i] *= pDM[i];
 		}
 		void make_dropout_mt(realmtx_t& act, const real_t dropPercAct, realmtx_t& dropoutMask)noexcept {
