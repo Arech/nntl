@@ -39,8 +39,8 @@ namespace loss_addendum {
 	//if bCalcOnFProp set to true, then it computes the necessary derivate during fprop step and stores it internally
 	//until bprop() phase. This helps to deal with a dropout that modifies some activations and makes some loss_addendums
 	// produce bogus results
-	template<typename RealT, bool bCalcOnFProp = false>
-	class L1 : public _impl::scaled_addendum_with_mtx4fprop<RealT, bCalcOnFProp>{
+	template<typename RealT, bool bCalcOnFProp = false, bool bAppendToNZGrad = false>
+	class L1 : public _impl::scaled_addendum_with_mtx4fprop<RealT, bCalcOnFProp, bAppendToNZGrad>{
 	public:
 		static constexpr const char* getName()noexcept { return "L1"; }
 
@@ -61,13 +61,25 @@ namespace loss_addendum {
 		::std::enable_if_t<c> dLossAdd(const realmtx_t& Vals, realmtx_t& dLossdVals, const CommonDataT& CD) const noexcept {
 			NNTL_ASSERT(m_Mtx.size() == Vals.size() && Vals.size() == dLossdVals.size());
 			NNTL_ASSERT(!Vals.emulatesBiases() && !dLossdVals.emulatesBiases());
-			CD.iMath().evAddScaled_ip(dLossdVals, m_scale, m_Mtx);
+			//CD.iMath().evAddScaled_ip(dLossdVals, m_scale, m_Mtx);
+			_appendGradient(CD.iMath(), dLossdVals, m_Mtx);
 		}
 
 		template <typename CommonDataT, bool c = calcOnFprop>
 		::std::enable_if_t<!c> dLossAdd(const realmtx_t& Vals, realmtx_t& dLossdVals, const CommonDataT& CD) const noexcept {
 			NNTL_ASSERT(!Vals.emulatesBiases() && !dLossdVals.emulatesBiases());
-			CD.iMath().evAddScaledSign_ip(dLossdVals, m_scale, Vals);
+			//CD.iMath().evAddScaledSign_ip(dLossdVals, m_scale, Vals);
+			_appendGradientSign(CD.iMath(), dLossdVals, Vals);
+		}
+
+	protected:
+		template<typename iMathT, bool c = appendToNZGrad>
+		::std::enable_if_t<c> _appendGradientSign(iMathT& iM, realmtx_t& dLossdVals, const realmtx_t& newGrad)const noexcept {
+			iM.evNZAddScaledSign_ip(dLossdVals, m_scale, newGrad);
+		}
+		template<typename iMathT, bool c = appendToNZGrad>
+		::std::enable_if_t<!c> _appendGradientSign(iMathT& iM, realmtx_t& dLossdVals, const realmtx_t& newGrad)const noexcept {
+			iM.evAddScaledSign_ip(dLossdVals, m_scale, newGrad);
 		}
 	};
 

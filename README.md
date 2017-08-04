@@ -1,6 +1,8 @@
 # nntl
 Neural Network Template Library is a set of C++14 template classes that helps to implement fast vectorized feedforward neural networks. It is multithreaded, x64 friendly and uses OpenBLAS only as a back-end to multiply matrices. NNTL is a header only library and requires no other dependencies, except for OpenBLAS and Boost (header only). It is statically typed and doesn't use virtual functions except the single one ::std::function that is used to dispatch multithreaded tasks.
 
+NNTL provides a way to convert an UML (class) diagramm of neural network directly into C++ code. This feature is extremely helpful for designing proper network architectures and an absolute time-saver. It allows a user to focus on incorporating domain knowledge into neural network instead of doing very error-prone architecture programming. However, it requires some additional software ([Visual Paradigm](https://www.visual-paradigm.com/) for diagramming and Matlab to execute converter scripts). See below for details.
+
 ### Performance
 *This paragraph is slightly outdated. The library was improved in many ways since the performance measurements, so current results should be a bit better.
 
@@ -83,6 +85,7 @@ Just want to stress again: NNTL is not a kind of a Plug-n-Play system to solve t
 
 ### The Pros
 * pretty fast x64 vectorized multithreaded header only C++14 implementation, that allows to build almost any kind of feedforward neural network architecture.
+* provides a way to define a network architecture using UML class diagramm and convert it directly to C++ code.
 * single (float) and double precision floating point data types are supported.
 * modular low coupled architecture that is (I think) easy to understand, maintain and use. Replace / update / derive any module you need, like:
   * math subsystem
@@ -99,17 +102,27 @@ Just want to stress again: NNTL is not a kind of a Plug-n-Play system to solve t
   * `jsonreader` reads input data from `.json` files (requires the RapidJson package, see below). It's the most crossplatform, but the slowest solution.
 
 ### The Cons
+* Supports only a single kind of software for UML diagramming (Visual Paradigm) and requires Matlab (Octave?) to run converter.
 * achieving the best possible performance with small data sizes (for example, when using very small minibatches and/or a small number of neurons) may require some manual tuning of thresholds that define when to use a single- or multi-threaded branch of a code. At this moment this thresholds are hardcoded into a `\nntl\interface\math\mathn_thr.h` and a `\nntl\interface\rng\afrand_mt_thr.h` respectively. So, you'll need to fix them all to suit your own hardware needs in order to get the best possible performance (It's a real hell, btw). However, if you're not going to use too small nets/batches, you'll probably be fine with a current multithreading-by-default implementation of the i_math interface.
 * Current mathematical subsystem implementation is for a CPU only. Other types (GPU, for example) could 'easily' be added, however, someone has to write&test them.
 * Random number generator is made on very fast RNGs developed by [Agner Fog](http://www.agner.org/random/randomc.zip). But they are GPL-licensed, therefore are distributed as a separate package [AF_randomc_h](https://github.com/Arech/AF_randomc_h) that has to be downloaded and placed at the `/_extern/agner.org/AF_randomc_h` folder. If you don't like it, you can easily use your own RNG by implementing a few interface functions. I wouldn't recommend using a `\nntl\interface\rng\std.h`, because it is about a 100-200 times slower than Agner Fog's RNGs (it matters a lot for a dropout, for example).
 * Built and tested with only one compiler: the MSVC2015 on Windows 7. That means, that most likely you'll have to fix some technical issues and incompatibles before you'll be able to compile it with another compiler. Please, submit patches.
 * Due to some historical reasons the code lacks handling exceptions that can be thrown by external components (such as indicating low memory conditions in STL). Moreover, most of a code has the noexcept attribute. Probably, it won't hurt you much, if you have enought RAM.
-* There is almost no documentation at this moment. You shouldn't be scared by necessity of reading a code and a code comments in order to undestand how to use some components. However, I tried to make this process easy by extensively commenting a code and making it clean&clear. You decide if it helps and feel free to contact me if you need clarifications.
+* There are almost no documentation at this moment. Unfortunately, I'm too busy with my own work and NNTL development that I have virtually no time for it. You shouldn't be scared by necessity of reading a code and a code comments in order to undestand how to use some components. I tried to make this process easy by extensively commenting a code and making it clean&clear. You decide if it helps and feel free to contact me if you need clarifications. I'll be happy to help.
 
 ## Compilers Supported
 Developed and tested on the MSVC2015 on Windows 7. Be sure to have the latest service pack installed as well as other hotfixes (such as [KB3207317](https://support.microsoft.com/en-us/help/3207317/visual-c-optimizer-fixes-for-visual-studio-2015-update-3) ).
 
 MSVC2017 with the latest updates should probably work out of the box. Other modern compilers will probably require some hacks to compile, however, I don't think these hacks would be critical. Please, submit your patches.
+
+## On the converting UML diagrams to NNTL-powered C++ code
+
+The only software that is supported at this moment is [Visual Paradigm](https://www.visual-paradigm.com/) v8.0, build sp1_20101008. New versions will probably work too, however I haven't tested them yet. Note, that there are free 30-day trial and free for non-commertial use [community edition](https://www.visual-paradigm.com/download/community.jsp) available. However, I don't know whether these editions allows to export class-diagramm models to XML files, which is essential.
+
+The general workflow is the following: at first, one draws a class diagramm of NN architecture in the Visual Paradigm software. Then he/she exports the diagram into XML file using "Export XML..." feature. After that one executes [convertVPxml.m](https://github.com/Arech/nntl/tree/master/nntl/_uml_converter/convertVPxml.m) Matlab script on the exported XML and obtains a new processed XML file and a `.h` file with a real code. `.h` file is generated using `xslt` on the processed XML. Now one may #include obtained `.h` file and build the net.
+
+There is a lot of things to be said about how to draw a proper class-diagramm, how to use the converter properly, what restrictions does it have and so on. Unfortunately, I don't have a time to describe it all now and I can't even publish architectures I use as examples (they are under an NDA), so let's do the following: I'll make a proper diagramm, the code and post more details here for the first one who will mail me a request for it with a required NN architecture sketch concept attached.
+
 
 ### How to Use The NNTL
 1. Download the NNTL and unpack it to a some `%NNTL_ROOT%` folder.
@@ -142,3 +155,7 @@ Feel free to contact me if you need some assistance.
 
 ## Warning and Disclaimer
 The code uses very tight loops of mathematical operations that creates a huge load on a CPU. I've encountered some hardware faults and BSODs on my overclocked system (that I thought to be very stable for a long time), until I relaxed the overclocking significantly.
+
+## Contact information
+
+Email me to `arech@gmail.com`.

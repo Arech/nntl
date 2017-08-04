@@ -73,8 +73,12 @@ namespace _impl {
 		static constexpr size_t evMul_ip = 36700;
 		static constexpr size_t evMul_ip_Anb = 36700;
 		static constexpr size_t evAdd_ip = 21000;
+		
 		static constexpr size_t evAddScaled_ip = 17000;//not tested
+		static constexpr size_t evNZAddScaled_ip = 7000;//not tested
+
 		static constexpr size_t evAddScaledSign_ip = 15000;//not tested
+		static constexpr size_t evNZAddScaledSign_ip = 4000; //nt
 
 		static constexpr size_t evSign = 15000;//not tested
 
@@ -187,8 +191,12 @@ namespace _impl {
 		static constexpr size_t evMul_ip = 60000;
 		static constexpr size_t evMul_ip_Anb = 73400;
 		static constexpr size_t evAdd_ip = 41200;
-		static constexpr size_t evAddScaled_ip = 31000;//not tested
-		static constexpr size_t evAddScaledSign_ip = 28000;//not tested
+
+		static constexpr size_t evAddScaled_ip = 18000;//*
+		static constexpr size_t evNZAddScaled_ip = 7900;//*
+		
+		static constexpr size_t evAddScaledSign_ip = 15000;//not tested
+		static constexpr size_t evNZAddScaledSign_ip = 6000; //nt
 
 		static constexpr size_t evSign = 30000;//not tested
 

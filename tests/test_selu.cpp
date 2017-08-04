@@ -59,7 +59,7 @@ struct GC_ALPHADROPOUT : public nntl_tests::NN_base_arch_td<ArchPrmsT> {
 
 	~GC_ALPHADROPOUT()noexcept {}
 	GC_ALPHADROPOUT(const ArchPrms_t& Prms)noexcept
-		: lFinal(500, Prms.learningRate, "lFinal")
+		: lFinal(100, Prms.learningRate, "lFinal")
 	{
 		lFinal.dropoutPercentActive(Prms.specialDropoutAlivePerc);
 	}

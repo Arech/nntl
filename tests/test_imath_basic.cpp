@@ -775,12 +775,10 @@ TEST(TestMathN, evAddScaledSign_ip) {
 //////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////
 
-template<typename iMath>
-void test_evAddScaled_ip(iMath& iM, vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
+void test_evAddScaled_ip_corr(vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 	const auto dataSize = realmtx_t::sNumel(rowsCnt, colsCnt);
-	STDCOUTL("******* testing evAddScaled_ip() over " << rowsCnt << "x" << colsCnt << " matrix (" << dataSize << " elements) **************");
-
-	constexpr unsigned maxReps = TEST_PERF_REPEATS_COUNT, testCorrRepCnt = TEST_CORRECTN_REPEATS_COUNT;
+	MTXSIZE_SCOPED_TRACE(rowsCnt, colsCnt, "evAddScaled_ip");
+	constexpr unsigned testCorrRepCnt = TEST_CORRECTN_REPEATS_COUNT;
 
 	realmtx_t B(rowsCnt, colsCnt), A(rowsCnt, colsCnt);
 	ASSERT_TRUE(!B.isAllocationFailed() && !A.isAllocationFailed());
@@ -791,61 +789,34 @@ void test_evAddScaled_ip(iMath& iM, vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 	rg.set_ithreads(iM.ithreads());
 	rg.gen_matrix(B, 2);
 
-	{
-		realmtx_t A2(rowsCnt, colsCnt), A3(rowsCnt, colsCnt);
-		ASSERT_TRUE(!A2.isAllocationFailed() && !A3.isAllocationFailed());
+	realmtx_t A2(rowsCnt, colsCnt), A3(rowsCnt, colsCnt);
+	ASSERT_TRUE(!A2.isAllocationFailed() && !A3.isAllocationFailed());
 
-		for (unsigned r = 0; r < testCorrRepCnt; ++r) {
-			rg.gen_matrix(A, 2);
-			A.clone_to(A2);
-			A.clone_to(A3);
+	for (unsigned r = 0; r < testCorrRepCnt; ++r) {
+		rg.gen_matrix(A, 2);
+		A.clone_to(A2);
+		A.clone_to(A3);
 
-			evAddScaled_ip_ET(A2, scaleCoeff, B);
+		evAddScaled_ip_ET(A2, scaleCoeff, B);
 
-			iM.evAddScaled_ip_st(A, scaleCoeff, B);
-			ASSERT_MTX_EQ(A2, A, "evAddScaled_ip_st failed correctness test");
-
-			A3.clone_to(A);
-			iM.evAddScaled_ip_mt(A, scaleCoeff, B);
-			ASSERT_MTX_EQ(A2, A, "evAddScaled_ip_mt failed correctness test");
-
-			A3.clone_to(A);
-			iM.evAddScaled_ip(A, scaleCoeff, B);
-			ASSERT_MTX_EQ(A2, A, "evAddScaled_ip failed correctness test");
-		}
-	}
-	
-	tictoc tst, tmt, tb;
-	//////////////////////////////////////////////////////////////////////////
-	//testing performance
-	utils::prioritize_workers<utils::PriorityClass::PerfTesting, iMath::ithreads_t> pw(iM.ithreads());
-
-	//FFFFfffffffff... don't ever think about removing rg. calls that randomizes data...
-	for (unsigned r = 0; r < maxReps; ++r) {
-		rg.gen_matrix(A, 2); rg.gen_matrix(B, 2);
-		tst.tic();
 		iM.evAddScaled_ip_st(A, scaleCoeff, B);
-		tst.toc();
+		ASSERT_MTX_EQ(A2, A, "evAddScaled_ip_st failed correctness test");
 
-		rg.gen_matrix(A, 2); rg.gen_matrix(B, 2);
-		tmt.tic();
+		A3.clone_to(A);
 		iM.evAddScaled_ip_mt(A, scaleCoeff, B);
-		tmt.toc();
+		ASSERT_MTX_EQ(A2, A, "evAddScaled_ip_mt failed correctness test");
 
-		rg.gen_matrix(A, 2); rg.gen_matrix(B, 2);
-		tb.tic();
+		A3.clone_to(A);
 		iM.evAddScaled_ip(A, scaleCoeff, B);
-		tb.toc();
+		ASSERT_MTX_EQ(A2, A, "evAddScaled_ip failed correctness test");
 	}
-	tst.say("st");
-	tmt.say("mt");
-	tb.say("best");
 }
 TEST(TestMathN, evAddScaled_ip) {
-	typedef nntl::d_interfaces::iThreads_t def_threads_t;
-	typedef math::MathN<real_t, def_threads_t> iMB;
-	iMB iM;
-	NNTL_RUN_TEST2(iMB::Thresholds_t::evAddScaled_ip, 100) test_evAddScaled_ip(iM, i, 100);
+	for (vec_len_t r = 1; r < 2*g_MinDataSizeDelta; ++r) {
+		for (vec_len_t c = 1; c < 2*g_MinDataSizeDelta; ++c) {
+			test_evAddScaled_ip_corr(r, c);
+		}
+	}
 }
 
 //////////////////////////////////////////////////////////////////////////

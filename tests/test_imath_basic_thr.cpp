@@ -1447,3 +1447,118 @@ TEST(TestMathNThr, evSubMtxMulC_ip_nb) {
 #endif
 }
 
+//////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////
+
+void test_evAddScaled_ip_perf(vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
+	const auto dataSize = realmtx_t::sNumel(rowsCnt, colsCnt);
+	STDCOUTL("**** testing evAddScaled_ip() over " << rowsCnt << "x" << colsCnt << " matrix (" << dataSize << " elements)");
+	
+	constexpr unsigned maxReps = TEST_PERF_REPEATS_COUNT;
+	realmtx_t A(rowsCnt, colsCnt), B(rowsCnt, colsCnt);
+	const real_t c = real_t(4);
+
+	ASSERT_TRUE(!A.isAllocationFailed() && !B.isAllocationFailed());
+
+	d_interfaces::iRng_t rg;
+	rg.set_ithreads(iM.ithreads());
+
+	const auto pA = A.data();
+
+	real_t t = real_t(0);
+	tictoc tSt, tMt, tB;
+
+	utils::prioritize_workers<utils::PriorityClass::PerfTesting, imath_basic_t::ithreads_t> pw(iM.ithreads());
+	for (unsigned r = 0; r < maxReps; ++r) {
+
+		rg.gen_matrix(A, real_t(2)); rg.gen_matrix(B, real_t(3));
+		tSt.tic();
+		iM.evAddScaled_ip_st(A, c, B);
+		tSt.toc();
+		for (numel_cnt_t i = 0; i < dataSize; ++i) t += pA[i];
+
+		rg.gen_matrix(A, real_t(2)); rg.gen_matrix(B, real_t(3));
+		tMt.tic();
+		iM.evAddScaled_ip_mt(A, c, B);
+		tMt.toc();
+		for (numel_cnt_t i = 0; i < dataSize; ++i) t += pA[i];
+
+		rg.gen_matrix(A, real_t(2)); rg.gen_matrix(B, real_t(3));
+		tB.tic();
+		iM.evAddScaled_ip(A, c, B);
+		tB.toc();
+		for (numel_cnt_t i = 0; i < dataSize; ++i) t += pA[i];
+	}
+	tSt.say("st");
+	tMt.say("mt");
+	tB.say("best");
+
+	STDCOUTL(t);
+}
+
+TEST(TestMathNThr, evAddScaled_ip) {
+	NNTL_RUN_TEST2(imath_basic_t::Thresholds_t::evAddScaled_ip, 10) {
+		test_evAddScaled_ip_perf(i, 10);
+	}
+}
+
+void test_evNZAddScaled_ip_perf(vec_len_t rowsCnt, vec_len_t colsCnt = 10, const real_t dpa=0.95) {
+	const auto dataSize = realmtx_t::sNumel(rowsCnt, colsCnt);
+	STDCOUTL("**** testing evNZAddScaled_ip() over " << rowsCnt << "x" << colsCnt << " matrix (" << dataSize << " elements)");
+
+	constexpr unsigned maxReps = TEST_PERF_REPEATS_COUNT;
+	realmtx_t A(rowsCnt, colsCnt), B(rowsCnt, colsCnt), M(rowsCnt, colsCnt);
+	const real_t c = real_t(4);
+
+	ASSERT_TRUE(!A.isAllocationFailed() && !B.isAllocationFailed() && !M.isAllocationFailed());
+
+	d_interfaces::iRng_t rg;
+	rg.set_ithreads(iM.ithreads());
+
+	const auto pA = A.data();
+
+	real_t t = real_t(0);
+	tictoc tSt, tMt, tB;
+
+	utils::prioritize_workers<utils::PriorityClass::PerfTesting, imath_basic_t::ithreads_t> pw(iM.ithreads());
+	for (unsigned r = 0; r < maxReps; ++r) {
+
+		rg.gen_matrix(A, real_t(2)); rg.gen_matrix(B, real_t(3));
+		rg.gen_matrix_norm(M);
+		iM.ewBinarize_ip(M, dpa);
+		iM.evMul_ip(A, M);		
+		tSt.tic();
+		iM.evNZAddScaled_ip_st(A, c, B);
+		tSt.toc();
+		for (numel_cnt_t i = 0; i < dataSize; ++i) t += pA[i];
+
+		rg.gen_matrix(A, real_t(2)); rg.gen_matrix(B, real_t(3));
+		rg.gen_matrix_norm(M);
+		iM.ewBinarize_ip(M, dpa);
+		iM.evMul_ip(A, M);
+		tMt.tic();
+		iM.evNZAddScaled_ip_mt(A, c, B);
+		tMt.toc();
+		for (numel_cnt_t i = 0; i < dataSize; ++i) t += pA[i];
+
+		rg.gen_matrix(A, real_t(2)); rg.gen_matrix(B, real_t(3));
+		rg.gen_matrix_norm(M);
+		iM.ewBinarize_ip(M, dpa);
+		iM.evMul_ip(A, M);
+		tB.tic();
+		iM.evNZAddScaled_ip(A, c, B);
+		tB.toc();
+		for (numel_cnt_t i = 0; i < dataSize; ++i) t += pA[i];
+	}
+	tSt.say("st");
+	tMt.say("mt");
+	tB.say("best");
+
+	STDCOUTL(t);
+}
+
+TEST(TestMathNThr, evNZAddScaled_ip) {
+	NNTL_RUN_TEST2(imath_basic_t::Thresholds_t::evNZAddScaled_ip, 10) {
+		test_evNZAddScaled_ip_perf(i, 10);
+	}
+}

@@ -52,10 +52,10 @@ namespace nntl {
 		//if bCalcOnFProp set to true, then it computes the necessary derivate during fprop step and stores it internally
 		//until bprop() phase. This helps to deal with a dropout that modifies some activations and makes some loss_addendums
 		// produce bogus results. This is especially important to DeCov
-		template<typename RealT, bool bNumStab = false, bool bLowerTriangl = false, bool bCalcOnFProp = true>
-		class DeCov : public _impl::scaled_addendum_with_mtx4fprop<RealT, bCalcOnFProp> {
+		template<typename RealT, bool bNumStab = false, bool bLowerTriangl = false, bool bCalcOnFProp = true, bool bAppendToNZGrad=true>
+		class DeCov : public _impl::scaled_addendum_with_mtx4fprop<RealT, bCalcOnFProp, bAppendToNZGrad> {
 		private:
-			typedef _impl::scaled_addendum_with_mtx4fprop<RealT, bCalcOnFProp> _base_class_t;
+			typedef _impl::scaled_addendum_with_mtx4fprop<RealT, bCalcOnFProp, bAppendToNZGrad> _base_class_t;
 		public:
 			static constexpr const char* getName()noexcept { return "DeCov"; }
 			
@@ -87,17 +87,17 @@ namespace nntl {
 			::std::enable_if_t<c> on_fprop(const realmtx_t& Vals, const CommonDataT& CD) noexcept {
 				NNTL_ASSERT(!Vals.emulatesBiases());
 				m_Mtx.deform_like(Vals);
-
 				CD.iMath().dLoss_deCov<bLowerTriangl, bNumStab>(Vals, m_Mtx);
 			}
 
+		public:
 			template <typename CommonDataT, bool c = calcOnFprop>
 			::std::enable_if_t<c> dLossAdd(const realmtx_t& Vals, realmtx_t& dLossdVals, const CommonDataT& CD) const noexcept {
 				NNTL_ASSERT(m_Mtx.size() == Vals.size() && Vals.size() == dLossdVals.size());
 				NNTL_ASSERT(!Vals.emulatesBiases() && !dLossdVals.emulatesBiases());
 
 				CD.iInspect().dLossAddendumScaled(m_Mtx, m_scale, getName());
-				CD.iMath().evAddScaled_ip(dLossdVals, m_scale, m_Mtx);
+				_appendGradient(CD.iMath(), dLossdVals, m_Mtx);
 			}
 
 			// \frac{\partial L}{\partial h_a^m} = \frac{2}{N} \sum_{j\neq a} C_{aj} (h_j^m - \mu_j)
@@ -116,7 +116,8 @@ namespace nntl {
 
 				CD.iInspect().dLossAddendumScaled(dL, m_scale, getName());
 
-				iM.evAddScaled_ip(dLossdVals, m_scale, dL);
+				//iM.evAddScaled_ip(dLossdVals, m_scale, dL);
+				_appendGradient(CD.iMath(), dLossdVals, dL);
 
 				iM._istor_free(pDL, dLNumel);
 			}

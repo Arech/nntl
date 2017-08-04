@@ -257,7 +257,7 @@ namespace math {
 		// ElementWise operations
 		//////////////////////////////////////////////////////////////////////////
 		//binarize elements of real-valued matrix according to their relaion to frac
-		void ewBinarize_ip(realmtx_t& A, const real_t& frac, const real_t& lBnd = real_t(0.), const real_t& uBnd = real_t(1.))noexcept {
+		void ewBinarize_ip(realmtx_t& A, const real_t frac, const real_t lBnd = real_t(0.), const real_t uBnd = real_t(1.))noexcept {
 			if (A.numel() < Thresholds_t::ewBinarize_ip) {
 				get_self().ewBinarize_ip_st(A, frac, lBnd, uBnd);
 			} else get_self().ewBinarize_ip_mt(A, frac, lBnd, uBnd);
@@ -1150,6 +1150,30 @@ namespace math {
 		}
 
 		//////////////////////////////////////////////////////////////////////////
+		//inplace elementwise addition of scaled vector: A = { A + c*B | A!=0, 0|A==0}
+		void evNZAddScaled_ip(realmtx_t& A, const real_t c, const realmtx_t& B)noexcept {
+			if (A.numel() < Thresholds_t::evNZAddScaled_ip) {
+				get_self().evNZAddScaled_ip_st(A, c, B);
+			} else get_self().evNZAddScaled_ip_mt(A, c, B);
+		}
+		void evNZAddScaled_ip_st(realmtx_t& A, const real_t c, const realmtx_t& B, const elms_range*const pER = nullptr)noexcept {
+			NNTL_ASSERT(A.size() == B.size() && !A.empty() && !B.empty() && c != real_t(0.0));
+			get_self()._ievNZAddScaled_ip_st(A.data(), c, B.data(), pER ? *pER : elms_range(A));
+		}
+		static void _ievNZAddScaled_ip_st(real_t*const pA, const real_t c, const real_t*const pB, const elms_range& er)noexcept {
+			NNTL_ASSERT(pA && pB && c);
+			for (numel_cnt_t i = er.elmBegin; i < er.elmEnd; ++i) {
+				pA[i] = (pA[i] == real_t(0.) ? real_t(0) : pA[i] + c*pB[i]);
+			}
+		}
+		void evNZAddScaled_ip_mt(realmtx_t& A, const real_t c, const realmtx_t& B)noexcept {
+			NNTL_ASSERT(A.size() == B.size() && !A.empty() && !B.empty() && c != real_t(0.0));
+			m_threads.run([pA = A.data(), pB = B.data(), c, this](const par_range_t& r) {
+				get_self()._ievNZAddScaled_ip_st(pA, c, pB, elms_range(r));
+			}, A.numel());
+		}
+
+		//////////////////////////////////////////////////////////////////////////
 		//inplace elementwise addition of scaled signum: A = A + c*sign(B);
 		//(L1 regularization, dLdW update step)
 		void evAddScaledSign_ip(realmtx_t& A, const real_t c, const realmtx_t& B)noexcept {
@@ -1157,7 +1181,6 @@ namespace math {
 				get_self().evAddScaledSign_ip_st(A, c, B);
 			} else get_self().evAddScaledSign_ip_mt(A, c, B);
 		}
-
 		void evAddScaledSign_ip_st(realmtx_t& A, const real_t c, const realmtx_t& B, const elms_range*const pER=nullptr)noexcept {
 			NNTL_ASSERT(A.size() == B.size() && !A.empty() && !B.empty() && c != real_t(0.0));
 			get_self()._ievAddScaledSign_ip_st(A.data(),c,B.data(), pER ? *pER : elms_range(A));
@@ -1170,6 +1193,29 @@ namespace math {
 			NNTL_ASSERT(A.size() == B.size() && !A.empty() && !B.empty() && c != real_t(0.0));
 			m_threads.run([pA=A.data(), pB=B.data(), c, this](const par_range_t& r) {
 				get_self()._ievAddScaledSign_ip_st(pA, c, pB, elms_range(r));
+			}, A.numel());
+		}
+
+		void evNZAddScaledSign_ip(realmtx_t& A, const real_t c, const realmtx_t& B)noexcept {
+			if (A.numel() < Thresholds_t::evNZAddScaledSign_ip) {
+				get_self().evNZAddScaledSign_ip_st(A, c, B);
+			} else get_self().evNZAddScaledSign_ip_mt(A, c, B);
+		}
+		void evNZAddScaledSign_ip_st(realmtx_t& A, const real_t c, const realmtx_t& B, const elms_range*const pER = nullptr)noexcept {
+			NNTL_ASSERT(A.size() == B.size() && !A.empty() && !B.empty() && c != real_t(0.0));
+			get_self()._ievNZAddScaledSign_ip_st(A.data(), c, B.data(), pER ? *pER : elms_range(A));
+		}
+		static void _ievNZAddScaledSign_ip_st(real_t*const pA, const real_t c, const real_t*const pB, const elms_range& er)noexcept {
+			NNTL_ASSERT(pA && pB && c != real_t(0.0));
+			for (numel_cnt_t i = er.elmBegin; i < er.elmEnd; ++i) {
+				pA[i] = (pA[i] == real_t(0.) ? real_t(0) : pA[i] + c*math::sign(pB[i]));
+				//pA[i] += c*math::sign(pB[i]);
+			}
+		}
+		void evNZAddScaledSign_ip_mt(realmtx_t& A, const real_t c, const realmtx_t& B)noexcept {
+			NNTL_ASSERT(A.size() == B.size() && !A.empty() && !B.empty() && c != real_t(0.0));
+			m_threads.run([pA = A.data(), pB = B.data(), c, this](const par_range_t& r) {
+				get_self()._ievNZAddScaledSign_ip_st(pA, c, pB, elms_range(r));
 			}, A.numel());
 		}
 

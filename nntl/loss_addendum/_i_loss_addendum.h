@@ -109,9 +109,27 @@ namespace loss_addendum {
 	template<typename LaT>
 	using works_on_fprop = ::std::integral_constant<bool, LaT::calcOnFprop>;
 
+// 	enum {
+// 		la_CalcOnBprop = 0, //- calculate loss derivatives using values in bprop stage (prone to dropout'ed neurons if LA used on activations)
+// 		la_CalcOnFprop = 1, //- same, but for fprop stage (occurs before dropout, but requires additional memory to store gradient)
+// 		la_MASK_onFpropType = 1,
+// 
+// 		la_appendToAnyGradient = 0, //append loss addendum ignoring current gradient value
+// 		la_appendToNonZeroGradient = 2, //append loss addendum only if current gradient value is non zero
+// 		la_MASK_appendGradientType = 2
+// 	};
+// 
+// 	static inline constexpr bool is_la_mode(const unsigned int val, const unsigned int mode, const unsigned int mask)noexcept {
+// 		return mode==(val & mask);
+// 	}
+
 	namespace _impl {
-		template<typename RealT>
+		template<typename RealT, bool bCalcOnFprop, bool bAppendToNZGrad>
 		class scaled_addendum : public _i_loss_addendum<RealT> {
+		public:
+			static constexpr bool calcOnFprop = bCalcOnFprop;
+			static constexpr bool appendToNZGrad = bAppendToNZGrad;
+
 		protected:
 			real_t m_scale;
 
@@ -125,18 +143,25 @@ namespace loss_addendum {
 			real_t scale()const noexcept { return m_scale; }
 
 			const bool bEnabled()const noexcept { return real_t(0.) != m_scale; }
+
+		protected:
+			template<typename iMathT, bool c = appendToNZGrad>
+			::std::enable_if_t<c> _appendGradient(iMathT& iM, realmtx_t& dLossdVals, const realmtx_t& newGrad)const noexcept {
+				iM.evNZAddScaled_ip(dLossdVals, m_scale, newGrad);
+			}
+			template<typename iMathT, bool c = appendToNZGrad>
+			::std::enable_if_t<!c> _appendGradient(iMathT& iM, realmtx_t& dLossdVals, const realmtx_t& newGrad)const noexcept {
+				iM.evAddScaled_ip(dLossdVals, m_scale, newGrad);
+			}
 		};
 
-		template<typename RealT, bool bOnFprop>
-		struct scaled_addendum_with_mtx4fprop : public scaled_addendum<RealT> {
-			static constexpr bool calcOnFprop = false;
-		};
+		template<typename RealT, bool bCalcOnFprop, bool bAppendToNZGrad>
+		struct scaled_addendum_with_mtx4fprop : public scaled_addendum<RealT, bCalcOnFprop, bAppendToNZGrad> {};
 
-		template<typename RealT>
-		struct scaled_addendum_with_mtx4fprop<RealT, true> : public scaled_addendum<RealT> {
-			static constexpr bool calcOnFprop = true;
+		template<typename RealT, bool bAppendToNZGrad>
+		struct scaled_addendum_with_mtx4fprop<RealT, true, bAppendToNZGrad> : public scaled_addendum<RealT, true, bAppendToNZGrad> {
 		private:
-			typedef scaled_addendum<RealT> _base_class_t;
+			typedef scaled_addendum<RealT, true, bAppendToNZGrad> _base_class_t;
 		protected:
 			math::smatrix_deform<RealT> m_Mtx;
 

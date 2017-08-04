@@ -161,7 +161,8 @@ namespace nntl {
 			}
 
 			if (lid.bActivationsShareSpace) {
-				STDCOUTL("** Attention! Layer " << get_self().get_layer_name_str() << " is configured to have a Dropout, however it's activations are shared. Sure there's no twice dropout application?");
+				STDCOUTL("** Attention! Layer " << get_self().get_layer_name_str() 
+					<< " is configured to have a Dropout, however it's activations are shared. Sure there's no double dropout application?");
 			}
 
 			return true;

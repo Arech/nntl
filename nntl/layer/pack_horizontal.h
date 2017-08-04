@@ -54,9 +54,7 @@ namespace nntl {
 	
 	//AddendumsTupleT was introduced only to overcome compiler bug when using _LPA<> wrapper
 
-	template<typename FinalPolymorphChild
-		, typename PHLsTuple
-	>
+	template<typename FinalPolymorphChild, typename PHLsTuple>
 	class _LPH 
 		: public _layer_base<FinalPolymorphChild, typename ::std::remove_reference<typename ::std::tuple_element<0, PHLsTuple>::type>::type::phl_original_t::interfaces_t>
 	{

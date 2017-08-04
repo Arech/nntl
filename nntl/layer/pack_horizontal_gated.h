@@ -61,14 +61,11 @@ namespace nntl {
 		typename FinalPolymorphChild
 		, unsigned int nBinarize1e6
 		, typename PHLsTuple
-// 		, typename DropoutT = NoDropout<typename ::std::remove_reference<typename ::std::tuple_element<0, PHLsTuple>::type>::type::phl_original_t::real_t>
-// 		, typename AddendumsTupleT = void
-// 		, bool _bAddendumsAppliesToGate = false
 	>
-	class _LPHG : public _LPH<FinalPolymorphChild, PHLsTuple/*, DropoutT, AddendumsTupleT*/>
+	class _LPHG : public _LPH<FinalPolymorphChild, PHLsTuple>
 	{
 	private:
-		typedef _LPH<FinalPolymorphChild, PHLsTuple/*, DropoutT, AddendumsTupleT*/> _base_class;
+		typedef _LPH<FinalPolymorphChild, PHLsTuple> _base_class;
 
 	public:
 		static_assert(::std::is_base_of<_i_layer_gate<real_t>, first_layer_t>::value,

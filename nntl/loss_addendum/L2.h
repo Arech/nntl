@@ -39,8 +39,8 @@ namespace loss_addendum {
 	//if bCalcOnFProp set to true, then it computes the necessary derivate during fprop step and stores it internally
 	//until bprop() phase. This helps to deal with a dropout that modifies some activations and makes some loss_addendums
 	// produce bogus results
-	template<typename RealT, bool bCalcOnFProp = false>
-	class L2 : public _impl::scaled_addendum_with_mtx4fprop<RealT, bCalcOnFProp> {
+	template<typename RealT, bool bCalcOnFProp = false, bool bAppendToNZGrad = false>
+	class L2 : public _impl::scaled_addendum_with_mtx4fprop<RealT, bCalcOnFProp, bAppendToNZGrad> {
 	public:
 		static constexpr const char* getName()noexcept { return "L2"; }
 
@@ -61,13 +61,15 @@ namespace loss_addendum {
 		::std::enable_if_t<c> dLossAdd(const realmtx_t& Vals, realmtx_t& dLossdVals, const CommonDataT& CD) const noexcept {
 			NNTL_ASSERT(m_Mtx.size() == Vals.size() && Vals.size() == dLossdVals.size());
 			NNTL_ASSERT(!Vals.emulatesBiases() && !dLossdVals.emulatesBiases());
-			CD.iMath().evAddScaled_ip(dLossdVals, m_scale, m_Mtx);
+			//CD.iMath().evAddScaled_ip(dLossdVals, m_scale, m_Mtx);
+			_appendGradient(CD.iMath(), dLossdVals, m_Mtx);
 		}
 
 		template <typename CommonDataT, bool c = calcOnFprop>
 		::std::enable_if_t<!c> dLossAdd(const realmtx_t& Vals, realmtx_t& dLossdVals, const CommonDataT& CD) const noexcept {
 			NNTL_ASSERT(!Vals.emulatesBiases() && !dLossdVals.emulatesBiases());
-			CD.iMath().evAddScaled_ip(dLossdVals, m_scale, Vals);
+			//CD.iMath().evAddScaled_ip(dLossdVals, m_scale, Vals);
+			_appendGradient(CD.iMath(), dLossdVals, Vals);
 		}
 	};
 
