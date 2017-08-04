@@ -158,4 +158,4 @@ The code uses very tight loops of mathematical operations that creates a huge lo
 
 ## Contact information
 
-Email me to `arech@gmail.com`.
+Email me to `al.rech@gmail.com`.
