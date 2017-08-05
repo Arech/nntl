@@ -42,6 +42,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include "../nntl/utils/chrono.h"
 #include "../nntl/utils/prioritize_workers.h"
+#include "../nntl/utils/tictoc.h"
 
 #include "../nntl/interface/rng/distr_normal_naive.h"
 
@@ -135,36 +136,37 @@ TEST(TestRNG, RngPerf) {
 //////////////////////////////////////////////////////////////////////////
 template<typename AFRng, typename iThreadsT>
 void test_rngmt(iThreadsT&iT, realmtx_t& m) {
-	using namespace ::std::chrono;
-	steady_clock::time_point bt;
-	nanoseconds diff;
 	constexpr unsigned maxReps = 5*TEST_PERF_REPEATS_COUNT;
 
+	real_t g = real_t(0);
 	auto ptr = m.data();
 	auto dataCnt = m.numel();
-
+	utils::tictoc tS, tM, tB;
 	rng::AFRand_mt<real_t, AFRng, iThreadsT> rg(iT);
 
-	bt = steady_clock::now();
 	for (unsigned r = 0; r < maxReps; ++r) {
-		rg.gen_vector_norm_st(ptr,dataCnt);
-	}
-	diff = steady_clock::now() - bt;
-	STDCOUTL("st:\t" << utils::duration_readable(diff, maxReps));
+		tS.tic();
+		rg.gen_vector_norm_st(ptr, dataCnt);
+		tS.toc();
+		for (const auto& e : m) g += e;
+		g = ::std::log(::std::abs(g));
 
-	bt = steady_clock::now();
-	for (unsigned r = 0; r < maxReps; ++r) {
+		tM.tic();
 		rg.gen_vector_norm_mt(ptr, dataCnt);
-	}
-	diff = steady_clock::now() - bt;
-	STDCOUTL("mt:\t" << utils::duration_readable(diff, maxReps));
+		tM.toc();
+		for (const auto& e : m) g += e;
+		g = ::std::log(::std::abs(g));
 
-	bt = steady_clock::now();
-	for (unsigned r = 0; r < maxReps; ++r) {
+		tB.tic();
 		rg.gen_vector_norm(ptr, dataCnt);
+		tB.toc();
+		for (const auto& e : m) g += e;
+		g = ::std::log(::std::abs(g));
 	}
-	diff = steady_clock::now() - bt;
-	STDCOUTL("best\t" << utils::duration_readable(diff, maxReps));
+	tS.say("st");
+	tM.say("mt");
+	tB.say("()");
+	STDCOUTL(g);
 }
 
 template<typename iRng, typename iThreadsT>
@@ -226,5 +228,58 @@ TEST(TestRNG, NormDistrCompat) {
 		ASSERT_NEAR(_mean, targMean, NormDistrCompat_EPS<real_t>::eps) << "Wrong mean!!!";
 		ASSERT_NEAR(_std, targStddev, NormDistrCompat_EPS<real_t>::eps) << "Wrong StdDev!!!";
 	}
+}
+//////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////
+template<typename iRng, typename iThreadsT>
+void test_bernoulli_perf(iThreadsT& iT, char* pName, realmtx_t::vec_len_t rowsCnt, realmtx_t::vec_len_t colsCnt = 10) {
+	const auto dataSize = realmtx_t::sNumel(rowsCnt, colsCnt);
+	STDCOUTL("******* testing " << pName << ".bernoulli_vector performance over " << rowsCnt << "x" << colsCnt << " matrix (" << dataSize << " elements) **************");
+	realmtx_t m(rowsCnt, colsCnt);
+	ASSERT_TRUE(!m.isAllocationFailed());	
+	constexpr unsigned maxReps = 5 * TEST_PERF_REPEATS_COUNT;
 
+	const auto p = real_t(.6), pv = real_t(1.), nv = real_t(0);
+	real_t g = real_t(0);
+	auto ptr = m.data();
+	auto dataCnt = m.numel();
+	utils::tictoc tS, tM, tB;
+	rng::AFRand_mt<real_t, iRng, iThreadsT> rg(iT);
+
+	utils::prioritize_workers<utils::PriorityClass::PerfTesting, iThreadsT> pw(iT);
+	for (unsigned r = 0; r < maxReps; ++r) {
+		tS.tic();
+		rg.bernoulli_vector_st(ptr, dataCnt, p, pv, nv);
+		tS.toc();
+		for (const auto& e : m) g += e;
+		g = ::std::log(g);
+
+		tM.tic();
+		rg.bernoulli_vector_mt(ptr, dataCnt, p, pv, nv);
+		tM.toc();
+		for (const auto& e : m) g += e;
+		g = ::std::log(g);
+
+		tB.tic();
+		rg.bernoulli_vector(ptr, dataCnt, p, pv, nv);
+		tB.toc();
+		for (const auto& e : m) g += e;
+		g = ::std::log(g);
+	}
+	tS.say("st");
+	tM.say("mt");
+	tB.say("()");
+	STDCOUTL(g);
+}
+
+TEST(TestRNG, BernoulliVectorPerf) {
+	typedef nntl::d_interfaces::iThreads_t def_threads_t;
+	def_threads_t Thr;
+
+	NNTL_RUN_TEST2((rng::_impl::AFRAND_MT_THR<AFog::CRandomMersenne, real_t>::bnd_bernoulli_vector), 10)
+		test_bernoulli_perf<AFog::CRandomMersenne>(Thr, "AFMersenne", i, 10);
+	NNTL_RUN_TEST2((rng::_impl::AFRAND_MT_THR<AFog::CRandomSFMT0, real_t>::bnd_bernoulli_vector), 10)
+		test_bernoulli_perf<AFog::CRandomSFMT0>(Thr, "AFSFMT0", i, 10);
+	NNTL_RUN_TEST2((rng::_impl::AFRAND_MT_THR<AFog::CRandomSFMT1, real_t>::bnd_bernoulli_vector), 10)
+		test_bernoulli_perf<AFog::CRandomSFMT1>(Thr, "AFSFMT1", i, 10);
 }

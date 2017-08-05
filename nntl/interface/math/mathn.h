@@ -613,37 +613,41 @@ namespace math {
 		// dropPercAct - probability of keeping unit active
 		// act must be used in "no_bias" mode.
 		// Actually, the function must implement so called "inverted Dropout", see http://cs231n.github.io/neural-networks-2/
+		// And by the way, it seems to work faster, than using bernuolli_vector(), see TEST(TestPerfDecisions, makeDropoutPerf)
 		void make_dropout(realmtx_t& act, const real_t dropPercAct, realmtx_t& dropoutMask)noexcept {
 			if (dropoutMask.numel() < Thresholds_t::make_dropout) {
 				get_self().make_dropout_st(act, dropPercAct, dropoutMask);
 			} else get_self().make_dropout_mt(act, dropPercAct, dropoutMask);
 		}
 		void make_dropout_st(realmtx_t& act, const real_t dropPercAct, realmtx_t& dropoutMask, const elms_range*const pER = nullptr) const noexcept {
-			get_self()._imake_dropout_st(act, dropPercAct, dropoutMask, pER ? *pER : elms_range(0, dropoutMask.numel()));
+			get_self()._imake_dropout_st(act, dropPercAct, dropoutMask, pER ? *pER : elms_range(dropoutMask));
 		}
-		static void _imake_dropout_st(realmtx_t& act, const real_t dropPercAct, realmtx_t& dropoutMask, const elms_range& er) noexcept {
+		void _imake_dropout_st(realmtx_t& act, const real_t dropPercAct, realmtx_t& dropoutMask, const elms_range& er) const noexcept {
 			NNTL_ASSERT(act.emulatesBiases() && !dropoutMask.emulatesBiases());
 			NNTL_ASSERT(act.size_no_bias() == dropoutMask.size());
 			NNTL_ASSERT(dropPercAct > 0 && dropPercAct < 1);
 
 			const real_t dropPercActInv = real_t(1.) / dropPercAct;
-			/*auto pDM = dropoutMask.data()+er.elmBegin;
+			auto pDM = dropoutMask.data()+er.elmBegin;
 			const auto pDME = pDM + er.totalElements();
 			while (pDM != pDME) {
 				const auto v = *pDM;
 				NNTL_ASSERT(v >= real_t(0.0) && v <= real_t(1.0));
 				*pDM++ = v < dropPercAct ? dropPercActInv : real_t(0.);
 			}
-			const auto pA = act.data();
-			pDM = dropoutMask.data();*/
-			const auto pDM = dropoutMask.data();
+			//pDM = dropoutMask.data();
+			//const auto pA = act.data();
+			//for (numel_cnt_t i = er.elmBegin; i < er.elmEnd; ++i) pA[i] *= pDM[i];
+			get_self()._ievMul_ip_st(act.data(), dropoutMask.data(), er);
+
+			//bwaahaaahaaaa, "for" cycle here is about twice slower
+			/*const auto pDM = dropoutMask.data();
 			for (auto i = er.elmBegin; i < er.elmEnd; ++i) {
 				const auto v = pDM[i];
 				NNTL_ASSERT(v >= real_t(0.0) && v <= real_t(1.0));
 				pDM[i] = v < dropPercAct ? dropPercActInv : real_t(0.);
 			}
-			const auto pA = act.data();
-			for (numel_cnt_t i = er.elmBegin; i < er.elmEnd; ++i) pA[i] *= pDM[i];
+			....*/
 		}
 		void make_dropout_mt(realmtx_t& act, const real_t dropPercAct, realmtx_t& dropoutMask)noexcept {
 			NNTL_ASSERT(act.emulatesBiases() && !dropoutMask.emulatesBiases());
@@ -687,7 +691,7 @@ namespace math {
 			NNTL_ASSERT(dropPercAct > 0 && dropPercAct < 1);
 			NNTL_ASSERT(er.elmEnd <= dropoutMask.numel());
 
-			/*auto pmB = mtxB.data() + er.elmBegin;
+			auto pmB = mtxB.data() + er.elmBegin;
 			auto pDM = dropoutMask.data() + er.elmBegin;
 			const auto pDME = pDM + er.totalElements();
 			while (pDM != pDME) {
@@ -698,9 +702,9 @@ namespace math {
 				*pmB++ = bKeep ? b_mbKeepVal : mbDropVal;
 			}
 			pmB = mtxB.data();
-			pDM = dropoutMask.data();*/
+			pDM = dropoutMask.data();
 
-			const auto pmB = mtxB.data();
+			/*const auto pmB = mtxB.data();
 			const auto pDM = dropoutMask.data();
 			for (numel_cnt_t i = er.elmBegin; i < er.elmEnd; ++i) {
 				const auto v = pDM[i];
@@ -708,7 +712,7 @@ namespace math {
 				const auto bKeep = v < dropPercAct;
 				pDM[i] = bKeep ? a_dmKeepVal : real_t(0.);
 				pmB[i] = bKeep ? b_mbKeepVal : mbDropVal;
-			}
+			}*/
 
 			const auto pA = act.data();
 			for (numel_cnt_t i = er.elmBegin; i < er.elmEnd; ++i) pA[i] = pA[i] * pDM[i] + pmB[i];
@@ -1030,64 +1034,60 @@ namespace math {
 		//inplace elementwise multiplication A = A.*B
 		void evMul_ip(realmtx_t& A, const realmtx_t& B)noexcept {
 			if (A.numel() < Thresholds_t::evMul_ip) {
-				get_self().evMul_ip_st_naive(A, B);
-			} else get_self().evMul_ip_mt_naive(A, B);
+				get_self().evMul_ip_st(A, B);
+			} else get_self().evMul_ip_mt(A, B);
 		}
-		void evMul_ip_st_naive(realmtx_t& A, const realmtx_t& B)noexcept {
+		void evMul_ip_st(realmtx_t& A, const realmtx_t& B, const elms_range*const pER=nullptr)const noexcept {
 			A.assert_storage_does_not_intersect(B);
 			NNTL_ASSERT(A.size() == B.size());
-			get_self().ievMul_ip_st_naive(A.data(), B.data(), A.numel());
+			get_self()._ievMul_ip_st(A.data(), B.data(), pER ? *pER : elms_range(A));
 		}
-		static void ievMul_ip_st_naive(real_t* ptrA, const real_t*ptrB, numel_cnt_t dataCnt) noexcept {
-			//for (numel_cnt_t i = 0; i < dataCnt; ++i) ptrA[i] *= ptrB[i];
-			const bool bOdd = dataCnt & 1;
-			if (bOdd) --dataCnt;
-			for (numel_cnt_t i = 0; i < dataCnt; i += 2) {
+		/*static void _ievMul_ip_st(real_t*const ptrA, const real_t*const ptrB, const elms_range& er) noexcept {
+			const bool bOdd = er.totalElements() & 1;
+			if (bOdd) {
+				ptrA[er.elmBegin] *= ptrB[er.elmBegin];
+			}
+			for (auto i = er.elmBegin + bOdd; i < er.elmEnd; i += 2) {
 				ptrA[i] *= ptrB[i];
 				const auto j = i + 1;
 				ptrA[j] *= ptrB[j];
 			}
-			if (bOdd) ptrA[dataCnt] *= ptrB[dataCnt];
+		}*/
+		//__declspec(noalias) static void _ievMul_ip_st(real_t* __restrict ptrA, const real_t* __restrict ptrB, const elms_range& __restrict er) noexcept {
+		static void _ievMul_ip_st(real_t* ptrA, const real_t* ptrB, const elms_range& er) noexcept {
+			const auto pE = ptrA + er.elmEnd;
+			ptrA += er.elmBegin;
+			ptrB += er.elmBegin;
+			while (ptrA != pE) {
+				*ptrA++ *= *ptrB++;
+			}
 		}
-		void evMul_ip_mt_naive(realmtx_t& A, const realmtx_t& B)noexcept {
+		void evMul_ip_mt(realmtx_t& A, const realmtx_t& B)noexcept {
 			A.assert_storage_does_not_intersect(B);
 			NNTL_ASSERT(A.size() == B.size());
-			get_self().ievMul_ip_mt_naive(A.data(), B.data(), A.numel());
+			get_self()._ievMul_ip_mt(A.data(), B.data(), A.numel());
 		}
-		void ievMul_ip_mt_naive(real_t* ptrA, const real_t*ptrB, numel_cnt_t dataCnt) noexcept {
-			m_threads.run([ptrA, ptrB](const par_range_t& r) {
-				const auto ofs = r.offset();
-				auto cnt = r.cnt();
-				const bool bOdd = cnt & 1;
-				if (bOdd) --cnt;
-				const auto im = ofs + cnt;
-				//for (numel_cnt_t i = ofs; i < im; ++i) ptrA[i] *= ptrB[i];
-				for (numel_cnt_t i = ofs; i < im; i += 2) {
-					ptrA[i] *= ptrB[i];
-					const auto j = i + 1;
-					ptrA[j] *= ptrB[j];
-				}
-				if (bOdd) ptrA[im] *= ptrB[im];
+		void _ievMul_ip_mt(real_t*const ptrA, const real_t*const ptrB, const numel_cnt_t dataCnt) noexcept {
+			m_threads.run([ptrA, ptrB, this](const par_range_t& r) {
+				get_self()._ievMul_ip_st(ptrA, ptrB, elms_range(r));
 			}, dataCnt);
 		}
 
-
 		//inplace elementwise multiplication A(no_bias) = A(no_bias).*B, - A is taken in no_bias mode
 		void evMul_ip_Anb(realmtx_t& A, const realmtx_t& B)noexcept {
-			const auto dataCnt = B.numel();
-			if (dataCnt < Thresholds_t::evMul_ip_Anb) {
-				get_self().evMul_ip_Anb_st_naive(A, B);
-			} else get_self().evMul_ip_Anb_mt_naive(A, B);
+			if (B.numel() < Thresholds_t::evMul_ip) {
+				get_self().evMul_ip_Anb_st(A, B);
+			} else get_self().evMul_ip_Anb_mt(A, B);
 		}
-		void evMul_ip_Anb_st_naive(realmtx_t& A, const realmtx_t& B)noexcept {
+		void evMul_ip_Anb_st(realmtx_t& A, const realmtx_t& B, const elms_range*const pER = nullptr)const noexcept {
 			A.assert_storage_does_not_intersect(B);
 			NNTL_ASSERT(A.size_no_bias() == B.size());
-			get_self().ievMul_ip_st_naive(A.data(), B.data(), B.numel());
+			get_self()._ievMul_ip_st(A.data(), B.data(), pER ? *pER : elms_range(B));
 		}
-		void evMul_ip_Anb_mt_naive(realmtx_t& A, const realmtx_t& B)noexcept {
+		void evMul_ip_Anb_mt(realmtx_t& A, const realmtx_t& B)noexcept {
 			A.assert_storage_does_not_intersect(B);
 			NNTL_ASSERT(A.size_no_bias() == B.size());
-			get_self().ievMul_ip_mt_naive(A.data(), B.data(), B.numel());
+			get_self()._ievMul_ip_mt(A.data(), B.data(), B.numel());
 		}
 
 

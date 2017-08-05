@@ -35,7 +35,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //#include <memory>
 #include "../../_defs.h"
 #include "../../common.h"
-
+#include <intrin.h>
 #include "../threads/parallel_range.h"
 
 //#TODO: Consider replacing generic memcpy/memcmp/memset and others similar generic functions with
@@ -414,9 +414,9 @@ namespace math {
 			}else return size();
 		}
 		
-		static constexpr numel_cnt_t sNumel(vec_len_t r, vec_len_t c)noexcept { 
-			//NNTL_ASSERT(r && c); //sNumel is used in many cases where r==0 or c==0 is perfectly legal. No need to assert here.
-			return static_cast<numel_cnt_t>(r)*static_cast<numel_cnt_t>(c); 
+		static constexpr numel_cnt_t sNumel(vec_len_t r, vec_len_t c)noexcept {
+			//return static_cast<numel_cnt_t>(r)*static_cast<numel_cnt_t>(c); 
+			return __emulu(r, c);
 		}
 		static constexpr numel_cnt_t sNumel(const mtx_size_t s)noexcept { return sNumel(s.first, s.second); }
 
@@ -435,7 +435,8 @@ namespace math {
 		// triangular matrix support
 		//returns the number of elements in a triangular matrix of size N. (Elements of the main diagonal are excluded)
 		static constexpr numel_cnt_t sNumelTriangl(const vec_len_t n)noexcept {
-			return (static_cast<numel_cnt_t>(n)*(n-1)) / 2;
+			//return (static_cast<numel_cnt_t>(n)*(n-1)) / 2;
+			return __emulu(n, n - 1) / 2;
 		}
 		numel_cnt_t numel_triangl()const noexcept {
 			NNTL_ASSERT(rows() == cols());

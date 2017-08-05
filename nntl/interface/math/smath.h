@@ -84,10 +84,10 @@ namespace math {
 		// _st functions (called from _mt()) functions to call func_st() without knowing it's implementation details.
 
 
-		typedef iThreadsT ithreads_t;
-		typedef typename ithreads_t::range_t range_t;
-		typedef typename ithreads_t::par_range_t par_range_t;
-		typedef typename ithreads_t::thread_id_t thread_id_t;
+		typedef iThreadsT iThreads_t;
+		typedef typename iThreads_t::range_t range_t;
+		typedef typename iThreads_t::par_range_t par_range_t;
+		typedef typename iThreads_t::thread_id_t thread_id_t;
 
 		static_assert(::std::is_same<typename realmtx_t::numel_cnt_t, typename iThreadsT::range_t>::value, "iThreads::range_t should be the same as realmtx_t::numel_cnt_t");
 
@@ -103,7 +103,7 @@ namespace math {
 		//////////////////////////////////////////////////////////////////////////
 		// members
 	protected:
-		ithreads_t m_threads;
+		iThreads_t m_threads;
 
 		numel_cnt_t m_minTempStorageSize, m_curStorElementsAllocated;
 		thread_temp_storage_t m_threadTempRawStorage;
@@ -131,7 +131,7 @@ namespace math {
 			NNTL_ASSERT(ptr == &m_threadTempRawStorage[m_curStorElementsAllocated]);//if this assert triggered, then the wrong pointer was allocated/freed
 		}
 
-		ithreads_t& ithreads()noexcept { return m_threads; }
+		iThreads_t& ithreads()noexcept { return m_threads; }
 
 		//math preinitialization, should be called from each NN layer. n - maximum data length (in real_t), that this layer will use in calls
 		//to math interface. Used to calculate max necessary temporary storage length.

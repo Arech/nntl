@@ -89,6 +89,10 @@ namespace rng {
 		//generate FP value in range [0,1]
 		nntl_interface real_t gen_f_norm()noexcept;
 
+		//generate a vector using Bernoulli distribution with probability of success p and success value sVal.
+		nntl_interface void bernoulli_vector(real_t* ptr, const size_t n, const real_t p, const real_t sVal = real_t(1.), const real_t negVal = real_t(0.))noexcept;
+		nntl_interface void bernoulli_matrix(realmtx_t A, const real_t p, const real_t sVal = real_t(1.), const real_t negVal = real_t(0.))noexcept;
+
 		//////////////////////////////////////////////////////////////////////////
 		// matrix/vector generation (sequence of numbers drawn from uniform distribution in [-a,a])
 		nntl_interface void gen_vector(real_t* ptr, const size_t n, const real_t a)noexcept;
@@ -131,6 +135,7 @@ namespace rng {
 	public:
 		typedef int4ShuffleT int_4_random_shuffle_t;
 		typedef int4DistribsT int_4_distribution_t;
+		typedef math::s_elems_range elms_range;
 		
 		//////////////////////////////////////////////////////////////////////////
 		void seed64(uint64_t s) noexcept {
@@ -154,7 +159,22 @@ namespace rng {
 		//generate FP value in range [0,a]
 		real_t gen_f(const real_t a)noexcept { return a*get_self().gen_f_norm(); }
 
+		//////////////////////////////////////////////////////////////////////////
+		//////////////////////////////////////////////////////////////////////////
+		void bernoulli_vector(real_t* ptr, const size_t n, const real_t p, const real_t posVal = real_t(1.), const real_t negVal = real_t(0.))noexcept {
+			NNTL_ASSERT(ptr);
+			NNTL_ASSERT(p > real_t(0) && p < real_t(1));
+			const auto pE = ptr + n;
+			while (ptr != pE) {
+				*ptr++ = get_self().gen_f_norm() < p ? posVal : negVal;
+			}
+		}
+		void bernoulli_matrix(realmtx_t A, const real_t p, const real_t posVal = real_t(1.), const real_t negVal = real_t(0.))noexcept {
+			get_self().bernoulli_vector(A.data(), A.numel(), p, posVal, negVal);
+		}
 
+		//////////////////////////////////////////////////////////////////////////
+		////////////////////////////////////////////////////////////////////////// 
 		// matrix/vector generation (sequence from begin to end of numbers drawn from uniform distribution in [-a,a])
 		void gen_matrix(realmtx_t& mtx, const real_t a)noexcept {
 			NNTL_ASSERT(!mtx.emulatesBiases());

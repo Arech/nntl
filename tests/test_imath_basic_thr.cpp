@@ -478,7 +478,7 @@ void test_adam_perf(const size_t epochs, vec_len_t rowsCnt, vec_len_t colsCnt = 
 	const real_t beta1 = real_t(.9), beta2 = real_t(.999), learningRate = real_t(.001), numStab = real_t(1e-8);
 
 	tictoc tSt, tMt, tB, tSt2, tMt2;
-	utils::prioritize_workers<utils::PriorityClass::PerfTesting, imath_basic_t::ithreads_t> pw(iM.ithreads());
+	utils::prioritize_workers<utils::PriorityClass::PerfTesting, imath_basic_t::iThreads_t> pw(iM.ithreads());
 	for (unsigned r = 0; r < maxReps; ++r) {
 		Mt_st.zeros(); Mt_mt.zeros(); Mt_.zeros();
 		Vt_st.zeros(); Vt_mt.zeros(); Vt_.zeros();
@@ -552,7 +552,7 @@ void test_adamax_perf(const size_t epochs, vec_len_t rowsCnt, vec_len_t colsCnt 
 	const real_t beta1 = real_t(.9), beta2 = real_t(.999), learningRate = real_t(.001), numStab = real_t(1e-8);
 
 	tictoc tSt, tMt, tB, tSt2, tMt2;
-	utils::prioritize_workers<utils::PriorityClass::PerfTesting, imath_basic_t::ithreads_t> pw(iM.ithreads());
+	utils::prioritize_workers<utils::PriorityClass::PerfTesting, imath_basic_t::iThreads_t> pw(iM.ithreads());
 	for (unsigned r = 0; r < maxReps; ++r) {
 		Mt_st.zeros(); Mt_mt.zeros(); Mt_.zeros();
 		Vt_st.zeros(); Vt_mt.zeros(); Vt_.zeros();
@@ -625,7 +625,7 @@ void test_Nadam_perf(const size_t epochs, vec_len_t rowsCnt, vec_len_t colsCnt =
 	const real_t _g = real_t(0.);
 
 	tictoc tSt, tMt, tB, tSt2, tMt2;
-	utils::prioritize_workers<utils::PriorityClass::PerfTesting, imath_basic_t::ithreads_t> pw(iM.ithreads());
+	utils::prioritize_workers<utils::PriorityClass::PerfTesting, imath_basic_t::iThreads_t> pw(iM.ithreads());
 	for (unsigned r = 0; r < maxReps; ++r) {
 		Mt_st.zeros(); Mt_mt.zeros(); Mt_.zeros();
 		Vt_st.zeros(); Vt_mt.zeros(); Vt_.zeros();
@@ -698,7 +698,7 @@ void test_Radam_perf(const size_t epochs, vec_len_t rowsCnt, vec_len_t colsCnt =
 	const real_t gamma = real_t(0.1);
 
 	tictoc tSt, tMt, tB, tSt2, tMt2;
-	utils::prioritize_workers<utils::PriorityClass::PerfTesting, imath_basic_t::ithreads_t> pw(iM.ithreads());
+	utils::prioritize_workers<utils::PriorityClass::PerfTesting, imath_basic_t::iThreads_t> pw(iM.ithreads());
 	for (unsigned r = 0; r < maxReps; ++r) {
 		Mt_st.zeros(); Mt_mt.zeros(); Mt_.zeros();
 		Vt_st.zeros(); Vt_mt.zeros(); Vt_.zeros();
@@ -765,13 +765,15 @@ void test_ewBinarize_ip_perf(vec_len_t rowsCnt, vec_len_t colsCnt = 10, const re
 
 	d_interfaces::iRng_t rg;
 	rg.set_ithreads(iM.ithreads());
-	tictoc tSt, tMt, tB, dt, t1, t2, dt1, dt2;
-	utils::prioritize_workers<utils::PriorityClass::PerfTesting, imath_basic_t::ithreads_t> pw(iM.ithreads());
+	tictoc tSt, tMt, tB/*, dt, t1, t2, dt1, dt2*/;
+	real_t vv = real_t(0);
+	utils::prioritize_workers<utils::PriorityClass::PerfTesting, imath_basic_t::iThreads_t> pw(iM.ithreads());
 	for (unsigned r = 0; r < maxReps; ++r) {
 		rg.gen_matrix_norm(A);
 		tSt.tic();
 		iM.ewBinarize_ip_st(A, frac);
 		tSt.toc();
+		for (const auto& e : A) vv += e;
 
 		/*rg.gen_matrix_norm(A);
 		t1.tic();
@@ -783,11 +785,10 @@ void test_ewBinarize_ip_perf(vec_len_t rowsCnt, vec_len_t colsCnt = 10, const re
 		iM.ex2_ewBinarize_ip_st(A, frac);
 		t2.toc();*/
 
-
-		rg.gen_matrix_norm(A);
+		/*rg.gen_matrix_norm(A);
 		dt.tic();
 		iM.ewBinarize_ip_st(A, frac);
-		dt.toc();
+		dt.toc();*/
 
 		/*rg.gen_matrix_norm(A);
 		dt1.tic();
@@ -799,28 +800,28 @@ void test_ewBinarize_ip_perf(vec_len_t rowsCnt, vec_len_t colsCnt = 10, const re
 		iM.ex2_ewBinarize_ip_st(A, frac);
 		dt2.toc();*/
 
-
 		rg.gen_matrix_norm(A);
 		tMt.tic();
 		iM.ewBinarize_ip_mt(A, frac);
 		tMt.toc();
+		for (const auto& e : A) vv += e;
 
 		rg.gen_matrix_norm(A);
 		tB.tic();
 		iM.ewBinarize_ip(A, frac);
 		tB.toc();
+		for (const auto& e : A) vv += e;
 	}
 	tSt.say("st");
-	dt.say("st");
+	//dt.say("st");
 	//t1.say("ex");
 	//dt1.say("ex");
 	//t2.say("ex2");
 	//dt2.say("ex2");
 
-
-
 	tMt.say("mt");
 	tB.say("best");
+	STDCOUTL(vv);
 }
 
 TEST(TestMathNThr, ewBinarizeIp) {
@@ -830,9 +831,9 @@ TEST(TestMathNThr, ewBinarizeIp) {
 		//test_ewBinarize_ip_perf(i, 100, .9);
 	}
 
-#ifndef TESTS_SKIP_LONGRUNNING
-	test_ewBinarize_ip_perf(100000, 10, .5);
-#endif
+// #ifndef TESTS_SKIP_LONGRUNNING
+// 	test_ewBinarize_ip_perf(100000, 10, .5);
+// #endif
 }
 
 
@@ -850,26 +851,31 @@ void test_ewBinarize_perf(vec_len_t rowsCnt, vec_len_t colsCnt = 10, const real_
 	d_interfaces::iRng_t rg;
 	rg.set_ithreads(iM.ithreads());
 	tictoc tSt, tMt, tB;
-	utils::prioritize_workers<utils::PriorityClass::PerfTesting, imath_basic_t::ithreads_t> pw(iM.ithreads());
+	size_t vv = 0;
+	utils::prioritize_workers<utils::PriorityClass::PerfTesting, imath_basic_t::iThreads_t> pw(iM.ithreads());
 	for (unsigned r = 0; r < maxReps; ++r) {
 		rg.gen_matrix_norm(A);
 		tSt.tic();
 		iM.ewBinarize_st(Dest, A, frac);
 		tSt.toc();
+		for (const auto& e : Dest) vv += e;
 		
 		rg.gen_matrix_norm(A);
 		tMt.tic();
 		iM.ewBinarize_mt(Dest, A, frac);
 		tMt.toc();
+		for (const auto& e : Dest) vv += e;
 
 		rg.gen_matrix_norm(A);
 		tB.tic();
 		iM.ewBinarize(Dest, A, frac);
 		tB.toc();
+		for (const auto& e : Dest) vv += e;
 	}
 	tSt.say("st");
 	tMt.say("mt");
 	tB.say("best");
+	STDCOUTL(vv);
 }
 
 TEST(TestMathNThr, ewBinarize) {
@@ -878,10 +884,10 @@ TEST(TestMathNThr, ewBinarize) {
 		//test_ewBinarize_perf(i, 100, .1);
 		//test_ewBinarize_perf(i, 100, .9);
 	}
-
-#ifndef TESTS_SKIP_LONGRUNNING
-	test_ewBinarize_perf(100000, 10, .5);
-#endif
+// 
+// #ifndef TESTS_SKIP_LONGRUNNING
+// 	test_ewBinarize_perf(100000, 10, .5);
+// #endif
 }
 
 //////////////////////////////////////////////////////////////////////////
@@ -1342,7 +1348,7 @@ void test_make_alphaDropout_perf(vec_len_t rowsCnt, vec_len_t colsCnt = 10, cons
 	real_t t = real_t(0);
 	tictoc tSt, tMt, tB;
 
-	utils::prioritize_workers<utils::PriorityClass::PerfTesting, imath_basic_t::ithreads_t> pw(iM.ithreads());
+	utils::prioritize_workers<utils::PriorityClass::PerfTesting, imath_basic_t::iThreads_t> pw(iM.ithreads());
 	for (unsigned r = 0; r < maxReps; ++r) {
 
 		rg.gen_matrix_no_bias(A, real_t(5));
@@ -1376,12 +1382,16 @@ void test_make_alphaDropout_perf(vec_len_t rowsCnt, vec_len_t colsCnt = 10, cons
 TEST(TestMathNThr, make_alphaDropout) {
 	NNTL_RUN_TEST2(imath_basic_t::Thresholds_t::make_alphaDropout, 100) {
 		test_make_alphaDropout_perf(i, 100, real_t(.5));
-		test_make_alphaDropout_perf(i, 100, real_t(.2));
+	}
+	NNTL_RUN_TEST2(imath_basic_t::Thresholds_t::make_alphaDropout, 100) {
 		test_make_alphaDropout_perf(i, 100, real_t(.8));
+	}
+	NNTL_RUN_TEST2(imath_basic_t::Thresholds_t::make_alphaDropout, 100) {
+		test_make_alphaDropout_perf(i, 100, real_t(.9));
 	}
 
 #ifndef TESTS_SKIP_LONGRUNNING
-	test_make_alphaDropout_perf(10000, 10, .5);
+	test_make_alphaDropout_perf(10000, 10, real_t(.8));
 #endif
 }
 
@@ -1406,7 +1416,7 @@ void test_evSubMtxMulC_ip_nb_perf(vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 	real_t t = real_t(0);
 	tictoc tSt, tMt, tB;
 
-	utils::prioritize_workers<utils::PriorityClass::PerfTesting, imath_basic_t::ithreads_t> pw(iM.ithreads());
+	utils::prioritize_workers<utils::PriorityClass::PerfTesting, imath_basic_t::iThreads_t> pw(iM.ithreads());
 	for (unsigned r = 0; r < maxReps; ++r) {
 
 		rg.gen_matrix_no_bias(A, real_t(5));
@@ -1468,7 +1478,7 @@ void test_evAddScaled_ip_perf(vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 	real_t t = real_t(0);
 	tictoc tSt, tMt, tB;
 
-	utils::prioritize_workers<utils::PriorityClass::PerfTesting, imath_basic_t::ithreads_t> pw(iM.ithreads());
+	utils::prioritize_workers<utils::PriorityClass::PerfTesting, imath_basic_t::iThreads_t> pw(iM.ithreads());
 	for (unsigned r = 0; r < maxReps; ++r) {
 
 		rg.gen_matrix(A, real_t(2)); rg.gen_matrix(B, real_t(3));
@@ -1520,7 +1530,7 @@ void test_evNZAddScaled_ip_perf(vec_len_t rowsCnt, vec_len_t colsCnt = 10, const
 	real_t t = real_t(0);
 	tictoc tSt, tMt, tB;
 
-	utils::prioritize_workers<utils::PriorityClass::PerfTesting, imath_basic_t::ithreads_t> pw(iM.ithreads());
+	utils::prioritize_workers<utils::PriorityClass::PerfTesting, imath_basic_t::iThreads_t> pw(iM.ithreads());
 	for (unsigned r = 0; r < maxReps; ++r) {
 
 		rg.gen_matrix(A, real_t(2)); rg.gen_matrix(B, real_t(3));
@@ -1560,5 +1570,58 @@ void test_evNZAddScaled_ip_perf(vec_len_t rowsCnt, vec_len_t colsCnt = 10, const
 TEST(TestMathNThr, evNZAddScaled_ip) {
 	NNTL_RUN_TEST2(imath_basic_t::Thresholds_t::evNZAddScaled_ip, 10) {
 		test_evNZAddScaled_ip_perf(i, 10);
+	}
+}
+
+//////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////
+
+void test_evMul_ip_perf(vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
+	const auto dataSize = realmtx_t::sNumel(rowsCnt, colsCnt);
+	STDCOUTL("**** testing evMul_ip() over " << rowsCnt << "x" << colsCnt << " matrix (" << dataSize << " elements)");
+
+	constexpr unsigned maxReps = TEST_PERF_REPEATS_COUNT;
+	realmtx_t A(rowsCnt, colsCnt), B(rowsCnt, colsCnt);
+	const real_t c = real_t(4);
+
+	ASSERT_TRUE(!A.isAllocationFailed() && !B.isAllocationFailed());
+
+	d_interfaces::iRng_t rg;
+	rg.set_ithreads(iM.ithreads());
+
+	real_t t = real_t(0);
+	tictoc tSt, tMt, tB;
+
+	utils::prioritize_workers<utils::PriorityClass::PerfTesting, imath_basic_t::iThreads_t> pw(iM.ithreads());
+	for (unsigned r = 0; r < maxReps; ++r) {
+
+		rg.gen_matrix(A, real_t(2)); rg.gen_matrix(B, real_t(3));
+		tSt.tic();
+		iM.evMul_ip_st(A, B);
+		tSt.toc();
+		for (const auto& e : A) t += e;
+
+		rg.gen_matrix(A, real_t(2)); rg.gen_matrix(B, real_t(3));
+		tMt.tic();
+		iM.evMul_ip_mt(A, B);
+		tMt.toc();
+		for (const auto& e : A) t += e;
+
+		rg.gen_matrix(A, real_t(2)); rg.gen_matrix(B, real_t(3));
+		tB.tic();
+		iM.evMul_ip(A, B);
+		tB.toc();
+		for (const auto& e : A) t += e;
+	}
+	tSt.say("st");
+	tMt.say("mt");
+	tB.say("best");
+
+	STDCOUTL(t);
+}
+
+TEST(TestMathNThr, evMul_ip) {
+	NNTL_RUN_TEST2(imath_basic_t::Thresholds_t::evMul_ip, 10) {
+		test_evMul_ip_perf(i, 10);
 	}
 }

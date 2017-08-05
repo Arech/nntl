@@ -758,5 +758,12 @@ void evSubMtxMulC_ip_nb_ET(realmtx_t& A, const realmtx_t& M, const real_t c)noex
 		pA[i] = (pA[i] - pM[i])*c;
 	}
 }
-
+//////////////////////////////////////////////////////////////////////////
+void evMul_ip_ET(realmtx_t& A, const realmtx_t& B)noexcept {
+	NNTL_ASSERT(A.size() == B.size());
+	const auto pA = A.data();
+	const auto pB = B.data();
+	const auto ne = A.numel();
+	for (size_t i = 0; i < ne; ++i) pA[i] *= pB[i];
+}
 

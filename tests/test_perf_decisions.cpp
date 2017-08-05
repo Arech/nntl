@@ -67,6 +67,109 @@ constexpr unsigned TEST_CORRECTN_REPEATS_COUNT = 50;
 
 //////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////
+//faster!
+template<typename iMathT, typename iRngT>
+void makeDropout_old(iMathT& iM, iRngT& iR, typename iMathT::real_t dpa
+	, typename iMathT::realmtx_t& DM, typename iMathT::realmtx_t& Act)noexcept
+{
+	NNTL_ASSERT(Act.emulatesBiases() && Act.test_biases_strict());
+	iR.gen_vector_norm_st(DM.data(), DM.numel());
+	iM.make_dropout_st(Act, dpa, DM);
+	NNTL_ASSERT(Act.emulatesBiases() && Act.test_biases_strict());
+}
+//slower!
+template<typename iMathT, typename iRngT>
+void makeDropout_new(iMathT& iM, iRngT& iR, typename iMathT::real_t dpa
+	, typename iMathT::realmtx_t& DM, typename iMathT::realmtx_t& Act)noexcept
+{
+	NNTL_ASSERT(Act.emulatesBiases() && Act.test_biases_strict());
+	iR.bernoulli_vector_st(DM.data(), DM.numel(), dpa, real_t(1) / dpa, real_t(0));
+	iM.evMul_ip_Anb_st(Act, DM);
+	NNTL_ASSERT(Act.emulatesBiases() && Act.test_biases_strict());
+}
+
+template<typename iMathT, typename iRngT>
+void testperf_makeDropout(iMathT& iM, iRngT& iR, typename iMathT::real_t dpa, vec_len_t _r, vec_len_t _c)noexcept {
+	typedef typename iMathT::real_t real_t;
+	typedef typename iMathT::realmtx_t realmtx_t;
+
+	realmtx_t DM(_r, _c), Act(_r, _c, true), DMe(_r, _c), Acte(_r, _c, true), Acts(_r, _c, true);
+
+	STDCOUTL("******* testing make_dropout() over " << _r << "x" << _c << " matrix (" << DM.numel() << " elements) ***********");
+
+	//checking coherence between implementations
+	iR.gen_matrix_no_bias(Act, real_t(2));
+	Act.clone_to(Acte);
+	Act.clone_to(Acts);
+
+	const size_t seedVal = ::std::time(0);
+	iR.seed64(seedVal);
+	iR.gen_vector_norm_st(DM.data(), DM.numel());
+	DM.clone_to(DMe);
+	make_dropout_ET(Acte, dpa, DMe);
+
+	DM.zeros();
+	iR.seed64(seedVal);
+	makeDropout_old(iM, iR, dpa, DM, Act);
+	ASSERT_MTX_EQ(Acte, Act, "Act mtx differs for makeDropout_old");
+	ASSERT_MTX_EQ(DMe, DM, "DM mtx differs for makeDropout_old");
+	
+	Acts.clone_to(Act);
+	DM.zeros();
+	iR.seed64(seedVal);
+	makeDropout_new(iM, iR, dpa, DM, Act);
+	ASSERT_MTX_EQ(Acte, Act, "Act mtx differs for makeDropout_old");
+	ASSERT_MTX_EQ(DMe, DM, "DM mtx differs for makeDropout_old");
+
+	tictoc tO, tN;
+	utils::prioritize_workers<utils::PriorityClass::PerfTesting, typename iMathT::iThreads_t> pw(iR.ithreads());
+	real_t v = real_t(0);
+	for (unsigned i = 0; i < TEST_PERF_REPEATS_COUNT; ++i) {
+		iR.gen_matrix_no_bias(Act, real_t(2));
+		tO.tic();
+		makeDropout_old(iM, iR, dpa, DM, Act);
+		tO.toc();
+		for (const auto& e : Act) v += e;
+		v = ::std::log(::std::abs(v));
+
+		iR.gen_matrix_no_bias(Act, real_t(2));
+		tN.tic();
+		makeDropout_new(iM, iR, dpa, DM, Act);
+		tN.toc();
+		for (const auto& e : Act) v += e;
+		v = ::std::log(::std::abs(v));
+	}
+
+	tO.say("old");
+	tN.say("new");
+	STDCOUTL(v);
+}
+
+TEST(TestPerfDecisions, makeDropoutPerf) {
+	typedef typename d_interfaces::real_t real_t;
+
+	d_interfaces::iMath_t iM;
+	d_interfaces::iRng_t rg;
+	rg.set_ithreads(iM.ithreads());
+
+#ifdef NNTL_DEBUG
+	testperf_makeDropout(iM, rg, real_t(.5), 100, 100);
+#else
+	STDCOUTL("=============== Small ===============");
+	testperf_makeDropout(iM, rg, real_t(.5), 100, 50);
+	testperf_makeDropout(iM, rg, real_t(.7), 100, 50);
+	testperf_makeDropout(iM, rg, real_t(.85), 100, 50);
+
+	STDCOUTL("=============== Big ===============");
+	testperf_makeDropout(iM, rg, real_t(.5), 1000, 100);
+	testperf_makeDropout(iM, rg, real_t(.7), 1000, 100);
+	testperf_makeDropout(iM, rg, real_t(.85), 1000, 100);
+#endif
+}
+
+
+//////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////
 
 template<typename RealT>
 void makeDropoutMask_baseline(math::smatrix<RealT>& dropoutMask, const RealT dpa)noexcept {
@@ -309,7 +412,7 @@ void check_softmax_parts(iMath& iM, vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 	tictoc tStCw, tStRw;
 	//////////////////////////////////////////////////////////////////////////
 	//testing performance
-	utils::prioritize_workers<utils::PriorityClass::PerfTesting, iMath::ithreads_t> pw(iM.ithreads());
+	utils::prioritize_workers<utils::PriorityClass::PerfTesting, iMath::iThreads_t> pw(iM.ithreads());
 
 	//FFFFfffffffff... don't ever think about removing rg. calls that randomizes data...
 	for (unsigned r = 0; r < maxReps; ++r) {
@@ -466,7 +569,7 @@ void check_maxRowwise(iMath& iM, vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 	tictoc tStNaive, tStMemf, tStMemfOpt;
 	//////////////////////////////////////////////////////////////////////////
 	//testing performance
-	utils::prioritize_workers<utils::PriorityClass::PerfTesting, iMath::ithreads_t> pw(iM.ithreads());
+	utils::prioritize_workers<utils::PriorityClass::PerfTesting, iMath::iThreads_t> pw(iM.ithreads());
 
 	//FFFFfffffffff... don't ever think about removing rg. calls that randomizes data...
 	for (unsigned r = 0; r < maxReps; ++r) {
@@ -541,7 +644,7 @@ void check_evCMulSub(iMath& iM, vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 	vW2.clone_to(vW);
 	W2.clone_to(W);
 
-	utils::prioritize_workers<utils::PriorityClass::PerfTesting, iMath::ithreads_t> pw(iM.ithreads());
+	utils::prioritize_workers<utils::PriorityClass::PerfTesting, iMath::iThreads_t> pw(iM.ithreads());
 
 	nanoseconds diffEv(0), diffComb(0);
 	for (unsigned r = 0; r < maxReps; ++r) {
@@ -658,7 +761,7 @@ void check_mTranspose(iMath& iM, vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 	mTranspose_OpenBLAS(src, dest);
 	ASSERT_EQ(destEt, dest) << "mTranspose_OpenBLAS failed";
 
-	utils::prioritize_workers<utils::PriorityClass::PerfTesting, iMath::ithreads_t> pw(iM.ithreads());
+	utils::prioritize_workers<utils::PriorityClass::PerfTesting, iMath::iThreads_t> pw(iM.ithreads());
 
 	steady_clock::time_point bt;
 	nanoseconds diffSR(0), diffSW(0), diffOB(0);
@@ -1099,7 +1202,7 @@ void check_rowwiseNormsq(iMath& iM, vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 	rowwise_normsq_clmnw(W, &normvec[0]);
 	ASSERT_TRUE(0 == memcmp(&normvec[0], &normvecEt[0], rowsCnt*sizeof(real_t))) << "rowwise_normsq_clmnw wrong implementation";
 
-	utils::prioritize_workers<utils::PriorityClass::PerfTesting, iMath::ithreads_t> pw(iM.ithreads());
+	utils::prioritize_workers<utils::PriorityClass::PerfTesting, iMath::iThreads_t> pw(iM.ithreads());
 
 	steady_clock::time_point bt;
 	nanoseconds diffNaive(0), diffClmnw(0);
@@ -1254,7 +1357,7 @@ void check_sigm_loss_xentropy(iMath& iM, vec_len_t rowsCnt, vec_len_t colsCnt = 
 	d_interfaces::iRng_t rg;
 	rg.set_ithreads(iM.ithreads());
 
-	utils::prioritize_workers<utils::PriorityClass::PerfTesting, iMath::ithreads_t> pw(iM.ithreads());
+	utils::prioritize_workers<utils::PriorityClass::PerfTesting, iMath::iThreads_t> pw(iM.ithreads());
 
 	run_sigm_loss_xentropy(rg, iM, act, data_y, t1, t2, maxReps, real_t(.5));
 	run_sigm_loss_xentropy(rg, iM, act, data_y, t1, t2, maxReps, real_t(.1));
@@ -1322,7 +1425,7 @@ void check_apply_momentum_perf(iMath& iM, vec_len_t rowsCnt, vec_len_t colsCnt =
 	rg.gen_matrix(dW, 2);
 	rg.gen_matrix(vW, 2);
 
-	utils::prioritize_workers<utils::PriorityClass::PerfTesting, iMath::ithreads_t> pw(iM.ithreads());
+	utils::prioritize_workers<utils::PriorityClass::PerfTesting, iMath::iThreads_t> pw(iM.ithreads());
 
 	bt = steady_clock::now();
 	for (unsigned r = 0; r < maxReps; ++r)  apply_momentum_FOR(vW, momentum, dW);
@@ -1382,7 +1485,7 @@ void test_sign_perf(iMath& iM, vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 	rg.set_ithreads(iM.ithreads());
 
 	//testing performance
-	utils::prioritize_workers<utils::PriorityClass::PerfTesting, iMath::ithreads_t> pw(iM.ithreads());
+	utils::prioritize_workers<utils::PriorityClass::PerfTesting, iMath::iThreads_t> pw(iM.ithreads());
 
 	real_t lr = real_t(.1);
 
@@ -1592,108 +1695,6 @@ TEST(TestPerfDecisions, RmsPropH) {
 }
 */
 
-
-//////////////////////////////////////////////////////////////////////////
-// perf test to find out which strategy better to performing dropout - processing elementwise, or 'vectorized'
-// dropout_batch is significantly faster
-/*
-template<typename iRng_t, typename iMath_t>
-void dropout_batch(realmtx_t& activs, real_t dropoutFraction, realmtx_t& dropoutMask, iRng_t& iR, iMath_t& iM) {
-	NNTL_ASSERT(activs.size() == dropoutMask.size());
-	NNTL_ASSERT(activs.emulatesBiases() && dropoutMask.emulatesBiases());
-	NNTL_ASSERT(dropoutFraction > 0 && dropoutFraction < 1);
-
-	iR.gen_matrix_no_bias_gtz(dropoutMask, 1);
-	auto pDM = dropoutMask.data();
-	const auto pDME = pDM + dropoutMask.numel_no_bias();
-	while (pDM != pDME) {
-		auto v = *pDM;
-		*pDM++ = v > dropoutFraction ? real_t(1.0) : real_t(0.0);
-	}
-	iM.evMul_ip_st_naive(activs, dropoutMask);
-}
-
-template<typename iRng_t>
-void dropout_ew(realmtx_t& activs, real_t dropoutFraction, realmtx_t& dropoutMask, iRng_t& iR) {
-	NNTL_ASSERT(activs.size() == dropoutMask.size());
-	NNTL_ASSERT(activs.emulatesBiases() && dropoutMask.emulatesBiases());
-	NNTL_ASSERT(dropoutFraction > 0 && dropoutFraction < 1);
-
-	const auto dataCnt = activs.numel_no_bias();
-	auto pDM = dropoutMask.data();
-	auto pA = activs.data();
-	for (numel_cnt_t i = 0; i < dataCnt; ++i) {
-		const auto rv = iR.gen_f_norm();
-		if (rv > dropoutFraction) {
-			pDM[i] = 1;
-		} else {
-			pDM[i] = 0;
-			pA[i] = 0;
-		}
-	}
-}
-
-template<typename iMath>
-void test_dropout_perf(iMath& iM, vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
-	typedef typename iMath::realmtx_t realmtx_t;
-	typedef typename realmtx_t::value_type real_t;
-	typedef typename realmtx_t::numel_cnt_t numel_cnt_t;
-
-	using namespace ::std::chrono;
-	const auto dataSize = realmtx_t::sNumel(rowsCnt, colsCnt);
-	STDCOUTL("******* testing dropout variations over " << rowsCnt << "x" << colsCnt << " matrix (" << dataSize << " elements) **************");
-
-	double tBatch, tEw;
-	steady_clock::time_point bt;
-	nanoseconds diff;
-	constexpr unsigned maxReps = TEST_PERF_REPEATS_COUNT;
-
-	real_t dropoutFraction = .5;
-
-	realmtx_t act(rowsCnt, colsCnt, true), dm(rowsCnt, colsCnt, true);
-	ASSERT_TRUE(!act.isAllocationFailed() && !dm.isAllocationFailed());
-
-
-	d_interfaces::iRng_t rg;
-	rg.set_ithreads(iM.ithreads());
-	rg.gen_matrix_no_bias(act, 100);
-
-	//testing performance
-	utils::prioritize_workers<utils::PriorityClass::PerfTesting, iMath::ithreads_t> pw(iM.ithreads());
-
-	bt = steady_clock::now();
-	for (unsigned r = 0; r < maxReps; ++r) {
-		dropout_ew(act, dropoutFraction, dm, rg);
-	}
-	diff = steady_clock::now() - bt;
-	STDCOUTL("ew:\t" << utils::duration_readable(diff, maxReps, &tEw));
-
-	bt = steady_clock::now();
-	for (unsigned r = 0; r < maxReps; ++r) {
-		dropout_batch(act, dropoutFraction, dm, rg, iM);
-	}
-	diff = steady_clock::now() - bt;
-	STDCOUTL("batch:\t" << utils::duration_readable(diff, maxReps, &tBatch));
-}
-*/
-
-/*
- * this test is a BS
-TEST(TestPerfDecisions, Dropout) {
-	typedef nntl::d_interfaces::iThreads_t def_threads_t;
-	typedef math::MathN<real_t, def_threads_t> iMB;
-
-	iMB iM;
-
-	//for (unsigned i = 100; i <= 140; i+=1) test_dropout_perf(iM, i,100);
-
-	test_dropout_perf(iM, 100, 10);
-#ifndef TESTS_SKIP_LONGRUNNING
-	test_dropout_perf(iM, 1000);
-	test_dropout_perf(iM, 10000);
-	//test_dropout_perf(iM, 100000);
-#endif
-}*/
 //////////////////////////////////////////////////////////////////////////
 
 #include "../nntl/weights_init.h"

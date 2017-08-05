@@ -201,3 +201,5 @@ void make_alphaDropout_ET(realmtx_t& act, const real_t dropPercAct
 	, realmtx_t& dropoutMask, realmtx_t& mtxB) noexcept;
 
 void evSubMtxMulC_ip_nb_ET(realmtx_t& A, const realmtx_t& M, const real_t c)noexcept;
+
+void evMul_ip_ET(realmtx_t& A, const realmtx_t& B)noexcept;

@@ -71,11 +71,11 @@ using namespace ::std::chrono;
 #ifdef TESTS_SKIP_LONGRUNNING
 constexpr unsigned TEST_PERF_REPEATS_COUNT = 10;
 //constexpr unsigned TEST_CORRECTN_REPEATS_COUNT = 100;
-constexpr unsigned TEST_CORRECTN_REPEATS_COUNT = 30, _baseRowsCnt = 30;
+constexpr unsigned TEST_CORRECTN_REPEATS_COUNT = 5, _baseRowsCnt = 20;
 #else
 constexpr unsigned TEST_PERF_REPEATS_COUNT = 500;
 //constexpr unsigned TEST_CORRECTN_REPEATS_COUNT = 50;
-constexpr unsigned TEST_CORRECTN_REPEATS_COUNT = 60, _baseRowsCnt = 300;
+constexpr unsigned TEST_CORRECTN_REPEATS_COUNT = 10, _baseRowsCnt = 200;
 #endif // NNTL_DEBUG
 
 //////////////////////////////////////////////////////////////////////////
@@ -367,8 +367,6 @@ void test_ewBinarize_ip_corr(vec_len_t rowsCnt, vec_len_t colsCnt = 10, const re
 		iM.ex2_ewBinarize_ip_st(A, frac);
 		ASSERT_MTX_EQ(A_ET, A, "ex2_st() failed correctness test");*/
 
-
-
 		A_orig.clone_to(A);
 		iM.ewBinarize_ip_mt(A, frac);
 		ASSERT_MTX_EQ(A_ET, A, "mt() failed correctness test");
@@ -377,11 +375,10 @@ void test_ewBinarize_ip_corr(vec_len_t rowsCnt, vec_len_t colsCnt = 10, const re
 		iM.ewBinarize_ip(A, frac);
 		ASSERT_MTX_EQ(A_ET, A, "() failed correctness test");
 	}
-
 }
 
 TEST(TestMathN, ewBinarizeIp) {
-	const numel_cnt_t elmsMax = g_MinDataSizeDelta;
+	const numel_cnt_t elmsMax = 3*g_MinDataSizeDelta;
 	for (numel_cnt_t e = 1; e < elmsMax; ++e) {
 		ASSERT_NO_FATAL_FAILURE(test_ewBinarize_ip_corr(static_cast<vec_len_t>(e), 1, real_t(.5)));
 		ASSERT_NO_FATAL_FAILURE(test_ewBinarize_ip_corr(static_cast<vec_len_t>(e), 1, real_t(.1)));
@@ -661,7 +658,7 @@ void test_vSumAbs(iMath& iM, vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 	tictoc tst, tmt, tb;
 	//////////////////////////////////////////////////////////////////////////
 	//testing performance
-	utils::prioritize_workers<utils::PriorityClass::PerfTesting, iMath::ithreads_t> pw(iM.ithreads());
+	utils::prioritize_workers<utils::PriorityClass::PerfTesting, iMath::iThreads_t> pw(iM.ithreads());
 
 	//FFFFfffffffff... don't ever think about removing rg. calls that randomizes data...
 	real_t vv = 0;
@@ -741,7 +738,7 @@ void test_evAddScaledSign_ip(iMath& iM, vec_len_t rowsCnt, vec_len_t colsCnt = 1
 	tictoc tst, tmt, tb;
 	//////////////////////////////////////////////////////////////////////////
 	//testing performance
-	utils::prioritize_workers<utils::PriorityClass::PerfTesting, iMath::ithreads_t> pw(iM.ithreads());
+	utils::prioritize_workers<utils::PriorityClass::PerfTesting, iMath::iThreads_t> pw(iM.ithreads());
 
 	//FFFFfffffffff... don't ever think about removing rg. calls that randomizes data...
 	for (unsigned r = 0; r < maxReps; ++r) {
@@ -863,7 +860,7 @@ void test_evAdd_ip(iMath& iM, vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 	tictoc tst, tmt, tb;
 	//////////////////////////////////////////////////////////////////////////
 	//testing performance
-	utils::prioritize_workers<utils::PriorityClass::PerfTesting, iMath::ithreads_t> pw(iM.ithreads());
+	utils::prioritize_workers<utils::PriorityClass::PerfTesting, iMath::iThreads_t> pw(iM.ithreads());
 
 	//FFFFfffffffff... don't ever think about removing rg. calls that randomizes data...
 	for (unsigned r = 0; r < maxReps; ++r) {
@@ -938,7 +935,7 @@ void test_evMulCipSubip(iMath& iM, vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 
 	tictoc tst, tmt, tb;
 	//testing performance
-	utils::prioritize_workers<utils::PriorityClass::PerfTesting, iMath::ithreads_t> pw(iM.ithreads());
+	utils::prioritize_workers<utils::PriorityClass::PerfTesting, iMath::iThreads_t> pw(iM.ithreads());
 	for (unsigned r = 0; r < maxReps; ++r) {
 		rg.gen_matrix(vW, 2);
 		rg.gen_matrix(W, 2);
@@ -1074,7 +1071,7 @@ void test_evSub(iMath& iM, vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 
 	//////////////////////////////////////////////////////////////////////////
 	//testing performance
-	utils::prioritize_workers<utils::PriorityClass::PerfTesting, iMath::ithreads_t> pw(iM.ithreads());
+	utils::prioritize_workers<utils::PriorityClass::PerfTesting, iMath::iThreads_t> pw(iM.ithreads());
 
 	bt = steady_clock::now();
 	for (unsigned r = 0; r < maxReps; ++r) iM.evSub_st_naive(A, B, C);
@@ -1153,7 +1150,7 @@ void test_evSub_ip(iMath& iM, vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 
 	//////////////////////////////////////////////////////////////////////////
 	//testing performance
-	utils::prioritize_workers<utils::PriorityClass::PerfTesting, iMath::ithreads_t> pw(iM.ithreads());
+	utils::prioritize_workers<utils::PriorityClass::PerfTesting, iMath::iThreads_t> pw(iM.ithreads());
 	
 	rg.gen_matrix(A, 2);
 	bt = steady_clock::now();
@@ -1241,7 +1238,7 @@ void test_apply_momentum(iMath& iM, vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 
 	//////////////////////////////////////////////////////////////////////////
 	//testing performance
-	utils::prioritize_workers<utils::PriorityClass::PerfTesting, iMath::ithreads_t> pw(iM.ithreads());
+	utils::prioritize_workers<utils::PriorityClass::PerfTesting, iMath::iThreads_t> pw(iM.ithreads());
 
 	bt = steady_clock::now();
 	for (unsigned r = 0; r < maxReps; ++r) iM.apply_momentum_st(vW, momentum, dW);
@@ -1388,7 +1385,7 @@ void test_evAbs_perf(iMath& iM, vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 
 	//////////////////////////////////////////////////////////////////////////
 	//testing performance
-	utils::prioritize_workers<utils::PriorityClass::PerfTesting, iMath::ithreads_t> pw(iM.ithreads());
+	utils::prioritize_workers<utils::PriorityClass::PerfTesting, iMath::iThreads_t> pw(iM.ithreads());
 
 	bt = steady_clock::now();
 	for (unsigned r = 0; r < maxReps; ++r)  iM.evAbs_st(dest, src);
@@ -1454,7 +1451,7 @@ void test_evSquare_perf(iMath& iM, vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 
 	//////////////////////////////////////////////////////////////////////////
 	//testing performance
-	utils::prioritize_workers<utils::PriorityClass::PerfTesting, iMath::ithreads_t> pw(iM.ithreads());
+	utils::prioritize_workers<utils::PriorityClass::PerfTesting, iMath::iThreads_t> pw(iM.ithreads());
 	
 	bt = steady_clock::now();
 	for (unsigned r = 0; r < maxReps; ++r) iM.evSquare_st(dest,src);
@@ -1538,7 +1535,7 @@ void test_modprop_perf(iMath& iM, vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 
 	//////////////////////////////////////////////////////////////////////////
 	//testing performance
-	utils::prioritize_workers<utils::PriorityClass::PerfTesting, iMath::ithreads_t> pw(iM.ithreads());
+	utils::prioritize_workers<utils::PriorityClass::PerfTesting, iMath::iThreads_t> pw(iM.ithreads());
 
 	diff = nanoseconds(0);
 	for (unsigned r = 0; r < maxReps; ++r) {
@@ -1620,7 +1617,7 @@ void test_rprop_perf(iMath& iM, vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 	}
 	//////////////////////////////////////////////////////////////////////////
 	//testing performance
-	utils::prioritize_workers<utils::PriorityClass::PerfTesting, iMath::ithreads_t> pw(iM.ithreads());
+	utils::prioritize_workers<utils::PriorityClass::PerfTesting, iMath::iThreads_t> pw(iM.ithreads());
 
 	diff = nanoseconds(0);
 	for (unsigned r = 0; r < maxReps; ++r) {
@@ -1721,7 +1718,7 @@ void test_rmspropgraves_perf(iMath& iM, vec_len_t rowsCnt, vec_len_t colsCnt = 1
 	}
 	//////////////////////////////////////////////////////////////////////////
 	//testing performance
-	utils::prioritize_workers<utils::PriorityClass::PerfTesting, iMath::ithreads_t> pw(iM.ithreads());
+	utils::prioritize_workers<utils::PriorityClass::PerfTesting, iMath::iThreads_t> pw(iM.ithreads());
 
 	diff = nanoseconds(0);
 	for (unsigned r = 0; r < maxReps; ++r) {
@@ -1811,7 +1808,7 @@ void test_rmsprophinton_perf(iMath& iM, vec_len_t rowsCnt, vec_len_t colsCnt = 1
 	}
 	//////////////////////////////////////////////////////////////////////////
 	//testing performance
-	utils::prioritize_workers<utils::PriorityClass::PerfTesting, iMath::ithreads_t> pw(iM.ithreads());
+	utils::prioritize_workers<utils::PriorityClass::PerfTesting, iMath::iThreads_t> pw(iM.ithreads());
 
 	diff = nanoseconds(0);
 	for (unsigned r = 0; r < maxReps; ++r) {
@@ -1908,7 +1905,7 @@ void test_Adam_corr(const size_t epochs, const vec_len_t maxRowsCnt, const vec_l
 }
 
 TEST(TestMathN, Adam) {
-	test_Adam_corr(10, g_MinDataSizeDelta * 2, g_MinDataSizeDelta * 2);
+	test_Adam_corr(10, g_MinDataSizeDelta, g_MinDataSizeDelta);
 }
 
 //////////////////////////////////////////////////////////////////////////
@@ -1965,7 +1962,7 @@ void test_AdaMax_corr(const size_t epochs, const vec_len_t maxRowsCnt, const vec
 }
 
 TEST(TestMathN, AdaMax) {
-	test_AdaMax_corr(10, g_MinDataSizeDelta * 2, g_MinDataSizeDelta * 2);
+	test_AdaMax_corr(10, g_MinDataSizeDelta, g_MinDataSizeDelta);
 }
 
 //////////////////////////////////////////////////////////////////////////
@@ -2031,7 +2028,7 @@ void test_Nadam_corr(const size_t epochs, const vec_len_t maxRowsCnt, const vec_
 }
 
 TEST(TestMathN, Nadam) {
-	test_Nadam_corr(10, g_MinDataSizeDelta * 2, g_MinDataSizeDelta * 2);
+	test_Nadam_corr(10, g_MinDataSizeDelta, g_MinDataSizeDelta);
 }
 
 
@@ -2095,7 +2092,7 @@ void test_Radam_corr(const size_t epochs, const vec_len_t maxRowsCnt, const vec_
 }
 
 TEST(TestMathN, Radam) {
-	test_Radam_corr(10, g_MinDataSizeDelta * 2, g_MinDataSizeDelta * 2);
+	test_Radam_corr(10, g_MinDataSizeDelta, g_MinDataSizeDelta);
 }
 
 
@@ -2152,7 +2149,7 @@ void test_make_dropout_perf(iMath& iM, vec_len_t rowsCnt, vec_len_t colsCnt = 10
 	}
 	//////////////////////////////////////////////////////////////////////////
 	//testing performance
-	utils::prioritize_workers<utils::PriorityClass::PerfTesting, iMath::ithreads_t> pw(iM.ithreads());
+	utils::prioritize_workers<utils::PriorityClass::PerfTesting, iMath::iThreads_t> pw(iM.ithreads());
 
 	rg.gen_matrix_no_bias(act, 5);
 	ASSERT_TRUE(act.test_biases_ok());
@@ -2254,7 +2251,7 @@ void test_vCountSame_perf(iMath& iM, vec_len_t rowsCnt) {
 	rg.gen_vector_gtz(&v2[0], rowsCnt, (vec_t::value_type)5);
 
 	//testing performance
-	utils::prioritize_workers<utils::PriorityClass::PerfTesting, iMath::ithreads_t> pw(iM.ithreads());
+	utils::prioritize_workers<utils::PriorityClass::PerfTesting, iMath::iThreads_t> pw(iM.ithreads());
 
 	iM.vCountSame_st_naive(v1, v2);
 	vv = 0;
@@ -2316,7 +2313,7 @@ void test_evClamp_perf(iMath& iM, vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 	rg.gen_matrix(m, 100);
 
 	//testing performance
-	utils::prioritize_workers<utils::PriorityClass::PerfTesting, iMath::ithreads_t> pw(iM.ithreads());
+	utils::prioritize_workers<utils::PriorityClass::PerfTesting, iMath::iThreads_t> pw(iM.ithreads());
 
 	iM.evClamp_st(m, lo,hi);
 	bt = steady_clock::now();
@@ -2404,7 +2401,7 @@ void test_mExtractRows_perf(iMath& iM, vec_len_t rowsCnt, vec_len_t extrCnt, vec
 	rg.gen_vector_gtz(&vec[0], vec.size(), rowsCnt - 1);
 
 	//testing performance
-	utils::prioritize_workers<utils::PriorityClass::PerfTesting, iMath::ithreads_t> pw(iM.ithreads());
+	utils::prioritize_workers<utils::PriorityClass::PerfTesting, iMath::iThreads_t> pw(iM.ithreads());
 
 	iM.mExtractRows_st_naive(src, vec.begin(), dest);
 	bt = steady_clock::now();
@@ -2550,114 +2547,44 @@ TEST(TestMathN, mMulABt_Cnb_biased) {
 
 
 //////////////////////////////////////////////////////////////////////////
-template<typename iMath>
-void test_evMul_ip(iMath& iM, vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
-	const auto dataSize = realmtx_t::sNumel(rowsCnt, colsCnt);
-	STDCOUTL("********* testing evMul_ip() over " << rowsCnt << "x" << colsCnt << " matrix (" << dataSize << " elements) **************");
-
-	EXPECT_TRUE(steady_clock::is_steady);
-	double tstNaive, tmtNaive, tBest; //tmtVect, tstVect,
-	steady_clock::time_point bt;
-	nanoseconds diff;
+void test_evMul_ip(vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 	constexpr unsigned maxReps = TEST_PERF_REPEATS_COUNT;
-
-	realmtx_t m, etM(rowsCnt, colsCnt), etDest(rowsCnt, colsCnt), etB(rowsCnt, colsCnt), B;
-	ASSERT_EQ(dataSize, etM.numel());
-
-	//filling etalon
+	realmtx_t M(rowsCnt, colsCnt), etM(rowsCnt, colsCnt), testM(rowsCnt, colsCnt), etB(rowsCnt, colsCnt), B(rowsCnt, colsCnt);
+	
 	d_interfaces::iRng_t rg;
 	rg.set_ithreads(iM.ithreads());
-	rg.gen_matrix(etM, 5);
-	rg.gen_matrix(etB, 5);
-	ASSERT_TRUE(etB.clone_to(B));
-	auto ptrEtM = etM.data(), ptrDest = etDest.data(), ptretB=etB.data();
-	for (unsigned i = 0; i < dataSize; ++i) ptrDest[i] = ptrEtM[i]* ptretB[i];
-
-	//testing performance
-	utils::prioritize_workers<utils::PriorityClass::PerfTesting, iMath::ithreads_t> pw(iM.ithreads());
-
-	//////////////////////////////////////////////////////////////////////////
-	//single threaded naive
-	ASSERT_TRUE(etM.clone_to(m));
-	iM.evMul_ip_st_naive(m, B);
-	diff = nanoseconds(0);
 	for (unsigned r = 0; r < maxReps; ++r) {
-		ASSERT_TRUE(etM.clone_to(m));
-		bt = steady_clock::now();
-		iM.evMul_ip_st_naive(m, B);
-		diff += steady_clock::now() - bt;
-	}
-	ASSERT_EQ(m, etDest) << "evMul_ip_st_naive";
-	ASSERT_EQ(B, etB) << "evMul_ip_st_naive";
-	STDCOUTL("st_naive:\t" << utils::duration_readable(diff, maxReps, &tstNaive));
+		rg.gen_matrix(M, real_t(5));
+		rg.gen_matrix(B, real_t(5));
+		ASSERT_TRUE(M.clone_to(etM));
+		ASSERT_TRUE(B.clone_to(etB));
 
-	//////////////////////////////////////////////////////////////////////////
-	//multi threaded naive
-	ASSERT_TRUE(etM.clone_to(m));
-	iM.evMul_ip_mt_naive(m, B);
-	diff = nanoseconds(0);
-	for (unsigned r = 0; r < maxReps; ++r) {
-		ASSERT_TRUE(etM.clone_to(m));
-		bt = steady_clock::now();
-		iM.evMul_ip_mt_naive(m, B);
-		diff += steady_clock::now() - bt;
-	}
-	ASSERT_EQ(m, etDest) << "evMul_ip_mt_naive";
-	ASSERT_EQ(B, etB) << "evMul_ip_mt_naive";
-	STDCOUTL("mt_naive:\t" << utils::duration_readable(diff, maxReps, &tmtNaive));
+		evMul_ip_ET(etM, B);
+		ASSERT_MTX_EQ(B, etB, "changed B!");
 
-	//////////////////////////////////////////////////////////////////////////
-	//single threaded vectorized
-	/*ASSERT_TRUE(etM.clone_to(m));
-	iM.evMul_ip_st_vec(m, B);
-	diff = nanoseconds(0);
-	for (unsigned r = 0; r < maxReps; ++r) {
-		ASSERT_TRUE(etM.clone_to(m));
-		bt = steady_clock::now();
-		iM.evMul_ip_st_vec(m, B);
-		diff += steady_clock::now() - bt;
-	}
-	ASSERT_EQ(m, etDest) << "evMul_ip_st_vec";
-	ASSERT_EQ(B, etB) << "evMul_ip_st_vec";
-	STDCOUTL("st_vec:\t\t" << utils::duration_readable(diff, maxReps, &tstVect));
+		ASSERT_TRUE(M.clone_to(testM));
+		iM.evMul_ip_st(testM, B);
+		ASSERT_MTX_EQ(B, etB, "_st changed B!");
+		ASSERT_MTX_EQ(testM, etM, "_st wrong M!");
 
-	//////////////////////////////////////////////////////////////////////////
-	//multi threaded vectorized
-	ASSERT_TRUE(etM.clone_to(m));
-	iM.evMul_ip_mt_vec(m, B);
-	diff = nanoseconds(0);
-	for (unsigned r = 0; r < maxReps; ++r) {
-		ASSERT_TRUE(etM.clone_to(m));
-		bt = steady_clock::now();
-		iM.evMul_ip_mt_vec(m, B);
-		diff += steady_clock::now() - bt;
-	}
-	ASSERT_EQ(m, etDest) << "evMul_ip_mt_vec";
-	ASSERT_EQ(B, etB) << "evMul_ip_mt_vec";
-	STDCOUTL("mt_vec:\t\t" << utils::duration_readable(diff, maxReps, &tmtVect));
-*/
+		ASSERT_TRUE(M.clone_to(testM));
+		iM.evMul_ip_mt(testM, B);
+		ASSERT_MTX_EQ(B, etB, "_mt changed B!");
+		ASSERT_MTX_EQ(testM, etM, "_mt wrong M!");
 
-	//////////////////////////////////////////////////////////////////////////
-	//best guess
-	ASSERT_TRUE(etM.clone_to(m));
-	iM.evMul_ip(m, B);
-	diff = nanoseconds(0);
-	for (unsigned r = 0; r < maxReps; ++r) {
-		ASSERT_TRUE(etM.clone_to(m));
-		bt = steady_clock::now();
-		iM.evMul_ip(m, B);
-		diff += steady_clock::now() - bt;
+		ASSERT_TRUE(M.clone_to(testM));
+		iM.evMul_ip(testM, B);
+		ASSERT_MTX_EQ(B, etB, "() changed B!");
+		ASSERT_MTX_EQ(testM, etM, "() wrong M!");
 	}
-	ASSERT_EQ(m, etDest) << "evMul_ip";
-	ASSERT_EQ(B, etB) << "evMul_ip";
-	STDCOUTL("best:\t\t" << utils::duration_readable(diff, maxReps, &tBest));
 }
 
-TEST(TestMathN, evMulIp) {
-	typedef nntl::d_interfaces::iThreads_t def_threads_t;
-	typedef math::MathN<real_t, def_threads_t> iMB;
-	iMB iM;
-	NNTL_RUN_TEST2(iMB::Thresholds_t::evMul_ip, 100) test_evMul_ip(iM, i, 100);
+TEST(TestMathN, evMul_ip) {
+	for (vec_len_t r = 1; r < g_MinDataSizeDelta; ++r) {
+		for (vec_len_t c = 1; c < g_MinDataSizeDelta; ++c) {
+			ASSERT_NO_FATAL_FAILURE(test_evMul_ip(r, c));
+		}
+	}
 }
 
 //////////////////////////////////////////////////////////////////////////
@@ -2684,7 +2611,7 @@ void test_evMulC_ip(iMath& iM, vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 	for (unsigned i = 0; i < dataSize; ++i) ptrDest[i] = mulC*ptrEtM[i];
 	
 	//testing performance
-	utils::prioritize_workers<utils::PriorityClass::PerfTesting, iMath::ithreads_t> pw(iM.ithreads());
+	utils::prioritize_workers<utils::PriorityClass::PerfTesting, iMath::iThreads_t> pw(iM.ithreads());
 
 	//////////////////////////////////////////////////////////////////////////
 	//single threaded naive
@@ -3521,7 +3448,7 @@ void test_loss_quadratic(iMath& iM, vec_len_t rowsCnt, vec_len_t colsCnt=10) {
 	etQuadLoss = etQuadLoss / (2*etA.rows());
 
 	//testing performance
-	utils::prioritize_workers<utils::PriorityClass::PerfTesting, iMath::ithreads_t> pw(iM.ithreads());
+	utils::prioritize_workers<utils::PriorityClass::PerfTesting, iMath::iThreads_t> pw(iM.ithreads());
 
 	//////////////////////////////////////////////////////////////////////////
 	//single threaded naive

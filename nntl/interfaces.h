@@ -79,8 +79,8 @@ namespace nntl {
 		static_assert(::std::is_base_of<threads::_i_threads<real_t, typename iThreads_t::range_t>, iThreads_t>::value, "iThreads_t type should be derived from _i_threads");
 		static_assert(::std::is_base_of<inspector::_i_inspector<real_t>, iInspect_t>::value, "iInspect_t type should be derived from i_inspector");
 
-		static_assert(::std::is_same<iThreads_t, typename iMath_t::ithreads_t>::value, "Math interface must use the same iThreadsT as specified in InterfacesT!");
-		static_assert(::std::is_same<iThreads_t, typename iRng_t::ithreads_t>::value, "Math interface must use the same iThreadsT as specified in InterfacesT!");
+		static_assert(::std::is_same<iThreads_t, typename iMath_t::iThreads_t>::value, "Math interface must use the same iThreadsT as specified in InterfacesT!");
+		static_assert(::std::is_same<iThreads_t, typename iRng_t::iThreads_t>::value, "Math interface must use the same iThreadsT as specified in InterfacesT!");
 		
 		static_assert(::std::is_same<real_t, typename iThreads_t::real_t>::value, "real_t must resolve to the same type!");
 		static_assert(::std::is_same<real_t, typename iMath_t::real_t>::value, "real_t must resolve to the same type!");

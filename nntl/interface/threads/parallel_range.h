@@ -47,6 +47,12 @@ namespace threads {
 		// used in scheduling)
 		typedef unsigned int thread_id_t;
 
+	protected:
+		range_t m_cnt;
+		range_t m_offset;
+		const thread_id_t m_tid;
+
+	public:
 		~parallel_range()noexcept {}
 		parallel_range()noexcept:m_cnt(0), m_offset(0), m_tid(0) {}
 		parallel_range(range_t c)noexcept : m_cnt(c), m_offset(0), m_tid(0) {}
@@ -57,12 +63,7 @@ namespace threads {
 
 		range_t offset()const noexcept { return m_offset; }
 		range_t cnt()const noexcept { return m_cnt; }
-		const thread_id_t tid()const noexcept { return m_tid; }
-
-	protected:
-		range_t m_cnt;
-		range_t m_offset;
-		const thread_id_t m_tid;
+		thread_id_t tid()const noexcept { return m_tid; }
 	};
 
 }

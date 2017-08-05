@@ -71,7 +71,7 @@ namespace _impl {
 		static constexpr size_t evMulC_ip = 64000;
 		static constexpr size_t evMulC_ip_Anb = 64000;
 		static constexpr size_t evMul_ip = 36700;
-		static constexpr size_t evMul_ip_Anb = 36700;
+		//static constexpr size_t evMul_ip_Anb = 36700;
 		static constexpr size_t evAdd_ip = 21000;
 		
 		static constexpr size_t evAddScaled_ip = 17000;//not tested
@@ -166,8 +166,8 @@ namespace _impl {
 	};
 
 	template <> struct MATHN_THR<float> : public SMATH_THR<float> {
-		static constexpr size_t ewBinarize_ip = 500000;
-		static constexpr size_t ewBinarize = 1100*19;
+		static constexpr size_t ewBinarize_ip = 7000;
+		static constexpr size_t ewBinarize = 9000;
 
 		static constexpr size_t mExtractRows = 3100;
 
@@ -176,8 +176,8 @@ namespace _impl {
 
 		static constexpr size_t mCheck_normalize_rows = 250000;
 		static constexpr size_t evClamp = 14000;
-		static constexpr size_t make_dropout = 13000;//*
-		static constexpr size_t make_alphaDropout = 2700;//*
+		static constexpr size_t make_dropout = 15000;//*
+		static constexpr size_t make_alphaDropout = 3800;//*
 
 		static constexpr size_t apply_ILR_st_vec = 2620; //*
 		static constexpr size_t apply_ILR_mt = 9000; //*
@@ -188,8 +188,8 @@ namespace _impl {
 
 		static constexpr size_t evMulC_ip = 131000;
 		static constexpr size_t evMulC_ip_Anb = 131000;
-		static constexpr size_t evMul_ip = 60000;
-		static constexpr size_t evMul_ip_Anb = 73400;
+		static constexpr size_t evMul_ip = 30000;
+		//static constexpr size_t evMul_ip_Anb = 73400;
 		static constexpr size_t evAdd_ip = 41200;
 
 		static constexpr size_t evAddScaled_ip = 18000;//*

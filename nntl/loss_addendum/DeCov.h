@@ -52,7 +52,7 @@ namespace nntl {
 		//if bCalcOnFProp set to true, then it computes the necessary derivate during fprop step and stores it internally
 		//until bprop() phase. This helps to deal with a dropout that modifies some activations and makes some loss_addendums
 		// produce bogus results. This is especially important to DeCov
-		template<typename RealT, bool bNumStab = false, bool bLowerTriangl = false, bool bCalcOnFProp = true, bool bAppendToNZGrad=true>
+		template<typename RealT, bool bNumStab = false, bool bLowerTriangl = false, bool bCalcOnFProp = true, bool bAppendToNZGrad=false>
 		class DeCov : public _impl::scaled_addendum_with_mtx4fprop<RealT, bCalcOnFProp, bAppendToNZGrad> {
 		private:
 			typedef _impl::scaled_addendum_with_mtx4fprop<RealT, bCalcOnFProp, bAppendToNZGrad> _base_class_t;

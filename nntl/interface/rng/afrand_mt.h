@@ -49,10 +49,10 @@ namespace nntl {
 
 		public:
 			typedef AgnerFogRNG base_rng_t;
-			typedef iThreadsT ithreads_t;
-			typedef typename ithreads_t::range_t range_t;
-			typedef typename ithreads_t::par_range_t par_range_t;
-			typedef typename ithreads_t::thread_id_t thread_id_t;
+			typedef iThreadsT iThreads_t;
+			typedef typename iThreads_t::range_t range_t;
+			typedef typename iThreads_t::par_range_t par_range_t;
+			typedef typename iThreads_t::thread_id_t thread_id_t;
 
 			typedef _impl::AFRAND_MT_THR<base_rng_t,real_t> Thresholds_t;
 
@@ -60,7 +60,7 @@ namespace nntl {
 			typedef ::std::vector<base_rng_t> rng_vector_t;
 
 		protected:
-			ithreads_t* m_pThreads;
+			iThreads_t* m_pThreads;
 			rng_vector_t m_Rngs;
 
 			//AFog::CRandomMersenne m_rng;
@@ -81,25 +81,25 @@ namespace nntl {
 			static constexpr bool is_multithreaded = true;
 
 			AFRand_mt()noexcept:m_pThreads(nullptr) {}
-			bool set_ithreads(ithreads_t& t)noexcept {
+			bool set_ithreads(iThreads_t& t)noexcept {
 				if (m_pThreads) return false;
 				m_pThreads = &t;
 				_construct_rngs(static_cast<int>(s64to32(::std::time(0))));
 				return true;
 			}
-			bool set_ithreads(ithreads_t& t, seed_t s)noexcept {
+			bool set_ithreads(iThreads_t& t, seed_t s)noexcept {
 				if (m_pThreads) return false;
 				m_pThreads = &t;
 				_construct_rngs(static_cast<int>(s));
 				return true;
 			}
 
-			ithreads_t& ithreads()noexcept { return *m_pThreads; }
+			iThreads_t& ithreads()noexcept { return *m_pThreads; }
 
-			AFRand_mt(ithreads_t& t)noexcept : m_pThreads(&t) {
+			AFRand_mt(iThreads_t& t)noexcept : m_pThreads(&t) {
 				_construct_rngs(static_cast<int>(s64to32(::std::time(0))));
 			}
-			AFRand_mt(ithreads_t& t, seed_t s)noexcept : m_pThreads(&t) {
+			AFRand_mt(iThreads_t& t, seed_t s)noexcept : m_pThreads(&t) {
 				_construct_rngs(static_cast<int>(s));
 			}
 
@@ -135,28 +135,27 @@ namespace nntl {
 			void gen_vector(real_t* ptr, const size_t n, const real_t a)noexcept {
 				NNTL_ASSERT(m_pThreads);
 				if (n < Thresholds_t::bnd_gen_vector) {
-					gen_vector_st(ptr, n, a);
-				}else gen_vector_mt(ptr, n, a);
+					get_self().gen_vector_st(ptr, n, a);
+				}else get_self().gen_vector_mt(ptr, n, a);
 			}
 			void gen_vector_st(real_t* ptr, const size_t n, const real_t a)noexcept {
-				NNTL_ASSERT(m_pThreads);
-				const ext_real_t scale = 2 * a;
-				const auto pE = ptr + n;
-				while (ptr != pE) {
-					*ptr++ = static_cast<real_t>(scale*(m_Rngs[0].Random() - 0.5));
-				}
+				NNTL_ASSERT(ptr);
+				get_self()._igen_vector_st(ptr, a*real_t(2), -a, elms_range(0, n), 0);
 			}
+			/*void _igen_vector_st(real_t* ptr, const real_t a, const elms_range& er, const thread_id_t tId)noexcept {
+				NNTL_ASSERT(ptr);
+				const auto scale = real_t(2) * a;
+				const auto pE = ptr + er.elmEnd;
+				ptr += er.elmBegin;
+				auto& rg = m_Rngs[tId];
+				while (ptr != pE) {
+					*ptr++ = scale * (static_cast<real_t>(rg.Random()) - real_t(.5));
+				}
+			}*/
 			void gen_vector_mt(real_t* ptr, const size_t n, const real_t a)noexcept {
 				NNTL_ASSERT(m_pThreads);
-				const ext_real_t scale = 2 * a;
-				auto& rngs = m_Rngs;
-				m_pThreads->run([ptr,scale,&rngs](const par_range_t&r) {
-					auto& rg = rngs[r.tid()];
-					auto p = ptr + r.offset();
-					const auto pE = p + r.cnt();
-					while (p != pE) {
-						*p++ = static_cast<real_t>(scale*(rg.Random() - 0.5));
-					}
+				m_pThreads->run([ptr, span = a*real_t(2), ofs = -a, this](const par_range_t&r) {
+					get_self()._igen_vector_st(ptr, span, ofs, elms_range(r), r.tid());
 				}, n);
 			}
 
@@ -164,91 +163,157 @@ namespace nntl {
 			void gen_vector(real_t* ptr, const size_t n, const real_t neg, const real_t pos)noexcept {
 				NNTL_ASSERT(m_pThreads);
 				if (n < Thresholds_t::bnd_gen_vector) {
-					gen_vector_st(ptr, n, neg,pos);
-				} else gen_vector_mt(ptr, n, neg, pos);
+					get_self().gen_vector_st(ptr, n, neg,pos);
+				} else get_self().gen_vector_mt(ptr, n, neg, pos);
 			}
 			void gen_vector_st(real_t* ptr, const size_t n, const real_t neg, const real_t pos)noexcept {
 				NNTL_ASSERT(m_pThreads);
-				const auto span = static_cast<ext_real_t>(pos - neg);
-				const auto rNeg = static_cast<ext_real_t>(neg);
-				const auto pE = ptr + n;
+				get_self()._igen_vector_st(ptr, pos-neg, neg, elms_range(0, n), 0);
+			}
+			void _igen_vector_st(real_t* ptr, const real_t span, const real_t ofs, const elms_range& er, const thread_id_t tId)noexcept {
+				NNTL_ASSERT(ptr);
+				const auto pE = ptr + er.elmEnd;
+				ptr += er.elmBegin;
+				auto& rg = m_Rngs[tId];
+				typedef decltype(rg.Random()) rgRandom_t;
+				const rgRandom_t rSpan = static_cast<rgRandom_t>(span);
 				while (ptr != pE) {
-					*ptr++ = static_cast<real_t>(m_Rngs[0].Random()*span + rNeg);
+					*ptr++ = static_cast<real_t>(rg.Random()*rSpan) + ofs;
 				}
 			}
 			void gen_vector_mt(real_t* ptr, const size_t n, const real_t neg, const real_t pos)noexcept {
-				NNTL_ASSERT(m_pThreads);
-				const auto span = static_cast<ext_real_t>(pos - neg);
-				const auto rNeg = static_cast<ext_real_t>(neg);
-				auto& rngs = m_Rngs;
-				m_pThreads->run([ptr, span,rNeg, &rngs](const par_range_t&r) {
-					auto& rg = rngs[r.tid()];
-					auto p = ptr + r.offset();
-					const auto pE = p + r.cnt();
-					while (p != pE) {
-						*p++ = static_cast<real_t>(span*rg.Random() + rNeg);
-					}
+				NNTL_ASSERT(m_pThreads && ptr);
+				m_pThreads->run([ptr, span = pos - neg, ofs = neg, this](const par_range_t&r) {
+					get_self()._igen_vector_st(ptr, span, ofs, elms_range(r), r.tid());
 				}, n);
 			}
 			
+			//////////////////////////////////////////////////////////////////////////
 			//////////////////////////////////////////////////////////////////////////
 			//generate vector with values in range [0,1]
 			void gen_vector_norm(real_t* ptr, const size_t n)noexcept {
 				NNTL_ASSERT(m_pThreads);
 				if (n < Thresholds_t::bnd_gen_vector_norm) {
-					gen_vector_norm_st(ptr, n);
-				} else gen_vector_norm_mt(ptr, n);
+					get_self().gen_vector_norm_st(ptr, n);
+				} else get_self().gen_vector_norm_mt(ptr, n);
 			}
 			void gen_vector_norm_st(real_t* ptr, const size_t n)noexcept {
 				NNTL_ASSERT(m_pThreads);
-				const auto pE = ptr + n;
+				get_self()._igen_vector_norm_st(ptr, elms_range(0, n), 0);
+			}
+			void _igen_vector_norm_st(real_t* ptr, const elms_range& er, const thread_id_t tId)noexcept {
+				NNTL_ASSERT(ptr);
+				auto& rg = m_Rngs[tId];
+				const auto pE = ptr + er.elmEnd;
+				ptr += er.elmBegin;
 				while (ptr != pE) {
-					*ptr++ = gen_f_norm();
+					*ptr++ = static_cast<real_t>(rg.Random());
 				}
 			}
 			void gen_vector_norm_mt(real_t* ptr, const size_t n)noexcept {
-				NNTL_ASSERT(m_pThreads);
-				auto& rngs = m_Rngs;
-				m_pThreads->run([ptr, &rngs](const par_range_t&r) {
-					auto& rg = rngs[r.tid()];
-					auto p = ptr + r.offset();
-					const auto pE = p + r.cnt();
-					while (p != pE) {
-						*p++ = static_cast<real_t>(rg.Random());
-					}
+				NNTL_ASSERT(m_pThreads && ptr);
+				m_pThreads->run([ptr, this](const par_range_t&r) {
+					get_self()._igen_vector_norm_st(ptr, elms_range(r), r.tid());
 				}, n);
 			}
 
+			//////////////////////////////////////////////////////////////////////////
 			//////////////////////////////////////////////////////////////////////////
 			//generate vector with values in range [0,a]
 			template<typename BaseType>
 			void gen_vector_gtz(BaseType* ptr, const size_t n, const BaseType a)noexcept {
 				NNTL_ASSERT(m_pThreads);
 				if (n < Thresholds_t::bnd_gen_vector_gtz) {
-					gen_vector_gtz_st(ptr, n, a);
-				} else gen_vector_gtz_mt(ptr, n, a);
+					get_self().gen_vector_gtz_st(ptr, n, a);
+				} else get_self().gen_vector_gtz_mt(ptr, n, a);
 			}
 			template<typename BaseType>
 			void gen_vector_gtz_st(BaseType* ptr, const size_t n, const BaseType a)noexcept {
-				NNTL_ASSERT(m_pThreads);
-				const auto pE = ptr + n;
+				NNTL_ASSERT(m_pThreads && ptr);
+				get_self()._igen_vector_gtz_st(ptr, a, elms_range(0, n), 0);
+			}
+
+			template<typename BaseType>
+			void _igen_vector_gtz_st(BaseType* ptr, const BaseType a, const elms_range& er, const thread_id_t tId)noexcept {
+				NNTL_ASSERT(ptr);
+				const auto pE = ptr + er.elmEnd;
+				ptr += er.elmBegin;
+				auto& rg = m_Rngs[tId];
+				typedef decltype(rg.Random()) rgRandom_t;
+				const rgRandom_t a2 = static_cast<rgRandom_t>(a);
 				while (ptr != pE) {
-					*ptr++ = static_cast<BaseType>(m_Rngs[0].Random()*a);
+					*ptr++ = static_cast<BaseType>(rg.Random()*a2);
 				}
 			}
+
 			template<typename BaseType>
 			void gen_vector_gtz_mt(BaseType* ptr, const size_t n, const BaseType a)noexcept {
-				NNTL_ASSERT(m_pThreads);
-				auto& rngs = m_Rngs;
-				m_pThreads->run([ptr, a, &rngs](const par_range_t&r) {
-					auto& rg = rngs[r.tid()];
-					auto p = ptr + r.offset();
-					const auto pE = p + r.cnt();
-					while (p != pE) {
-						*p++ = static_cast<BaseType>(rg.Random()*a);
-					}
+				NNTL_ASSERT(m_pThreads && ptr);
+				m_pThreads->run([ptr, a, this](const par_range_t&r) {
+					get_self()._igen_vector_gtz_st(ptr, a, elms_range(r), r.tid());
 				}, n);
 			}
+
+			//////////////////////////////////////////////////////////////////////////
+			//////////////////////////////////////////////////////////////////////////
+			//it works slower than if just separately generate mtx and then binarize it.
+			void bernoulli_vector(real_t* ptr, const size_t n, const real_t p, const real_t posVal = real_t(1.), const real_t negVal = real_t(0.))noexcept {
+				if (n < Thresholds_t::bnd_bernoulli_vector) {
+					get_self().bernoulli_vector_st(ptr, n, p, posVal, negVal);
+				} else get_self().bernoulli_vector_mt(ptr, n, p, posVal, negVal);
+			}
+			void bernoulli_vector_st(real_t* ptr, const size_t n, const real_t p, const real_t posVal, const real_t negVal)noexcept {
+				NNTL_ASSERT(ptr);
+				NNTL_ASSERT(p > real_t(0) && p < real_t(1));
+				get_self()._ibernoulli_vector_st(ptr, p, posVal, negVal, elms_range(0, n), 0);
+			}
+			void bernoulli_vector_mt(real_t* ptr, const size_t n, const real_t p, const real_t posVal, const real_t negVal)noexcept {
+				NNTL_ASSERT(ptr);
+				NNTL_ASSERT(p > real_t(0) && p < real_t(1));
+				m_pThreads->run([ptr, p, posVal, negVal, this](const par_range_t& r) {
+					get_self()._ibernoulli_vector_st(ptr, p, posVal, negVal, elms_range(r), r.tid());
+				}, n);
+			}
+			void _ibernoulli_vector_st(real_t* ptr, const real_t p, const real_t posVal, const real_t negVal
+				, const elms_range& er, const thread_id_t tId)noexcept
+			{
+				NNTL_ASSERT(ptr);
+				NNTL_ASSERT(p > real_t(0) && p < real_t(1));
+				auto& rg = m_Rngs[tId];
+				typedef decltype(rg.Random()) rgRandom_t;
+				const rgRandom_t rP = static_cast<rgRandom_t>(p);
+				const auto pE = ptr + er.elmEnd;
+				ptr += er.elmBegin;
+				while (ptr != pE) {
+					*ptr++ = rg.Random() < rP ? posVal : negVal;
+				}
+			}
+
+			/*void _ibernoulli_vector_st(real_t*const ptr, const real_t p, const real_t posVal, const real_t negVal
+				, const elms_range& er, const thread_id_t tId)noexcept
+			{
+				NNTL_ASSERT(ptr);
+				NNTL_ASSERT(p > real_t(0) && p < real_t(1));
+				auto& __restrict rg = m_Rngs[tId];
+				typedef decltype(rg.Random()) rgRandom_t;
+				const rgRandom_t rP = static_cast<rgRandom_t>(p);
+
+				const bool bOdd = er.totalElements() & 1;
+				if (bOdd) {
+					ptr[er.elmBegin] = rg.Random() < rP ? posVal : negVal;
+				}
+				for (auto i = er.elmBegin + bOdd; i < er.elmEnd; i+=2) {
+					/ *const auto b1 = rg.Random() < rP;
+					const auto b2 = rg.Random() < rP;
+					ptr[i] = b1 ? posVal : negVal;
+					ptr[i+1] = b2 ? posVal : negVal;* /
+					const auto v1 = rg.Random();
+					const auto v2 = rg.Random();
+					ptr[i] = v1 < rP ? posVal : negVal;
+					ptr[i + 1] = v2 < rP ? posVal : negVal;
+				}
+			}*/
+
 		};
 
 	}
