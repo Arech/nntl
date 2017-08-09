@@ -48,6 +48,8 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "../nntl/utils/tictoc.h"
 #include "imath_etalons.h"
 
+#include "../nntl/_SNN_common.h"
+
 #include "../nntl/_test/functions.h"
 
 #if NNTL_MATLAB_AVAILABLE
@@ -2192,7 +2194,7 @@ TEST(TestMathN, MakeDropoutPerf) {
 	typedef nntl::d_interfaces::iThreads_t def_threads_t;
 	typedef math::MathN<real_t, def_threads_t> iMB;
 	iMB iM;
-	NNTL_RUN_TEST2(iMB::Thresholds_t::make_dropout, 1) test_make_dropout_perf(iM, 1,i);
+	NNTL_RUN_TEST2(iMB::Thresholds_t::make_dropout, 100) test_make_dropout_perf(iM, 100,i);
 }
 
 //////////////////////////////////////////////////////////////////////////
@@ -2348,10 +2350,7 @@ TEST(TestMathN, evClampPerf) {
 }
 
 //////////////////////////////////////////////////////////////////////////
-TEST(TestMathN, mExtractRowsCorrectness) {
-	typedef nntl::d_interfaces::iThreads_t def_threads_t;
-	typedef math::MathN<real_t, def_threads_t> iMB;
-	
+TEST(TestMathN, mExtractRowsCorrectness) {	
 	constexpr vec_len_t rowsCnt = 2000, colsCnt = 50, extrCnt = 1000;
 
 	realmtx_t src(rowsCnt, colsCnt), destSt(extrCnt, colsCnt), destMt(extrCnt, colsCnt);;
@@ -2360,14 +2359,13 @@ TEST(TestMathN, mExtractRowsCorrectness) {
 	for (numel_cnt_t i = 0, im = src.numel(); i < im; ++i) pSrc[i] = static_cast<real_t>(i);
 
 	::std::vector<vec_len_t> vec(extrCnt);
-	iMB iM;
 	d_interfaces::iRng_t rg;
 	rg.set_ithreads(iM.ithreads());
 
 	rg.gen_vector_gtz(&vec[0], vec.size(), rowsCnt - 1);
 
-	iM.mExtractRows_st_naive(src, vec.begin(), destSt);
-	iM.mExtractRows_mt_naive(src, vec.begin(), destMt);
+	iM.mExtractRows_seqWrite_st(src, vec.begin(), destSt);
+	iM.mExtractRows_seqWrite_mt(src, vec.begin(), destMt);
 
 	ASSERT_EQ(destSt, destMt);
 	for (vec_len_t r = 0; r < extrCnt; ++r) {
@@ -2377,81 +2375,6 @@ TEST(TestMathN, mExtractRowsCorrectness) {
 		}
 	}
 }
-
-template<typename iMath>
-void test_mExtractRows_perf(iMath& iM, vec_len_t rowsCnt, vec_len_t extrCnt, vec_len_t colsCnt = 10) {
-	typedef ::std::vector<realmtx_t::vec_len_t> vec_t;
-
-	const auto dataSize = realmtx_t::sNumel(rowsCnt, colsCnt);
-	STDCOUTL("******* testing mExtractRows() over " << rowsCnt << "x" << colsCnt << " matrix (" << dataSize << " elems) ExtractRows="<< extrCnt 
-		<<" -> "<< realmtx_t::sNumel(extrCnt,colsCnt) << " elems *********");
-
-	double tstNaive, tmtNaive, tBest;
-	steady_clock::time_point bt;
-	nanoseconds diff;
-	constexpr unsigned maxReps = TEST_PERF_REPEATS_COUNT;
-
-	realmtx_t src(rowsCnt, colsCnt), dest(extrCnt, colsCnt);
-	ASSERT_TRUE(!src.isAllocationFailed() && !dest.isAllocationFailed());
-	vec_t vec(extrCnt);
-
-	d_interfaces::iRng_t rg;
-	rg.set_ithreads(iM.ithreads());
-	rg.gen_matrix(src, 1000);
-	rg.gen_vector_gtz(&vec[0], vec.size(), rowsCnt - 1);
-
-	//testing performance
-	utils::prioritize_workers<utils::PriorityClass::PerfTesting, iMath::iThreads_t> pw(iM.ithreads());
-
-	iM.mExtractRows_st_naive(src, vec.begin(), dest);
-	bt = steady_clock::now();
-	for (unsigned r = 0; r < maxReps; ++r) {
-		iM.mExtractRows_st_naive(src, vec.begin(), dest);
-	}
-	diff = steady_clock::now() - bt;
-	STDCOUTL("st_naive:\t" << utils::duration_readable(diff, maxReps, &tstNaive));
-
-	iM.mExtractRows_mt_naive(src, vec.begin(), dest);
-	bt = steady_clock::now();
-	for (unsigned r = 0; r < maxReps; ++r) {
-		iM.mExtractRows_mt_naive(src, vec.begin(), dest);
-	}
-	diff = steady_clock::now() - bt;
-	STDCOUTL("mt_naive:\t" << utils::duration_readable(diff, maxReps, &tmtNaive));
-
-	iM.mExtractRows(src, vec.begin(), dest);
-	bt = steady_clock::now();
-	for (unsigned r = 0; r < maxReps; ++r) {
-		iM.mExtractRows(src, vec.begin(), dest);
-	}
-	diff = steady_clock::now() - bt;
-	STDCOUTL("best:\t\t" << utils::duration_readable(diff, maxReps, &tBest));
-}
-
-TEST(TestMathN, mExtractRowsPerf) {
-	typedef nntl::d_interfaces::iThreads_t def_threads_t;
-	typedef math::MathN<real_t, def_threads_t> iMB;
-	iMB iM;
-/*
-	for (unsigned r = 8; r <= 64; r *= 2) {
-		for (unsigned c = 10; c <= 800; c += 790) {
-			for (unsigned e = 1; e <= 8; e *= 2) {
-				test_mExtractRows_perf(iM, r * 1000, e * 100, c);
-			}
-		}
-	}*/
-	//constexpr unsigned batchSize = 100;
-	NNTL_RUN_TEST2(iMB::Thresholds_t::mExtractRows, 100) test_mExtractRows_perf(iM, 60000, i, 100);
-	NNTL_RUN_TEST2(iMB::Thresholds_t::mExtractRows, 10) test_mExtractRows_perf(iM, 60000, i, 10);
-/*
-#ifndef TESTS_SKIP_LONGRUNNING
-	test_mExtractRows_perf(iM, 60000, batchSize, 800);
-	test_mExtractRows_perf(iM, 60000, batchSize, 10);
-	test_mExtractRows_perf(iM, 40000, batchSize, 800);
-	test_mExtractRows_perf(iM, 40000, batchSize, 10);
-#endif*/
-}
-
 
 //////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////
@@ -3747,6 +3670,7 @@ TEST(TestMathN, make_alphaDropout) {
 		}
 	}
 }
+
 
 //////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////

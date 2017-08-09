@@ -115,7 +115,7 @@ Developed and tested on the MSVC2015 on Windows 7. Be sure to have the latest se
 
 MSVC2017 with the latest updates should probably work out of the box. Other modern compilers will probably require some hacks to compile, however, I don't think these hacks would be critical. Please, submit your patches.
 
-## On the converting UML diagrams to NNTL-powered C++ code
+## On converting UML diagrams to NNTL-powered C++ code
 
 The only software that is supported at this moment is [Visual Paradigm](https://www.visual-paradigm.com/) v8.0, build sp1_20101008. New versions will probably work too, however I haven't tested them yet. Note, that there are free 30-day trial and free for non-commertial use [community edition](https://www.visual-paradigm.com/download/community.jsp) available. However, I don't know whether these editions allows to export class-diagramm models to XML files, which is essential.
 

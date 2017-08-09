@@ -83,7 +83,7 @@ TEST(TestSelu, GradCheck_alphaDropout) {
 	//ngcSetts.evalSetts.bIgnoreZerodLdWInUndelyingLayer = true;
 	ngcSetts.evalSetts.dLdW_setts.relErrFailThrsh = real_t(1e-1);//big error is possible due to selu derivative kink :(
 	//need some handling for it :(
-
+	STDCOUTL("*** WARNING: there's no handling of SELU discontinious derivative, therefore occational failures are possible :(");
 	ngcSetts.evalSetts.dLdA_setts.percOfZeros = 70;
 	ngcSetts.evalSetts.dLdW_setts.percOfZeros = 70;
 	ASSERT_TRUE(nnArch.NN.gradcheck(td.train_x(), td.train_y(), 5, ngcSetts));
@@ -201,7 +201,7 @@ void _test_selu_make_td(train_data< typename iRngT::real_t >& td, const vec_len_
 	ASSERT_TRUE(td.absorb(::std::move(trX), ::std::move(trY), ::std::move(tX), ::std::move(tY)));
 }
 
-template<typename RealT/*, bool bCorrectDO=false*/>
+template<ADCorr corrType, typename RealT>
 void test_selu_distr(const size_t seedVal, const RealT dpa, const neurons_count_t xwidth = 10, const neurons_count_t nc = 30
 	, const bool bApplyWeightNorm = false, const bool bVerbose = true
 	, const vec_len_t batchSize = 1000, const vec_len_t batchesCnt = 100)noexcept
@@ -225,7 +225,7 @@ void test_selu_distr(const size_t seedVal, const RealT dpa, const neurons_count_
 	> GrW;
 
 	//typedef activation::selu<real_t, 0, 0, 0, 1000000, bCorrectDO> mySelu_t;
-	typedef activation::selu<real_t, 0, 0, 0, 1000000, ADCorr::no> mySelu_t;
+	typedef activation::selu<real_t, 0, 0, 0, 1000000, corrType> mySelu_t;
 
 	layer_input<myIntf> inp(xwidth);
 	LFC_DO<mySelu_t, GrW> fcl(nc, learningRate);
@@ -300,25 +300,33 @@ TEST(TestSelu, SELU_Distribution) {
 	const real_t dpa = real_t(.8);
 
 	STDCOUTL("================ No weight renormalizing ================");
-	ASSERT_NO_FATAL_FAILURE(test_selu_distr(t, real_t(1.), 10, 30, false));
+	ASSERT_NO_FATAL_FAILURE(test_selu_distr<ADCorr::no>(t, real_t(1.), 10, 30, false));
 	STDCOUTL("================ With weight renormalizing ================");
-	ASSERT_NO_FATAL_FAILURE(test_selu_distr(t, real_t(1.), 10, 30, true));
+	ASSERT_NO_FATAL_FAILURE(test_selu_distr<ADCorr::no>(t, real_t(1.), 10, 30, true));
 
 	STDCOUTL("================ No weight renormalizing + AlphaDropout ================");
-	ASSERT_NO_FATAL_FAILURE(test_selu_distr(t, dpa, 10, 30, false));
+	ASSERT_NO_FATAL_FAILURE(test_selu_distr<ADCorr::no>(t, dpa, 10, 30, false));
 	STDCOUTL("================ With weight renormalizing + AlphaDropout ================");
-	ASSERT_NO_FATAL_FAILURE(test_selu_distr(t, dpa, 10, 30, true));
+	ASSERT_NO_FATAL_FAILURE(test_selu_distr<ADCorr::no>(t, dpa, 10, 30, true));
 
 #ifndef TESTS_SKIP_LONGRUNNING
 	STDCOUTL("================ No weight renormalizing ================");
-	ASSERT_NO_FATAL_FAILURE(test_selu_distr(t, real_t(1.), 100, 400, false));
+	ASSERT_NO_FATAL_FAILURE(test_selu_distr<ADCorr::no>(t, real_t(1.), 100, 400, false));
 	STDCOUTL("================ With weight renormalizing ================");
-	ASSERT_NO_FATAL_FAILURE(test_selu_distr(t, real_t(1.), 100, 400, true));
+	ASSERT_NO_FATAL_FAILURE(test_selu_distr<ADCorr::no>(t, real_t(1.), 100, 400, true));
 
 	STDCOUTL("================ No weight renormalizing + AlphaDropout ================");
-	ASSERT_NO_FATAL_FAILURE(test_selu_distr(t, dpa, 100, 400, false));
+	ASSERT_NO_FATAL_FAILURE(test_selu_distr<ADCorr::no>(t, dpa, 100, 400, false));
 	STDCOUTL("================ With weight renormalizing + AlphaDropout ================");
-	ASSERT_NO_FATAL_FAILURE(test_selu_distr(t, dpa, 100, 400, true));
+	ASSERT_NO_FATAL_FAILURE(test_selu_distr<ADCorr::no>(t, dpa, 100, 400, true));
+
+	STDCOUTL("Assessing corrections (without weight renormalizing)");
+	STDCOUTL("ADCorr::correctVar");
+	ASSERT_NO_FATAL_FAILURE(test_selu_distr<ADCorr::correctVar>(t, dpa, 100, 400, false));
+	STDCOUTL("ADCorr::correctDoVal");
+	ASSERT_NO_FATAL_FAILURE(test_selu_distr<ADCorr::correctDoVal>(t, dpa, 100, 400, false));
+	STDCOUTL("ADCorr::correctDoAndVar");
+	ASSERT_NO_FATAL_FAILURE(test_selu_distr<ADCorr::correctDoAndVar>(t, dpa, 100, 400, false));
 #endif
 }
 

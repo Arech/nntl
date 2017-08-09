@@ -330,7 +330,7 @@ namespace math {
 
 			//size_t mtxRows - size_t by intention!
 			template<typename VecBaseT, typename MtxBaseT>
-			static VecBaseT rw_initVecElm(VecBaseT& vecElm, MtxBaseT*& pFirstMtxElm, const size_t mtxRows
+			static constexpr VecBaseT rw_initVecElm(VecBaseT& vecElm, MtxBaseT*& pFirstMtxElm, const size_t mtxRows
 				, const vec_len_t colBegin, const vec_len_t r)noexcept 
 			{ return vecElm; }
 		};
@@ -347,24 +347,42 @@ namespace math {
 				return v;
 			}
 		};
+		struct _mrwHlpr_rw_InitVecElmByZero {
+			static constexpr vec_len_t rw_FirstColumnIdx = 0;
+
+			//size_t mtxRows - size_t by intention!
+			template<typename VecBaseT, typename MtxBaseT>
+			static constexpr VecBaseT rw_initVecElm(const VecBaseT& vecElm, const MtxBaseT*const & pFirstMtxElm, const size_t mtxRows
+				, const vec_len_t colBegin, const vec_len_t r)noexcept
+			{
+				return VecBaseT(0);
+			}
+		};
 		struct _mrwHlpr_rw_Dont_UpdVecElm {
 			template<typename BaseT>
-			static void rw_updVecElm(BaseT& vecElm, BaseT& v, const vec_len_t r)noexcept {}
+			static constexpr void rw_updVecElm(BaseT& vecElm, BaseT& v, const vec_len_t r)noexcept {}
 		};
 		struct _mrwHlpr_rw_UpdVecElm {
 			template<typename BaseT>
-			static void rw_updVecElm(BaseT& vecElm, BaseT& v, const vec_len_t r)noexcept {
+			static constexpr void rw_updVecElm(BaseT& vecElm, BaseT& v, const vec_len_t r)noexcept {
 				vecElm = v;
 			}
 		};
 		struct _mrwHlpr_simpleLoops {
-			void initOperation(const vec_len_t colBegin, const vec_len_t mtxRows)noexcept {};
+			static constexpr void initOperation(const vec_len_t colBegin, const vec_len_t mtxRows)noexcept {};
 
-			void cw_toNextCol(const size_t mtxRows)noexcept {};
+			static constexpr void cw_toNextCol(const size_t mtxRows)noexcept {};
 		};
 
 		//////////////////////////////////////////////////////////////////////////
 		//operations
+		/*struct _mrw_COUNT_Zeros : public _mrwHlpr_rw_InitVecElmByZero, public _mrwHlpr_rw_UpdVecElm, public _mrwHlpr_simpleLoops {
+			template<_OperationType OpType, typename BaseT>
+			static void op(const BaseT& mtxElm, BaseT& vecElm, const vec_len_t r, const vec_len_t c, const size_t mtxRows)noexcept {
+				vecElm += (mtxElm==real_t(0));
+			}
+		};*/
+
 		struct _mrw_MUL_mtx_by_vec : public _mrwHlpr_rw_InitVecElmByVec, public _mrwHlpr_rw_Dont_UpdVecElm, public _mrwHlpr_simpleLoops {
 			template<_OperationType OpType, typename BaseT>
 			static void op(BaseT& mtxElm, const BaseT& vecElm, const vec_len_t r, const vec_len_t c, const size_t mtxRows)noexcept {
@@ -444,10 +462,6 @@ namespace math {
 			}
 		};
 
-
-		//#TODO: !!!!!!!!! Actually, proper and usually more effective way to pass simple and small solver objects BY VALUE. (???)
-		//Test it here!
-
 		//////////////////////////////////////////////////////////////////////////
 		// Matrix/Vector elementwise operations
 		//////////////////////////////////////////////////////////////////////////
@@ -471,7 +485,6 @@ namespace math {
 				pA++;
 			}
 		}
-
 
 		//////////////////////////////////////////////////////////////////////////
 		// Matrix rowwise operations
@@ -854,7 +867,7 @@ namespace math {
 
 		//////////////////////////////////////////////////////////////////////////
 		//////////////////////////////////////////////////////////////////////////
-		// multiply each matrix A row by corresponding vector d element, A(i,:) = A(i,:) / d(i)
+		// multiply each matrix A row by corresponding vector d element, A(i,:) = A(i,:) .* d(i)
 		void mrwMulByVec(realmtx_t& A, const real_t*const pMul)noexcept {
 			if (A.numel() < Thresholds_t::mrwMulByVec) {
 				get_self().mrwMulByVec_st(A, pMul);
@@ -889,6 +902,52 @@ namespace math {
 			});
 		}
 
+		//////////////////////////////////////////////////////////////////////////
+		//////////////////////////////////////////////////////////////////////////
+		// computes and stores to pVec the count of zeros in A rows 
+		//////////////////////////////////////////////////////////////////////////
+		// NOT TESTED
+		//////////////////////////////////////////////////////////////////////////
+		/*template<typename MtxValueT, typename VecValueT>
+		void mrwCountZeros(const smatrix<MtxValueT>& A, VecValueT*const pVec)noexcept {
+			if (A.numel() < Thresholds_t::mrwCountZeros) {
+				get_self().mrwCountZeros_st(A, pVec);
+			} else get_self().mrwCountZeros_mt(A, pVec);
+		}
+		template<typename MtxValueT, typename VecValueT>
+		void mrwCountZeros_st(const smatrix<MtxValueT>& A, VecValueT*const pVec, const rowcol_range*const pRCR = nullptr)noexcept {
+			//TODO: should be branched by rows/cols
+			if (A.rows() < Thresholds_t::mrwCountZeros_st_rows) {
+				get_self().mrwCountZeros_st_cw(A, pVec, pRCR);
+			} else get_self().mrwCountZeros_st_rw(A, pVec, pRCR);
+		}
+		template<typename MtxValueT, typename VecValueT>
+		void mrwCountZeros_mt(const smatrix<MtxValueT>& A, VecValueT*const pVec)noexcept {
+			if (A.rows() < Thresholds_t::mrwCountZeros_mt_rows) {
+				get_self().mrwCountZeros_mt_cw(A, pVec);
+			} else get_self().mrwCountZeros_mt_rw(A, pVec);
+		}
+		template<typename MtxValueT, typename VecValueT>
+		static void mrwCountZeros_st_cw(const smatrix<MtxValueT>& A, VecValueT*const pVec, const rowcol_range*const pRCR = nullptr)noexcept {
+			_mrwVecOperation_st_cw(A, pVec, 0, pRCR ? *pRCR : rowcol_range(A), _mrw_COUNT_Zeros());
+		}
+		template<typename MtxValueT, typename VecValueT>
+		static void mrwCountZeros_st_rw(const smatrix<MtxValueT>& A, VecValueT*const pVec, const rowcol_range*const pRCR = nullptr)noexcept {
+			_mrwVecOperation_st_rw(A, pVec, pRCR ? *pRCR : rowcol_range(A), _mrw_COUNT_Zeros());
+		}
+		template<typename MtxValueT, typename VecValueT>
+		void mrwCountZeros_mt_cw(const smatrix<MtxValueT>& A, VecValueT*const pVec)noexcept {
+			NNTL_ASSERT(!A.empty() && A.numel() > 0 && pVec);
+			_processMtx_cw(A, [&A, pVec, this](const rowcol_range& RCR) {//, const thread_id_t _tid) {
+				get_self().mrwCountZeros_st(A, pVec, &RCR);
+			});
+		}
+		template<typename MtxValueT, typename VecValueT>
+		void mrwCountZeros_mt_rw(const smatrix<MtxValueT>& A, VecValueT*const pVec)noexcept {
+			_processMtx_rw(A, [&A, pVec, this](const rowcol_range& RCR) {
+				get_self().mrwCountZeros_st(A, pVec, &RCR);
+			});
+		}*/
 
 		//////////////////////////////////////////////////////////////////////////
 		//////////////////////////////////////////////////////////////////////////
@@ -1734,7 +1793,8 @@ namespace math {
 			const numel_cnt_t nm = m*n;
 
 			auto pD = dest.colDataAsVec(firstCol);
-			const auto pDE = pD + static_cast<numel_cnt_t>(dest.rows())*(lastCol - firstCol);
+			//const auto pDE = pD + static_cast<numel_cnt_t>(dest.rows())*(lastCol - firstCol);
+			const auto pDE = pD + __emulu(dest.rows(), lastCol - firstCol);
 
 			auto pSFirst = src.colDataAsVec(firstCol);
 			auto pS = pSFirst;

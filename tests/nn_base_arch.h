@@ -35,10 +35,11 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 namespace nntl_tests {
 
-	template <typename RealT, typename InspectorT = nntl::inspector::dummy<RealT>>
+	template <typename RealT, typename InspectorT = nntl::inspector::dummy<RealT>, typename DefIntnIT = ::nntl::d_int_nI<RealT>>
 	struct NN_base_params : public nntl::math::smatrix_td {
 		typedef RealT real_t;
 		typedef InspectorT Inspector_t;
+		typedef DefIntnIT DefInterfaceNoInsp_t;
 
 		typedef nntl::activation::softsign<real_t> myActivation;
 		//typedef nntl::activation::leaky_relu_100<real_t> myActivation;
@@ -79,7 +80,7 @@ namespace nntl_tests {
 		typedef ArchPrmsT ArchPrms_t;
 		typedef typename ArchPrms_t::real_t real_t;
 
-		struct myInterfaces_t : public nntl::d_int_nI<real_t> {
+		struct myInterfaces_t : public ArchPrms_t::DefInterfaceNoInsp_t {
 			typedef typename ArchPrms_t::Inspector_t iInspect_t;
 		};		
 		//typedef nntl::dt_interfaces<real_t, InspectorT> myInterfaces_t;

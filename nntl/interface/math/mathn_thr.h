@@ -51,7 +51,7 @@ namespace _impl {
 		static constexpr size_t ewBinarize_ip = 132000;
 		static constexpr size_t ewBinarize = 11000;
 
-		static constexpr size_t mExtractRows = 2000;
+		static constexpr size_t mExtractRows = 8000000/2;//nt
 
 		static constexpr size_t mrwL2NormSquared = 124000;
 		static constexpr vec_len_t mrwL2NormSquared_mt_cw_ColsPerThread = 3;
@@ -169,7 +169,7 @@ namespace _impl {
 		static constexpr size_t ewBinarize_ip = 7000;
 		static constexpr size_t ewBinarize = 9000;
 
-		static constexpr size_t mExtractRows = 3100;
+		static constexpr size_t mExtractRows = 800000;
 
 		static constexpr size_t mrwL2NormSquared = 250000;
 		static constexpr vec_len_t mrwL2NormSquared_mt_cw_ColsPerThread = 3;
@@ -177,7 +177,7 @@ namespace _impl {
 		static constexpr size_t mCheck_normalize_rows = 250000;
 		static constexpr size_t evClamp = 14000;
 		static constexpr size_t make_dropout = 15000;//*
-		static constexpr size_t make_alphaDropout = 3800;//*
+		static constexpr size_t make_alphaDropout = 4100;//* for 0.8
 
 		static constexpr size_t apply_ILR_st_vec = 2620; //*
 		static constexpr size_t apply_ILR_mt = 9000; //*
@@ -200,7 +200,7 @@ namespace _impl {
 
 		static constexpr size_t evSign = 30000;//not tested
 
-		static constexpr size_t evSub_ip = 46000;
+		static constexpr size_t evSub_ip = 60000;
 		static constexpr size_t evSub = 28000;
 		static constexpr size_t evMulC_ip_Sub_ip = 30000;
 
@@ -219,10 +219,10 @@ namespace _impl {
 		static constexpr size_t dsigm = 24500;//*
 		static constexpr size_t dSigmQuadLoss_dZ = 70000;//*
 
-		static constexpr size_t relu = 108000;//*
-		static constexpr size_t drelu = 26500;//*
-		static constexpr size_t leakyrelu = 106000;//*
-		static constexpr size_t dleakyrelu = 26500;//*
+		static constexpr size_t relu = 120000;//*
+		static constexpr size_t drelu = 120000;//*
+		static constexpr size_t leakyrelu = 109000;//*
+		static constexpr size_t dleakyrelu = 120000;//*
 
 		static constexpr size_t elu = 1600;//*
 		static constexpr size_t delu = 100000;//*
@@ -254,8 +254,8 @@ namespace _impl {
 		static constexpr size_t softsigm = 6700;//*
 		static constexpr size_t dsoftsigm = 11500;//*
 
-		static constexpr size_t dSoftSigmQuadLoss_dZ = 9900;
-		static constexpr size_t dSoftSigmXEntropyLoss_dZ = 4800;
+		static constexpr size_t dSoftSigmQuadLoss_dZ = 9600;
+		static constexpr size_t dSoftSigmXEntropyLoss_dZ = 4400;
 
 		static constexpr size_t selu = 1600;//*
 		static constexpr size_t dselu = 100000;//*

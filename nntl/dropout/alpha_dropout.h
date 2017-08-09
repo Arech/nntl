@@ -62,6 +62,7 @@ namespace nntl {
 	{
 	private:
 		typedef _impl::_dropout_base<RealT> _base_class_t;
+
 	public:
 		using _base_class_t::real_t;
 
@@ -169,9 +170,11 @@ namespace nntl {
 		void dropoutPercentActive(const real_t dpa)noexcept {
 			_base_class_t::dropoutPercentActive(dpa);
 			if (bDropout()) {
-				//calculating a and b vars
+				calc_coeffs<ext_real_t>(dpa, m_mtxB.cols(), m_a, m_b, m_mbDropVal);
+
+				/*//calculating a and b vars
 				const ext_real_t dropProb = ext_real_t(1) - m_dropoutPercentActive;
-				const ext_real_t amfpm = Neg_AlphaExt_t_LambdaExt - FixedPointMeanExt;
+				static constexpr ext_real_t amfpm = Neg_AlphaExt_t_LambdaExt - FixedPointMeanExt;
 
 				const ext_real_t aExt = ::std::sqrt(FixedPointVarianceExt / (m_dropoutPercentActive*(dropProb*(amfpm*amfpm) + FixedPointVarianceExt)));
 				NNTL_ASSERT(aExt && !isnan(aExt) && isfinite(aExt));
@@ -183,36 +186,9 @@ namespace nntl {
 				m_b = static_cast<real_t>(bExt);
 				NNTL_ASSERT(isfinite(m_b));
 
-				m_mbDropVal = static_cast<real_t>(_DroppedVal_coeff(m_mtxB.cols()) * aExt * Neg_AlphaExt_t_LambdaExt + bExt);
+				m_mbDropVal = static_cast<real_t>(_DroppedVal_coeff(m_mtxB.cols()) * aExt * Neg_AlphaExt_t_LambdaExt + bExt);*/
 			}
 		}
-
-	private:
-
-		template<ADCorr c = corrType>
-		static constexpr ::std::enable_if_t<!(c == ADCorr::correctDoAndVar || c == ADCorr::correctDoVal), ext_real_t>
-		_DroppedVal_coeff(const neurons_count_t nc)noexcept {
-			return ext_real_t(1);
-		}
-
-		template<ADCorr c = corrType>
-		static constexpr ::std::enable_if_t<(c == ADCorr::correctDoAndVar || c == ADCorr::correctDoVal), ext_real_t>
-		_DroppedVal_coeff(const neurons_count_t nc) noexcept {
-			return ::std::sqrt(static_cast<ext_real_t>(nc - 1) / static_cast<ext_real_t>(nc));
-		}
-
-		template<ADCorr c = corrType>
-		static constexpr ::std::enable_if_t<!(c == ADCorr::correctDoAndVar || c == ADCorr::correctVar), ext_real_t>
-		_Variance_coeff(const neurons_count_t nc)noexcept {
-			return ext_real_t(1);
-		}
-
-		template<ADCorr c = corrType>
-		static constexpr ::std::enable_if_t<(c == ADCorr::correctDoAndVar || c == ADCorr::correctVar), ext_real_t>
-		_Variance_coeff(const neurons_count_t nc) noexcept {
-			return ::std::sqrt(static_cast<ext_real_t>(nc) / static_cast<ext_real_t>(nc - 1));
-		}
-
 	};
 
 }

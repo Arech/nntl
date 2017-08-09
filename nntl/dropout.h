@@ -37,8 +37,6 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "dropout/dropout.h"
 #include "dropout/alpha_dropout.h"
 
-//#include "activation.h"
-
 namespace nntl {
 
 	//namespace _impl {
@@ -47,9 +45,11 @@ namespace nntl {
 	struct AlphaDropoutT_proxy { };
 
 	template< class _AF >
-	struct AlphaDropoutT_proxy<_AF, ::std::void_t<decltype(_AF::_TP_alpha), decltype(_AF::_TP_lambda), decltype(_AF::_TP_fpMean), decltype(_AF::_TP_fpVar), decltype(_AF::_TP_corrType)>>
+	struct AlphaDropoutT_proxy<_AF, ::std::void_t<decltype(_AF::_TP_alpha), decltype(_AF::_TP_lambda), decltype(_AF::_TP_fpMean)
+		, decltype(_AF::_TP_fpVar), decltype(_AF::_TP_corrType)>>
 		: AlphaDropout<typename _AF::real_t, _AF::_TP_alpha, _AF::_TP_lambda, _AF::_TP_fpMean, _AF::_TP_fpVar, _AF::_TP_corrType>
 	{};
+
 	//}
 
 

@@ -97,8 +97,8 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "../nntl/_test/test.h"
 
 #ifdef TESTS_SKIP_LONGRUNNING
-#define NNTL_RUN_TEST4(aroundNumel,maxPercDiff,percDiffStep,numelMult) _NNTL_RUN_TEST( (aroundNumel/10),0,1,numelMult,__COUNTER__)
-#define NNTL_RUN_TEST2(aroundNumel,numelMult) _NNTL_RUN_TEST((aroundNumel/10),0,1,numelMult,__COUNTER__)
+#define NNTL_RUN_TEST4(aroundNumel,maxPercDiff,percDiffStep,numelMult) _NNTL_RUN_TEST((aroundNumel/5>numelMult?aroundNumel/5:aroundNumel),0,1,numelMult,__COUNTER__)
+#define NNTL_RUN_TEST2(aroundNumel,numelMult) _NNTL_RUN_TEST((aroundNumel/5>numelMult?aroundNumel/5:aroundNumel),0,1,numelMult,__COUNTER__)
 #else
 #define NNTL_RUN_TEST4(aroundNumel,maxPercDiff,percDiffStep,numelMult) _NNTL_RUN_TEST(aroundNumel,maxPercDiff,percDiffStep,numelMult,__COUNTER__)
 #define NNTL_RUN_TEST2(aroundNumel,numelMult) _NNTL_RUN_TEST(aroundNumel,4,2,numelMult,__COUNTER__)

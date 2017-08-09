@@ -64,6 +64,10 @@ namespace math {
 			static constexpr size_t mrwMulByVec_mt_rows = 80000;
 			static constexpr size_t mrwMulByVec = 20000;
 
+// 			static constexpr size_t mrwCountZeros_st_rows = 20000;//nt
+// 			static constexpr size_t mrwCountZeros_mt_rows = 20000;//nt
+// 			static constexpr size_t mrwCountZeros = 20000;//nt
+
 			static constexpr size_t mrwIdxsOfMax = 3700;
 			static constexpr size_t mrwIdxsOfMax_st_rows = 20;//not tested
 			static constexpr size_t mrwIdxsOfMax_mt_rows = 20;//not tested
@@ -119,6 +123,9 @@ namespace math {
 			static constexpr size_t mrwMulByVec_mt_rows = 150000;
 			static constexpr size_t mrwMulByVec = 30000;
 
+// 			static constexpr size_t mrwCountZeros_st_rows = 30000;//nt
+// 			static constexpr size_t mrwCountZeros_mt_rows = 30000;//nt
+// 			static constexpr size_t mrwCountZeros = 30000;//nt
 
 			static constexpr size_t mrwIdxsOfMax = 5000;
 			static constexpr size_t mrwIdxsOfMax_st_rows = 30;//not tested

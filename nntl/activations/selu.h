@@ -33,7 +33,6 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include "_i_activation.h"
 
-//#include "../dropout/alpha_dropout.h"
 #include "../_SNN_common.h"
 
 namespace nntl {
@@ -47,10 +46,8 @@ namespace activation {
 	// SELU, arxiv:1706.02515 "Self-Normalizing Neural Networks", by Günter Klambauer et al.
 	// Default parameters corresponds to a "standard" SELU with stable fixed point at (0,1)
 	template<typename RealT, int64_t Alpha1e9 = 0, int64_t Lambda1e9 = 0
-		, int fpMean1e6 = 0, int fpVar1e6 = 1000000
-		, ADCorr corrType = ADCorr::no
+		, int fpMean1e6 = 0, int fpVar1e6 = 1000000, ADCorr corrType = ADCorr::no
 		, typename WeightsInitScheme = weights_init::SNNInit
-		//, typename DropoutT = AlphaDropout<RealT, Alpha1e9, Lambda1e9, fpMean1e6, fpVar1e6, corrType>
 	>
 	class selu 
 		: public _i_activation<RealT, WeightsInitScheme>

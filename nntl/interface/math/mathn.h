@@ -333,11 +333,11 @@ namespace math {
 		template<typename SeqIt>
 		void mExtractRows(const realmtx_t& src, const SeqIt& ridxsItBegin, realmtx_t& dest)noexcept {
 			if (dest.cols()<2 || dest.numel() < Thresholds_t::mExtractRows) {
-				get_self().mExtractRows_st_naive(src, ridxsItBegin, dest);
-			} else get_self().mExtractRows_mt_naive(src, ridxsItBegin, dest);
+				get_self().mExtractRows_seqWrite_st(src, ridxsItBegin, dest);
+			} else get_self().mExtractRows_seqWrite_mt(src, ridxsItBegin, dest);
 		}
 		template<typename SeqIt>
-		static void _imExtractRows_st_naive(const realmtx_t& src, const SeqIt& ridxsItBegin, realmtx_t& dest, const elms_range& er)noexcept {
+		static void _imExtractRows_seqWrite_st(const realmtx_t& src, const SeqIt& ridxsItBegin, realmtx_t& dest, const elms_range& er)noexcept {
 			NNTL_ASSERT(!dest.empty() && !src.empty());
 			src.assert_storage_does_not_intersect(dest);
 			static_assert(::std::is_same<vec_len_t, SeqIt::value_type>::value, "Contnr type should contain vec_len_t data");
@@ -351,6 +351,8 @@ namespace math {
 			//TODO: accessing data in sequential order could provide some performance gains. However
 			//it requires the content of [ridxsItBegin,ridxsItBegin+ridxsCnt) to be sorted. Therefore, testing is required
 			// to decide whether it's all worth it
+			// It don't. I've just tried. No significant change on big datasets.
+			// Probably a better idea is to transpose the source data to read rows sequentially. Need to implement and test.
 
 			auto pSrc = src.data();
 			auto pDest = dest.data() + er.elmBegin;
@@ -363,27 +365,26 @@ namespace math {
 				pDest += destRows;
 				const auto destEnd = destCur + rCnt;
 				while (destCur != destEnd) {
-					const auto& idx = *pRI++;
+					const auto idx = *pRI++;
 					NNTL_ASSERT(idx < srcRows);
-					//*destCur++ = *(pSrc + *pRI++);
 					*destCur++ = *(pSrc + idx);
 				}
 				pSrc += srcRows;
 			}
 		}
 		template<typename SeqIt>
-		static void mExtractRows_st_naive(const realmtx_t& src, const SeqIt& ridxsItBegin, realmtx_t& dest, const elms_range*const pER = nullptr)noexcept {
-			_imExtractRows_st_naive(src, ridxsItBegin, dest, pER ? *pER : elms_range(0, dest.rows()));
+		static void mExtractRows_seqWrite_st(const realmtx_t& src, const SeqIt& ridxsItBegin, realmtx_t& dest, const elms_range*const pER = nullptr)noexcept {
+			_imExtractRows_seqWrite_st(src, ridxsItBegin, dest, pER ? *pER : elms_range(0, dest.rows()));
 		}
 		template<typename SeqIt>
-		void mExtractRows_mt_naive(const realmtx_t& src, const SeqIt& ridxsItBegin, realmtx_t& dest)noexcept {
+		void mExtractRows_seqWrite_mt(const realmtx_t& src, const SeqIt& ridxsItBegin, realmtx_t& dest)noexcept {
 			NNTL_ASSERT(!dest.empty() && !src.empty());
 			src.assert_storage_does_not_intersect(dest);
 			static_assert(::std::is_same<vec_len_t, SeqIt::value_type>::value, "Contnr type should contain vec_len_t data");
 			NNTL_ASSERT(dest.cols() == src.cols() && dest.rows() <= src.rows());
 
 			m_threads.run([&src, &dest, &ridxsItBegin](const par_range_t& r) {
-				_imExtractRows_st_naive(src, ridxsItBegin, dest, elms_range(r));
+				_imExtractRows_seqWrite_st(src, ridxsItBegin, dest, elms_range(r));
 			}, dest.rows());
 		}
 
@@ -678,16 +679,15 @@ namespace math {
 			, realmtx_t& dropoutMask, realmtx_t& mtxB, const elms_range*const pER = nullptr) const noexcept
 		{
 			get_self()._imake_alphaDropout_st(act, dropPercAct, a_dmKeepVal, b_mbKeepVal, mbDropVal, dropoutMask, mtxB
-				, pER ? *pER : elms_range(0, dropoutMask.numel()));
+				, pER ? *pER : elms_range(dropoutMask));
 		}
 		static void _imake_alphaDropout_st(realmtx_t& act, const real_t dropPercAct
 			, const real_t a_dmKeepVal, const real_t b_mbKeepVal, const real_t mbDropVal
 			, realmtx_t& dropoutMask, realmtx_t& mtxB, const elms_range& er) noexcept
 		{
-			NNTL_ASSERT(act.emulatesBiases() && !dropoutMask.emulatesBiases());
+			NNTL_ASSERT(act.emulatesBiases() && !dropoutMask.emulatesBiases() && !mtxB.emulatesBiases());
 			NNTL_ASSERT(act.size_no_bias() == dropoutMask.size());
 			NNTL_ASSERT(mtxB.size() == dropoutMask.size());
-			NNTL_ASSERT(!mtxB.emulatesBiases());
 			NNTL_ASSERT(dropPercAct > 0 && dropPercAct < 1);
 			NNTL_ASSERT(er.elmEnd <= dropoutMask.numel());
 
@@ -714,6 +714,8 @@ namespace math {
 				pmB[i] = bKeep ? b_mbKeepVal : mbDropVal;
 			}*/
 
+
+			//#todo: refactor to separate function
 			const auto pA = act.data();
 			for (numel_cnt_t i = er.elmBegin; i < er.elmEnd; ++i) pA[i] = pA[i] * pDM[i] + pmB[i];
 		}
@@ -721,18 +723,17 @@ namespace math {
 			, const real_t a_dmKeepVal, const real_t b_mbKeepVal, const real_t mbDropVal
 			, realmtx_t& dropoutMask, realmtx_t& mtxB)noexcept
 		{
-			NNTL_ASSERT(act.emulatesBiases() && !dropoutMask.emulatesBiases());
+			NNTL_ASSERT(act.emulatesBiases() && !dropoutMask.emulatesBiases() && !mtxB.emulatesBiases());
 			NNTL_ASSERT(act.size_no_bias() == dropoutMask.size());
 			NNTL_ASSERT(dropPercAct > 0 && dropPercAct < 1);
 			NNTL_ASSERT(mtxB.size() == dropoutMask.size());
-			NNTL_ASSERT(!mtxB.emulatesBiases());
 
 			m_threads.run([&act, &dropoutMask, &mtxB, a_dmKeepVal, b_mbKeepVal, mbDropVal, dropPercAct, this](const par_range_t& r) {
 				get_self()._imake_alphaDropout_st(act, dropPercAct, a_dmKeepVal, b_mbKeepVal, mbDropVal, dropoutMask, mtxB, elms_range(r));
 			}, dropoutMask.numel());
 		}
-
-
+		
+		////////////////////////////////////////////////////////////////////////// 
 		//////////////////////////////////////////////////////////////////////////
 		//apply individual learning rate to dLdW
 		void apply_ILR(realmtx_t& dLdW, const realmtx_t& prevdLdW, realmtx_t& ILRGain,
@@ -1255,21 +1256,18 @@ namespace math {
 				get_self().evSub_ip_st_naive(A, B);
 			} else get_self().evSub_ip_mt_naive(A, B);
 		}
-		static void evSub_ip_st_naive(realmtx_t& A, const realmtx_t& B)noexcept {
+		void evSub_ip_st_naive(realmtx_t& A, const realmtx_t& B, const elms_range* pER = nullptr)const noexcept {
 			NNTL_ASSERT(A.size() == B.size());
-			const auto dataCnt = A.numel();
-			const auto pA = A.data();
-			const auto pB = B.data();
-			for (numel_cnt_t i = 0; i < dataCnt; ++i) pA[i] -= pB[i];
+			get_self()._ievSub_ip_st(A.data(), B.data(), pER ? *pER : elms_range(A));
+		}
+		static void _ievSub_ip_st(real_t*const pA, const real_t*const pB, const elms_range& er)noexcept {
+			NNTL_ASSERT(pA && pB);
+			for (numel_cnt_t i = er.elmBegin; i < er.elmEnd; ++i) pA[i] -= pB[i];
 		}
 		void evSub_ip_mt_naive(realmtx_t& A, const realmtx_t& B)noexcept {
 			NNTL_ASSERT(A.size() == B.size());
-			const auto pA = A.data();
-			const auto pB = B.data();
-			m_threads.run([pA, pB](const par_range_t& r) {
-				const auto ofs = r.offset();
-				const auto im = ofs + r.cnt();
-				for (numel_cnt_t i = ofs; i < im; ++i) pA[i] -= pB[i];
+			m_threads.run([pA= A.data(), pB=B.data(), this](const par_range_t& r) {
+				get_self()._ievSub_ip_st(pA, pB, elms_range(r));
 			}, A.numel());
 		}
 
@@ -2864,7 +2862,7 @@ namespace math {
 		// FFFUUUUUUUU....!!!!
 		// Declare alpha_t_lambda and lambda parameters as references and get x10 slowdown!
 		// I guess it happens because compiler can't assume that they are allocated outside of mutable *ptrDF.
-		// C++ is indeed a nice rope to shoot own leg...
+		// C++ is indeed a nice rope to shoot own leg... BTW, __restrict, as well as __declspec(noalias) doesn't seem to work!
 		static void _idselu_st(realmtx_t& f_df, const real_t alpha_t_lambda, const real_t lambda, const elms_range& er) noexcept {
 			NNTL_ASSERT(alpha_t_lambda > real_t(0.0));
 			NNTL_ASSERT(!f_df.empty());

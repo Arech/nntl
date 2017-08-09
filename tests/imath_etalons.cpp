@@ -725,10 +725,9 @@ void make_alphaDropout_ET(realmtx_t& act, const real_t dropPercAct
 	, const real_t a_dmKeepVal, const real_t b_mbKeepVal, const real_t mbDropVal
 	, realmtx_t& dropoutMask, realmtx_t& mtxB) noexcept
 {
-	NNTL_ASSERT(act.emulatesBiases() && !dropoutMask.emulatesBiases());
+	NNTL_ASSERT(act.emulatesBiases() && !dropoutMask.emulatesBiases() && !mtxB.emulatesBiases());
 	NNTL_ASSERT(act.size_no_bias() == dropoutMask.size());
 	NNTL_ASSERT(mtxB.size() == dropoutMask.size());
-	NNTL_ASSERT(!mtxB.emulatesBiases());
 	NNTL_ASSERT(dropPercAct > 0 && dropPercAct < 1);
 
 	const auto pmB = mtxB.data();
@@ -745,6 +744,7 @@ void make_alphaDropout_ET(realmtx_t& act, const real_t dropPercAct
 	const auto pA = act.data();
 	for (numel_cnt_t i = 0; i < _ne; ++i) pA[i] = pA[i] * pDM[i] + pmB[i];
 }
+
 
 void evSubMtxMulC_ip_nb_ET(realmtx_t& A, const realmtx_t& M, const real_t c)noexcept {
 	NNTL_ASSERT(!A.empty() && A.numel_no_bias() > 0);
