@@ -31,7 +31,8 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 #pragma once
 
-#include "interface/threads/std.h"
+//#include "interface/threads/std.h"
+#include "interface/threads/winqdu.h"
 #include "interface/math/mathn_mt.h"
 #include "interface/rng/afrand_mt.h"
 
@@ -44,7 +45,8 @@ namespace nntl {
 		//typedef math::d_real_t real_t;
 		typedef RealT real_t;
 
-		typedef threads::Std<real_t, math::smatrix_td::numel_cnt_t> iThreads_t;
+		//typedef threads::Std<real_t, math::smatrix_td::numel_cnt_t> iThreads_t;
+		typedef threads::WinQDU<real_t, math::smatrix_td::numel_cnt_t> iThreads_t;
 
 		//_mt is deprecated. Going to make run-time profiler sometime
 		//typedef math::MathN_mt<real_t, iThreads_t> iMath_t;

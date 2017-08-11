@@ -131,15 +131,16 @@ TEST(TestThreading, StdBasics) {
 #if !TESTS_SKIP_THREADING_PERFS
 
 TEST(TestThreading, PerfComparision) {
-	using namespace ::std::chrono;
 
 	typedef math::smatrix_td::numel_cnt_t numel_cnt_t;
 	STDCOUTL("The test may require a few seconds to complete. Define TESTS_SKIP_THREADING_PERFS 1 to skip.");
-	STDCOUTL("Probably, you shouldn't rely on this test results...");
 
-	constexpr uint64_t maxreps = 200000;
-	EXPECT_TRUE(steady_clock::is_steady);
-	double tWinQDU, tStd, tWinQDUNE;
+#ifdef _DEBUG
+	static constexpr uint64_t maxreps = 200, runCnt = 10;
+#else
+	static constexpr uint64_t maxreps = 20000, runCnt = 1000000000;
+#endif
+	utils::tictoc tW, tWNE, tS;
 
 	{
 		typedef threads::WinQDU<real_t, numel_cnt_t> thr;
@@ -149,26 +150,28 @@ TEST(TestThreading, PerfComparision) {
 		//v is used to make sure compiler doesn't optimize away all machinery. Also it almost doesn't change time ratio between
 		//WinQDU and Std in debug and release and almost doesn't change absolute times in release.
 		::std::atomic_ptrdiff_t v = 0, v2 = 0;
-		nanoseconds diff(0), diffNE(0);
 
 		for (uint64_t i = 0; i < maxreps; ++i) {
-			auto bt = steady_clock::now();
+			tW.tic();
 			wint.run([&](const par_range_t&) {
 				v++;
-			}, 100000000 );
-			diff += steady_clock::now() - bt;
+			}, runCnt);
+			tW.toc();
+		}
 
-			bt = steady_clock::now();
+		for (uint64_t i = 0; i < maxreps; ++i) {
+			tWNE.tic();
 			wint.run([&](const par_range_t&)noexcept {
 				// we turned off exceptions at project level now, so this test probably won't show much.
 				// but it might be helpful with other compiler settings, so leave it be
 				v2++;
-			}, 100000000);
-			diffNE += steady_clock::now() - bt;
+			}, runCnt);
+			tWNE.toc();
 		}
-		STDCOUTL("WinQDU:\t\t " << utils::duration_readable(diff, maxreps, &tWinQDU) << ",\t\t" << v << " incs)");
-		STDCOUTL("WinQDU(noexcept):" << utils::duration_readable(diff, maxreps, &tWinQDUNE) << ",\t\t" << v2 << " incs)");
-		STDCOUTL("noexcept/plain ratio: " << tWinQDUNE / tWinQDU);
+		tW.say("WinQDU");
+		tWNE.say("WinQDU(noexcept)");
+		tW.ratios(tWNE);
+		STDCOUTL(v << v2);
 	}
 	{
 		typedef threads::Std<real_t, numel_cnt_t> thr;
@@ -176,19 +179,22 @@ TEST(TestThreading, PerfComparision) {
 		thr stdt;
 		::std::atomic_ptrdiff_t v = 0;
 
-		auto bt = steady_clock::now();
+
 		for (uint64_t i = 0; i < maxreps; ++i) {
+			tS.tic();
 			stdt.run([&](const par_range_t&) {
 				v++;
-			}, 100000000);
+			}, runCnt);
+			tS.toc();
 		}
-		auto diff = steady_clock::now() - bt;
-		STDCOUTL("Std:\t\t " << utils::duration_readable(diff, maxreps, &tStd) << ",\t\t" << v << " incs)");
+		tS.say("Std");
+		STDCOUTL(v);
 	}
-	
 
-	STDCOUTL("threads::WinQDU  is " << ::std::setprecision(3) << tStd/tWinQDU << " times faster than threads::Std");
+	STDCOUT("ratios to threads::WinQDU are: ");
+	tS.ratios(tW);
 }
+
 
 #endif // !TESTS_SKIP_THREADING_PERFS
 

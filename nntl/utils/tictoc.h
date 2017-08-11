@@ -72,21 +72,29 @@ namespace utils {
 
 		::std::string to_string() const {
 			return m_repeats > 0
-				? nntl::utils::duration_readable(m_dFirstRun) + "  "
-				+ nntl::utils::duration_readable(m_dBestRun) + "  "
-				+ nntl::utils::duration_readable(m_dAllRun, m_repeats)
+				? ::nntl::utils::duration_readable(m_dFirstRun) + "  "
+				+ ::nntl::utils::duration_readable(m_dBestRun) + "  "
+				+ ::nntl::utils::duration_readable(m_dAllRun, m_repeats)
 				: "never run!";
 		}
 
-		/*void say(const char* desr = "?", const char* spc = ":\t")const {
-			::std::cout << desr << spc << to_string() << ::std::endl;
-		}*/
-		void say(const char* desr = "?", unsigned minWidth=10)const {
-			constexpr unsigned _MAXW = 64, _MAXFMT = 16;
-			char _buf[_MAXW], _fmt[_MAXFMT];
-			sprintf_s(_fmt, "%%-%ds:", minWidth);
-			sprintf_s(_buf, _fmt, desr);
-			::std::cout << _buf << to_string() << ::std::endl;
+		void say(const char* descr = "?", const unsigned minWidth=15)const {
+ 			//constexpr unsigned _MAXW = 64;
+			//char _buf[_MAXW];
+			//sprintf_s(_buf, "%-*s", minWidth, desr);
+			//::std::cout << _buf << to_string() << ::std::endl;
+			printf_s("%-*s%s\n", minWidth, descr, to_string().c_str());
+		}
+
+		template<typename FlT=float>
+		void ratios(const tictoc& other, const unsigned prec=3)const noexcept {
+			if (m_repeats && other.m_repeats) {
+				printf_s("%.*f   %.*f   %.*f\n"
+					, prec, static_cast<FlT>(m_dFirstRun.count()) / other.m_dFirstRun.count()
+					, prec, static_cast<FlT>(m_dBestRun.count()) / other.m_dBestRun.count()
+					, prec, static_cast<FlT>(m_dAllRun.count()) / other.m_dAllRun.count()
+				);
+			} else printf_s("never run!");
 		}
 	};
 

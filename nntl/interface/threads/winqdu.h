@@ -138,6 +138,23 @@ namespace threads {
 			return m_threads.begin();
 		}
 
+		bool denormalsOnInAnyThread()noexcept {
+			for (auto&e : m_reduceCache) e = real_t(-9999);
+
+			thread_id_t thdUsed = 0;
+			const auto thrCnt = m_workersCnt + 1;
+			run([&rc = m_reduceCache](const par_range_t& r) {
+				rc[r.tid()] = isDenormalsOn() ? real_t(1.) : real_t(0.);
+			}, thrCnt, thrCnt, &thdUsed);
+
+			if (thdUsed == thrCnt) {
+				real_t s(real_t(0.));
+				for (const auto& e : m_reduceCache) s += e;
+				return real_t(0.) != s;
+			}
+			return true;
+		}
+
 		template<typename Func>
 		void run(Func&& F, const range_t cnt, const thread_id_t useNThreads = 0, thread_id_t* pThreadsUsed = nullptr) noexcept {
 			//TODO: decide whether it is worth to use workers here
@@ -241,15 +258,12 @@ namespace threads {
 
 			while (true) {
 				AcquireSRWLockShared(&m_srwlock);
-
 				while (!m_bStop && 0 == m_ranges[id].cnt()) {
 					SleepConditionVariableSRW(&m_waitingOrders, &m_srwlock, INFINITE, CONDITION_VARIABLE_LOCKMODE_SHARED);
 				}
+				ReleaseSRWLockShared(&m_srwlock);
 
-				if (m_bStop) {
-					ReleaseSRWLockShared(&m_srwlock);
-					break;
-				}
+				if (m_bStop) break;
 
 				auto& thrdRange = m_ranges[id];
 				switch (m_jobType){
@@ -263,8 +277,9 @@ namespace threads {
 					NNTL_ASSERT(!"WTF???");
 					abort();
 				}
-				thrdRange.cnt(0);
 
+				AcquireSRWLockShared(&m_srwlock);
+				thrdRange.cnt(0);
 				InterlockedDecrement(&m_workingCnt);
 				WakeConditionVariable(&m_orderDone);
 				ReleaseSRWLockShared(&m_srwlock);
