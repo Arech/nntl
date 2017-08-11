@@ -47,7 +47,10 @@ typedef d_interfaces::real_t real_t;
 
 //#ifdef TESTS_SKIP_LONGRUNNING
 
-#define TESTS_SKIP_THREADING_PERFS
+#ifndef TESTS_SKIP_THREADING_PERFS
+#define TESTS_SKIP_THREADING_PERFS 1
+#endif // !TESTS_SKIP_THREADING_PERFS
+
 #define TESTS_SKIP_THREADING_DELAYS
 
 //#endif
@@ -125,13 +128,13 @@ TEST(TestThreading, StdBasics) {
 }
 
 
-#ifndef TESTS_SKIP_THREADING_PERFS
+#if !TESTS_SKIP_THREADING_PERFS
 
 TEST(TestThreading, PerfComparision) {
 	using namespace ::std::chrono;
 
 	typedef math::smatrix_td::numel_cnt_t numel_cnt_t;
-	STDCOUTL("The test may require a few seconds to complete. Define TESTS_SKIP_THREADING_PERFS to skip.");
+	STDCOUTL("The test may require a few seconds to complete. Define TESTS_SKIP_THREADING_PERFS 1 to skip.");
 	STDCOUTL("Probably, you shouldn't rely on this test results...");
 
 	constexpr uint64_t maxreps = 200000;

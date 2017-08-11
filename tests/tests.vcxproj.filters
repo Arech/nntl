@@ -456,6 +456,12 @@
     <ClInclude Include="..\nntl\layer\extender.h">
       <Filter>nntl\layer</Filter>
     </ClInclude>
+    <ClInclude Include="..\nntl\interface\threads\asynch.h">
+      <Filter>nntl\interface\threads</Filter>
+    </ClInclude>
+    <ClInclude Include="..\nntl\interface\_i_asynch.h">
+      <Filter>nntl\interface</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="stdafx.cpp">

@@ -113,7 +113,7 @@
       <SDLCheck>true</SDLCheck>
       <OmitFramePointers>true</OmitFramePointers>
       <SmallerTypeCheck>true</SmallerTypeCheck>
-      <FloatingPointModel>Precise</FloatingPointModel>
+      <FloatingPointModel>Fast</FloatingPointModel>
       <RuntimeTypeInfo>false</RuntimeTypeInfo>
       <EnablePREfast>false</EnablePREfast>
     </ClCompile>
@@ -155,7 +155,7 @@
       <OmitFramePointers>true</OmitFramePointers>
       <EnableFiberSafeOptimizations>true</EnableFiberSafeOptimizations>
       <StringPooling>true</StringPooling>
-      <FloatingPointModel>Precise</FloatingPointModel>
+      <FloatingPointModel>Fast</FloatingPointModel>
       <BufferSecurityCheck>false</BufferSecurityCheck>
       <EnableParallelCodeGeneration>true</EnableParallelCodeGeneration>
       <RuntimeTypeInfo>false</RuntimeTypeInfo>
@@ -215,6 +215,8 @@
     <ClInclude Include="..\nntl\interface\rng\afrand_mt.h" />
     <ClInclude Include="..\nntl\interface\rng\afrand_mt_thr.h" />
     <ClInclude Include="..\nntl\interface\rng\distr_normal_naive.h" />
+    <ClInclude Include="..\nntl\interface\threads\asynch.h" />
+    <ClInclude Include="..\nntl\interface\_i_asynch.h" />
     <ClInclude Include="..\nntl\interface\_i_inspector.h" />
     <ClInclude Include="..\nntl\interface\_i_rng.h" />
     <ClInclude Include="..\nntl\layer\extender.h" />

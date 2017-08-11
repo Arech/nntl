@@ -6,6 +6,7 @@ _obsolette/
 data/*
 **/.svn
 tests_private/
+quick_tests/
 nntl+/
 tests+/
 
