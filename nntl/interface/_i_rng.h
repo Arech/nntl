@@ -31,6 +31,8 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 #pragma once
 
+#include <random>
+
 namespace nntl {
 namespace rng {
 
@@ -91,7 +93,11 @@ namespace rng {
 
 		//generate a vector using Bernoulli distribution with probability of success p and success value sVal.
 		nntl_interface void bernoulli_vector(real_t* ptr, const size_t n, const real_t p, const real_t sVal = real_t(1.), const real_t negVal = real_t(0.))noexcept;
-		nntl_interface void bernoulli_matrix(realmtx_t A, const real_t p, const real_t sVal = real_t(1.), const real_t negVal = real_t(0.))noexcept;
+		nntl_interface void bernoulli_matrix(realmtx_t& A, const real_t p, const real_t sVal = real_t(1.), const real_t negVal = real_t(0.))noexcept;
+
+		nntl_interface void normal_vector(real_t* ptr, const size_t n, const real_t m = real_t(0.), const real_t st = real_t(1.))noexcept;
+		nntl_interface void normal_matrix(realmtx_t& A, const real_t m = real_t(0.), const real_t st = real_t(1.))noexcept;
+
 
 		//////////////////////////////////////////////////////////////////////////
 		// matrix/vector generation (sequence of numbers drawn from uniform distribution in [-a,a])
@@ -169,8 +175,20 @@ namespace rng {
 				*ptr++ = get_self().gen_f_norm() < p ? posVal : negVal;
 			}
 		}
-		void bernoulli_matrix(realmtx_t A, const real_t p, const real_t posVal = real_t(1.), const real_t negVal = real_t(0.))noexcept {
+		void bernoulli_matrix(realmtx_t& A, const real_t p, const real_t posVal = real_t(1.), const real_t negVal = real_t(0.))noexcept {
 			get_self().bernoulli_vector(A.data(), A.numel(), p, posVal, negVal);
+		}
+
+		//////////////////////////////////////////////////////////////////////////
+		//////////////////////////////////////////////////////////////////////////
+		void normal_vector(real_t*const ptr, const size_t n, const real_t m = real_t(0.), const real_t st = real_t(1.))noexcept {
+			::std::normal_distribution<real_t> distr(m,n);
+			for (size_t i = 0; i < n; ++i) {
+				ptr[i] = distr(*this);
+			}
+		}
+		void normal_matrix(realmtx_t& A, const real_t m = real_t(0.), const real_t st = real_t(1.))noexcept {
+			get_self().normal_vector(A.data(), A.numel(), m , st);
 		}
 
 		//////////////////////////////////////////////////////////////////////////

@@ -609,7 +609,7 @@ TEST(TestPerfDecisions, MaxRowwise) {
 //////////////////////////////////////////////////////////////////////////
 template<typename iMath>
 inline void evCMulSub_st(iMath& iM, realmtx_t& vW, const real_t momentum, realmtx_t& W)noexcept {
-	iM.evMulC_ip_st_naive(vW, momentum);
+	iM.evMulC_ip_st(vW, momentum);
 	iM.evSub_ip_st_naive(W, vW);
 }
 inline void evcombCMulSub(realmtx_t& vW, const real_t momentum, realmtx_t& W)noexcept {

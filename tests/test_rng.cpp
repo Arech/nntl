@@ -229,6 +229,40 @@ TEST(TestRNG, NormDistrCompat) {
 		ASSERT_NEAR(_std, targStddev, NormDistrCompat_EPS<real_t>::eps) << "Wrong StdDev!!!";
 	}
 }
+
+TEST(TestRNG, normal_vector_Compat) {
+	typedef d_interfaces::iRng_t iRng_t;
+	typedef nntl::d_interfaces::iThreads_t def_threads_t;
+	typedef ::std::vector<real_t> vec_t;
+
+	static constexpr real_t targMean(real_t(.5)), targStddev(real_t(2.));
+	static constexpr unsigned maxReps = 5, totalElms = 1000000;
+
+	vec_t dest(totalElms);
+
+	def_threads_t Thr;
+	iRng_t iR(Thr);
+	//rng::distr_normal_naive<iRng_t> d(iR, targMean, targStddev);
+
+	for (unsigned i = 0; i < maxReps; ++i) {
+		::std::fill(dest.begin(), dest.end(), real_t(0.));
+		iR.normal_vector(&dest.front(), totalElms, targMean, targStddev);
+
+		::boost::accumulators::accumulator_set<real_t, ::boost::accumulators::stats<
+			::boost::accumulators::tag::mean
+			, ::boost::accumulators::tag::lazy_variance >
+		> acc;
+		for (const auto& v : dest) {
+			acc(v);
+		}
+		const real_t _mean = ::boost::accumulators::extract_result< ::boost::accumulators::tag::mean >(acc)
+			, _std = ::std::sqrt(::boost::accumulators::extract_result< ::boost::accumulators::tag::lazy_variance >(acc));
+		STDCOUTL("Mean = " << _mean << ", std = " << _std);
+		ASSERT_NEAR(_mean, targMean, NormDistrCompat_EPS<real_t>::eps) << "Wrong mean!!!";
+		ASSERT_NEAR(_std, targStddev, NormDistrCompat_EPS<real_t>::eps) << "Wrong StdDev!!!";
+	}
+}
+
 //////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////
 template<typename iRng, typename iThreadsT>
@@ -282,4 +316,59 @@ TEST(TestRNG, BernoulliVectorPerf) {
 		test_bernoulli_perf<AFog::CRandomSFMT0>(Thr, "AFSFMT0", i, 10);
 	NNTL_RUN_TEST2((rng::_impl::AFRAND_MT_THR<AFog::CRandomSFMT1, real_t>::bnd_bernoulli_vector), 10)
 		test_bernoulli_perf<AFog::CRandomSFMT1>(Thr, "AFSFMT1", i, 10);
+}
+
+//////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////
+template<typename iRng, typename iThreadsT>
+void test_normal_perf(iThreadsT& iT, char* pName, realmtx_t::vec_len_t rowsCnt, realmtx_t::vec_len_t colsCnt = 10) {
+	const auto dataSize = realmtx_t::sNumel(rowsCnt, colsCnt);
+	STDCOUTL("******* testing " << pName << ".normal_vector performance over " << rowsCnt << "x" << colsCnt << " matrix (" << dataSize << " elements) **************");
+	realmtx_t M(rowsCnt, colsCnt);
+	ASSERT_TRUE(!M.isAllocationFailed());
+	constexpr unsigned maxReps = 5 * TEST_PERF_REPEATS_COUNT;
+
+	const auto m = real_t(.0), st = real_t(1.);
+	real_t g = real_t(0);
+	auto ptr = M.data();
+	auto dataCnt = M.numel();
+	utils::tictoc tS, tM, tB;
+	rng::AFRand_mt<real_t, iRng, iThreadsT> rg(iT);
+
+	utils::prioritize_workers<utils::PriorityClass::PerfTesting, iThreadsT> pw(iT);
+	for (unsigned r = 0; r < maxReps; ++r) {
+		tS.tic();
+		rg.normal_vector_st(ptr, dataCnt, m, st);
+		tS.toc();
+		for (const auto& e : M) g += e;
+		g = ::std::log(::std::abs(g));
+
+		tM.tic();
+		rg.normal_vector_mt(ptr, dataCnt, m, st);
+		tM.toc();
+		for (const auto& e : M) g += e;
+		g = ::std::log(::std::abs(g));
+
+		tB.tic();
+		rg.normal_vector(ptr, dataCnt, m, st);
+		tB.toc();
+		for (const auto& e : M) g += e;
+		g = ::std::log(::std::abs(g));
+	}
+	tS.say("st");
+	tM.say("mt");
+	tB.say("()");
+	STDCOUTL(g);
+}
+
+TEST(TestRNG, normal_vector_perf) {
+	typedef nntl::d_interfaces::iThreads_t def_threads_t;
+	def_threads_t Thr;
+
+	NNTL_RUN_TEST2((rng::_impl::AFRAND_MT_THR<AFog::CRandomMersenne, real_t>::bnd_normal_vector), 10)
+		test_normal_perf<AFog::CRandomMersenne>(Thr, "AFMersenne", i, 10);
+	NNTL_RUN_TEST2((rng::_impl::AFRAND_MT_THR<AFog::CRandomSFMT0, real_t>::bnd_normal_vector), 10)
+		test_normal_perf<AFog::CRandomSFMT0>(Thr, "AFSFMT0", i, 10);
+	NNTL_RUN_TEST2((rng::_impl::AFRAND_MT_THR<AFog::CRandomSFMT1, real_t>::bnd_normal_vector), 10)
+		test_normal_perf<AFog::CRandomSFMT1>(Thr, "AFSFMT1", i, 10);
 }

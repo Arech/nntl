@@ -41,7 +41,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //TODO: STUPID implementation!!! Rewrite
 template<typename iMath>
 void evCMulSub_ET(iMath& iM, realmtx_t& vW, const real_t momentum, realmtx_t& W)noexcept {
-	iM.evMulC_ip_st_naive(vW, momentum);
+	iM.evMulC_ip_st(vW, momentum);
 	iM.evSub_ip_st_naive(W, vW);
 }
 

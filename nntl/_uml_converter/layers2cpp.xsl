@@ -576,7 +576,8 @@ public:
 	
 protected:
 	static constexpr neurons_count_t _pos_round(const real_t v)noexcept{
-		return neurons_count_t(v) == neurons_count_t(v + real_t(.5)) ? neurons_count_t(v) : neurons_count_t(v + real_t(.5));
+		//return neurons_count_t(v) == neurons_count_t(v + real_t(.5)) ? neurons_count_t(v) : neurons_count_t(v + real_t(.5));
+		return static_cast&lt;neurons_count_t&gt;(::std::ceil(v));
 	}
 	static constexpr bool _hasDropout()noexcept{
 		return dropoutAlive &gt; real_t(.0) &amp;&amp; dropoutAlive &lt; real_t(1.0);

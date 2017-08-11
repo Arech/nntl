@@ -39,6 +39,12 @@ namespace nntl {
 namespace utils {
 
 	namespace chrono {
+		/*template<typename per_t> struct period_3oom_bigger {
+			typedef ::std::chrono::minutes type;
+		};
+		template<> struct period_3oom_bigger<::std::chrono::milliseconds> {
+			typedef ::std::chrono::seconds type;
+		};*/
 		template<typename per_t> struct period_3oom_bigger {
 			typedef ::std::chrono::seconds type;
 		};
@@ -53,6 +59,10 @@ namespace utils {
 			//static constexpr const strchar_t* name = NNTL_STRING("???");
 			static constexpr const char* name = "??";
 		};
+		/*template<> struct period_name<::std::chrono::minutes> {
+			//static constexpr const strchar_t* name = NNTL_STRING("s");
+			static constexpr const char* name = "m";
+		};*/
 		template<> struct period_name<::std::chrono::seconds> {
 			//static constexpr const strchar_t* name = NNTL_STRING("s");
 			static constexpr const char* name = "s";
@@ -73,7 +83,7 @@ namespace utils {
 	
 
 	template <typename durType>
-	static inline ::std::string duration_readable(durType d, uint64_t repeats=1, double* ptrSingleTime=nullptr)noexcept {
+	static ::std::string duration_readable(durType d, uint64_t repeats=1, double* ptrSingleTime=nullptr)noexcept {
 		double t = static_cast<double>(d.count())/repeats;
 		if (ptrSingleTime) *ptrSingleTime = t;
 		const char* name;
@@ -81,13 +91,22 @@ namespace utils {
 			name = chrono::period_name<durType>::name;
 		}else if (t < 1000000) {
 			t /= 1000;
-			name = chrono::period_name< chrono::period_3oom_bigger<durType>::type >::name;
-		} else if (t< 1000000000){
+			name = chrono::period_name<
+				chrono::period_3oom_bigger<durType>::type
+			>::name;
+		} else if (t < 1000000000) {
 			t /= 1000000;
-			name = chrono::period_name< chrono::period_3oom_bigger<chrono::period_3oom_bigger<durType>::type >::type >::name;
+			name = chrono::period_name<
+				chrono::period_3oom_bigger<
+				chrono::period_3oom_bigger<durType>::type
+				>::type >::name;
 		} else {
 			t /= 1000000000;
-			name = chrono::period_name< chrono::period_3oom_bigger<chrono::period_3oom_bigger< chrono::period_3oom_bigger<durType>::type >::type >::type >::name;
+			name = chrono::period_name<
+				chrono::period_3oom_bigger<
+				chrono::period_3oom_bigger<
+				chrono::period_3oom_bigger<durType>::type
+				>::type >::type >::name;
 		}
 		constexpr unsigned MAX_STR_SIZE = 256;
 		char str[MAX_STR_SIZE];

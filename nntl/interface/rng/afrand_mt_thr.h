@@ -50,6 +50,7 @@ namespace rng {
 			static constexpr size_t bnd_gen_vector_norm = 1640;
 
 			static constexpr size_t bnd_bernoulli_vector = 1500;
+			static constexpr size_t bnd_normal_vector = 1000;
 		};
 
 		template<> struct AFRAND_MT_THR<AFog::CRandomSFMT0, double> {
@@ -58,6 +59,7 @@ namespace rng {
 			static constexpr size_t bnd_gen_vector_norm = 2620;
 
 			static constexpr size_t bnd_bernoulli_vector = 2500;
+			static constexpr size_t bnd_normal_vector = 2000;
 		};
 
 		//insanely strange RNG
@@ -67,6 +69,7 @@ namespace rng {
 			static constexpr size_t bnd_gen_vector_norm = 3000;
 
 			static constexpr size_t bnd_bernoulli_vector = 2900;
+			static constexpr size_t bnd_normal_vector = 2300;
 		};
 
 		//////////////////////////////////////////////////////////////////////////
@@ -77,6 +80,7 @@ namespace rng {
 			static constexpr size_t bnd_gen_vector_norm = 2900;// 1600;// 2900;
 
 			static constexpr size_t bnd_bernoulli_vector = 1700;
+			static constexpr size_t bnd_normal_vector = 175;
 		};
 
 		template<> struct AFRAND_MT_THR<AFog::CRandomSFMT0, float> {
@@ -85,6 +89,7 @@ namespace rng {
 			static constexpr size_t bnd_gen_vector_norm = 4200;// 2620;// 4200;
 
 			static constexpr size_t bnd_bernoulli_vector = 2250;
+			static constexpr size_t bnd_normal_vector = 175;
 		};
 
 		template<> struct AFRAND_MT_THR<AFog::CRandomSFMT1, float> {
@@ -93,6 +98,7 @@ namespace rng {
 			static constexpr size_t bnd_gen_vector_norm = 4400;//3000;//  4400;
 
 			static constexpr size_t bnd_bernoulli_vector = 2200;
+			static constexpr size_t bnd_normal_vector = 180;
 		};
 	}
 

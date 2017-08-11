@@ -949,15 +949,15 @@ namespace math {
 		}
 		void evMulC_ip(realmtx_t& A, const real_t& b)noexcept {
 			if (A.numel() < Thresholds_t::evMulC_ip) {
-				get_self().evMulC_ip_st_naive(A, b);
-			} else get_self().evMulC_ip_mt_naive(A, b);
+				get_self().evMulC_ip_st(A, b);
+			} else get_self().evMulC_ip_mt(A, b);
 		}
-		void evMulC_ip_st_naive(realmtx_t& A, const real_t& b, const elms_range*const pER = nullptr)noexcept {
+		void evMulC_ip_st(realmtx_t& A, const real_t& b, const elms_range*const pER = nullptr)noexcept {
 			NNTL_ASSERT(!A.empty() && A.numel() > 0);
 			NNTL_ASSERT(!pER || pER->elmEnd <= A.numel());
 			get_self()._ievMulC_ip_st(A.data(), b, pER ? *pER : elms_range(A));
 		}
-		void evMulC_ip_mt_naive(realmtx_t& A, const real_t& b)noexcept {
+		void evMulC_ip_mt(realmtx_t& A, const real_t& b)noexcept {
 			NNTL_ASSERT(!A.empty() && A.numel() > 0);
 			m_threads.run([pA = A.data(), b, this](const par_range_t& pr) {
 				get_self()._ievMulC_ip_st(pA, b, elms_range(pr));
@@ -966,15 +966,15 @@ namespace math {
 		//////////////////////////////////////////////////////////////////////////
 		void evMulC_ip(real_t* pA, const numel_cnt_t& n, const real_t& b)noexcept {
 			if (n < Thresholds_t::evMulC_ip) {
-				get_self().evMulC_ip_st_naive(pA, n, b);
-			} else get_self().evMulC_ip_mt_naive(pA, n, b);
+				get_self().evMulC_ip_st(pA, n, b);
+			} else get_self().evMulC_ip_mt(pA, n, b);
 		}
-		void evMulC_ip_st_naive(real_t* pA, const numel_cnt_t& n, const real_t& b, const elms_range*const pER = nullptr)noexcept {
+		void evMulC_ip_st(real_t* pA, const numel_cnt_t& n, const real_t& b, const elms_range*const pER = nullptr)noexcept {
 			NNTL_ASSERT(pA && n > 0);
 			NNTL_ASSERT(!pER || pER->elmEnd <= n);
 			get_self()._ievMulC_ip_st(pA, b, pER ? *pER : elms_range(0, n));
 		}
-		void evMulC_ip_mt_naive(real_t* pA, const numel_cnt_t& n, const real_t& b)noexcept {
+		void evMulC_ip_mt(real_t* pA, const numel_cnt_t& n, const real_t& b)noexcept {
 			NNTL_ASSERT(pA && n > 0);
 			m_threads.run([pA, b, this](const par_range_t& pr) {
 				get_self()._ievMulC_ip_st(pA, b, elms_range(pr));
@@ -984,15 +984,15 @@ namespace math {
 		//inplace elementwise multiplication A(no_bias) = b.*A(no_bias)
 		void evMulC_ip_Anb(realmtx_t& A, const real_t& b)noexcept {
 			if (A.numel_no_bias() < Thresholds_t::evMulC_ip_Anb) {
-				get_self().evMulC_ip_Anb_st_naive(A, b);
-			} else get_self().evMulC_ip_Anb_mt_naive(A, b);
+				get_self().evMulC_ip_Anb_st(A, b);
+			} else get_self().evMulC_ip_Anb_mt(A, b);
 		}
-		void evMulC_ip_Anb_st_naive(realmtx_t& A, const real_t& b, const elms_range*const pER = nullptr)noexcept {
+		void evMulC_ip_Anb_st(realmtx_t& A, const real_t& b, const elms_range*const pER = nullptr)const noexcept {
 			NNTL_ASSERT(!A.empty() && A.numel_no_bias() > 0);
 			NNTL_ASSERT(!pER || pER->elmEnd <= A.numel_no_bias());
 			get_self()._ievMulC_ip_st(A.data(), b, pER ? *pER : elms_range(0, A.numel_no_bias()));
 		}
-		void evMulC_ip_Anb_mt_naive(realmtx_t& A, const real_t& b)noexcept {
+		void evMulC_ip_Anb_mt(realmtx_t& A, const real_t& b)noexcept {
 			NNTL_ASSERT(!A.empty() && A.numel_no_bias() > 0);
 			m_threads.run([pA = A.data(), b, this](const par_range_t& pr) {
 				get_self()._ievMulC_ip_st(pA, b, elms_range(pr));
@@ -1105,7 +1105,7 @@ namespace math {
 			for (numel_cnt_t i = er.elmBegin; i < er.elmEnd; ++i) pA[i] += pB[i];
 		}
 		void vAdd_ip_st(real_t*const pA, const real_t*const pB, const numel_cnt_t dataCnt, const elms_range*const pER=nullptr)noexcept {
-			NNTL_ASSERT(pA && pB && dataCnt);
+			NNTL_ASSERT(pA && pB && (pER || dataCnt));
 			_ivAdd_ip_st(pA, pB, pER ? *pER : elms_range(0, dataCnt));
 		}
 		void vAdd_ip_mt(real_t*const pA, const real_t*const pB, const numel_cnt_t dataCnt)noexcept {
@@ -1131,6 +1131,23 @@ namespace math {
 			m_threads.run([pA=A.data(), pB=B.data(), this](const par_range_t& pr) {
 				get_self()._ivAdd_ip_st(pA, pB, elms_range(pr));
 			}, A.numel());
+		}
+		//////////////////////////////////////////////////////////////////////////
+		//inplace elementwise addition A(nobias) = A(nobias)+B
+		void evAdd_Anb_ip(realmtx_t& A, const realmtx_t& B)noexcept {
+			if (B.numel() < Thresholds_t::evAdd_ip) {
+				get_self().evAdd_Anb_ip_st(A, B);
+			} else get_self().evAdd_Anb_ip_mt(A, B);
+		}
+		static void evAdd_Anb_ip_st(realmtx_t& A, const realmtx_t& B, const elms_range*const pER = nullptr)noexcept {
+			NNTL_ASSERT(A.size_no_bias() == B.size() && !A.empty() && !B.empty());
+			_ivAdd_ip_st(A.data(), B.data(), pER ? *pER : elms_range(B));
+		}
+		void evAdd_Anb_ip_mt(realmtx_t& A, const realmtx_t& B)noexcept {
+			NNTL_ASSERT(A.size_no_bias() == B.size() && !A.empty() && !B.empty());
+			m_threads.run([pA = A.data(), pB = B.data(), this](const par_range_t& pr) {
+				get_self()._ivAdd_ip_st(pA, pB, elms_range(pr));
+			}, B.numel());
 		}
 
 		//////////////////////////////////////////////////////////////////////////

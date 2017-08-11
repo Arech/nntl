@@ -37,7 +37,9 @@ namespace nntl {
 		no,
 		correctDoVal,
 		correctVar,
-		correctDoAndVar
+		correctDoAndVar, 
+
+		_last
 	};
 
 	namespace _impl {

@@ -2542,7 +2542,7 @@ void test_evMulC_ip(iMath& iM, vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 	for (unsigned r = 0; r < maxReps; ++r) {
 		ASSERT_TRUE(etM.clone_to(m));
 		bt = steady_clock::now();
-		iM.evMulC_ip_st_naive(m,mulC);
+		iM.evMulC_ip_st(m,mulC);
 		diff += steady_clock::now() - bt;
 	}
 	ASSERT_EQ(m, etDest);
@@ -2554,7 +2554,7 @@ void test_evMulC_ip(iMath& iM, vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 	for (unsigned r = 0; r < maxReps; ++r) {
 		ASSERT_TRUE(etM.clone_to(m));
 		bt = steady_clock::now();
-		iM.evMulC_ip_mt_naive(m, mulC);
+		iM.evMulC_ip_mt(m, mulC);
 		diff += steady_clock::now() - bt;
 	}
 	ASSERT_EQ(m, etDest);

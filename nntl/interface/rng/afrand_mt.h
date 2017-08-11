@@ -314,6 +314,46 @@ namespace nntl {
 				}
 			}*/
 
+			///////////////////////////////////////////////////////////////////////////
+			//////////////////////////////////////////////////////////////////////////
+			void normal_vector(real_t* ptr, const size_t n, const real_t m = real_t(0.), const real_t st = real_t(1.))noexcept {
+				if (n < Thresholds_t::bnd_normal_vector) {
+					get_self().normal_vector_st(ptr, n, m, st);
+				} else get_self().normal_vector_mt(ptr, n, m, st);
+			}
+			void normal_vector_st(real_t* ptr, const size_t n, const real_t m, const real_t st, const elms_range*const pER=nullptr)noexcept {
+				NNTL_ASSERT(ptr);
+				get_self()._inormal_vector_st(ptr, m, st, pER ? *pER : elms_range(0, n), 0);
+			}
+			void normal_vector_mt(real_t* ptr, const size_t n, const real_t m, const real_t st)noexcept {
+				NNTL_ASSERT(ptr);
+				m_pThreads->run([ptr, m, st, this](const par_range_t& r) {
+					get_self()._inormal_vector_st(ptr, m, st, elms_range(r), r.tid());
+				}, n);
+			}
+
+		protected:
+			struct rgWrapper {
+				base_rng_t & rg;
+
+				int_4_distribution_t operator()()noexcept { return static_cast<int_4_distribution_t>(rg.BRandom()); }
+				//returns the minimum value that is returned by the generator's operator().
+				//static constexpr int_4_distribution_t min()const noexcept { return ::std::numeric_limits<int_4_distribution_t>::min() + 1; } //+1 is essential
+				static constexpr int_4_distribution_t min() noexcept { return ::std::numeric_limits<int_4_distribution_t>::min(); }
+				//returns the maximum value that is returned by the generator's operator().
+				static constexpr int_4_distribution_t max() noexcept { return ::std::numeric_limits<int_4_distribution_t>::max(); }
+			};
+
+		public:
+			
+			void _inormal_vector_st(real_t*const ptr, const real_t m, const real_t st, const elms_range& er, const thread_id_t tId)noexcept {
+				::std::normal_distribution<real_t> distr(m, st);
+				rgWrapper w = { m_Rngs[tId] };
+				for (size_t i = er.elmBegin; i < er.elmEnd; ++i) {
+					ptr[i] = distr(w);
+				}
+			}
+
 		};
 
 	}

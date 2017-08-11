@@ -112,6 +112,10 @@ namespace nntl {
 				return den ? static_cast<real_t>(TP()*TN() - FP()*FN()) / ::std::sqrt(static_cast<real_t>(den))  : real_t(0.);
 			}
 
+			real_t Jaccard()const noexcept {
+				return static_cast<real_t>(TP()) / (TP() + FP() + FN());
+			}
+
 			real_t F1Score()const noexcept {
 				const auto tp2 = 2 * TP();
 				return static_cast<real_t>(tp2) / (tp2 + FP() + FN());
