@@ -44,7 +44,10 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //if it breaks compilation because of non-standard definition of nntl_deprecated, just make it blank
 // (and remove subsequent pragma) and make sure there is no code for protected by this macro definitions
 #define nntl_interface nntl_deprecated("is used for an interface definition only. Never call it directly!")
-#pragma warning(error:996)
+
+#define nntl_static_warning(msg) nntl_deprecated(msg)
+
+//#pragma warning(error:996)
 
 //__forceinline is MS-specific. Should branch on a compiler here
 #define nntl_force_inline __forceinline

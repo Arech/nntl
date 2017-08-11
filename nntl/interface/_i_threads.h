@@ -33,6 +33,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include "../utils/denormal_floats.h"
 #include "threads/parallel_range.h"
+#include "../utils/call_wrappers.h"
 
 namespace nntl {
 namespace threads {

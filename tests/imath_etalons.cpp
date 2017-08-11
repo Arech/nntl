@@ -566,7 +566,7 @@ void selu_ET(realmtx_t& f, const real_t& alpha, const real_t& lambda) {
 	for (numel_cnt_t i = 0; i < ne; ++i) {
 		//if (p[i] < real_t(0.)) p[i] = alpha*(::std::exp(p[i]) - real_t(1.));
 		if (p[i] < real_t(0.)) {
-			p[i] = lambda*alpha*nntl::math::expm1(p[i]);
+			p[i] = (lambda*alpha)*nntl::math::expm1(p[i]);
 		} else {
 			p[i] *= lambda;
 		}

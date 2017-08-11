@@ -300,14 +300,14 @@ TEST(TestSelu, SELU_Distribution) {
 	const real_t dpa = real_t(.8);
 
 	STDCOUTL("================ No weight renormalizing ================");
-	ASSERT_NO_FATAL_FAILURE(test_selu_distr<ADCorr::no>(t, real_t(1.), 10, 30, false));
+	ASSERT_NO_FATAL_FAILURE(test_selu_distr<ADCorr::no>(t, real_t(1.), 10, 50, false));
 	STDCOUTL("================ With weight renormalizing ================");
-	ASSERT_NO_FATAL_FAILURE(test_selu_distr<ADCorr::no>(t, real_t(1.), 10, 30, true));
+	ASSERT_NO_FATAL_FAILURE(test_selu_distr<ADCorr::no>(t, real_t(1.), 10, 50, true));
 
 	STDCOUTL("================ No weight renormalizing + AlphaDropout ================");
-	ASSERT_NO_FATAL_FAILURE(test_selu_distr<ADCorr::no>(t, dpa, 10, 30, false));
+	ASSERT_NO_FATAL_FAILURE(test_selu_distr<ADCorr::no>(t, dpa, 10, 50, false));
 	STDCOUTL("================ With weight renormalizing + AlphaDropout ================");
-	ASSERT_NO_FATAL_FAILURE(test_selu_distr<ADCorr::no>(t, dpa, 10, 30, true));
+	ASSERT_NO_FATAL_FAILURE(test_selu_distr<ADCorr::no>(t, dpa, 10, 50, true));
 
 #ifndef TESTS_SKIP_LONGRUNNING
 	STDCOUTL("================ No weight renormalizing ================");

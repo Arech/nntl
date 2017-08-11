@@ -44,7 +44,7 @@ namespace threads {
 
 	//TODO: error handling!!!
 	
-	template <typename RealT, typename RangeT>
+	template <typename RealT, typename RangeT, typename CallHandlerT = utils::forwarderWrapper<>>
 	class Std : public _i_threads<RealT, RangeT>{
 		//!! copy constructor not needed
 		Std(const Std& other)noexcept = delete;
@@ -52,8 +52,11 @@ namespace threads {
 		Std& operator=(const Std& rhs) noexcept = delete;
 
 	protected:
-		typedef ::std::function<void(const par_range_t& r)> func_run_t;
-		typedef ::std::function<real_t(const par_range_t& r)> func_reduce_t;
+		//typedef ::std::function<void(const par_range_t& r)> func_run_t;
+		//typedef ::std::function<real_t(const par_range_t& r)> func_reduce_t;
+		typedef CallHandlerT CallH_t;
+		typedef typename CallH_t::template call_tpl<void(const par_range_t& r)> func_run_t;
+		typedef typename CallH_t::template call_tpl<real_t(const par_range_t& r)> func_reduce_t;
 
 		enum class JobType { Run, Reduce };
 
@@ -145,14 +148,26 @@ public:
 			return true;
 		}
 
+		//NEVER CALL IN RECURSION!
 		template<typename Func>
 		void run(Func&& F, const range_t cnt, const thread_id_t useNThreads = 0, thread_id_t* pThreadsUsed = nullptr) noexcept {
-			//TODO: decide whether it is worth to use workers here
-			//DONE: well, it worth about 14mks to parallelize execution therefore won't bother...
 			if (cnt <= 1) {
 				if (pThreadsUsed) *pThreadsUsed = 1;
 				::std::forward<Func>(F)(par_range_t(cnt));
 			} else {
+				_run(CallH_t::wrap<Func>(::std::forward<Func>(F)), cnt, useNThreads, pThreadsUsed);
+			}
+		}
+
+	protected:
+
+		template<typename Func>
+		void _run(Func&& F, const range_t cnt, const thread_id_t useNThreads = 0, thread_id_t* pThreadsUsed = nullptr) noexcept {
+			/*if (cnt <= 1) {
+				if (pThreadsUsed) *pThreadsUsed = 1;
+				::std::forward<Func>(F)(par_range_t(cnt));
+			} else {*/
+			NNTL_ASSERT(cnt > 1);
 				locker_t lk(m_lock);
 
 				m_fnRun = F;
@@ -175,16 +190,26 @@ public:
 					}
 					lk.unlock();
 				}
-			}
+			//}
 		}
 
+	public:
 		template<typename Func, typename FinalReduceFunc>
 		real_t reduce(Func&& FRed, FinalReduceFunc&& FRF, const range_t cnt, const thread_id_t useNThreads = 0) noexcept {
-			//TODO: decide whether it is worth to use workers here
-			//DONE: well, it worth less than 9mks to parallelize execution therefore won't bother...
-			if (cnt <= 1) {
+			return cnt <= 1
+				? ::std::forward<Func>(FRed)(par_range_t(cnt))
+				: _reduce(CallH_t::wrap<Func>(::std::forward<Func>(FRed)), ::std::forward<FinalReduceFunc>(FRF), cnt, useNThreads);
+		}
+
+
+	protected:
+
+		template<typename Func, typename FinalReduceFunc>
+		real_t _reduce(Func&& FRed, FinalReduceFunc&& FRF, const range_t cnt, const thread_id_t useNThreads = 0) noexcept {
+			/*if (cnt <= 1) {
 				return ::std::forward<Func>(FRed)( par_range_t(cnt) );
-			} else {
+			} else {*/
+				NNTL_ASSERT(cnt > 1);
 				locker_t lk(m_lock);
 
 				m_fnReduce = FRed;
@@ -209,7 +234,7 @@ public:
 					lk.unlock();
 				}
 				return ::std::forward<FinalReduceFunc>(FRF)(rc, workersOnReduce);
-			}
+			//}
 		}
 
 	protected:

@@ -2687,7 +2687,9 @@ TEST(TestMathN, DLeakyRelu) {
 }
 //////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////
-
+template<typename base_t> struct selu_EPS {};
+template<> struct selu_EPS <double> { static constexpr double eps = 1e-12; };
+template<> struct selu_EPS <float> { static constexpr float eps = 1e-6f; };
 TEST(TestMathN, SELU) {
 	const real_t lambda = real_t(1.050700), alpha = real_t(1.6732632), a_t_l = alpha*lambda;
 	const auto fst = [&a_t_l, &lambda](realmtx_t& X) { iM.selu_st(X, a_t_l, lambda); };
@@ -2697,7 +2699,7 @@ TEST(TestMathN, SELU) {
 
 	for (vec_len_t r = 1; r < g_MinDataSizeDelta; ++r) {
 		for (vec_len_t c = 1; c < g_MinDataSizeDelta; ++c) {
-			ASSERT_NO_FATAL_FAILURE(test_f_x_corr<true>(fet, fst, fmt, fb, "selu", r, c));
+			ASSERT_NO_FATAL_FAILURE((test_f_x_corr_eps<selu_EPS<real_t>,true>(fet, fst, fmt, fb, "selu", r, c)));
 		}
 	}
 }
@@ -2711,13 +2713,16 @@ TEST(TestMathN, DSELU) {
 
 	for (vec_len_t r = 1; r < g_MinDataSizeDelta; ++r) {
 		for (vec_len_t c = 1; c < g_MinDataSizeDelta; ++c) {
-			ASSERT_NO_FATAL_FAILURE(test_f_x_corr<false>(fet, fst, fmt, fb, "dselu", r, c));
+			ASSERT_NO_FATAL_FAILURE((test_f_x_corr_eps<selu_EPS<real_t>,false>(fet, fst, fmt, fb, "dselu", r, c)));
 		}
 	}
 }
 
 //////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////
+template<typename base_t> struct elu_EPS {};
+template<> struct elu_EPS   <double> { static constexpr double eps = 1e-12; };
+template<> struct elu_EPS  <float> { static constexpr float eps = 1e-6f; };
 void test_elu_corr(vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 	MTXSIZE_SCOPED_TRACE(rowsCnt, colsCnt, "test_elu_corr");
 	constexpr unsigned testCorrRepCnt = 10;
@@ -2742,24 +2747,24 @@ void test_elu_corr(vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 
 		src.clone_to(F);
 		iM.elu_st(F, alpha);
-		ASSERT_MTX_EQ(F, F_ET, "elu_st() failed");
+		ASSERT_REALMTX_NEAR(F, F_ET, "elu_st() failed", elu_EPS<real_t>::eps);
 		src.clone_to(F);
 		iM.elu_unitalpha_st(F);
-		ASSERT_MTX_EQ(F, FU_ET, "elu_unitalpha_st() failed");
+		ASSERT_REALMTX_NEAR(F, FU_ET, "elu_unitalpha_st() failed", elu_EPS<real_t>::eps);
 
 		src.clone_to(F);
 		iM.elu_mt(F, alpha);
-		ASSERT_MTX_EQ(F, F_ET, "elu_mt() failed");
+		ASSERT_REALMTX_NEAR(F, F_ET, "elu_mt() failed", elu_EPS<real_t>::eps);
 		src.clone_to(F);
 		iM.elu_unitalpha_mt(F);
-		ASSERT_MTX_EQ(F, FU_ET, "elu_unitalpha_mt() failed");
+		ASSERT_REALMTX_NEAR(F, FU_ET, "elu_unitalpha_mt() failed", elu_EPS<real_t>::eps);
 
 		src.clone_to(F);
 		iM.elu(F, alpha);
-		ASSERT_MTX_EQ(F, F_ET, "elu() failed");
+		ASSERT_REALMTX_NEAR(F, F_ET, "elu() failed", elu_EPS<real_t>::eps);
 		src.clone_to(F);
 		iM.elu_unitalpha(F);
-		ASSERT_MTX_EQ(F, FU_ET, "elu_unitalpha() failed");
+		ASSERT_REALMTX_NEAR(F, FU_ET, "elu_unitalpha() failed", elu_EPS<real_t>::eps);
 	}
 }
 TEST(TestMathN, ELU) {

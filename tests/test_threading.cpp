@@ -138,7 +138,7 @@ TEST(TestThreading, PerfComparision) {
 #ifdef _DEBUG
 	static constexpr uint64_t maxreps = 200, runCnt = 10;
 #else
-	static constexpr uint64_t maxreps = 20000, runCnt = 1000000000;
+	static constexpr uint64_t maxreps = 100000, runCnt = 100;
 #endif
 	utils::tictoc tW, tWNE, tS;
 
@@ -178,7 +178,6 @@ TEST(TestThreading, PerfComparision) {
 		typedef thr::par_range_t par_range_t;
 		thr stdt;
 		::std::atomic_ptrdiff_t v = 0;
-
 
 		for (uint64_t i = 0; i < maxreps; ++i) {
 			tS.tic();

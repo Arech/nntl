@@ -123,6 +123,53 @@ namespace nntl {
 		}
 	}
 
+	template<typename EpsT,bool XHasBiases, bool bXNorm = false, typename FET, typename FST, typename FMT, typename FB>
+	void test_f_x_corr_eps(FET&& fet, FST&& fst, FMT&& fmt, FB&& fb, const char* descr, vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
+		MTXSIZE_SCOPED_TRACE(rowsCnt, colsCnt, descr);
+		constexpr unsigned testCorrRepCnt = TEST_CORRECTN_REPEATS_COUNT;
+
+		//no biases here by intent, because dLdZ works with output layer
+		realmtx_t X(rowsCnt, colsCnt, XHasBiases), XSrc(rowsCnt, colsCnt, XHasBiases), X_ET(rowsCnt, colsCnt, XHasBiases);
+		ASSERT_TRUE(!X.isAllocationFailed() && !XSrc.isAllocationFailed() && !X_ET.isAllocationFailed());
+
+		iM.preinit(X.numel());
+		ASSERT_TRUE(iM.init());
+		d_interfaces::iRng_t rg;
+		rg.set_ithreads(iM.ithreads());
+
+		for (unsigned r = 0; r < testCorrRepCnt; ++r) {
+			if (bXNorm) {
+				if (XHasBiases) {
+					rg.gen_matrix_no_bias_norm(XSrc);
+				} else rg.gen_matrix_norm(XSrc);
+			} else {
+				if (XHasBiases) {
+					rg.gen_matrix_no_bias(XSrc, real_t(5.));
+				} else rg.gen_matrix(XSrc, real_t(5.));
+			}
+			ASSERT_TRUE(!XHasBiases || XSrc.test_biases_ok());
+
+			XSrc.clone_to(X_ET);
+			(::std::forward<FET>(fet))(X_ET);
+			ASSERT_TRUE(!XHasBiases || X_ET.test_biases_ok());
+
+			XSrc.clone_to(X);
+			(::std::forward<FST>(fst))(X);
+			ASSERT_TRUE(!XHasBiases || X.test_biases_ok());
+			ASSERT_REALMTX_NEAR(X_ET, X, "_st", EpsT::eps);
+
+			XSrc.clone_to(X);
+			(::std::forward<FMT>(fmt))(X);
+			ASSERT_TRUE(!XHasBiases || X.test_biases_ok());
+			ASSERT_REALMTX_NEAR(X_ET, X, "_mt", EpsT::eps);
+
+			XSrc.clone_to(X);
+			(::std::forward<FB>(fb))(X);
+			ASSERT_TRUE(!XHasBiases || X.test_biases_ok());
+			ASSERT_REALMTX_NEAR(X_ET, X, "()", EpsT::eps);
+		}
+	}
+
 	//////////////////////////////////////////////////////////////////////////
 	template<bool XHasBiases, bool bXNorm = false, typename EPST, typename FET, typename FST, typename FMT, typename FB>
 	void test_f_x_xbasedET_corr(FET&& fet, FST&& fst, FMT&& fmt, FB&& fb, const char* descr, vec_len_t rowsCnt, vec_len_t colsCnt = 10) {

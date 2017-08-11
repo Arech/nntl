@@ -462,6 +462,12 @@
     <ClInclude Include="..\nntl\interface\_i_asynch.h">
       <Filter>nntl\interface</Filter>
     </ClInclude>
+    <ClInclude Include="..\nntl\utils\forwarder.h">
+      <Filter>nntl\utils</Filter>
+    </ClInclude>
+    <ClInclude Include="..\nntl\utils\call_wrappers.h">
+      <Filter>nntl\utils</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="stdafx.cpp">

@@ -167,7 +167,7 @@
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
       <OptimizeReferences>true</OptimizeReferences>
       <LargeAddressAware>true</LargeAddressAware>
-      <LinkTimeCodeGeneration>UseLinkTimeCodeGeneration</LinkTimeCodeGeneration>
+      <LinkTimeCodeGeneration>UseFastLinkTimeCodeGeneration</LinkTimeCodeGeneration>
       <RandomizedBaseAddress>false</RandomizedBaseAddress>
       <AdditionalDependencies>%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
@@ -258,9 +258,11 @@
     <ClInclude Include="..\nntl\nnet_train_opts.h" />
     <ClInclude Include="..\nntl\train_data.h" />
     <ClInclude Include="..\nntl\utils\bwlist.h" />
+    <ClInclude Include="..\nntl\utils\call_wrappers.h" />
     <ClInclude Include="..\nntl\utils\confusion_mtx.h" />
     <ClInclude Include="..\nntl\utils\dataHolder.h" />
     <ClInclude Include="..\nntl\utils\denormal_floats.h" />
+    <ClInclude Include="..\nntl\utils\forwarder.h" />
     <ClInclude Include="..\nntl\utils\gradcheck.h" />
     <ClInclude Include="..\nntl\utils\lambdas.h" />
     <ClInclude Include="..\nntl\utils\layers_settings.h" />

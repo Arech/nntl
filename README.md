@@ -1,10 +1,15 @@
 # nntl
-Neural Network Templates Library is a set of C++14 template classes that helps to implement fast vectorized feedforward neural networks. It is multithreaded, x64 friendly and uses OpenBLAS only as a back-end to multiply matrices. NNTL is a header only library and requires no other dependencies, except for OpenBLAS and Boost (header only). It is statically typed and doesn't use virtual functions except the single one ::std::function that is used to dispatch multithreaded tasks.
+Neural Network Templates Library is a set of C++14 template classes
+that helps to implement fast vectorized feedforward neural networks.
+It is multithreaded, x64 friendly and uses OpenBLAS only as a back-end
+to multiply matrices. NNTL is a header only library and requires no
+other dependencies, except for OpenBLAS and Boost (header only). It is
+statically typed and doesn't use virtual function calls.
 
 NNTL provides a way to convert an UML (class) diagramm of a neural network directly into C++ code (i.e. you draw something [like this](https://github.com/Arech/nntl/blob/master/arch_sample.png?raw=true) and it converts it to nntl-powered C++ code). This feature is extremely helpful for designing proper network architectures and an absolute time-saver. It allows a user to focus on incorporating domain knowledge into neural network instead of doing very error-prone architecture programming. However, it requires some additional software ([Visual Paradigm](https://www.visual-paradigm.com/) for diagramming and Matlab to execute converter scripts). See below for details.
 
 ### Performance
-*This paragraph is slightly outdated. The library was improved in many ways since the performance measurements, so current results should be a bit better.
+*This paragraph is outdated. The library was improved in many ways since the performance measurements, so current results are better.
 
 Here is the performance of training a 3 layer `768->500->300->10` network with a sigmoid activation function and a quadratic loss function over the MNIST dataset (60000 training samples and 10000 validation samples) for 20 epochs in a minibatches of size 100 using double precision floating point math. A NN implementation from [DeepLearnToolbox](https://github.com/rasmusbergpalm/DeepLearnToolbox) on a Matlab R2014a x64 is taken as a baseline (it also uses vectorized computations, multithreading and double as a basic floating-point type). The hardware in both cases are the same: AMD Phenom II X6 1090T @3500Mhz CPU (with all power-saving features turned off) with 16Gb of RAM under Windows 7 (swap file turned off, so no paging occur during testing). The CPU is pretty old today, it has only SSE2+ instructions (no AVX/AVX2), so everything should work a way faster on newer CPUs).
 
