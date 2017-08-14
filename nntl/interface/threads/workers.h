@@ -74,14 +74,16 @@ namespace threads {
 		interlocked_t m_workingCnt;
 		JobType m_jobType;
 
+		//we'll be using fences to make sure load/store operations on this variables are coherent
 		::std::vector<par_range_t> m_ranges;
+
 		func_run_t m_fnRun;
 		::std::vector<real_t> m_reduceCache;
 		func_reduce_t m_fnReduce;
 
 		const thread_id_t m_workersCnt;
 		threads_cont_t m_threads;
-		bool m_bStop;
+		::std::atomic<bool> m_bStop;
 
 	public:
 		~Workers()noexcept {
@@ -245,6 +247,8 @@ namespace threads {
 					prevOfs += n;
 				}
 			}
+			//to make sure the changes are visible to other threads
+			::std::atomic_thread_fence(::std::memory_order_release);
 			return prevOfs;
 		}
 
@@ -266,6 +270,8 @@ namespace threads {
 // 				lk.unlock();
 				
 				Sync_t::lockShared_wait_unlock(m_mutex, m_waitingOrders, [&bStop = m_bStop, &tr = thrdRange]()noexcept{
+					//to make sure the thread sees changes
+					::std::atomic_thread_fence(::std::memory_order_acquire);
 					return bStop || 0 != tr.cnt();
 				});
 				if (m_bStop) break;

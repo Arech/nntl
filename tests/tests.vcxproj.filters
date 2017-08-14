@@ -135,12 +135,6 @@
     <ClInclude Include="..\nntl\interface\math\bindings\b_open_blas.h">
       <Filter>nntl\interface\math\bindings</Filter>
     </ClInclude>
-    <ClInclude Include="..\nntl\interface\threads\winqdu.h">
-      <Filter>nntl\interface\threads</Filter>
-    </ClInclude>
-    <ClInclude Include="..\nntl\interface\threads\std.h">
-      <Filter>nntl\interface\threads</Filter>
-    </ClInclude>
     <ClInclude Include="..\nntl\interface\threads\intel_tbb.h">
       <Filter>nntl\interface\threads</Filter>
     </ClInclude>
@@ -467,9 +461,6 @@
     </ClInclude>
     <ClInclude Include="..\nntl\utils\call_wrappers.h">
       <Filter>nntl\utils</Filter>
-    </ClInclude>
-    <ClInclude Include="..\nntl\interface\threads\asynch_win.h">
-      <Filter>nntl\interface\threads</Filter>
     </ClInclude>
     <ClInclude Include="..\nntl\interface\threads\_sync_primitives.h">
       <Filter>nntl\interface\threads</Filter>

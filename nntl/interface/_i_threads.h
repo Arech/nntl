@@ -40,8 +40,19 @@ namespace nntl {
 namespace threads {
 
 	template <typename RealT, typename RangeT>
-	struct _i_threads : public _i_threads_base<RangeT> {
+	struct _i_threads {
 		typedef RealT real_t;
+
+		typedef RangeT range_t;
+		typedef parallel_range<range_t> par_range_t;
+		typedef typename par_range_t::thread_id_t thread_id_t;
+
+		nntl_interface thread_id_t workers_count()noexcept;
+
+		//returns a head of container with thread objects (count threadsCnt)
+		nntl_interface auto get_worker_threads(thread_id_t& threadsCnt)noexcept;
+
+		nntl_interface bool denormalsOnInAnyThread()noexcept;
 
 		// useNThreads (if greater than 1 and less or equal to workers_count() specifies the number of threads to serve request.
 		// if pThreadsUsed is specified, it'll contain total number of threads (including the main thread),

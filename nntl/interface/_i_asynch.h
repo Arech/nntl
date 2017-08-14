@@ -35,13 +35,19 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include "../utils/denormal_floats.h"
 #include "threads/parallel_range.h"
+#include "../utils/call_wrappers.h"
+#include "threads/_sync_primitives.h"
 
 namespace nntl {
 namespace threads {
 
 	//interface to a asynchronous thread workers pool
 	template <typename RangeT>
-	struct _i_asynch : public _i_threads_base<RangeT> {
+	struct _i_asynch {
+		typedef RangeT range_t;
+		typedef parallel_range<range_t> par_range_t;
+		typedef typename par_range_t::thread_id_t thread_id_t;
+
 		// useNThreads (if greater than 1 and less or equal to workers_count() specifies the number of threads to serve request.
 		// if pThreadsUsed is specified, it'll contain total number of threads (including the main thread),
 		// that is used to serve the request. It'll be less or equal to workers_count()

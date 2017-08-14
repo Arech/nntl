@@ -31,18 +31,63 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 #pragma once
 
-#include <vector>
-#include <thread>
-#include <mutex>
-#include <condition_variable>
-#include <atomic>
-
 #include "../_i_asynch.h"
 
 namespace nntl {
 namespace threads {
 
+	template <typename RangeT, typename SyncT = threads::sync_primitives, typename CallHandlerT = utils::forwarderWrapper<>>
+	class Asynch : public _i_asynch<RangeT> {
+		//!! copy constructor not needed
+		Asynch(const Asynch& other)noexcept = delete;
+		Asynch(Asynch&& other)noexcept = delete;
+		//!!assignment is not needed
+		Asynch& operator=(const Asynch& rhs) noexcept = delete;
 
+	public:
+		typedef CallHandlerT CallH_t;
+		typedef SyncT Sync_t;
+
+	protected:
+		//typedef typename CallH_t::template call_tpl<void(const par_range_t& r)> func_run_t;
+		//typedef typename CallH_t::template call_tpl<real_t(const par_range_t& r)> func_reduce_t;
+
+		typedef typename Sync_t::mutex_comp_t mutex_comp_t;
+		typedef ::std::atomic_ptrdiff_t interlocked_t;
+		//typedef typename Sync_t::cond_var_t cond_var_t;
+		typedef typename Sync_t::cond_var_comp_t cond_var_comp_t;
+
+	public:
+		//typedef ::std::vector<::std::thread> threads_cont_t;
+		//typedef threads_cont_t::iterator ThreadObjIterator_t;
+
+		//////////////////////////////////////////////////////////////////////////
+		//Members
+	protected:
+// 		cond_var_comp_t m_waitingOrders;
+// 		cond_var_comp_t m_orderDone;
+// 		mutex_comp_t m_mutex;
+		//interlocked_t m_workingCnt;
+		
+		//threads_cont_t m_threads;
+		//bool m_bStop;
+
+	protected:
+		void _shutdown()noexcept {
+
+		}
+
+	public:
+		~Asynch()noexcept {
+			_shutdown();
+		}
+
+		Asynch()noexcept {
+			
+		}
+		
+
+	};
 
 }
 }
