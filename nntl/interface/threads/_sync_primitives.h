@@ -75,7 +75,7 @@ namespace threads {
 #if NNTL_HAS_NATIVE_SRWLOCKS_AND_CODITIONALS
 		//////////////////////////////////////////////////////////////////////////
 		//define a STL-style wrappers for locks and conditionals
-		// 
+		// #todo ::std::atomic_thread_fence() calls might be redundant here, but need proofs for it...
 		struct win_srwlock {
 		private:
 			//!! copy constructor not needed
@@ -94,15 +94,19 @@ namespace threads {
 			win_srwlock()noexcept : m_srwlock(SRWLOCK_INIT) {}
 			void lock()noexcept {
 				::AcquireSRWLockExclusive(&m_srwlock);
+				::std::atomic_thread_fence(::std::memory_order_acquire);
 			}
-			void unlock()noexcept {
-				::ReleaseSRWLockExclusive(&m_srwlock);
-			}
-
 			void lock_shared()noexcept {
 				::AcquireSRWLockShared(&m_srwlock);
+				::std::atomic_thread_fence(::std::memory_order_acquire);
+			}
+
+			void unlock()noexcept {
+				::std::atomic_thread_fence(::std::memory_order_release);
+				::ReleaseSRWLockExclusive(&m_srwlock);
 			}
 			void unlock_shared()noexcept {
+				::std::atomic_thread_fence(::std::memory_order_release);
 				::ReleaseSRWLockShared(&m_srwlock);
 			}
 
@@ -129,9 +133,11 @@ namespace threads {
 
 			void wait(win_srwlock& l)noexcept {
 				::SleepConditionVariableSRW(&m_var, l, INFINITE, 0);
+				::std::atomic_thread_fence(::std::memory_order_acquire);
 			}
 			void wait_shared(win_srwlock& l)noexcept {
 				::SleepConditionVariableSRW(&m_var, l, INFINITE, CONDITION_VARIABLE_LOCKMODE_SHARED);
+				::std::atomic_thread_fence(::std::memory_order_acquire);
 			}
 
 			void wait(::std::unique_lock<win_srwlock>& l)noexcept { wait(*l.mutex()); }

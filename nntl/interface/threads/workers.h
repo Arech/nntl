@@ -216,10 +216,6 @@ namespace threads {
 			*rc = ::std::forward<Func>(FRed)(par_range_t(prevOfs, cnt - prevOfs, 0));
 
 			if (m_workingCnt > 0) {
-// 				::std::unique_lock<decltype(m_mutex)> lk(m_mutex);
-// 				while (m_workingCnt > 0) {
-// 					m_orderDone.wait(lk);
-// 				}
 				Sync_t::lock_wait_unlock(m_mutex, m_orderDone, [&wc = m_workingCnt]() {return wc <= 0; });
 			}
 			return ::std::forward<FinalReduceFunc>(FRF)(rc, workersOnReduce);
@@ -247,8 +243,6 @@ namespace threads {
 					prevOfs += n;
 				}
 			}
-			//to make sure the changes are visible to other threads
-			::std::atomic_thread_fence(::std::memory_order_release);
 			return prevOfs;
 		}
 
@@ -264,14 +258,8 @@ namespace threads {
 			m_mutex.unlock();		
 
 			auto& thrdRange = m_ranges[id];
-			while (true) {
-// 				locker_t lk(m_mutex);
-// 				while (!m_bStop && 0 == m_ranges[id].cnt()) m_waitingOrders.wait(lk);
-// 				lk.unlock();
-				
+			while (true) {				
 				Sync_t::lockShared_wait_unlock(m_mutex, m_waitingOrders, [&bStop = m_bStop, &tr = thrdRange]()noexcept{
-					//to make sure the thread sees changes
-					::std::atomic_thread_fence(::std::memory_order_acquire);
 					return bStop || 0 != tr.cnt();
 				});
 				if (m_bStop) break;

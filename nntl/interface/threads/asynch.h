@@ -73,13 +73,9 @@ namespace threads {
 		//bool m_bStop;
 
 	protected:
-		void _shutdown()noexcept {
-
-		}
 
 	public:
 		~Asynch()noexcept {
-			_shutdown();
 		}
 
 		Asynch()noexcept {
