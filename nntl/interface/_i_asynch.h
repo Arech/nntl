@@ -39,15 +39,9 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 namespace nntl {
 namespace threads {
 
-	template <typename RealT, typename RangeT>
-	class _i_asynch {
-	public:
-		typedef RangeT range_t;
-		typedef parallel_range<range_t> par_range_t;
-		typedef typename par_range_t::thread_id_t thread_id_t;
-
-		typedef RealT real_t;
-
+	//interface to a asynchronous thread workers pool
+	template <typename RangeT>
+	struct _i_asynch : public _i_threads_base<RangeT> {
 		// useNThreads (if greater than 1 and less or equal to workers_count() specifies the number of threads to serve request.
 		// if pThreadsUsed is specified, it'll contain total number of threads (including the main thread),
 		// that is used to serve the request. It'll be less or equal to workers_count()
@@ -58,15 +52,12 @@ namespace threads {
 // 		template<typename Func, typename FinalReduceFunc>
 // 		nntl_interface real_t reduce(Func&& FRed, FinalReduceFunc&& FRF, const range_t cnt, const thread_id_t useNThreads = 0) noexcept;
 
-		nntl_interface thread_id_t workers_count()noexcept;
+		
 
-		//returns a head of container with thread objects (count threadsCnt)
-		nntl_interface auto get_worker_threads(thread_id_t& threadsCnt)noexcept;
-
-		nntl_interface bool denormalsOnInAnyThread()noexcept;
-
-		//nntl_interface static constexpr char* name = "_i_threads";
+		//schedules to run specified task
+		//nntl_interface bool run_task(auto* pTask)noexcept;
 	};
+
 
 }
 }

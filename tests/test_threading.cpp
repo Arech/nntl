@@ -34,10 +34,12 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "../nntl/math.h"
 #include "../nntl/nntl.h"
 #include "../nntl/interface/rng/cstd.h"
-#include "../nntl/interface/threads/winqdu.h"
-#include "../nntl/interface/threads/std.h"
+//#include "../nntl/interface/threads/winqdu.h"
+//#include "../nntl/interface/threads/std.h"
+#include "../nntl/interface/threads/workers.h"
 #include "../nntl/interfaces.h"
 #include "../nntl/utils/chrono.h"
+#include "../nntl/interface/rng/cstd.h"
 
 //#define BOOST_USE_WINDOWS_H
 
@@ -115,20 +117,39 @@ void threads_basics_test(TT& t) {
 	}
 }
 
-TEST(TestThreading, WinQDUBasics) {
-	threads::WinQDU<real_t, math::smatrix_td::numel_cnt_t> t;
-	threads_basics_test(t);
-	threads_basics_test(t);
-}
+// TEST(TestThreading, WinQDUBasics) {
+// 	threads::WinQDU<real_t, math::smatrix_td::numel_cnt_t> t;
+// 	threads_basics_test(t);
+// 	threads_basics_test(t);
+// }
+// 
+// TEST(TestThreading, StdBasics) {
+// 	threads::Std<real_t, math::smatrix_td::numel_cnt_t> t;
+// 	threads_basics_test(t);
+// 	threads_basics_test(t);
+// }
 
-TEST(TestThreading, StdBasics) {
-	threads::Std<real_t, math::smatrix_td::numel_cnt_t> t;
+TEST(TestThreading, WorkersBasics) {
+	threads::Workers<real_t, math::smatrix_td::numel_cnt_t> t;
 	threads_basics_test(t);
 	threads_basics_test(t);
 }
 
 
 #if !TESTS_SKIP_THREADING_PERFS
+
+struct sp_win : public threads::winNativeSync {
+	typedef mutex_t mutex_comp_t;
+	typedef cond_var_t cond_var_comp_t;
+};
+struct sp_std : public threads::stdSync {
+	typedef mutex_t mutex_comp_t;
+	typedef cond_var_t cond_var_comp_t;
+};
+struct sp_stdShared : public threads::stdSync {
+	typedef shared_mutex_t mutex_comp_t;
+	typedef cond_var_any_t cond_var_comp_t;
+};
 
 TEST(TestThreading, PerfComparision) {
 
@@ -143,7 +164,7 @@ TEST(TestThreading, PerfComparision) {
 	utils::tictoc tW, tWNE, tS;
 
 	{
-		typedef threads::WinQDU<real_t, numel_cnt_t> thr;
+		typedef threads::Workers<real_t, numel_cnt_t, sp_win> thr;
 		typedef thr::par_range_t par_range_t;
 
 		thr wint;
@@ -174,7 +195,7 @@ TEST(TestThreading, PerfComparision) {
 		STDCOUTL(v << v2);
 	}
 	{
-		typedef threads::Std<real_t, numel_cnt_t> thr;
+		typedef threads::Workers<real_t, numel_cnt_t, sp_std> thr;
 		typedef thr::par_range_t par_range_t;
 		thr stdt;
 		::std::atomic_ptrdiff_t v = 0;
@@ -218,17 +239,29 @@ void threading_delay_test(TT& t) {
 	}
 }
 
-TEST(TestThreading, WinQDUDelays) {
-	threads::WinQDU<real_t, math::smatrix_td::numel_cnt_t> t;
-	threading_delay_test(t);
-	ASSERT_TRUE(true) << "This tests if the execution reaches here or binary hangs";
-}
+// TEST(TestThreading, WinQDUDelays) {
+// 	threads::WinQDU<real_t, math::smatrix_td::numel_cnt_t> t;
+// 	threading_delay_test(t);
+// 	ASSERT_TRUE(true) << "This tests if the execution reaches here or binary hangs";
+// }
+// 
+// TEST(TestThreading, StdDelays) {
+// 	threads::Std<real_t, math::smatrix_td::numel_cnt_t> t;
+// 	threading_delay_test(t);
+// 	ASSERT_TRUE(true) << "This tests if the execution reaches here or binary hangs";
+// }
 
-TEST(TestThreading, StdDelays) {
-	threads::Std<real_t, math::smatrix_td::numel_cnt_t> t;
+TEST(TestThreading, WorkersDelays) {
+	threads::Workers<real_t, math::smatrix_td::numel_cnt_t> t;
 	threading_delay_test(t);
 	ASSERT_TRUE(true) << "This tests if the execution reaches here or binary hangs";
 }
+// 
+// TEST(TestThreading, StdDelays) {
+// 	threads::Std<real_t, math::smatrix_td::numel_cnt_t> t;
+// 	threading_delay_test(t);
+// 	ASSERT_TRUE(true) << "This tests if the execution reaches here or binary hangs";
+// }
 
 #endif // !TESTS_SKIP_THREADING_DELAYS
 

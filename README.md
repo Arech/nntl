@@ -4,7 +4,7 @@ that helps to implement fast vectorized feedforward neural networks.
 It is multithreaded, x64 friendly and uses OpenBLAS only as a back-end
 to multiply matrices. NNTL is a header only library and requires no
 other dependencies, except for OpenBLAS and Boost (header only). It is
-statically typed and doesn't use virtual function calls.
+statically typed and doesn't use virtual functions.
 
 NNTL provides a way to convert an UML (class) diagramm of a neural network directly into C++ code (i.e. you draw something [like this](https://github.com/Arech/nntl/blob/master/arch_sample.png?raw=true) and it converts it to nntl-powered C++ code). This feature is extremely helpful for designing proper network architectures and an absolute time-saver. It allows a user to focus on incorporating domain knowledge into neural network instead of doing very error-prone architecture programming. However, it requires some additional software ([Visual Paradigm](https://www.visual-paradigm.com/) for diagramming and Matlab to execute converter scripts). See below for details.
 

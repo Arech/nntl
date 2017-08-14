@@ -34,17 +34,13 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "../utils/denormal_floats.h"
 #include "threads/parallel_range.h"
 #include "../utils/call_wrappers.h"
+#include "threads/_sync_primitives.h"
 
 namespace nntl {
 namespace threads {
 
 	template <typename RealT, typename RangeT>
-	class _i_threads {
-	public:
-		typedef RangeT range_t;
-		typedef parallel_range<range_t> par_range_t;
-		typedef typename par_range_t::thread_id_t thread_id_t;
-
+	struct _i_threads : public _i_threads_base<RangeT> {
 		typedef RealT real_t;
 
 		// useNThreads (if greater than 1 and less or equal to workers_count() specifies the number of threads to serve request.
@@ -57,12 +53,13 @@ namespace threads {
 		template<typename Func, typename FinalReduceFunc>
 		nntl_interface real_t reduce(Func&& FRed, FinalReduceFunc&& FRF, const range_t cnt, const thread_id_t useNThreads = 0) noexcept;
 
-		nntl_interface thread_id_t workers_count()noexcept;
+		/*moved to _threads_td
+		 *nntl_interface thread_id_t workers_count()noexcept;
 
 		//returns a head of container with thread objects (count threadsCnt)
 		nntl_interface auto get_worker_threads(thread_id_t& threadsCnt)noexcept;
 
-		nntl_interface bool denormalsOnInAnyThread()noexcept;
+		nntl_interface bool denormalsOnInAnyThread()noexcept;*/
 
 		nntl_interface static constexpr char* name="_i_threads";
 	};

@@ -8,15 +8,15 @@ Redistribution and use in source and binary forms, with or without
 modification, are permitted provided that the following conditions are met:
 
 * Redistributions of source code must retain the above copyright notice, this
-  list of conditions and the following disclaimer.
+list of conditions and the following disclaimer.
 
 * Redistributions in binary form must reproduce the above copyright notice,
-  this list of conditions and the following disclaimer in the documentation
-  and/or other materials provided with the distribution.
+this list of conditions and the following disclaimer in the documentation
+and/or other materials provided with the distribution.
 
 * Neither the name of NNTL nor the names of its
-  contributors may be used to endorse or promote products derived from
-  this software without specific prior written permission.
+contributors may be used to endorse or promote products derived from
+this software without specific prior written permission.
 
 THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
 AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
@@ -31,51 +31,46 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 #pragma once
 
-#include <vector>
-#include <thread>
-#include <mutex>
-#include <condition_variable>
-#include <atomic>
-
 #include "../_i_threads.h"
 
 namespace nntl {
 namespace threads {
 
 	//TODO: error handling!!!
-	
-	template <typename RealT, typename RangeT, typename CallHandlerT = utils::forwarderWrapper<>>
-	class Std : public _i_threads<RealT, RangeT>{
+
+	template <typename RealT, typename RangeT, typename SyncT = threads::sync_primitives, typename CallHandlerT = utils::forwarderWrapper<>>
+	class Workers : public _i_threads<RealT, RangeT> {
 		//!! copy constructor not needed
-		Std(const Std& other)noexcept = delete;
+		Workers(const Workers& other)noexcept = delete;
+		Workers(Workers&& other)noexcept = delete;
 		//!!assignment is not needed
-		Std& operator=(const Std& rhs) noexcept = delete;
+		Workers& operator=(const Workers& rhs) noexcept = delete;
+
+	public:
+		typedef CallHandlerT CallH_t;
+		typedef SyncT Sync_t;
 
 	protected:
-		//typedef ::std::function<void(const par_range_t& r)> func_run_t;
-		//typedef ::std::function<real_t(const par_range_t& r)> func_reduce_t;
-		typedef CallHandlerT CallH_t;
 		typedef typename CallH_t::template call_tpl<void(const par_range_t& r)> func_run_t;
 		typedef typename CallH_t::template call_tpl<real_t(const par_range_t& r)> func_reduce_t;
 
 		enum class JobType { Run, Reduce };
 
-		typedef ::std::mutex lock_t;
-		typedef ::std::unique_lock<lock_t> locker_t;
+		typedef typename Sync_t::mutex_comp_t mutex_comp_t;
 		typedef ::std::atomic_ptrdiff_t interlocked_t;
+		//typedef typename Sync_t::cond_var_t cond_var_t;
+		typedef typename Sync_t::cond_var_comp_t cond_var_comp_t;
 
-public:
+	public:
 		typedef ::std::vector<::std::thread> threads_cont_t;
 		typedef threads_cont_t::iterator ThreadObjIterator_t;
 		
-		static constexpr char* name = "Std";
-
 		//////////////////////////////////////////////////////////////////////////
 		//Members
 	protected:
-		::std::condition_variable m_waitingOrders;
-		::std::condition_variable m_orderDone;
-		lock_t m_lock;
+		cond_var_comp_t m_waitingOrders;
+		cond_var_comp_t m_orderDone;
+		mutex_comp_t m_mutex;
 		interlocked_t m_workingCnt;
 		JobType m_jobType;
 
@@ -83,30 +78,30 @@ public:
 		func_run_t m_fnRun;
 		::std::vector<real_t> m_reduceCache;
 		func_reduce_t m_fnReduce;
-		
+
 		const thread_id_t m_workersCnt;
 		threads_cont_t m_threads;
 		bool m_bStop;
 
 	public:
-		~Std()noexcept {
+		~Workers()noexcept {
 			m_bStop = true;
-			
-			locker_t lk(m_lock);
+
+			m_mutex.lock();
 			m_waitingOrders.notify_all();
-			lk.unlock();
+			m_mutex.unlock();
 
 			for (auto& t : m_threads)  t.join();
 		}
 
-		Std()noexcept : m_bStop(false), m_workersCnt(workers_count() - 1), m_workingCnt(0) {
+		Workers()noexcept : m_bStop(false), m_workersCnt(workers_count() - 1), m_workingCnt(0) {
 			NNTL_ASSERT(m_workersCnt > 0);
 
 			m_ranges.reserve(m_workersCnt);
 			m_threads.resize(m_workersCnt);
 			m_reduceCache.resize(m_workersCnt + 1);
 
-			locker_t lk(m_lock);
+			m_mutex.lock();
 			m_workingCnt = m_workersCnt;
 
 			for (thread_id_t i = 0; i < m_workersCnt; ++i) {
@@ -116,11 +111,10 @@ public:
 			}
 			m_ranges.shrink_to_fit();
 			NNTL_ASSERT(m_ranges.size() == m_workersCnt);
-			lk.unlock();
+			m_mutex.unlock();
 
-			lk.lock();
-			m_orderDone.wait(lk, [&] () throw() {return m_workingCnt <= 0; });
-			lk.unlock();
+			::std::unique_lock<decltype(m_mutex)> lk(m_mutex);
+			m_orderDone.wait(lk, [&wc = m_workingCnt]() throw() {return wc <= 0; });
 		}
 
 		static thread_id_t workers_count()noexcept {
@@ -140,7 +134,7 @@ public:
 				rc[r.tid()] = isDenormalsOn() ? real_t(1.) : real_t(0.);
 			}, thrCnt, thrCnt, &thdUsed);
 
-			if (thdUsed==thrCnt) {
+			if (thdUsed == thrCnt) {
 				real_t s(real_t(0.));
 				for (const auto& e : m_reduceCache) s += e;
 				return real_t(0.) != s;
@@ -163,34 +157,28 @@ public:
 
 		template<typename Func>
 		void _run(Func&& F, const range_t cnt, const thread_id_t useNThreads = 0, thread_id_t* pThreadsUsed = nullptr) noexcept {
-			/*if (cnt <= 1) {
-				if (pThreadsUsed) *pThreadsUsed = 1;
-				::std::forward<Func>(F)(par_range_t(cnt));
-			} else {*/
 			NNTL_ASSERT(cnt > 1);
-				locker_t lk(m_lock);
+			m_mutex.lock();
 
-				m_fnRun = F;
-				m_jobType = JobType::Run;
-				
-				const auto prevOfs = partition_count_to_workers(cnt, useNThreads);
-				NNTL_ASSERT(prevOfs < cnt);
-				if (pThreadsUsed) *pThreadsUsed = static_cast<thread_id_t>(m_workingCnt) + 1;
+			m_fnRun = F;
+			m_jobType = JobType::Run;
 
-				m_waitingOrders.notify_all();
-				lk.unlock();
+			const auto prevOfs = partition_count_to_workers(cnt, useNThreads);
+			NNTL_ASSERT(prevOfs < cnt);
+			if (pThreadsUsed) *pThreadsUsed = static_cast<thread_id_t>(m_workingCnt) + 1;
 
-				::std::forward<Func>(F)(par_range_t(prevOfs, cnt - prevOfs, 0));
+			m_waitingOrders.notify_all();
+			m_mutex.unlock();
 
-				if (m_workingCnt > 0) {
-					lk.lock();
-					//m_orderDone.wait(lk, [&] () throw() {return m_workingCnt <= 0; });
-					while (m_workingCnt>0) {
-						m_orderDone.wait(lk);
-					}
-					lk.unlock();
-				}
-			//}
+			::std::forward<Func>(F)(par_range_t(prevOfs, cnt - prevOfs, 0));
+
+			if (m_workingCnt > 0) {
+// 				::std::unique_lock<decltype(m_mutex)> lk(m_mutex);
+// 				while (m_workingCnt > 0) {
+// 					m_orderDone.wait(lk);
+// 				}
+				Sync_t::lock_wait_unlock(m_mutex, m_orderDone, [&wc = m_workingCnt]() {return wc <= 0; });
+			}
 		}
 
 	public:
@@ -206,40 +194,38 @@ public:
 
 		template<typename Func, typename FinalReduceFunc>
 		real_t _reduce(Func&& FRed, FinalReduceFunc&& FRF, const range_t cnt, const thread_id_t useNThreads = 0) noexcept {
-			/*if (cnt <= 1) {
-				return ::std::forward<Func>(FRed)( par_range_t(cnt) );
-			} else {*/
-				NNTL_ASSERT(cnt > 1);
-				locker_t lk(m_lock);
+			NNTL_ASSERT(cnt > 1);
+			m_mutex.lock();
 
-				m_fnReduce = FRed;
-				m_jobType = JobType::Reduce;
+			m_fnReduce = FRed;
+			m_jobType = JobType::Reduce;
 
-				//TODO: need cache friendly partitioning here
-				const auto prevOfs = partition_count_to_workers(cnt, useNThreads);
-				NNTL_ASSERT(prevOfs < cnt);
-				auto* rc = &m_reduceCache[0];
+			//TODO: need cache friendly partitioning here
+			const auto prevOfs = partition_count_to_workers(cnt, useNThreads);
+			NNTL_ASSERT(prevOfs < cnt);
+			auto* rc = &m_reduceCache[0];
 
-				const range_t workersOnReduce = m_workingCnt + 1;
-				NNTL_ASSERT(workersOnReduce <= m_reduceCache.size());
+			const range_t workersOnReduce = m_workingCnt + 1;
+			NNTL_ASSERT(workersOnReduce <= m_reduceCache.size());
 
-				m_waitingOrders.notify_all();
-				lk.unlock();
+			m_waitingOrders.notify_all();
+			m_mutex.unlock();
 
-				*rc = ::std::forward<Func>(FRed)(par_range_t(prevOfs, cnt - prevOfs, 0));
+			*rc = ::std::forward<Func>(FRed)(par_range_t(prevOfs, cnt - prevOfs, 0));
 
-				if (m_workingCnt > 0) {
-					lk.lock();
-					while (m_workingCnt > 0)  m_orderDone.wait(lk);
-					lk.unlock();
-				}
-				return ::std::forward<FinalReduceFunc>(FRF)(rc, workersOnReduce);
-			//}
+			if (m_workingCnt > 0) {
+// 				::std::unique_lock<decltype(m_mutex)> lk(m_mutex);
+// 				while (m_workingCnt > 0) {
+// 					m_orderDone.wait(lk);
+// 				}
+				Sync_t::lock_wait_unlock(m_mutex, m_orderDone, [&wc = m_workingCnt]() {return wc <= 0; });
+			}
+			return ::std::forward<FinalReduceFunc>(FRF)(rc, workersOnReduce);
 		}
 
 	protected:
 
-//returns an offset after last partitioned item
+		//returns an offset after last partitioned item
 		range_t partition_count_to_workers(const range_t cnt, const thread_id_t _useNThreads)noexcept {
 			//TODO: need cache friendly partitioning here
 			const thread_id_t useNThreads = _useNThreads > 1 && _useNThreads <= m_workersCnt + 1 ? _useNThreads - 1 : m_workersCnt;
@@ -262,28 +248,28 @@ public:
 			return prevOfs;
 		}
 
-		static void _s_worker(Std* p, const thread_id_t id)noexcept { 
+		static void _s_worker(Workers* p, const thread_id_t id)noexcept {
+			global_denormalized_floats_mode();
 			p->_worker(id);
 		}
 
 		void _worker(const thread_id_t id)noexcept {
+			m_mutex.lock();
+			m_workingCnt--;
+			m_orderDone.notify_one();
+			m_mutex.unlock();		
 
-			{
-				locker_t lk(m_lock);
-				m_workingCnt--;
-				m_orderDone.notify_one();
-			}
-
-			global_denormalized_floats_mode();
-
+			auto& thrdRange = m_ranges[id];
 			while (true) {
-				locker_t lk(m_lock);
-				while(!m_bStop && 0 == m_ranges[id].cnt()) m_waitingOrders.wait(lk);
-
-				lk.unlock();
+// 				locker_t lk(m_mutex);
+// 				while (!m_bStop && 0 == m_ranges[id].cnt()) m_waitingOrders.wait(lk);
+// 				lk.unlock();
+				
+				Sync_t::lockShared_wait_unlock(m_mutex, m_waitingOrders, [&bStop = m_bStop, &tr = thrdRange]()noexcept{
+					return bStop || 0 != tr.cnt();
+				});
 				if (m_bStop) break;
 
-				auto& thrdRange = m_ranges[id];
 				switch (m_jobType) {
 				case JobType::Run:
 					m_fnRun(thrdRange);
@@ -298,37 +284,11 @@ public:
 
 				//must set lock here to prevent deadlock during lk.lock();while (m_workingCnt > 0)  m_orderDone.wait(lk);...
 
-				lk.lock();
+				Sync_t::lockShared(m_mutex);
 				thrdRange.cnt(0);
 				m_workingCnt--;
 				m_orderDone.notify_one();
-				lk.unlock();
-
-				/*
-				 *wrong (only one thread at a time will process data), but working
-				 *
-				 *if (m_bStop) {
-					lk.unlock();
-					break;
-				}
-
-				auto& thrdRange = m_ranges[id];
-				switch (m_jobType) {
-				case JobType::Run:
-					m_fnRun(thrdRange);
-					break;
-				case JobType::Reduce:
-					m_reduceCache[id+1] = m_fnReduce(thrdRange);
-					break;
-				default:
-					NNTL_ASSERT(!"WTF???");
-					abort();
-				}
-				thrdRange.cnt(0);
-
-				m_workingCnt--;
-				m_orderDone.notify_one();
-				lk.unlock();*/
+				Sync_t::unlockShared(m_mutex);
 			}
 		}
 	};

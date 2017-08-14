@@ -468,6 +468,15 @@
     <ClInclude Include="..\nntl\utils\call_wrappers.h">
       <Filter>nntl\utils</Filter>
     </ClInclude>
+    <ClInclude Include="..\nntl\interface\threads\asynch_win.h">
+      <Filter>nntl\interface\threads</Filter>
+    </ClInclude>
+    <ClInclude Include="..\nntl\interface\threads\_sync_primitives.h">
+      <Filter>nntl\interface\threads</Filter>
+    </ClInclude>
+    <ClInclude Include="..\nntl\interface\threads\workers.h">
+      <Filter>nntl\interface\threads</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="stdafx.cpp">

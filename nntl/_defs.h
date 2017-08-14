@@ -48,6 +48,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #define nntl_static_warning(msg) nntl_deprecated(msg)
 
 //#pragma warning(error:996)
+#pragma warning( default : 996 )
 
 //__forceinline is MS-specific. Should branch on a compiler here
 #define nntl_force_inline __forceinline

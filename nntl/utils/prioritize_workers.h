@@ -34,7 +34,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #ifdef _WIN32_WINNT
 #include <windows.h>
 #else
-#pragma message("prioritize_workers class implemented only for Windows platform. Implement it for your OS or will use dummy class")
+#pragma message("prioritize_workers class is implemented only for Windows platform. Implement it for your OS or the dummy/empty class will be used instead.")
 #endif
 
 #include "../interface/_i_threads.h"

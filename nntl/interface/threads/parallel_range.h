@@ -66,5 +66,21 @@ namespace threads {
 		thread_id_t tid()const noexcept { return m_tid; }
 	};
 
+
+	template <typename RangeT>
+	struct _i_threads_base {
+	public:
+		typedef RangeT range_t;
+		typedef parallel_range<range_t> par_range_t;
+		typedef typename par_range_t::thread_id_t thread_id_t;
+
+		nntl_interface thread_id_t workers_count()noexcept;
+
+		//returns a head of container with thread objects (count threadsCnt)
+		nntl_interface auto get_worker_threads(thread_id_t& threadsCnt)noexcept;
+
+		nntl_interface bool denormalsOnInAnyThread()noexcept;
+	};
+
 }
 }
