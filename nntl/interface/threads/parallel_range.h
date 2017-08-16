@@ -45,7 +45,7 @@ namespace threads {
 		// If scheduler will launch less than workers_count() threads to process task, 
 		// then maximum tid must be equal to <scheduled workers count>+1 (+1 refers to a main thread, that's also
 		// used in scheduling)
-		typedef unsigned int thread_id_t;
+		//typedef unsigned int thread_id_t;
 
 	protected:
 		range_t m_cnt;

@@ -92,6 +92,16 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #endif // defined(_DEBUG) || defined(DEBUG)
 
+#ifndef IN
+#define IN
+#endif
+#ifndef OUT
+#define OUT
+#endif
+
+//////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////
+
 #define NNTL_TYPEDEFS_SELF() typedef self_t& self_ref_t; \
 typedef const self_t& self_cref_t;
 

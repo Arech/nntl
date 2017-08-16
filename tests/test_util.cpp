@@ -36,7 +36,6 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "../nntl/nntl.h"
 #include "../nntl/interface/rng/cstd.h"
 
-#include "../nntl/utils/prioritize_workers.h"
 #include "../nntl/utils/options.h"
 
 #include "../nntl/utils/mixins.h"
@@ -90,11 +89,11 @@ TEST(TestUtils, PrioritizeWorkersPerf) {
 	constexpr unsigned maxReps = TEST_PERF_REPEATS_COUNT;
 
 	def_threads_t iT;
-	utils::prioritize_workers<utils::PriorityClass::PerfTesting, def_threads_t> pw(iT);
+	threads::prioritize_workers<threads::PriorityClass::PerfTesting, def_threads_t> pw(iT);
 
 	bt = steady_clock::now();
 	for (unsigned r = 0; r < maxReps; ++r) {
-		utils::prioritize_workers<utils::PriorityClass::Working, def_threads_t> pw(iT);
+		threads::prioritize_workers<threads::PriorityClass::Working, def_threads_t> pw(iT);
 	}
 	diff = steady_clock::now() - bt;
 	STDCOUTL("prioritize_workers:\t" << utils::duration_readable(diff, maxReps));
@@ -761,18 +760,17 @@ public:
 	}
 };
 
-
 TEST(TestUtils, Forwarders) {
 #ifdef _DEBUG
 	static constexpr uint64_t maxreps = 200;
 	static constexpr int64_t ccnt = 100;
 #else
 	static constexpr uint64_t maxreps = 1000;
-	static constexpr int64_t ccnt = 20000;
+	static constexpr int64_t ccnt = 50000;
 #endif
 
-	utils::tictoc tS, tF, tD;
-	int64_t x(0), x2(0), x3(0), x4(0);
+	utils::tictoc tS, tF, tD, tCmcf, tCmcfnr;
+	int64_t x(0), x2(0), x3(0), x4(0), x5(0);
 
 // 	typedef utils::simpleWrapper<std::function<void(int64_t)>> stdWrap;
 // 	typedef utils::simpleWrapper<utils_test::cdelegate<void(int64_t)>> delegWrap;
@@ -782,7 +780,8 @@ TEST(TestUtils, Forwarders) {
 
 	caller_mock<stdWrap> callStd;
 	caller_mock<delegWrap> callDeleg;
-	caller_mock<utils::forwarderWrapper<>> callFwd;
+	caller_mock<utils::forwarderWrapper<2 * sizeof(void*)>> callFwd;
+	caller_mock<utils::cmcforwarderWrapper<2 * sizeof(void*)>> callCmcfwd;
 
 	for (uint64_t r = 0; r < maxreps; ++r)
 	{
@@ -811,6 +810,24 @@ TEST(TestUtils, Forwarders) {
 		}
 		tD.toc();
 		ASSERT_EQ(x, x3);
+
+		auto tc2 = ([&x4](int64_t i) { return i + x4; });
+		tCmcf.tic();
+#pragma loop( no_vector )  
+		for (int64_t i = 0; i < ccnt; ++i) {
+			callCmcfwd.proc_functor([&x2, &tc2, &x, &x3, &x4](int64_t i) { x4 = tc2(i); }, i);
+		}
+		tCmcf.toc();
+		ASSERT_EQ(x, x4);
+
+		auto tc5 = ([&x5](int64_t i) { return i + x5; });
+		tCmcfnr.tic();
+#pragma loop( no_vector )  
+		for (int64_t i = 0; i < ccnt; ++i) {
+			callCmcfwd.proc_functor([&tc5, &x5](int64_t i) { x5 = tc5(i); }, i);
+		}
+		tCmcfnr.toc();
+		ASSERT_EQ(x, x5);
 	}
 	tS.say("std");
 	tF.say("fwd");
@@ -818,4 +835,11 @@ TEST(TestUtils, Forwarders) {
 	tD.say("del");
 	tS.ratios(tD);
 	tF.ratios(tD);
+
+	tCmcf.say("cmcfwd");
+	tCmcf.ratios(tF);
+
+	tCmcfnr.say("cmcfwdnr");
+	tCmcfnr.ratios(tF);
 }
+

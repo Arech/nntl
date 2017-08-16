@@ -41,6 +41,8 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "../nntl/utils/chrono.h"
 #include "../nntl/interface/rng/cstd.h"
 
+#include "../nntl/interface/threads/bgworkers.h"
+
 //#define BOOST_USE_WINDOWS_H
 
 using namespace nntl;
@@ -266,3 +268,44 @@ TEST(TestThreading, WorkersDelays) {
 #endif // !TESTS_SKIP_THREADING_DELAYS
 
 
+template<typename SyncT>
+void run_bgworkers_simpletest()noexcept {
+	auto t1 = [](const unsigned tId)noexcept->bool {
+		STDCOUTL(tId);
+		static unsigned v = 0;
+		::std::this_thread::sleep_for(::std::chrono::milliseconds(125));
+		v += tId;
+		return v < 7;
+	};
+
+	auto t2 = [](const unsigned tId)noexcept->bool {
+		if (0 == tId) {
+			STDCOUTL("In priority task");
+		}
+		return false;
+	};
+
+	STDCOUTL("There should be a silence because there are no tasks...");
+	threads::BgWorkers<SyncT> bgw(2);
+	bgw.set_task_wait_timeout(::std::chrono::milliseconds(1500)).expect_tasks_count(2);
+
+	::std::this_thread::sleep_for(::std::chrono::seconds(3));
+	STDCOUTL("Now verbose");
+	bgw.add_task(t1).add_task(t2, 2);
+	::std::this_thread::sleep_for(::std::chrono::seconds(7));
+
+	bgw.delete_tasks();
+	STDCOUTL("Now there should be a silence again...");
+
+	::std::this_thread::sleep_for(::std::chrono::seconds(5));
+}
+
+TEST(TestBgWorkers, Simple) {
+#if NNTL_HAS_NATIVE_SRWLOCKS_AND_CODITIONALS
+	STDCOUTL("Using Windows primitives");
+	run_bgworkers_simpletest<threads::win_sync_primitives>();
+#endif
+
+	STDCOUTL("Using STL primitives");
+	run_bgworkers_simpletest<threads::std_sync_primitives>();
+}

@@ -51,6 +51,13 @@ namespace nntl {
 	//real_t with extended precision for some temporarily calculations
 	typedef double ext_real_t;
 
+	//thread id must be in range [0,workers_count())
+	//worker threads should have par_range_t::tid>=1. tid==0 is reserved to main thread.
+	// If scheduler will launch less than workers_count() threads to process task, 
+	// then maximum tid must be equal to <scheduled workers count>+1 (+1 refers to a main thread, that's also
+	// used in scheduling)
+	typedef unsigned int thread_id_t;
+
 	//see also NNTL_STRING macro
 	// by now some code such as file-related functions in _supp{} may be bounded to char only in strchar_t
 	//TODO: Don't think it is good idea to solve it now.

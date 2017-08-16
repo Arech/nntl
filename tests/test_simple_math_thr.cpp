@@ -37,7 +37,6 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "../nntl/interface/math/smath.h"
 #include "../nntl/interfaces.h"
 
-#include "../nntl/utils/prioritize_workers.h"
 #include "../nntl/utils/tictoc.h"
 
 #include "simple_math_etalons.h"
@@ -72,7 +71,7 @@ void test_mTilingRoll(vec_len_t rowsCnt, vec_len_t colsCnt, vec_len_t k) {
 	ASSERT_TRUE(!src.isAllocationFailed() && !dest.isAllocationFailed() && !destET.isAllocationFailed());
 
 	tictoc tSt, tMt, tB, tStSR, tMtSR, tStSW, tMtSW;
-	utils::prioritize_workers<utils::PriorityClass::PerfTesting, SMath_t::iThreads_t> pw(iM.ithreads());
+	threads::prioritize_workers<threads::PriorityClass::PerfTesting, SMath_t::iThreads_t> pw(iM.ithreads());
 
 	seqFillMtx(src);
 	for (unsigned r = 0; r < maxReps; ++r) {
@@ -172,7 +171,7 @@ void test_ewSumProd(vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 	rg.set_ithreads(iM.ithreads());
 
 	tictoc tSt, tMt, tB;
-	utils::prioritize_workers<utils::PriorityClass::PerfTesting, SMath_t::iThreads_t> pw(iM.ithreads());
+	threads::prioritize_workers<threads::PriorityClass::PerfTesting, SMath_t::iThreads_t> pw(iM.ithreads());
 	for (unsigned r = 0; r < maxReps; ++r) {
 		rg.gen_matrix(A, 2);		rg.gen_matrix(B, 2);
 		tSt.tic();
@@ -215,7 +214,7 @@ void test_mrwDivideByVec(vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 	rg.set_ithreads(iM.ithreads());
 
 	tictoc tStCw, tStRw, tSt, tMtCw, tMtRw, tMt, tB;
-	utils::prioritize_workers<utils::PriorityClass::PerfTesting, SMath_t::iThreads_t> pw(iM.ithreads());
+	threads::prioritize_workers<threads::PriorityClass::PerfTesting, SMath_t::iThreads_t> pw(iM.ithreads());
 	for (unsigned r = 0; r < maxReps; ++r) {
 		rg.gen_matrix(A, 10);		rg.gen_vector(&vDiv[0], rowsCnt, 5);
 		tStCw.tic();
@@ -301,7 +300,7 @@ void test_mrwMulByVec(vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 	rg.set_ithreads(iM.ithreads());
 
 	tictoc tStCw, tStRw, tSt, tMtCw, tMtRw, tMt, tB;
-	utils::prioritize_workers<utils::PriorityClass::PerfTesting, SMath_t::iThreads_t> pw(iM.ithreads());
+	threads::prioritize_workers<threads::PriorityClass::PerfTesting, SMath_t::iThreads_t> pw(iM.ithreads());
 	for (unsigned r = 0; r < maxReps; ++r) {
 		rg.gen_matrix(A, 10);		rg.gen_vector(&vMul[0], rowsCnt, 5);
 		tStCw.tic();
@@ -383,7 +382,7 @@ void test_mrwIdxsOfMax_perf(vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 	rg.set_ithreads(iM.ithreads());
 
 	tictoc tStCw, tMtCw, tB, tMtRw, tStRw, tMt, tSt, tStRwSmall, tMtCwSmall;
-	utils::prioritize_workers<utils::PriorityClass::PerfTesting, iThreads_t> pw(iM.ithreads());
+	threads::prioritize_workers<threads::PriorityClass::PerfTesting, iThreads_t> pw(iM.ithreads());
 
 	for (unsigned r = 0; r < maxReps; ++r) {
 		
@@ -477,7 +476,7 @@ void test_mrwMax_perf(vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 	rg.set_ithreads(iM.ithreads());
 
 	tictoc tSt, tMt, tB, tMtRw, tMtCw, tStRwSmall, tStCw, tStRw;
-	utils::prioritize_workers<utils::PriorityClass::PerfTesting, iThreads_t> pw(iM.ithreads());
+	threads::prioritize_workers<threads::PriorityClass::PerfTesting, iThreads_t> pw(iM.ithreads());
 
 	for (unsigned r = 0; r < maxReps; ++r) {
 		::std::fill(vmax.begin(), vmax.end(), ::std::numeric_limits<real_t>::lowest()); 		rg.gen_matrix(m, 10);
@@ -557,7 +556,7 @@ void test_mrwSumIp_perf(vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 	rg.set_ithreads(iM.ithreads());
 
 	tictoc tStCw, tStRw, tSt, tMtCw, tMtRw, tMt, tB, tStRwSmall;
-	utils::prioritize_workers<utils::PriorityClass::PerfTesting, iThreads_t> pw(iM.ithreads());
+	threads::prioritize_workers<threads::PriorityClass::PerfTesting, iThreads_t> pw(iM.ithreads());
 	for (unsigned r = 0; r < maxReps; ++r) {
 		if (colsCnt>1) {
 			rg.gen_matrix(A, 10);
@@ -634,7 +633,7 @@ void test_mrwSum_perf(vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 	d_interfaces::iRng_t rg;
 	rg.set_ithreads(iM.ithreads());
 	tictoc tStCw, tStRw, tSt, tMtCw, tMtRw, tMt, tB;
-	utils::prioritize_workers<utils::PriorityClass::PerfTesting, iThreads_t> pw(iM.ithreads());
+	threads::prioritize_workers<threads::PriorityClass::PerfTesting, iThreads_t> pw(iM.ithreads());
 	for (unsigned r = 0; r < maxReps; ++r) {
 		if (colsCnt > 1) {
 			rg.gen_matrix(A, 10);
@@ -718,7 +717,7 @@ void test_mrwOr_perf(vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 	rg.set_ithreads(iM.ithreads());
 	const real_t binFrac = real_t(0.5);
 	tictoc tStCw, tStRw, tSt, tMtCw, tMtRw, tMt, tB;
-	utils::prioritize_workers<utils::PriorityClass::PerfTesting, iThreads_t> pw(iM.ithreads());
+	threads::prioritize_workers<threads::PriorityClass::PerfTesting, iThreads_t> pw(iM.ithreads());
 	for (unsigned r = 0; r < maxReps; ++r) {
 		if (colsCnt > 1) {
 			rg.gen_matrix_norm(A);
@@ -825,7 +824,7 @@ void test_ewSumSquares_perf(vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 	tictoc tst, tmt, tb;
 	//////////////////////////////////////////////////////////////////////////
 	//testing performance
-	utils::prioritize_workers<utils::PriorityClass::PerfTesting, iThreads_t> pw(iM.ithreads());
+	threads::prioritize_workers<threads::PriorityClass::PerfTesting, iThreads_t> pw(iM.ithreads());
 
 	//FFFFfffffffff... don't ever think about removing rg. calls that randomizes data...
 	real_t vv = 0;
@@ -875,7 +874,7 @@ void test_ewSumSquaresTriang_perf(vec_len_t rowsCnt) {
 	tictoc tst, tmt, tb;
 	//////////////////////////////////////////////////////////////////////////
 	//testing performance
-	utils::prioritize_workers<utils::PriorityClass::PerfTesting, iThreads_t> pw(iM.ithreads());
+	threads::prioritize_workers<threads::PriorityClass::PerfTesting, iThreads_t> pw(iM.ithreads());
 
 	//FFFFfffffffff... don't ever think about removing rg. calls that randomizes data...
 	real_t vv = 0;
@@ -927,7 +926,7 @@ void test_mcwMean(vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 	rg.set_ithreads(iM.ithreads());
 
 	tictoc tSt, tMt, tB;
-	utils::prioritize_workers<utils::PriorityClass::PerfTesting, SMath_t::iThreads_t> pw(iM.ithreads());
+	threads::prioritize_workers<threads::PriorityClass::PerfTesting, SMath_t::iThreads_t> pw(iM.ithreads());
 	for (unsigned r = 0; r < maxReps; ++r) {
 		rg.gen_matrix(A, 10);
 		tSt.tic();
@@ -975,7 +974,7 @@ void test_mcwSub_ip(vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 	rg.set_ithreads(iM.ithreads());
 
 	tictoc tSt, tMt, tB;// , tSt2;
-	utils::prioritize_workers<utils::PriorityClass::PerfTesting, SMath_t::iThreads_t> pw(iM.ithreads());
+	threads::prioritize_workers<threads::PriorityClass::PerfTesting, SMath_t::iThreads_t> pw(iM.ithreads());
 	for (unsigned r = 0; r < maxReps; ++r) {
 		rg.gen_matrix(A, 10); rg.gen_vector(&vVec1[0], colsCnt, 5);
 		tSt.tic();
@@ -1019,7 +1018,7 @@ void test_mcwMulDiag_ip(vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 	rg.set_ithreads(iM.ithreads());
 
 	tictoc tSt, tMt, tB;
-	utils::prioritize_workers<utils::PriorityClass::PerfTesting, SMath_t::iThreads_t> pw(iM.ithreads());
+	threads::prioritize_workers<threads::PriorityClass::PerfTesting, SMath_t::iThreads_t> pw(iM.ithreads());
 	for (unsigned r = 0; r < maxReps; ++r) {
 		rg.gen_matrix(A, 10); rg.gen_matrix(B, 5);
 		tSt.tic();

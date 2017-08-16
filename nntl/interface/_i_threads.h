@@ -35,6 +35,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "threads/parallel_range.h"
 #include "../utils/call_wrappers.h"
 #include "threads/_sync_primitives.h"
+#include "threads/prioritize_workers.h"
 
 namespace nntl {
 namespace threads {
@@ -45,7 +46,7 @@ namespace threads {
 
 		typedef RangeT range_t;
 		typedef parallel_range<range_t> par_range_t;
-		typedef typename par_range_t::thread_id_t thread_id_t;
+		//typedef typename par_range_t::thread_id_t thread_id_t;
 
 		nntl_interface thread_id_t workers_count()noexcept;
 

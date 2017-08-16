@@ -271,7 +271,7 @@ namespace nntl {
 		d_interfaces::iRng_t rg;
 		rg.set_ithreads(iM.ithreads());
 		tictoc tSt, tMt, tB, tSt2, tMt2;
-		utils::prioritize_workers<utils::PriorityClass::PerfTesting, imath_basic_t::iThreads_t> pw(iM.ithreads());
+		threads::prioritize_workers<threads::PriorityClass::PerfTesting, imath_basic_t::iThreads_t> pw(iM.ithreads());
 		for (unsigned r = 0; r < maxReps; ++r) {
 			if (XValuesSpan1e3) {
 				rg.gen_matrix(XSrc, real_t(XValuesSpan1e3) / real_t(1e3));
@@ -324,7 +324,7 @@ namespace nntl {
 		d_interfaces::iRng_t rg;
 		rg.set_ithreads(iM.ithreads());
 		tictoc tSt, tMt, tB, tSt2, tMt2;
-		utils::prioritize_workers<utils::PriorityClass::PerfTesting, decltype(iM)::iThreads_t> pw(iM.ithreads());
+		threads::prioritize_workers<threads::PriorityClass::PerfTesting, decltype(iM)::iThreads_t> pw(iM.ithreads());
 		for (unsigned r = 0; r < maxReps; ++r) {
 			if (bActNorm) {
 				rg.gen_matrix_norm(ASrc);

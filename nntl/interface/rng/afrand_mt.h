@@ -52,7 +52,7 @@ namespace nntl {
 			typedef iThreadsT iThreads_t;
 			typedef typename iThreads_t::range_t range_t;
 			typedef typename iThreads_t::par_range_t par_range_t;
-			typedef typename iThreads_t::thread_id_t thread_id_t;
+			//typedef typename iThreads_t::thread_id_t thread_id_t;
 
 			typedef _impl::AFRAND_MT_THR<base_rng_t,real_t> Thresholds_t;
 

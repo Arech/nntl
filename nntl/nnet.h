@@ -139,10 +139,10 @@ namespace nntl {
 			nnet_eval_results<real_t>*const pTestEvalRes=nullptr) noexcept
 		{
 			//relaxing thread priorities (we don't know in advance what callback functions actually do, so better relax it)
-			//utils::prioritize_workers<utils::PriorityClass::Normal, iThreads_t> pw(get_iMath().ithreads());
+			//threads::prioritize_workers<threads::PriorityClass::Normal, iThreads_t> pw(get_iMath().ithreads());
 			::std::conditional_t<bPrioritizeThreads
-				, utils::prioritize_workers<utils::PriorityClass::Normal, iThreads_t>
-				, utils::_impl::prioritize_workers_dummy<utils::PriorityClass::Normal, iThreads_t>
+				, threads::prioritize_workers<threads::PriorityClass::Normal, iThreads_t>
+				, threads::_impl::prioritize_workers_dummy<threads::PriorityClass::Normal, iThreads_t>
 			> pw(get_iMath().ithreads());
 
 
@@ -328,8 +328,8 @@ namespace nntl {
 		ErrorCode train(train_data_t& td, TrainOptsT& opts, OnEpochEndCbT&& onEpochEndCB = NNetCB_OnEpochEnd_Dummy())noexcept
 		{
 			typedef ::std::conditional_t<bPrioritizeThreads
-				, utils::prioritize_workers<utils::PriorityClass::Working, iThreads_t>
-				, utils::_impl::prioritize_workers_dummy<utils::PriorityClass::Normal, iThreads_t>> PW_t;
+				, threads::prioritize_workers<threads::PriorityClass::Working, iThreads_t>
+				, threads::_impl::prioritize_workers_dummy<threads::PriorityClass::Normal, iThreads_t>> PW_t;
 
 			//just leave it here
 			global_denormalized_floats_mode();
@@ -425,7 +425,7 @@ namespace nntl {
 
 			{
 				//raising thread priorities for faster computation
-				//utils::prioritize_workers<utils::PriorityClass::Working, iThreads_t> pw(get_iMath().ithreads());
+				//threads::prioritize_workers<threads::PriorityClass::Working, iThreads_t> pw(get_iMath().ithreads());
 				PW_t pw(get_iMath().ithreads());
 
 				for (size_t epochIdx = 0; epochIdx < maxEpoch; ++epochIdx) {

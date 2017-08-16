@@ -38,7 +38,11 @@ namespace threads {
 
 	//TODO: error handling!!!
 
-	template <typename RealT, typename RangeT, typename SyncT = threads::sync_primitives, typename CallHandlerT = utils::forwarderWrapper<>>
+	template <typename RealT, typename RangeT = ::std::size_t
+		, typename SyncT = threads::sync_primitives
+		, typename CallHandlerT = utils::cmcforwarderWrapper<2 * sizeof(void*)> //too large internal storage leads to worse performance
+		//utils::forwarderWrapper<>
+	>
 	class Workers : public _i_threads<RealT, RangeT> {
 		//!! copy constructor not needed
 		Workers(const Workers& other)noexcept = delete;

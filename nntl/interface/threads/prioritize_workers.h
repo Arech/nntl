@@ -37,33 +37,75 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #pragma message("prioritize_workers class is implemented only for Windows platform. Implement it for your OS or the dummy/empty class will be used instead.")
 #endif
 
-#include "../interface/_i_threads.h"
+#include "../_i_threads.h"
 
 namespace nntl {
-namespace utils {
+namespace threads {
 
-	enum class PriorityClass { Normal = 0, Working, PerfTesting, _last };
+	enum class PriorityClass {
+		Normal = 0
+		, Working
+		, PerfTesting
+		, global_last
+
+		, threads_priority_first
+		, threads_priority_below_current
+		, threads_priority_below_current2
+		, threads_priority_last
+	};
 
 	namespace _impl {
 
-		template<PriorityClass _mode,typename iThreadsT>
+		template<PriorityClass _mode, typename iThreadsT>
 		class prioritize_workers_dummy {
 		public:
 			~prioritize_workers_dummy()noexcept {}
-			prioritize_workers_dummy(iThreadsT& iT)noexcept {
+			prioritize_workers_dummy(iThreadsT& iT, const bool bAllThreads = true)noexcept {
 				//STDCOUTL("*** prioritize_workers not implemented for this OS, using dummy class");
 			}
 		};
 	}
 
-
 #ifdef _WIN32_WINNT
 
 	namespace _impl {
 
+		struct Funcs {
+			static bool AllowCurrentThreadPriorityBoost(bool bAllow)noexcept {
+				return TRUE == ::SetThreadPriorityBoost(::GetCurrentThread(), static_cast<BOOL>(!bAllow));
+			}
+
+			template<typename ThreadObjT>
+			static bool ChangeThreadsPriorities(ThreadObjT& iT, const PriorityClass pc)noexcept {
+				NNTL_ASSERT(pc > PriorityClass::threads_priority_first && pc < PriorityClass::threads_priority_last);
+
+				const auto origThreadPriority = ::GetThreadPriority(::GetCurrentThread());
+				const int newPriority = origThreadPriority -
+					(pc == PriorityClass::threads_priority_below_current ? 1 :
+					(pc == PriorityClass::threads_priority_below_current2 ? 2 : 3));
+
+				thread_id_t cnt, i = 0;
+				ThreadObjT::ThreadObjIterator_t head = iT.get_worker_threads(cnt);
+				for (; i < cnt; ++i) {
+					if (!::SetThreadPriority(head->native_handle(), newPriority)) {
+						STDCOUTL("***Failed to set thread priority for thread #" << i);
+						head = iT.get_worker_threads(cnt);
+						for (thread_id_t j = 0; j < i; ++j) {
+							if (!::SetThreadPriority(head->native_handle(), origThreadPriority))
+								STDCOUTL("***Failed to restore original thread priority for thread #" << j);
+							head++;
+						}
+						break;
+					}
+					head++;
+				}
+				return i == cnt;
+			}
+		};
+
+		
 		template<PriorityClass _mode, typename iThreadsT>
 		class prioritize_workers_win {
-			static_assert(::std::is_base_of<threads::_i_threads<typename iThreadsT::real_t,typename iThreadsT::range_t>, iThreadsT>::value, "iThreads must implement threads::_i_threads");
 		public:
 			typedef iThreadsT iThreads_t;
 
@@ -91,14 +133,14 @@ namespace utils {
 		public:
 			~prioritize_workers_win()noexcept {
 				if (m_bRestore) {
-					if (!SetPriorityClass(GetCurrentProcess(), m_origPriorityClass)) STDCOUTL("***Failed to restore original priority class");
-					if (!SetThreadPriority(GetCurrentThread(),m_origThreadPriority)) STDCOUTL("***Failed to restore original thread priority for main thread");
+					if (!::SetPriorityClass(GetCurrentProcess(), m_origPriorityClass)) STDCOUTL("***Failed to restore original priority class");
+					if (!::SetThreadPriority(GetCurrentThread(),m_origThreadPriority)) STDCOUTL("***Failed to restore original thread priority for main thread");
 
 					if (m_bAllThreads) {
-						iThreads_t::thread_id_t cnt;
+						thread_id_t cnt;
 						iThreads_t::ThreadObjIterator_t head = m_iT.get_worker_threads(cnt);
-						for (iThreads_t::thread_id_t i = 0; i < cnt; i++) {
-							if (!SetThreadPriority(head->native_handle(), m_origThreadPriority))
+						for (thread_id_t i = 0; i < cnt; i++) {
+							if (!::SetThreadPriority(head->native_handle(), m_origThreadPriority))
 								STDCOUTL("***Failed to restore original thread priority for thread #" << i);
 							head++;
 						}
@@ -107,30 +149,60 @@ namespace utils {
 			}
 
 			prioritize_workers_win(iThreads_t& iT, const bool bAllThreads=true)noexcept : m_iT(iT),
-				m_origThreadPriority(GetThreadPriority(GetCurrentThread())),
-				m_origPriorityClass(GetPriorityClass(GetCurrentProcess())),
+				m_origThreadPriority(::GetThreadPriority(::GetCurrentThread())),
+				m_origPriorityClass(::GetPriorityClass(::GetCurrentProcess())),
 				m_bRestore(false), m_bAllThreads(bAllThreads)
 			{
 				NNTL_ASSERT(m_origPriorityClass);
 				NNTL_ASSERT(THREAD_PRIORITY_ERROR_RETURN != m_origThreadPriority);
+				_apply();
+			}
 
+		protected:
+			/*template<PriorityClass m = _mode>
+			::std::enable_if_t < (m > PriorityClass::global_last)> _apply()noexcept {
+				NNTL_ASSERT(m_bAllThreads);
+				m_bRestore = false;
+				const int newPriority = m_origThreadPriority - 
+					(m == PriorityClass::threads_priority_below_current ? 1 :
+					(m == PriorityClass::threads_priority_below_current2 ? 2 : 3));
+
+				iThreads_t::thread_id_t cnt, i = 0;
+				iThreads_t::ThreadObjIterator_t head = m_iT.get_worker_threads(cnt);
+				for (; i < cnt; ++i) {
+					if (!::SetThreadPriority(head->native_handle(), newPriority)) {
+						STDCOUTL("***Failed to set thread priority for thread #" << i);
+						head = m_iT.get_worker_threads(cnt);
+						for (iThreads_t::thread_id_t j = 0; j < i; ++j) {
+							if (!::SetThreadPriority(head->native_handle(), m_origThreadPriority))
+								STDCOUTL("***Failed to restore original thread priority for thread #" << j);
+							head++;
+						}
+						break;
+					}
+					head++;
+				}
+			}*/
+
+			template<PriorityClass m = _mode>
+			::std::enable_if_t < (m < PriorityClass::global_last)> _apply()noexcept {
 				if (m_origPriorityClass && THREAD_PRIORITY_ERROR_RETURN != m_origThreadPriority) {
 					typedef PrCThP<_mode> PriorityData;
-					
-					if (SetPriorityClass(GetCurrentProcess(), PriorityData::priorityClass)) {
+
+					if (::SetPriorityClass(::GetCurrentProcess(), PriorityData::priorityClass)) {
 						bool bMainThreadPrioritySet = false;
-						if (SetThreadPriority(GetCurrentThread(), PriorityData::threadPriority)) {
+						if (::SetThreadPriority(::GetCurrentThread(), PriorityData::threadPriority)) {
 							bMainThreadPrioritySet = true;
 
-							if (bAllThreads) {
-								iThreads_t::thread_id_t cnt, i = 0;
-								iThreads_t::ThreadObjIterator_t head = iT.get_worker_threads(cnt);
+							if (m_bAllThreads) {
+								thread_id_t cnt, i = 0;
+								iThreads_t::ThreadObjIterator_t head = m_iT.get_worker_threads(cnt);
 								for (; i < cnt; ++i) {
-									if (!SetThreadPriority(head->native_handle(), PriorityData::threadPriority)) {
+									if (!::SetThreadPriority(head->native_handle(), PriorityData::threadPriority)) {
 										STDCOUTL("***Failed to set thread priority for thread #" << i);
-										head = iT.get_worker_threads(cnt);
-										for (iThreads_t::thread_id_t j = 0; j < i; ++j) {
-											if (!SetThreadPriority(head->native_handle(), m_origThreadPriority))
+										head = m_iT.get_worker_threads(cnt);
+										for (thread_id_t j = 0; j < i; ++j) {
+											if (!::SetThreadPriority(head->native_handle(), m_origThreadPriority))
 												STDCOUTL("***Failed to restore original thread priority for thread #" << j);
 											head++;
 										}
@@ -139,34 +211,50 @@ namespace utils {
 									head++;
 								}
 								if (i == cnt) m_bRestore = true;
-							}else m_bRestore = true;
-						}else{
+							} else m_bRestore = true;
+						} else {
 							STDCOUTL("***Failed to set main thread priority");
 						}
 
 						if (!m_bRestore) {
 							if (bMainThreadPrioritySet)
-								if (!SetThreadPriority(GetCurrentThread(), m_origThreadPriority))
+								if (!::SetThreadPriority(::GetCurrentThread(), m_origThreadPriority))
 									STDCOUTL("***Failed to restore original thread priority for main thread");
-							if (!SetPriorityClass(GetCurrentProcess(), m_origPriorityClass))
+							if (!::SetPriorityClass(::GetCurrentProcess(), m_origPriorityClass))
 								STDCOUTL("***Failed to restore original priority class");
 						}
-					}else{
+					} else {
 						STDCOUTL("***Failed to set priority class");
-					}					
+					}
 				} else {
 					STDCOUTL("****** Prioritization failed - can't get original values");
 				}
 			}
+
 		};
 	}
 	
 	template<PriorityClass mode,typename iThreads_t>
 	using prioritize_workers = _impl::prioritize_workers_win<mode,iThreads_t>;
 
+	using Funcs = _impl::Funcs;
+	
 #else
-	template<typename iThreads_t>
-	using prioritize_workers = _impl::prioritize_workers_dummy<iThreads_t>;
+
+	template<PriorityClass mode, typename iThreads_t>
+	using prioritize_workers = _impl::prioritize_workers_dummy<mode, iThreads_t>;
+
+	struct Funcs {
+		static bool AllowCurrentThreadPriorityBoost(bool bAllow)noexcept {
+			return false;
+			// not implemented
+		}
+
+		template<typename ThreadObjT>
+		static bool ChangeThreadsPriorities(ThreadObjT& iT, const PriorityClass pc)noexcept {
+			return false;
+		}
+	}
 
 #pragma message( __FILE__ "[" STRING(__LINE__) "]: *** prioritize_workers was not implemented for current OS, using dummy class")
 

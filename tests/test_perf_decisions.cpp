@@ -46,7 +46,6 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <numeric>
 
 #include "../nntl/utils/chrono.h"
-#include "../nntl/utils/prioritize_workers.h"
 
 #include "../nntl/utils/tictoc.h"
 
@@ -122,7 +121,7 @@ void testperf_makeDropout(iMathT& iM, iRngT& iR, typename iMathT::real_t dpa, ve
 	ASSERT_MTX_EQ(DMe, DM, "DM mtx differs for makeDropout_old");
 
 	tictoc tO, tN;
-	utils::prioritize_workers<utils::PriorityClass::PerfTesting, typename iMathT::iThreads_t> pw(iR.ithreads());
+	threads::prioritize_workers<threads::PriorityClass::PerfTesting, typename iMathT::iThreads_t> pw(iR.ithreads());
 	real_t v = real_t(0);
 	for (unsigned i = 0; i < TEST_PERF_REPEATS_COUNT; ++i) {
 		iR.gen_matrix_no_bias(Act, real_t(2));
@@ -223,7 +222,7 @@ void testperf_makeDropoutMask(iRngT& iR, const typename iRngT::real_t dpa, const
 	tictoc tB, tVec;
 	//////////////////////////////////////////////////////////////////////////
 	//testing performance
-	utils::prioritize_workers<utils::PriorityClass::PerfTesting, d_interfaces::iThreads_t> pw(iR.ithreads());
+	threads::prioritize_workers<threads::PriorityClass::PerfTesting, d_interfaces::iThreads_t> pw(iR.ithreads());
 
 	for (unsigned r = 0; r<rc; ++r)	{
 		iR.gen_matrix_norm(dm_b);
@@ -295,7 +294,7 @@ void t_sum(vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 	tictoc tAcc, tFor, tFunctor;
 	//////////////////////////////////////////////////////////////////////////
 	//testing performance
-	utils::prioritize_workers<utils::PriorityClass::PerfTesting, d_interfaces::iThreads_t> pw(trd);
+	threads::prioritize_workers<threads::PriorityClass::PerfTesting, d_interfaces::iThreads_t> pw(trd);
 
 	//FFFFfffffffff... don't ever think about removing rg. calls that randomizes data...
 	real_t s1(0), s2(0), s3(0);
@@ -412,7 +411,7 @@ void check_softmax_parts(iMath& iM, vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 	tictoc tStCw, tStRw;
 	//////////////////////////////////////////////////////////////////////////
 	//testing performance
-	utils::prioritize_workers<utils::PriorityClass::PerfTesting, iMath::iThreads_t> pw(iM.ithreads());
+	threads::prioritize_workers<threads::PriorityClass::PerfTesting, iMath::iThreads_t> pw(iM.ithreads());
 
 	//FFFFfffffffff... don't ever think about removing rg. calls that randomizes data...
 	for (unsigned r = 0; r < maxReps; ++r) {
@@ -569,7 +568,7 @@ void check_maxRowwise(iMath& iM, vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 	tictoc tStNaive, tStMemf, tStMemfOpt;
 	//////////////////////////////////////////////////////////////////////////
 	//testing performance
-	utils::prioritize_workers<utils::PriorityClass::PerfTesting, iMath::iThreads_t> pw(iM.ithreads());
+	threads::prioritize_workers<threads::PriorityClass::PerfTesting, iMath::iThreads_t> pw(iM.ithreads());
 
 	//FFFFfffffffff... don't ever think about removing rg. calls that randomizes data...
 	for (unsigned r = 0; r < maxReps; ++r) {
@@ -644,7 +643,7 @@ void check_evCMulSub(iMath& iM, vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 	vW2.clone_to(vW);
 	W2.clone_to(W);
 
-	utils::prioritize_workers<utils::PriorityClass::PerfTesting, iMath::iThreads_t> pw(iM.ithreads());
+	threads::prioritize_workers<threads::PriorityClass::PerfTesting, iMath::iThreads_t> pw(iM.ithreads());
 
 	nanoseconds diffEv(0), diffComb(0);
 	for (unsigned r = 0; r < maxReps; ++r) {
@@ -761,7 +760,7 @@ void check_mTranspose(iMath& iM, vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 	mTranspose_OpenBLAS(src, dest);
 	ASSERT_EQ(destEt, dest) << "mTranspose_OpenBLAS failed";
 
-	utils::prioritize_workers<utils::PriorityClass::PerfTesting, iMath::iThreads_t> pw(iM.ithreads());
+	threads::prioritize_workers<threads::PriorityClass::PerfTesting, iMath::iThreads_t> pw(iM.ithreads());
 
 	steady_clock::time_point bt;
 	nanoseconds diffSR(0), diffSW(0), diffOB(0);
@@ -1202,7 +1201,7 @@ void check_rowwiseNormsq(iMath& iM, vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 	rowwise_normsq_clmnw(W, &normvec[0]);
 	ASSERT_TRUE(0 == memcmp(&normvec[0], &normvecEt[0], rowsCnt*sizeof(real_t))) << "rowwise_normsq_clmnw wrong implementation";
 
-	utils::prioritize_workers<utils::PriorityClass::PerfTesting, iMath::iThreads_t> pw(iM.ithreads());
+	threads::prioritize_workers<threads::PriorityClass::PerfTesting, iMath::iThreads_t> pw(iM.ithreads());
 
 	steady_clock::time_point bt;
 	nanoseconds diffNaive(0), diffClmnw(0);
@@ -1357,7 +1356,7 @@ void check_sigm_loss_xentropy(iMath& iM, vec_len_t rowsCnt, vec_len_t colsCnt = 
 	d_interfaces::iRng_t rg;
 	rg.set_ithreads(iM.ithreads());
 
-	utils::prioritize_workers<utils::PriorityClass::PerfTesting, iMath::iThreads_t> pw(iM.ithreads());
+	threads::prioritize_workers<threads::PriorityClass::PerfTesting, iMath::iThreads_t> pw(iM.ithreads());
 
 	run_sigm_loss_xentropy(rg, iM, act, data_y, t1, t2, maxReps, real_t(.5));
 	run_sigm_loss_xentropy(rg, iM, act, data_y, t1, t2, maxReps, real_t(.1));
@@ -1425,7 +1424,7 @@ void check_apply_momentum_perf(iMath& iM, vec_len_t rowsCnt, vec_len_t colsCnt =
 	rg.gen_matrix(dW, 2);
 	rg.gen_matrix(vW, 2);
 
-	utils::prioritize_workers<utils::PriorityClass::PerfTesting, iMath::iThreads_t> pw(iM.ithreads());
+	threads::prioritize_workers<threads::PriorityClass::PerfTesting, iMath::iThreads_t> pw(iM.ithreads());
 
 	bt = steady_clock::now();
 	for (unsigned r = 0; r < maxReps; ++r)  apply_momentum_FOR(vW, momentum, dW);
@@ -1485,7 +1484,7 @@ void test_sign_perf(iMath& iM, vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 	rg.set_ithreads(iM.ithreads());
 
 	//testing performance
-	utils::prioritize_workers<utils::PriorityClass::PerfTesting, iMath::iThreads_t> pw(iM.ithreads());
+	threads::prioritize_workers<threads::PriorityClass::PerfTesting, iMath::iThreads_t> pw(iM.ithreads());
 
 	real_t lr = real_t(.1);
 
@@ -1799,7 +1798,7 @@ void test_ActPrmVsNonprm_perf(vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 	typedef exp3_leaky_relu<real_t> AType;
 
 	tictoc tA1, tB1, tA2, tB2, tA3, tB3;
-	utils::prioritize_workers<utils::PriorityClass::PerfTesting, def_threads_t> pw(iM.ithreads());
+	threads::prioritize_workers<threads::PriorityClass::PerfTesting, def_threads_t> pw(iM.ithreads());
 	for (unsigned r = 0; r < maxReps; ++r) {
 			rg.gen_matrix(XSrc, real_t(5.0));
 

@@ -42,6 +42,8 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <shared_mutex>
 #include <condition_variable>
 
+#include <chrono>
+
 #if !defined(_WIN32_WINNT) || (_WIN32_WINNT < 0x0600)
 
 #pragma message "native SRW Locks and conditional variables not available, using STL primitives instead"
@@ -65,6 +67,13 @@ namespace threads {
 	struct has_wait_shared<CondVarT, MutexT, ::std::void_t<decltype(::std::declval<CondVarT>().wait_shared(::std::declval<MutexT&>()))>>
 		: ::std::true_type {};
 
+	template<class CondVarT, class MutexT, class Rep, class Period, class = ::std::void_t<>>
+	struct has_wait_for_shared : ::std::false_type {};
+	template<typename CondVarT, typename MutexT, class Rep, class Period>
+	struct has_wait_for_shared<CondVarT, MutexT, Rep, Period, ::std::void_t<decltype(::std::declval<CondVarT>()
+		.wait_for_shared(::std::declval<MutexT&>(), ::std::declval<const ::std::chrono::duration<Rep,Period>&>()))>>
+		: ::std::true_type {};
+
 	template<class MutexT, class = ::std::void_t<>>
 	struct has_lock_shared : ::std::false_type {};
 	template<typename MutexT>
@@ -73,6 +82,7 @@ namespace threads {
 	namespace _impl {
 
 #if NNTL_HAS_NATIVE_SRWLOCKS_AND_CODITIONALS
+
 		//////////////////////////////////////////////////////////////////////////
 		//define a STL-style wrappers for locks and conditionals
 		// #todo ::std::atomic_thread_fence() calls might be redundant here, but need proofs for it...
@@ -125,12 +135,22 @@ namespace threads {
 		protected:
 			::CONDITION_VARIABLE m_var;
 
+		protected:
+			template< class Rep, class Period >
+			DWORD _to_ms(const ::std::chrono::duration<Rep, Period>& t)noexcept {
+				return static_cast<DWORD>((::std::chrono::duration_cast<::std::chrono::milliseconds>(t)).count());
+			}
+			DWORD _to_ms(const ::std::chrono::milliseconds& t)noexcept {
+				return static_cast<DWORD>(t.count());
+			}
+
 		public:
 			~win_condition_var()noexcept {}
 			win_condition_var()noexcept {
 				::InitializeConditionVariable(&m_var);
 			}
 
+			//////////////////////////////////////////////////////////////////////////
 			void wait(win_srwlock& l)noexcept {
 				::SleepConditionVariableSRW(&m_var, l, INFINITE, 0);
 				::std::atomic_thread_fence(::std::memory_order_acquire);
@@ -143,15 +163,16 @@ namespace threads {
 			void wait(::std::unique_lock<win_srwlock>& l)noexcept { wait(*l.mutex()); }
 			void wait(::std::shared_lock<win_srwlock>& l)noexcept { wait_shared(*l.mutex()); }
 
+			//////////////////////////////////////////////////////////////////////////
 			template<typename Predicate>
 			void wait(win_srwlock& l, Predicate&& pred)noexcept {
-				while (!(::std::forward<Predicate>(pred))()) {
+				while (!((::std::forward<Predicate>(pred))())) {
 					wait(l);
 				}
 			}
 			template<typename Predicate>
 			void wait_shared(win_srwlock& l, Predicate&& pred)noexcept {
-				while (!(::std::forward<Predicate>(pred))()) {
+				while (!((::std::forward<Predicate>(pred))())) {
 					wait_shared(l);
 				}
 			}
@@ -165,6 +186,64 @@ namespace threads {
 				wait_shared(*l.mutex(), ::std::forward<Predicate>(pred));
 			}
 
+			//////////////////////////////////////////////////////////////////////////
+			template< class Rep, class Period >
+			::std::cv_status wait_for(win_srwlock& l, const ::std::chrono::duration<Rep, Period>& rel_time) {
+				auto sleepUntil = ::std::chrono::steady_clock::now() + rel_time;
+				::SleepConditionVariableSRW(&m_var, l, _to_ms(rel_time), 0);
+				::std::atomic_thread_fence(::std::memory_order_acquire);
+				return sleepUntil > ::std::chrono::steady_clock::now() ? ::std::cv_status::timeout : ::std::cv_status::no_timeout;
+			}
+			template< class Rep, class Period >
+			::std::cv_status wait_for_shared(win_srwlock& l, const ::std::chrono::duration<Rep, Period>& rel_time) {
+				auto sleepUntil = ::std::chrono::steady_clock::now() + rel_time;
+				::SleepConditionVariableSRW(&m_var, l, _to_ms(rel_time), CONDITION_VARIABLE_LOCKMODE_SHARED);
+				::std::atomic_thread_fence(::std::memory_order_acquire);
+				return sleepUntil > ::std::chrono::steady_clock::now() ? ::std::cv_status::timeout : ::std::cv_status::no_timeout;
+			}
+
+			template< class Rep, class Period >
+			::std::cv_status wait_for(::std::unique_lock<win_srwlock>& l, const ::std::chrono::duration<Rep, Period>& rel_time) {
+				return wait_for(*l.mutex(), rel_time);
+			}
+			template< class Rep, class Period >
+			::std::cv_status wait_for(::std::shared_lock<win_srwlock>& l, const ::std::chrono::duration<Rep, Period>& rel_time) {
+				return wait_for_shared(*l.mutex(), rel_time);
+			}
+			//////////////////////////////////////////////////////////////////////////
+#pragma warning(disable:4706)
+			template<class Rep, class Period, typename Predicate>
+			bool wait_for(win_srwlock& l, const ::std::chrono::duration<Rep, Period>& rel_time, Predicate&& pred)noexcept {
+				::std::cv_status r(::std::cv_status::no_timeout);
+				bool b;
+				while (!(b = ((::std::forward<Predicate>(pred))()))) {
+					r = wait_for(l, rel_time);
+				}
+				return r == ::std::cv_status::no_timeout ? true : b;
+#pragma warning(default:4706)
+			}
+			template<class Rep, class Period, typename Predicate>
+			bool wait_for(::std::unique_lock<win_srwlock>& l, const ::std::chrono::duration<Rep, Period>& rel_time, Predicate&& pred)noexcept {
+				return wait_for(*l.mutex(), rel_time, ::std::forward<Predicate>(pred));
+			}
+#pragma warning(disable:4706)
+			template<class Rep, class Period, typename Predicate>
+			bool wait_for_shared(win_srwlock& l, const ::std::chrono::duration<Rep, Period>& rel_time, Predicate&& pred)noexcept {
+				::std::cv_status r(::std::cv_status::no_timeout);
+				bool b;
+				while (!(b = ((::std::forward<Predicate>(pred))()))) {
+					r = wait_for_shared(l, rel_time);
+				}
+				return r == ::std::cv_status::no_timeout ? true : b;
+#pragma warning(default:4706)
+			}
+			template<class Rep, class Period, typename Predicate>
+			bool wait_for(::std::shared_lock<win_srwlock>& l, const ::std::chrono::duration<Rep, Period>& rel_time, Predicate&& pred)noexcept {
+				return wait_for_shared(*l.mutex(), rel_time, ::std::forward<Predicate>(pred));
+			}
+
+			//////////////////////////////////////////////////////////////////////////
+
 			void notify_one()noexcept {
 				::WakeConditionVariable(&m_var);
 			}
@@ -172,6 +251,7 @@ namespace threads {
 				::WakeAllConditionVariable(&m_var);
 			}
 		};
+
 #endif
 
 		struct _sync_base {
@@ -191,6 +271,7 @@ namespace threads {
 			}
 
 			//////////////////////////////////////////////////////////////////////////
+
 			template<typename MutexT, typename CondVarT, typename Predicate>
 			//nntl_static_warning("locks: Using native shared mode")
 			static ::std::enable_if_t<has_lock_shared<MutexT>::value && has_wait_shared<CondVarT, MutexT>::value>
@@ -218,6 +299,37 @@ namespace threads {
 				::std::unique_lock<MutexT> lk(l);
 				cv.wait(lk, ::std::forward<Predicate>(p));
 			}
+
+			//////////////////////////////////////////////////////////////////////////
+
+			template<typename MutexT, typename CondVarT, class Rep, class Period, typename Predicate>
+			//nntl_static_warning("locks: Using native shared mode")
+			static ::std::enable_if_t<has_lock_shared<MutexT>::value && has_wait_for_shared<CondVarT, MutexT, Rep, Period>::value>
+				lockShared_waitFor_unlock(MutexT& l, CondVarT& cv, const ::std::chrono::duration<Rep,Period>& rt, Predicate&& p)noexcept//runs in shared mode
+			{
+				l.lock_shared();
+				cv.wait_for_shared(l, rt, ::std::forward<Predicate>(p));
+				l.unlock_shared();
+			}
+
+			template<typename MutexT, typename CondVarT, class Rep, class Period, typename Predicate>
+			//nntl_static_warning("locks: Using std shared mode")
+			static ::std::enable_if_t<has_lock_shared<MutexT>::value && !has_wait_for_shared<CondVarT, MutexT, Rep, Period>::value>
+				lockShared_waitFor_unlock(MutexT& l, CondVarT& cv, const ::std::chrono::duration<Rep, Period>& rt, Predicate&& p)noexcept//runs in shared mode
+			{
+				::std::shared_lock<MutexT> lk(l);
+				cv.wait_for(lk, rt, ::std::forward<Predicate>(p));
+			}
+
+			template<typename MutexT, typename CondVarT, class Rep, class Period, typename Predicate>
+			//nntl_static_warning("locks: Using exclusive mode instead of shared")
+			static ::std::enable_if_t<!has_lock_shared<MutexT>::value>
+				lockShared_waitFor_unlock(MutexT& l, CondVarT& cv, const ::std::chrono::duration<Rep, Period>& rt, Predicate&& p)noexcept//runs in exclusive mode
+			{
+				::std::unique_lock<MutexT> lk(l);
+				cv.wait_for(lk, rt, ::std::forward<Predicate>(p));
+			}
+
 			//////////////////////////////////////////////////////////////////////////
 			template<typename MutexT>
 			//nntl_static_warning("locks: locking shared")
@@ -238,6 +350,13 @@ namespace threads {
 			//nntl_static_warning("locks: unlocking exclusive")
 			static ::std::enable_if_t<!has_lock_shared<MutexT>::value>
 			unlockShared(MutexT& l)noexcept { l.unlock(); }
+		};
+
+		struct _dummySync {
+			typedef void mutex_t;
+			typedef void shared_mutex_t;
+			typedef void cond_var_t;
+			typedef void cond_var_any_t;
 		};
 	}
 
@@ -261,6 +380,16 @@ namespace threads {
 #endif
 
 	struct sync_primitives : public ::std::conditional_t<::std::is_void<winNativeSync>::value, stdSync, winNativeSync> {
+		typedef mutex_t mutex_comp_t;
+		typedef cond_var_t cond_var_comp_t;
+	};
+
+	struct std_sync_primitives : public stdSync {
+		typedef mutex_t mutex_comp_t;
+		typedef cond_var_t cond_var_comp_t;
+	};
+
+	struct win_sync_primitives : public ::std::conditional_t < ::std::is_void<winNativeSync>::value, _impl::_dummySync, winNativeSync > {
 		typedef mutex_t mutex_comp_t;
 		typedef cond_var_t cond_var_comp_t;
 	};

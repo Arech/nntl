@@ -41,7 +41,6 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "../nntl/interfaces.h"
 
 #include "../nntl/utils/chrono.h"
-#include "../nntl/utils/prioritize_workers.h"
 #include "../nntl/utils/tictoc.h"
 
 #include "../nntl/interface/rng/distr_normal_naive.h"
@@ -175,7 +174,7 @@ void test_rng_mt_perf(iThreadsT& iT, char* pName, realmtx_t::vec_len_t rowsCnt, 
 	STDCOUTL("******* testing multithreaded "<< pName<<	" performance over " << rowsCnt << "x" << colsCnt << " matrix (" << dataSize << " elements) **************");
 	realmtx_t m(rowsCnt, colsCnt);
 	ASSERT_TRUE(!m.isAllocationFailed());
-	utils::prioritize_workers<utils::PriorityClass::PerfTesting, iThreadsT> pw(iT);
+	threads::prioritize_workers<threads::PriorityClass::PerfTesting, iThreadsT> pw(iT);
 	test_rngmt<iRng, iThreadsT>(iT, m);
 }
 
@@ -280,7 +279,7 @@ void test_bernoulli_perf(iThreadsT& iT, char* pName, realmtx_t::vec_len_t rowsCn
 	utils::tictoc tS, tM, tB;
 	rng::AFRand_mt<real_t, iRng, iThreadsT> rg(iT);
 
-	utils::prioritize_workers<utils::PriorityClass::PerfTesting, iThreadsT> pw(iT);
+	threads::prioritize_workers<threads::PriorityClass::PerfTesting, iThreadsT> pw(iT);
 	for (unsigned r = 0; r < maxReps; ++r) {
 		tS.tic();
 		rg.bernoulli_vector_st(ptr, dataCnt, p, pv, nv);
@@ -335,7 +334,7 @@ void test_normal_perf(iThreadsT& iT, char* pName, realmtx_t::vec_len_t rowsCnt, 
 	utils::tictoc tS, tM, tB;
 	rng::AFRand_mt<real_t, iRng, iThreadsT> rg(iT);
 
-	utils::prioritize_workers<utils::PriorityClass::PerfTesting, iThreadsT> pw(iT);
+	threads::prioritize_workers<threads::PriorityClass::PerfTesting, iThreadsT> pw(iT);
 	for (unsigned r = 0; r < maxReps; ++r) {
 		tS.tic();
 		rg.normal_vector_st(ptr, dataCnt, m, st);

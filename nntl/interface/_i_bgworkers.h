@@ -31,59 +31,36 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 #pragma once
 
-#include "../_i_asynch.h"
+//This file defines _i_asynch common interface to a provider of asynchronous worker threads
+
+#include "../utils/denormal_floats.h"
+//#include "threads/parallel_range.h"
+#include "../utils/call_wrappers.h"
+#include "threads/_sync_primitives.h"
+#include "threads/prioritize_workers.h"
 
 namespace nntl {
 namespace threads {
 
-	template <typename RangeT, typename SyncT = threads::sync_primitives, typename CallHandlerT = utils::forwarderWrapper<>>
-	class Asynch : public _i_asynch<RangeT> {
-		//!! copy constructor not needed
-		Asynch(const Asynch& other)noexcept = delete;
-		Asynch(Asynch&& other)noexcept = delete;
-		//!!assignment is not needed
-		Asynch& operator=(const Asynch& rhs) noexcept = delete;
+	//interface to a asynchronous thread workers pool
+	struct _i_bgworkers {
 
-	public:
-		typedef CallHandlerT CallH_t;
-		typedef SyncT Sync_t;
+		// useNThreads (if greater than 1 and less or equal to workers_count() specifies the number of threads to serve request.
+		// if pThreadsUsed is specified, it'll contain total number of threads (including the main thread),
+		// that is used to serve the request. It'll be less or equal to workers_count()
+// 		template<typename Func>
+// 		nntl_interface void run(Func&& F, const range_t cnt, const thread_id_t useNThreads = 0, thread_id_t* pThreadsUsed = nullptr) noexcept;
+// 
+// 		// useNThreads (if greater than 1 and less or equal to workers_count() specifies the number of threads to serve request.
+// 		template<typename Func, typename FinalReduceFunc>
+// 		nntl_interface real_t reduce(Func&& FRed, FinalReduceFunc&& FRF, const range_t cnt, const thread_id_t useNThreads = 0) noexcept;
 
-	protected:
-		//typedef typename CallH_t::template call_tpl<void(const par_range_t& r)> func_run_t;
-		//typedef typename CallH_t::template call_tpl<real_t(const par_range_t& r)> func_reduce_t;
-
-		typedef typename Sync_t::mutex_comp_t mutex_comp_t;
-		typedef ::std::atomic_ptrdiff_t interlocked_t;
-		//typedef typename Sync_t::cond_var_t cond_var_t;
-		typedef typename Sync_t::cond_var_comp_t cond_var_comp_t;
-
-	public:
-		//typedef ::std::vector<::std::thread> threads_cont_t;
-		//typedef threads_cont_t::iterator ThreadObjIterator_t;
-
-		//////////////////////////////////////////////////////////////////////////
-		//Members
-	protected:
-// 		cond_var_comp_t m_waitingOrders;
-// 		cond_var_comp_t m_orderDone;
-// 		mutex_comp_t m_mutex;
-		//interlocked_t m_workingCnt;
-		
-		//threads_cont_t m_threads;
-		//bool m_bStop;
-
-	protected:
-
-	public:
-		~Asynch()noexcept {
-		}
-
-		Asynch()noexcept {
-			
-		}
 		
 
+		//schedules to run specified task
+		//nntl_interface bool run_task(auto* pTask)noexcept;
 	};
+
 
 }
 }

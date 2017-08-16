@@ -53,13 +53,16 @@ namespace nntl {
 			}
 		};
 
-		//template<template R, typename... A, ::std::size_t N = 4 * sizeof(void*)>
-		template<::std::size_t N = 4 * sizeof(void*)>
+		template<::std::size_t N = forwarder_storage_default_size>
 		struct forwarderWrapper : forwarderWrap<N> {
 			template<typename FuncSigT>
 			using call_tpl = forwarder<FuncSigT, N>;
+		};
 
-			//typedef forwarder<FuncSigT, N> call_through_t;
+		template<::std::size_t N = forwarder_storage_default_size>
+		struct cmcforwarderWrapper : cmcforwarderWrap<N> {
+			template<typename FuncSigT>
+			using call_tpl = cmcforwarder<FuncSigT, N>;
 		};
 
 	}

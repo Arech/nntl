@@ -87,7 +87,7 @@ namespace math {
 		typedef iThreadsT iThreads_t;
 		typedef typename iThreads_t::range_t range_t;
 		typedef typename iThreads_t::par_range_t par_range_t;
-		typedef typename iThreads_t::thread_id_t thread_id_t;
+		//typedef typename iThreads_t::thread_id_t thread_id_t;
 
 		static_assert(::std::is_same<typename realmtx_t::numel_cnt_t, typename iThreadsT::range_t>::value, "iThreads::range_t should be the same as realmtx_t::numel_cnt_t");
 

@@ -215,10 +215,10 @@
     <ClInclude Include="..\nntl\interface\rng\afrand_mt.h" />
     <ClInclude Include="..\nntl\interface\rng\afrand_mt_thr.h" />
     <ClInclude Include="..\nntl\interface\rng\distr_normal_naive.h" />
-    <ClInclude Include="..\nntl\interface\threads\asynch.h" />
+    <ClInclude Include="..\nntl\interface\threads\bgworkers.h" />
     <ClInclude Include="..\nntl\interface\threads\workers.h" />
     <ClInclude Include="..\nntl\interface\threads\_sync_primitives.h" />
-    <ClInclude Include="..\nntl\interface\_i_asynch.h" />
+    <ClInclude Include="..\nntl\interface\_i_bgworkers.h" />
     <ClInclude Include="..\nntl\interface\_i_inspector.h" />
     <ClInclude Include="..\nntl\interface\_i_rng.h" />
     <ClInclude Include="..\nntl\layer\extender.h" />
@@ -273,7 +273,7 @@
     <ClInclude Include="..\nntl\utils\matlab.h" />
     <ClInclude Include="..\nntl\utils\options.h" />
     <ClInclude Include="..\nntl\utils\own_or_use_ptr.h" />
-    <ClInclude Include="..\nntl\utils\prioritize_workers.h" />
+    <ClInclude Include="..\nntl\interface\threads\prioritize_workers.h" />
     <ClInclude Include="..\nntl\utils\scope_exit.h" />
     <ClInclude Include="..\nntl\serialization\serialization.h" />
     <ClInclude Include="..\nntl\utils\tuple_utils.h" />
