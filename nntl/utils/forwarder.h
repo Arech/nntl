@@ -373,11 +373,12 @@ namespace nntl {
 			return !operator==(nullptr, f);
 		};*/
 
-		template<::std::size_t N>
+		template<size_t N>
 		struct cmcforwarderWrap {
 			template<typename F>
 			static auto wrap(F&& f
 				, ::std::enable_if_t<(sizeof(::std::decay_t<F>) <= _impl::_forwarder_store<N>::size)>* = nullptr)noexcept
+				-> decltype(::std::forward<F>(f))//without this specification "auto" will remove lreference from forwarded type
 			{
 				return ::std::forward<F>(f);
 			}
@@ -386,6 +387,7 @@ namespace nntl {
 			//nntl_static_warning("Too big object passed! Had to pass it by ref. Increase N?")
 			static auto wrap(F&& f
 				, ::std::enable_if_t<(sizeof(::std::decay_t<F>) > _impl::_forwarder_store<N>::size)>* = nullptr)noexcept
+				-> decltype(::std::ref(f))//shouldn't trust auto
 			{
 				return ::std::ref(f);
 			}
@@ -398,6 +400,7 @@ namespace nntl {
 			template<typename F>
 			static auto wrap(F&& f, ::std::enable_if_t<::std::is_trivially_copyable<::std::decay_t<F>>::value
 				&& (sizeof(::std::decay_t<F>) <= _impl::_forwarder_store<N>::size)>* = nullptr)noexcept
+				-> decltype(::std::forward<F>(f))//without this specification "auto" will remove lreference from forwarded type
 			{
 				return ::std::forward<F>(f);
 			}
@@ -406,12 +409,14 @@ namespace nntl {
 			//nntl_static_warning("Too big object passed! Had to pass it by ref. Increase N?")
 			static auto wrap(F&& f, ::std::enable_if_t<::std::is_trivially_copyable<::std::decay_t<F>>::value
 				&& (sizeof(::std::decay_t<F>) > _impl::_forwarder_store<N>::size)>* = nullptr)noexcept
+				-> decltype(::std::ref(f))//shouldn't trust auto
 			{
 				return ::std::ref(f);
 			}
 
 			template<typename F>
 			static auto wrap(F&& f, ::std::enable_if_t<!::std::is_trivially_copyable<::std::decay_t<F>>::value>* = nullptr)noexcept
+				-> decltype(::std::ref(f))//shouldn't trust auto
 			{
 				return ::std::ref(f);
 			}

@@ -269,9 +269,11 @@ namespace nntl {
 		void bprop(const realmtx_t& data_y) noexcept {
 			NNTL_ASSERT(m_a_dLdA.size() == 2);
 			
+#pragma warning(disable : 4127)
 			if (2 == layers_count) {
 				m_a_dLdA[0].deform(0,0);
 			} else m_a_dLdA[0].deform_like_no_bias(preoutput_layer().get_activations());
+#pragma warning(default : 4127)
 
 			output_layer().bprop(data_y, preoutput_layer(), m_a_dLdA[0]);
 			unsigned mtxIdx = 0;

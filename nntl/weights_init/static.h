@@ -56,7 +56,10 @@ namespace nntl {
 		struct Xavier {
 			template <typename iRng_t, typename iMath_t>
 			static bool init(typename iRng_t::realmtx_t& W, iRng_t& iR, iMath_t& iM)noexcept {
+#pragma warning(disable : 4459)
 				typedef typename iRng_t::real_t real_t;
+#pragma warning(default : 4459)
+				NNTL_UNREF(iM);
 				NNTL_ASSERT(!W.empty() && W.numel() > 0);
 
 				const real_t scalingCoeff = real_t(scalingCoeff1e6) / real_t(1000000);
@@ -82,9 +85,12 @@ namespace nntl {
 		struct He_Zhang {
 			template <typename iRng_t, typename iMath_t>
 			static bool init(typename iRng_t::realmtx_t& W, iRng_t& iR, iMath_t& iM)noexcept {
+#pragma warning(disable : 4459)
 				typedef typename iRng_t::real_t real_t;
 				typedef typename iRng_t::realmtx_t realmtx_t;
+#pragma warning(default : 4459)
 
+				NNTL_UNREF(iM);
 				NNTL_ASSERT(!W.empty() && W.numel() > 0);
 
 				constexpr ext_real_t scalingCoeff = ext_real_t(scalingCoeff1e6) / ext_real_t(1000000);
@@ -106,9 +112,11 @@ namespace nntl {
 		struct He_Zhang2 {
 			template <typename iRng_t, typename iMath_t>
 			static bool init(typename iRng_t::realmtx_t& W, iRng_t& iR, iMath_t& iM)noexcept {
+#pragma warning(disable : 4459)
 				typedef typename iRng_t::real_t real_t;
 				typedef typename iRng_t::realmtx_t realmtx_t;
-
+#pragma warning(default : 4459)
+				NNTL_UNREF(iM);
 				NNTL_ASSERT(!W.empty() && W.numel() > 0);
 
 				constexpr ext_real_t paramCoeff = ext_real_t(paramCoeff1e6) / ext_real_t(1000000);
@@ -144,10 +152,12 @@ namespace nntl {
 		struct Martens_SI {
 			template <typename iRng_t, typename iMath_t>
 			static bool init(typename iRng_t::realmtx_t& W, iRng_t& iR, iMath_t& iM)noexcept {
+#pragma warning(disable : 4459)
 				typedef typename iRng_t::real_t real_t;
 				typedef typename iRng_t::realmtx_t realmtx_t;
 				typedef realmtx_t::vec_len_t vec_len_t;
-
+#pragma warning(default : 4459)
+				NNTL_UNREF(iM);
 				NNTL_ASSERT(!W.empty() && W.numel() > 0);
 				const auto prevLayerNeuronsCnt = W.cols() - 1;
 				const auto thisLayerNeuronsCnt = W.rows();
@@ -214,9 +224,11 @@ namespace nntl {
 		struct OrthoInit {
 			template <typename iRng_t, typename iMath_t>
 			static bool init(typename iRng_t::realmtx_t& W, iRng_t& iR, iMath_t& iM)noexcept {
+#pragma warning(disable : 4459)
 				typedef typename iRng_t::real_t real_t;
 				typedef typename iRng_t::realmtx_t realmtx_t;
 				typedef realmtx_t::vec_len_t vec_len_t;
+#pragma warning(default : 4459)
 
 				NNTL_ASSERT(!W.empty() && W.numel() > 0);
 
@@ -231,7 +243,9 @@ namespace nntl {
 						break;
 					}
 				}
+#pragma warning(disable:4127)
 				if (Gain1e6 != 1000000) iM.evMulC_ip(W, real_t(Gain1e6) / real_t(1000000));
+#pragma warning(default:4127)
 
 				return bOk;
 			}

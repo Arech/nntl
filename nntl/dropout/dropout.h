@@ -62,7 +62,7 @@ namespace nntl {
 			_dropout_base()noexcept : m_dropoutPercentActive(real_t(1.)) {}
 
 			template<class Archive>
-			void _dropout_serialize(Archive & ar, const unsigned int version) noexcept {
+			void _dropout_serialize(Archive & ar, const unsigned int ) noexcept {
 				if (utils::binary_option<true>(ar, serialization::serialize_training_parameters)) {
 					ar & NNTL_SERIALIZATION_NVP(m_dropoutPercentActive);
 				}
@@ -83,6 +83,8 @@ namespace nntl {
 					NNTL_ASSERT(!m_dropoutMask.emulatesBiases());
 					//resize to the biggest possible size during training
 					if (!m_dropoutMask.resize(max_batch_size, neurons_cnt)) return false;
+
+					CD.iRng().preinit_additive_norm(m_dropoutMask.numel());
 				}
 				return true;
 			}

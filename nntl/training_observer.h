@@ -174,6 +174,8 @@ namespace nntl {
 		//data_y is the same as init(train_y)|bOnTestData==false or init(test_y)|bOnTestData==true
 		template<typename NnetT>
 		void inspect_results(const size_t epochEnded, const realmtx_t& data_y, const bool bOnTestData, const NnetT& nn)noexcept {
+			NNTL_UNREF(epochEnded);
+
 			const auto& activations = nn.get_layer_pack().output_layer().get_activations();
 			NNTL_ASSERT(data_y.size() == activations.size());
 			

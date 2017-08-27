@@ -169,81 +169,126 @@ namespace inspector {
 			//////////////////////////////////////////////////////////////////////////
 			// generic functions
 			template<typename VarT>
-			void inspect(const VarT& v, const char*const pVarName = nullptr, const layer_index_t lIdx = _NoLayerIdxSpecified)const noexcept {}
+			void inspect(const VarT& v, const char*const pVarName = nullptr, const layer_index_t lIdx = _NoLayerIdxSpecified)const noexcept {
+				NNTL_UNREF(v);				NNTL_UNREF(pVarName);				NNTL_UNREF(lIdx);
+			}
 
 			//////////////////////////////////////////////////////////////////////////
 			// specialized functions naming convention:
 			// <phase>_<prefix><A/actionCamelCased><Suffix>()
 
 			//to notify about total layer, epoch and batches count
-			void init_nnet(const size_t totalLayers, const size_t totalEpochs, const vec_len_t totalBatches)const noexcept {}
+			void init_nnet(const size_t totalLayers, const size_t totalEpochs, const vec_len_t totalBatches)const noexcept {
+				NNTL_UNREF(totalLayers);				NNTL_UNREF(totalEpochs);				NNTL_UNREF(totalBatches);
+			}
 
 			//to notify about layer and it's name (for example, inspector can use this info to filter out calls from non-relevant layers later)
 			//this call can cost something, but we don't care because it happens only during init phase
 			template<typename StrT>
-			void init_layer(const layer_index_t lIdx, StrT&& LayerName, const layer_type_id_t layerTypeId)const noexcept {};
+			void init_layer(const layer_index_t lIdx, StrT&& LayerName, const layer_type_id_t layerTypeId)const noexcept {
+				NNTL_UNREF(lIdx);				NNTL_UNREF(LayerName);				NNTL_UNREF(layerTypeId);
+			};
 
-			void train_epochBegin(const size_t epochIdx)const noexcept {}
+			void train_epochBegin(const size_t epochIdx)const noexcept { NNTL_UNREF(epochIdx); }
 			void train_epochEnd()const noexcept {}
 
-			void train_batchBegin(const vec_len_t batchIdx)const noexcept {}
+			void train_batchBegin(const vec_len_t batchIdx)const noexcept { NNTL_UNREF(batchIdx); }
 			void train_batchEnd()const noexcept {}
 
 			//the following two functions are called during learning process only
-			void train_preFprop(const realmtx_t& data_x)const noexcept {}
-			void train_preBprop(const realmtx_t& data_y)const noexcept {}
+			void train_preFprop(const realmtx_t& data_x)const noexcept { NNTL_UNREF(data_x); }
+			void train_preBprop(const realmtx_t& data_y)const noexcept { NNTL_UNREF(data_y); }
 
 			//the following 2 functions are called during learning process only
-			void train_preCalcError(const bool bOnTrainSet)const noexcept {};
+			void train_preCalcError(const bool bOnTrainSet)const noexcept { NNTL_UNREF(bOnTrainSet); };
 			void train_postCalcError()const noexcept {};
 
 			//////////////////////////////////////////////////////////////////////////
 			// FPROP
-			void fprop_begin(const layer_index_t lIdx, const realmtx_t& prevAct, const bool bTrainingMode) const noexcept {}
-			void fprop_end(const realmtx_t& Act) const noexcept {}
+			void fprop_begin(const layer_index_t lIdx, const realmtx_t& prevAct, const bool bTrainingMode) const noexcept {
+				NNTL_UNREF(lIdx);				NNTL_UNREF(prevAct);				NNTL_UNREF(bTrainingMode);
+			}
+			void fprop_end(const realmtx_t& Act) const noexcept { NNTL_UNREF(Act); }
 
-			void fprop_preNesterovMomentum(const realmtx_t& vW, const real_t momentum, const realmtx_t& W)const noexcept {}
-			void fprop_postNesterovMomentum(const realmtx_t& vW, const realmtx_t& W)const noexcept {}
+			void fprop_preNesterovMomentum(const realmtx_t& vW, const real_t momentum, const realmtx_t& W)const noexcept {
+				NNTL_UNREF(vW);				NNTL_UNREF(momentum);				NNTL_UNREF(W);
+			}
+			void fprop_postNesterovMomentum(const realmtx_t& vW, const realmtx_t& W)const noexcept {
+				NNTL_UNREF(vW);				NNTL_UNREF(W);
+			}
 
-			void fprop_makePreActivations(const realmtx_t& W, const realmtx_t& prevAct)const noexcept {}
-			void fprop_preactivations(const realmtx_t& Z)const noexcept {}
-			void fprop_activations(const realmtx_t& Act)const noexcept {}
+			void fprop_makePreActivations(const realmtx_t& W, const realmtx_t& prevAct)const noexcept {
+				NNTL_UNREF(W);				NNTL_UNREF(prevAct);
+			}
+			void fprop_preactivations(const realmtx_t& Z)const noexcept { NNTL_UNREF(Z); }
+			void fprop_activations(const realmtx_t& Act)const noexcept { NNTL_UNREF(Act); }
 
-			void fprop_preDropout(const realmtx_t& Act, const real_t dpa, const realmtx_t& dropoutMaskSrc)const noexcept {}
-			void fprop_postDropout(const realmtx_t& Act, const realmtx_t& dropoutMask)const noexcept {}
+			void fprop_preDropout(const realmtx_t& Act, const real_t dpa, const realmtx_t& dropoutMaskSrc)const noexcept {
+				NNTL_UNREF(Act);				NNTL_UNREF(dpa);				NNTL_UNREF(dropoutMaskSrc);
+			}
+			void fprop_postDropout(const realmtx_t& Act, const realmtx_t& dropoutMask)const noexcept {
+				NNTL_UNREF(Act);				NNTL_UNREF(dropoutMask);
+			}
 
 			//////////////////////////////////////////////////////////////////////////
 			//BPROP
-			void bprop_begin(const layer_index_t lIdx, const realmtx_t& dLdA) const noexcept {}
-			void bprop_end(const realmtx_t& dLdAPrev) const noexcept {}
+			void bprop_begin(const layer_index_t lIdx, const realmtx_t& dLdA) const noexcept {
+				NNTL_UNREF(lIdx);				NNTL_UNREF(dLdA);
+			}
+			void bprop_end(const realmtx_t& dLdAPrev) const noexcept { NNTL_UNREF(dLdAPrev); }
 
-			void bprop_finaldLdA(const realmtx_t& dLdA) const noexcept {}
+			void bprop_finaldLdA(const realmtx_t& dLdA) const noexcept { NNTL_UNREF(dLdA); }
 
-			void bprop_preCancelDropout(const realmtx_t& Act, const real_t dpa) const noexcept {}
-			void bprop_postCancelDropout(const realmtx_t& Act) const noexcept {}
+			void bprop_preCancelDropout(const realmtx_t& Act, const real_t dpa) const noexcept {
+				NNTL_UNREF(Act);				NNTL_UNREF(dpa);
+			}
+			void bprop_postCancelDropout(const realmtx_t& Act) const noexcept { NNTL_UNREF(Act); }
 
-			void bprop_predLdZOut(const realmtx_t& Act, const realmtx_t& data_y) const noexcept{}
-			void bprop_predAdZ(const realmtx_t& Act) const noexcept{}
-			void bprop_dAdZ(const realmtx_t& dAdZ) const noexcept{}
-			void bprop_dLdZ(const realmtx_t& dLdZ) const noexcept{}
-			void bprop_postClampdLdZ(const realmtx_t& dLdZ, const real_t& Ub, const real_t& Lb) const noexcept{}
-			void bprop_dLdW(const realmtx_t& dLdZ, const realmtx_t& prevAct, const realmtx_t& dLdW) const noexcept {}
+			void bprop_predLdZOut(const realmtx_t& Act, const realmtx_t& data_y) const noexcept{
+				NNTL_UNREF(Act);				NNTL_UNREF(data_y);
+			}
+			void bprop_predAdZ(const realmtx_t& Act) const noexcept{ NNTL_UNREF(Act); }
+			void bprop_dAdZ(const realmtx_t& dAdZ) const noexcept{ NNTL_UNREF(dAdZ); }
+			void bprop_dLdZ(const realmtx_t& dLdZ) const noexcept{ NNTL_UNREF(dLdZ); }
+			void bprop_postClampdLdZ(const realmtx_t& dLdZ, const real_t& Ub, const real_t& Lb) const noexcept{
+				NNTL_UNREF(dLdZ);				NNTL_UNREF(Ub);				NNTL_UNREF(Lb);
+			}
+			void bprop_dLdW(const realmtx_t& dLdZ, const realmtx_t& prevAct, const realmtx_t& dLdW) const noexcept {
+				NNTL_UNREF(dLdZ);				NNTL_UNREF(prevAct);				NNTL_UNREF(dLdW);
+			}
 
-			void apply_grad_begin(const realmtx_t& W, const realmtx_t& dLdW)const noexcept {}
-			void apply_grad_end(const realmtx_t& W)const noexcept {}
+			void apply_grad_begin(const realmtx_t& W, const realmtx_t& dLdW)const noexcept {
+				NNTL_UNREF(W); NNTL_UNREF(dLdW);
+			}
+			void apply_grad_end(const realmtx_t& W)const noexcept { NNTL_UNREF(W); }
 
-			void apply_grad_update(const realmtx_t& W, const realmtx_t& WUpd)const noexcept{}
+			void apply_grad_update(const realmtx_t& W, const realmtx_t& WUpd)const noexcept{
+				NNTL_UNREF(W); NNTL_UNREF(WUpd);
+			}
 
-			void apply_grad_preNesterovMomentum(const realmtx_t& vW, const realmtx_t& dLdW)const noexcept {}
-			void apply_grad_postNesterovMomentum(const realmtx_t& vW)const noexcept {}
+			void apply_grad_preNesterovMomentum(const realmtx_t& vW, const realmtx_t& dLdW)const noexcept {
+				NNTL_UNREF(vW); NNTL_UNREF(dLdW);
+			}
+			void apply_grad_postNesterovMomentum(const realmtx_t& vW)const noexcept { NNTL_UNREF(vW); }
 
 			void apply_grad_postOptimizer(const realmtx_t& dLdW, const realmtx_t& M1, const realmtx_t& M2
-				, const real_t& beta1t, const real_t& beta2t) const noexcept {}
+				, const real_t& beta1t, const real_t& beta2t) const noexcept
+			{
+				NNTL_UNREF(dLdW);				
+				NNTL_UNREF(M1);	NNTL_UNREF(M2);
+				NNTL_UNREF(beta1t); NNTL_UNREF(beta2t);
+			}
 
-			void apply_grad_preILR(const realmtx_t& dLdW, const realmtx_t& prevdLdW, const realmtx_t& Gain) const noexcept{}
-			void apply_grad_postILR(const realmtx_t& dLdW, const realmtx_t& Gain) const noexcept{}
+			void apply_grad_preILR(const realmtx_t& dLdW, const realmtx_t& prevdLdW, const realmtx_t& Gain) const noexcept{
+				NNTL_UNREF(dLdW); NNTL_UNREF(prevdLdW); NNTL_UNREF(Gain);
+			}
+			void apply_grad_postILR(const realmtx_t& dLdW, const realmtx_t& Gain) const noexcept{
+				NNTL_UNREF(dLdW); NNTL_UNREF(Gain);
+			}
 
-			void dLossAddendumScaled(const realmtx_t& dLossAdd, const real_t& scale, const char*const pLossName)const noexcept{}
+			void dLossAddendumScaled(const realmtx_t& dLossAdd, const real_t& scale, const char*const pLossName)const noexcept{
+				NNTL_UNREF(dLossAdd); NNTL_UNREF(scale); NNTL_UNREF(pLossName);
+			}
 		};
 
 	}

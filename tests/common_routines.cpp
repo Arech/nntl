@@ -79,7 +79,7 @@ void makeTdForGatedSetup(const train_data<real_t>& td, train_data<real_t>& tdGat
 
 	d_interfaces::iMath_t iM;
 	d_interfaces::iRng_t iR;
-	iR.set_ithreads(iM.ithreads());
+	iR.init_ithreads(iM.ithreads());
 	iR.seed64(seedV);
 
 	realmtx_t ntr, nt, ntry, nty;

@@ -155,7 +155,7 @@ void test_same_layers(train_data<real_t>& td, uint64_t rngSeed) {
 	d_interfaces::iMath_t iMath;
 	d_interfaces::iRng_t iRng;
 	d_interfaces::iInspect_t iInsp;
-	if (d_interfaces::iRng_t::is_multithreaded) iRng.set_ithreads(iMath.ithreads());
+	if (d_interfaces::iRng_t::is_multithreaded) iRng.init_ithreads(iMath.ithreads());
 
 	//////////////////////////////////////////////////////////////////////////
 	//setting up etalon layers

@@ -65,6 +65,8 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #define NNTL_STRINGIZE(s) #s
 
+//#define NNTL_UNREF(P)          (P)
+#define NNTL_UNREF(P)     (P)
 
 //////////////////////////////////////////////////////////////////////////
 // debugging-specific tools

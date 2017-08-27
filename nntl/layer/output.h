@@ -234,7 +234,7 @@ namespace nntl {
 			m_bActivationsValid = true;
 		}
 
-		void _cust_inspect(const realmtx_t& M)const noexcept {}
+		void _cust_inspect(const realmtx_t& M)const noexcept { NNTL_UNREF(M); }
 
 		void _bprop(const realmtx_t& data_y, const realmtx_t& prevActivations, const bool bPrevLayerIsInput, realmtx_t& dLdAPrev)noexcept {
 			NNTL_ASSERT(m_bActivationsValid);

@@ -43,8 +43,8 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 namespace nntl {
 	namespace rng {
 
-		template<typename RealT, typename AgnerFogRNG, typename iThreadsT>
-		class AFRand_mt final : public rng_helper<RealT, ptrdiff_t, uint32_t, AFRand_mt<RealT, AgnerFogRNG, iThreadsT>> {
+		template<typename FCT, typename RealT, typename AgnerFogRNG, typename iThreadsT>
+		class _AFRand_mt : public rng_helper<RealT, ptrdiff_t, uint32_t, FCT> {
 			static_assert(::std::is_base_of<threads::_i_threads<RealT, typename iThreadsT::range_t>, iThreadsT>::value, "iThreads must implement threads::_i_threads");
 
 		public:
@@ -58,52 +58,55 @@ namespace nntl {
 
 		protected:
 			typedef ::std::vector<base_rng_t> rng_vector_t;
+			//typedef ::std::vector<::std::normal_distribution<real_t>> stdNormDev_vector_t;
 
 		protected:
 			iThreads_t* m_pThreads;
 			rng_vector_t m_Rngs;
 
-			//AFog::CRandomMersenne m_rng;
-			//base_rng_t m_rng;
-		
-		protected:
-			void _construct_rngs(int s)noexcept {
+			//stdNormDev_vector_t m_stdNormDevs;
+
+			int m_lastSeed{ 0 };
+
+		private:
+			void _construct_rngs(const int s)noexcept {
+				NNTL_ASSERT(::std::thread::hardware_concurrency() > 1 || !"There's no sense to use _mt generator in the uniprocessor system. Please use RNG from afrand.h");
 				NNTL_ASSERT(m_pThreads);
 				const auto wc = m_pThreads->workers_count();
 				//TODO: exception handling here
 				m_Rngs.reserve(wc);
 				for (unsigned i = 0; i < wc; ++i) {
-					m_Rngs.push_back(base_rng_t(s+i));
+					m_Rngs.emplace_back(s+i);
 				}
+
+				//m_stdNormDevs.resize(wc, ::std::normal_distribution<real_t>(real_t(0), real_t(1.)));
+
+				m_lastSeed = s;
 			}
 
 		public:
 			static constexpr bool is_multithreaded = true;
 
-			AFRand_mt()noexcept:m_pThreads(nullptr) {}
-			bool set_ithreads(iThreads_t& t)noexcept {
-				if (m_pThreads) return false;
-				m_pThreads = &t;
-				_construct_rngs(static_cast<int>(s64to32(::std::time(0))));
-				return true;
-			}
-			bool set_ithreads(iThreads_t& t, seed_t s)noexcept {
-				if (m_pThreads) return false;
-				m_pThreads = &t;
-				_construct_rngs(static_cast<int>(s));
-				return true;
-			}
+			_AFRand_mt()noexcept:m_pThreads(nullptr) {}
 
-			iThreads_t& ithreads()noexcept { return *m_pThreads; }
-
-			AFRand_mt(iThreads_t& t)noexcept : m_pThreads(&t) {
+			_AFRand_mt(iThreads_t& t)noexcept : m_pThreads(&t) {
 				_construct_rngs(static_cast<int>(s64to32(::std::time(0))));
 			}
-			AFRand_mt(iThreads_t& t, seed_t s)noexcept : m_pThreads(&t) {
+			_AFRand_mt(iThreads_t& t, const seed_t s)noexcept : m_pThreads(&t) {
 				_construct_rngs(static_cast<int>(s));
 			}
 
-			void seed(seed_t s) noexcept {
+			bool init_ithreads(iThreads_t& t, const seed_t s = static_cast<seed_t>(s64to32(::std::time(0))))noexcept {
+				NNTL_ASSERT(!m_pThreads);
+				if (m_pThreads) return false;
+				m_pThreads = &t;
+				_construct_rngs(static_cast<const int>(s));
+				return true;
+			}
+
+			iThreads_t& ithreads()const noexcept { return *m_pThreads; }
+
+			void seed(const seed_t s) noexcept {
 				NNTL_ASSERT(m_pThreads);
 				auto& rngs = m_Rngs;
 				m_pThreads->run([s,&rngs](const par_range_t&r) {
@@ -112,10 +115,15 @@ namespace nntl {
 					sd[1] = static_cast<int>(r.tid());
 					rngs[r.tid()].RandomInitByArray(sd, 2);
 				},m_pThreads->workers_count());
+
+				//for (auto& e : m_stdNormDevs) e.reset();
+
+				m_lastSeed = s;
 			}
+			void reseed()noexcept { get_self().seed(m_lastSeed); }
 
 			// int_4_random_shuffle_t is either int on 32bits or int64 on 64bits
-			int_4_random_shuffle_t gen_i(int_4_random_shuffle_t lessThan)noexcept {
+			int_4_random_shuffle_t gen_i(const int_4_random_shuffle_t lessThan)noexcept {
 				NNTL_ASSERT(m_pThreads);
 				//TODO: pray we'll never need it bigger (because we'll possible do need and this may break everything)
 				NNTL_ASSERT(lessThan <= INT32_MAX);
@@ -344,17 +352,58 @@ namespace nntl {
 				static constexpr int_4_distribution_t max() noexcept { return ::std::numeric_limits<int_4_distribution_t>::max(); }
 			};
 
-		public:
-			
+		public:			
 			void _inormal_vector_st(real_t*const ptr, const real_t m, const real_t st, const elms_range& er, const thread_id_t tId)noexcept {
 				::std::normal_distribution<real_t> distr(m, st);
-				rgWrapper w = { m_Rngs[tId] };
+				rgWrapper w { m_Rngs[tId] };
 				for (size_t i = er.elmBegin; i < er.elmEnd; ++i) {
 					ptr[i] = distr(w);
 				}
 			}
 
+			//////////////////////////////////////////////////////////////////////////
+			/*
+		protected:
+			template<unsigned int _StdDev1e6>
+			struct RandNFeeder {
+			protected:
+				rng_vector_t& aRng;
+				stdNormDev_vector_t& a_stdNormDevs;
+
+			public:
+				static constexpr unsigned int StdDev1e6 = (_StdDev1e6 ? _StdDev1e6 : 1000000);
+				static constexpr real_t stdDev = real_t(StdDev1e6) / real_t(1e6);
+			protected:
+				template<unsigned int sv = StdDev1e6>
+				static ::std::enable_if_t<sv == 1000000, real_t> _applyScale(const real_t v)noexcept { return v; }
+				template<unsigned int sv = StdDev1e6>
+				static ::std::enable_if_t<sv != 1000000, real_t> _applyScale(const real_t v)noexcept { return v*stdDev; }
+
+			public:
+				RandNFeeder(rng_vector_t& r, stdNormDev_vector_t& s) noexcept : aRng(r), a_stdNormDevs(s) {}
+
+				real_t next(const thread_id_t tId)const noexcept {
+					rgWrapper w { aRng[tId] };
+					return _applyScale((a_stdNormDevs[tId])(w));
+				}
+			};
+
+		public:
+			template<unsigned int _StdDev1e6>
+			RandNFeeder<_StdDev1e6> make_RandNFeeder()noexcept {
+				return RandNFeeder<_StdDev1e6>(m_Rngs, m_stdNormDevs);
+			}
+			*/
 		};
 
+		template<typename RealT, typename AgnerFogRNG, typename iThreadsT>
+		class AFRand_mt final : public _AFRand_mt<AFRand_mt<RealT, AgnerFogRNG, iThreadsT>, RealT, AgnerFogRNG, iThreadsT> {
+			typedef _AFRand_mt<AFRand_mt<RealT, AgnerFogRNG, iThreadsT>, RealT, AgnerFogRNG, iThreadsT> _base_class_t;
+		public:
+			~AFRand_mt() { }
+			AFRand_mt()noexcept : _base_class_t() {}
+			AFRand_mt(iThreads_t& t)noexcept : _base_class_t(t){}
+			AFRand_mt(iThreads_t& t, seed_t s)noexcept : _base_class_t(t, s) {}
+		};
 	}
 }

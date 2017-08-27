@@ -101,7 +101,7 @@ void dump_deCov(const char* pFileName, vec_len_t rowsCnt, vec_len_t colsCnt = 10
 	iM.preinit(iM.loss_DeCov_tempMemReqs(true, A));
 	ASSERT_TRUE(iM.init());
 	d_int_nI<real_t>::iRng_t rg;
-	rg.set_ithreads(iM.ithreads());
+	rg.init_ithreads(iM.ithreads());
 
 	rg.gen_matrix(A, real_t(5));
 	const auto loss = iM.loss_deCov<bLowerTriangl, bNumStab>(A);
@@ -155,7 +155,7 @@ void test_dLoss_deCov(vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 	iM.preinit(iM.loss_DeCov_tempMemReqs(true, A.size_no_bias()));
 	ASSERT_TRUE(iM.init());
 	d_int_nI<real_t>::iRng_t rg;
-	rg.set_ithreads(iM.ithreads());
+	rg.init_ithreads(iM.ithreads());
 
 	for (unsigned r = 0; r < testCorrRepCnt; ++r) {
 		rg.gen_matrix_no_bias(A, real_t(5));
@@ -226,7 +226,7 @@ void test_loss_deCov(vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 	iM.preinit(iM.loss_DeCov_tempMemReqs(false, A.size_no_bias()));
 	ASSERT_TRUE(iM.init());
 	d_int_nI<real_t>::iRng_t rg;
-	rg.set_ithreads(iM.ithreads());
+	rg.init_ithreads(iM.ithreads());
 
 	for (unsigned r = 0; r < testCorrRepCnt; ++r) {
 		rg.gen_matrix_no_bias(A, real_t(5));
@@ -288,7 +288,7 @@ void test_loss_xentropy(vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 	iM.preinit(A.numel());
 	ASSERT_TRUE(iM.init());
 	d_interfaces::iRng_t rg;
-	rg.set_ithreads(iM.ithreads());
+	rg.init_ithreads(iM.ithreads());
 
 	auto pA = A.data();
 	auto pY = Y.data();
@@ -348,7 +348,7 @@ void test_ewBinarize_ip_corr(vec_len_t rowsCnt, vec_len_t colsCnt = 10, const re
 	realmtx_t A(rowsCnt, colsCnt), A_orig(rowsCnt, colsCnt), A_ET(rowsCnt, colsCnt);
 	ASSERT_TRUE(!A_orig.isAllocationFailed() && !A.isAllocationFailed() && !A_ET.isAllocationFailed());
 	d_interfaces::iRng_t rg;
-	rg.set_ithreads(iM.ithreads());
+	rg.init_ithreads(iM.ithreads());
 
 	for (unsigned r = 0; r < testCorrRepCnt; ++r) {
 		rg.gen_matrix_norm(A_orig);
@@ -404,7 +404,7 @@ void test_ewBinarize_corr(vec_len_t rowsCnt, vec_len_t colsCnt = 10, const real_
 
 	ASSERT_TRUE(!A.isAllocationFailed() && !DestET.isAllocationFailed() && !Dest.isAllocationFailed());
 	d_interfaces::iRng_t rg;
-	rg.set_ithreads(iM.ithreads());
+	rg.init_ithreads(iM.ithreads());
 
 	for (unsigned r = 0; r < testCorrRepCnt; ++r) {
 		rg.gen_matrix_norm(A);
@@ -462,7 +462,7 @@ void test_softmax_parts(vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 	iM.preinit(dataSize);
 	ASSERT_TRUE(iM.init());
 	d_interfaces::iRng_t rg;
-	rg.set_ithreads(iM.ithreads());
+	rg.init_ithreads(iM.ithreads());
 
 	for (unsigned rr = 0; rr < testCorrRepCnt; ++rr) {
 		rg.gen_matrix(A, 2);
@@ -549,7 +549,7 @@ void test_softmax(vec_len_t rowsCnt, vec_len_t colsCnt) {
 	iM.preinit(maxSoftmaxMemSize);
 	ASSERT_TRUE(iM.init());
 	d_interfaces::iRng_t rg;
-	rg.set_ithreads(iM.ithreads());
+	rg.init_ithreads(iM.ithreads());
 
 	for (unsigned rr = 0; rr < testCorrRepCnt; ++rr) {
 		if (bHasBiases) rg.gen_matrix_no_bias(A_orig, 5);
@@ -596,7 +596,7 @@ void test_loss_softmax_xentropy(vec_len_t rowsCnt, vec_len_t colsCnt) {
 	realmtx_t A(rowsCnt, colsCnt), Y(rowsCnt, colsCnt);
 	ASSERT_TRUE(!A.isAllocationFailed() && !Y.isAllocationFailed());
 	d_interfaces::iRng_t rg;
-	rg.set_ithreads(iM.ithreads());
+	rg.init_ithreads(iM.ithreads());
 	real_t et, l;
 	for (unsigned rr = 0; rr < testCorrRepCnt; ++rr) {
 		rg.gen_matrix_norm(A);
@@ -640,7 +640,7 @@ void test_vSumAbs(iMath& iM, vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 	ASSERT_TRUE(!A.isAllocationFailed());
 
 	d_interfaces::iRng_t rg;
-	rg.set_ithreads(iM.ithreads());
+	rg.init_ithreads(iM.ithreads());
 	for (unsigned r = 0; r < testCorrRepCnt; ++r) {
 		rg.gen_matrix(A, 1);
 
@@ -709,7 +709,7 @@ void test_evAddScaledSign_ip(iMath& iM, vec_len_t rowsCnt, vec_len_t colsCnt = 1
 	real_t scaleCoeff = .5;
 
 	d_interfaces::iRng_t rg;
-	rg.set_ithreads(iM.ithreads());
+	rg.init_ithreads(iM.ithreads());
 	rg.gen_matrix(B, 2);
 
 	{
@@ -784,7 +784,7 @@ void test_evAddScaled_ip_corr(vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 	real_t scaleCoeff = .5;
 
 	d_interfaces::iRng_t rg;
-	rg.set_ithreads(iM.ithreads());
+	rg.init_ithreads(iM.ithreads());
 	rg.gen_matrix(B, 2);
 
 	realmtx_t A2(rowsCnt, colsCnt), A3(rowsCnt, colsCnt);
@@ -831,7 +831,7 @@ void test_evAdd_ip(iMath& iM, vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 	ASSERT_TRUE(!B.isAllocationFailed() && !A.isAllocationFailed());
 
 	d_interfaces::iRng_t rg;
-	rg.set_ithreads(iM.ithreads());
+	rg.init_ithreads(iM.ithreads());
 	rg.gen_matrix(B, 2);
 
 	{
@@ -907,7 +907,7 @@ void test_evMulCipSubip(iMath& iM, vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 		&& !W2.isAllocationFailed() && !vW3.isAllocationFailed() && !W3.isAllocationFailed());
 
 	d_interfaces::iRng_t rg;
-	rg.set_ithreads(iM.ithreads());
+	rg.init_ithreads(iM.ithreads());
 	rg.gen_matrix(vW2, 2);
 	rg.gen_matrix(W2, 2);
 	vW2.clone_to(vW);
@@ -992,7 +992,7 @@ void test_mCheck_normalize_rows(vec_len_t rowsCnt, vec_len_t colsCnt, const bool
 	ASSERT_TRUE(iM.init());
 
 	d_interfaces::iRng_t rg;
-	rg.set_ithreads(iM.ithreads());
+	rg.init_ithreads(iM.ithreads());
 
 	realmtxdef_t etW(rowsCnt, colsCnt);
 	ASSERT_TRUE(!etW.isAllocationFailed());
@@ -1048,7 +1048,7 @@ void test_evSub(iMath& iM, vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 	ASSERT_TRUE(!B.isAllocationFailed() && !A.isAllocationFailed() && !C.isAllocationFailed());
 
 	d_interfaces::iRng_t rg;
-	rg.set_ithreads(iM.ithreads());
+	rg.init_ithreads(iM.ithreads());
 	rg.gen_matrix(A, 2);
 	rg.gen_matrix(B, 2);
 
@@ -1115,7 +1115,7 @@ void test_evSub_ip(iMath& iM, vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 	ASSERT_TRUE(!B.isAllocationFailed() && !A.isAllocationFailed());
 
 	d_interfaces::iRng_t rg;
-	rg.set_ithreads(iM.ithreads());
+	rg.init_ithreads(iM.ithreads());
 	rg.gen_matrix(B, 2);
 
 	{
@@ -1209,7 +1209,7 @@ void test_apply_momentum(iMath& iM, vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 	ASSERT_TRUE(!dW.isAllocationFailed() && !vW.isAllocationFailed());
 
 	d_interfaces::iRng_t rg;
-	rg.set_ithreads(iM.ithreads());
+	rg.init_ithreads(iM.ithreads());
 	rg.gen_matrix(dW, 2);
 
 	{
@@ -1282,7 +1282,7 @@ void test_ApplyILR_corr(vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 	ASSERT_TRUE(iM.init());
 
 	d_interfaces::iRng_t rg;
-	rg.set_ithreads(iM.ithreads());
+	rg.init_ithreads(iM.ithreads());
 	rg.gen_matrix(prevdW, 10);
 
 	//////////////////////////////////////////////////////////////////////////
@@ -1362,7 +1362,7 @@ void test_evAbs_perf(iMath& iM, vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 	ASSERT_TRUE(!src.isAllocationFailed() && !dest.isAllocationFailed());
 
 	d_interfaces::iRng_t rg;
-	rg.set_ithreads(iM.ithreads());	
+	rg.init_ithreads(iM.ithreads());	
 
 	{
 		realmtx_t dest2(rowsCnt, colsCnt);
@@ -1428,7 +1428,7 @@ void test_evSquare_perf(iMath& iM, vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 	ASSERT_TRUE(!src.isAllocationFailed() && !dest.isAllocationFailed());
 
 	d_interfaces::iRng_t rg;
-	rg.set_ithreads(iM.ithreads());
+	rg.init_ithreads(iM.ithreads());
 	
 	{
 		realmtx_t dest2(rowsCnt, colsCnt);
@@ -1498,7 +1498,7 @@ void test_modprop_perf(iMath& iM, vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 	rms.zeros();
 
 	d_interfaces::iRng_t rg;
-	rg.set_ithreads(iM.ithreads());
+	rg.init_ithreads(iM.ithreads());
 
 	//////////////////////////////////////////////////////////////////////////
 	//testing correctness
@@ -1591,7 +1591,7 @@ void test_rprop_perf(iMath& iM, vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 	ASSERT_TRUE(!dW.isAllocationFailed());
 	
 	d_interfaces::iRng_t rg;
-	rg.set_ithreads(iM.ithreads());
+	rg.init_ithreads(iM.ithreads());
 
 	{
 		realmtx_t dW2(rowsCnt, colsCnt), dW3(rowsCnt, colsCnt);
@@ -1674,7 +1674,7 @@ void test_rmspropgraves_perf(iMath& iM, vec_len_t rowsCnt, vec_len_t colsCnt = 1
 	ASSERT_TRUE(!dW.isAllocationFailed() && !rms.isAllocationFailed() && !rmsG.isAllocationFailed());
 
 	d_interfaces::iRng_t rg;
-	rg.set_ithreads(iM.ithreads());
+	rg.init_ithreads(iM.ithreads());
 
 	{
 		realmtx_t dW2(rowsCnt, colsCnt), rms2(rowsCnt, colsCnt), rmsG2(rowsCnt, colsCnt),
@@ -1775,7 +1775,7 @@ void test_rmsprophinton_perf(iMath& iM, vec_len_t rowsCnt, vec_len_t colsCnt = 1
 	ASSERT_TRUE(!dW.isAllocationFailed() && !rms.isAllocationFailed());
 
 	d_interfaces::iRng_t rg;
-	rg.set_ithreads(iM.ithreads());
+	rg.init_ithreads(iM.ithreads());
 	{
 		realmtx_t dW2(rowsCnt, colsCnt), rms2(rowsCnt, colsCnt), dW3(rowsCnt, colsCnt), rms3(rowsCnt, colsCnt);
 		ASSERT_TRUE(!dW2.isAllocationFailed() && !rms2.isAllocationFailed() && !dW3.isAllocationFailed() && !rms3.isAllocationFailed());
@@ -1851,7 +1851,7 @@ TEST(TestMathN, RMSProp_Hinton) {
 void test_Adam_corr(const size_t epochs, const vec_len_t maxRowsCnt, const vec_len_t maxColsCnt = 10) {
 	const real_t beta1 = real_t(.9), beta2=real_t(.999), learningRate=real_t(.001), numStab=real_t(1e-8);
 	d_interfaces::iRng_t rg;
-	rg.set_ithreads(iM.ithreads());
+	rg.init_ithreads(iM.ithreads());
 
 	for (vec_len_t r = 1; r < maxRowsCnt; ++r)	{
 		for (vec_len_t c = 1; c < maxColsCnt; ++c) {
@@ -1914,7 +1914,7 @@ TEST(TestMathN, Adam) {
 void test_AdaMax_corr(const size_t epochs, const vec_len_t maxRowsCnt, const vec_len_t maxColsCnt = 10) {
 	const real_t beta1 = real_t(.9), beta2 = real_t(.999), learningRate = real_t(.001), numStab = real_t(1e-8);
 	d_interfaces::iRng_t rg;
-	rg.set_ithreads(iM.ithreads());
+	rg.init_ithreads(iM.ithreads());
 
 	for (vec_len_t r = 1; r < maxRowsCnt; ++r) {
 		for (vec_len_t c = 1; c < maxColsCnt; ++c) {
@@ -1974,7 +1974,7 @@ void test_Nadam_corr(const size_t epochs, const vec_len_t maxRowsCnt, const vec_
 	const real_t _g = real_t(0);
 
 	d_interfaces::iRng_t rg;
-	rg.set_ithreads(iM.ithreads());
+	rg.init_ithreads(iM.ithreads());
 
 	for (vec_len_t r = 1; r < maxRowsCnt; ++r) {
 		for (vec_len_t c = 1; c < maxColsCnt; ++c) {
@@ -2038,7 +2038,7 @@ void test_Radam_corr(const size_t epochs, const vec_len_t maxRowsCnt, const vec_
 	const real_t gamma = real_t(.1);
 
 	d_interfaces::iRng_t rg;
-	rg.set_ithreads(iM.ithreads());
+	rg.init_ithreads(iM.ithreads());
 
 	for (vec_len_t r = 1; r < maxRowsCnt; ++r) {
 		for (vec_len_t c = 1; c < maxColsCnt; ++c) {
@@ -2115,7 +2115,7 @@ void test_make_dropout_perf(iMath& iM, vec_len_t rowsCnt, vec_len_t colsCnt = 10
 	ASSERT_TRUE(!act.isAllocationFailed() && !dm.isAllocationFailed());
 	
 	d_interfaces::iRng_t rg;
-	rg.set_ithreads(iM.ithreads());
+	rg.init_ithreads(iM.ithreads());
 	{
 		realmtx_t act2(rowsCnt, colsCnt, true), dm2(rowsCnt, colsCnt), act3(rowsCnt, colsCnt, true), dm3(rowsCnt, colsCnt);
 		ASSERT_TRUE(!act2.isAllocationFailed() && !dm2.isAllocationFailed()&& !act3.isAllocationFailed() && !dm3.isAllocationFailed());
@@ -2225,7 +2225,7 @@ TEST(TestMathN, vCountSameMtCorrectness) {
 
 	iMB iM;
 	d_interfaces::iRng_t rg;
-	rg.set_ithreads(iM.ithreads());
+	rg.init_ithreads(iM.ithreads());
 
 	rg.gen_vector_gtz(&v1[0], rowsCnt, (vec_t::value_type)5);
 	rg.gen_vector_gtz(&v2[0], rowsCnt, (vec_t::value_type)5);
@@ -2246,7 +2246,7 @@ void test_vCountSame_perf(iMath& iM, vec_len_t rowsCnt) {
 
 	vec_t v1(rowsCnt), v2(rowsCnt);
 	d_interfaces::iRng_t rg;
-	rg.set_ithreads(iM.ithreads());
+	rg.init_ithreads(iM.ithreads());
 
 	rg.gen_vector_gtz(&v1[0], rowsCnt, (vec_t::value_type)5);
 	rg.gen_vector_gtz(&v2[0], rowsCnt, (vec_t::value_type)5);
@@ -2310,7 +2310,7 @@ void test_evClamp_perf(iMath& iM, vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 	vec_t vec(rowsCnt);
 
 	d_interfaces::iRng_t rg;
-	rg.set_ithreads(iM.ithreads());
+	rg.init_ithreads(iM.ithreads());
 	rg.gen_matrix(m, 100);
 
 	//testing performance
@@ -2359,7 +2359,7 @@ TEST(TestMathN, mExtractRowsCorrectness) {
 
 	::std::vector<vec_len_t> vec(extrCnt);
 	d_interfaces::iRng_t rg;
-	rg.set_ithreads(iM.ithreads());
+	rg.init_ithreads(iM.ithreads());
 
 	rg.gen_vector_gtz(&vec[0], vec.size(), rowsCnt - 1);
 
@@ -2474,7 +2474,7 @@ void test_evMul_ip(vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 	realmtx_t M(rowsCnt, colsCnt), etM(rowsCnt, colsCnt), testM(rowsCnt, colsCnt), etB(rowsCnt, colsCnt), B(rowsCnt, colsCnt);
 	
 	d_interfaces::iRng_t rg;
-	rg.set_ithreads(iM.ithreads());
+	rg.init_ithreads(iM.ithreads());
 	for (unsigned r = 0; r < maxReps; ++r) {
 		rg.gen_matrix(M, real_t(5));
 		rg.gen_matrix(B, real_t(5));
@@ -2527,7 +2527,7 @@ void test_evMulC_ip(iMath& iM, vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 
 	//filling etalon
 	d_interfaces::iRng_t rg;
-	rg.set_ithreads(iM.ithreads());
+	rg.init_ithreads(iM.ithreads());
 	rg.gen_matrix(etM, 5);
 	auto ptrEtM = etM.data(), ptrDest=etDest.data();
 	for (unsigned i = 0; i < dataSize; ++i) ptrDest[i] = mulC*ptrEtM[i];
@@ -2731,7 +2731,7 @@ void test_elu_corr(vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 	const real_t alpha = real_t(2.5);
 
 	d_interfaces::iRng_t rg;
-	rg.set_ithreads(iM.ithreads());
+	rg.init_ithreads(iM.ithreads());
 	for (unsigned r = 0; r < testCorrRepCnt; ++r) {
 		rg.gen_matrix_no_bias(src, 2);
 		ASSERT_TRUE(src.test_biases_ok());
@@ -2782,7 +2782,7 @@ void test_delu_corr(vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 	const real_t alpha = real_t(2.5);
 
 	d_interfaces::iRng_t rg;
-	rg.set_ithreads(iM.ithreads());
+	rg.init_ithreads(iM.ithreads());
 	for (unsigned r = 0; r < testCorrRepCnt; ++r) {
 		rg.gen_matrix(F, 2);
 		
@@ -2842,7 +2842,7 @@ void test_elogu_corr(vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 	constexpr real_t alpha = real_t(2.5), b=real_t(2.);
 
 	d_interfaces::iRng_t rg;
-	rg.set_ithreads(iM.ithreads());
+	rg.init_ithreads(iM.ithreads());
 	for (unsigned r = 0; r < testCorrRepCnt; ++r) {
 		rg.gen_matrix_no_bias(X, 5);
 		ASSERT_TRUE(X.test_biases_ok());
@@ -2922,7 +2922,7 @@ void test_delogu_corr(vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 	constexpr real_t alpha = real_t(2.5), b = real_t(2.);
 
 	d_interfaces::iRng_t rg;
-	rg.set_ithreads(iM.ithreads());
+	rg.init_ithreads(iM.ithreads());
 	for (unsigned r = 0; r < testCorrRepCnt; ++r) {
 		rg.gen_matrix_no_bias(X, 5);
 		ASSERT_TRUE(X.test_biases_ok());
@@ -3019,7 +3019,7 @@ void test_loglogu_corr(vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 	constexpr real_t b_neg = real_t(3), b_pos = real_t(2.);
 
 	d_interfaces::iRng_t rg;
-	rg.set_ithreads(iM.ithreads());
+	rg.init_ithreads(iM.ithreads());
 	for (unsigned r = 0; r < testCorrRepCnt; ++r) {
 		rg.gen_matrix_no_bias(X, 5);
 		ASSERT_TRUE(X.test_biases_ok());
@@ -3099,7 +3099,7 @@ void test_dloglogu_corr(vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 	constexpr real_t b_neg = real_t(3), b_pos = real_t(2.);
 
 	d_interfaces::iRng_t rg;
-	rg.set_ithreads(iM.ithreads());
+	rg.init_ithreads(iM.ithreads());
 	for (unsigned r = 0; r < testCorrRepCnt; ++r) {
 		rg.gen_matrix_no_bias(X, 5);
 		ASSERT_TRUE(X.test_biases_ok());
@@ -3196,7 +3196,7 @@ void test_softsign_corr(vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 	constexpr real_t c = real_t(1.7), a = real_t(2.3);
 
 	d_interfaces::iRng_t rg;
-	rg.set_ithreads(iM.ithreads());
+	rg.init_ithreads(iM.ithreads());
 	for (unsigned r = 0; r < testCorrRepCnt; ++r) {
 		rg.gen_matrix_no_bias(X, 5);
 		ASSERT_TRUE(X.test_biases_ok());
@@ -3252,7 +3252,7 @@ void test_dsoftsign_corr(vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 	constexpr real_t a = real_t(2.3), c = real_t(1.7);
 
 	d_interfaces::iRng_t rg;
-	rg.set_ithreads(iM.ithreads());
+	rg.init_ithreads(iM.ithreads());
 	for (unsigned r = 0; r < testCorrRepCnt; ++r) {
 		rg.gen_matrix_no_bias(X, 5);
 		ASSERT_TRUE(X.test_biases_ok());
@@ -3360,7 +3360,7 @@ void test_loss_quadratic(iMath& iM, vec_len_t rowsCnt, vec_len_t colsCnt=10) {
 
 	//filling etalon
 	d_interfaces::iRng_t rg;
-	rg.set_ithreads(iM.ithreads());
+	rg.init_ithreads(iM.ithreads());
 	rg.gen_matrix(etA, 5);
 	rg.gen_matrix(etY, 5);
 	ASSERT_TRUE(etA.clone_to(A));
@@ -3438,7 +3438,7 @@ TEST(TestMathN, _mIsOrthogonal) {
 
 		realmtx_t M(20, 30);
 		d_interfaces::iRng_t rg;
-		rg.set_ithreads(iM.ithreads());
+		rg.init_ithreads(iM.ithreads());
 
 		rg.gen_matrix(M, 5);
 		ASSERT_FALSE(iM._mIsOrthogonal(M, true));
@@ -3522,7 +3522,7 @@ TEST(TestMathN, mSVD_Orthogonalize_ss) {
 TEST(TestMathN, _mIsOrthogonal) {
 	realmtx_t M(20, 30);
 	d_interfaces::iRng_t rg;
-	rg.set_ithreads(iM.ithreads());
+	rg.init_ithreads(iM.ithreads());
 
 	rg.gen_matrix(M, 5);
 	ASSERT_FALSE(iM._mIsOrthogonal(M, true));
@@ -3552,7 +3552,7 @@ void test_mColumnsCov_corr(vec_len_t rowsCnt, vec_len_t colsCnt) {
 	ASSERT_TRUE(!A.isAllocationFailed() && !A2.isAllocationFailed() && !C_ET.isAllocationFailed() && !C.isAllocationFailed());
 
 	d_interfaces::iRng_t rg;
-	rg.set_ithreads(iM.ithreads());
+	rg.init_ithreads(iM.ithreads());
 	for (unsigned r = 0; r < testCorrRepCnt; ++r) {
 		rg.gen_matrix(A, 5);
 		A.clone_to(A2);
@@ -3618,7 +3618,7 @@ void test_make_alphaDropout(vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 		&& !mB.isAllocationFailed() && !mB_ET.isAllocationFailed());
 
 	d_interfaces::iRng_t rg;
-	rg.set_ithreads(iM.ithreads());
+	rg.init_ithreads(iM.ithreads());
 
 	for (unsigned r = 0; r < testCorrRepCnt; ++r) {
 		rg.gen_matrix_no_bias(As, real_t(5));
@@ -3696,7 +3696,7 @@ void test_evSubMtxMulC_ip_nb(vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 		&& !mB.isAllocationFailed() && !mBs.isAllocationFailed());
 
 	d_interfaces::iRng_t rg;
-	rg.set_ithreads(iM.ithreads());
+	rg.init_ithreads(iM.ithreads());
 
 	for (unsigned r = 0; r < testCorrRepCnt; ++r) {
 		rg.gen_matrix_no_bias(As, real_t(5));

@@ -93,9 +93,9 @@ namespace threads {
 		~Workers()noexcept {
 			m_bStop = true;
 
-			m_mutex.lock();
+			//m_mutex.lock();
 			m_waitingOrders.notify_all();
-			m_mutex.unlock();
+			//m_mutex.unlock();
 
 			for (auto& t : m_threads)  t.join();
 		}
@@ -148,7 +148,7 @@ namespace threads {
 			return true;
 		}
 
-		//NEVER CALL IN RECURSION!
+		//never call recursively or from non-main thread
 		template<typename Func>
 		void run(Func&& F, const range_t cnt, const thread_id_t useNThreads = 0, thread_id_t* pThreadsUsed = nullptr) noexcept {
 			if (cnt <= 1) {
@@ -179,15 +179,12 @@ namespace threads {
 			::std::forward<Func>(F)(par_range_t(prevOfs, cnt - prevOfs, 0));
 
 			if (m_workingCnt > 0) {
-// 				::std::unique_lock<decltype(m_mutex)> lk(m_mutex);
-// 				while (m_workingCnt > 0) {
-// 					m_orderDone.wait(lk);
-// 				}
 				Sync_t::lock_wait_unlock(m_mutex, m_orderDone, [&wc = m_workingCnt]() {return wc <= 0; });
 			}
 		}
 
 	public:
+		//never call recursively or from non-main thread
 		template<typename Func, typename FinalReduceFunc>
 		real_t reduce(Func&& FRed, FinalReduceFunc&& FRF, const range_t cnt, const thread_id_t useNThreads = 0) noexcept {
 			return cnt <= 1
@@ -206,7 +203,6 @@ namespace threads {
 			m_fnReduce = FRed;
 			m_jobType = JobType::Reduce;
 
-			//TODO: need cache friendly partitioning here
 			const auto prevOfs = partition_count_to_workers(cnt, useNThreads);
 			NNTL_ASSERT(prevOfs < cnt);
 			auto* rc = &m_reduceCache[0];
@@ -217,12 +213,12 @@ namespace threads {
 			m_waitingOrders.notify_all();
 			m_mutex.unlock();
 
-			*rc = ::std::forward<Func>(FRed)(par_range_t(prevOfs, cnt - prevOfs, 0));
+			*rc = (::std::forward<Func>(FRed))(par_range_t(prevOfs, cnt - prevOfs, 0));
 
 			if (m_workingCnt > 0) {
 				Sync_t::lock_wait_unlock(m_mutex, m_orderDone, [&wc = m_workingCnt]() {return wc <= 0; });
 			}
-			return ::std::forward<FinalReduceFunc>(FRF)(rc, workersOnReduce);
+			return (::std::forward<FinalReduceFunc>(FRF))(rc, workersOnReduce);
 		}
 
 	protected:

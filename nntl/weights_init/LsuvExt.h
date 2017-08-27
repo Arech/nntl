@@ -34,10 +34,12 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include <type_traits>
 
+#pragma warning(push, 3)
 #include <boost/accumulators/accumulators.hpp>
 #include <boost/accumulators/statistics/stats.hpp>
 #include <boost/accumulators/statistics/mean.hpp>
 #include <boost/accumulators/statistics/variance.hpp>
+#pragma warning(pop)
 
 #include "_procedural_base.h"
 #include "../utils/layers_settings.h"
@@ -224,7 +226,7 @@ namespace weights_init {
 			::std::enable_if_t<is_layer_pack<LayerT>::value> _checkInnerLayers(LayerT& lyr)noexcept {
 				lyr.for_each_packed_layer(*this);
 			}
-			template<typename LayerT> ::std::enable_if_t<!is_layer_pack<LayerT>::value> _checkInnerLayers(LayerT& lyr)const noexcept {}
+			template<typename LayerT> ::std::enable_if_t<!is_layer_pack<LayerT>::value> _checkInnerLayers(LayerT&)const noexcept {}
 
 
 			template<typename LayerT>
@@ -240,32 +242,32 @@ namespace weights_init {
 
 				m_bImmediatelyUnderGated = true;
 			}
-			template<typename LayerT> ::std::enable_if_t<!is_pack_gated<LayerT>::value> _packGatingPrologue(LayerT& lyr)const noexcept {}
+			template<typename LayerT> ::std::enable_if_t<!is_pack_gated<LayerT>::value> _packGatingPrologue(LayerT&)const noexcept {}
 
 			template<typename LayerT>
-			::std::enable_if_t<is_pack_gated<LayerT>::value> _packGatingEpilogue(LayerT& lyr)noexcept {
+			::std::enable_if_t<is_pack_gated<LayerT>::value> _packGatingEpilogue(LayerT&)noexcept {
 				m_gatingStack.pop_back();
 			}
-			template<typename LayerT> ::std::enable_if_t<!is_pack_gated<LayerT>::value> _packGatingEpilogue(LayerT& lyr)const noexcept {}
+			template<typename LayerT> ::std::enable_if_t<!is_pack_gated<LayerT>::value> _packGatingEpilogue(LayerT&)const noexcept {}
 
 
 			template<typename LayerT>
-			::std::enable_if_t<is_pack_tiled<LayerT>::value> _packTilingPrologue(LayerT& lyr)noexcept {
+			::std::enable_if_t<is_pack_tiled<LayerT>::value> _packTilingPrologue(LayerT&)noexcept {
 				//#todo
 				static_assert(false, "There must be code to synchronize current gating mask with a different batch size of tiled layer");
 				//if you will not use a LPT under a LPHG, you may safely comment out the assert and leave everything as it is now.
 			}
-			template<typename LayerT> ::std::enable_if_t<!is_pack_tiled<LayerT>::value> _packTilingPrologue(LayerT& lyr)const noexcept {}
+			template<typename LayerT> ::std::enable_if_t<!is_pack_tiled<LayerT>::value> _packTilingPrologue(LayerT&)const noexcept {}
 
 			template<typename LayerT>
-			::std::enable_if_t<is_pack_tiled<LayerT>::value> _packTilingEpilogue(LayerT& lyr)noexcept {
+			::std::enable_if_t<is_pack_tiled<LayerT>::value> _packTilingEpilogue(LayerT&)noexcept {
 
 			}
-			template<typename LayerT> ::std::enable_if_t<!is_pack_tiled<LayerT>::value> _packTilingEpilogue(LayerT& lyr)const noexcept {}
+			template<typename LayerT> ::std::enable_if_t<!is_pack_tiled<LayerT>::value> _packTilingEpilogue(LayerT&)const noexcept {}
 
 
 			template<typename LayerT>
-			::std::enable_if_t<!is_layer_learnable<LayerT>::value> _processLayer(LayerT& lyr) const noexcept {}
+			::std::enable_if_t<!is_layer_learnable<LayerT>::value> _processLayer(LayerT&) const noexcept {}
 
 			template<typename LayerT>
 			::std::enable_if_t<is_layer_learnable<LayerT>::value> _processLayer(LayerT& lyr) noexcept {

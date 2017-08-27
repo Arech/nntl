@@ -238,12 +238,18 @@ namespace nntl {
 
 		//should return true, if the layer has a value to add to Loss function value (there's some regularizer attached)
 		bool hasLossAddendum()const noexcept {
-			get_self().for_each_packed_layer([&b](auto& l) {				b |= l.hasLossAddendum();			});
+			get_self().for_each_packed_layer([&b](auto& l) {
+				NNTL_UNREF(l);
+				b |= l.hasLossAddendum();
+			});
 		}
 		//returns a loss function summand, that's caused by this layer
 		real_t lossAddendum()const noexcept {
 			real_t la(.0);
-			get_self().for_each_packed_layer([&la](auto& l) {				la += l.lossAddendum();			});
+			get_self().for_each_packed_layer([&la](auto& l) {
+				NNTL_UNREF(l);
+				la += l.lossAddendum();
+			});
 			return la;
 		}
 
@@ -576,7 +582,7 @@ namespace nntl {
 	private:
 		//support for ::boost::serialization
 		friend class ::boost::serialization::access;
-		template<class Archive> void serialize(Archive & ar, const unsigned int version) {
+		template<class Archive> void serialize(Archive & ar, const unsigned int ) {
 			get_self().for_each_packed_layer([&ar](auto& l) {
 				ar & serialization::make_named_struct(l.get_layer_name_str().c_str(), l);
 			});

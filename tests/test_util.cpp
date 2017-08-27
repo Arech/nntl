@@ -44,6 +44,8 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include "../nntl/utils/call_wrappers.h"
 
+#include "../nntl/interface/rng/afrand_as.h"
+
 
 using namespace nntl;
 #ifdef NNTL_DEBUG
@@ -843,3 +845,358 @@ TEST(TestUtils, Forwarders) {
 	tCmcfnr.ratios(tF);
 }
 
+//////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////
+
+size_t _rng_less_than(const size_t m)noexcept {
+	unsigned int r;
+	if (rand_s(&r)) {
+		NNTL_ASSERT(!"rand_s failed");
+		STDCOUTL("rand_s failed");
+		return false;
+	}
+	const auto v = static_cast<size_t>(::std::round((m*double(r)) / UINT_MAX));
+	NNTL_ASSERT(v >= 0 && v <= m);
+	return v;
+}
+
+//////////////////////////////////////////////////////////////////////////
+// Several sets of tests must be implemented in order to make sure the AsynchRNG is correct.
+// A first set consists of tests of DataBuffer structure:
+// 1. plain state checks &&  buffer continuity test
+// 2. same for atomics
+// 3. atomic vs. mutex performance test
+// 
+template<bool bOnMutex = true, typename Rep, typename Dur>
+void data_buffer_state_checks(const size_t bufSize = 71, const size_t maxThreadGenSize = 5
+	, const size_t totalReads = TEST_CORRECTN_REPEATS_COUNT
+	, const ::std::chrono::duration<Rep, Dur>& workersTO = ::std::chrono::milliseconds(43)
+	, const ::std::chrono::duration<Rep, Dur>& checkerTO = ::std::chrono::milliseconds(7)
+	, const ::std::chrono::duration<Rep, Dur>& readerSleep = ::std::chrono::milliseconds(47)
+)noexcept
+{
+	//we'd need two sets of threads, the first one will be "filling" the buffer, the second - checking state.
+	//main thread will repeatedly withdraw data from the buffer
+	typedef uint32_t real_t;
+	typedef threads::BgWorkers<> BgWorkers_t;
+	typedef ::std::conditional_t<bOnMutex, typename BgWorkers_t::Sync_t, void> BufSync_t;
+	typedef utils::DataBuffer<real_t, BufSync_t> BufferRange_t;
+
+	// 	STDCOUTL("Working with bufSize = " << bufSize << ", maxThreadGenSize = " << maxThreadGenSize
+	// 		<< ", totalReads = " << totalReads << ", workersTO = " << workersTO.count()
+	// 		<< ", checkerTO = " << checkerTO.count() << ", readerSleep = " << readerSleep.count());
+
+	BgWorkers_t bgFillers, bgChecker(1, threads::PriorityClass::threads_priority_no_change);
+
+	const auto wc = bgFillers.workers_count();
+	::std::vector<real_t> bufData(bufSize), threadsBufData(maxThreadGenSize*wc);
+	::std::vector<real_t*> thrBuf(wc);
+	::std::vector<size_t> thrRunCnt(wc);
+
+	::std::fill(bufData.begin(), bufData.end(), real_t(0));
+	::std::fill(thrRunCnt.begin(), thrRunCnt.end(), size_t(0));
+
+	real_t* pBuf = &threadsBufData[0];
+	for (size_t i = 0; i < wc; ++i) {
+		thrBuf[i] = pBuf;
+		pBuf += maxThreadGenSize;
+	}
+
+	BufferRange_t Buf(&bufData[0], bufSize);
+	::std::atomic_size_t failsCnt(0);
+
+	bgChecker.expect_tasks_count(1).set_task_wait_timeout(checkerTO);
+	auto checkerFunc = [&Buf, &failsCnt](const thread_id_t tId)noexcept->bool {
+		failsCnt += !Buf.TestState();
+		return false;
+	};
+	bgChecker.add_task(checkerFunc);
+
+	ASSERT_EQ(0, failsCnt);
+
+	bgFillers.expect_tasks_count(1).set_task_wait_timeout(workersTO);
+	auto workerFunc = [&Buf, &thrBuf, maxThreadGenSize, &thrRunCnt](const thread_id_t tId)noexcept->bool {
+		++thrRunCnt[tId];
+		size_t thisN = _rng_less_than(maxThreadGenSize);
+		if (!thisN) ++thisN;
+		const auto toWork = Buf._as_should_work(thisN);
+		if (!toWork) return false;
+
+		NNTL_ASSERT(toWork <= thisN);
+		if (toWork > thisN) {
+			STDCOUTL("Invalid _as_should_work!");
+		}
+		real_t*const pInt = thrBuf[tId];
+		::std::fill(pInt, pInt + toWork, tId + 1);
+		Buf._as_done<true>(pInt, toWork);
+		return true;
+	};
+	bgFillers.add_task(workerFunc);
+
+	ASSERT_EQ(0, failsCnt);
+
+	::std::this_thread::sleep_for(readerSleep * 100);
+	//STDCOUTL("Going to get data...");
+
+	size_t ss(0), fails(0);
+
+	for (size_t i = 0; i < totalReads; ++i) {
+		::std::this_thread::sleep_for(readerSleep);
+		ASSERT_EQ(0, failsCnt);
+		const auto n = _rng_less_than(bufSize / 4);
+		if (!n) continue;
+		ASSERT_EQ(0, failsCnt);
+		const auto a = Buf.acquire_data(n);
+		ASSERT_EQ(0, failsCnt);
+		if (a.acquired()) {
+			::std::fill(const_cast<real_t*>(a.ptr1), const_cast<real_t*>(a.ptr1) + a.n1, real_t(0));
+			if (a.isTwoArrays()) {
+				::std::fill(const_cast<real_t*>(a.ptr2), const_cast<real_t*>(a.ptr2) + a.n2, real_t(0));
+			}
+			ASSERT_EQ(0, failsCnt);
+			::std::atomic_thread_fence(::std::memory_order_release);
+			Buf.release_data(a);
+			++ss;
+		} else {
+			++fails;
+			STDCOUTL("Failed to acquire buffer of size " << n);
+		}
+		ASSERT_EQ(0, failsCnt);
+	}
+	STDCOUTL("Succeeded " << ss << ", failed " << fails << ". Small amount of fails during startup is OK");
+	ASSERT_TRUE(double(fails) / ss < .1) << "Too many fails here, it's suspicious";
+
+	//MUST delete tasks now, or shuffled order of destructors may hurt.
+	bgFillers.delete_tasks();
+	bgChecker.delete_tasks();
+}
+
+TEST(TestAFRandASDataBuffer, StateChecks_Mutex) {
+#ifdef NNTL_DEBUG
+	for (unsigned i = 0; i < 5; ++i) {
+		STDCOUT("it#" << i << " ");
+		data_buffer_state_checks<true>(71, 7, 100, ::std::chrono::milliseconds(3)
+			, ::std::chrono::milliseconds(1), ::std::chrono::milliseconds(5));
+
+		data_buffer_state_checks<true>(1000, 10, 100, ::std::chrono::milliseconds(3)
+			, ::std::chrono::milliseconds(1), ::std::chrono::milliseconds(5));
+
+		data_buffer_state_checks<true>(1000, 100, 100, ::std::chrono::milliseconds(3)
+			, ::std::chrono::milliseconds(1), ::std::chrono::milliseconds(5));
+	}
+
+#else
+	for (unsigned i = 0; i < 25; ++i) {
+		STDCOUT("it#" << i << " ");
+		data_buffer_state_checks<true>(71, 7, 100, ::std::chrono::milliseconds(3)
+			, ::std::chrono::milliseconds(1), ::std::chrono::milliseconds(5));
+
+		data_buffer_state_checks<true>(1000, 10, 100, ::std::chrono::milliseconds(3)
+			, ::std::chrono::milliseconds(1), ::std::chrono::milliseconds(5));
+
+		data_buffer_state_checks<true>(1000, 100, 100, ::std::chrono::milliseconds(3)
+			, ::std::chrono::milliseconds(1), ::std::chrono::milliseconds(5));
+	}
+#endif
+}
+
+TEST(TestAFRandASDataBuffer, StateChecks_SpinLock) {
+#ifdef NNTL_DEBUG
+	for (unsigned i = 0; i < 5; ++i) {
+		STDCOUT("it#" << i << " ");
+		data_buffer_state_checks<false>(71, 7, 100, ::std::chrono::milliseconds(3)
+			, ::std::chrono::milliseconds(1), ::std::chrono::milliseconds(5));
+
+		data_buffer_state_checks<false>(1000, 10, 100, ::std::chrono::milliseconds(3)
+			, ::std::chrono::milliseconds(1), ::std::chrono::milliseconds(5));
+
+		data_buffer_state_checks<false>(1000, 100, 100, ::std::chrono::milliseconds(3)
+			, ::std::chrono::milliseconds(1), ::std::chrono::milliseconds(5));
+	}
+#else
+	for (unsigned i = 0; i < 25; ++i) {
+		STDCOUT("it#" << i << " ");
+		data_buffer_state_checks<false>(71, 7, 100, ::std::chrono::milliseconds(3)
+			, ::std::chrono::milliseconds(1), ::std::chrono::milliseconds(5));
+
+		data_buffer_state_checks<false>(1000, 10, 100, ::std::chrono::milliseconds(3)
+			, ::std::chrono::milliseconds(1), ::std::chrono::milliseconds(5));
+
+		data_buffer_state_checks<false>(1000, 100, 100, ::std::chrono::milliseconds(3)
+			, ::std::chrono::milliseconds(1), ::std::chrono::milliseconds(5));
+	}
+#endif
+}
+
+template<bool bOnMutex = true, typename Rep, typename Dur>
+void data_buffer_perf(::std::vector<utils::tictoc>& clocks//the first element is for the main (reader) thread.
+	, const size_t bufSize = 71, const size_t maxThreadGenSize = 5
+	, const size_t totalReads = TEST_CORRECTN_REPEATS_COUNT
+	, const ::std::chrono::duration<Rep, Dur>& workersTO = ::std::chrono::milliseconds(43)
+	, const ::std::chrono::duration<Rep, Dur>& readerSleep = ::std::chrono::milliseconds(47)
+)noexcept
+{
+	//we'd need two sets of threads, the first one will be "filling" the buffer, the second - checking state.
+	//main thread will repeatedly withdraw data from the buffer
+	typedef uint32_t real_t;
+	typedef threads::BgWorkers<> BgWorkers_t;
+	typedef ::std::conditional_t<bOnMutex, typename BgWorkers_t::Sync_t, void> BufSync_t;
+	typedef utils::DataBuffer<real_t, BufSync_t> BufferRange_t;
+
+	// 	STDCOUTL("Working with bufSize = " << bufSize << ", maxThreadGenSize = " << maxThreadGenSize
+	// 		<< ", totalReads = " << totalReads << ", workersTO = " << workersTO.count()
+	// 		<< ", checkerTO = " << checkerTO.count() << ", readerSleep = " << readerSleep.count());
+
+	BgWorkers_t bgFillers;
+
+	const auto wc = bgFillers.workers_count();
+
+	constexpr size_t totalClocksForEachBgthread = 3;
+	ASSERT_EQ(clocks.size(), 2 + wc * totalClocksForEachBgthread);
+
+	::std::vector<real_t> bufData(bufSize), threadsBufData(maxThreadGenSize*wc);
+	::std::vector<real_t*> thrBuf(wc);
+	::std::vector<size_t> thrRunCnt(wc);
+
+	::std::fill(bufData.begin(), bufData.end(), real_t(0));
+	::std::fill(thrRunCnt.begin(), thrRunCnt.end(), size_t(0));
+
+	real_t* pBuf = &threadsBufData[0];
+	for (size_t i = 0; i < wc; ++i) {
+		thrBuf[i] = pBuf;
+		pBuf += maxThreadGenSize;
+	}
+
+	BufferRange_t Buf(&bufData[0], bufSize);
+
+	bgFillers.expect_tasks_count(1).set_task_wait_timeout(workersTO);
+	auto workerFunc = [&Buf, &thrBuf, maxThreadGenSize, &thrRunCnt, &clocks, totalClocksForEachBgthread]
+	(const thread_id_t tId)noexcept->bool {
+		++thrRunCnt[tId];
+		size_t thisN = _rng_less_than(maxThreadGenSize);
+		if (!thisN) ++thisN;
+
+		const size_t firstClockOfs = 2 + tId*totalClocksForEachBgthread;
+
+		auto& cl1 = clocks[firstClockOfs];
+
+		const auto t1 = cl1.now();
+		const auto toWork = Buf._as_should_work(thisN);
+		const auto dur = cl1.now() - t1;
+		if (!toWork) {
+			clocks[firstClockOfs].store(dur);
+			return false;
+		}
+		clocks[firstClockOfs + 1].store(dur);
+
+		NNTL_ASSERT(toWork <= thisN);
+		if (toWork > thisN) {
+			STDCOUTL("Invalid _as_should_work!");
+		}
+		real_t*const pInt = thrBuf[tId];
+		::std::fill(pInt, pInt + toWork, tId + 1);
+
+		auto& cl3 = clocks[firstClockOfs + 2];
+		cl3.tic();
+		Buf._as_done<true>(pInt, toWork);
+		cl3.toc();
+		return true;
+	};
+	bgFillers.add_task(workerFunc);
+
+	::std::this_thread::sleep_for(readerSleep * 100);
+	//STDCOUTL("Going to get data...");
+
+	size_t ss(0), fails(0);
+
+	auto& cl1 = clocks[0];
+	auto& cl2 = clocks[1];
+	for (size_t i = 0; i < totalReads; ++i) {
+		::std::this_thread::sleep_for(readerSleep);
+
+		const auto n = _rng_less_than(bufSize / 4);
+		if (!n) continue;
+
+		const auto t1 = cl1.now();
+		const auto a = Buf.acquire_data(n);
+		const auto dur = cl1.now() - t1;
+
+		if (a.acquired()) {
+			cl1.store(dur);
+
+			::std::fill(const_cast<real_t*>(a.ptr1), const_cast<real_t*>(a.ptr1) + a.n1, real_t(0));
+			if (a.isTwoArrays()) {
+				::std::fill(const_cast<real_t*>(a.ptr2), const_cast<real_t*>(a.ptr2) + a.n2, real_t(0));
+			}
+			::std::atomic_thread_fence(::std::memory_order_release);
+
+			cl2.tic();
+			Buf.release_data(a);
+			cl2.toc();
+			++ss;
+		} else {
+			--i;
+			++fails;
+			STDCOUTL("Failed to acquire buffer of size " << n);
+		}
+	}
+	STDCOUTL("Succeeded " << ss << ", failed " << fails << ". Small amount of fails during startup is OK");
+	ASSERT_TRUE(double(fails) / ss < .1) << "Too many fails here, it's suspicious";
+
+	//MUST delete tasks now, or shuffled order of destructors may hurt.
+	bgFillers.delete_tasks();
+}
+
+void reportTime(::std::vector<utils::tictoc>& clocks, const size_t hwc) {
+	const unsigned mw = 20;
+	clocks[0].say("acquire_data", mw);
+	clocks[1].say("release_data", mw);
+	for (size_t i = 0; i < hwc; ++i) {
+		const auto fo = 2 + i * 3;
+		STDCOUTL("Thread #" << i);
+		clocks[fo].say("_as_should_work(no)", mw);
+		clocks[fo + 1].say("_as_should_work(yes)", mw);
+		clocks[fo + 2].say("_as_done(yes)", mw);
+	}
+
+	for (auto& e : clocks) e.reset();
+}
+
+TEST(TestAFRandASDataBuffer, MutexVsSpinLockPerf) {
+	const auto hwc = ::std::thread::hardware_concurrency() - 1;
+	::std::vector<utils::tictoc> clocks(2 + 3 * hwc);
+
+#ifdef NNTL_DEBUG
+	STDCOUTL("----------------- Mutex");
+	data_buffer_perf<true>(clocks, 100, 10, 100, ::std::chrono::milliseconds(1), ::std::chrono::milliseconds(3));
+	reportTime(clocks, hwc);
+	STDCOUTL("----------------- SpinLock");
+	data_buffer_perf<false>(clocks, 100, 10, 100, ::std::chrono::milliseconds(1), ::std::chrono::milliseconds(3));
+	reportTime(clocks, hwc);
+
+#else
+	STDCOUTL("Small data sizes (1000-100)");
+	STDCOUTL("----------------- Mutex");
+	data_buffer_perf<true>(clocks, 1000, 100, 100, ::std::chrono::milliseconds(1), ::std::chrono::milliseconds(3));
+	reportTime(clocks, hwc);
+	STDCOUTL("----------------- SpinLock");
+	data_buffer_perf<false>(clocks, 1000, 100, 100, ::std::chrono::milliseconds(1), ::std::chrono::milliseconds(3));
+	reportTime(clocks, hwc);
+
+	STDCOUTL("Medium data sizes (20000-1000)");
+	STDCOUTL("----------------- Mutex");
+	data_buffer_perf<true>(clocks, 20000, 1000, 100, ::std::chrono::milliseconds(1), ::std::chrono::milliseconds(3));
+	reportTime(clocks, hwc);
+	STDCOUTL("----------------- SpinLock");
+	data_buffer_perf<false>(clocks, 20000, 1000, 100, ::std::chrono::milliseconds(1), ::std::chrono::milliseconds(3));
+	reportTime(clocks, hwc);
+
+	STDCOUTL("Big data sizes (200000-4000)");
+	STDCOUTL("----------------- Mutex");
+	data_buffer_perf<true>(clocks, 200000, 4000, 100, ::std::chrono::milliseconds(1), ::std::chrono::milliseconds(3));
+	reportTime(clocks, hwc);
+	STDCOUTL("----------------- SpinLock");
+	data_buffer_perf<false>(clocks, 200000, 4000, 100, ::std::chrono::milliseconds(1), ::std::chrono::milliseconds(3));
+	reportTime(clocks, hwc);
+#endif
+}

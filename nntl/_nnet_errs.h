@@ -51,6 +51,7 @@ namespace nntl {
 			CantAllocateMemoryForWeights,
 			//CantAllocateMemoryForTmpBiasStorage,
 			CantInitializeIMath,
+			CantInitializeIRng,
 			CantInitializeObserver,
 			CantInitializeGradWorks,
 			CantInitializeWeights,
@@ -76,6 +77,7 @@ namespace nntl {
 			case CantAllocateMemoryForWeights: return NNTL_STRING("Cant allocate memory for weight matrix");
 			//case CantAllocateMemoryForTmpBiasStorage: return NNTL_STRING("Cant allocate memory for tmp bias storage");
 			case CantInitializeIMath: return NNTL_STRING("Cant initialize iMath interface");
+			case CantInitializeIRng: return NNTL_STRING("Cant initialize iRng interface");
 			case CantInitializeObserver: return NNTL_STRING("Cant initialize observer");
 			case CantInitializeGradWorks: return NNTL_STRING("Cant initialize grad_works object");
 			case CantInitializeWeights: return NNTL_STRING("Weights initialization failed");

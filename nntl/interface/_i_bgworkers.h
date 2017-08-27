@@ -44,21 +44,27 @@ namespace threads {
 
 	//interface to a asynchronous thread workers pool
 	struct _i_bgworkers {
+	private:
+		typedef _i_bgworkers self_t;
 
-		// useNThreads (if greater than 1 and less or equal to workers_count() specifies the number of threads to serve request.
-		// if pThreadsUsed is specified, it'll contain total number of threads (including the main thread),
-		// that is used to serve the request. It'll be less or equal to workers_count()
-// 		template<typename Func>
-// 		nntl_interface void run(Func&& F, const range_t cnt, const thread_id_t useNThreads = 0, thread_id_t* pThreadsUsed = nullptr) noexcept;
-// 
-// 		// useNThreads (if greater than 1 and less or equal to workers_count() specifies the number of threads to serve request.
-// 		template<typename Func, typename FinalReduceFunc>
-// 		nntl_interface real_t reduce(Func&& FRed, FinalReduceFunc&& FRF, const range_t cnt, const thread_id_t useNThreads = 0) noexcept;
+	public:
+		nntl_interface thread_id_t workers_count()noexcept;
+		nntl_interface auto get_worker_threads(thread_id_t& threadsCnt)noexcept;
 
-		
+		nntl_interface self_t& expect_tasks_count(const unsigned expectedTasksCnt)noexcept;
 
-		//schedules to run specified task
-		//nntl_interface bool run_task(auto* pTask)noexcept;
+		template<class Rep, class Period>
+		nntl_interface self_t& set_task_wait_timeout(const ::std::chrono::duration<Rep, Period>& to)noexcept;
+
+		//in general, func must have a duration greater than duration of the task
+		template<typename FTask>
+		nntl_interface self_t& add_task(FTask&& func, int priority = 0) noexcept;
+
+		nntl_interface self_t& delete_tasks()noexcept;
+
+		//never call recursively or from non-main thread
+		template<typename FExec>
+		nntl_interface self_t& exec(FExec&& func) noexcept;
 	};
 
 

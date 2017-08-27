@@ -79,6 +79,86 @@ namespace threads {
 	template<typename MutexT>
 	struct has_lock_shared<MutexT, ::std::void_t<decltype(::std::declval<MutexT>().lock_shared())>> : ::std::true_type {};
 
+	//////////////////////////////////////////////////////////////////////////
+	//////////////////////////////////////////////////////////////////////////
+
+	struct spin_lock : public ::std::atomic_flag {
+	protected:
+		::std::atomic_flag m_lock{ ATOMIC_FLAG_INIT };
+
+	public:
+		spin_lock()noexcept {
+			//m_lock = ATOMIC_FLAG_INIT;
+		}
+		spin_lock(const spin_lock&) = delete;
+		spin_lock& operator=(const spin_lock&) = delete;
+
+		//#consider not sure we need atomic_thread_fence() there
+
+		void lock()noexcept {
+			while (m_lock.test_and_set(::std::memory_order_acquire)) {}
+			::std::atomic_thread_fence(::std::memory_order_acquire);
+		}
+		void lock_yield()noexcept {
+			while (m_lock.test_and_set(::std::memory_order_acquire)) {
+				::std::this_thread::yield();
+			}
+			::std::atomic_thread_fence(::std::memory_order_acquire);
+		}
+		void unlock()noexcept {
+			::std::atomic_thread_fence(::std::memory_order_release);
+			m_lock.clear(::std::memory_order_release);
+		}
+	};
+
+	/*inline void spin_lock::lock()noexcept {
+		while (test_and_set(::std::memory_order_acquire)) {}
+	}
+	inline void spin_lock::lock_yield()noexcept {
+		while (test_and_set(::std::memory_order_acquire)) {
+			::std::this_thread::yield();
+		}
+	}
+	inline void spin_lock::unlock()noexcept {
+		clear(::std::memory_order_release);
+	}*/
+	
+	//taken from ::std::lock_guard
+	class lock_guard_yield {	// specialization for a single mutex
+	public:
+		typedef spin_lock mutex_type;
+
+		explicit lock_guard_yield(spin_lock& _Mtx)
+			: _MyMutex(_Mtx)
+		{	// construct and lock
+			_MyMutex.lock_yield();
+		}
+
+		lock_guard_yield(spin_lock& _Mtx, ::std::adopt_lock_t)
+			: _MyMutex(_Mtx)
+		{	// construct but don't lock
+		}
+
+		~lock_guard_yield() noexcept
+		{	// unlock
+			_MyMutex.unlock();
+		}
+
+		lock_guard_yield(const lock_guard_yield&) = delete;
+		lock_guard_yield& operator=(const lock_guard_yield&) = delete;
+	protected:
+		spin_lock& _MyMutex;
+	};
+
+	template<class _Mutex>
+	using yieldable_lock = ::std::conditional_t <
+		::std::is_same<_Mutex, spin_lock>::value
+		, lock_guard_yield
+		, ::std::lock_guard<_Mutex>
+	>;
+
+	//////////////////////////////////////////////////////////////////////////
+
 	namespace _impl {
 
 #if NNTL_HAS_NATIVE_SRWLOCKS_AND_CODITIONALS
@@ -138,9 +218,11 @@ namespace threads {
 		protected:
 			template< class Rep, class Period >
 			DWORD _to_ms(const ::std::chrono::duration<Rep, Period>& t)noexcept {
+				NNTL_ASSERT(t >= ::std::chrono::milliseconds(1));
 				return static_cast<DWORD>((::std::chrono::duration_cast<::std::chrono::milliseconds>(t)).count());
 			}
 			DWORD _to_ms(const ::std::chrono::milliseconds& t)noexcept {
+				NNTL_ASSERT(t >= ::std::chrono::milliseconds(1));
 				return static_cast<DWORD>(t.count());
 			}
 

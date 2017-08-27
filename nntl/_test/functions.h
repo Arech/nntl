@@ -48,7 +48,7 @@ namespace nntl {
 		iM.preinit(A.numel());
 		ASSERT_TRUE(iM.init());
 		d_interfaces::iRng_t rg;
-		rg.set_ithreads(iM.ithreads());
+		rg.init_ithreads(iM.ithreads());
 
 		for (unsigned r = 0; r < testCorrRepCnt; ++r) {
 			if (bActNorm) {
@@ -88,7 +88,7 @@ namespace nntl {
 		iM.preinit(X.numel());
 		ASSERT_TRUE(iM.init());
 		d_interfaces::iRng_t rg;
-		rg.set_ithreads(iM.ithreads());
+		rg.init_ithreads(iM.ithreads());
 
 		for (unsigned r = 0; r < testCorrRepCnt; ++r) {
 			if (bXNorm) {
@@ -135,7 +135,7 @@ namespace nntl {
 		iM.preinit(X.numel());
 		ASSERT_TRUE(iM.init());
 		d_interfaces::iRng_t rg;
-		rg.set_ithreads(iM.ithreads());
+		rg.init_ithreads(iM.ithreads());
 
 		for (unsigned r = 0; r < testCorrRepCnt; ++r) {
 			if (bXNorm) {
@@ -183,7 +183,7 @@ namespace nntl {
 		iM.preinit(X.numel());
 		ASSERT_TRUE(iM.init());
 		d_interfaces::iRng_t rg;
-		rg.set_ithreads(iM.ithreads());
+		rg.init_ithreads(iM.ithreads());
 
 		for (unsigned r = 0; r < testCorrRepCnt; ++r) {
 			if (bXNorm) {
@@ -230,7 +230,7 @@ namespace nntl {
 		iM.preinit(X.numel());
 		ASSERT_TRUE(iM.init());
 		d_interfaces::iRng_t rg;
-		rg.set_ithreads(iM.ithreads());
+		rg.init_ithreads(iM.ithreads());
 
 		for (unsigned r = 0; r < testCorrRepCnt; ++r) {
 			rg.gen_matrix_no_bias(X, real_t(5.));
@@ -269,7 +269,7 @@ namespace nntl {
 		ASSERT_TRUE(!X.isAllocationFailed() && !XSrc.isAllocationFailed());
 
 		d_interfaces::iRng_t rg;
-		rg.set_ithreads(iM.ithreads());
+		rg.init_ithreads(iM.ithreads());
 		tictoc tSt, tMt, tB, tSt2, tMt2;
 		threads::prioritize_workers<threads::PriorityClass::PerfTesting, imath_basic_t::iThreads_t> pw(iM.ithreads());
 		for (unsigned r = 0; r < maxReps; ++r) {
@@ -322,7 +322,7 @@ namespace nntl {
 		ASSERT_TRUE(!A.isAllocationFailed() && !ASrc.isAllocationFailed() && !Y.isAllocationFailed());
 
 		d_interfaces::iRng_t rg;
-		rg.set_ithreads(iM.ithreads());
+		rg.init_ithreads(iM.ithreads());
 		tictoc tSt, tMt, tB, tSt2, tMt2;
 		threads::prioritize_workers<threads::PriorityClass::PerfTesting, decltype(iM)::iThreads_t> pw(iM.ithreads());
 		for (unsigned r = 0; r < maxReps; ++r) {

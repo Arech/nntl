@@ -171,22 +171,6 @@ namespace nntl {
 			_base_class_t::dropoutPercentActive(dpa);
 			if (bDropout()) {
 				calc_coeffs<ext_real_t>(dpa, m_mtxB.cols(), m_a, m_b, m_mbDropVal);
-
-				/*//calculating a and b vars
-				const ext_real_t dropProb = ext_real_t(1) - m_dropoutPercentActive;
-				static constexpr ext_real_t amfpm = Neg_AlphaExt_t_LambdaExt - FixedPointMeanExt;
-
-				const ext_real_t aExt = ::std::sqrt(FixedPointVarianceExt / (m_dropoutPercentActive*(dropProb*(amfpm*amfpm) + FixedPointVarianceExt)));
-				NNTL_ASSERT(aExt && !isnan(aExt) && isfinite(aExt));
-				m_a = static_cast<real_t>(aExt*_Variance_coeff(m_mtxB.cols()));
-				NNTL_ASSERT(isfinite(m_a));
-
-				const ext_real_t bExt = FixedPointMeanExt - aExt*(m_dropoutPercentActive*FixedPointMeanExt + dropProb*Neg_AlphaExt_t_LambdaExt);
-				NNTL_ASSERT(bExt && !isnan(bExt) && isfinite(bExt));
-				m_b = static_cast<real_t>(bExt);
-				NNTL_ASSERT(isfinite(m_b));
-
-				m_mbDropVal = static_cast<real_t>(_DroppedVal_coeff(m_mtxB.cols()) * aExt * Neg_AlphaExt_t_LambdaExt + bExt);*/
 			}
 		}
 	};

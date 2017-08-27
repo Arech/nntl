@@ -272,7 +272,7 @@ namespace _impl {
 			NNTL_ASSERT(!bOwnInspect);
 			m_pInspect = pI;
 		}
-		void _make_Inspector(::std::nullptr_t pI)noexcept {
+		void _make_Inspector(::std::nullptr_t)noexcept {
 			NNTL_ASSERT(bOwnInspect);
 			m_pInspect = new(::std::nothrow) iInspect_t;
 		}
@@ -281,7 +281,7 @@ namespace _impl {
 			NNTL_ASSERT(pM);
 			m_pMath = pM;
 		}
-		void _make_Math(::std::nullptr_t pM)noexcept {
+		void _make_Math(::std::nullptr_t)noexcept {
 			NNTL_ASSERT(bOwnMath);
 			m_pMath = new(::std::nothrow) iMath_t;
 		}
@@ -290,7 +290,7 @@ namespace _impl {
 			NNTL_ASSERT(pR);
 			m_pRng = pR;
 		}
-		void _make_Rng(::std::nullptr_t pR)noexcept {
+		void _make_Rng(::std::nullptr_t)noexcept {
 			NNTL_ASSERT(bOwnRng);
 			m_pRng = new(::std::nothrow) iRng_t;
 		}

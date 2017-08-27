@@ -40,6 +40,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 namespace nntl {
 
+#pragma warning(disable : 4100)
 	class _PA_base_dummy {
 	protected:
 		template<typename CommonDataT>
@@ -65,6 +66,7 @@ namespace nntl {
 		static constexpr void _pab_update_dLdA(const math::smatrix<typename CommonDataT::real_t>& dLdA
 			, const math::smatrix_deform<typename CommonDataT::real_t>& ThisActivations, CommonDataT& CD)noexcept{}
 	};
+#pragma warning(default : 4100)
 
 	//must be default-constructible
 	template<typename AddendumsTupleT>

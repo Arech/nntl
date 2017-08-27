@@ -1011,13 +1011,22 @@ namespace math {
 			NNTL_ASSERT(!M.empty() && A.size_no_bias() == M.size());
 			NNTL_ASSERT(c);
 			NNTL_ASSERT(!pER || pER->elmEnd <= A.numel_no_bias());
-			get_self()._ievSubMMulC_ip_nb_st(A.data(), M.data(), c, pER ? *pER : elms_range(M));
+			get_self()._ievSubMtxMulC_ip_nb_st(A.data(), M.data(), c, pER ? *pER : elms_range(M));
 		}
 
-		static void _ievSubMMulC_ip_nb_st(real_t*const pA, const real_t*const pM, const real_t c, const elms_range& er)noexcept {
+		static void _ievSubMtxMulC_ip_nb_st(real_t*const /*__restrict*/ pA, const real_t*const /*__restrict*/ pM, const real_t c, const elms_range& er)noexcept {
 			NNTL_ASSERT(pA && pM && c && er.totalElements() > 0);
-			for (numel_cnt_t i = er.elmBegin; i < er.elmEnd; ++i) {
-				pA[i] = (pA[i] - pM[i])*c;
+			/*const auto elmend = er.elmEnd;
+			for (numel_cnt_t i = er.elmBegin; i < elmend; ++i) {
+				const auto v = pA[i];
+				pA[i] = (v - pM[i])*c;//c1200 not vectorized
+			}*/
+			real_t* /*__restrict*/ pA1 = pA + er.elmBegin;
+			real_t*const /*__restrict*/ pAE = pA + er.elmEnd;
+			const real_t* /*__restrict*/ pM1 = pM + er.elmBegin;
+			while (pA1 != pAE) {
+				const auto v = *pA1;
+				*pA1++ = (v - *pM1++)*c; //vectorized! and it has nothing to do with __restrict
 			}
 		}
 
@@ -1026,7 +1035,7 @@ namespace math {
 			NNTL_ASSERT(!M.empty() && A.size_no_bias() == M.size());
 			NNTL_ASSERT(c);
 			m_threads.run([pA = A.data(), pM = M.data(), c, this](const par_range_t& pr) {
-				get_self()._ievSubMMulC_ip_nb_st(pA, pM, c, elms_range(pr));
+				get_self()._ievSubMtxMulC_ip_nb_st(pA, pM, c, elms_range(pr));
 			}, M.numel());
 		}
 

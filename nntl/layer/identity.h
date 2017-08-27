@@ -102,7 +102,7 @@ namespace nntl {
 			m_activations.clear();
 			_base_class::deinit();
 		}
-		void initMem(real_t* ptr, numel_cnt_t cnt)noexcept {}
+		void initMem(real_t* , numel_cnt_t )noexcept {}
 
 		// pNewActivationStorage MUST be specified (we're expecting to be encapsulated into layer_pack_horizontal)
 		void on_batch_size_change(real_t*const pNewActivationStorage)noexcept {
@@ -161,6 +161,7 @@ namespace nntl {
 		::std::enable_if_t<_impl::is_layer_wrapper<LowerLayerWrapper>::value, const unsigned>
 			bprop(realmtx_t& dLdA, const LowerLayerWrapper& lowerLayer, realmtx_t& dLdAPrev)noexcept
 		{
+			NNTL_UNREF(dLdAPrev); NNTL_UNREF(lowerLayer);
 			NNTL_ASSERT(m_bActivationsValid);
 			NNTL_ASSERT(m_activations.rows() == get_self().get_common_data().get_cur_batch_size());
 			m_bActivationsValid = false;
@@ -209,7 +210,7 @@ namespace nntl {
 		//////////////////////////////////////////////////////////////////////////
 		//Serialization support
 		friend class ::boost::serialization::access;
-		template<class Archive> void serialize(Archive & ar, const unsigned int version) {
+		template<class Archive> void serialize(Archive & ar, const unsigned int ) {
 			if (utils::binary_option<true>(ar, serialization::serialize_activations)) ar & NNTL_SERIALIZATION_NVP(m_activations);
 		}
 
@@ -276,7 +277,7 @@ namespace nntl {
 		//////////////////////////////////////////////////////////////////////////
 		//Serialization support
 		friend class ::boost::serialization::access;
-		template<class Archive> void serialize(Archive & ar, const unsigned int version) {
+		template<class Archive> void serialize(Archive & ar, const unsigned int) {
 			//#todo must correctly call base class serialize()
 			//NNTL_ASSERT(!"must correctly call base class serialize()");
 			ar & ::boost::serialization::base_object<_base_class>(*this);

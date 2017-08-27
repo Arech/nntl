@@ -204,7 +204,7 @@ namespace _impl {
 		static constexpr size_t evSub = 28000;
 		static constexpr size_t evMulC_ip_Sub_ip = 30000;
 
-		static constexpr size_t evSubMtxMulC_ip_nb = 14000;//*
+		static constexpr size_t evSubMtxMulC_ip_nb = 15000;//*
 
 		static constexpr size_t evSquare = 49000;
 		//static constexpr size_t vSumSquares = 40000; //not tested

@@ -467,7 +467,7 @@ void test_adam_perf(const size_t epochs, vec_len_t rowsCnt, vec_len_t colsCnt = 
 	constexpr unsigned maxReps = TEST_PERF_REPEATS_COUNT;
 
 	d_interfaces::iRng_t rg;
-	rg.set_ithreads(iM.ithreads());
+	rg.init_ithreads(iM.ithreads());
 	
 	realmtx_t dW_st(rowsCnt, colsCnt), Mt_st(rowsCnt, colsCnt), Vt_st(rowsCnt, colsCnt);
 	ASSERT_TRUE(!dW_st.isAllocationFailed() && !Mt_st.isAllocationFailed() && !Vt_st.isAllocationFailed());
@@ -541,7 +541,7 @@ void test_adamax_perf(const size_t epochs, vec_len_t rowsCnt, vec_len_t colsCnt 
 	constexpr unsigned maxReps = TEST_PERF_REPEATS_COUNT;
 
 	d_interfaces::iRng_t rg;
-	rg.set_ithreads(iM.ithreads());
+	rg.init_ithreads(iM.ithreads());
 
 	realmtx_t dW_st(rowsCnt, colsCnt), Mt_st(rowsCnt, colsCnt), Vt_st(rowsCnt, colsCnt);
 	ASSERT_TRUE(!dW_st.isAllocationFailed() && !Mt_st.isAllocationFailed() && !Vt_st.isAllocationFailed());
@@ -613,7 +613,7 @@ void test_Nadam_perf(const size_t epochs, vec_len_t rowsCnt, vec_len_t colsCnt =
 	constexpr unsigned maxReps = TEST_PERF_REPEATS_COUNT;
 
 	d_interfaces::iRng_t rg;
-	rg.set_ithreads(iM.ithreads());
+	rg.init_ithreads(iM.ithreads());
 
 	realmtx_t dW_st(rowsCnt, colsCnt), Mt_st(rowsCnt, colsCnt), Vt_st(rowsCnt, colsCnt);
 	ASSERT_TRUE(!dW_st.isAllocationFailed() && !Mt_st.isAllocationFailed() && !Vt_st.isAllocationFailed());
@@ -686,7 +686,7 @@ void test_Radam_perf(const size_t epochs, vec_len_t rowsCnt, vec_len_t colsCnt =
 	constexpr unsigned maxReps = TEST_PERF_REPEATS_COUNT;
 
 	d_interfaces::iRng_t rg;
-	rg.set_ithreads(iM.ithreads());
+	rg.init_ithreads(iM.ithreads());
 
 	realmtx_t dW_st(rowsCnt, colsCnt), Mt_st(rowsCnt, colsCnt), Vt_st(rowsCnt, colsCnt);
 	ASSERT_TRUE(!dW_st.isAllocationFailed() && !Mt_st.isAllocationFailed() && !Vt_st.isAllocationFailed());
@@ -765,7 +765,7 @@ void test_ewBinarize_ip_perf(vec_len_t rowsCnt, vec_len_t colsCnt = 10, const re
 	ASSERT_TRUE(!A.isAllocationFailed());
 
 	d_interfaces::iRng_t rg;
-	rg.set_ithreads(iM.ithreads());
+	rg.init_ithreads(iM.ithreads());
 	tictoc tSt, tMt, tB/*, dt, t1, t2, dt1, dt2*/;
 	real_t vv = real_t(0);
 	threads::prioritize_workers<threads::PriorityClass::PerfTesting, imath_basic_t::iThreads_t> pw(iM.ithreads());
@@ -850,7 +850,7 @@ void test_ewBinarize_perf(vec_len_t rowsCnt, vec_len_t colsCnt = 10, const real_
 	ASSERT_TRUE(!A.isAllocationFailed() && !Dest.isAllocationFailed());
 
 	d_interfaces::iRng_t rg;
-	rg.set_ithreads(iM.ithreads());
+	rg.init_ithreads(iM.ithreads());
 	tictoc tSt, tMt, tB;
 	size_t vv = 0;
 	threads::prioritize_workers<threads::PriorityClass::PerfTesting, imath_basic_t::iThreads_t> pw(iM.ithreads());
@@ -909,7 +909,7 @@ void test_softmax_parts_perf(vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 	iM.preinit(dataSize);
 	ASSERT_TRUE(iM.init());
 	d_interfaces::iRng_t rg;
-	rg.set_ithreads(iM.ithreads());
+	rg.init_ithreads(iM.ithreads());
 
 	tictoc tStRw, tStCw, tSt, tMtCw, tMtRw, tMt, tB;
 	//////////////////////////////////////////////////////////////////////////
@@ -1017,7 +1017,7 @@ void test_softmax_perf(vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 	iM.preinit(iM.softmax_needTempMem(A));
 	ASSERT_TRUE(iM.init());
 	d_interfaces::iRng_t rg;
-	rg.set_ithreads(iM.ithreads());
+	rg.init_ithreads(iM.ithreads());
 
 	tictoc tSt, tMt, tB;
 	threads::prioritize_workers<threads::PriorityClass::PerfTesting, iThreads_t> pw(iM.ithreads());
@@ -1069,7 +1069,7 @@ void test_loss_softmax_xentropy_perf(vec_len_t rowsCnt, vec_len_t colsCnt = 10) 
 	realmtx_t A(rowsCnt, colsCnt), Y(rowsCnt, colsCnt);
 	ASSERT_TRUE(!A.isAllocationFailed() && !Y.isAllocationFailed());
 	d_interfaces::iRng_t rg;
-	rg.set_ithreads(iM.ithreads());
+	rg.init_ithreads(iM.ithreads());
 
 	real_t lst(0), lmt, lb;
 	tictoc tSt, tMt, tB;
@@ -1125,7 +1125,7 @@ void test_loss_xentropy_perf(vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 	ASSERT_TRUE(iM.init());
 
 	d_interfaces::iRng_t rg;
-	rg.set_ithreads(iM.ithreads());
+	rg.init_ithreads(iM.ithreads());
 
 	tictoc tSt, tMt, tB;
 	threads::prioritize_workers<threads::PriorityClass::PerfTesting, iThreads_t> pw(iM.ithreads());
@@ -1165,7 +1165,7 @@ void test_loss_xentropy_perf_ns(vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 	ASSERT_TRUE(iM.init());
 
 	d_interfaces::iRng_t rg;
-	rg.set_ithreads(iM.ithreads());
+	rg.init_ithreads(iM.ithreads());
 
 	tictoc tSt, tMt, tB;
 	threads::prioritize_workers<threads::PriorityClass::PerfTesting, iThreads_t> pw(iM.ithreads());
@@ -1213,7 +1213,7 @@ void test_ApplyILR_perf(vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 	ASSERT_TRUE(iM.init());
 
 	d_interfaces::iRng_t rg;
-	rg.set_ithreads(iM.ithreads());
+	rg.init_ithreads(iM.ithreads());
 	rg.gen_matrix(prevdW, 10);
 
 	
@@ -1295,7 +1295,7 @@ void test_mColumnsCov_perf(vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 	ASSERT_TRUE(!A.isAllocationFailed() && !C.isAllocationFailed());
 
 	d_interfaces::iRng_t rg;
-	rg.set_ithreads(iM.ithreads());
+	rg.init_ithreads(iM.ithreads());
 
 	tictoc tUpr, tLwr;
 	threads::prioritize_workers<threads::PriorityClass::PerfTesting, iThreads_t> pw(iM.ithreads());
@@ -1342,7 +1342,7 @@ void test_make_alphaDropout_perf(vec_len_t rowsCnt, vec_len_t colsCnt = 10, cons
 	ASSERT_TRUE(!A.isAllocationFailed() && !DM.isAllocationFailed() && !mB.isAllocationFailed());
 
 	d_interfaces::iRng_t rg;
-	rg.set_ithreads(iM.ithreads());
+	rg.init_ithreads(iM.ithreads());
 
 	const auto pA = A.data(), pDM = DM.data(), pB = mB.data();
 
@@ -1410,7 +1410,7 @@ void test_evSubMtxMulC_ip_nb_perf(vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 	ASSERT_TRUE(!A.isAllocationFailed() && !mB.isAllocationFailed());
 
 	d_interfaces::iRng_t rg;
-	rg.set_ithreads(iM.ithreads());
+	rg.init_ithreads(iM.ithreads());
 
 	const auto pA = A.data();
 
@@ -1472,7 +1472,7 @@ void test_evAddScaled_ip_perf(vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 	ASSERT_TRUE(!A.isAllocationFailed() && !B.isAllocationFailed());
 
 	d_interfaces::iRng_t rg;
-	rg.set_ithreads(iM.ithreads());
+	rg.init_ithreads(iM.ithreads());
 
 	const auto pA = A.data();
 
@@ -1524,7 +1524,7 @@ void test_evNZAddScaled_ip_perf(vec_len_t rowsCnt, vec_len_t colsCnt = 10, const
 	ASSERT_TRUE(!A.isAllocationFailed() && !B.isAllocationFailed() && !M.isAllocationFailed());
 
 	d_interfaces::iRng_t rg;
-	rg.set_ithreads(iM.ithreads());
+	rg.init_ithreads(iM.ithreads());
 
 	const auto pA = A.data();
 
@@ -1588,7 +1588,7 @@ void test_evMul_ip_perf(vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 	ASSERT_TRUE(!A.isAllocationFailed() && !B.isAllocationFailed());
 
 	d_interfaces::iRng_t rg;
-	rg.set_ithreads(iM.ithreads());
+	rg.init_ithreads(iM.ithreads());
 
 	real_t t = real_t(0);
 	tictoc tSt, tMt, tB;
@@ -1646,7 +1646,7 @@ void test_mExtractRows_perf(vec_len_t rowsCnt, vec_len_t colsCnt, vec_len_t extr
 	constexpr unsigned maxReps = TEST_PERF_REPEATS_COUNT;
 
 	d_interfaces::iRng_t rg;
-	rg.set_ithreads(iM.ithreads());
+	rg.init_ithreads(iM.ithreads());
 
 	tictoc tS, tM, tB;
 	//testing performance

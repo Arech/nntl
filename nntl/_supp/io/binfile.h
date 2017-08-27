@@ -74,9 +74,9 @@ namespace nntl_supp {
 		static_assert(8 + 1 + FIELD_ENTRY::sFieldNameTotalLength == sizeof(FIELD_ENTRY), "WTF?");
 #pragma pack(pop)
 
-		template <typename DestDT> static inline bool correct_data_type(BYTE dt)noexcept { return false; }
-		template <> static inline bool correct_data_type<double>(BYTE dt)noexcept { return dt_double == dt; }
-		template <> static inline bool correct_data_type<float>(BYTE dt)noexcept { return dt_float == dt; }
+		template <typename DestDT> inline bool correct_data_type(BYTE dt)noexcept { return false; }
+		template <> inline bool correct_data_type<double>(BYTE dt)noexcept { return dt_double == dt; }
+		template <> inline bool correct_data_type<float>(BYTE dt)noexcept { return dt_float == dt; }
 	}
 
 	struct _binfile_errs {
@@ -224,8 +224,9 @@ namespace nntl_supp {
 		template<typename T_>
 		const ErrorCode _read_field_entry(FILE* fp, smatrix<T_>& m, _root_members& fieldId, const bool bReadTD=true)noexcept{
 			if (!m.empty()) return _set_last_error(ErrorCode::FieldHasBeenRead);
-
+#pragma warning(disable : 4815)
 			bin_file::FIELD_ENTRY fe;
+#pragma warning(default : 4815)
 
 #pragma warning(disable:28020)
 			//MSVC SAL goes "slightly" mad here

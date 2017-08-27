@@ -31,21 +31,15 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 #pragma once
 
-// #include "interface/threads/winqdu.h"
-//  #ifndef NNTL_THREADS_WINQDU_AVAILABLE
-// #include "interface/threads/std.h"
-// #endif
 #include "interface/threads/workers.h"
 #include "interface/math/mathn_mt.h"
 #include "interface/rng/afrand_mt.h"
-
 #include "interface/inspectors/dummy.h"
 
 namespace nntl {
 
 	template<typename RealT>
 	struct d_int_nI {
-		//typedef math::d_real_t real_t;
 		typedef RealT real_t;
 
 // #ifdef NNTL_THREADS_WINQDU_AVAILABLE

@@ -48,7 +48,9 @@ namespace nntl {
 			//typedef BT call_through_t;
 
 			template<typename F>
-			static auto wrap(F&& f)noexcept {
+			static auto wrap(F&& f)noexcept
+				-> decltype(::std::forward<F>(f))//without this specification "auto" will remove lreference from forwarded type
+			{
 				return ::std::forward<F>(f);
 			}
 		};

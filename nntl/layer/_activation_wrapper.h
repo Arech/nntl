@@ -151,6 +151,7 @@ namespace nntl {
 				const auto _biggest_batch_size = CD.biggest_batch_size();
 				NNTL_ASSERT(batchSize > 0 && batchSize <= _biggest_batch_size);
 
+#pragma warning(disable : 4127)
 				if (!bOutputLayer && pNewActivationStorage) {
 					NNTL_ASSERT(m_activations.bDontManageStorage());
 					//m_neurons_cnt + 1 for biases
@@ -165,6 +166,7 @@ namespace nntl {
 					if (!bOutputLayer && batchSize != _biggest_batch_size) m_activations.set_biases();
 					NNTL_ASSERT(bOutputLayer || m_activations.test_biases_ok());
 				}
+#pragma warning(default : 4127)
 			}
 
 		protected:

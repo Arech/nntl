@@ -58,6 +58,30 @@ namespace threads {
 			}
 		};
 
+		template<typename MtxT>
+		struct disperse_locker : public ::std::unique_lock<MtxT> {
+		private:
+			typedef ::std::unique_lock<MtxT> _base_class_t;
+		public:
+			::std::atomic<bool>& bDisperser;
+
+			disperse_locker(MtxT& m, ::std::atomic<bool>& d) : _base_class_t(m, ::std::defer_lock), bDisperser(d) {
+				lock();
+			}
+			~disperse_locker()noexcept {
+				unlock();
+			}
+
+			void lock()noexcept {
+				bDisperser = true;
+				_base_class_t::lock();
+			}
+			void unlock()noexcept {
+				bDisperser = false;
+				_base_class_t::unlock();
+			}
+
+		};
 	}
 
 	template <typename SyncT = threads::sync_primitives
@@ -79,11 +103,13 @@ namespace threads {
 
 	protected:
 		typedef typename CallH_t::template call_tpl<bool(const thread_id_t tId)> func_task_t;
-		//typedef typename CallH_t::template call_tpl<real_t(const par_range_t& r)> func_reduce_t;
+		typedef typename CallH_t::template call_tpl<void(const thread_id_t tId)> func_exec_t;
 
 		typedef typename Sync_t::shared_mutex_t shared_mutex_t;
 		//typedef typename Sync_t::cond_var_t cond_var_t;
 		typedef typename Sync_t::cond_var_any_t cond_var_any_t;
+
+		typedef _impl::disperse_locker<shared_mutex_t> disperse_locker_t;
 
 		typedef _impl::TaskDescr<func_task_t> TaskDescr_t;
 		
@@ -102,23 +128,28 @@ namespace threads {
 		cond_var_any_t m_orderDone;
 
 		::std::atomic<bool> m_bStop;
-		::std::atomic<bool> m_bTaskListIsAboutToChange;
+		::std::atomic<bool> m_bGo2Waiting;
 
-		::std::chrono::milliseconds m_taskWaitTO{ 250 };
+		::std::chrono::milliseconds m_taskWaitTO{ 10 };
 
 		TaskSet_t m_tasks;
 
-		::std::atomic_ptrdiff_t m_workingCnt;
 		threads_cont_t m_threads;
+		::std::atomic_ptrdiff_t m_workingCnt;
+
+		::std::vector<char> m_threadHasSmth2Exec;
+		func_exec_t m_execFn;
+
 
 	private:
-		void _ctor(const thread_id_t nThreads, const threads::PriorityClass pc)noexcept {
+		void _ctor(const thread_id_t nThreads, const PriorityClass pc)noexcept {
 			NNTL_ASSERT(nThreads);
 			m_workingCnt = nThreads;
-			m_bTaskListIsAboutToChange = false;
+			m_bGo2Waiting = false;
 			m_bStop = false;
 			//m_taskWaitTO = 250;
 
+			m_threadHasSmth2Exec.resize(nThreads, char(false));
 			m_threads.reserve(nThreads);
 			m_mutexTasks.lock();
 			for (thread_id_t i = 0; i < nThreads; ++i) {
@@ -131,27 +162,30 @@ namespace threads {
 				m_orderDone.wait(lk, [&wc = m_workingCnt]() throw() {return wc <= 0; });
 			}
 
-			const auto b = threads::Funcs::ChangeThreadsPriorities(*this, pc);
-			NNTL_ASSERT(b);
+			if (PriorityClass::threads_priority_no_change != pc) {
+				const auto b = Funcs::ChangeThreadsPriorities(*this, pc);
+				NNTL_ASSERT(b);
+			}
 		}
 
 	public:
 		~BgWorkers()noexcept {
 			m_bStop = true;
+			m_bGo2Waiting = true;
 
-			m_mutexTasks.lock();
+			//m_mutexTasks.lock();
 			m_waitingOrders.notify_all();
-			m_mutexTasks.unlock();
+		//	m_mutexTasks.unlock();
 
 			for (auto& t : m_threads)  t.join();
 		}
 
 		BgWorkers(const thread_id_t nThreads
-			, const threads::PriorityClass pc = threads::PriorityClass::threads_priority_below_current2)noexcept 
+			, const PriorityClass pc = PriorityClass::threads_priority_below_current)noexcept 
 		{
 			_ctor(nThreads, pc);
 		}
-		BgWorkers(const threads::PriorityClass pc = threads::PriorityClass::threads_priority_below_current2)noexcept
+		BgWorkers(const PriorityClass pc = PriorityClass::threads_priority_below_current)noexcept
 		{
 			_ctor(::std::thread::hardware_concurrency() - 1, pc);
 		}
@@ -167,6 +201,7 @@ namespace threads {
 		self_t& expect_tasks_count(const unsigned expectedTasksCnt)noexcept {
 			NNTL_ASSERT(expectedTasksCnt);
 			if (expectedTasksCnt) {
+				disperse_locker_t d(m_mutexTasks, m_bGo2Waiting);
 				m_tasks.reserve(expectedTasksCnt);
 			}
 			return *this;
@@ -174,32 +209,67 @@ namespace threads {
 
 		template<class Rep, class Period>
 		self_t& set_task_wait_timeout(const ::std::chrono::duration<Rep, Period>& to)noexcept {
+			NNTL_ASSERT(to >= ::std::chrono::milliseconds(1));
+			disperse_locker_t d(m_mutexTasks, m_bGo2Waiting);
 			m_taskWaitTO = ::std::chrono::duration_cast<decltype(m_taskWaitTO)>(to);
-			::std::atomic_thread_fence(::std::memory_order_release);
+			if (!m_taskWaitTO.count()) m_taskWaitTO = ::std::chrono::milliseconds(1);
 			return *this;
 		}
 
+		size_t tasks_count()const noexcept {
+			return m_tasks.size(); //should be safe to call from the main thread without mutex
+		}
+
+		template<typename T> void S() {
+			static_assert(false, "you've requested type of T, see below");
+		};
+
+		//in general, func must have a duration greater than duration of the task
 		template<typename FTask>
 		self_t& add_task(FTask&& func, int priority = 0) noexcept {
-			m_bTaskListIsAboutToChange = true;
+			typedef decltype(CallH_t::wrap<FTask>(::std::forward<FTask>(func))) stored_f_t;
+			
+			//S<decltype(CallH_t::wrap<FTask>(func))>();
+			//S<decltype(CallH_t::wrap<FTask>(::std::forward<FTask>(func)))>();
 
-			::std::unique_lock<decltype(m_mutexTasks)> lk(m_mutexTasks);
+			static_assert(
+				::std::is_lvalue_reference<stored_f_t>::value
+				|| (::std::is_class<stored_f_t>::value
+				&& utils::is_specialization_of<stored_f_t, ::std::reference_wrapper>::value)
+				, "func representation can be rvalue only if it is a ::std::reference_wrapper"
+				);
+
+			disperse_locker_t d(m_mutexTasks, m_bGo2Waiting);
 			m_tasks.emplace_back(CallH_t::wrap<FTask>(::std::forward<FTask>(func)), priority);
 			::std::sort(m_tasks.begin(), m_tasks.end(), _impl::TaskDescrComp_t());
-
-			m_bTaskListIsAboutToChange = false;
 			return *this;
 		}
 
 		self_t& delete_tasks()noexcept {
-			m_bTaskListIsAboutToChange = true;
-
-			::std::unique_lock<decltype(m_mutexTasks)> lk(m_mutexTasks);
+			disperse_locker_t d(m_mutexTasks, m_bGo2Waiting);
 			m_tasks.clear();
-			m_bTaskListIsAboutToChange = false;
 			return *this;
 		}
 		
+		//never call recursively or from non-main thread
+		template<typename FExec>
+		self_t& exec(FExec&& func) noexcept {
+			m_bGo2Waiting = true;
+			m_mutexTasks.lock();
+
+			m_execFn = CallH_t::wrap<FExec>(::std::forward<FExec>(func));
+			for (auto& e : m_threadHasSmth2Exec) e = char(true);
+			m_workingCnt = m_threadHasSmth2Exec.size();
+
+			m_bGo2Waiting = false;
+			m_mutexTasks.unlock();
+
+			Sync_t::lock_wait_unlock(m_mutexTasks, m_orderDone, [&wc = m_workingCnt]() {return wc <= 0; });
+
+			m_execFn.reset();//shouldn't harm when done here while outside of mutex
+			return *this;
+		}
+
 	protected:
 
 		static void _s_worker(BgWorkers* p, const thread_id_t tId)noexcept {
@@ -210,33 +280,45 @@ namespace threads {
 		}
 
 		void _worker(const thread_id_t id)noexcept {
-			m_mutexTasks.lock();
+			m_mutexTasks.lock_shared();
 			m_workingCnt--;
 			m_orderDone.notify_one();
-			m_mutexTasks.unlock();
+			m_mutexTasks.unlock_shared();
 
-			//auto& thrdRange = m_ranges[id];
+			auto& bHas2Exec = m_threadHasSmth2Exec[id];
 			while (true) {
-				::std::atomic_thread_fence(::std::memory_order_acquire);
+				::std::atomic_thread_fence(::std::memory_order_acquire);//for m_taskWaitTO usage before mutex acquisition.
 				const auto sleepUntil = ::std::chrono::steady_clock::now() + m_taskWaitTO;
 				Sync_t::lockShared_waitFor_unlock(m_mutexTasks, m_waitingOrders, m_taskWaitTO
-					, [&bStop = m_bStop, &bTaskListIsAboutToChange = m_bTaskListIsAboutToChange
-					, &tasks = m_tasks, &utime = sleepUntil]()noexcept
+					, [&bStop = m_bStop, &bGo2Waiting = m_bGo2Waiting
+					, &tasks = m_tasks, &utime = sleepUntil, &h2e = bHas2Exec]()noexcept
 				{
-					return bStop || (::std::chrono::steady_clock::now() > utime && !bTaskListIsAboutToChange && tasks.size() > 0);
+					return bStop || (::std::chrono::steady_clock::now() > utime && !bGo2Waiting && tasks.size() > 0) || h2e;
 				});
 				if (m_bStop) break;
 
-				m_mutexTasks.lock_shared();
-				
-				auto itCur = m_tasks.cbegin();
-				const auto itLast = m_tasks.cend();
-				while (!m_bTaskListIsAboutToChange && itCur != itLast) {
-					const auto& fn = (*itCur++).task;
-					while (!m_bTaskListIsAboutToChange && fn(id)) {}
-				}
+				if (bHas2Exec) {
+					m_execFn(id);
 
-				m_mutexTasks.unlock_shared();
+					m_mutexTasks.lock_shared();
+					
+					bHas2Exec = char(false);
+					m_workingCnt--;
+					m_orderDone.notify_one();
+
+					m_mutexTasks.unlock_shared();
+				} else {
+					m_mutexTasks.lock_shared();
+
+					auto itCur = m_tasks.cbegin();
+					const auto itLast = m_tasks.cend();
+					while (!m_bGo2Waiting && itCur != itLast) {
+						const auto& fn = (*itCur++).task;
+						while (!m_bGo2Waiting && fn(id)) {}
+					}
+
+					m_mutexTasks.unlock_shared();
+				}
 			}
 		}
 	};

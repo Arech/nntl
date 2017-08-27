@@ -504,6 +504,7 @@ namespace nntl_supp {
 			NNTL_ASSERT((m_matFile && m_curVarName) || !"Open file with openForSave() and use nvp/named_struct to pass data for saving!");
 			//just a placeholder to make compiler happy. Don't need flags at the moment...
 			//#todo: implement
+			NNTL_UNREF(t);
 			m_curVarName = nullptr;
 			global_denormalized_floats_mode();
 			return get_self();

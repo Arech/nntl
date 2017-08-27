@@ -135,9 +135,6 @@
     <ClInclude Include="..\nntl\interface\math\bindings\b_open_blas.h">
       <Filter>nntl\interface\math\bindings</Filter>
     </ClInclude>
-    <ClInclude Include="..\nntl\interface\threads\intel_tbb.h">
-      <Filter>nntl\interface\threads</Filter>
-    </ClInclude>
     <ClInclude Include="..\nntl\interface\math\bindings\b_yeppp.h">
       <Filter>nntl\interface\math\bindings</Filter>
     </ClInclude>
@@ -467,6 +464,12 @@
     </ClInclude>
     <ClInclude Include="..\nntl\interface\threads\prioritize_workers.h">
       <Filter>nntl\interface\threads</Filter>
+    </ClInclude>
+    <ClInclude Include="..\nntl\interface\rng\afrand_as.h">
+      <Filter>nntl\interface\rng</Filter>
+    </ClInclude>
+    <ClInclude Include="..\nntl\utils\data_buffer.h">
+      <Filter>nntl\utils</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

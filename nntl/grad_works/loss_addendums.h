@@ -227,12 +227,14 @@ namespace GW { //GW namespace is for grad_works mixins and other stuff, that hel
 		bool _la_init(const mtx_size_t biggestMtx)noexcept {
 			bool b = true;
 			tuple_utils::for_each_up(m_addendumsTuple, [&b, biggestMtx, &CD = get_self().get_common_data()](auto& la) {
+				NNTL_UNREF(la);
 				b = b & la.init(biggestMtx, CD);
 			});
 			return b;
 		}
 		void _la_deinit()noexcept {
 			tuple_utils::for_each_up(m_addendumsTuple, [](auto& la) {
+				NNTL_UNREF(la);
 				la.deinit();
 			});
 		}

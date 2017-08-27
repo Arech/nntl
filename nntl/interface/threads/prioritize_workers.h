@@ -49,6 +49,7 @@ namespace threads {
 		, global_last
 
 		, threads_priority_first
+		, threads_priority_no_change
 		, threads_priority_below_current
 		, threads_priority_below_current2
 		, threads_priority_last
@@ -61,6 +62,7 @@ namespace threads {
 		public:
 			~prioritize_workers_dummy()noexcept {}
 			prioritize_workers_dummy(iThreadsT& iT, const bool bAllThreads = true)noexcept {
+				NNTL_UNREF(iT); NNTL_UNREF(bAllThreads);
 				//STDCOUTL("*** prioritize_workers not implemented for this OS, using dummy class");
 			}
 		};
@@ -82,7 +84,7 @@ namespace threads {
 				const auto origThreadPriority = ::GetThreadPriority(::GetCurrentThread());
 				const int newPriority = origThreadPriority -
 					(pc == PriorityClass::threads_priority_below_current ? 1 :
-					(pc == PriorityClass::threads_priority_below_current2 ? 2 : 3));
+					(pc == PriorityClass::threads_priority_below_current2 ? 2 : 0));
 
 				thread_id_t cnt, i = 0;
 				ThreadObjT::ThreadObjIterator_t head = iT.get_worker_threads(cnt);
@@ -165,7 +167,7 @@ namespace threads {
 				m_bRestore = false;
 				const int newPriority = m_origThreadPriority - 
 					(m == PriorityClass::threads_priority_below_current ? 1 :
-					(m == PriorityClass::threads_priority_below_current2 ? 2 : 3));
+					(m == PriorityClass::threads_priority_below_current2 ? 2 : 0));
 
 				iThreads_t::thread_id_t cnt, i = 0;
 				iThreads_t::ThreadObjIterator_t head = m_iT.get_worker_threads(cnt);
@@ -254,7 +256,7 @@ namespace threads {
 		static bool ChangeThreadsPriorities(ThreadObjT& iT, const PriorityClass pc)noexcept {
 			return false;
 		}
-	}
+	};
 
 #pragma message( __FILE__ "[" STRING(__LINE__) "]: *** prioritize_workers was not implemented for current OS, using dummy class")
 

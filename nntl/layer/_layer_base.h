@@ -482,6 +482,7 @@ namespace nntl {
 		//////////////////////////////////////////////////////////////////////////
 		//nntl_interface overridings
 		ErrorCode init(_layer_init_data_t& lid, real_t* pNewActivationStorage = nullptr)noexcept {
+			NNTL_UNREF(pNewActivationStorage);
 			_base_class_t::init();
 			m_bActivationsValid = false;
 			m_bIsSharedActivations = lid.bActivationsShareSpace;

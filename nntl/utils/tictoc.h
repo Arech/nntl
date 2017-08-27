@@ -41,9 +41,11 @@ namespace utils {
 	class tictoc {
 	public:
 		typedef ::std::chrono::nanoseconds duration_t;
+		typedef ::std::chrono::high_resolution_clock clock_t;
+		static_assert(clock_t::is_steady, "Only a steady clock should be used. Change clock_t definition above to steady_clock");
 
 	public:
-		::std::chrono::steady_clock::time_point m_tStart;
+		clock_t::time_point m_tStart;
 		duration_t m_dFirstRun, m_dBestRun, m_dAllRun;
 		uint64_t m_repeats;
 
@@ -58,12 +60,19 @@ namespace utils {
 			m_dAllRun = duration_t(0);
 		}
 
+		static clock_t::time_point now()noexcept {
+			return clock_t::now();
+		}
+
 		void tic()noexcept {
-			m_tStart = ::std::chrono::steady_clock::now();
+			m_tStart = now();
 		}
 
 		void toc()noexcept {
-			const auto dur = ::std::chrono::steady_clock::now() - m_tStart;
+			store(now() - m_tStart);
+		}
+
+		void store(const duration_t& dur)noexcept {
 			if (0 == m_repeats) m_dFirstRun = dur;
 			m_dBestRun = ::std::min(dur, m_dBestRun);
 			m_dAllRun += dur;

@@ -44,6 +44,7 @@ namespace nntl {
 		};
 	}
 
+#pragma warning(disable : 4100)
 	//this class defines a dropout class interface as well as dummy class that removes dropout
 	template<typename RealT>
 	class NoDropout : public _impl::_No_Dropout_at_All<RealT> {
@@ -84,6 +85,7 @@ namespace nntl {
 			}
 		}
 	};
+#pragma warning(default : 4100)
 
 	//////////////////////////////////////////////////////////////////////////
 	//////////////////////////////////////////////////////////////////////////
@@ -117,7 +119,7 @@ namespace nntl {
 		hlpr_layer_set_dropoutPercentActive(const RealT dpa)noexcept : m_dpa(dpa) {}
 
 		template<typename LayerT>
-		::std::enable_if_t <!layer_has_dropout<LayerT>::value> operator()(LayerT& lyr)const noexcept {}
+		::std::enable_if_t <!layer_has_dropout<LayerT>::value> operator()(LayerT&)const noexcept {}
 
 		template<typename LayerT>
 		::std::enable_if_t<layer_has_dropout<LayerT>::value> operator()(LayerT& lyr)const noexcept {

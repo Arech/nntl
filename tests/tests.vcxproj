@@ -212,6 +212,7 @@
     <ClInclude Include="..\nntl\interface\mt_dispatcher\mt_dispatcher.h" />
     <ClInclude Include="..\nntl\interface\mt_dispatcher\profiler.h" />
     <ClInclude Include="..\nntl\interface\rng\afrand.h" />
+    <ClInclude Include="..\nntl\interface\rng\afrand_as.h" />
     <ClInclude Include="..\nntl\interface\rng\afrand_mt.h" />
     <ClInclude Include="..\nntl\interface\rng\afrand_mt_thr.h" />
     <ClInclude Include="..\nntl\interface\rng\distr_normal_naive.h" />
@@ -245,7 +246,6 @@
     <ClInclude Include="..\nntl\interface\math\smatrix.h" />
     <ClInclude Include="..\nntl\interface\rng\cstd.h" />
     <ClInclude Include="..\nntl\interface\_i_threads.h" />
-    <ClInclude Include="..\nntl\interface\threads\intel_tbb.h" />
     <ClInclude Include="..\nntl\interface\threads\parallel_range.h" />
     <ClInclude Include="..\nntl\layer\fully_connected.h" />
     <ClInclude Include="..\nntl\layer\input.h" />
@@ -261,6 +261,7 @@
     <ClInclude Include="..\nntl\utils\call_wrappers.h" />
     <ClInclude Include="..\nntl\utils\confusion_mtx.h" />
     <ClInclude Include="..\nntl\utils\dataHolder.h" />
+    <ClInclude Include="..\nntl\utils\data_buffer.h" />
     <ClInclude Include="..\nntl\utils\denormal_floats.h" />
     <ClInclude Include="..\nntl\utils\forwarder.h" />
     <ClInclude Include="..\nntl\utils\gradcheck.h" />

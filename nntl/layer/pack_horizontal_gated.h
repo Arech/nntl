@@ -492,7 +492,7 @@ namespace nntl {
 	private:
 		//support for ::boost::serialization
 		friend class ::boost::serialization::access;
-		template<class Archive> void serialize(Archive & ar, const unsigned int version) {
+		template<class Archive> void serialize(Archive & ar, const unsigned int ) {
 			if (utils::binary_option<true>(ar, serialization::serialize_gating_mask)) ar & NNTL_SERIALIZATION_NVP(m_gatingMask);
 			if (utils::binary_option<true>(ar, serialization::serialize_training_parameters)) {
 				size_t li = get_self().gating_layer().get_layer_idx();

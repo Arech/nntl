@@ -37,7 +37,7 @@ namespace nntl {
 namespace rng {
 
 	template<typename RealT>
-	struct _i_rng {
+	struct _i_rng : public math::smatrix_td {
 		typedef RealT real_t;
 		typedef math::smatrix<real_t> realmtx_t;
 
@@ -48,16 +48,29 @@ namespace rng {
 		nntl_interface void seed64(uint64_t s) noexcept;
 
 		//////////////////////////////////////////////////////////////////////////
+		//Initialization functions
+		// 
+		//preinit_additive_*() set of functions is used to inform RNG about total expected amount of random numbers that is
+		// about to be requested during one training epoch. Arguments of multiple calls are summed.
+		// 
+		// normal distribution
+		void preinit_additive_normal_distr(const numel_cnt_t ne)noexcept { NNTL_UNREF(ne); }
+		//for calls to gen_vector_norm(), gen_vector() and related
+		void preinit_additive_norm(const numel_cnt_t ne)noexcept { NNTL_UNREF(ne); }
+
+		//not using init(), there're too many different init() routines now, hard to seek them in code
+		bool init_rng()noexcept { return true; }
+		void deinit_rng()noexcept {}
+
+		//////////////////////////////////////////////////////////////////////////
 		// Multithreading support. iRng instance should not create own threading pool, it should be given a threads pool object
 		// during initialization
 		// 
 		// change to appropriate value in derived class
 		static constexpr bool is_multithreaded = false;
 
-		template<typename itt>
-		bool set_ithreads(itt& t)noexcept { return false; }
-		template<typename itt>
-		bool set_ithreads(itt& t, seed_t s)noexcept { return false; }
+		template<typename iThreadsT>
+		bool init_ithreads(iThreadsT& t, const seed_t s = static_cast<seed_t>(s64to32(::std::time(0))))noexcept { return false; }
 
 		//////////////////////////////////////////////////////////////////////////
 		// iRng object should provide the following types of random numbers:
@@ -129,6 +142,10 @@ namespace rng {
 		//generate matrix with values in range [0,a]
 		nntl_interface void gen_matrix_gtz(realmtx_t& mtx, const real_t a)noexcept;
 		nntl_interface void gen_matrix_no_bias_gtz(realmtx_t& mtx, const real_t a)noexcept;
+
+		static constexpr uint32_t s64to32(const uint64_t v)noexcept {
+			return static_cast<uint32_t>(v & UINT32_MAX) ^ static_cast<uint32_t>((v >> 32)&UINT32_MAX);
+		}
 	};
 
 	template<typename RealT, typename int4ShuffleT, typename int4DistribsT, typename FinalPolymorphChild>
@@ -143,6 +160,10 @@ namespace rng {
 		typedef int4DistribsT int_4_distribution_t;
 		typedef math::s_elems_range elms_range;
 		
+		~rng_helper()noexcept {
+			get_self().deinit_rng();
+		}
+
 		//////////////////////////////////////////////////////////////////////////
 		void seed64(uint64_t s) noexcept {
 			get_self().seed(static_cast<seed_t>(s64to32(s)));
@@ -226,11 +247,18 @@ namespace rng {
 			get_self().gen_vector_gtz(mtx.data(), mtx.numel_no_bias(), a);
 			NNTL_ASSERT(mtx.test_biases_ok());
 		}
-
-		static uint32_t s64to32(uint64_t v)noexcept {
-			return static_cast<uint32_t>(v & UINT32_MAX) ^ static_cast<uint32_t>((v >> 32)&UINT32_MAX);
-		}
 	};
+
+
+	///////////////////////////////////////////////////////////////////////////
+	//////////////////////////////////////////////////////////////////////////
+
+	// helper to recognize if the Rng class provides asynchronous generation
+	template< class, class = ::std::void_t<> >
+	struct is_asynch : ::std::false_type { };
+	// specialization recognizes types that do have a nested ::asynch_rng_t member:
+	template< class RngT >
+	struct is_asynch<RngT, ::std::void_t<typename RngT::asynch_rng_t>> : ::std::true_type {};
 
 }
 }

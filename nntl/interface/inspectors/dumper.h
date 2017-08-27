@@ -48,6 +48,7 @@ namespace nntl {
 				epochs_to_dump_t m_epochsToDump;
 
 				void on_init_nnet(const size_t totalEpochs, const vec_len_t totalBatches)noexcept {
+					NNTL_UNREF(totalBatches);
 					const auto lastEpochIdx = totalEpochs - 1;
 					if (!m_epochsToDump.size()) m_epochsToDump.push_back(lastEpochIdx);
 
@@ -62,10 +63,12 @@ namespace nntl {
 				const bool on_train_epochBegin(const size_t epochIdx)const noexcept {
 					return m_dumpEpochCond(epochIdx);
 				}
+#pragma warning(disable : 4100)
 				static constexpr bool on_train_batchBegin(const bool _bDoDump, const vec_len_t batchIdx, const size_t epochIdx) noexcept {
 					return _bDoDump && 0 == batchIdx;
 				}
-				static constexpr bool on_train_calcErr(const size_t epochIdx, const bool bOnTrainSet) noexcept { return false; };
+				static constexpr bool on_train_calcErr(const size_t epochIdx, const bool bOnTrainSet) noexcept {return false;};
+#pragma warning(default : 4100)
 			};
 
 			//This function will dump first batch of specified epochs AND the training error calculation
@@ -87,10 +90,12 @@ namespace nntl {
 
 			//This function will dump only the training error calculation for a specified epoch
 			struct CalcErrOnlyByEpochNum : public CalcErrByEpochNum {
+#pragma warning(disable : 4100)
 				static constexpr bool on_train_epochBegin(const size_t epochIdx) noexcept { return false; }
 				static constexpr bool on_train_batchBegin(const bool _bDoDump, const vec_len_t batchIdx, const size_t epochIdx) noexcept {
 					return false;
 				}
+#pragma warning(default : 4100)
 			};
 
 			/*struct FullEpochNum : public EpochNum {
@@ -115,15 +120,15 @@ namespace nntl {
 					if (!stride) stride = 1;
 				}
 
+#pragma warning(disable : 4100)
 				static constexpr bool on_train_epochBegin(const size_t epochIdx)noexcept { return true; }
 				const bool on_train_batchBegin(const bool _bDoDump, const vec_len_t batchIdx, const size_t epochIdx) noexcept {
 					return batchesRun < maxBatches && !(batchesRun++ % stride);
 				}
 				static constexpr bool on_train_calcErr(const size_t epochIdx, const bool bOnTrainSet) noexcept { return false; };
+#pragma warning(default : 4100)
 			};
 		}
-
-		
 
 
 		template<typename FinalChildT, typename RealT, typename ArchiveT, typename CondDumpT, size_t maxNnetDepth = 32>

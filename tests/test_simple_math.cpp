@@ -68,7 +68,7 @@ void test_mcwMulDiag_ip_corr(vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 	ASSERT_TRUE(!A.isAllocationFailed() && !A2.isAllocationFailed() && !B.isAllocationFailed() && !B2.isAllocationFailed() && !A_ET.isAllocationFailed());
 
 	d_interfaces::iRng_t rg;
-	rg.set_ithreads(iM.ithreads());
+	rg.init_ithreads(iM.ithreads());
 	for (unsigned rr = 0; rr < testCorrRepCnt; ++rr) {
 		rg.gen_matrix(A, 10); rg.gen_matrix(B, real_t(5));
 		A.clone_to(A_ET); B.clone_to(B2);
@@ -120,7 +120,7 @@ void test_mcwSub_ip_corr(vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 	::std::vector<real_t> vVec(colsCnt), vVec2(colsCnt);
 
 	d_interfaces::iRng_t rg;
-	rg.set_ithreads(iM.ithreads());
+	rg.init_ithreads(iM.ithreads());
 	for (unsigned rr = 0; rr < testCorrRepCnt; ++rr) {
 		rg.gen_matrix(A, 10); rg.gen_vector(&vVec[0], colsCnt, real_t(5));
 		A.clone_to(A2); A.clone_to(A3);
@@ -177,7 +177,7 @@ void test_mcwMean_corr(vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 	::std::vector<real_t> vMeanET(colsCnt), vMean(colsCnt);
 
 	d_interfaces::iRng_t rg;
-	rg.set_ithreads(iM.ithreads());
+	rg.init_ithreads(iM.ithreads());
 	for (unsigned rr = 0; rr < testCorrRepCnt; ++rr) {
 		rg.gen_matrix(A, 10);
 		A.clone_to(A2);
@@ -233,7 +233,7 @@ void test_ewSumSquaresTriang_corr(vec_len_t rowsCnt) {
 	ASSERT_TRUE(!A.isAllocationFailed());
 
 	d_interfaces::iRng_t rg;
-	rg.set_ithreads(iM.ithreads());
+	rg.init_ithreads(iM.ithreads());
 
 	for (unsigned r = 0; r < testCorrRepCnt; ++r) {
 		rg.gen_matrix_norm(A);
@@ -272,7 +272,7 @@ void test_ewSumSquares_corr(vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 	ASSERT_TRUE(!A.isAllocationFailed());
 
 	d_interfaces::iRng_t rg;
-	rg.set_ithreads(iM.ithreads());
+	rg.init_ithreads(iM.ithreads());
 	for (unsigned r = 0; r < testCorrRepCnt; ++r) {
 		rg.gen_matrix(A, 1);
 
@@ -490,7 +490,7 @@ void test_mCloneCol_corr(vec_len_t srcRowsCnt, vec_len_t maxCloneCnt = 1, vec_le
 	ASSERT_TRUE(!src.isAllocationFailed());
 
 	d_interfaces::iRng_t rg;
-	rg.set_ithreads(iM.ithreads());
+	rg.init_ithreads(iM.ithreads());
 	const vec_len_t ccSpan = maxCloneCnt - minCloneCnt;
 
 	for (unsigned rr = 0; rr < testCorrRepCnt; ++rr) {
@@ -538,7 +538,7 @@ void test_mCloneCols_corr(vec_len_t srcRowsCnt, vec_len_t srcColsCnt, vec_len_t 
 	::std::vector<vec_len_t> colSpec(srcColsCnt);
 	
 	d_interfaces::iRng_t rg;
-	rg.set_ithreads(iM.ithreads());
+	rg.init_ithreads(iM.ithreads());
 	const vec_len_t ccSpan = maxCloneCnt - minCloneCnt;
 
 	for (unsigned rr = 0; rr < testCorrRepCnt; ++rr) {
@@ -600,7 +600,7 @@ void test_ewSumProd_corr(vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 	real_t s_et, s;
 
 	d_interfaces::iRng_t rg;
-	rg.set_ithreads(iM.ithreads());
+	rg.init_ithreads(iM.ithreads());
 	for (unsigned rr = 0; rr < testCorrRepCnt; ++rr) {
 		rg.gen_matrix(A, 10);
 		rg.gen_matrix(B, 10);
@@ -637,7 +637,7 @@ void test_mrwDivideByVec_corr(vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 	::std::vector<real_t> vDiv(rowsCnt);
 
 	d_interfaces::iRng_t rg;
-	rg.set_ithreads(iM.ithreads());
+	rg.init_ithreads(iM.ithreads());
 	for (unsigned rr = 0; rr < testCorrRepCnt; ++rr) {
 		rg.gen_matrix(A, 10);
 		A.clone_to(A3);
@@ -693,7 +693,7 @@ void test_mrwMulByVec_corr(vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 	::std::vector<real_t> vMul(rowsCnt);
 
 	d_interfaces::iRng_t rg;
-	rg.set_ithreads(iM.ithreads());
+	rg.init_ithreads(iM.ithreads());
 	for (unsigned rr = 0; rr < testCorrRepCnt; ++rr) {
 		rg.gen_matrix(A, 10);
 		A.clone_to(A3);
@@ -752,7 +752,7 @@ void test_mrwIdxsOfMaxCorrectness(vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 	iM.preinit(A.numel());
 	ASSERT_TRUE(iM.init());
 	d_interfaces::iRng_t rg;
-	rg.set_ithreads(iM.ithreads());
+	rg.init_ithreads(iM.ithreads());
 	vec_t vec_et(rowsCnt), vec_test(rowsCnt);
 
 	for (unsigned tr = 0; tr < testCorrRepCnt; ++tr) {
@@ -820,7 +820,7 @@ void test_mrwMax_corr(vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 	iM.preinit(A.numel());
 	ASSERT_TRUE(iM.init());
 	d_interfaces::iRng_t rg;
-	rg.set_ithreads(iM.ithreads());
+	rg.init_ithreads(iM.ithreads());
 	vec_t vec_et(rowsCnt), vec_test(rowsCnt);
 
 	for (unsigned tr = 0; tr < testCorrRepCnt; ++tr) {
@@ -885,7 +885,7 @@ void test_mrwSumIp_corr(vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 	iM.preinit(A.numel());
 	ASSERT_TRUE(iM.init());
 	d_interfaces::iRng_t rg;
-	rg.set_ithreads(iM.ithreads());
+	rg.init_ithreads(iM.ithreads());
 	for (unsigned rr = 0; rr < testCorrRepCnt; ++rr) {
 		rg.gen_matrix(A, 10);
 		A.clone_to(A3);
@@ -952,7 +952,7 @@ void test_mrwSum_corr(vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 	ASSERT_TRUE(iM.init());
 	::std::vector<real_t> vec_et(rowsCnt), vec_test(rowsCnt);
 	d_interfaces::iRng_t rg;
-	rg.set_ithreads(iM.ithreads());
+	rg.init_ithreads(iM.ithreads());
 	for (unsigned rr = 0; rr < testCorrRepCnt; ++rr) {
 		rg.gen_matrix(A, 10);
 		mrwSum_ET(A, &vec_et[0]);
@@ -1013,7 +1013,7 @@ void test_mrwOr_corr(vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 	ASSERT_TRUE(iM.init());
 	::std::vector<real_t> vec_et(rowsCnt), vec_test(rowsCnt);
 	d_interfaces::iRng_t rg;
-	rg.set_ithreads(iM.ithreads());
+	rg.init_ithreads(iM.ithreads());
 	const real_t binFrac = real_t(.5);
 	for (unsigned rr = 0; rr < testCorrRepCnt; ++rr) {
 		rg.gen_matrix_norm(A);

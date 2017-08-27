@@ -149,7 +149,7 @@ namespace nntl {
 
 	private:
 		template<bool c = bDropoutAvailable>
-		constexpr ::std::enable_if_t<!c, bool> _init_do(_layer_init_data_t& lid)const noexcept { return true; }
+		constexpr ::std::enable_if_t<!c, bool> _init_do(_layer_init_data_t& )const noexcept { return true; }
 
 		template<bool c = bDropoutAvailable>
 		::std::enable_if_t<c, bool> _init_do(_layer_init_data_t& lid) noexcept {
@@ -269,7 +269,7 @@ namespace nntl {
 		}
 
 		template<typename T = _base_class_t, bool ba = bActivationPenalizationAvailable>
-		::std::enable_if_t<!ba> _update_dLdA4PA(realmtx_t& dLdA) const noexcept {}
+		::std::enable_if_t<!ba> _update_dLdA4PA(realmtx_t&) const noexcept {}
 
 		template<bool c = bDropoutAvailable>
 		::std::enable_if_t<c> _update_dLdA4Dropout(realmtx_t& dLdA) noexcept {
@@ -284,7 +284,7 @@ namespace nntl {
 		}
 
 		template<bool c = bDropoutAvailable>
-		::std::enable_if_t<!c> _update_dLdA4Dropout(realmtx_t& dLdA)const noexcept{}
+		::std::enable_if_t<!c> _update_dLdA4Dropout(realmtx_t&)const noexcept{}
 
 	public:
 		template <typename LowerLayerT>

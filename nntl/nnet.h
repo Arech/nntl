@@ -51,6 +51,7 @@ namespace nntl {
 	struct NNetCB_OnEpochEnd_Dummy {
 		template<typename _nnet, typename _opts>
 		constexpr const bool operator()(_nnet& nn, _opts& opts, const size_t& epochIdx)const {
+			NNTL_UNREF(nn); NNTL_UNREF(opts); NNTL_UNREF(epochIdx);
 			//return false to stop learning
 			return true;
 		}
@@ -94,7 +95,7 @@ namespace nntl {
 	private:
 		friend class ::boost::serialization::access;
 		template<class Archive>
-		void serialize(Archive & ar, const unsigned int version) {
+		void serialize(Archive & ar, const unsigned int) {
 			ar & m_Layers;
 		}
 
@@ -108,7 +109,7 @@ namespace nntl {
 		{
 			m_bRequireReinit = false;
 			m_failedLayerIdx = 0;
-			if (iRng_t::is_multithreaded) get_iRng().set_ithreads(get_iMath().ithreads());
+			if (iRng_t::is_multithreaded) get_iRng().init_ithreads(get_iMath().ithreads());
 		}
 
 		::std::string get_last_error_string()const noexcept {
@@ -232,6 +233,7 @@ namespace nntl {
 			NNTL_ASSERT(batchSize == 0 || m_LMR.maxSingledLdANumel > 0);
 			
 			if (!get_iMath().init()) return ErrorCode::CantInitializeIMath;
+			if (!get_iRng().init_rng()) return ErrorCode::CantInitializeIRng;
 
 			const numel_cnt_t totalTempMemSize = _totalTrainingMemSize(bMiniBatch, batchSize);
 			//m_pTmpStor.reset(new(::std::nothrow)real_t[totalTempMemSize]);
@@ -305,8 +307,9 @@ namespace nntl {
 
 		void _deinit()noexcept {
 			m_Layers.deinit();
-			get_common_data().deinit();
+			get_iRng().deinit_rng();
 			get_iMath().deinit();
+			get_common_data().deinit();
 			m_bRequireReinit = false;
 			m_LMR.zeros();
 			m_batch_x.clear();
@@ -408,7 +411,7 @@ namespace nntl {
 
 			{
 				const auto lv = _calcLossNotifyInspector(&train_x, train_y, true);
-				_report_training_fragment<bPrioritizeThreads>(-1, lv, td, ::std::chrono::nanoseconds(0), opts.observer());
+				_report_training_fragment<bPrioritizeThreads>(static_cast<size_t>(-1), lv, td, ::std::chrono::nanoseconds(0), opts.observer());
 			}
 			set_mode_and_batch_size(0);//prepare for training (sets to batchSize, that's already stored in Layers)
 
@@ -431,7 +434,7 @@ namespace nntl {
 				for (size_t epochIdx = 0; epochIdx < maxEpoch; ++epochIdx) {
 					iI.train_epochBegin(epochIdx);
 
-					real_t trainLoss;
+					real_t trainLoss = ::std::numeric_limits<real_t>::max();
 					const bool bInspectEpoch = cee(epochIdx);
 					const bool bCheckForDivergence = epochIdx < divergenceCheckLastEpoch;
 					const bool bCalcLoss = bInspectEpoch || bCheckForDivergence;

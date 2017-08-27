@@ -77,8 +77,10 @@ struct <xsl:value-of select="/class/@name"/> : public _xml_generated_base_<xsl:v
 	</xsl:for-each>
 	{
 		//setting dropout where applicable
+#pragma warning(disable : 4127) //conditional expr is const
 		if (dropoutAlive &gt; real_t(0) &amp;&amp; dropoutAlive &lt; real_t(1))
 			lFinal.for_each_layer(::nntl::hlpr_layer_set_dropoutPercentActive&lt;real_t&gt;(dropoutAlive));
+#pragma warning(default : 4127)
 		<xsl:call-template name="initLossAddendums"/>
 	}
 };
