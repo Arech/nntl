@@ -117,7 +117,7 @@ namespace nntl {
 		private:
 			template<typename ExtT, ADCorr c = corrType>
 			static constexpr ::std::enable_if_t<!(c == ADCorr::correctDoAndVar || c == ADCorr::correctDoVal), ExtT>
-			_DroppedVal_coeff(const neurons_count_t nc)noexcept {
+			_DroppedVal_coeff(const neurons_count_t )noexcept {
 				return ExtT(1);
 			}
 
@@ -129,7 +129,7 @@ namespace nntl {
 
 			template<typename ExtT, ADCorr c = corrType>
 			static constexpr ::std::enable_if_t<!(c == ADCorr::correctDoAndVar || c == ADCorr::correctVar), ExtT>
-			_Variance_coeff(const neurons_count_t nc)noexcept {
+			_Variance_coeff(const neurons_count_t )noexcept {
 				return ExtT(1);
 			}
 

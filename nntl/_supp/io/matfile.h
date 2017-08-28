@@ -447,6 +447,10 @@ namespace nntl_supp {
 			global_denormalized_floats_mode();
 			return get_self();
 		}
+		template<class T>
+		self_ref_t operator >> (::boost::serialization::nvp< T > && t) {
+			return get_self().operator>> (t);
+		}
 
 		//denormals safe
 		template<class T>

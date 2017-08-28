@@ -176,7 +176,9 @@ namespace threads {
 			m_waitingOrders.notify_all();
 			m_mutex.unlock();
 
-			::std::forward<Func>(F)(par_range_t(prevOfs, cnt - prevOfs, 0));
+			//::std::forward<Func>(F)(par_range_t(prevOfs, cnt - prevOfs, 0));
+			//we mustn't forward F here, because we're using it in this function multiple times as normal lvalue
+			F(par_range_t(prevOfs, cnt - prevOfs, 0));
 
 			if (m_workingCnt > 0) {
 				Sync_t::lock_wait_unlock(m_mutex, m_orderDone, [&wc = m_workingCnt]() {return wc <= 0; });
@@ -213,12 +215,13 @@ namespace threads {
 			m_waitingOrders.notify_all();
 			m_mutex.unlock();
 
-			*rc = (::std::forward<Func>(FRed))(par_range_t(prevOfs, cnt - prevOfs, 0));
+			//*rc = (::std::forward<Func>(FRed))(par_range_t(prevOfs, cnt - prevOfs, 0));
+			*rc = FRed(par_range_t(prevOfs, cnt - prevOfs, 0));
 
 			if (m_workingCnt > 0) {
 				Sync_t::lock_wait_unlock(m_mutex, m_orderDone, [&wc = m_workingCnt]() {return wc <= 0; });
 			}
-			return (::std::forward<FinalReduceFunc>(FRF))(rc, workersOnReduce);
+			return (::std::forward<FinalReduceFunc>(FRF))(rc, workersOnReduce);//OK to forward as we don't care if rvalue-qualified operator spoils it
 		}
 
 	protected:

@@ -138,7 +138,10 @@ void dsoftsigm_ET(const realmtx_t& x, realmtx_t& df, const real_t& a);
 
 template<typename iMathT>
 void mColumnsCov_ET(const nntl::math::smatrix<typename iMathT::real_t>& A, nntl::math::smatrix<typename iMathT::real_t>& C, iMathT& iM){
+	NNTL_UNREF(iM);
+#pragma warning(disable:4459)
 	typedef typename iMathT::real_t real_t;
+#pragma warning(default:4459)
 	iM.mScaledMulAtB_C(real_t(1.) / real_t(A.rows()), A, A, C);
 }
 

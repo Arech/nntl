@@ -69,6 +69,7 @@ void _maskStat(const realmtx_t& m);
 
 template<typename iRngT, typename iMathT>
 void makeDataXForGatedSetup(const realmtx_t& data_x, const realmtx_t& data_y, iRngT& iR, iMathT& iM, const bool bBinarize, realmtx_t& new_x) {
+	NNTL_UNREF(data_y);
 	SCOPED_TRACE("makeDataXForGatedSetup");
 
 	realmtx_t realMask(data_x.rows(), 1, false);
@@ -92,6 +93,7 @@ template<typename iRngT, typename iMathT>
 void makeDataXForGatedSetup(const realmtx_t& data_x, const realmtx_t& data_y, iRngT& iR, iMathT& iM,
 	const bool bBinarize, const vec_len_t gatesCnt, realmtx_t& new_x)
 {
+	NNTL_UNREF(data_y);
 	SCOPED_TRACE("makeDataXForGatedSetup");
 	const auto xWidth = data_x.cols_no_bias();
 
@@ -126,5 +128,5 @@ struct modify_layer_set_RMSProp_and_NM {
 	}
 
 	template<typename _L>
-	::std::enable_if_t<!nntl::layer_has_gradworks<_L>::value> operator()(_L& l)noexcept {}
+	::std::enable_if_t<!nntl::layer_has_gradworks<_L>::value> operator()(_L&)noexcept {}
 };

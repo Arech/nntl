@@ -194,11 +194,12 @@ namespace nntl {
 						W.set(r, pIdxs[cIdx], *pS++);
 					}
 				}
-
+#pragma warning(disable:4127)
 				if (biases != real_t(0.0)) {
 					auto pBiases = W.colDataAsVec(prevLayerNeuronsCnt);
 					::std::fill(pBiases, pBiases + thisLayerNeuronsCnt, biases);
 				}
+#pragma warning(default:4127)
 				return true;
 			}
 		};

@@ -143,7 +143,7 @@ namespace nntl_tests {
 					//.set_ILR(Prms.ilrProps)
 					;
 			}
-			template<typename _L> ::std::enable_if_t<!nntl::layer_has_gradworks<_L>::value> operator()(_L& l)const noexcept {}
+			template<typename _L> ::std::enable_if_t<!nntl::layer_has_gradworks<_L>::value> operator()(_L& )const noexcept {}
 		};
 
 		//////////////////////////////////////////////////////////////////////////

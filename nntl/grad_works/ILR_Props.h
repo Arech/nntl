@@ -84,6 +84,7 @@ namespace GW { //GW namespace is for grad_works mixins and other stuff, that hel
 		friend class ::boost::serialization::access;
 		template<class Archive>
 		void serialize(Archive & ar, const unsigned int version) {
+			NNTL_UNREF(version);
 			ar & NNTL_SERIALIZATION_NVP(mulDecr);
 			ar & NNTL_SERIALIZATION_NVP(mulIncr);
 			ar & NNTL_SERIALIZATION_NVP(capLow);

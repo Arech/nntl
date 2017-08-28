@@ -64,7 +64,7 @@ template<bool bRegularize, typename LayerT>
 	STDCOUTL("Regularizer " << reg.getName() << " is used for " << lyr.get_layer_name_str() << ". Scale coefficient = " << reg.scale());
 }
 template<bool bRegularize, typename LayerT>
-::std::enable_if_t<!bRegularize> _testActivationsL2L1_setupAddendum(const real_t& coeff, LayerT& lyr)noexcept {
+::std::enable_if_t<!bRegularize> _testActivationsL2L1_setupAddendum(const real_t& , LayerT& lyr)noexcept {
 	STDCOUTL("No regularizer is used for " << lyr.get_layer_name_str());
 }
 
@@ -86,7 +86,10 @@ struct testActivationsL2L1_td {
 };
 
 template<typename LossAddT>
-void testActivationsL2L1(train_data<real_t>& td, const real_t coeff, uint64_t rngSeed, testActL1L2_res<real_t>& res, const size_t maxEpochs = 3, const real_t LR = .02, const char* pDumpFileName = nullptr) noexcept {
+void testActivationsL2L1(train_data<real_t>& td, const real_t coeff, uint64_t rngSeed, testActL1L2_res<real_t>& res
+	, const size_t maxEpochs = 3, const real_t LR = .02, const char* pDumpFileName = nullptr) noexcept
+{
+	NNTL_UNREF(pDumpFileName);
 	typedef testActivationsL2L1_td<LossAddT> my_td;
 
 	layer_input<> inp(td.train_x().cols_no_bias());
@@ -197,9 +200,11 @@ public:
 };
 
 TEST(TestLPA, deCovGradCheck) {
+#pragma warning(disable:4459)
 	typedef double real_t;
 	//typedef nntl_tests::NN_base_params<real_t, nntl::inspector::GradCheck<real_t>> ArchPrms_t;
 	typedef GC_LPA_deCov_ArchPrms<real_t> ArchPrms_t;
+#pragma warning(default:4459)
 
 	nntl::train_data<real_t> td;
 	readTd(td);

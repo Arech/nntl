@@ -140,11 +140,11 @@ TEST(TestMatfile, ManualStructsWriting) {
 	struct Struct1T {
 		double VarD;
 		//we can't use templates here, therefore had to make 2 function definitions.
-		void serialize(omatfileEx<> & ar, const unsigned int version) {
+		void serialize(omatfileEx<> & ar, const unsigned int ) {
 			ar & NNTL_SERIALIZATION_NVP(VarD);
 			ASSERT_EQ(ar.ErrorCode::Success, ar.get_last_error()) << ar.get_last_error_str();
 		}
-		void serialize(imatfile<> & ar, const unsigned int version) {
+		void serialize(imatfile<> & ar, const unsigned int ) {
 			ar & NNTL_SERIALIZATION_NVP(VarD);
 			ASSERT_EQ(ar.ErrorCode::Success, ar.get_last_error()) << ar.get_last_error_str();
 		}
@@ -154,7 +154,7 @@ TEST(TestMatfile, ManualStructsWriting) {
 
 	struct Struct2T {
 		float VarF;
-		void serialize(imatfile<> & ar, const unsigned int version) {
+		void serialize(imatfile<> & ar, const unsigned int ) {
 			ar & NNTL_SERIALIZATION_NVP(VarF);
 			ASSERT_EQ(ar.ErrorCode::Success, ar.get_last_error()) << ar.get_last_error_str();
 		}
@@ -164,7 +164,7 @@ TEST(TestMatfile, ManualStructsWriting) {
 
 	struct StructOverwriteT {
 		float VarF;
-		void serialize(imatfile<> & ar, const unsigned int version) { 
+		void serialize(imatfile<> & ar, const unsigned int ) { 
 			ar & NNTL_SERIALIZATION_NVP(VarF);
 			ASSERT_EQ(ar.ErrorCode::Success, ar.get_last_error()) << ar.get_last_error_str();
 #if TESTS_MATFILE_ALLOW_NNTL_ASSERTION_FAILURE
@@ -183,7 +183,7 @@ TEST(TestMatfile, ManualStructsWriting) {
 	struct StructUpdateT {
 		double VarD;
 		float VarF;
-		void serialize(imatfile<> & ar, const unsigned int version) {
+		void serialize(imatfile<> & ar, const unsigned int ) {
 			ar & NNTL_SERIALIZATION_NVP(VarF);
 			ASSERT_EQ(ar.ErrorCode::Success, ar.get_last_error()) << ar.get_last_error_str();
 			ar & NNTL_SERIALIZATION_NVP(VarD);

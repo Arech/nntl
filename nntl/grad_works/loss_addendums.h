@@ -43,6 +43,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 namespace nntl {
 namespace GW { //GW namespace is for grad_works mixins and other stuff, that helps to implement gradient processing voodooo things
 	
+#pragma warning(disable:4100)
 	template<typename _FC, typename RealT, size_t MixinIdx>
 	class Loss_Addendums_dummy : private math::smatrix_td {
 	private:
@@ -68,6 +69,7 @@ namespace GW { //GW namespace is for grad_works mixins and other stuff, that hel
 		static constexpr bool _la_init(const mtx_size_t biggestMtx)noexcept { return true; }
 		static constexpr void _la_deinit()noexcept {}
 	};
+#pragma warning(default:4100)
 
 	//////////////////////////////////////////////////////////////////////////
 

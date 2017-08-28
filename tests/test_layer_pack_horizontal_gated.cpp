@@ -68,8 +68,10 @@ struct GC_LPHG_NO : public nntl_tests::NN_base_arch_td<ArchPrmsT> {
 //This test should be run multiple times to test variuos gate "positions". gradcheck() routine could be updated to handle
 //it automatically, but that require too much precious time I've already run out of.
 TEST(TestLayerPackHorizontalGated, GradCheck_nonoverlapping) {
+#pragma warning(disable:4459)
 	typedef double real_t;
 	typedef nntl_tests::NN_base_params<real_t, nntl::inspector::GradCheck<real_t>> ArchPrms_t;
+#pragma warning(default:4459)
 
 	nntl::train_data<real_t> td;
 	readTd(td);

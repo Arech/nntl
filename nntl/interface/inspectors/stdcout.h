@@ -63,7 +63,9 @@ namespace inspector {
 
 	public:
 		~stdcout()noexcept {}
-		stdcout()noexcept : m_epochIdx(-1), m_batchIdx(-1), m_epochCount(0), m_layersCount(0), m_batchCount(0){}
+		stdcout()noexcept : m_epochIdx(::std::numeric_limits<decltype(m_epochIdx)>::max()),
+			m_batchIdx(::std::numeric_limits<decltype(m_batchIdx)>::max())
+			, m_epochCount(0), m_layersCount(0), m_batchCount(0) {}
 
 		//////////////////////////////////////////////////////////////////////////
 		//
@@ -131,6 +133,7 @@ namespace inspector {
 
 
 		void fprop_makePreActivations(const realmtx_t& W, const realmtx_t& prevAct)const noexcept {
+			NNTL_UNREF(prevAct);
 			inspect(W, "Current weights");
 		}
 

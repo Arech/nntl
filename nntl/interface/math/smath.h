@@ -126,6 +126,7 @@ namespace math {
 			return r;
 		}
 		void _istor_free(real_t*const ptr, const numel_cnt_t& maxDataSize)noexcept {
+			NNTL_UNREF(ptr);
 			NNTL_ASSERT(m_curStorElementsAllocated >= maxDataSize);
 			m_curStorElementsAllocated -= maxDataSize;
 			NNTL_ASSERT(ptr == &m_threadTempRawStorage[m_curStorElementsAllocated]);//if this assert triggered, then the wrong pointer was allocated/freed
@@ -159,17 +160,23 @@ namespace math {
 		//////////////////////////////////////////////////////////////////////////
 		// Math Methods
 	//protected:
-		template<typename FunctorT>
-		static void _vec_apply_func(const typename FunctorT::value_type * _ptr, const size_t _cnt, FunctorT& F)noexcept {
+		template<typename FuncT>
+		static void _vec_apply_func(const typename ::std::remove_reference_t<FuncT>::value_type * _ptr, const size_t _cnt, FuncT&& F)noexcept {
 			NNTL_ASSERT(_ptr && _cnt > 0);
 			for (size_t i = 0; i < _cnt; ++i) {//seems to vectorize better than while{}
-				//(::std::forward<FunctorT>(F)).op(_ptr[i]);
-				//The F will be used later in callee code, so it can't be move'd here.
+				//(::std::forward<FuncT>(F)).op(_ptr[i]);
 				F.op(_ptr[i]);
+				// There's no move happening here! ::std::forward<FuncT> is just a type cast that restores original variable type.
+				// This matters a lot for ref-qualified operations! However, we have a loop here therefore if an 
+				// rvalue-qualified operation exists, it will be called multiple times, but that is wrong because generally
+				// rvalue-qualified operations are expected to be called only once (they are a matter of optimization on a
+				// temporarily-soon-to-destruct objects and may "spoil" internal state of the object). Therefore
+				// we're using universal reference in function definition to be able to get any 
+				// kind of const FuncT&, FuncT& and FuncT&& as an argument, and nothing more. We'll use it as lvalue only.
 			}
 		}
 		template <typename FunctorT>
-		static typename FunctorT::value_type _vec_apply_func_get_result(const typename FunctorT::value_type* _ptr, const size_t& _cnt)noexcept {
+		static typename FunctorT::value_type _vec_apply_func_get_result(const typename FunctorT::value_type* _ptr, const size_t _cnt)noexcept {
 			FunctorT f;
 			_vec_apply_func(_ptr, _cnt, f);
 			return f.result();
@@ -325,6 +332,7 @@ namespace math {
 
 		//////////////////////////////////////////////////////////////////////////
 		// operation helpers
+#pragma warning(disable:4100)
 		struct _mrwHlpr_rw_InitVecElmByVec {
 			static constexpr vec_len_t rw_FirstColumnIdx = 0;
 
@@ -461,19 +469,19 @@ namespace math {
 				vecElm |= mtxElm;
 			}
 		};
-
+#pragma warning(default:4100)
 		//////////////////////////////////////////////////////////////////////////
 		// Matrix/Vector elementwise operations
 		//////////////////////////////////////////////////////////////////////////
 		// Apply operation F.op to every element of matrix/vector A
 		// #todo: make a wrapper to mate vector api (size(), begin() and so on) and matrix api (numel(), data() ...)
-		template<typename ContainerT, typename ewOperationT>
+		/*template<typename ContainerT, typename ewOperationT>
 		nntl_force_inline static void _ewOperation_st(ContainerT& A, const elms_range& er, ewOperationT&& F)noexcept {
 			const auto pA = A.data();
 			for (numel_cnt_t i = er.elmBegin; i < er.elmEnd; ++i) {
 				const auto p = pA + i;
-				//F.op(pA[i]);
-				::std::forward<ewOperationT>(F).op(*p);
+				F.op(*p);
+				//::std::forward<ewOperationT>(F).op(*p);
 			}
 		}
 		template<typename ContainerT, typename ewOperationT>
@@ -481,10 +489,11 @@ namespace math {
 			auto pA = A.data() + er.elmBegin;
 			const auto pAE = A.data() + er.elmEnd;
 			while(pA!=pAE){
-				::std::forward<ewOperationT>(F).op(*pA);//dont do F.op(*pA++) or you'll get serious performance penalty
+				//::std::forward<ewOperationT>(F).op(*pA);//dont do F.op(*pA++) or you'll get serious performance penalty
+				F.op(*pA);
 				pA++;
 			}
-		}
+		}*/
 
 		//////////////////////////////////////////////////////////////////////////
 		// Matrix rowwise operations
@@ -492,18 +501,22 @@ namespace math {
 		//apply operation F.op to each element of matrix A rows and corresponding element of row-vector pVec (must 
 		// have at least A.rows() elements)
 		// Columnwise
+		// here and later passing functor by T&& helps to deal with statefullness while still allowing to use stateless functors.
+		// No ref-qualified functor operations should be defined!
 		template<typename MtxT, typename VecValueT, typename mrwOperationT>
 		nntl_probably_force_inline static void _mrwVecOperation_st_cw(MtxT& A, VecValueT*const pVec, vec_len_t colBegin
 			, const rowcol_range& RCR, mrwOperationT&& F)noexcept
 		{
 			static_assert(::std::is_same< smatrix<::std::remove_const_t<VecValueT>>, ::std::remove_const_t<MtxT> >::value, "Types mismatch");
+			NNTL_UNREF(F);
 			NNTL_ASSERT(!A.empty() && A.numel() > 0 && pVec);
 			NNTL_ASSERT(colBegin == 0 || colBegin == 1);
 			const size_t rm = A.rows(); // , cm = A.cols();
 			colBegin += RCR.colBegin;
 			NNTL_ASSERT(colBegin <= RCR.colEnd);
 			auto pA = A.colDataAsVec(colBegin);
-			::std::forward<mrwOperationT>(F).initOperation(colBegin, A.rows());
+			//::std::forward<mrwOperationT>(F).initOperation(colBegin, A.rows());
+			F.initOperation(colBegin, A.rows());
 			for (auto c = colBegin; c < RCR.colEnd; ++c) {
 				for (vec_len_t r = RCR.rowBegin; r < RCR.rowEnd; ++r) {//FOR cycle with offset calculation is generally faster than WHILE,
 					const auto pV = pVec + r;//because usually compiler can unfold a cycle into many instructions
@@ -511,10 +524,12 @@ namespace math {
 					//and calculating offsets is faster than mrwOperationT::op(*pA++, *pV++);
 					//static call-style mrwOperationT::op() vs. object call-style F.op() doesn't make any difference in asm 
 					// code (at the moment of testing), but object call-style permits far more generic algorithms creation
-					::std::forward<mrwOperationT>(F).op<mrw_cw>(*pElm, *pV, r, c, rm);
+					//::std::forward<mrwOperationT>(F).op<mrw_cw>(*pElm, *pV, r, c, rm);
+					F.op<mrw_cw>(*pElm, *pV, r, c, rm);
 				}
 				pA += rm;
-				::std::forward<mrwOperationT>(F).cw_toNextCol(rm);
+				//::std::forward<mrwOperationT>(F).cw_toNextCol(rm);
+				F.cw_toNextCol(rm);
 			}
 		}
 
@@ -522,19 +537,24 @@ namespace math {
 		template<typename MtxT, typename VecValueT, typename mrwOperationT>
 		nntl_probably_force_inline static void _mrwVecOperation_st_rw(MtxT& A, VecValueT*const pVec, const rowcol_range& RCR, mrwOperationT&& F)noexcept {
 			static_assert(::std::is_same< smatrix<::std::remove_const_t<VecValueT>>, ::std::remove_const_t<MtxT> >::value, "Types mismatch");
+			NNTL_UNREF(F);
 			NNTL_ASSERT(!A.empty() && A.numel() > 0 && pVec);
 			const auto pA = A.colDataAsVec(RCR.colBegin); //A.data();
 			const size_t rm = A.rows();
-			::std::forward<mrwOperationT>(F).initOperation(RCR.colBegin, A.rows());
+			//::std::forward<mrwOperationT>(F).initOperation(RCR.colBegin, A.rows());
+			F.initOperation(RCR.colBegin, A.rows());
 			for (vec_len_t r = RCR.rowBegin; r < RCR.rowEnd; ++r) {
 				const auto pV = pVec + r;
 				auto pElm = pA + r;
-				auto v = ::std::forward<mrwOperationT>(F).rw_initVecElm(*pV, pElm, rm, RCR.colBegin, r);
+				//auto v = ::std::forward<mrwOperationT>(F).rw_initVecElm(*pV, pElm, rm, RCR.colBegin, r);
+				auto v = F.rw_initVecElm(*pV, pElm, rm, RCR.colBegin, r);
 				for (vec_len_t c = RCR.colBegin + mrwOperationT::rw_FirstColumnIdx; c < RCR.colEnd; ++c) {
-					::std::forward<mrwOperationT>(F).op<mrw_rw>(*pElm, v, r, c, rm);
+					//::std::forward<mrwOperationT>(F).op<mrw_rw>(*pElm, v, r, c, rm);
+					F.op<mrw_rw>(*pElm, v, r, c, rm);
 					pElm += rm;
 				}
-				::std::forward<mrwOperationT>(F).rw_updVecElm<VecValueT>(*pV, v, r);
+				//::std::forward<mrwOperationT>(F).rw_updVecElm<VecValueT>(*pV, v, r);
+				F.rw_updVecElm<VecValueT>(*pV, v, r);
 			}
 		}
 
@@ -552,6 +572,7 @@ namespace math {
 		template<typename MtxT, typename VecValueT, typename mcwOperationT>
 		nntl_probably_force_inline static void _mcwVecOperation_st(MtxT& A, VecValueT* pVec, const rowcol_range& RCR, mcwOperationT&& F)noexcept {
 			static_assert(::std::is_same< smatrix<::std::remove_const_t<VecValueT>>, ::std::remove_const_t<MtxT> >::value, "Types mismatch");
+			NNTL_UNREF(F);
 			NNTL_ASSERT(!A.empty() && A.numel() > 0 && pVec);
 			NNTL_ASSERT(RCR.rowBegin == 0 && RCR.rowEnd == A.rows());//we won't be using row information
 
@@ -564,7 +585,8 @@ namespace math {
 				pA += rc;
 				const auto v = *pVec++;
 				for (numel_cnt_t i = 0; i < rc; ++i) {
-					::std::forward<mcwOperationT>(F).op(pC[i], v);
+					//::std::forward<mcwOperationT>(F).op(pC[i], v);
+					F.op(pC[i], v);
 				}
 			}
 		}
@@ -591,9 +613,13 @@ namespace math {
 			//TODO: for some algorithms and datasizes it may be highly beneficial to make smart partitioning, that takes into account
 			//CPU cache size (will probably require more than workers_count() call to worker function, but each call will run significanly
 			// faster, due to correct cache use)
-			m_threads.run([&A, &F{ ::std::forward<LambdaF>(Func) }](const par_range_t& pr) {
+			//m_threads.run([&A, F{ ::std::forward<LambdaF>(Func) }](const par_range_t& pr) {
+			m_threads.run([&A, &F{ Func }](const par_range_t& pr) {
 				const auto colBeg = static_cast<vec_len_t>(pr.offset());
-				::std::forward<LambdaF>(F)(rowcol_range(A, colBeg, colBeg + static_cast<vec_len_t>(pr.cnt())));// , pr.tid());
+				//::std::forward<LambdaF>(F)(rowcol_range(A, colBeg, colBeg + static_cast<vec_len_t>(pr.cnt())));// , pr.tid());
+				F(rowcol_range(A, colBeg, colBeg + static_cast<vec_len_t>(pr.cnt())));// , pr.tid());
+				//#note we mustn't forward back to LambdaF here, because current lambda is called by a several threads simultaneously
+				//and if there are a rvalue-qualified operator() available, the first call to it might "spoil" the F object state
 			}, A.cols());
 		}
 		//Variation to make a vector out of const A
@@ -617,16 +643,19 @@ namespace math {
 			//TODO: for some algorithms and datasizes it may be highly beneficial to make smart partitioning, that takes into account
 			//CPU cache size (will probably require more than workers_count() calls to worker function, but each call will run significanly
 			// faster, due to correct cache use)
-			m_threads.run([&A, pTmpMem, rm, &F{ ::std::forward<LambdaF>(Func) }](const par_range_t& pr) {
+			//m_threads.run([&A, pTmpMem, rm, F{ ::std::forward<LambdaF>(Func) }](const par_range_t& pr) {
+			m_threads.run([&A, pTmpMem, rm, &F{ Func }](const par_range_t& pr) {
 				const auto colBeg = static_cast<vec_len_t>(pr.offset());
 				auto pVec = pTmpMem + smatrix<VT>::sNumel(rm, pr.tid());
-				::std::forward<LambdaF>(F)(rowcol_range(A, colBeg, colBeg + static_cast<vec_len_t>(pr.cnt())), pVec);
+				//::std::forward<LambdaF>(F)(rowcol_range(A, colBeg, colBeg + static_cast<vec_len_t>(pr.cnt())), pVec);
+				F(rowcol_range(A, colBeg, colBeg + static_cast<vec_len_t>(pr.cnt())), pVec);
 			}, cm, threadsToUse, &threadsUsed);
+
 			NNTL_ASSERT(threadsToUse == threadsUsed);
 			smatrix<VT> fin;
 			fin.useExternalStorage(pTmpMem, rm, threadsUsed);
-			//FinFunc(static_cast<const MtxT&>(fin));
-			::std::forward<LambdaFinal>(FinFunc)(fin);
+
+			::std::forward<LambdaFinal>(FinFunc)(fin);//forwarding is OK here, because FinFunc is used only once
 			if (!pTVec) {
 				get_self()._istor_free(reinterpret_cast<real_t*>(pTmpMem), elmsToAlloc);
 			}
@@ -658,18 +687,20 @@ namespace math {
 			//TODO: for some algorithms and datasizes it may be highly beneficial to make smart partitioning, that takes into account
 			//CPU cache size (will probably require more than workers_count() call to worker function, but each call will run significanly
 			// faster, due to correct cache use)
-			m_threads.run([&A, pMainVec, pScndVec, rm, &F{ ::std::forward<LambdaF>(Func) }](const par_range_t& pr) {
+			//m_threads.run([&A, pMainVec, pScndVec, rm, F{ ::std::forward<LambdaF>(Func) }](const par_range_t& pr) {
+			m_threads.run([&A, pMainVec, pScndVec, rm, &F{ Func }](const par_range_t& pr) {
 				const auto _tmpElmOffset = smatrix<VT>::sNumel(rm, pr.tid());
 				auto pVec = pMainVec + _tmpElmOffset;
 				auto pSVec = pScndVec + _tmpElmOffset;
 				const auto colBeg = static_cast<vec_len_t>(pr.offset());
-				::std::forward<LambdaF>(F)(rowcol_range(A, colBeg, colBeg + static_cast<vec_len_t>(pr.cnt())), pVec, pSVec);
+				//::std::forward<LambdaF>(F)(rowcol_range(A, colBeg, colBeg + static_cast<vec_len_t>(pr.cnt())), pVec, pSVec);
+				F(rowcol_range(A, colBeg, colBeg + static_cast<vec_len_t>(pr.cnt())), pVec, pSVec);
 			}, cm, threadsToUse, &threadsUsed);
 			NNTL_ASSERT(threadsToUse == threadsUsed);
 
 			smatrix<VT> fin;
 			fin.useExternalStorage(pMainVec, rm, threadsUsed);
-			//FinFunc(static_cast<const MtxT&>(fin), pScndVec);
+
 			::std::forward<LambdaFinal>(FinFunc)(fin, pScndVec);
 			get_self()._istor_free(pTmpMem, tmemSize);
 		}
@@ -680,9 +711,11 @@ namespace math {
 		template<typename MtxT, typename LambdaF>
 		nntl_probably_force_inline void _processMtx_rw(MtxT& A, LambdaF&& Func)noexcept {
 			NNTL_ASSERT(!A.empty() && A.numel() > 0);
-			m_threads.run([&A, &F{ ::std::forward<LambdaF>(Func) }](const par_range_t& pr) {
+			//m_threads.run([&A, F{ ::std::forward<LambdaF>(Func) }](const par_range_t& pr) {
+			m_threads.run([&A, &F{ Func }](const par_range_t& pr) {
 				const auto ofs = static_cast<vec_len_t>(pr.offset());
-				::std::forward<LambdaF>(F)(rowcol_range(ofs, ofs + static_cast<vec_len_t>(pr.cnt()), A));
+				//::std::forward<LambdaF>(F)(rowcol_range(ofs, ofs + static_cast<vec_len_t>(pr.cnt()), A));
+				F(rowcol_range(ofs, ofs + static_cast<vec_len_t>(pr.cnt()), A));
 			}, A.rows());
 		}
 

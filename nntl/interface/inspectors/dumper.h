@@ -188,7 +188,7 @@ namespace nntl {
 			}
 
 		private:
-			void _make_archive(::std::nullptr_t pA)noexcept{
+			void _make_archive(::std::nullptr_t )noexcept{
 				NNTL_ASSERT(m_bOwnArch);
 				m_pArch = new (::std::nothrow) archive_t;
 			}
@@ -199,8 +199,8 @@ namespace nntl {
 			}
 
 			void _ctor()noexcept {
-				m_epochIdx = -1;
-				m_batchIdx = -1;
+				m_epochIdx = ::std::numeric_limits<decltype(m_epochIdx)>::max();
+				m_batchIdx = ::std::numeric_limits<decltype(m_batchIdx)>::max();
 				m_layersCount = 0;
 				m_bDoDump = false;
 			}
@@ -305,6 +305,7 @@ namespace nntl {
 				return get_self();
 			}
 			//default implementations
+#pragma warning(disable:4100)
 			void on_train_batchBegin(const vec_len_t batchIdx) const noexcept {}
 			void on_train_batchEnd()const noexcept {}
 			void on_train_preCalcError(const bool bOnTrainSet)const noexcept {}
@@ -315,6 +316,7 @@ namespace nntl {
 			void on_fprop_end(const realmtx_t& act) const noexcept {}
 			void on_bprop_begin(const layer_index_t lIdx, const realmtx_t& dLdA) const noexcept {}
 			void on_bprop_end(const realmtx_t& dLdAPrev) const noexcept {}
+#pragma warning(default:4100)
 
 		public:
 			const bool bDoDump()const noexcept { return m_bDoDump; }
@@ -352,8 +354,8 @@ namespace nntl {
 				NNTL_ASSERT(totalLayers && totalEpochs && totalBatches);
 				m_layersCount = totalLayers;
 				m_bDoDump = false;
-				m_epochIdx = -1;
-				m_batchIdx = -1;
+				m_epochIdx = ::std::numeric_limits<decltype(m_epochIdx)>::max();
+				m_batchIdx = ::std::numeric_limits<decltype(m_batchIdx)>::max();
 
 				//#exceptions STL
 				m_layerNames.clear();
@@ -468,7 +470,7 @@ namespace nntl {
 			// Feel free to restore it, or better derive your own class from _dumper_base<> with necessary functions to be independent of _dumper
 			
 			void on_fprop_begin(const layer_index_t lIdx, const realmtx_t& prevAct, const bool bTrainingMode) const noexcept {
-				//NNTL_ASSERT(bTrainingMode);
+				NNTL_UNREF(lIdx); NNTL_UNREF(prevAct); NNTL_UNREF(bTrainingMode);
 				_verbalize("on_fprop_begin");
 				auto& ar = getArchive();
 				_check_err(ar.save_struct_begin(get_self()._layer_name(), false, bIgnoreLayersNesting), "on_fprop_begin: save_struct_begin");
@@ -483,6 +485,7 @@ namespace nntl {
 			}
 
 			void fprop_preNesterovMomentum(const realmtx_t& vW, const real_t momentum, const realmtx_t& W)const noexcept {
+				NNTL_UNREF(W);
 				if (bDoDump(m_curLayer)) {
 					_verbalize("fprop_preNesterovMomentum");
 					auto& ar = getArchive();
@@ -494,6 +497,7 @@ namespace nntl {
 			}
 
 			void fprop_makePreActivations(const realmtx_t& W, const realmtx_t& prevAct)const noexcept {
+				NNTL_UNREF(prevAct);
 				if (bDoDump(m_curLayer)) {
 					_verbalize("fprop_makePreActivations");
 					auto& ar = getArchive();
@@ -508,6 +512,7 @@ namespace nntl {
 			//////////////////////////////////////////////////////////////////////////
 
 			void on_bprop_begin(const layer_index_t lIdx, const realmtx_t& dLdA)const noexcept {
+				NNTL_UNREF(lIdx);
 				_verbalize("on_bprop_begin");
 				auto& ar = getArchive();
 				_check_err (ar.save_struct_begin(get_self()._layer_name(), bSplitFiles ? false : true, bIgnoreLayersNesting),"on_bprop_begin: save_struct_begin");
@@ -516,6 +521,7 @@ namespace nntl {
 				_check_err(ar.get_last_error(),"on_bprop_begin: saving dLdA");
 			}
 			void on_bprop_end(const realmtx_t& dLdAPrev) const noexcept {
+				NNTL_UNREF(dLdAPrev);
 				_verbalize("on_bprop_end");
 				_check_err(getArchive().save_struct_end(), "on_bprop_end: save_struct_end");
 			}
@@ -563,6 +569,7 @@ namespace nntl {
 			}
 			
 			void apply_grad_preILR(const realmtx_t& dLdW, const realmtx_t& prevdLdW, const realmtx_t& Gain) const noexcept {
+				NNTL_UNREF(dLdW); NNTL_UNREF(prevdLdW);
 				if (bDoDump(m_curLayer)) {
 					_verbalize("apply_grad_preILR");
 					auto& ar = getArchive();
@@ -574,6 +581,7 @@ namespace nntl {
 			}
 
 			void apply_grad_postILR(const realmtx_t& dLdW, const realmtx_t& Gain) const noexcept {
+				NNTL_UNREF(dLdW);
 				if (bDoDump(m_curLayer)) {
 					_verbalize("apply_grad_postILR");
 					auto& ar = getArchive();

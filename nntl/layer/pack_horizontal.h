@@ -210,29 +210,38 @@ namespace nntl {
 		//and apply function _Func(auto& layer) to each underlying (non-pack) layer here
 		template<typename _Func>
 		void for_each_layer(_Func&& f)const noexcept {
-			tuple_utils::for_each_up(m_phl_tuple, [&func{ ::std::forward<_Func>(f) }](auto& phl)noexcept {
-				call_F_for_each_layer(::std::forward<_Func>(func), phl.l);
+			//tuple_utils::for_each_up(m_phl_tuple, [&func{ ::std::forward<_Func>(f) }](auto& phl)noexcept {
+			tuple_utils::for_each_up(m_phl_tuple, [&func{ f }](auto& phl)noexcept {
+				//call_F_for_each_layer(::std::forward<_Func>(func), phl.l);
+				//we shouldn't forward func here, because lambda might be called multiple times, therefore func should be lvalue
+				call_F_for_each_layer(func, phl.l);
 			});
 		}
 
 		template<typename _Func>
 		void for_each_layer_down(_Func&& f)const noexcept {
-			tuple_utils::for_each_down(m_phl_tuple, [&func{ ::std::forward<_Func>(f) }](auto& phl)noexcept {
-				call_F_for_each_layer_down(::std::forward<_Func>(func), phl.l);
+			//tuple_utils::for_each_down(m_phl_tuple, [&func{ ::std::forward<_Func>(f) }](auto& phl)noexcept {
+			tuple_utils::for_each_down(m_phl_tuple, [&func{ f }](auto& phl)noexcept {
+				//call_F_for_each_layer_down(::std::forward<_Func>(func), phl.l);
+				call_F_for_each_layer_down(func, phl.l);
 			});
 		}
 
 		//This will apply f to every layer, packed in tuple no matter whether it is a _pack_* kind of layer or no
 		template<typename _Func>
 		void for_each_packed_layer(_Func&& f)const noexcept {
-			tuple_utils::for_each_up(m_phl_tuple, [&func{ ::std::forward<_Func>(f) }](auto& phl)noexcept {
-				::std::forward<_Func>(func)(phl.l);
+			//tuple_utils::for_each_up(m_phl_tuple, [&func{ ::std::forward<_Func>(f) }](auto& phl)noexcept {
+			tuple_utils::for_each_up(m_phl_tuple, [&func{ f }](auto& phl)noexcept {
+				//::std::forward<_Func>(func)(phl.l);
+				func(phl.l);
 			});
 		}		
 		template<typename _Func>
 		void for_each_packed_layer_down(_Func&& f)const noexcept {
-			tuple_utils::for_each_down(m_phl_tuple, [&func{ ::std::forward<_Func>(f) }](auto& phl)noexcept {
-				::std::forward<_Func>(func)(phl.l);
+			//tuple_utils::for_each_down(m_phl_tuple, [&func{ ::std::forward<_Func>(f) }](auto& phl)noexcept {
+			tuple_utils::for_each_down(m_phl_tuple, [&func{ f }](auto& phl)noexcept {
+				//::std::forward<_Func>(func)(phl.l);
+				func(phl.l);
 			});
 		}
 

@@ -180,6 +180,7 @@ namespace mixins {
 		friend class ::boost::serialization::access;
 		template<class Archive>
 		void serialize(Archive & ar, const unsigned int version) {
+			NNTL_UNREF(version);
 			ar & *(static_cast<base_class_t*>(this));
 		}
 	};

@@ -190,6 +190,7 @@ namespace nntl_supp {
 
 		template <typename MembersEnumId>
 		const ErrorCode _members2ErrorCode(const ErrorCode b, const MembersEnumId rm)noexcept {
+			NNTL_UNREF(b);
 			const ErrorCode e = static_cast<ErrorCode>((int)ErrorCode::NoTrainX + (int)rm);
 			return _set_last_error(e);
 		}

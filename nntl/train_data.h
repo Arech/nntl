@@ -54,7 +54,7 @@ namespace nntl {
 	private:
 		friend class ::boost::serialization::access;
 		template<class Archive>
-		void serialize(Archive & ar, const unsigned int version) {
+		void serialize(Archive & ar, const unsigned int ) {
 			ar & serialization::make_nvp("train_x", m_train_x);
 			ar & serialization::make_nvp("train_y", m_train_y);
 			ar & serialization::make_nvp("test_x", m_test_x);

@@ -445,6 +445,7 @@ namespace math {
 		//returns (ri,ci) coordinates of the element with index k of upper/lower (toggled by template parameter bool bLowerTriangl) triangular matrix
 		template<bool bLowerTriangl>
 		static ::std::enable_if_t<!bLowerTriangl> sTrianglCoordsFromIdx(const vec_len_t n, const numel_cnt_t k, vec_len_t& ri, vec_len_t& ci) noexcept {
+			NNTL_UNREF(n);
 			NNTL_ASSERT(k <= sNumelTriangl(n));
 			const auto _ci = static_cast<numel_cnt_t>(::std::ceil((::std::sqrt(static_cast<double>(8 * k + 9)) - 1) / 2));
 			ci = static_cast<vec_len_t>(_ci);
@@ -640,6 +641,7 @@ namespace math {
 		}
 
 		void assert_storage_does_not_intersect(const smatrix& m)const noexcept {
+			NNTL_UNREF(m);
 			NNTL_ASSERT(this != &m);
 			NNTL_ASSERT(!empty() && !m.empty());
 			//nonstrict nonequality it necessary here, because &[numel()] references element past the end of the allocated array

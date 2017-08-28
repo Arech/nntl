@@ -60,117 +60,128 @@ namespace tuple_utils {
 	using is_tuple_or_void = ::std::disjunction<is_tuple<T>, ::std::is_same<T, void>>;
 
 	//////////////////////////////////////////////////////////////////////////
+	//////////////////////////////////////////////////////////////////////////
 	//helpers to call f() for each tuple element
-	template<int I, class Tuple, typename F> struct _for_each_up_impl {
-		static void for_each(Tuple& t, F&& f) noexcept {
-			_for_each_up_impl<I - 1, Tuple, F>::for_each(t, ::std::forward<F>(f));
-			::std::forward<F>(f)(::std::get<I>(t));
-		}
-		static void for_each(const Tuple& t, F&& f) noexcept {
-			_for_each_up_impl<I - 1, Tuple, F>::for_each(t, ::std::forward<F>(f));
-			::std::forward<F>(f)(::std::get<I>(t));
-		}
-	};
-	template<class Tuple, typename F> struct _for_each_up_impl<0, Tuple, F> {
-		static void for_each(Tuple& t, F&& f)noexcept {
-			::std::forward<F>(f)(::std::get<0>(t));
-		}
-		static void for_each(const Tuple& t, F&& f)noexcept {
-			::std::forward<F>(f)(::std::get<0>(t));
-		}
-	};
-	template<class Tuple, typename F>
-	inline void for_each_up(Tuple& t, F&& f)noexcept {
-		_for_each_up_impl<::std::tuple_size<Tuple>::value - 1, Tuple, F>::for_each(t, ::std::forward<F>(f));
+	// Some considerations: functor::for_each function accepts Tuple&& to make possible calls with
+	// Tuple& as well as const Tuple&. It also accepts F&& to make possible calls with lvalues and rvalues
+	namespace _impl {
+		template<int I, class Tuple, typename F> struct _for_each_up {
+			static void for_each(Tuple&& t, F&& f) noexcept {
+				//_for_each_up<I - 1, Tuple, F>::for_each(t, ::std::forward<F>(f));
+				_for_each_up<I - 1, ::std::add_lvalue_reference_t<Tuple>, ::std::add_lvalue_reference_t<F>>::for_each(t, f);
+				::std::forward<F>(f)(::std::get<I>(::std::forward<Tuple>(t)));//OK to forward the last use
+			}
+		};
+		template<class Tuple, typename F> struct _for_each_up<0, Tuple, F> {
+			static void for_each(Tuple&& t, F&& f)noexcept {
+				::std::forward<F>(f)(::std::get<0>(::std::forward<Tuple>(t)));
+			}
+		};
 	}
 	template<class Tuple, typename F>
-	inline void for_each_up(const Tuple& t, F&& f)noexcept {
-		_for_each_up_impl<::std::tuple_size<Tuple>::value - 1, Tuple, F>::for_each(t, ::std::forward<F>(f));
+	inline void for_each_up(Tuple&& t, F&& f)noexcept {
+		_impl::_for_each_up<::std::tuple_size<::std::remove_reference_t<Tuple>>::value - 1, Tuple, F
+		>::for_each(::std::forward<Tuple>(t), ::std::forward<F>(f));
 	}
 	//ignoring the last element
 	template<class Tuple, typename F>
-	inline void for_each_exc_last_up(const Tuple& t, F&& f)noexcept {
-		static_assert(::std::tuple_size<Tuple>::value > 1, "Tuple must have at least two elements!");
-		_for_each_up_impl<::std::tuple_size<Tuple>::value - 2, Tuple, F>::for_each(t, ::std::forward<F>(f));
+	inline void for_each_exc_last_up(Tuple&& t, F&& f)noexcept {
+		static_assert(::std::tuple_size<::std::remove_reference_t<Tuple>>::value > 1, "Tuple must have at least two elements!");
+		_impl::_for_each_up<::std::tuple_size<::std::remove_reference_t<Tuple>>::value - 2, Tuple, F
+			>::for_each(::std::forward<Tuple>(t), ::std::forward<F>(f));
 	}
 
 	//////////////////////////////////////////////////////////////////////////
 	//ignore first element
-	template<int I, class Tuple, typename F> struct _for_each_exc_first_up_impl {
-		static void for_each(const Tuple& t, F&& f) noexcept {
-			_for_each_exc_first_up_impl <I - 1, Tuple, F>::for_each(t,::std::forward<F>(f));
-			::std::forward<F>(f)(::std::get<I>(t));
-		}
-	};
-	template<class Tuple, typename F> struct _for_each_exc_first_up_impl <1, Tuple, F> {
-		static void for_each(const Tuple& t, F&& f)noexcept {
-			::std::forward<F>(f)(::std::get<1>(t));
-		}
-	};
+	namespace _impl {
+		template<int I, class Tuple, typename F> struct _for_each_exc_first_up {
+			static void for_each(Tuple&& t, F&& f) noexcept {
+				_for_each_exc_first_up <I - 1, ::std::add_lvalue_reference_t<Tuple>, ::std::add_lvalue_reference_t<F>>::for_each(t, f);
+				::std::forward<F>(f)(::std::get<I>(::std::forward<Tuple>(t)));
+			}
+		};
+		template<class Tuple, typename F> struct _for_each_exc_first_up <1, Tuple, F> {
+			static void for_each(Tuple&& t, F&& f)noexcept {
+				::std::forward<F>(f)(::std::get<1>(::std::forward<Tuple>(t)));
+			}
+		};
+	}
+	
 	template<class Tuple, typename F>
-	inline void for_each_exc_first_up(const Tuple& t, F&& f)noexcept {
-		static_assert(::std::tuple_size<Tuple>::value > 1, "Tuple must have at least two elements!");
-		_for_each_exc_first_up_impl <::std::tuple_size<Tuple>::value - 1, Tuple, F>::for_each(t, ::std::forward<F>(f));
+	inline void for_each_exc_first_up(Tuple&& t, F&& f)noexcept {
+		static_assert(::std::tuple_size<::std::remove_reference_t<Tuple>>::value > 1, "Tuple must have at least two elements!");
+		_impl::_for_each_exc_first_up <::std::tuple_size<::std::remove_reference_t<Tuple>>::value - 1, Tuple, F
+		>::for_each(::std::forward<Tuple>(t), ::std::forward<F>(f));
 	}
 	//////////////////////////////////////////////////////////////////////////
 	//downwards direction (from the tail to the head)
-	template<int I, class Tuple, typename F> struct _for_each_down_impl {
-		static void for_each(const Tuple& t, F&& f) noexcept {
-			::std::forward<F>(f)(::std::get<I>(t));
-			_for_each_down_impl <I - 1, Tuple, F>::for_each(t, ::std::forward<F>(f));
-		}
-	};
-	template<class Tuple, typename F> struct _for_each_down_impl <0, Tuple, F> {
-		static void for_each(const Tuple& t, F&& f)noexcept {
-			::std::forward<F>(f)(::std::get<0>(t));
-		}
-	};
+	namespace _impl {
+		template<int I, class Tuple, typename F> struct _for_each_down {
+			static void for_each(Tuple&& t, F&& f) noexcept {
+				f(::std::get<I>(t));
+				_for_each_down <I - 1, Tuple, F>::for_each(::std::forward<Tuple>(t), ::std::forward<F>(f));
+			}
+		};
+		template<class Tuple, typename F> struct _for_each_down <0, Tuple, F> {
+			static void for_each(Tuple&& t, F&& f)noexcept {
+				::std::forward<F>(f)(::std::get<0>(::std::forward<Tuple>(t)));
+			}
+		};
+	}
 	template<class Tuple, typename F>
-	inline void for_each_down(const Tuple& t, F&& f) noexcept {
-		_for_each_down_impl <::std::tuple_size<Tuple>::value - 1, Tuple, F>::for_each(t, ::std::forward<F>(f));
+	inline void for_each_down(Tuple&& t, F&& f) noexcept {
+		_impl::_for_each_down<::std::tuple_size<::std::remove_reference_t<Tuple>>::value - 1, Tuple, F
+		>::for_each(::std::forward<Tuple>(t), ::std::forward<F>(f));
 	}
 	//////////////////////////////////////////////////////////////////////////
-	template<int I, class Tuple, typename F> struct _for_each_exc_first_down_impl {
-		static void for_each(const Tuple& t, F&& f) noexcept {
-			::std::forward<F>(f)(::std::get<I>(t));
-			_for_each_exc_first_down_impl <I - 1, Tuple, F>::for_each(t, ::std::forward<F>(f));
-		}
-	};
-	template<class Tuple, typename F> struct _for_each_exc_first_down_impl <1, Tuple, F> {
-		static void for_each(const Tuple& t, F&& f)noexcept {
-			::std::forward<F>(f)(::std::get<1>(t));
-		}
-	};
+	namespace _impl {
+		template<int I, class Tuple, typename F> struct _for_each_exc_first_down {
+			static void for_each(Tuple&& t, F&& f) noexcept {
+				f(::std::get<I>(t));
+				_for_each_exc_first_down <I - 1, Tuple, F>::for_each(::std::forward<Tuple>(t), ::std::forward<F>(f));
+			}
+		};
+		template<class Tuple, typename F> struct _for_each_exc_first_down <1, Tuple, F> {
+			static void for_each(Tuple&& t, F&& f)noexcept {
+				::std::forward<F>(f)(::std::get<1>(::std::forward<Tuple>(t)));
+			}
+		};
+	}	
 	template<class Tuple, typename F>
-	inline void for_each_exc_first_down(const Tuple& t, F&& f) noexcept {
-		static_assert(::std::tuple_size<Tuple>::value > 1, "Tuple must have at least two elements!");
-		_for_each_exc_first_down_impl <::std::tuple_size<Tuple>::value - 1, Tuple, F>::for_each(t, ::std::forward<F>(f));
+	inline void for_each_exc_first_down(Tuple&& t, F&& f) noexcept {
+		static_assert(::std::tuple_size<::std::remove_reference_t<Tuple>>::value > 1, "Tuple must have at least two elements!");
+		_impl::_for_each_exc_first_down <::std::tuple_size<::std::remove_reference_t<Tuple>>::value - 1, Tuple, F
+		>::for_each(::std::forward<Tuple>(t), ::std::forward<F>(f));
 	}
 
 	//////////////////////////////////////////////////////////////////////////
 	//////////////////////////////////////////////////////////////////////////
 	// for each with previous element upwards
 	// 
-	template<int I, class Tuple, typename F> struct _for_eachwp_up_impl {
-		static void for_each(const Tuple& t, F&& f)noexcept {
-			_for_eachwp_up_impl<I - 1, Tuple, F>::for_each(t, ::std::forward<F>(f));
-			::std::forward<F>(f)(::std::get<I>(t), ::std::get<I - 1>(t), false);
-		}
-	};
-	template<class Tuple, typename F> struct _for_eachwp_up_impl<1, Tuple, F> {
-		static void for_each(const Tuple& t, F&& f)noexcept {
-			::std::forward<F>(f)(::std::get<1>(t), ::std::get<0>(t), true);
-		}
-	};
+	namespace _impl {
+		template<int I, class Tuple, typename F> struct _for_eachwp_up {
+			static void for_each(Tuple&& t, F&& f)noexcept {
+				_for_eachwp_up<I - 1, ::std::add_lvalue_reference_t<Tuple>, ::std::add_lvalue_reference_t<F>>::for_each(t, f);
+				::std::forward<F>(f)(::std::get<I>(t), ::std::get<I - 1>(t), false);
+			}
+		};
+		template<class Tuple, typename F> struct _for_eachwp_up<1, Tuple, F> {
+			static void for_each(Tuple&& t, F&& f)noexcept {
+				::std::forward<F>(f)(::std::get<1>(t), ::std::get<0>(t), true);
+			}
+		};
+	}
 	template<class Tuple, typename F>
-	inline void for_eachwp_up(const Tuple& t, F&& f)noexcept {
-		static_assert(::std::tuple_size<Tuple>::value > 1, "Tuple must have more than 1 element");
-		_for_eachwp_up_impl<::std::tuple_size<Tuple>::value - 1, Tuple, F>::for_each(t, ::std::forward<F>(f));
+	inline void for_eachwp_up(Tuple&& t, F&& f)noexcept {
+		static_assert(::std::tuple_size<::std::remove_reference_t<Tuple>>::value > 1, "Tuple must have more than 1 element");
+		_impl::_for_eachwp_up<::std::tuple_size<::std::remove_reference_t<Tuple>>::value - 1, Tuple, F
+		>::for_each(::std::forward<Tuple>(t), ::std::forward<F>(f));
 	}
 
 	//////////////////////////////////////////////////////////////////////////
 	//for each with previous element upwards, forwardprop version (skip last element)
-	template<int I, class Tuple, typename F> struct _for_eachwp_upfp_impl {
+	// #todo rewrite as above funcs if need this code
+	/*template<int I, class Tuple, typename F> struct _for_eachwp_upfp_impl {
 		static void for_each(const Tuple& t, F&& f)noexcept {
 			_for_eachwp_upfp_impl<I - 1, Tuple, F>::for_each(t, ::std::forward<F>(f));
 			::std::forward<F>(f)(::std::get<I>(t), ::std::get<I - 1>(t));
@@ -185,54 +196,56 @@ namespace tuple_utils {
 	inline void for_eachwp_upfp(const Tuple& t, F&& f)noexcept {
 		static_assert(::std::tuple_size<Tuple>::value > 2, "Tuple must have more than 2 elements");
 		_for_eachwp_upfp_impl<::std::tuple_size<Tuple>::value - 2, Tuple, F>::for_each(t, ::std::forward<F>(f));
-	}
+	}*/
 
 	//////////////////////////////////////////////////////////////////////////
 	//for each with next downwards, backprop-version (don't use <LAST>)
-	template<int I, class Tuple, typename F> struct _for_eachwn_downbp_impl {
-		static void for_each(const Tuple& t, F&& f) noexcept {
-			::std::forward<F>(f)(::std::get<I>(t), ::std::get<I - 1>(t), false);
-			_for_eachwn_downbp_impl<I - 1, Tuple, F>::for_each(t, ::std::forward<F>(f));
-		}
-	};
-	template<class Tuple, typename F> struct _for_eachwn_downbp_impl<1, Tuple, F> {
-		static void for_each(const Tuple& t, F&& f)noexcept {
-			::std::forward<F>(f)(::std::get<1>(t), ::std::get<0>(t), true);
-		}
-	};
-	template<class Tuple, typename F> struct _for_eachwn_downbp_impl<0, Tuple, F> {
-		static void for_each(const Tuple& t, F&& f)noexcept {}
-	};
+	namespace _impl {
+		template<int I, class Tuple, typename F> struct _for_eachwn_downbp {
+			static void for_each(Tuple&& t, F&& f) noexcept {
+				f(::std::get<I>(t), ::std::get<I - 1>(t), false);
+				_for_eachwn_downbp<I - 1, Tuple, F>::for_each(::std::forward<Tuple>(t), ::std::forward<F>(f));
+			}
+		};
+		template<class Tuple, typename F> struct _for_eachwn_downbp<1, Tuple, F> {
+			static void for_each(Tuple&& t, F&& f)noexcept {
+				::std::forward<F>(f)(::std::get<1>(t), ::std::get<0>(t), true);
+			}
+		};
+		template<class Tuple, typename F> struct _for_eachwn_downbp<0, Tuple, F> {
+			static void for_each(Tuple&& , F&& )noexcept {}
+		};
+	}
 	template<class Tuple, typename F>
-	inline void for_eachwn_downbp(const Tuple& t, F&& f)noexcept {
-		constexpr auto lei = ::std::tuple_size<Tuple>::value - 1;
+	inline void for_eachwn_downbp(Tuple&& t, F&& f)noexcept {
+		constexpr auto lei = ::std::tuple_size<::std::remove_reference_t<Tuple>>::value - 1;
 		static_assert(lei > 0, "Tuple must have more than 1 element");
-		//f(::std::get<lei>(t), ::std::get<lei>(t), true);
-		_for_eachwn_downbp_impl<lei - 1, Tuple, F>::for_each(t, ::std::forward<F>(f));
+		_impl::_for_eachwn_downbp<lei - 1, Tuple, F>::for_each(::std::forward<Tuple>(t), ::std::forward<F>(f));
 	}
 
 	//////////////////////////////////////////////////////////////////////////
 	//for each with next downwards, full backprop-version (use <LAST>)
-	template<int I, class Tuple, typename F> struct _for_eachwn_downfullbp_impl {
-		static void for_each(const Tuple& t, F&& f) noexcept {
-			::std::forward<F>(f)(::std::get<I>(t), ::std::get<I - 1>(t), false);
-			_for_eachwn_downfullbp_impl<I - 1, Tuple, F>::for_each(t, ::std::forward<F>(f));
-		}
-	};
-	template<class Tuple, typename F> struct _for_eachwn_downfullbp_impl<1, Tuple, F> {
-		static void for_each(const Tuple& t, F&& f)noexcept {
-			::std::forward<F>(f)(::std::get<1>(t), ::std::get<0>(t), true);
-		}
-	};
-	template<class Tuple, typename F> struct _for_eachwn_downfullbp_impl<0, Tuple, F> {
-		static void for_each(const Tuple& t, F&& f)noexcept {}
-	};
+	namespace _impl {
+		template<int I, class Tuple, typename F> struct _for_eachwn_downfullbp {
+			static void for_each(Tuple&& t, F&& f) noexcept {
+				f(::std::get<I>(t), ::std::get<I - 1>(t), false);
+				_for_eachwn_downfullbp<I - 1, Tuple, F>::for_each(::std::forward<Tuple>(t), ::std::forward<F>(f));
+			}
+		};
+		template<class Tuple, typename F> struct _for_eachwn_downfullbp<1, Tuple, F> {
+			static void for_each(Tuple&& t, F&& f)noexcept {
+				::std::forward<F>(f)(::std::get<1>(t), ::std::get<0>(t), true);
+			}
+		};
+		template<class Tuple, typename F> struct _for_eachwn_downfullbp<0, Tuple, F> {
+			static void for_each(Tuple&& , F&& )noexcept {}
+		};
+	}	
 	template<class Tuple, typename F>
-	inline void for_eachwn_downfullbp(const Tuple& t, F&& f)noexcept {
-		constexpr auto lei = ::std::tuple_size<Tuple>::value - 1;
+	inline void for_eachwn_downfullbp(Tuple&& t, F&& f)noexcept {
+		constexpr auto lei = ::std::tuple_size<::std::remove_reference_t<Tuple>>::value - 1;
 		static_assert(lei > 0, "Tuple must have more than 1 element");
-		//f(::std::get<lei>(t), ::std::get<lei>(t), true);
-		_for_eachwn_downfullbp_impl<lei, Tuple, F>::for_each(t, ::std::forward<F>(f));
+		_impl::_for_eachwn_downfullbp<lei, Tuple, F>::for_each(::std::forward<Tuple>(t), ::std::forward<F>(f));
 	}
 
 

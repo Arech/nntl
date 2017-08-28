@@ -65,8 +65,10 @@ struct GC_ALPHADROPOUT : public nntl_tests::NN_base_arch_td<ArchPrmsT> {
 	}
 };
 TEST(TestSelu, GradCheck_alphaDropout) {
+#pragma warning(disable:4459)
 	typedef double real_t;
 	typedef nntl_tests::NN_base_params<real_t, nntl::inspector::GradCheck<real_t>> ArchPrms_t;
+#pragma warning(default:4459)
 
 	nntl::train_data<real_t> td;
 	readTd(td);
@@ -91,10 +93,12 @@ TEST(TestSelu, GradCheck_alphaDropout) {
 
 //////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////
+#pragma warning(push,3)
 #include <boost/accumulators/accumulators.hpp>
 #include <boost/accumulators/statistics/stats.hpp>
 #include <boost/accumulators/statistics/mean.hpp>
 #include <boost/accumulators/statistics/variance.hpp>
+#pragma warning(pop)
 
 template<typename RealT>
 struct inspector_act_var_checker : public inspector::_impl::_base<RealT> {
@@ -139,10 +143,12 @@ protected:
 
 public:
 	void init_nnet(const size_t totalLayers, const size_t totalEpochs, const vec_len_t totalBatches)noexcept {
+		NNTL_UNREF(totalBatches); NNTL_UNREF(totalEpochs);
 		m_lastLayerIdxToCheck = static_cast<layer_index_t>(totalLayers - 2);
 		m_layersStats.resize(totalLayers - 1);
 	}
 	void fprop_begin(const layer_index_t lIdx, const realmtx_t& prevAct, const bool bTrainingMode) noexcept {
+		NNTL_UNREF(prevAct); NNTL_UNREF(bTrainingMode);
 		m_curLayer.push(lIdx);
 	}
 	void fprop_end(const realmtx_t& act) noexcept {

@@ -103,8 +103,6 @@ namespace utils {
 				m_keeper.erase(m_map.at(idx));
 			}
 
-			//m_keeper.insert_after(m_keeper.begin(), ::std::forward<ST>(sett));
-			//m_map[idx] = &(*::std::next(m_keeper.begin()));
 			m_map[idx] = m_keeper.insert(m_keeper.end(), ::std::forward<ST>(sett));
 			return *this;
 		}

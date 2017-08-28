@@ -57,11 +57,12 @@ namespace nntl {
 		friend class ::boost::serialization::access;
 		template<class Archive>
 		::std::enable_if_t<Archive::is_saving::value> serialize(Archive & ar, const unsigned int version) {
+			NNTL_UNREF(version);
 			if (m_pActivations && utils::binary_option<true>(ar, serialization::serialize_data_x)) 
 				ar & serialization::make_nvp("data_x", * const_cast<realmtx_t*>(m_pActivations));
 		}
 		template<class Archive>
-		::std::enable_if_t<Archive::is_loading::value> serialize(Archive & ar, const unsigned int version) {
+		::std::enable_if_t<Archive::is_loading::value> serialize(Archive & , const unsigned int ) {
 		}
 
 	public:

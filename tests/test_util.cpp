@@ -95,7 +95,7 @@ TEST(TestUtils, PrioritizeWorkersPerf) {
 
 	bt = steady_clock::now();
 	for (unsigned r = 0; r < maxReps; ++r) {
-		threads::prioritize_workers<threads::PriorityClass::Working, def_threads_t> pw(iT);
+		threads::prioritize_workers<threads::PriorityClass::Working, def_threads_t> pw2(iT);
 	}
 	diff = steady_clock::now() - bt;
 	STDCOUTL("prioritize_workers:\t" << utils::duration_readable(diff, maxReps));
@@ -667,6 +667,7 @@ namespace utils_test {
 		template <class T>
 		static void deleter_stub(void* const p)
 		{
+			NNTL_UNREF(p);
 			static_cast<T*>(p)->~T();
 		}
 
@@ -907,6 +908,7 @@ void data_buffer_state_checks(const size_t bufSize = 71, const size_t maxThreadG
 
 	bgChecker.expect_tasks_count(1).set_task_wait_timeout(checkerTO);
 	auto checkerFunc = [&Buf, &failsCnt](const thread_id_t tId)noexcept->bool {
+		NNTL_UNREF(tId);
 		failsCnt += !Buf.TestState();
 		return false;
 	};
@@ -1078,7 +1080,9 @@ void data_buffer_perf(::std::vector<utils::tictoc>& clocks//the first element is
 
 		const size_t firstClockOfs = 2 + tId*totalClocksForEachBgthread;
 
+#pragma warning(disable:4189)
 		auto& cl1 = clocks[firstClockOfs];
+#pragma warning(default:4189)
 
 		const auto t1 = cl1.now();
 		const auto toWork = Buf._as_should_work(thisN);

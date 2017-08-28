@@ -130,8 +130,12 @@ namespace serialization {
 		::std::enable_if_t<b, self_ref_t> operator&(const T & t) {
 			return get_self() << t;
 		}
+// 		template<class T, bool b = bSavingArchive>
+// 		::std::enable_if_t<!b, self_ref_t> operator&(T & t) {
+// 			return get_self() >> t;
+// 		}
 		template<class T, bool b = bSavingArchive>
-		::std::enable_if_t<!b, self_ref_t> operator&(T & t) {
+		::std::enable_if_t<!b, self_ref_t> operator&(T&& t) {
 			return get_self() >> t;
 		}
 	};

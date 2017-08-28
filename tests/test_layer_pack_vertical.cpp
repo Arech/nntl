@@ -280,8 +280,10 @@ struct GC_LPV : public nntl_tests::NN_base_arch_td<ArchPrmsT> {
 	{}
 };
 TEST(TestLPV, GradCheck) {
+#pragma warning(disable:4459)
 	typedef double real_t;
 	typedef nntl_tests::NN_base_params<real_t, nntl::inspector::GradCheck<real_t>> ArchPrms_t;
+#pragma warning(default:4459)
 
 	nntl::train_data<real_t> td;
 	readTd(td);

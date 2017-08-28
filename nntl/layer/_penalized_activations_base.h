@@ -110,12 +110,14 @@ namespace nntl {
 		bool _pab_init(const mtx_size_t biggestMtx, const CommonDataT& CD)noexcept {
 			bool b = true;
 			tuple_utils::for_each_up(m_addendumsTuple, [&b, biggestMtx, &CD](auto& la) {
+				NNTL_UNREF(la);
 				b = b & la.init(biggestMtx, CD);
 			});
 			return b;
 		}
 		void _pab_deinit()noexcept {
 			tuple_utils::for_each_up(m_addendumsTuple, [](auto& la) {
+				NNTL_UNREF(la);
 				la.deinit();
 			});
 		}
@@ -124,6 +126,7 @@ namespace nntl {
 		const bool _pab_hasLossAddendum()const noexcept {
 			bool b = false;
 			tuple_utils::for_each_up(m_addendumsTuple, [&b](const auto& la) noexcept {
+				NNTL_UNREF(la);
 				b |= la.bEnabled();
 			});
 			return b;
@@ -167,7 +170,7 @@ namespace nntl {
 					la.on_fprop(act, CD);
 				}
 			}
-			template<typename LAT> ::std::enable_if_t<!LAT::calcOnFprop> operator()(LAT& la)const noexcept {}
+			template<typename LAT> ::std::enable_if_t<!LAT::calcOnFprop> operator()(LAT& )const noexcept {}
 		};
 
 	protected:
@@ -175,7 +178,7 @@ namespace nntl {
 		static constexpr bool bWorkOnFprop = tuple_utils::aggregate<::std::disjunction, loss_addendum::works_on_fprop, addendums_tuple_t>::value;
 		
 		template<typename CommonDataT, bool c = bWorkOnFprop>
-		::std::enable_if_t<!c> _pab_fprop(const realmtxdef_t& ThisActivations, const CommonDataT& CD)noexcept {}
+		::std::enable_if_t<!c> _pab_fprop(const realmtxdef_t& , const CommonDataT& )noexcept {}
 
 		template<typename CommonDataT, bool c = bWorkOnFprop>
 		::std::enable_if_t<c> _pab_fprop(const realmtxdef_t& ThisActivations, const CommonDataT& CD)noexcept {

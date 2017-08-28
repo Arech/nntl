@@ -110,6 +110,7 @@ namespace nntl {
 		//returns a count of correct predictions, i.e. (True Positive + True Negative)'s
 		template<typename iMath>
 		size_t correctlyClassified(const realmtx_t& data_y, const realmtx_t& activations, const bool bOnTestData, iMath& iM)noexcept {
+			NNTL_UNREF(data_y);
 			NNTL_ASSERT(data_y.size() == activations.size());
 			NNTL_ASSERT(data_y.rows() == m_ydataPP[bOnTestData].size());
 
@@ -162,6 +163,7 @@ namespace nntl {
 		//returns a count of correct predictions, i.e. (True Positive + True Negative)'s
 		template<typename iMath>
 		size_t correctlyClassified(const realmtx_t& data_y, const realmtx_t& activations, const bool bOnTestData, iMath& iM)noexcept {
+			NNTL_UNREF(data_y);
 			NNTL_ASSERT(data_y.size() == activations.size());
 			NNTL_ASSERT(data_y.rows() == m_ydataClassIdxs[bOnTestData].size());
 

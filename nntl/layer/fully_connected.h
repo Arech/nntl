@@ -83,6 +83,7 @@ namespace nntl {
 		friend class ::boost::serialization::access;
 		template<class Archive>
 		void serialize(Archive & ar, const unsigned int version) {
+			NNTL_UNREF(version);
 			//NB: DONT touch ANY of .useExternalStorage() matrices here, because it's absolutely temporary meaningless data
 			// and moreover, underlying storage may have already been freed.
 			
@@ -131,8 +132,7 @@ namespace nntl {
 				return false;
 			}
 
-			//m_weights = ::std::move(W);
-			m_weights = ::std::forward<realmtx_t>(W);
+			m_weights = ::std::move(W);
 			m_bWeightsInitialized = true;
 			return true;
 		}
@@ -209,6 +209,7 @@ namespace nntl {
 		}
 
 		void initMem(real_t* ptr, numel_cnt_t cnt)noexcept {
+			NNTL_UNREF(cnt);
 			if (get_self().get_common_data().is_training_possible()) {
 				NNTL_ASSERT(ptr && cnt >= m_weights.numel());
 				m_dLdW.useExternalStorage(ptr, m_weights);
@@ -254,7 +255,7 @@ namespace nntl {
 			m_bActivationsValid = true;
 		}
 
-		void _cust_inspect(const realmtx_t& M)const noexcept{}
+		void _cust_inspect(const realmtx_t& )const noexcept{}
 
 		void _bprop(realmtx_t& dLdA, const realmtx_t& prevActivations, const bool bPrevLayerIsInput, realmtx_t& dLdAPrev)noexcept {
 			NNTL_ASSERT(m_bActivationsValid);

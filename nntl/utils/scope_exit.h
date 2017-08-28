@@ -36,7 +36,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 namespace nntl {
 namespace utils {
 
-	//#TODO can we get rid of ::std::function here?
+	//can we get rid of ::std::function here? --well, yes we can. But should we? It's not a perf critical code, so don't care
 	struct scope_exit {
 		//scope_exit(::std::function<void(void)> f) : f_(f) {}
 

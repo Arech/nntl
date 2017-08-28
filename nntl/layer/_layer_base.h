@@ -60,29 +60,31 @@ namespace nntl {
 	template<typename Func, typename LayerT> inline
 		::std::enable_if_t<is_layer_pack<LayerT>::value> call_F_for_each_layer(Func&& F, LayerT& l)noexcept
 	{
-		l.for_each_layer(::std::forward<Func>(F));
+		//l.for_each_layer(::std::forward<Func>(F));
+		l.for_each_layer(F); //mustn't forward, because we'll be using F later!
+		
 		//must also call for the layer itself
 		//F(l);//not should do ::std::forward<Func>(F)(l); here ???
-		::std::forward<Func>(F)(l);
-		// #TODO #BUGBUG shouldn't we use simply F(l) here and everywhere else in the same context???
+		::std::forward<Func>(F)(l);//it's OK to cast to rvalue here if suitable, as we don't care what will happens with F after that.
 	}
 	template<typename Func, typename LayerT> inline
 		::std::enable_if_t<!is_layer_pack<LayerT>::value> call_F_for_each_layer(Func&& F, LayerT& l)noexcept
 	{
-		::std::forward<Func>(F)(l);
+		::std::forward<Func>(F)(l);//OK to forward if suitable
 	}
 
 	//probably we don't need it, but let it be
 	template<typename Func, typename LayerT> inline
 		::std::enable_if_t<is_layer_pack<LayerT>::value> call_F_for_each_layer_down(Func&& F, LayerT& l)noexcept
 	{
-		::std::forward<Func>(F)(l);
-		l.for_each_layer_down(::std::forward<Func>(F));
+		//::std::forward<Func>(F)(l);
+		F(l);//mustn't forward, we'll use it later
+		l.for_each_layer_down(::std::forward<Func>(F));//OK, last use
 	}
 	template<typename Func, typename LayerT> inline
 		::std::enable_if_t<!is_layer_pack<LayerT>::value> call_F_for_each_layer_down(Func&& F, LayerT& l)noexcept
 	{
-		::std::forward<Func>(F)(l);
+		::std::forward<Func>(F)(l);//OK to forward
 	}
 
 	//////////////////////////////////////////////////////////////////////////

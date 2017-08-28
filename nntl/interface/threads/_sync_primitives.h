@@ -248,13 +248,15 @@ namespace threads {
 			//////////////////////////////////////////////////////////////////////////
 			template<typename Predicate>
 			void wait(win_srwlock& l, Predicate&& pred)noexcept {
-				while (!((::std::forward<Predicate>(pred))())) {
+				//while (!((::std::forward<Predicate>(pred))())) {
+				while (!(pred())) {
 					wait(l);
 				}
 			}
 			template<typename Predicate>
 			void wait_shared(win_srwlock& l, Predicate&& pred)noexcept {
-				while (!((::std::forward<Predicate>(pred))())) {
+				//while (!((::std::forward<Predicate>(pred))())) {
+				while (!(pred())) {
 					wait_shared(l);
 				}
 			}
@@ -298,7 +300,8 @@ namespace threads {
 			bool wait_for(win_srwlock& l, const ::std::chrono::duration<Rep, Period>& rel_time, Predicate&& pred)noexcept {
 				::std::cv_status r(::std::cv_status::no_timeout);
 				bool b;
-				while (!(b = ((::std::forward<Predicate>(pred))()))) {
+				//while (!(b = ((::std::forward<Predicate>(pred))()))) {
+				while (!(b = (pred()))) {
 					r = wait_for(l, rel_time);
 				}
 				return r == ::std::cv_status::no_timeout ? true : b;
@@ -313,7 +316,8 @@ namespace threads {
 			bool wait_for_shared(win_srwlock& l, const ::std::chrono::duration<Rep, Period>& rel_time, Predicate&& pred)noexcept {
 				::std::cv_status r(::std::cv_status::no_timeout);
 				bool b;
-				while (!(b = ((::std::forward<Predicate>(pred))()))) {
+				//while (!(b = ((::std::forward<Predicate>(pred))()))) {
+				while (!(b = (pred()))) {
 					r = wait_for_shared(l, rel_time);
 				}
 				return r == ::std::cv_status::no_timeout ? true : b;

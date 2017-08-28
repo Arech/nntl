@@ -511,7 +511,8 @@ namespace nntl {
 					}
 #endif//NNTL_DEBUG_CHECK_DENORMALS_ON_EACH_EPOCH
 
-					if (! ::std::forward<OnEpochEndCbT>(onEpochEndCB)(*this, opts, epochIdx)) break;
+					//if (! ::std::forward<OnEpochEndCbT>(onEpochEndCB)(*this, opts, epochIdx)) break;
+					if (!onEpochEndCB(*this, opts, epochIdx)) break;//mustn't forward here, onEpochEndCB is called multiple times
 
 					if (bCalcLoss && (bInspectEpoch || !bOptFBErrCalcThisEpoch)) {
 						set_mode_and_batch_size(0);//restoring training mode after _calcLoss()
@@ -696,7 +697,7 @@ namespace nntl {
 				_checkdLdW(lyr.get_layer_idx(), lyr.get_neurons_cnt(), lyr.get_incoming_neurons_cnt());
 			}
 			template<typename LayerT>
-			::std::enable_if_t<!is_layer_learnable<LayerT>::value> _doCheckdLdW(LayerT& lyr) const noexcept {}
+			::std::enable_if_t<!is_layer_learnable<LayerT>::value> _doCheckdLdW(LayerT& ) const noexcept {}
 
 			void _reset()noexcept {
 				m_failedLayerIdx = 0;
@@ -725,7 +726,7 @@ namespace nntl {
 				lyr.for_each_packed_layer_down(*this);
 			}
 			template<typename LayerT>
-			::std::enable_if_t<!is_layer_pack<LayerT>::value> _checkInnerLayers(LayerT& lyr)const noexcept {}
+			::std::enable_if_t<!is_layer_pack<LayerT>::value> _checkInnerLayers(LayerT&)const noexcept {}
 			
 			void _checkdLdA(const layer_index_t& lIdx, const neurons_count_t neuronsCnt
 			//	, const realmtx_t* pDropoutMask, const real_t dropoutScaleInv = real_t(1.)

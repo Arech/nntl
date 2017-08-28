@@ -64,7 +64,7 @@ namespace activation {
 		// #todo we should probably split output to fprop() only and fprop()+bprop() versions like we're doing in _i_layer::init()
 		// #todo probably should adopt a _i_loss_addendum initialization scheme here
 		template <typename iMath>
-		static numel_cnt_t needTempMem(const realmtx_t& act, iMath& m) noexcept {
+		static numel_cnt_t needTempMem(const realmtx_t& act, iMath& ) noexcept {
 			return act.numel();
 		}
 

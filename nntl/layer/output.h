@@ -82,7 +82,7 @@ namespace nntl {
 	private:
 		friend class ::boost::serialization::access;
 		template<class Archive>
-		void serialize(Archive & ar, const unsigned int version) {
+		void serialize(Archive & ar, const unsigned int ) {
 			//NB: DONT touch ANY of .useExternalStorage() matrices here, because it's absolutely temporary meaningless data
 			// and moreover, underlying storage may have already been freed.
 
@@ -128,8 +128,7 @@ namespace nntl {
 				NNTL_ASSERT(!"Wrong weight matrix passed!");
 				return false;
 			}
-			//m_weights = ::std::move(W);
-			m_weights = ::std::forward<realmtx_t>(W);
+			m_weights = ::std::move(W);
 			m_bWeightsInitialized = true;
 			return true;
 		}
@@ -199,6 +198,7 @@ namespace nntl {
 		}
 
 		void initMem(real_t* ptr, numel_cnt_t cnt)noexcept {
+			NNTL_UNREF(cnt);
 			if (get_self().get_common_data().is_training_possible()) {
 				NNTL_ASSERT(ptr && cnt >= m_weights.numel());
 				m_dLdW.useExternalStorage(ptr, m_weights);

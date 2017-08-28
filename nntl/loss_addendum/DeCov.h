@@ -93,6 +93,7 @@ namespace nntl {
 		public:
 			template <typename CommonDataT, bool c = calcOnFprop>
 			::std::enable_if_t<c> dLossAdd(const realmtx_t& Vals, realmtx_t& dLossdVals, const CommonDataT& CD) const noexcept {
+				NNTL_UNREF(Vals);
 				NNTL_ASSERT(m_Mtx.size() == Vals.size() && Vals.size() == dLossdVals.size());
 				NNTL_ASSERT(!Vals.emulatesBiases() && !dLossdVals.emulatesBiases());
 

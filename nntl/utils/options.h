@@ -80,7 +80,7 @@ namespace utils {
 		return ar.m_binary_options[optId];
 	}
 	template<bool bDefault = false, typename ClassT>
-	inline ::std::enable_if_t<!has_binary_options<ClassT>::value, constexpr bool> binary_option(const ClassT& ar, const size_t optId)noexcept {
+	inline ::std::enable_if_t<!has_binary_options<ClassT>::value, constexpr bool> binary_option(const ClassT& , const size_t )noexcept {
 		return bDefault;
 	}
 

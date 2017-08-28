@@ -170,6 +170,7 @@ TEST(Simple, NotSoPlainFFN) {
 
 	//5.5 define callback
 	auto onEpochEndCB = [learningRateDecayCoeff](auto& nn, auto& opts, const size_t epochIdx)->bool {
+		NNTL_UNREF(epochIdx); NNTL_UNREF(opts);
 		// well, we can capture references to layer objects in lambda capture clause and use them directly here,
 		// but lets get an access to them through nn object, passed as function parameter.
 		nn.get_layer_pack().for_each_layer_exc_input([learningRateDecayCoeff](auto& l) {

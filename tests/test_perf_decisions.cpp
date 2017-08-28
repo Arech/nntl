@@ -451,12 +451,12 @@ TEST(TestPerfDecisions, softmaxParts) {
 //////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////
 
-void mrwIdxsOfMax_st_rw(const realmtx_t& m, vec_len_t* pDest)noexcept {
-	const auto rim = m.rows();
-	const auto ne = m.numel();
+void mrwIdxsOfMax_st_rw(const realmtx_t& M, vec_len_t* pDest)noexcept {
+	const auto rim = M.rows();
+	const auto ne = M.numel();
 	//NNTL_ASSERT(rows == dest.size());
 
-	auto pD = m.data();
+	auto pD = M.data();
 	for (vec_len_t ri = 0; ri < rim; ++ri) {
 		auto pV = &pD[ri];
 		const auto pVEnd = pV + ne;
@@ -1713,13 +1713,14 @@ static void pt_ileakyrelu_st(realmtx_t& srcdest, const real_t leak) noexcept {
 }
 template<typename FunctorT>
 void pt_iact_asymm_st(realmtx_t& srcdest, FunctorT&& fnc) noexcept {
+	NNTL_UNREF(fnc);
 	NNTL_ASSERT(!srcdest.empty());
 	auto pV = srcdest.data();
 	const auto pVE = pV + srcdest.numel();
 	while (pV != pVE) {
 		const auto v = *pV;
 		//*pV++ = v < real_t(+0.0) ? FunctorT::f_neg(v) : FunctorT::f_pos(v);
-		*pV++ = (::std::forward<FunctorT>(fnc)).f( v );
+		*pV++ = fnc.f( v );
 	}
 }
 //slightly faster (177vs192)

@@ -40,6 +40,7 @@ namespace GW { //GW namespace is for grad_works mixins and other stuff, that hel
 
 	//////////////////////////////////////////////////////////////////////////
 	// dummy mixin that silently disables ILR
+#pragma warning(disable:4100)
 	template<typename _FC, typename RealT, size_t MixinIdx>
 	class ILR_dummy : private math::smatrix_td {
 	private:
@@ -77,6 +78,7 @@ namespace GW { //GW namespace is for grad_works mixins and other stuff, that hel
 		self_ref_t set_ILR(ArgsT... args) noexcept { return get_self(); }
 		self_ref_t applyILRToMomentum(const bool b)noexcept { return get_self(); }
 	};
+#pragma warning(default:4100)
 
 	//////////////////////////////////////////////////////////////////////////
 	//////////////////////////////////////////////////////////////////////////
@@ -120,6 +122,7 @@ namespace GW { //GW namespace is for grad_works mixins and other stuff, that hel
 
 		template<class Archive>
 		void ILR_serialize(Archive & ar, const unsigned int version) {
+			NNTL_UNREF(version);
 			if (utils::binary_option<true>(ar, serialization::serialize_training_parameters)) {
 				ar & m_ILR;//dont serialize as struct for ease of use in matlab
 			}

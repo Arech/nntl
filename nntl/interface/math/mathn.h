@@ -68,6 +68,7 @@ namespace math {
 		//////////////////////////////////////////////////////////////////////////
 		// members
 	protected:
+#pragma warning(disable:4100)
 		struct _mrw_SOFTMAXPARTS :public _mrwHlpr_rw_UpdVecElm {
 			real_t* pNumerator;//(colmajor) matrix data
 			const real_t*const pMax;//row vector
@@ -112,7 +113,7 @@ namespace math {
 				return VecBaseT(0.0);
 			}
 		};
-
+#pragma warning(default:4100)
 		//////////////////////////////////////////////////////////////////////////
 		//methods
 	public:
@@ -3637,6 +3638,7 @@ namespace math {
 		// deCov
 		// returns how much internal temporarily memory must be available to the to calculate loss_deCov() and dLoss_deCov
 		static numel_cnt_t loss_DeCov_tempMemReqs(const bool bWillDoTraining, const smatrix_td::mtx_size_t biggestMtx)noexcept {
+			NNTL_UNREF(bWillDoTraining);
 			// we'll need some temporary memory to compute covariation and derivative correctly.
 			// In general, we'll need memory for:
 			// - vector of colwise means of biggestMtx, size == biggestMtx.cols_no_bias() 

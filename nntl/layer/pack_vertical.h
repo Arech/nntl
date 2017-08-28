@@ -146,21 +146,25 @@ namespace nntl {
 		//and apply function _Func(auto& layer) to each underlying (non-pack) layer here
 		template<typename _Func>
 		void for_each_layer(_Func&& f)const noexcept {
-			tuple_utils::for_each_up(m_layers, [&func{ ::std::forward<_Func>(f) }](auto& l)noexcept {
-				call_F_for_each_layer(::std::forward<_Func>(func), l);
+			//tuple_utils::for_each_up(m_layers, [&func{ ::std::forward<_Func>(f) }](auto& l)noexcept {
+			tuple_utils::for_each_up(m_layers, [&func{ f }](auto& l)noexcept {
+				//call_F_for_each_layer(::std::forward<_Func>(func), l);
+				call_F_for_each_layer(func, l);//mustn't forward, because lambda is called multiple times
 			});
 		}
 		template<typename _Func>
 		void for_each_layer_down(_Func&& f)const noexcept {
-			tuple_utils::for_each_down(m_layers, [&func{ ::std::forward<_Func>(f) }](auto& l)noexcept {
-				call_F_for_each_layer_down(::std::forward<_Func>(func), l);
+			//tuple_utils::for_each_down(m_layers, [&func{ ::std::forward<_Func>(f) }](auto& l)noexcept {
+			tuple_utils::for_each_down(m_layers, [&func{ f }](auto& l)noexcept {
+				//call_F_for_each_layer_down(::std::forward<_Func>(func), l);
+				call_F_for_each_layer_down(func, l);
 			});
 		}
 
 		//This will apply f to every layer, packed in tuple no matter whether it is a _pack_* kind of layer or no
 		template<typename _Func>
 		void for_each_packed_layer(_Func&& f)const noexcept {
-			tuple_utils::for_each_up(m_layers, ::std::forward<_Func>(f));
+			tuple_utils::for_each_up(m_layers, ::std::forward<_Func>(f));//we're using f only once, so let for_each_up care how to work with it
 		}
 		template<typename _Func>
 		void for_each_packed_layer_down(_Func&& f)const noexcept {
@@ -339,6 +343,7 @@ deprecated:
 		//support for ::boost::serialization
 		friend class ::boost::serialization::access;
 		template<class Archive> void serialize(Archive & ar, const unsigned int version) {
+			NNTL_UNREF(version);
 			get_self().for_each_packed_layer([&ar](auto& l) {
 				ar & serialization::make_named_struct(l.get_layer_name_str().c_str(), l);
 			});

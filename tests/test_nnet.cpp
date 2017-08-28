@@ -184,7 +184,9 @@ TEST(TestNnet, L2Weights) {
 
 template<typename RealT>
 void test_LSUVExt(train_data<RealT>& td, bool bCentNorm, bool bScaleNorm, bool bIndNeurons,const size_t rngSeed)noexcept {
+#pragma warning(disable:4459)
 	typedef RealT real_t;
+#pragma warning(default:4459)
 
 	const bool bUseLSUVExt = bCentNorm || bScaleNorm;
 	SCOPED_TRACE(bUseLSUVExt ? "test_LSUVExt, bUseLSUVExt=true" : "test_LSUVExt, bUseLSUVExt=false");
@@ -270,7 +272,10 @@ void test_LSUVExt(train_data<RealT>& td, bool bCentNorm, bool bScaleNorm, bool b
 }
 
 TEST(TestNnet, LSUVExt) {
+#pragma warning(disable:4459)
 	typedef double real_t;
+#pragma warning(default:4459)
+
 	train_data<real_t> td;
 	readTd(td);
 
@@ -307,8 +312,10 @@ struct GC_DROPOUT : public nntl_tests::NN_base_arch_td<ArchPrmsT> {
 	}
 };
 TEST(TestNnet, GradCheck_dropout) {
+#pragma warning(disable:4459)
 	typedef double real_t;
 	typedef nntl_tests::NN_base_params<real_t, nntl::inspector::GradCheck<real_t>> ArchPrms_t;
+#pragma warning(default:4459)
 
 	nntl::train_data<real_t> td;
 	readTd(td);
