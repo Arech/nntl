@@ -95,7 +95,8 @@ namespace nntl {
 	private:
 		friend class ::boost::serialization::access;
 		template<class Archive>
-		void serialize(Archive & ar, const unsigned int) {
+		void serialize(Archive & ar, const unsigned int version) {
+			NNTL_UNREF(version);
 			ar & m_Layers;
 		}
 

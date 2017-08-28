@@ -38,12 +38,13 @@ function add_layer_types(docNode, gr)
 
 Lst = make_unique_layer_plus_modifier_list(gr);
 if ~isempty(Lst)
-	LT=static_layer_types();
+	%LT=static_layer_types();
 	rootNode = docNode.createElement('types');
 	for ii=1:length(Lst)
 		elm = docNode.createElement(layer_type2string(Lst(ii).type));
-		if Lst(ii).type==LT.custom
-			assert(~isempty(Lst(ii).customType));
+		%if Lst(ii).type==LT.custom
+			%assert(~isempty(Lst(ii).customType));
+		if ~isempty(Lst(ii).customType)
 			elm.setAttribute('type', Lst(ii).customType);
 		end
 		if ~isempty(Lst(ii).modifier)
@@ -87,11 +88,14 @@ modif=[];
 switch(typ)		
 	case {LT.lfc, LT.lph, LT.lpv, LT.lid, LT.custom}
 		ctyp = gr(idx).customType;
-		assert(typ~=LT.custom || ~isempty(ctyp), ['empty gr(' num2str(idx) ').customType']);
+		assert(typ~=LT.custom || (~isempty(ctyp) && ischar(ctyp)), ['empty gr(' num2str(idx) ').customType']);
 		if typ==LT.custom
 			strDescr = ctyp;
 		else
 			strDescr = layer_type2string(typ);
+			if ~isempty(ctyp)
+				strDescr=[strDescr ctyp];
+			end
 		end
 		if ~bLAEmpty
 			modif = strjoin( sort(gr(idx).lossAdds),'_');
@@ -196,6 +200,10 @@ if ~isempty(gr(iid).dropout)
 	elmNode.setAttribute('dout', gr(iid).dropout);
 end
 
+if ~isempty(gr(iid).customType)
+	elmNode.setAttribute('type', gr(iid).customType);
+end
+
 if ~bIsCompound
 	switch(ltype)
 		case LT.lid
@@ -212,7 +220,7 @@ if ~bIsCompound
 			
 		case LT.custom
 			assert(~isempty(gr(iid).customType));
-			elmNode.setAttribute('type', gr(iid).customType);
+			%%elmNode.setAttribute('type', gr(iid).customType);
 			
 			if isempty(gr(iid).constr)
 				assert(~isempty(gr(iid).nc));

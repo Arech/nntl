@@ -82,17 +82,36 @@ namespace nntl {
 	private:
 		friend class ::boost::serialization::access;
 		template<class Archive>
-		void serialize(Archive & ar, const unsigned int version) {
+		void save(Archive & ar, const unsigned int version) const {
 			NNTL_UNREF(version);
 			//NB: DONT touch ANY of .useExternalStorage() matrices here, because it's absolutely temporary meaningless data
 			// and moreover, underlying storage may have already been freed.
-			
+
 			if (utils::binary_option<true>(ar, serialization::serialize_activations)) ar & NNTL_SERIALIZATION_NVP(m_activations);
-			
+
 			if (utils::binary_option<true>(ar, serialization::serialize_weights)) ar & NNTL_SERIALIZATION_NVP(m_weights);
 
 			if (utils::binary_option<true>(ar, serialization::serialize_grad_works)) ar & m_gradientWorks;//dont use nvp or struct here for simplicity
 		}
+		template<class Archive>
+		void load(Archive & ar, const unsigned int version) {
+			NNTL_UNREF(version);
+			if (utils::binary_option<true>(ar, serialization::serialize_weights)) {
+				realmtx_t M;
+				ar & serialization::make_nvp("m_weights", M);
+				if (ar.success()) {
+					if (!set_weights(::std::move(M))) {
+						STDCOUTL("*** Failed to absorb read weights for layer " << get_layer_name_str());
+						ar.mark_invalid_var();
+					}
+				} else {
+					STDCOUTL("*** Failed to read weights for layer " << get_layer_name_str()
+						<< ", " << ar.get_last_error_str());
+				}
+			}
+			//#todo other vars!
+		}
+		BOOST_SERIALIZATION_SPLIT_MEMBER()
 
 
 		//////////////////////////////////////////////////////////////////////////

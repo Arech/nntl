@@ -220,8 +220,12 @@ namespace nntl {
 				ar & NNTL_SERIALIZATION_NVP(m_optBeta2);
 				ar & NNTL_SERIALIZATION_NVP(m_numericStabilizerEps);
 				ar & NNTL_SERIALIZATION_NVP(m_WeightVecNormSqared);
-				ar & NNTL_SERIALIZATION_NVP(m_type);
-				ar & NNTL_SERIALIZATION_NVP(m_opts);
+
+				unsigned int typ = static_cast<unsigned int>(m_type);//#todo must support reading here!
+				ar & NNTL_SERIALIZATION_NVP(typ);
+
+				//ar & NNTL_SERIALIZATION_NVP(m_opts); //#todo: must save&restore this variable
+
 				ar & NNTL_SERIALIZATION_NVP(m_optBeta1t);
 				ar & NNTL_SERIALIZATION_NVP(m_optBeta2t);
 			}

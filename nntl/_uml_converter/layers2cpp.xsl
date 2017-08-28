@@ -113,6 +113,10 @@ struct <xsl:value-of select="/class/@name"/> : public _xml_generated_base_<xsl:v
 	</xsl:otherwise>
 </xsl:choose>
 
+<xsl:if test="not(name()='custom') and @type">
+	<xsl:text>_</xsl:text><xsl:value-of select='@type'/>
+</xsl:if>
+
 <xsl:choose>
 	<xsl:when test="$istypedef=0">
 		<xsl:call-template name="appendLossAddendumSfx"><xsl:with-param name='curId'><xsl:value-of select='@id'/></xsl:with-param></xsl:call-template>
@@ -545,8 +549,8 @@ public:
 		
 		NNTL_ASSERT(ArchiveT::ErrorCode::Success == er);		
 		if (ArchiveT::ErrorCode::Success == er){
-			lFinal.for_each_layer_down([&amp;ar, &amp;er, instanceId, &amp;F{ ::std::forward&lt;OpT&gt;(op) }](auto&amp; l)noexcept{
-				_loadWeights(l, ar, er, instanceId, ::std::forward&lt;OpT&gt;(F));
+			lFinal.for_each_layer_down([&amp;ar, &amp;er, instanceId, &amp;F{ op }](auto&amp; l)noexcept{
+				_loadWeights(l, ar, er, instanceId, F);
 			});
 		}
 		return er;

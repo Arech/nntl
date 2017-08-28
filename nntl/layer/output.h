@@ -82,7 +82,8 @@ namespace nntl {
 	private:
 		friend class ::boost::serialization::access;
 		template<class Archive>
-		void serialize(Archive & ar, const unsigned int ) {
+		void save(Archive & ar, const unsigned int version) const {
+			NNTL_UNREF(version);
 			//NB: DONT touch ANY of .useExternalStorage() matrices here, because it's absolutely temporary meaningless data
 			// and moreover, underlying storage may have already been freed.
 
@@ -98,7 +99,30 @@ namespace nntl {
 				ar & NNTL_SERIALIZATION_NVP(m_dLdZRestrictUpperBnd);
 			}
 		}
-
+		template<class Archive>
+		void load(Archive & ar, const unsigned int version) {
+			NNTL_UNREF(version);
+			if (utils::binary_option<true>(ar, serialization::serialize_weights)) {
+				realmtx_t M;
+				ar & serialization::make_nvp("m_weights", M);
+				if (ar.success()) {
+					if (!set_weights(::std::move(M))) {
+						STDCOUTL("*** Failed to absorb read weights for layer " << get_layer_name_str());
+						ar.mark_invalid_var();
+					}
+				} else {
+					STDCOUTL("*** Failed to read weights for layer " << get_layer_name_str()
+						<< ", " << ar.get_last_error_str());
+				}
+			}
+			if (utils::binary_option<true>(ar, serialization::serialize_training_parameters)) {
+				ar & NNTL_SERIALIZATION_NVP(m_bRestrictdLdZ);
+				ar & NNTL_SERIALIZATION_NVP(m_dLdZRestrictLowerBnd);
+				ar & NNTL_SERIALIZATION_NVP(m_dLdZRestrictUpperBnd);
+			}
+			//#todo other vars!
+		}
+		BOOST_SERIALIZATION_SPLIT_MEMBER()
 
 		//////////////////////////////////////////////////////////////////////////
 		//methods

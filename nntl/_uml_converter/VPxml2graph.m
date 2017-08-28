@@ -69,10 +69,16 @@ assert(~strcmp('Final', name), 'Don`t call any shape `Final` - it`s a reserved k
 
 if bIsPackage
 	nc = [];
-	[type, lossAdds, dout] = readPackageType(xtree,iid);
-	custType=[];%we're expecting it to have one of the standard types (LPH or LPV)
-	%i.e. a package can't have a custom type (design it as a separate feature detector and use as a
-	%simple custom layer on this diagram.
+	[type, lossAdds, dout, isCustom] = readPackageType(xtree,iid);
+	
+	if ~isempty(isCustom) && isCustom
+		custType = name;
+	else
+		custType=[];%we're expecting it to have one of the standard types (LPH or LPV)
+		%i.e. a package can't have a custom type (design it as a separate feature detector and use as a
+		%simple custom layer on this diagram.
+	end
+	
 	constr = [];
 else
 	[nc,type,custType, constr, lossAdds, dout] = readClassModelProps(xtree,iid);
@@ -91,9 +97,13 @@ if islogical(dout)
 	end	
 end
 
+if ~isempty(lossAdds)
+	lossAdds={lossAdds};
+end
+
 cs = struct('iid',iid,'sid',sid,'name',name,'y',y, 'x',x, 'nc', nc...
 	, 'parentIid',[],'childList',0,'type', type, 'customType', custType ...
-	, 'constr', constr, 'lossAdds',lossAdds, 'dropout', dout);
+	, 'constr', constr, 'lossAdds', lossAdds, 'dropout', dout);
 cs.childList={};
 %parentIid and childList should be filled by a caller
 end
@@ -197,7 +207,7 @@ end
 
 end
 %%
-function [pt, lossAdds, dout]=readPackageType(xtree,modelId)
+function [pt, lossAdds, dout, isCust]=readPackageType(xtree,modelId)
 %package type is specified via a stereotypes property.
 import javax.xml.xpath.*
 XP = XPathFactory.newInstance().newXPath();
@@ -207,6 +217,7 @@ LT=static_layer_types();
 pt=0;
 lossAdds=[];
 dout=[];
+isCust=[];
 bTried=false;
 
 XP_expr = XP.compile( ['/Project/Models//Model[@modelType="Package" and @id="' modelId ...
@@ -221,7 +232,9 @@ if ss>0
 			XP_expr = XP.compile( ['/Project/Models//Model[@modelType="Stereotype" and @id="' stIid '"]/@name']);
 			stName = XP_expr.evaluate(xtree, XPathConstants.STRING);
 			assert(~isempty(stName),['Package stereotype "' stIid '" name is empty!']);
-			tCand = string2layer_type(stName);
+			
+			[ tCand, lossAddsCand, dCand, isCustCand ] = parseStereotype(stName);
+			
 			assert(tCand>0);%by the string2layer_type nature it can't be 0
 			if LT.custom==tCand
 				%it could only specify a loss addendum or a dropout			
@@ -231,7 +244,6 @@ if ss>0
 				pt = tCand;
 			end
 
-			dCand = string2dropoutType(stName);
 			if isempty(dout)
 				dout = dCand;
 			else
@@ -242,13 +254,19 @@ if ss>0
 			end
 
 			%trying to extract loss addendum
-			lossAddsCand = string2lossAddendum(stName);
 			if ~isempty(lossAddsCand)
+				assert(iscell(lossAddsCand));
 				if isempty(lossAdds)
 					lossAdds = lossAddsCand;
 				else
-					lossAdds = [lossAdds lossAddsCand];
+					lossAdds = [lossAdds lossAddsCand{:}];
 				end
+			end
+			
+			if ~isempty(isCustCand)
+				assert(islogical(isCustCand));
+				assert(isempty(isCust),['Double custom flag specification found for model=' modelId]);
+				isCust = isCustCand;
 			end
 		end
 	end
@@ -258,6 +276,11 @@ if ss>0
 	if pt==LT.lpv %must be off
 		assert(isempty(dout),['Apply dropout to a topmost layer of the LPV with model="' modelId '"']);
 		dout=false;
+	end
+	
+	if ~isempty(lossAdds)
+		assert(iscell(lossAdds));
+		assert(numel(lossAdds) == numel( unique(lossAdds) ), ['Non unique loss addendums specification found for model=' modelId]);
 	end
 end
 end

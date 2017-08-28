@@ -1,9 +1,12 @@
+%obsolete!
 function [ dout ] = string2dropoutType( str )
 %Parses comma separated string and returns dropout type string / bool / empty
 % format:
 % <opt_layer_type_spec> <DELIM> <opt_loss_addendum_spec> <DELIM> <opt_dropout_spec>
 % <DELIM> is any of ' ,;_'
 %
+
+error('function obsolete!');
 
 rem=str;
 dout=[];

@@ -4,11 +4,12 @@ switch(lower(str))
 	case 'lfc'
 		t=LT.lfc;
 	
-	case {'lph','lph_decov'}
+	case 'lph' %,'lph_decov'}
 		t=LT.lph;
 		
 	case 'lpv'
 		t=LT.lpv;
+		
 	case 'lid'
 		t = LT.lid;
 		

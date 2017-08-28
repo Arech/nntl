@@ -1,12 +1,18 @@
-function [ la ] = string2lossAddendum( str )
+function [ la, supportedList ] = string2lossAddendum( str, bWarnForUnknown )
 %STRING2LOSSADDENDUM Parses comma separated string and returns loss_addendum id's
 % format:
 % <opt_layer_type_spec> <DELIM> <opt_loss_addendum_spec> <DELIM> <opt_dropout_spec>
 % <DELIM> is any of ' ,;_'
 %
 
+if nargin<2
+	bWarnForUnknown=true;
+end
+bWarnForUnknown=logical(bWarnForUnknown);
+
 rem=str;
 la={};
+supportedList={'decov','l1','l2'};
 
 while ~isempty(rem)
 	[tok,rem] = strtok(rem,' ,;_');
@@ -21,21 +27,23 @@ while ~isempty(rem)
 		
 		%the next strings might be found in a layer stereotype for a compound layer. They shouldn't trigger
 		%the warning message
-		case {'lpv','lph'}
+		%case {'lpv','lph'}
 			
 		%if it specifies dropout we should stop parsing
-		case {'dropout','nodropout','do','nodo'}
-			break;
+		%case {'dropout','nodropout','do','nodo'}
+		%	break;
 		
 		otherwise
-			warning('Unexpected token %s found while parsing string %s for loss_addendums specification. It was ignored', tok, str);
+			if bWarnForUnknown
+				warning('Unexpected token %s found while parsing string %s for loss_addendums specification. It was ignored', tok, str);
+			end
 	end
 end
 
 if isempty(la)
 	la=[];
-else
-	la={la};
+%else
+	%la={la};
 end
 
 end

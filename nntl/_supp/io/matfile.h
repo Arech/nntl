@@ -325,6 +325,12 @@ namespace nntl_supp {
 			return ec;
 		}
 
+		bool success()const noexcept {
+			return ErrorCode::Success == get_last_error();
+		}
+		void mark_invalid_var()noexcept {
+			_set_last_error(ErrorCode::FailedToAssignDestinationVar);
+		}
 
 		//////////////////////////////////////////////////////////////////////////
 		// use the following function only when you know what you're doing
@@ -381,6 +387,8 @@ namespace nntl_supp {
 		//denormals safe
 		template<class T>
 		self_ref_t operator<<(const ::boost::serialization::nvp< T > & t) {
+			if (!success()) return get_self();
+
 			if (m_matFile) {
 				if (m_curVarName) {
 					_set_last_error(ErrorCode::WrongState_NameAlreadySet);
@@ -398,6 +406,8 @@ namespace nntl_supp {
 		//denormals safe
 		template<class T>
 		self_ref_t operator<<(const nntl::serialization::named_struct< T > & t) {
+			if (!success()) return get_self();
+
 			auto ec = ErrorCode::Success;
 			if (m_matFile) {
 				if (m_curVarName) {
@@ -434,6 +444,8 @@ namespace nntl_supp {
 		//denormals safe
 		template<class T>
 		self_ref_t operator>>(::boost::serialization::nvp< T > & t) {
+			if (!success()) return get_self();
+
 			if (m_matFile) {
 				if (m_curVarName) {
 					_set_last_error(ErrorCode::WrongState_NameAlreadySet);
@@ -455,6 +467,8 @@ namespace nntl_supp {
 		//denormals safe
 		template<class T>
 		self_ref_t operator>>(nntl::serialization::named_struct< T > & t) {
+			if (!success()) return get_self();
+
 			auto ec = ErrorCode::Success;
 			if (m_matFile) {
 				if (m_curVarName) {
@@ -602,50 +616,7 @@ namespace nntl_supp {
 			return get_self();
 		}
 	};
-
-	//////////////////////////////////////////////////////////////////////////
-
-	/*template<typename FinalChildT, bool bSavingArchive, bool bRestoreDNStateAfterEachCall, typename ErrorsClassT = _matfile_errs>
-	class _matfile_dn_safe : public _matfile<FinalChildT, bSavingArchive, ErrorsClassT>
-	{
-	private:
-		typedef _matfile<FinalChildT, bSavingArchive, ErrorsClassT> _base_class_t;
-
-	public:
-		//denormals safe
-		~_matfile_dn_safe()noexcept {}
-		_matfile_dn_safe()noexcept {}
-
-		//////////////////////////////////////////////////////////////////////////
-		//denormals safe|bRestoreDNStateAfterEachCall
-		
-		template<class T, bool bDNR = bRestoreDNStateAfterEachCall>
-		::std::enable_if_t<!bDNR, self_ref_t> operator >> (T & t) {
-			_base_class_t::operator>> (t);
-			return get_self();
-		}
-		template<class T, bool bDNR = bRestoreDNStateAfterEachCall>
-		::std::enable_if_t<bDNR, self_ref_t> operator >> (T & t) {
-			_base_class_t::operator>> (t);
-			global_denormalized_floats_mode();
-			return get_self();
-		}
-
-		template<class T, bool bDNR = bRestoreDNStateAfterEachCall>
-		::std::enable_if_t<!bDNR, self_ref_t> operator << (T & t) {
-			_base_class_t::operator<< (t);
-			return get_self();
-		}
-		template<class T, bool bDNR = bRestoreDNStateAfterEachCall>
-		::std::enable_if_t<bDNR, self_ref_t> operator << (T & t) {
-			_base_class_t::operator<< (t);
-			global_denormalized_floats_mode();
-			return get_self();
-		}
-	};*/
-
-
-
+	
 	//////////////////////////////////////////////////////////////////////////
 	//extended API for saving archive. It is required for inspectors::dumper only at this moment
 	template<typename FinalChildT, typename ErrorsClassT = _matfile_errs>
@@ -700,6 +671,8 @@ namespace nntl_supp {
 		// If the bDontNest is specified, then the new struct will be created on the same level of nesting as the
 		//		parental struct (the one, that is already presents on the top of m_structureStack)
 		ErrorCode save_struct_begin(::std::string&& structName, const bool bUpdateIfExist, const bool bDontNest)noexcept {
+			if (!success()) return get_last_error();
+
 			auto ec = ErrorCode::Success;
 			if (m_matFile) {
 				if (m_curVarName) {
@@ -749,6 +722,7 @@ namespace nntl_supp {
 		}
 		//denormals safe
 		ErrorCode save_struct_end()noexcept {
+			if (!success()) return get_last_error();
 			auto ec = ErrorCode::Success;
 			if (m_nestedStructs.size()) {
 				if (m_matFile) {
