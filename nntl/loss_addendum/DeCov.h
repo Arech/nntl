@@ -97,7 +97,7 @@ namespace nntl {
 				NNTL_ASSERT(m_Mtx.size() == Vals.size() && Vals.size() == dLossdVals.size());
 				NNTL_ASSERT(!Vals.emulatesBiases() && !dLossdVals.emulatesBiases());
 
-				CD.iInspect().dLossAddendumScaled(m_Mtx, m_scale, getName());
+				CD.iInspect().dLossAddendumScaled(dLossdVals, m_Mtx, m_scale, getName());
 				_appendGradient(CD.iMath(), dLossdVals, m_Mtx);
 			}
 
@@ -115,7 +115,7 @@ namespace nntl {
 
 				iM.dLoss_deCov<bLowerTriangl, bNumStab>(Vals, dL);
 
-				CD.iInspect().dLossAddendumScaled(dL, m_scale, getName());
+				CD.iInspect().dLossAddendumScaled(dLossdVals, dL, m_scale, getName());
 
 				//iM.evAddScaled_ip(dLossdVals, m_scale, dL);
 				_appendGradient(CD.iMath(), dLossdVals, dL);

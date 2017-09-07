@@ -42,6 +42,7 @@ I wouldn't state the NNTL is the fastest CPU implementation of feedforward neura
   * sigmoid with a **quadratic** and a **cross-entropy** (for binary target data) loss function
   * **softmax** with a cross-entropy loss function.
   * SoftSigm unit with a **quadratic** and a **cross-entropy** (for binary target data) loss function.
+  * Linear unit with a **quadratic** loss function.
 * Activation units for hidden layers:
   * **Sigm**oid
   * Rectified linear units (**ReLU**)
@@ -52,6 +53,7 @@ I wouldn't state the NNTL is the fastest CPU implementation of feedforward neura
   * Logarithmic units (**LogLogU**) is -log(1-x)/log(b_neg) for x<0 and log(x+1)/log(b_pos) for x>0. See the note for the ELogU.
   * **SoftSign** (y=_c_*x/(_a_+|x|), where _a_ and _c_ are constants; _a_ controls the slope, _c_ controls the amplitude) and SoftSigm (version of softsign scaled to a range of (0,1)) units. These units offer a better learning performance in some setups as they saturate much slower than corresponding sigmoids (they approach their limits in a polynomial way instead of exponential).
   * Nondiffirentiable step unit (y = 0|x<0 & 1|x>=0)
+  * Linear (identity) unit.
 * Neuron weights initialization schemes:
   * According to **Xavier** et al. "Understanding the difficulty of training deep feedforward neural networks" 2010 (so called "Xavier initialization" - good for sigmoids)
   * According to **He, Zhang** et al. "Delving Deep into Rectifiers: Surpassing Human-Level Performance on ImageNet Classification" 2015 (amazing for ReLU family units)
@@ -78,8 +80,9 @@ I wouldn't state the NNTL is the fastest CPU implementation of feedforward neura
 * Individual Adaptive Learning Rates (an ILR in code) based on a agreement in signs of a current and a previous gradient or a momentum velocity.
 * Early stopping, learning rates decay, momentum modification and etc.. Any tuning of learning variables you may require during an actual training process is possible.
 * Tasks supported out of the box (i.e. all you need to do to be able to work with this tasks is to assemble a proper architecture from components provided; other tasks, such as regression, however, may require some special components coding - please, submit your solutions):
-  * one-hot vector classification via sigmoid or softmax activations
-  * one dimensional binary classification via sigmoid activation
+  * one-hot vector classification via Sigm/SoftSigm or softmax activations
+  * one dimensional binary classification via Sigm/SoftSigm activation
+  * regression via linear activation.
 * Debugging and baby-sitting a neural network learning process is implemented through a special interface which allows to monitor/dump any temporary variable or matrix you might want to examine during a training session (activation/preactivation values, weights, weigth updates and many more - and much more will be added as it'll be needed). The interface is easily extensible and incurs zero run-time cost if it isn't used (it is off by default). Dumping data to Matlab's `.mat` files is already available at the moment. See an example at test_inspectors.cpp.
 * Numeric gradient check routine
 

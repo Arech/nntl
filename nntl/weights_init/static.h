@@ -101,8 +101,9 @@ namespace nntl {
 				rng::distr_normal_naive<iRng_t> d(iR, real_t(0.0), stdDev);
 				d.gen_vector(W.data(), realmtx_t::sNumel(W.rows(), prevLayerNeuronsCnt));
 
-				auto pBiases = W.colDataAsVec(prevLayerNeuronsCnt);
-				::std::fill(pBiases, pBiases + W.rows(), real_t(0.0));
+				//auto pBiases = W.colDataAsVec(prevLayerNeuronsCnt);
+				//::std::fill(pBiases, pBiases + W.rows(), real_t(0.0)); //doesn't get vectorized!
+				W.fill_column_with(prevLayerNeuronsCnt, real_t(0));
 				return true;
 			}
 		};
@@ -128,9 +129,9 @@ namespace nntl {
 
 				d.gen_vector(W.data(), realmtx_t::sNumel(W.rows(), prevLayerNeuronsCnt));
 
-				auto pBiases = W.colDataAsVec(prevLayerNeuronsCnt);
-				::std::fill(pBiases, pBiases + W.rows(), real_t(0.0));
-
+				//auto pBiases = W.colDataAsVec(prevLayerNeuronsCnt);
+				//::std::fill(pBiases, pBiases + W.rows(), real_t(0.0));
+				W.fill_column_with(prevLayerNeuronsCnt, real_t(0));
 				return true;
 			}
 		};
@@ -196,8 +197,9 @@ namespace nntl {
 				}
 #pragma warning(disable:4127)
 				if (biases != real_t(0.0)) {
-					auto pBiases = W.colDataAsVec(prevLayerNeuronsCnt);
-					::std::fill(pBiases, pBiases + thisLayerNeuronsCnt, biases);
+					//auto pBiases = W.colDataAsVec(prevLayerNeuronsCnt);
+					//::std::fill(pBiases, pBiases + thisLayerNeuronsCnt, biases);
+					W.fill_column_with(prevLayerNeuronsCnt, biases);
 				}
 #pragma warning(default:4127)
 				return true;

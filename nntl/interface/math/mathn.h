@@ -271,10 +271,15 @@ namespace math {
 			get_self()._iewBinarize_ip_st(A.data(), frac, lBnd, uBnd, pER ? *pER : elms_range(A));
 		}
 		template<typename T>
-		static void _iewBinarize_ip_st(T*const pA, const T frac, const T lBnd, const T uBnd, const elms_range& er)noexcept {
-			for (auto i = er.elmBegin; i < er.elmEnd; ++i) {
-				pA[i] = pA[i] > frac ? uBnd : lBnd;
+		static void _iewBinarize_ip_st(T* pA, const T frac, const T lBnd, const T uBnd, const elms_range& er)noexcept {
+			const auto pAE = pA + er.elmEnd;
+			pA += er.elmBegin;
+			while (pA != pAE) {//vectorizes
+				*pA++ = *pA > frac ? uBnd : lBnd;
 			}
+			/*for (auto i = er.elmBegin; i < er.elmEnd; ++i) {//doesn't vectorize
+				pA[i] = pA[i] > frac ? uBnd : lBnd;
+			}*/
 		}
 		template<typename T>
 		void ewBinarize_ip_mt(smatrix<T>& A, const T frac, const T lBnd = T(0.), const T uBnd = T(1.))noexcept {
@@ -315,7 +320,14 @@ namespace math {
 		static void _iewBinarize_st(BaseDestT*const pD, const realmtx_t& A, const real_t frac, const elms_range& er)noexcept {
 			const auto pA = A.data();
 			for (numel_cnt_t i = er.elmBegin; i < er.elmEnd; ++i)  pD[i] = pA[i] > frac ? BaseDestT(1.0) : BaseDestT(0.0);
-			//its significantly faster, than while (pA != pAE)  *pD++ = *pA++ > frac ? BaseDestT(1.0) : BaseDestT(0.0);
+			/*auto pA = A.data();
+			const auto pAE = pA + er.elmEnd;
+			pA += er.elmBegin;
+			pD += er.elmBegin;
+			while (pA != pAE) {
+				const auto a = *pA++;
+				*pD++ = a > frac ? BaseDestT(1.0) : BaseDestT(0.0);
+			}*/
 		}
 		template<typename DestContainerT>
 		static void ewBinarize_st(DestContainerT& Dest, const realmtx_t& A, const real_t frac, const elms_range*const pER = nullptr)noexcept {
@@ -1110,9 +1122,15 @@ namespace math {
 				get_self().vAdd_ip_st(pA, pB, dataCnt);
 			} else get_self().vAdd_ip_mt(pA, pB, dataCnt);
 		}
-		static void _ivAdd_ip_st(real_t*const pA, const real_t*const pB, const elms_range& er)noexcept {
+		static void _ivAdd_ip_st(real_t* pA, const real_t* pB, const elms_range& er)noexcept {
 			NNTL_ASSERT(pA && pB);
-			for (numel_cnt_t i = er.elmBegin; i < er.elmEnd; ++i) pA[i] += pB[i];
+			const auto pAE = pA + er.elmEnd;
+			pA += er.elmBegin;
+			pB += er.elmBegin;
+			while (pA != pAE) {
+				*pA++ += *pB++;
+			}
+			//for (numel_cnt_t i = er.elmBegin; i < er.elmEnd; ++i) pA[i] += pB[i];
 		}
 		void vAdd_ip_st(real_t*const pA, const real_t*const pB, const numel_cnt_t dataCnt, const elms_range*const pER=nullptr)noexcept {
 			NNTL_ASSERT(pA && pB && (pER || dataCnt));
@@ -1171,9 +1189,15 @@ namespace math {
 			NNTL_ASSERT(A.size() == B.size() && !A.empty() && !B.empty() && c != real_t(0.0));
 			get_self()._ievAddScaled_ip_st(A.data(), c, B.data(), pER ? *pER : elms_range(A));
 		}
-		static void _ievAddScaled_ip_st(real_t*const pA, const real_t c, const real_t*const pB, const elms_range& er)noexcept {
+		static void _ievAddScaled_ip_st(real_t* pA, const real_t c, const real_t* pB, const elms_range& er)noexcept {
 			NNTL_ASSERT(pA && pB && c);
-			for (numel_cnt_t i = er.elmBegin; i < er.elmEnd; ++i) pA[i] += c*pB[i];
+			const auto pAE = pA + er.elmEnd;
+			pA += er.elmBegin;
+			pB += er.elmBegin;
+			while (pA != pAE) {//vectorizes
+				*pA++ += c*(*pB++);
+			}
+			//for (numel_cnt_t i = er.elmBegin; i < er.elmEnd; ++i) pA[i] += c*pB[i]; //doesn't vectorize, code 500/1200
 		}
 		void evAddScaled_ip_mt(realmtx_t& A, const real_t c, const realmtx_t& B)noexcept {
 			NNTL_ASSERT(A.size() == B.size() && !A.empty() && !B.empty() && c != real_t(0.0));
@@ -1193,11 +1217,20 @@ namespace math {
 			NNTL_ASSERT(A.size() == B.size() && !A.empty() && !B.empty() && c != real_t(0.0));
 			get_self()._ievNZAddScaled_ip_st(A.data(), c, B.data(), pER ? *pER : elms_range(A));
 		}
-		static void _ievNZAddScaled_ip_st(real_t*const pA, const real_t c, const real_t*const pB, const elms_range& er)noexcept {
+		static void _ievNZAddScaled_ip_st(real_t* pA, const real_t c, const real_t* pB, const elms_range& er)noexcept {
 			NNTL_ASSERT(pA && pB && c);
-			for (numel_cnt_t i = er.elmBegin; i < er.elmEnd; ++i) {
-				pA[i] = (pA[i] == real_t(0.) ? real_t(0) : pA[i] + c*pB[i]);
+			const auto pAE = pA + er.elmEnd;
+			pA += er.elmBegin;
+			pB += er.elmBegin;
+			while (pA != pAE) {//vectorizes
+				const real_t a = *pA;
+				const real_t b = *pB++;
+				*pA++ = !a ? real_t(0) : a + c*b;
 			}
+			/*const numel_cnt_t ee = er.elmEnd;
+			for (numel_cnt_t i = er.elmBegin; i < ee; ++i) {
+				pA[i] = (pA[i] == real_t(0.) ? real_t(0) : pA[i] + c*pB[i]);
+			}*/
 		}
 		void evNZAddScaled_ip_mt(realmtx_t& A, const real_t c, const realmtx_t& B)noexcept {
 			NNTL_ASSERT(A.size() == B.size() && !A.empty() && !B.empty() && c != real_t(0.0));
@@ -1218,9 +1251,16 @@ namespace math {
 			NNTL_ASSERT(A.size() == B.size() && !A.empty() && !B.empty() && c != real_t(0.0));
 			get_self()._ievAddScaledSign_ip_st(A.data(),c,B.data(), pER ? *pER : elms_range(A));
 		}
-		static void _ievAddScaledSign_ip_st(real_t*const pA, const real_t c, const real_t*const pB, const elms_range& er)noexcept {
+		static void _ievAddScaledSign_ip_st(real_t* pA, const real_t c, const real_t* pB, const elms_range& er)noexcept {
 			NNTL_ASSERT(pA && pB && c != real_t(0.0));
-			for (numel_cnt_t i = er.elmBegin; i < er.elmEnd; ++i) pA[i] += c*math::sign(pB[i]);
+			const auto pAE = pA + er.elmEnd;
+			pA += er.elmBegin;
+			pB += er.elmBegin;
+			while (pA != pAE) {
+				*pA++ += c*math::sign(*pB++);
+			}
+
+			//for (numel_cnt_t i = er.elmBegin; i < er.elmEnd; ++i) pA[i] += c*math::sign(pB[i]);
 		}
 		void evAddScaledSign_ip_mt(realmtx_t& A, const real_t c, const realmtx_t& B)noexcept {
 			NNTL_ASSERT(A.size() == B.size() && !A.empty() && !B.empty() && c != real_t(0.0));
@@ -1287,9 +1327,19 @@ namespace math {
 			NNTL_ASSERT(A.size() == B.size());
 			get_self()._ievSub_ip_st(A.data(), B.data(), pER ? *pER : elms_range(A));
 		}
-		static void _ievSub_ip_st(real_t*const pA, const real_t*const pB, const elms_range& er)noexcept {
+// 		static void _ievSub_ip_st(real_t*const pA, const real_t*const pB, const elms_range& er)noexcept {
+// 			NNTL_ASSERT(pA && pB);
+// 			const numel_cnt_t _mi = er.elmEnd;
+// 			for (numel_cnt_t i = er.elmBegin; i < _mi/*er.elmEnd*/; ++i) pA[i] -= pB[i];
+// 		} //doesn't vectorize, err 1200
+		static void _ievSub_ip_st(real_t* pA, const real_t* pB, const elms_range& er)noexcept {
 			NNTL_ASSERT(pA && pB);
-			for (numel_cnt_t i = er.elmBegin; i < er.elmEnd; ++i) pA[i] -= pB[i];
+			const auto pAE = pA + er.elmEnd;
+			pA += er.elmBegin;
+			pB += er.elmBegin;
+			while (pA != pAE) {//vectorizeable
+				*pA++ -= *pB++;
+			}
 		}
 		void evSub_ip_mt_naive(realmtx_t& A, const realmtx_t& B)noexcept {
 			NNTL_ASSERT(A.size() == B.size());
@@ -1679,48 +1729,20 @@ namespace math {
 
 		//////////////////////////////////////////////////////////////////////////
 		//////////////////////////////////////////////////////////////////////////
-		// dF for a linear layer is {0|a==0, 1|a!=0)
-		void dIdentity(realmtx_t& f_df)noexcept {
-			if (f_df.numel() < Thresholds_t::dIdentity) {
-				get_self().dIdentity_st(f_df);
-			} else get_self().dIdentity_mt(f_df);
+		//#TODO refactor other suitable dL/dZ computation types to use this function
+		template<typename WlT>
+		void dLoss_dZ(const smatrix<typename WlT::real_t>& data_y, smatrix<typename WlT::real_t>& act_dLdZ)noexcept {
+			if (act_dLdZ.numel() < Thresholds_t::dLoss_dZ<typename WlT::tag_dLdZ>::thr) {
+				get_self().dLoss_dZ_st<WlT>(data_y, act_dLdZ);
+			} else get_self().dLoss_dZ_mt<WlT>(data_y, act_dLdZ);
 		}
-		void dIdentity_st(realmtx_t& f_df, const elms_range*const pER = nullptr)noexcept {
-			get_self()._idIdentity_st(f_df, pER ? *pER : elms_range(f_df));
+		template<typename WlT>
+		void dLoss_dZ_st(const smatrix<typename WlT::real_t>& data_y, smatrix<typename WlT::real_t>& act_dLdZ, const elms_range*const pER = nullptr) noexcept {
+			get_self()._idLoss_dZ_st<WlT>(data_y, act_dLdZ, pER ? *pER : elms_range(act_dLdZ));
 		}
-		static void _idIdentity_st(realmtx_t& f_df, const elms_range& er)noexcept {
-			NNTL_ASSERT(!f_df.emulatesBiases());
-
-			auto pF = f_df.data() + er.elmBegin;
-			const auto pFE = pF + er.totalElements();
-			while (pF != pFE) {
-				const auto a = *pF;
-				//#todo probably comparing as unsigned/uint64 would be faster
-				*pF++ = static_cast<real_t>(a != real_t(0.));
-			}
-		}
-		void dIdentity_mt(realmtx_t& f_df)noexcept {
-			NNTL_ASSERT(!f_df.emulatesBiases());
-			m_threads.run([&f_df, this](const par_range_t& r) {
-				get_self()._idIdentity_st(f_df, elms_range(r));
-			}, f_df.numel());
-		}
-
-		//////////////////////////////////////////////////////////////////////////
-		// dL/dZ for a linear output layer is = (err===a-y)*{0|a==0, 1|a!=0)
-		void dIdentityQuadLoss_dZ(const realmtx_t& data_y, realmtx_t& act_dLdZ)noexcept {
-			if (act_dLdZ.numel() < Thresholds_t::dIdentityQuadLoss_dZ) {
-				get_self().dIdentityQuadLoss_dZ_st(data_y, act_dLdZ);
-			} else get_self().dIdentityQuadLoss_dZ_mt(data_y, act_dLdZ);
-		}
-		//usually error is defined as diffrence between data_y and last layer activation, i.e. nn.e=y-nn.a{n}, but
-		//that will lead to necessity of negation of error in back propagation algorithm. To get rid of that negation,
-		// we'll define error as nn.a{n}-y. This won't bother loss calculation, because it is either squares error
-		// (conventional quadratic loss function) or doesn't use that error definition at all (crossentropy error)
-		void dIdentityQuadLoss_dZ_st(const realmtx_t& data_y, realmtx_t& act_dLdZ, const elms_range*const pER = nullptr) noexcept {
-			get_self()._idIdentityQuadLoss_dZ_st(data_y, act_dLdZ, pER ? *pER : elms_range(act_dLdZ));
-		}
-		static void _idIdentityQuadLoss_dZ_st(const realmtx_t& data_y, realmtx_t& act_dLdZ, const elms_range& er)noexcept {
+		template<typename WlT>
+		static void _idLoss_dZ_st(const smatrix<typename WlT::real_t>& data_y, smatrix<typename WlT::real_t>& act_dLdZ, const elms_range& er)noexcept {
+			typedef typename WlT::real_t real_t;
 			NNTL_ASSERT(!act_dLdZ.emulatesBiases() && !data_y.emulatesBiases());
 			NNTL_ASSERT(act_dLdZ.size() == data_y.size());
 
@@ -1728,24 +1750,61 @@ namespace math {
 			auto pSD = act_dLdZ.data() + er.elmBegin;
 			const auto pSDE = pSD + er.totalElements();
 			while (pSD != pSDE) {
-				const auto a = *pSD;
-				NNTL_ASSERT(real_t(0.) <= a && a <= real_t(1.));//#consider do we need this assert here???
-				const auto y = *pY++;
-				NNTL_ASSERT(real_t(0.) <= y && y <= real_t(1.));
-				*pSD++ = (a - y)*(a != real_t(0.));
+				const real_t a = *pSD;
+				const real_t y = *pY++;
+				*pSD++ = WlT::dLdZ(y, a);
 			}
 		}
-		void dIdentityQuadLoss_dZ_mt(const realmtx_t& data_y, realmtx_t& act_dLdZ)noexcept {
+		template<typename WlT>
+		void dLoss_dZ_mt(const smatrix<typename WlT::real_t>& data_y, smatrix<typename WlT::real_t>& act_dLdZ)noexcept {
 			NNTL_ASSERT(!act_dLdZ.emulatesBiases() && !data_y.emulatesBiases());
 			NNTL_ASSERT(act_dLdZ.size() == data_y.size());
 			m_threads.run([&data_y, &act_dLdZ, this](const par_range_t& r) {
-				get_self()._idIdentityQuadLoss_dZ_st(data_y, act_dLdZ, elms_range(r));
+				get_self()._idLoss_dZ_st<WlT>(data_y, act_dLdZ, elms_range(r));
 			}, act_dLdZ.numel());
 		}
+		//////////////////////////////////////////////////////////////////////////
+		//#TODO refactor other suitable loss computation types to use this function
+		template<typename WlT>
+		real_t compute_loss(const smatrix<typename WlT::real_t>& activations, const smatrix<typename WlT::real_t>& data_y)noexcept {
+			if (activations.numel() < Thresholds_t::compute_loss<typename WlT::tag_loss>::thr) {
+				return get_self().compute_loss_st<WlT>(activations, data_y);
+			} else return get_self().compute_loss_mt<WlT>(activations, data_y);
+		}
+		template<typename WlT>
+		static real_t _icompute_loss_st(const smatrix<typename WlT::real_t>& activations, const smatrix<typename WlT::real_t>& data_y, const elms_range& er)noexcept {
+			typedef typename WlT::real_t real_t;
+			NNTL_ASSERT(activations.size() == data_y.size() && !activations.empty() && !data_y.empty());
+
+			auto pA = activations.data();
+			const auto pAE = pA + er.elmEnd;
+			pA += er.elmBegin;
+			auto pY = data_y.data() + er.elmBegin;
+			real_t ret(0.0);
+			while (pA != pAE) {//gets vectorized
+				const real_t a = *pA++, y = *pY++;
+				ret += WlT::loss(a, y);
+			}
+			return ret;
+		}
+		template<typename WlT>
+		static real_t compute_loss_st(const smatrix<typename WlT::real_t>& activations, const smatrix<typename WlT::real_t>& data_y, const elms_range*const pER = nullptr)noexcept {
+			return WlT::normalize(_icompute_loss_st<WlT>(activations, data_y, pER ? *pER : elms_range(activations)), activations.rows());
+		}
+		template<typename WlT>
+		real_t compute_loss_mt(const smatrix<typename WlT::real_t>& activations, const smatrix<typename WlT::real_t>& data_y)noexcept {
+			typedef typename WlT::real_t real_t;
+			const real_t ql = m_threads.reduce([&activations, &data_y](const par_range_t& r)->real_t {
+				return _icompute_loss_st<WlT>(activations, data_y, elms_range(r));
+			}, _vec_sum<false, real_t>, activations.numel());
+			return WlT::normalize(ql, activations.rows());
+		}
+
 
 		//////////////////////////////////////////////////////////////////////////
+		//////////////////////////////////////////////////////////////////////////
 		// L = -y*log(a)-(1-y)log(1-a) (dL/dZ = dL/dA * dA/dZ = (a-y)/(a*(1-a)) * dA/dZ )
-		// dA/dZ = {0|a==0, 1|a!=0}
+		// dA/dZ = 1 /////{0|a==0, 1|a!=0}
 		// because activations comes from the output layer, expecting no biases there
 		void dIdentityXEntropyLoss_dZ(const realmtx_t& data_y, realmtx_t& act_dLdZ)noexcept {
 			if (act_dLdZ.numel() < Thresholds_t::dIdentityXEntropyLoss_dZ) {
@@ -1769,7 +1828,8 @@ namespace math {
 				NNTL_ASSERT(real_t(0.) <= y && y <= real_t(1.));
 
 				//#numstab ?
-				*pSD++ = (av - y)*(av != real_t(0.)) / (av*(real_t(1.) - av));
+				//*pSD++ = (av - y)*(av != real_t(0.)) / (av*(real_t(1.) - av));
+				*pSD++ = (av - y) / (av*(real_t(1.) - av));
 			}
 		}
 		void dIdentityXEntropyLoss_dZ_mt(const realmtx_t& data_y, realmtx_t& act_dLdZ)noexcept {
@@ -3009,19 +3069,32 @@ namespace math {
 			} else return get_self().loss_quadratic_mt_naive(activations, data_y);
 		}
 
-		static real_t _iloss_quadratic_st_naive(const realmtx_t& activations, const realmtx_t& data_y, const elms_range& er)noexcept {
+		/*static real_t _iloss_quadratic_st_naive(const realmtx_t& activations, const realmtx_t& data_y, const elms_range& er)noexcept {
 			NNTL_ASSERT(activations.size() == data_y.size() && !activations.empty() && !data_y.empty());
 
 			const auto pA = activations.data();
 			const auto pY = data_y.data();
 			real_t ret(0.0);
-			for (numel_cnt_t i = er.elmBegin; i < er.elmEnd; ++i) {
+			for (numel_cnt_t i = er.elmBegin; i < er.elmEnd; ++i) {//doesn't get vectorized
 				const real_t e = pA[i] - pY[i];
 				ret += e*e;
 			}
 			return ret;
-		}
+		}*/
+		static real_t _iloss_quadratic_st_naive(const realmtx_t& activations, const realmtx_t& data_y, const elms_range& er)noexcept {
+			NNTL_ASSERT(activations.size() == data_y.size() && !activations.empty() && !data_y.empty());
 
+			auto pA = activations.data();
+			const auto pAE = pA + er.elmEnd;
+			pA += er.elmBegin;
+			auto pY = data_y.data() + er.elmBegin;
+			real_t ret(0.0);
+			while (pA != pAE) {//gets vectorized
+				const real_t e = *pA++ - *pY++;
+				ret += e*e;
+			}
+			return ret;
+		}
 		static real_t loss_quadratic_st_naive(const realmtx_t& activations, const realmtx_t& data_y, const elms_range*const pER = nullptr)noexcept {
 			return _iloss_quadratic_st_naive(activations, data_y, pER ? *pER : elms_range(activations)) / (2 * activations.rows());
 		}

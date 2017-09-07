@@ -64,6 +64,10 @@ namespace utils {
 			return clock_t::now();
 		}
 
+		void set_repeats(const uint64_t r)noexcept {
+			m_repeats = r;
+		}
+
 		void tic()noexcept {
 			m_tStart = now();
 		}

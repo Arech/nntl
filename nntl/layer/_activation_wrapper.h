@@ -191,8 +191,7 @@ namespace nntl {
 			}
 
 			template<typename iMathT, bool _b = bActivationForHidden>
-			::std::enable_if_t<_b>
-			_activation_bprop(realmtx_t& act2dAdZ_nb,iMathT& iM)noexcept {
+			::std::enable_if_t<_b> _activation_bprop(realmtx_t& act2dAdZ_nb,iMathT& iM)noexcept {
 				NNTL_ASSERT(m_activations.emulatesBiases() && !act2dAdZ_nb.emulatesBiases());
 				NNTL_ASSERT(m_activations.data() == act2dAdZ_nb.data() && m_activations.size_no_bias() == act2dAdZ_nb.size());
 				if (bLayerIsLinear()) {

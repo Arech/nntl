@@ -37,6 +37,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 // Or just use MathN_mt for reasonably large data sizes
 
 #include "smath_thr.h"
+#include "../../activations/_loss_parts.h"
 
 namespace nntl {
 namespace math {
@@ -93,8 +94,8 @@ namespace _impl {
 		static constexpr size_t evAbs = 20300;
 		static constexpr size_t vSumAbs = 18000;//not tested		
 
-		static constexpr size_t dIdentity = 30000;//nt
-		static constexpr size_t dIdentityQuadLoss_dZ = 15000;//nt
+		//static constexpr size_t dIdentity = 30000;//nt
+		//static constexpr size_t dIdentityQuadLoss_dZ = 15000;//nt
 		static constexpr size_t dIdentityXEntropyLoss_dZ = 10000;//nt
 
 		static constexpr size_t sigm = 1300;
@@ -149,7 +150,7 @@ namespace _impl {
 		static constexpr size_t softmax_parts_mt_rows = 1000;
 		static constexpr size_t softmax = 3000;//not tested
 
-		static constexpr size_t loss_quadratic = 24400;
+		static constexpr size_t loss_quadratic = 23600;
 		static constexpr size_t loss_quadratic_ns = 20000;
 		static constexpr size_t loss_xentropy = 1000;// 800;
 		static constexpr size_t loss_xentropy_ns = 1000;
@@ -163,11 +164,19 @@ namespace _impl {
 		static constexpr size_t AdaMax = 1200;
 
 		static constexpr size_t RNadam = 3000;
+
+		//////////////////////////////////////////////////////////////////////////
+		template<typename WlT> struct dLoss_dZ {};
+		template<> struct dLoss_dZ<activation::tag_Linear_Loss_quadWeighted_FP> { static constexpr size_t thr = 10000; };
+
+		template<typename WlT> struct compute_loss {};
+		template<> struct compute_loss<activation::tag_Loss_quadratic> { static constexpr size_t thr = 11000; };
+		template<> struct compute_loss<activation::tag_Loss_quadWeighted_FP> { static constexpr size_t thr = 8100; };
 	};
 
 	template <> struct MATHN_THR<float> : public SMATH_THR<float> {
-		static constexpr size_t ewBinarize_ip = 7000;
-		static constexpr size_t ewBinarize = 9000;
+		static constexpr size_t ewBinarize_ip = 13000;
+		static constexpr size_t ewBinarize = 9200;
 
 		static constexpr size_t mExtractRows = 800000;
 
@@ -177,7 +186,7 @@ namespace _impl {
 		static constexpr size_t mCheck_normalize_rows = 250000;
 		static constexpr size_t evClamp = 14000;
 		static constexpr size_t make_dropout = 15000;//*
-		static constexpr size_t make_alphaDropout = 4100;//* for 0.8
+		static constexpr size_t make_alphaDropout = 3800;//* for 0.9
 
 		static constexpr size_t apply_ILR_st_vec = 2620; //*
 		static constexpr size_t apply_ILR_mt = 9000; //*
@@ -188,99 +197,108 @@ namespace _impl {
 
 		static constexpr size_t evMulC_ip = 131000;
 		static constexpr size_t evMulC_ip_Anb = 131000;
-		static constexpr size_t evMul_ip = 30000;
+		static constexpr size_t evMul_ip = 9000;
 		//static constexpr size_t evMul_ip_Anb = 73400;
-		static constexpr size_t evAdd_ip = 41200;
+		static constexpr size_t evAdd_ip = 12000;
 
-		static constexpr size_t evAddScaled_ip = 18000;//*
-		static constexpr size_t evNZAddScaled_ip = 7900;//*
+		static constexpr size_t evAddScaled_ip = 10000;//*
+		static constexpr size_t evNZAddScaled_ip = 11000;//*
 		
 		static constexpr size_t evAddScaledSign_ip = 15000;//not tested
 		static constexpr size_t evNZAddScaledSign_ip = 6000; //nt
 
 		static constexpr size_t evSign = 30000;//not tested
 
-		static constexpr size_t evSub_ip = 60000;
+		static constexpr size_t evSub_ip = 12000;//*
 		static constexpr size_t evSub = 28000;
 		static constexpr size_t evMulC_ip_Sub_ip = 30000;
 
-		static constexpr size_t evSubMtxMulC_ip_nb = 15000;//*
+		static constexpr size_t evSubMtxMulC_ip_nb = 9000;//*
 
 		static constexpr size_t evSquare = 49000;
 		//static constexpr size_t vSumSquares = 40000; //not tested
 		static constexpr size_t evAbs = 43000;
 		static constexpr size_t vSumAbs = 36000;//not tested
 
-		static constexpr size_t dIdentity = 30000;//nt
-		static constexpr size_t dIdentityQuadLoss_dZ = 15000;//nt
+		//static constexpr size_t dIdentity = 30000;//nt
+		//static constexpr size_t dIdentityQuadLoss_dZ = 15000;//nt
 		static constexpr size_t dIdentityXEntropyLoss_dZ = 10000;//nt
 
-		static constexpr size_t sigm = 1300;//*
-		static constexpr size_t dsigm = 24500;//*
-		static constexpr size_t dSigmQuadLoss_dZ = 70000;//*
+		static constexpr size_t sigm = 4300;//*
+		static constexpr size_t dsigm = 12000;//*
+		static constexpr size_t dSigmQuadLoss_dZ = 9200;//*
 
-		static constexpr size_t relu = 120000;//*
-		static constexpr size_t drelu = 120000;//*
-		static constexpr size_t leakyrelu = 109000;//*
-		static constexpr size_t dleakyrelu = 120000;//*
+		static constexpr size_t relu = 13000;//*
+		static constexpr size_t drelu = 14000;//*
+		static constexpr size_t leakyrelu = 13000;//*
+		static constexpr size_t dleakyrelu = 14000;//*
 
-		static constexpr size_t elu = 1600;//*
-		static constexpr size_t delu = 100000;//*
-		static constexpr size_t elu_unitalpha = 1650;//*
-		static constexpr size_t delu_unitalpha = 25600;//*
+		static constexpr size_t elu = 4300;//*
+		static constexpr size_t delu = 14500;//*
+		static constexpr size_t elu_unitalpha = 4300;//*
+		static constexpr size_t delu_unitalpha = 10000;//*
 
-		static constexpr size_t elogu = 1100;//*
-		static constexpr size_t delogu = 1700;//*
-		static constexpr size_t elogu_ua = 1100;//*
-		static constexpr size_t delogu_ua = 1800;//*
-		static constexpr size_t elogu_nb = 1100;//*
-		static constexpr size_t delogu_nb = 1800;//*
-		static constexpr size_t elogu_ua_nb = 1150;//*
-		static constexpr size_t delogu_ua_nb = 1850;//*
+		static constexpr size_t elogu = 1400;//*
+		static constexpr size_t delogu = 4300;//*
+		static constexpr size_t elogu_ua = 1400;//*
+		static constexpr size_t delogu_ua = 4300;//*
+		static constexpr size_t elogu_nb = 1400;//*
+		static constexpr size_t delogu_nb = 4300;//*
+		static constexpr size_t elogu_ua_nb = 1400;//*
+		static constexpr size_t delogu_ua_nb = 4300;//*
 
-		static constexpr size_t loglogu = 600;//* 1100 for log(x)+1
-		static constexpr size_t dloglogu = 1000;//*
-		static constexpr size_t loglogu_nbn = 600;//*1040 for log(x)+1
-		static constexpr size_t dloglogu_nbn = 1000;//*
-		static constexpr size_t loglogu_nbp = 600;//*1040 for log(x)+1
-		static constexpr size_t dloglogu_nbp = 980;//*
-		static constexpr size_t loglogu_nbn_nbp = 600;//*1020 for log(x)+1
-		static constexpr size_t dloglogu_nbn_nbp = 8900;//*
+		static constexpr size_t loglogu = 3600;//*
+		static constexpr size_t dloglogu = 4200;//*
+		static constexpr size_t loglogu_nbn = 1000;//*
+		static constexpr size_t dloglogu_nbn = 4300;//*
+		static constexpr size_t loglogu_nbp = 950;//*
+		static constexpr size_t dloglogu_nbp = 4800;//*
+		static constexpr size_t loglogu_nbn_nbp = 1000;//*
+		static constexpr size_t dloglogu_nbn_nbp = 4900;//*
 
-		static constexpr size_t softsign = 7900;//*
-		static constexpr size_t softsign_uc = 8200;//*
-		static constexpr size_t dsoftsign = 21400;//*
-		static constexpr size_t dsoftsign_ua_uc = 39000;//*
-		static constexpr size_t softsigm = 6700;//*
-		static constexpr size_t dsoftsigm = 11500;//*
+		static constexpr size_t softsign = 8900;//*
+		static constexpr size_t softsign_uc = 9300;//*
+		static constexpr size_t dsoftsign = 14000;//*
+		static constexpr size_t dsoftsign_ua_uc = 14000;//*
+		static constexpr size_t softsigm = 9000;//*
+		static constexpr size_t dsoftsigm = 11000;//*
 
-		static constexpr size_t dSoftSigmQuadLoss_dZ = 9600;
-		static constexpr size_t dSoftSigmXEntropyLoss_dZ = 4400;
+		static constexpr size_t dSoftSigmQuadLoss_dZ = 8700;
+		static constexpr size_t dSoftSigmXEntropyLoss_dZ = 7100;
 
-		static constexpr size_t selu = 1600;//*
-		static constexpr size_t dselu = 100000;//*
+		static constexpr size_t selu = 4200;//*
+		static constexpr size_t dselu = 15000;//*
 
 		static constexpr size_t step = 500000;
 
 		static constexpr size_t softmax_parts = 3200;
 		static constexpr size_t softmax_parts_mt_cw_ColsPerThread = 3;
 		static constexpr size_t softmax_parts_mt_rows = 6000;
-		static constexpr size_t softmax = 5000;//not tested
+		static constexpr size_t softmax = 5500;//not tested
 
-		static constexpr size_t loss_quadratic = 49600;
-		static constexpr size_t loss_quadratic_ns = 45000;
-		static constexpr size_t loss_xentropy = 1000;//750;
-		static constexpr size_t loss_xentropy_ns = 1000;//750;
-		static constexpr size_t loss_softmax_xentropy = 1000;
+		static constexpr size_t loss_quadratic = 11000;//*
+		static constexpr size_t loss_quadratic_ns = 11000;
+		static constexpr size_t loss_xentropy = 850;//750;
+		static constexpr size_t loss_xentropy_ns = 850;//750;
+		static constexpr size_t loss_softmax_xentropy = 1100;
 
 		static constexpr size_t RMSProp_Hinton = 8100;
 		static constexpr size_t RMSProp_Graves = 8000;
 		static constexpr size_t RProp = 12000;
 		static constexpr size_t ModProp = 9300;
-		static constexpr size_t Adam = 8000;//*
+		static constexpr size_t Adam = 7300;//*
 		static constexpr size_t AdaMax = 2900;//*
 
-		static constexpr size_t RNadam = 8000;
+		static constexpr size_t RNadam = 7400;
+
+		//////////////////////////////////////////////////////////////////////////
+		template<typename WlT> struct dLoss_dZ {};
+		template<> struct dLoss_dZ<activation::tag_Linear_Loss_quadWeighted_FP> { static constexpr size_t thr = 8100; };//*
+
+		template<typename WlT> struct compute_loss {};
+		template<> struct compute_loss<activation::tag_Loss_quadratic> { static constexpr size_t thr = 11000; };//*
+		template<> struct compute_loss<activation::tag_Loss_quadWeighted_FP> { static constexpr size_t thr = 8100; };//*
+		
 	};
 
 }

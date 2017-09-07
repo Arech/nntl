@@ -359,25 +359,49 @@ namespace weights_init {
 						} else break;
 					}
 					//if (!bScaleIsOk) _say_failed();
+				} else {
+					_fprop();
+					const auto stat = _calc<ScaleMeasureT>(pAct->begin(), pAct->end_no_bias(), pAct->rows(), pCurGatingColumn);
+
+					if (::std::isnan(stat) || real_t(0) == stat || !::std::isfinite(stat)) {
+						STDCOUTL("*** got invalid scale statistic, will try to reinit weights");
+						bForceReinit = true;
+						bScaleIsOk = false;
+					} else {
+						bScaleIsOk = (::std::abs(stat - lSetts.targetScale) < lSetts.ScaleTolerance);
+
+						if (lSetts.bVerbose) STDCOUTL("scale (\"variance\") = " << stat << (bScaleIsOk ? "(ok)" : "(*doesn't fit, but changing was forbidden*)"));
+						bScaleIsOk = true;
+					}
 				}
+
 				//offsetting bias weights breaks orthogonality of weight matrix (when OrthoInit was used). Therefore to change
 				//it little less we'll update biases after we've reached correct scale.
-				if (bScaleIsOk && lSetts.bCentralNormalize) {
-					for (unsigned i = 0; i < lSetts.maxTries; ++i) {
+				if (bScaleIsOk) {
+					if (lSetts.bCentralNormalize) {
+						for (unsigned i = 0; i < lSetts.maxTries; ++i) {
+							_fprop();
+
+							const auto stat = _calc<CentralMeasureT>(pAct->begin(), pAct->end_no_bias(), pAct->rows(), pCurGatingColumn);
+							bCentralIsOk = (::std::abs(stat - real_t(0.)) < lSetts.CentralTolerance);
+
+							if (lSetts.bVerbose) STDCOUTL("#" << i << " central (\"mean\") = " << stat << (bCentralIsOk ? "(ok)" : ""));
+
+							if (!bCentralIsOk) {
+								auto pB = weights.colDataAsVec(weights.cols() - 1);
+								const auto pBE = weights.end();
+								while (pB < pBE) *pB++ -= stat*actScaling;
+							} else break;
+						}
+						//if (!bCentralIsOk) _say_failed();
+					} else if (lSetts.bVerbose) {
 						_fprop();
 
 						const auto stat = _calc<CentralMeasureT>(pAct->begin(), pAct->end_no_bias(), pAct->rows(), pCurGatingColumn);
 						bCentralIsOk = (::std::abs(stat - real_t(0.)) < lSetts.CentralTolerance);
-
-						if (lSetts.bVerbose) STDCOUTL("#" << i << " central (\"mean\") = " << stat << (bCentralIsOk ? "(ok)" : ""));
-
-						if (!bCentralIsOk) {
-							auto pB = weights.colDataAsVec(weights.cols() - 1);
-							const auto pBE = weights.end();
-							while (pB < pBE) *pB++ -= stat*actScaling;
-						}else break;
+						STDCOUTL("central (\"mean\") = " << stat << (bCentralIsOk ? "(ok)" : "(*doesn't fit, but changing was forbidden*)"));
+						bCentralIsOk = true;
 					}
-					//if (!bCentralIsOk) _say_failed();
 				}
 				return !bForceReinit && bScaleIsOk && bCentralIsOk;
 			}
@@ -431,32 +455,79 @@ namespace weights_init {
 						if (bScaleStatOK || bForceReinit) break;
 					}
 					//if (!bScaleStatOK) _say_failed();
+				} else {
+					_fprop();
+					ext_real_t statSum = 0;
+
+					for (neurons_count_t nrn = 0; nrn < total_nc; ++nrn) {
+						const auto pD = pAct->colDataAsVec(nrn);
+						const auto stat = _calc<ScaleMeasureT>(pD, pD + batchSize, batchSize, pCurGatingColumn);
+
+						if (::std::isnan(stat) || real_t(0) == stat || !::std::isfinite(stat)) {
+							STDCOUTL("*** got invalid scale statistic, will try to reinit weights");
+							bForceReinit = true;
+							bScaleStatOK = false;
+							break;
+						}
+
+						const bool bScaleIsOk = (::std::abs(stat - lSetts.targetScale) < lSetts.ScaleTolerance);
+						statSum += stat;
+
+						if (!bScaleIsOk) {
+							bScaleStatOK = false;
+							NNTL_ASSERT(stat != real_t(0.));
+						}
+					}
+
+					if (!bForceReinit) {
+						if (lSetts.bVerbose) STDCOUTL("avg scale (\"variance\") = " << statSum / total_nc << (bScaleStatOK ? "(ok)" : "(*doesn't fit, but changing was forbidden*)"));
+						bScaleStatOK = true;
+					}
 				}
 				//offsetting bias weights breaks orthogonality of weight matrix (when OrthoInit is being used). Therefore to change
 				//it little less we'll update biases after we've reached the correct scale.
-				if (bScaleStatOK && lSetts.bCentralNormalize) {
-					for (unsigned i = 0; i < lSetts.maxTries; ++i) {
-						_fprop();
+				if (bScaleStatOK) {
+					if (lSetts.bCentralNormalize) {
+						for (unsigned i = 0; i < lSetts.maxTries; ++i) {
+							_fprop();
 
+							ext_real_t statSum = 0;
+							bCentralStatOK = true;
+
+							for (neurons_count_t nrn = 0; nrn < total_nc; ++nrn) {
+								const auto pD = pAct->colDataAsVec(nrn);
+								const auto stat = _calc<CentralMeasureT>(pD, pD + batchSize, batchSize, pCurGatingColumn);
+								const bool bCentralIsOk = (::std::abs(stat - real_t(0.)) < lSetts.CentralTolerance);
+								statSum += stat;
+
+								if (!bCentralIsOk) {
+									bCentralStatOK = false;
+									weights.get(nrn, weights.cols() - 1) -= stat*actScaling;
+								}
+							}
+
+							if (lSetts.bVerbose) STDCOUTL("#" << i << " avg central (\"mean\") = " << statSum / total_nc << (bCentralStatOK ? "(ok)" : ""));
+							if (bCentralStatOK) break;
+						}
+						//if (!bCentralStatOK) _say_failed();
+					} else {
+						_fprop();
 						ext_real_t statSum = 0;
-						bCentralStatOK = true;
 
 						for (neurons_count_t nrn = 0; nrn < total_nc; ++nrn) {
 							const auto pD = pAct->colDataAsVec(nrn);
 							const auto stat = _calc<CentralMeasureT>(pD, pD + batchSize, batchSize, pCurGatingColumn);
 							const bool bCentralIsOk = (::std::abs(stat - real_t(0.)) < lSetts.CentralTolerance);
 							statSum += stat;
-							
+
 							if (!bCentralIsOk) {
 								bCentralStatOK = false;
-								weights.get(nrn, weights.cols() - 1) -= stat*actScaling;
 							}
 						}
 
-						if (lSetts.bVerbose) STDCOUTL("#" << i << " avg central (\"mean\") = " << statSum / total_nc << (bCentralStatOK ? "(ok)" : ""));
-						if (bCentralStatOK) break;
+						if (lSetts.bVerbose) STDCOUTL("avg central (\"mean\") = " << statSum / total_nc << (bCentralStatOK ? "(ok)" : "(*doesn't fit, but changing was forbidden*)"));
+						bCentralStatOK = true;
 					}
-					//if (!bCentralStatOK) _say_failed();
 				}
 
 				return !bForceReinit && bCentralStatOK && bScaleStatOK;

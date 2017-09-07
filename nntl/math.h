@@ -161,7 +161,7 @@ namespace math {
 
 	//////////////////////////////////////////////////////////////////////////
 	//thanks to http://stackoverflow.com/a/4609795
-	template <typename T> int sign(T val) {
+	template <typename T> constexpr int sign(const T val) {
 		return (T(+0.0) < val) - (val < T(-0.0));
 	}
 	

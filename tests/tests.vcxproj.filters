@@ -471,6 +471,12 @@
     <ClInclude Include="..\nntl\utils\data_buffer.h">
       <Filter>nntl\utils</Filter>
     </ClInclude>
+    <ClInclude Include="..\nntl\activations\linear.h">
+      <Filter>nntl\activations</Filter>
+    </ClInclude>
+    <ClInclude Include="..\nntl\activations\_loss_parts.h">
+      <Filter>nntl\activations</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="stdafx.cpp">
@@ -549,6 +555,9 @@
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="test_selu.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="test_activations.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>

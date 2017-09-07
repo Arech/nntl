@@ -181,6 +181,7 @@
     <ClInclude Include="..\nntl\activation.h" />
     <ClInclude Include="..\nntl\activations\elogu.h" />
     <ClInclude Include="..\nntl\activations\elu.h" />
+    <ClInclude Include="..\nntl\activations\linear.h" />
     <ClInclude Include="..\nntl\activations\loglogu.h" />
     <ClInclude Include="..\nntl\activations\relu_family.h" />
     <ClInclude Include="..\nntl\activations\selu.h" />
@@ -190,6 +191,7 @@
     <ClInclude Include="..\nntl\activations\softsign.h" />
     <ClInclude Include="..\nntl\activations\step.h" />
     <ClInclude Include="..\nntl\activations\_i_activation.h" />
+    <ClInclude Include="..\nntl\activations\_loss_parts.h" />
     <ClInclude Include="..\nntl\common.h" />
     <ClInclude Include="..\nntl\common_nn_data.h" />
     <ClInclude Include="..\nntl\dropout.h" />
@@ -310,6 +312,7 @@
     <ClCompile Include="common_routines.cpp" />
     <ClCompile Include="imath_etalons.cpp" />
     <ClCompile Include="simple_math_etalons.cpp" />
+    <ClCompile Include="test_activations.cpp" />
     <ClCompile Include="test_binfile.cpp" />
     <ClCompile Include="test_imath_basic.cpp" />
     <ClCompile Include="test_imath_basic_thr.cpp" />

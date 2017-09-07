@@ -130,8 +130,8 @@ namespace inspector {
 		//based on activation values (such as DeCov loss)
 		nntl_interface void bprop_finaldLdA(const realmtx_t& dLdA) const noexcept;
 
-		nntl_interface void bprop_preCancelDropout(const realmtx_t& Act, const real_t dpa) const noexcept;
-		nntl_interface void bprop_postCancelDropout(const realmtx_t& Act) const noexcept;
+		nntl_interface void bprop_preCancelDropout(const realmtx_t& dLdA, const realmtx_t& Act, const real_t dpa) const noexcept;
+		nntl_interface void bprop_postCancelDropout(const realmtx_t& dLdA, const realmtx_t& Act) const noexcept;
 		
 		nntl_interface void bprop_predLdZOut(const realmtx_t& Act, const realmtx_t& data_y) const noexcept;
 		nntl_interface void bprop_predAdZ(const realmtx_t& Act) const noexcept;
@@ -154,7 +154,7 @@ namespace inspector {
 		nntl_interface void apply_grad_postILR(const realmtx_t& dLdW, const realmtx_t& Gain) const noexcept;
 
 		//to monitor dLdA addendums
-		nntl_interface void dLossAddendumScaled(const realmtx_t& dLossAdd, const real_t& scale, const char*const pLossName)const noexcept;
+		nntl_interface void dLossAddendumScaled(const realmtx_t& dLoss, const realmtx_t& dLossAdd, const real_t& scale, const char*const pLossName)const noexcept;
 	};
 
 	namespace _impl {
@@ -239,10 +239,10 @@ namespace inspector {
 
 			void bprop_finaldLdA(const realmtx_t& dLdA) const noexcept { NNTL_UNREF(dLdA); }
 
-			void bprop_preCancelDropout(const realmtx_t& Act, const real_t dpa) const noexcept {
-				NNTL_UNREF(Act);				NNTL_UNREF(dpa);
+			void bprop_preCancelDropout(const realmtx_t& dLdA, const realmtx_t& Act, const real_t dpa) const noexcept {
+				NNTL_UNREF(dLdA); NNTL_UNREF(Act);				NNTL_UNREF(dpa);
 			}
-			void bprop_postCancelDropout(const realmtx_t& Act) const noexcept { NNTL_UNREF(Act); }
+			void bprop_postCancelDropout(const realmtx_t& dLdA, const realmtx_t& Act) const noexcept { NNTL_UNREF(dLdA); NNTL_UNREF(Act); }
 
 			void bprop_predLdZOut(const realmtx_t& Act, const realmtx_t& data_y) const noexcept{
 				NNTL_UNREF(Act);				NNTL_UNREF(data_y);
@@ -286,8 +286,8 @@ namespace inspector {
 				NNTL_UNREF(dLdW); NNTL_UNREF(Gain);
 			}
 
-			void dLossAddendumScaled(const realmtx_t& dLossAdd, const real_t& scale, const char*const pLossName)const noexcept{
-				NNTL_UNREF(dLossAdd); NNTL_UNREF(scale); NNTL_UNREF(pLossName);
+			void dLossAddendumScaled(const realmtx_t& dLoss, const realmtx_t& dLossAdd, const real_t& scale, const char*const pLossName)const noexcept{
+				NNTL_UNREF(dLoss); NNTL_UNREF(dLossAdd); NNTL_UNREF(scale); NNTL_UNREF(pLossName);
 			}
 		};
 

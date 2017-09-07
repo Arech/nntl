@@ -1110,9 +1110,6 @@ void test_evSub_ip(iMath& iM, vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 	const auto dataSize = realmtx_t::sNumel(rowsCnt, colsCnt);
 	STDCOUTL("******* testing evSub_ip() over " << rowsCnt << "x" << colsCnt << " matrix (" << dataSize << " elements) **************");
 
-	double tstNaive, tmtNaive, tBest; //, tstVec, tmtVec;
-	steady_clock::time_point bt;
-	nanoseconds diff;
 	constexpr unsigned maxReps = TEST_PERF_REPEATS_COUNT, testCorrRepCnt = TEST_CORRECTN_REPEATS_COUNT;
 
 	realmtx_t B(rowsCnt, colsCnt), A(rowsCnt, colsCnt);
@@ -1157,35 +1154,28 @@ void test_evSub_ip(iMath& iM, vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 	//testing performance
 	threads::prioritize_workers<threads::PriorityClass::PerfTesting, iMath::iThreads_t> pw(iM.ithreads());
 	
-	rg.gen_matrix(A, 2);
-	bt = steady_clock::now();
-	for (unsigned r = 0; r < maxReps; ++r) iM.evSub_ip_st_naive(A, B);
-	diff = steady_clock::now() - bt;
-	STDCOUTL("st_naive:\t" << utils::duration_readable(diff, maxReps, &tstNaive));
+	utils::tictoc tS, tM, tB;
 
-	rg.gen_matrix(A, 2);
-	bt = steady_clock::now();
-	for (unsigned r = 0; r < maxReps; ++r) iM.evSub_ip_mt_naive(A, B);
-	diff = steady_clock::now() - bt;
-	STDCOUTL("mt_naive:\t" << utils::duration_readable(diff, maxReps, &tmtNaive));
+	for (unsigned r = 0; r < maxReps; ++r) {
+		rg.gen_matrix(A, 2); rg.gen_matrix(B, 2);
+		tS.tic();
+		iM.evSub_ip_st_naive(A, B);
+		tS.toc();
 
-	/*rg.gen_matrix(A, 2);
-	bt = steady_clock::now();
-	for (unsigned r = 0; r < maxReps; ++r) iM.evSub_ip_st_vec(A, B);
-	diff = steady_clock::now() - bt;
-	STDCOUTL("st_vec:\t" << utils::duration_readable(diff, maxReps, &tstVec));
+		rg.gen_matrix(A, 2); rg.gen_matrix(B, 2);
+		tM.tic();
+		iM.evSub_ip_mt_naive(A, B);
+		tM.toc();
 
-	rg.gen_matrix(A, 2);
-	bt = steady_clock::now();
-	for (unsigned r = 0; r < maxReps; ++r) iM.evSub_ip_mt_vec(A, B);
-	diff = steady_clock::now() - bt;
-	STDCOUTL("mt_vec:\t" << utils::duration_readable(diff, maxReps, &tmtVec));*/
+		rg.gen_matrix(A, 2); rg.gen_matrix(B, 2);
+		tB.tic();
+		iM.evSub_ip(A, B);
+		tB.toc();
+	}
 
-	rg.gen_matrix(A, 2);
-	bt = steady_clock::now();
-	for (unsigned r = 0; r < maxReps; ++r) iM.evSub_ip(A, B);
-	diff = steady_clock::now() - bt;
-	STDCOUTL("best:\t\t" << utils::duration_readable(diff, maxReps, &tBest));
+	tS.say("st_naive");
+	tM.say("mt_naive");
+	tB.say("best");
 }
 
 TEST(TestMathN, evSubIp) {
@@ -3345,76 +3335,117 @@ template<typename base_t> struct loss_quadratic_EPS {};
 template<> struct loss_quadratic_EPS<double> { static constexpr double eps = 1e-10; };
 template<> struct loss_quadratic_EPS<float> { static constexpr float eps = 2e-2f; };
 template<typename iMath>
-void test_loss_quadratic(iMath& iM, vec_len_t rowsCnt, vec_len_t colsCnt=10) {
+void test_loss_quadratic(iMath& iM, vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
+#pragma warning(disable:4459)
+	typedef typename iMath::real_t real_t;
+	typedef typename iMath::realmtx_t realmtx_t;
+#pragma warning(default:4459)
+
 	const auto dataSize = realmtx_t::sNumel(rowsCnt, colsCnt);
 	STDCOUTL("********* testing loss_quadratic() over " << rowsCnt << "x" << colsCnt << " matrix (" << dataSize << " elements) **************");
 
 	iM.preinit(dataSize);
 	ASSERT_TRUE(iM.init());
 
-	EXPECT_TRUE(steady_clock::is_steady);
-	double tmtNaive, tstNaive, tBest;//tstVect, tmtVect
-	steady_clock::time_point bt;
-	nanoseconds diff;
-	constexpr unsigned maxReps = TEST_PERF_REPEATS_COUNT;
+	constexpr unsigned maxReps = TEST_PERF_REPEATS_COUNT, testCorrRepCnt = TEST_CORRECTN_REPEATS_COUNT;
 
 	realmtx_t A, etA(rowsCnt, colsCnt), etY(rowsCnt, colsCnt), Y;
 	real_t etQuadLoss = 0, quadLoss = 0;
 	ASSERT_EQ(dataSize, etA.numel());
 
-	//filling etalon
-	d_interfaces::iRng_t rg;
+	rng::AFRand_mt<real_t, AFog::CRandomSFMT0, typename iMath::iThreads_t> rg;
 	rg.init_ithreads(iM.ithreads());
-	rg.gen_matrix(etA, 5);
-	rg.gen_matrix(etY, 5);
-	ASSERT_TRUE(etA.clone_to(A));
-	ASSERT_TRUE(etY.clone_to(Y));
-	ASSERT_TRUE(etA == A && etY==Y);
-	auto ptrEtA = etA.data(), ptrEtY = etY.data();
 
-	for (unsigned i = 0; i < dataSize; ++i) {
-		const real_t v = ptrEtA[i]- ptrEtY[i];
-		etQuadLoss += v*v;
+	typedef activation::Loss_quadratic<real_t> Loss_t;
+
+	for (unsigned r = 0; r < testCorrRepCnt; ++r) {
+		rg.gen_matrix(etA, 5);
+		rg.gen_matrix(etY, 5);
+		ASSERT_TRUE(etA.clone_to(A));
+		ASSERT_TRUE(etY.clone_to(Y));
+		ASSERT_TRUE(etA == A && etY == Y);
+
+		etQuadLoss = loss_quadratic_ET(etA, etY);
+		ASSERT_EQ(A, etA);
+		ASSERT_EQ(Y, etY);
+
+		quadLoss = iM.loss_quadratic_st_naive(A, Y);
+		ASSERT_EQ(A, etA);
+		ASSERT_EQ(Y, etY);
+		ASSERT_NEAR(etQuadLoss, quadLoss, loss_quadratic_EPS<real_t>::eps) << "_st";
+
+		quadLoss = iM.loss_quadratic_mt_naive(A, Y);
+		ASSERT_EQ(A, etA);
+		ASSERT_EQ(Y, etY);
+		ASSERT_NEAR(etQuadLoss, quadLoss, loss_quadratic_EPS<real_t>::eps) << "_mt";
+
+		quadLoss = iM.loss_quadratic(A, Y);
+		ASSERT_EQ(A, etA);
+		ASSERT_EQ(Y, etY);
+		ASSERT_NEAR(etQuadLoss, quadLoss, loss_quadratic_EPS<real_t>::eps) << "()";
+
+		quadLoss = iM.compute_loss_st<Loss_t>(A, Y);
+		ASSERT_EQ(A, etA);
+		ASSERT_EQ(Y, etY);
+		ASSERT_NEAR(etQuadLoss, quadLoss, loss_quadratic_EPS<real_t>::eps) << "_st";
+
+		quadLoss = iM.compute_loss_mt<Loss_t>(A, Y);
+		ASSERT_EQ(A, etA);
+		ASSERT_EQ(Y, etY);
+		ASSERT_NEAR(etQuadLoss, quadLoss, loss_quadratic_EPS<real_t>::eps) << "_mt";
+
+		quadLoss = iM.compute_loss<Loss_t>(A, Y);
+		ASSERT_EQ(A, etA);
+		ASSERT_EQ(Y, etY);
+		ASSERT_NEAR(etQuadLoss, quadLoss, loss_quadratic_EPS<real_t>::eps) << "()";
 	}
-	etQuadLoss = etQuadLoss / (2*etA.rows());
 
+	quadLoss = real_t(0);
 	//testing performance
 	threads::prioritize_workers<threads::PriorityClass::PerfTesting, iMath::iThreads_t> pw(iM.ithreads());
 
-	//////////////////////////////////////////////////////////////////////////
-	//single threaded naive
-	diff = nanoseconds(0);
-	bt = steady_clock::now();
-	for (unsigned r = 0; r < maxReps; ++r) quadLoss = iM.loss_quadratic_st_naive(A,Y);
-	diff += steady_clock::now() - bt;
-	ASSERT_EQ(A, etA);
-	ASSERT_EQ(Y, etY);
-	ASSERT_NEAR(etQuadLoss, quadLoss, loss_quadratic_EPS<real_t>::eps);
-	STDCOUTL("st_naive:\t" << utils::duration_readable(diff, maxReps, &tstNaive));
+	utils::tictoc tS, tM, tB, tSt, tMt, tBt;
+	for (unsigned r = 0; r < maxReps; ++r) {
+		rg.gen_matrix(A, 2);		rg.gen_matrix(Y, 2);
+		tS.tic();
+		quadLoss += iM.loss_quadratic_st_naive(A, Y);
+		tS.toc();
 
-	//////////////////////////////////////////////////////////////////////////
-	//multi threaded naive
-	diff = nanoseconds(0);
-	bt = steady_clock::now();
-	for (unsigned r = 0; r < maxReps; ++r) quadLoss = iM.loss_quadratic_mt_naive(A,Y);
-	diff += steady_clock::now() - bt;
-	ASSERT_EQ(A, etA);
-	ASSERT_EQ(Y, etY);
-	ASSERT_NEAR(etQuadLoss, quadLoss, loss_quadratic_EPS<real_t>::eps);
-	STDCOUTL("mt_naive:\t" << utils::duration_readable(diff, maxReps, &tmtNaive));
+		rg.gen_matrix(A, 2);		rg.gen_matrix(Y, 2);
+		tM.tic();
+		quadLoss += iM.loss_quadratic_mt_naive(A, Y);
+		tM.toc();
 
-	//////////////////////////////////////////////////////////////////////////
-	//best guess
-	diff = nanoseconds(0);
-	bt = steady_clock::now();
-	for (unsigned r = 0; r < maxReps; ++r) quadLoss = iM.loss_quadratic(A,Y);
-	diff += steady_clock::now() - bt;
-	ASSERT_EQ(A, etA);
-	ASSERT_EQ(Y, etY);
-	ASSERT_NEAR(etQuadLoss, quadLoss, loss_quadratic_EPS<real_t>::eps);
-	STDCOUTL("best:\t\t" << utils::duration_readable(diff, maxReps, &tBest));
+		rg.gen_matrix(A, 2);		rg.gen_matrix(Y, 2);
+		tB.tic();
+		quadLoss += iM.loss_quadratic(A, Y);
+		tB.toc();
+
+
+		rg.gen_matrix(A, 2);		rg.gen_matrix(Y, 2);
+		tSt.tic();
+		quadLoss += iM.compute_loss_st<Loss_t>(A, Y);
+		tSt.toc();
+
+		rg.gen_matrix(A, 2);		rg.gen_matrix(Y, 2);
+		tMt.tic();
+		quadLoss += iM.compute_loss_mt<Loss_t>(A, Y);
+		tMt.toc();
+
+		rg.gen_matrix(A, 2);		rg.gen_matrix(Y, 2);
+		tBt.tic();
+		quadLoss += iM.compute_loss<Loss_t>(A, Y);
+		tBt.toc();
+	}
+	tS.say("st");
+	tM.say("mt");
+	tB.say("best");
+
+	tSt.say("st_t");
+	tMt.say("mt_t");
+	tBt.say("best_t");
+	STDCOUTL(quadLoss);
 }
-
 TEST(TestMathN, LossQuadratic) {
 // 	typedef nntl::d_interfaces::iThreads_t def_threads_t;
 // 	typedef math::MathN<real_t, def_threads_t> iMB;
@@ -3430,6 +3461,20 @@ TEST(TestMathN, dSigmQuadLoss_dZ) {
 	for (vec_len_t r = 1; r < g_MinDataSizeDelta; ++r) {
 		for (vec_len_t c = 1; c < g_MinDataSizeDelta; ++c) {
 			ASSERT_NO_FATAL_FAILURE(test_dLdZ_corr<true>(dSigmQuadLoss_dZ_ET, fst, fmt, fb, "dSigmQuadLoss_dZ", r, c));
+		}
+	}
+}
+
+TEST(TestMathN, dLoss_dZ) {
+	typedef activation::Linear_Loss_quadWeighted_FP<real_t> WL_FP;
+
+	const auto fst = [](const realmtx_t& data_y, realmtx_t& act_dLdZ) { iM.dLoss_dZ_st<WL_FP>(data_y, act_dLdZ); };
+	const auto fmt = [](const realmtx_t& data_y, realmtx_t& act_dLdZ) { iM.dLoss_dZ_mt<WL_FP>(data_y, act_dLdZ); };
+	const auto fb = [](const realmtx_t& data_y, realmtx_t& act_dLdZ) { iM.dLoss_dZ<WL_FP>(data_y, act_dLdZ); };
+
+	for (vec_len_t r = 1; r < g_MinDataSizeDelta; ++r) {
+		for (vec_len_t c = 1; c < g_MinDataSizeDelta; ++c) {
+			ASSERT_NO_FATAL_FAILURE(test_dLdZ_corr<false>(dLoss_dZ_ET<WL_FP>, fst, fmt, fb, "dLoss_dZ<WeightedLoss_FP>", r, c));
 		}
 	}
 }

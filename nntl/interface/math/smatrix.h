@@ -273,13 +273,20 @@ namespace math {
 		bool bDontManageStorage()const noexcept { return m_bDontManageStorage; }
 
 		//////////////////////////////////////////////////////////////////////////
-		void fill_column_with(const vec_len_t c, const value_type& v)noexcept {
+		void fill_column_with(const vec_len_t c, const value_type v)noexcept {
 			NNTL_ASSERT(!empty() && m_rows && m_cols);
 			NNTL_ASSERT(c < m_cols);
-			const auto pC = colDataAsVec(c);
-			::std::fill(pC, pC + m_rows, v);
+// 			const auto pC = colDataAsVec(c);
+// 			::std::fill(pC, pC + m_rows, v); //doesn't get vectorized!
+			_fill_elements(colDataAsVec(c), m_rows, v);
 		}
 
+	protected:
+		void _fill_elements(const value_ptr_t pBegin, const numel_cnt_t n, const value_type v)noexcept {
+			for (numel_cnt_t i = 0; i < n; ++i) pBegin[i] = v;
+		}
+
+	public:
 		void set_biases() noexcept {
 			NNTL_ASSERT(m_bEmulateBiases);
 			// filling last column with ones to emulate biases
@@ -576,7 +583,8 @@ namespace math {
 		}
 		void ones()noexcept {
 			NNTL_ASSERT(!empty());
-			::std::fill(m_pData, m_pData + numel(), value_type(1.0));
+			//::std::fill(m_pData, m_pData + numel(), value_type(1.0)); //doesn't get vectorized!
+			_fill_elements(m_pData, numel(), value_type(1));
 			m_bHoleyBiases = false;
 		}
 

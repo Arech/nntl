@@ -74,7 +74,7 @@ namespace nntl {
 		static constexpr void _dropout_apply(realmtx_t& activations, const CommonDataT& CD) noexcept {}
 
 		template<typename CommonDataT>
-		static constexpr void _dropout_restoreScaling(realmtx_t& dLdZ, realmtx_t& activations, const CommonDataT& CD)noexcept {}
+		static constexpr void _dropout_restoreScaling(realmtx_t& dLdA, realmtx_t& activations, const CommonDataT& CD)noexcept {}
 
 	public:
 		static constexpr bool bDropout() noexcept { return false; }

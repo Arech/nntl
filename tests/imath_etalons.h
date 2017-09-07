@@ -63,6 +63,19 @@ real_t loss_softmax_xentropy_ET(const realmtx_t& activations, const realmtx_t& d
 
 void dSigmQuadLoss_dZ_ET(const realmtx_t& data_y, realmtx_t& act_dLdZ)noexcept;
 
+template<typename WlT>
+void dLoss_dZ_ET(const realmtx_t& data_y, realmtx_t& act_dLdZ)noexcept {
+	NNTL_ASSERT(!act_dLdZ.emulatesBiases() && !data_y.emulatesBiases());
+	NNTL_ASSERT(act_dLdZ.size() == data_y.size());
+
+	const auto pY = data_y.data();
+	const auto pA = act_dLdZ.data();
+	const numel_cnt_t ne = act_dLdZ.numel();
+	for (numel_cnt_t i = 0; i < ne; ++i) {
+		pA[i] = WlT::dLdZ(pY[i], pA[i]);
+	}
+}
+
 void apply_momentum_ET(realmtx_t& vW, const real_t momentum, const realmtx_t& dW)noexcept;
 void apply_ILR_ET(realmtx_t& dLdW, const realmtx_t& prevdLdW, realmtx_t& ILRGain, const real_t decr, const real_t incr, const real_t capLow, const real_t capHigh)noexcept;
 void evAbs_ET(realmtx_t& dest, const realmtx_t& src)noexcept;
@@ -206,3 +219,17 @@ void make_alphaDropout_ET(realmtx_t& act, const real_t dropPercAct
 void evSubMtxMulC_ip_nb_ET(realmtx_t& A, const realmtx_t& M, const real_t c)noexcept;
 
 void evMul_ip_ET(realmtx_t& A, const realmtx_t& B)noexcept;
+
+template<typename real_t>
+real_t loss_quadratic_ET(const ::nntl::math::smatrix<real_t>& A, const ::nntl::math::smatrix<real_t>& Y)noexcept {
+	NNTL_ASSERT(A.size() == Y.size());
+	auto ptrEtA = A.data(), ptrEtY = Y.data();
+	const auto dataSize = A.numel();
+	real_t etQuadLoss = 0;
+
+	for (unsigned i = 0; i < dataSize; ++i) {
+		const real_t v = ptrEtA[i] - ptrEtY[i];
+		etQuadLoss += v*v;
+	}
+	return etQuadLoss / (2 * A.rows());
+}

@@ -286,49 +286,64 @@ namespace nntl {
 		STDCOUTL("**** testing " << descr << "() over " << rowsCnt << "x" << colsCnt << " matrix (" << dataSize << " elements) ****");
 
 		constexpr unsigned maxReps = TEST_PERF_REPEATS_COUNT;
-		realmtx_t X(rowsCnt, colsCnt), XSrc(rowsCnt, colsCnt);
-		ASSERT_TRUE(!X.isAllocationFailed() && !XSrc.isAllocationFailed());
+		realmtx_t X(rowsCnt, colsCnt);// , XSrc(rowsCnt, colsCnt);
+		ASSERT_TRUE(!X.isAllocationFailed());
 
 		d_interfaces::iRng_t rg;
 		rg.init_ithreads(iM.ithreads());
-		tictoc tSt, tMt, tB, tSt2, tMt2;
+		utils::tictoc tSt, tMt, tB, tSt2, tMt2;
+		real_t s = real_t(0);
 		threads::prioritize_workers<threads::PriorityClass::PerfTesting, imath_basic_t::iThreads_t> pw(iM.ithreads());
 		for (unsigned r = 0; r < maxReps; ++r) {
 #pragma warning(disable:4127)
 			if (XValuesSpan1e3) {
-				rg.gen_matrix(XSrc, real_t(XValuesSpan1e3) / real_t(1e3));
-			} else rg.gen_matrix_norm(XSrc);
+				rg.gen_matrix(X, real_t(XValuesSpan1e3) / real_t(1e3));
+			} else rg.gen_matrix_norm(X);
 #pragma warning(default:4127)
-
-			XSrc.clone_to(X);
 			tSt.tic();
-			//(::std::forward<FST>(fst))(X);
 			fst(X);
 			tSt.toc();
+			for (auto& e : X) s += e;			s = ::std::log10(::std::abs(s));
 
-			XSrc.clone_to(X);
+#pragma warning(disable:4127)
+			if (XValuesSpan1e3) {
+				rg.gen_matrix(X, real_t(XValuesSpan1e3) / real_t(1e3));
+			} else rg.gen_matrix_norm(X);
+#pragma warning(default:4127)
 			tMt.tic();
-			//(::std::forward<FMT>(fmt))(X);
 			fmt(X);
 			tMt.toc();
+			for (auto& e : X) s += e;			s = ::std::log10(::std::abs(s));
 
-			XSrc.clone_to(X);
+#pragma warning(disable:4127)
+			if (XValuesSpan1e3) {
+				rg.gen_matrix(X, real_t(XValuesSpan1e3) / real_t(1e3));
+			} else rg.gen_matrix_norm(X);
+#pragma warning(default:4127)
 			tSt2.tic();
-			//(::std::forward<FST>(fst))(X);
 			fst(X);
 			tSt2.toc();
+			for (auto& e : X) s += e;			s = ::std::log10(::std::abs(s));
 
-			XSrc.clone_to(X);
+#pragma warning(disable:4127)
+			if (XValuesSpan1e3) {
+				rg.gen_matrix(X, real_t(XValuesSpan1e3) / real_t(1e3));
+			} else rg.gen_matrix_norm(X);
+#pragma warning(default:4127)
 			tMt2.tic();
-			//(::std::forward<FMT>(fmt))(X);
 			fmt(X);
 			tMt2.toc();
+			for (auto& e : X) s += e;			s = ::std::log10(::std::abs(s));
 
-			XSrc.clone_to(X);
+#pragma warning(disable:4127)
+			if (XValuesSpan1e3) {
+				rg.gen_matrix(X, real_t(XValuesSpan1e3) / real_t(1e3));
+			} else rg.gen_matrix_norm(X);
+#pragma warning(default:4127)
 			tB.tic();
-			//(::std::forward<FB>(fb))(X);
 			fb(X);
 			tB.toc();
+			for (auto& e : X) s += e;			s = ::std::log10(::std::abs(s));
 		}
 		tSt.say("st");
 		tSt2.say("st2");
@@ -336,6 +351,7 @@ namespace nntl {
 		tMt2.say("mt2");
 
 		tB.say("best");
+		STDCOUTL(s);
 	}
 
 	//////////////////////////////////////////////////////////////////////////
@@ -346,57 +362,75 @@ namespace nntl {
 		STDCOUTL("**** testing " << descr << "() over " << rowsCnt << "x" << colsCnt << " matrix (" << dataSize << " elements) ****");
 
 		constexpr unsigned maxReps = TEST_PERF_REPEATS_COUNT;
-		realmtx_t A(rowsCnt, colsCnt), ASrc(rowsCnt, colsCnt), Y(rowsCnt, colsCnt);
-		ASSERT_TRUE(!A.isAllocationFailed() && !ASrc.isAllocationFailed() && !Y.isAllocationFailed());
+		realmtx_t A(rowsCnt, colsCnt), Y(rowsCnt, colsCnt);
+		ASSERT_TRUE(!A.isAllocationFailed() && !Y.isAllocationFailed());
 
 		d_interfaces::iRng_t rg;
 		rg.init_ithreads(iM.ithreads());
-		tictoc tSt, tMt, tB, tSt2, tMt2;
+		utils::tictoc tSt, tMt, tB, tSt2, tMt2;
+		real_t s = real_t(0);
 		threads::prioritize_workers<threads::PriorityClass::PerfTesting, decltype(iM)::iThreads_t> pw(iM.ithreads());
 		for (unsigned r = 0; r < maxReps; ++r) {
 			if (bActNorm) {
-				rg.gen_matrix_norm(ASrc);
-				rg.gen_matrix_norm(Y);
+				rg.gen_matrix_norm(Y);  rg.gen_matrix_norm(A);
 			} else {
-				rg.gen_matrix(ASrc, real_t(5.));
-				rg.gen_matrix(Y, real_t(5.));
+				rg.gen_matrix(Y, real_t(5.));  rg.gen_matrix(A, real_t(5.));
 			}
-
-			ASrc.clone_to(A);
 			tSt.tic();
-			//(::std::forward<FST>(fst))(Y, A);
 			fst(Y, A);
 			tSt.toc();
+			for (auto& e : A) s += e;			s = ::std::log10(::std::abs(s));
 
-			ASrc.clone_to(A);
+			if (bActNorm) {
+				rg.gen_matrix_norm(Y);  rg.gen_matrix_norm(A);
+			} else {
+				rg.gen_matrix(Y, real_t(5.));  rg.gen_matrix(A, real_t(5.));
+			}
 			tMt.tic();
-			//(::std::forward<FMT>(fmt))(Y, A);
 			fmt(Y, A);
 			tMt.toc();
+			for (auto& e : A) s += e;
+			s = ::std::log10(::std::abs(s));
 
-			ASrc.clone_to(A);
+			if (bActNorm) {
+				rg.gen_matrix_norm(Y);  rg.gen_matrix_norm(A);
+			} else {
+				rg.gen_matrix(Y, real_t(5.));  rg.gen_matrix(A, real_t(5.));
+			}
 			tSt2.tic();
-			//(::std::forward<FST>(fst))(Y, A);
 			fst(Y, A);
 			tSt2.toc();
+			for (auto& e : A) s += e;
+			s = ::std::log10(::std::abs(s));
 
-			ASrc.clone_to(A);
+			if (bActNorm) {
+				rg.gen_matrix_norm(Y);  rg.gen_matrix_norm(A);
+			} else {
+				rg.gen_matrix(Y, real_t(5.));  rg.gen_matrix(A, real_t(5.));
+			}
 			tMt2.tic();
-			//(::std::forward<FMT>(fmt))(Y, A);
 			fmt(Y, A);
 			tMt2.toc();
+			for (auto& e : A) s += e;
+			s = ::std::log10(::std::abs(s));
 
-			ASrc.clone_to(A);
+			if (bActNorm) {
+				rg.gen_matrix_norm(Y);  rg.gen_matrix_norm(A);
+			} else {
+				rg.gen_matrix(Y, real_t(5.));  rg.gen_matrix(A, real_t(5.));
+			}
 			tB.tic();
-			//(::std::forward<FB>(fb))(Y, A);
 			fb(Y, A);
 			tB.toc();
+			for (auto& e : A) s += e;
+			s = ::std::log10(::std::abs(s));
 		}
 		tSt.say("st");
 		tSt2.say("st2");
 		tMt.say("mt");
 		tMt2.say("mt2");
 		tB.say("best");
+		STDCOUTL(s);
 	}
 
 //};

@@ -184,13 +184,14 @@ namespace nntl {
 
 			NNTL_ASSERT(m_dropoutMask.size() == dLdA.size());
 
+			auto& _iI = CD.iInspect();
+			_iI.bprop_preCancelDropout(dLdA, activations, m_dropoutPercentActive);
+
 			auto& iM = CD.iMath();
 			iM.evMul_ip(dLdA, m_dropoutMask);
-
-			auto& _iI = CD.iInspect();
-			_iI.bprop_preCancelDropout(activations, m_dropoutPercentActive);
 			iM.evMulC_ip_Anb(activations, m_dropoutPercentActive);
-			_iI.bprop_postCancelDropout(activations);
+
+			_iI.bprop_postCancelDropout(dLdA, activations);
 		}
 	};
 

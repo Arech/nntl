@@ -314,14 +314,15 @@ namespace math {
 			memcpy(dest, src, sizeof(T_)*rm);
 		}
 		template<typename T_>
-		nntl_force_inline static void _memset_rowrange(T_* dest, const T_& v, size_t elems, const rowcol_range*const pRCR)noexcept {
+		nntl_force_inline static void _memset_rowrange(T_* dest, const T_ v, size_t elems, const rowcol_range*const pRCR)noexcept {
 			if (pRCR) {
 				dest += pRCR->rowBegin;
 				elems = pRCR->totalRows();
 			}
 			//#todo which one is really faster?
 			//memset(dest, src, sizeof(T_)*elems);
-			::std::fill(dest, dest + elems, v);
+			//::std::fill(dest, dest + elems, v); //doesn't get vectorized!
+			for (size_t i = 0; i < elems; ++i) dest[i] = v;
 		}
 
 		//////////////////////////////////////////////////////////////////////////
@@ -1146,7 +1147,12 @@ namespace math {
 				auto p = pMD + firstColIdx*rm;
 				const auto pE = p + pr.cnt()*rm;
 
-				::std::fill(pTDest, pTDest + rm, static_cast<vec_len_t>(firstColIdx));
+				//::std::fill(pTDest, pTDest + rm, static_cast<vec_len_t>(firstColIdx)); //doesn't get vectorized!
+				{
+					const auto v = static_cast<vec_len_t>(firstColIdx);
+					for (vec_len_t i = 0; i < rm; i++) pTDest[i] = v;
+				}
+
 				memcpy(pTMax, p, sizeof(real_t)*rm);
 				p += rm;
 				vec_len_t c = static_cast<vec_len_t>(firstColIdx + 1);

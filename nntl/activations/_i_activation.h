@@ -88,8 +88,10 @@ namespace activation {
 		template <typename iMath>
 		static void dIdentity(realmtx_t& f_df, iMath& m) noexcept {
 			static_assert(::std::is_base_of<math::_i_math<real_t>, iMath>::value, "iMath should implement math::_i_math");
+			NNTL_UNREF(m);
 			NNTL_ASSERT(!f_df.emulatesBiases());
-			m.dIdentity(f_df);
+			//m.dIdentity(f_df);
+			f_df.ones();
 		}
 
 		static constexpr real_t act_scaling_coeff()noexcept {
@@ -127,8 +129,12 @@ namespace activation {
 			IN OUT typename iMath::realmtx_t& act_dLdZ, iMath& m) noexcept
 		{
 			static_assert(::std::is_base_of<math::_i_math<RealT>, iMath>::value, "iMath should implement math::_i_math");
+			// L = 1/2 * (a-y)^2; dL/dZ = dL/dA * dA/dZ;
+			// dA/dZ == 1;
+			// ==> dL/dZ = dL/dA = (a-y);
+			NNTL_ASSERT(data_y.size() == act_dLdZ.size());
 			NNTL_ASSERT(!data_y.emulatesBiases() && !act_dLdZ.emulatesBiases());
-			m.dIdentityQuadLoss_dZ(data_y, act_dLdZ);
+			m.evSub_ip(act_dLdZ, data_y);
 		}
 	};
 

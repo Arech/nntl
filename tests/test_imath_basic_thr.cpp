@@ -63,6 +63,18 @@ constexpr unsigned TEST_PERF_REPEATS_COUNT = 1000;
 //////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////
 
+TEST(TestMathNThr, dLoss_dZ) {
+	typedef activation::Linear_Loss_quadWeighted_FP<real_t> WL_FP;
+
+	const auto fst = [](const realmtx_t& data_y, realmtx_t& act_dLdZ) { iM.dLoss_dZ_st<WL_FP>(data_y, act_dLdZ); };
+	const auto fmt = [](const realmtx_t& data_y, realmtx_t& act_dLdZ) { iM.dLoss_dZ_mt<WL_FP>(data_y, act_dLdZ); };
+	const auto fb = [](const realmtx_t& data_y, realmtx_t& act_dLdZ) { iM.dLoss_dZ<WL_FP>(data_y, act_dLdZ); };
+
+	NNTL_RUN_TEST2(imath_basic_t::Thresholds_t::dLoss_dZ<typename WL_FP::tag_dLdZ>::thr, 1) {
+		test_dLdZ_perf<true>(fst, fmt, fb, "dLoss_dZ<WeightedLoss_FP>", i, 1);
+	}
+}
+
 TEST(TestMathNThr, dSigmQuadLoss_dZ) {
 	const auto fst = [](const realmtx_t& data_y, realmtx_t& act_dLdZ) { iM.dSigmQuadLoss_dZ_st(data_y, act_dLdZ); };
 	const auto fmt = [](const realmtx_t& data_y, realmtx_t& act_dLdZ) { iM.dSigmQuadLoss_dZ_mt(data_y, act_dLdZ); };
