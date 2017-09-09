@@ -186,7 +186,7 @@ namespace _impl {
 		static constexpr size_t mCheck_normalize_rows = 250000;
 		static constexpr size_t evClamp = 14000;
 		static constexpr size_t make_dropout = 15000;//*
-		static constexpr size_t make_alphaDropout = 3800;//* for 0.9
+		static constexpr size_t make_alphaDropout = 4200;//* for 0.9
 
 		static constexpr size_t apply_ILR_st_vec = 2620; //*
 		static constexpr size_t apply_ILR_mt = 9000; //*

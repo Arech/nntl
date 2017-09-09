@@ -58,10 +58,12 @@ namespace activation {
 	};
 
 	//////////////////////////////////////////////////////////////////////////
+	// The following loss functions are experimental and mostly ill-formed (could have discontinuities). Use with care
+	// 
 	struct tag_Loss_quadWeighted_FP{};
 
 	template<typename real_t, unsigned int _FPWeightSqrt1e6 = 1414214, unsigned int _YBnd1e6 = 0>
-	struct Loss_quadWeighted : public _impl::L_normalize_as_quadratic<real_t> {
+	struct Loss_quadWeighted_FP : public _impl::L_normalize_as_quadratic<real_t> {
 		typedef tag_Loss_quadWeighted_FP tag_loss;
 
 		static constexpr real_t FPWeightSqrt = _FPWeightSqrt1e6 / real_t(1e6);
@@ -69,9 +71,55 @@ namespace activation {
 		static constexpr real_t YBoundary = _YBnd1e6 / real_t(1e6);
 
 		static real_t loss(const real_t a, const real_t y)noexcept {
-			const real_t e = ((y < YBoundary) & (a > YBoundary)) ? FPWeightSqrt*(a - y) : (a - y);
+			const real_t e = ((y < YBoundary) & (a > y)) ? FPWeightSqrt*(a - y) : (a - y);
+			//using the shortcutting && instead of binary & prevents vectorization. We can safely use binary & here,
+			// because the comparison results are always binary.
+			// However, probably due to the e*e statement below it still doesn't get vectorized.
+			return e*e;
+		}
+	};
+
+	template<typename real_t, unsigned int _FPWeightSqrt1e6 = 1414214, unsigned int _OtherWeightSqrt1e6 = 500000, unsigned int _YBnd1e6 = 0>
+	struct Loss_quadWeighted2_FP : public _impl::L_normalize_as_quadratic<real_t> {
+		typedef tag_Loss_quadWeighted_FP tag_loss;
+
+		static constexpr real_t FPWeightSqrt = _FPWeightSqrt1e6 / real_t(1e6);
+		static constexpr real_t FPWeight = FPWeightSqrt*FPWeightSqrt;
+		static constexpr real_t OtherWeightSqrt = _OtherWeightSqrt1e6 / real_t(1e6);
+		static constexpr real_t OtherWeight = OtherWeightSqrt*OtherWeightSqrt;
+
+		static constexpr real_t YBoundary = _YBnd1e6 / real_t(1e6);
+
+		static real_t loss(const real_t a, const real_t y)noexcept {
+			const real_t e = (a - y)*(((y < YBoundary) & (a > y)) ? FPWeightSqrt : OtherWeightSqrt);
 			//using the shortcutting && instead of binary & prevents vectorization. We can safely use binary & here,
 			// because the comparison results are always binary
+			// However, probably due to the e*e statement below it still doesn't get vectorized.
+			return e*e;
+		}
+	};
+
+	//this loss apply heavier penalty to a difference (a-YBoundary) when (y < YBoundary) & (a > YBoundary)
+	template<typename real_t, unsigned int _FPWeightSqrt1e6 = 1414214, unsigned int _YBnd1e6 = 0>
+	struct Loss_quadWeighted_res_FP : public _impl::L_normalize_as_quadratic<real_t> {
+		typedef tag_Loss_quadWeighted_FP tag_loss;
+
+		static constexpr real_t FPWeightSqrt = _FPWeightSqrt1e6 / real_t(1e6);
+		static constexpr real_t FPWeight = FPWeightSqrt*FPWeightSqrt;
+		static constexpr real_t YBoundary = _YBnd1e6 / real_t(1e6);
+
+		static constexpr real_t addVSqrt = YBoundary*(real_t(1.) - FPWeightSqrt);
+		static constexpr real_t addV = FPWeightSqrt*addVSqrt;
+
+		//L 4fp = (FPWeightSqrt*(a-YBoundary) + YBoundary-y)^2 = (FPWeightSqrt*a + YBoundary(1-FPWeightSqrt) - y)^2 =
+		//		= (FPWeightSqrt*a + addVSqrt - y)^2
+		// dL/dZ 4FP = FPWeightSqrt(FPWeightSqrt*a + addVSqrt - y) = FPWeight*a + FPWeightSqrt*addVSqrt - FPWeightSqrt*y =
+		//		= FPWeight*a + addV - FPWeightSqrt*y
+		static real_t loss(const real_t a, const real_t y)noexcept {
+			const real_t e = ((y < YBoundary) & (a > y)) ? (FPWeightSqrt*a + addVSqrt - y) : (a - y);
+			//using the shortcutting && instead of binary & prevents vectorization. We can safely use binary & here,
+			// because the comparison results are always binary
+			// However, probably due to the e*e statement below it still doesn't get vectorized.
 			return e*e;
 		}
 	};
@@ -81,17 +129,42 @@ namespace activation {
 
 	struct tag_Linear_Loss_quadWeighted_FP {};
 
+	//Linear_Loss_quadWeighted_FP is a loss function that assigns more weight to false positive errors
 	//default _FPWeightSqrt1e6 == sqrt(2)*1e6
 	template<typename real_t, unsigned int _FPWeightSqrt1e6 = 1414214, unsigned int _YBnd1e6 = 0>
-	struct Linear_Loss_quadWeighted_FP : public Loss_quadWeighted<real_t, _FPWeightSqrt1e6, _YBnd1e6> {
+	struct Linear_Loss_quadWeighted_FP : public Loss_quadWeighted_FP<real_t, _FPWeightSqrt1e6, _YBnd1e6> {
 		typedef tag_Linear_Loss_quadWeighted_FP tag_dLdZ;
 
 		static constexpr real_t dLdZ(const real_t y, const real_t a)noexcept {
-			return ( (y<YBoundary) & (a>YBoundary)) ? FPWeight*(a - y) : (a - y);
+			return ((y < YBoundary) & (a > y)) ? FPWeight*(a - y) : (a - y);
 			//using the shortcutting && instead of binary & prevents vectorization. We can safely use binary & here,
 			// because the comparison results are always binary
 		}
 	};
 
+	template<typename real_t, unsigned int _FPWeightSqrt1e6 = 1414214, unsigned int _OtherWeightSqrt1e6 = 500000, unsigned int _YBnd1e6 = 0>
+	struct Linear_Loss_quadWeighted2_FP : public Loss_quadWeighted2_FP<real_t, _FPWeightSqrt1e6, _OtherWeightSqrt1e6, _YBnd1e6> {
+		typedef tag_Linear_Loss_quadWeighted_FP tag_dLdZ;
+
+		static constexpr real_t dLdZ(const real_t y, const real_t a)noexcept {
+			return ((y < YBoundary) & (a > y)) ? FPWeight*(a - y) : OtherWeight*(a - y);
+			//using the shortcutting && instead of binary & prevents vectorization. We can safely use binary & here,
+			// because the comparison results are always binary
+		}
+	};
+
+	template<typename real_t, unsigned int _FPWeightSqrt1e6 = 1414214, unsigned int _YBnd1e6 = 0>
+	struct Linear_Loss_quadWeighted_res_FP : public Loss_quadWeighted_res_FP<real_t, _FPWeightSqrt1e6, _YBnd1e6> {
+		typedef tag_Linear_Loss_quadWeighted_FP tag_dLdZ;
+		//L 4fp = (FPWeightSqrt*(a-YBoundary) + YBoundary-y)^2 = (FPWeightSqrt*a + YBoundary(1-FPWeightSqrt) - y)^2 =
+		//		= (FPWeightSqrt*a + addVSqrt - y)^2
+		// dL/dZ 4FP = FPWeightSqrt(FPWeightSqrt*a + addVSqrt - y) = FPWeight*a + FPWeightSqrt*addVSqrt - FPWeightSqrt*y =
+		//		= FPWeight*a + addV - FPWeightSqrt*y
+		static constexpr real_t dLdZ(const real_t y, const real_t a)noexcept {
+			return ((y < YBoundary) & (a > y)) ? (FPWeight*a + addV - FPWeightSqrt*y) : (a - y);
+			//using the shortcutting && instead of binary & prevents vectorization. We can safely use binary & here,
+			// because the comparison results are always binary
+		}
+	};
 }
 }

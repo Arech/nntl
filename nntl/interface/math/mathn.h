@@ -714,9 +714,6 @@ namespace math {
 				*pDM++ = bKeep ? a_dmKeepVal : real_t(0.);
 				*pmB++ = bKeep ? b_mbKeepVal : mbDropVal;
 			}
-			pmB = mtxB.data();
-			pDM = dropoutMask.data();
-
 			/*const auto pmB = mtxB.data();
 			const auto pDM = dropoutMask.data();
 			for (numel_cnt_t i = er.elmBegin; i < er.elmEnd; ++i) {
@@ -729,8 +726,17 @@ namespace math {
 
 
 			//#todo: refactor to separate function
-			const auto pA = act.data();
-			for (numel_cnt_t i = er.elmBegin; i < er.elmEnd; ++i) pA[i] = pA[i] * pDM[i] + pmB[i];
+			//const auto pA = act.data();
+			//for (numel_cnt_t i = er.elmBegin; i < er.elmEnd; ++i) pA[i] = pA[i] * pDM[i] + pmB[i];
+			auto pA = act.data();
+			const auto pAE = pA + er.elmEnd;
+			pA += er.elmBegin;
+			pmB = mtxB.data() + er.elmBegin;
+			pDM = dropoutMask.data() + er.elmBegin;
+			while (pA != pAE) {
+				*pA++ = *pA * (*pDM++) + *pmB++;
+			}
+
 		}
 		void make_alphaDropout_mt(realmtx_t& act, const real_t dropPercAct
 			, const real_t a_dmKeepVal, const real_t b_mbKeepVal, const real_t mbDropVal
@@ -1781,7 +1787,7 @@ namespace math {
 			pA += er.elmBegin;
 			auto pY = data_y.data() + er.elmBegin;
 			real_t ret(0.0);
-			while (pA != pAE) {//gets vectorized
+			while (pA != pAE) {
 				const real_t a = *pA++, y = *pY++;
 				ret += WlT::loss(a, y);
 			}

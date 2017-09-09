@@ -518,8 +518,9 @@ namespace math {
 			auto pA = A.colDataAsVec(colBegin);
 			//::std::forward<mrwOperationT>(F).initOperation(colBegin, A.rows());
 			F.initOperation(colBegin, A.rows());
-			for (auto c = colBegin; c < RCR.colEnd; ++c) {
-				for (vec_len_t r = RCR.rowBegin; r < RCR.rowEnd; ++r) {//FOR cycle with offset calculation is generally faster than WHILE,
+			const neurons_count_t ce = RCR.colEnd, re = RCR.rowEnd;
+			for (auto c = colBegin; c < ce; ++c) {
+				for (vec_len_t r = RCR.rowBegin; r < re; ++r) {//FOR cycle with offset calculation is generally faster than WHILE,
 					const auto pV = pVec + r;//because usually compiler can unfold a cycle into many instructions
 					const auto pElm = pA + r;//In WHILE setup with mrwOperationT::op(*pA++, *pV++) it can't
 					//and calculating offsets is faster than mrwOperationT::op(*pA++, *pV++);
@@ -544,12 +545,13 @@ namespace math {
 			const size_t rm = A.rows();
 			//::std::forward<mrwOperationT>(F).initOperation(RCR.colBegin, A.rows());
 			F.initOperation(RCR.colBegin, A.rows());
-			for (vec_len_t r = RCR.rowBegin; r < RCR.rowEnd; ++r) {
+			const neurons_count_t ce = RCR.colEnd, re = RCR.rowEnd;
+			for (vec_len_t r = RCR.rowBegin; r < re; ++r) {
 				const auto pV = pVec + r;
 				auto pElm = pA + r;
 				//auto v = ::std::forward<mrwOperationT>(F).rw_initVecElm(*pV, pElm, rm, RCR.colBegin, r);
 				auto v = F.rw_initVecElm(*pV, pElm, rm, RCR.colBegin, r);
-				for (vec_len_t c = RCR.colBegin + mrwOperationT::rw_FirstColumnIdx; c < RCR.colEnd; ++c) {
+				for (vec_len_t c = RCR.colBegin + mrwOperationT::rw_FirstColumnIdx; c < ce; ++c) {
 					//::std::forward<mrwOperationT>(F).op<mrw_rw>(*pElm, v, r, c, rm);
 					F.op<mrw_rw>(*pElm, v, r, c, rm);
 					pElm += rm;

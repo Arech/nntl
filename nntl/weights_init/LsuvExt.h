@@ -153,8 +153,9 @@ namespace weights_init {
 				m_fullBatchSize = fullBatch;
 				m_setts.for_each([&secondBiggestBatch, &biggestBatch, fullBatch](const LayerSetts_t& ls)noexcept
 				{
-					biggestBatch = ::std::max(biggestBatch, ls.batchSize);
-					if (ls.batchSize < fullBatch) {
+					const auto bs = ::std::min(ls.batchSize, fullBatch);
+					biggestBatch = ::std::max(biggestBatch, bs);
+					if (bs < fullBatch) {
 						secondBiggestBatch = ::std::max(secondBiggestBatch, ls.batchSize);
 					}
 				});
@@ -314,7 +315,8 @@ namespace weights_init {
 			}
 
 			void prepareToBatchSize(const vec_len_t _bs)noexcept {
-				const auto bs = _bs ? _bs : m_fullBatchSize;
+				NNTL_ASSERT(m_fullBatchSize);
+				const auto bs = _bs ? ::std::min(_bs, m_fullBatchSize) : m_fullBatchSize;
 				m_data.prepareToBatchSize(bs);
 				m_nn.init4fixedBatchFprop(bs);
 			}
