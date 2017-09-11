@@ -641,7 +641,7 @@ namespace math {
 			NNTL_ASSERT(act.size_no_bias() == dropoutMask.size());
 			NNTL_ASSERT(dropPercAct > 0 && dropPercAct < 1);
 
-			const real_t dropPercActInv = real_t(1.) / dropPercAct;
+			/*const real_t dropPercActInv = real_t(1.) / dropPercAct;
 			auto pDM = dropoutMask.data()+er.elmBegin;
 			const auto pDME = pDM + er.totalElements();
 			while (pDM != pDME) {
@@ -649,19 +649,19 @@ namespace math {
 				NNTL_ASSERT(v >= real_t(0.0) && v <= real_t(1.0));
 				*pDM++ = v < dropPercAct ? dropPercActInv : real_t(0.);
 			}
-			//pDM = dropoutMask.data();
-			//const auto pA = act.data();
-			//for (numel_cnt_t i = er.elmBegin; i < er.elmEnd; ++i) pA[i] *= pDM[i];
-			get_self()._ievMul_ip_st(act.data(), dropoutMask.data(), er);
+			get_self()._ievMul_ip_st(act.data(), dropoutMask.data(), er);*/
 
-			//bwaahaaahaaaa, "for" cycle here is about twice slower
-			/*const auto pDM = dropoutMask.data();
-			for (auto i = er.elmBegin; i < er.elmEnd; ++i) {
-				const auto v = pDM[i];
+			const real_t dropPercActInv = real_t(1.) / dropPercAct;
+			auto pDM = dropoutMask.data() + er.elmBegin;
+			auto pA = act.data() + er.elmBegin;
+			const auto pDME = pDM + er.totalElements();
+			while (pDM != pDME) { //vectorized!
+				const auto v = *pDM;
 				NNTL_ASSERT(v >= real_t(0.0) && v <= real_t(1.0));
-				pDM[i] = v < dropPercAct ? dropPercActInv : real_t(0.);
+				const real_t dv = v < dropPercAct ? dropPercActInv : real_t(0.);
+				*pA++ *= dv;
+				*pDM++ = dv;
 			}
-			....*/
 		}
 		void make_dropout_mt(realmtx_t& act, const real_t dropPercAct, realmtx_t& dropoutMask)noexcept {
 			NNTL_ASSERT(act.emulatesBiases() && !dropoutMask.emulatesBiases());
@@ -680,78 +680,69 @@ namespace math {
 		// {dropoutMask <- a, mtxB <- b } with probability p
 		// Then we compute the post-dropout activations A3 <- A.*dropoutMask + mtxB
 		void make_alphaDropout(realmtx_t& act, const real_t dropPercAct
-			, const real_t a_dmKeepVal, const real_t b_mbKeepVal, const real_t mbDropVal
-			, realmtx_t& dropoutMask, realmtx_t& mtxB)noexcept
+			, const real_t a_dmKeepVal, const real_t b_mbKeepVal, const real_t mbDropVal, realmtx_t& dropoutMask)noexcept
 		{
 			if (dropoutMask.numel() < Thresholds_t::make_alphaDropout) {
-				get_self().make_alphaDropout_st(act, dropPercAct, a_dmKeepVal, b_mbKeepVal, mbDropVal, dropoutMask, mtxB);
-			} else get_self().make_alphaDropout_mt(act, dropPercAct, a_dmKeepVal, b_mbKeepVal, mbDropVal, dropoutMask, mtxB);
+				get_self().make_alphaDropout_st(act, dropPercAct, a_dmKeepVal, b_mbKeepVal, mbDropVal, dropoutMask);
+			} else get_self().make_alphaDropout_mt(act, dropPercAct, a_dmKeepVal, b_mbKeepVal, mbDropVal, dropoutMask);
 		}
 		void make_alphaDropout_st(realmtx_t& act, const real_t dropPercAct
 			, const real_t a_dmKeepVal, const real_t b_mbKeepVal, const real_t mbDropVal
-			, realmtx_t& dropoutMask, realmtx_t& mtxB, const elms_range*const pER = nullptr) const noexcept
+			, realmtx_t& dropoutMask, const elms_range*const pER = nullptr) const noexcept
 		{
-			get_self()._imake_alphaDropout_st(act, dropPercAct, a_dmKeepVal, b_mbKeepVal, mbDropVal, dropoutMask, mtxB
+			get_self()._imake_alphaDropout_st(act, dropPercAct, a_dmKeepVal, b_mbKeepVal, mbDropVal, dropoutMask
 				, pER ? *pER : elms_range(dropoutMask));
 		}
-		static void _imake_alphaDropout_st(realmtx_t& act, const real_t dropPercAct
-			, const real_t a_dmKeepVal, const real_t b_mbKeepVal, const real_t mbDropVal
-			, realmtx_t& dropoutMask, realmtx_t& mtxB, const elms_range& er) noexcept
+		static void _imake_alphaDropout_st(realmtx_t& act, const real_t dropPercAct, const real_t a_dmKeepVal
+			, const real_t b_mbKeepVal, const real_t mbDropVal, realmtx_t& dropoutMask, const elms_range& er) noexcept
 		{
-			NNTL_ASSERT(act.emulatesBiases() && !dropoutMask.emulatesBiases() && !mtxB.emulatesBiases());
+			NNTL_ASSERT(act.emulatesBiases() && !dropoutMask.emulatesBiases());
 			NNTL_ASSERT(act.size_no_bias() == dropoutMask.size());
-			NNTL_ASSERT(mtxB.size() == dropoutMask.size());
 			NNTL_ASSERT(dropPercAct > 0 && dropPercAct < 1);
 			NNTL_ASSERT(er.elmEnd <= dropoutMask.numel());
+			NNTL_ASSERT(a_dmKeepVal > real_t(0));//need it to break into two loops
 
-			auto pmB = mtxB.data() + er.elmBegin;
-			auto pDM = dropoutMask.data() + er.elmBegin;
+			/*real_t* pA = act.data() + er.elmBegin;
+			real_t* pDM = dropoutMask.data() + er.elmBegin;
 			const auto pDME = pDM + er.totalElements();
 			while (pDM != pDME) {
-				const auto v = *pDM;
+				const real_t v = *pDM;
 				NNTL_ASSERT(v >= real_t(0.0) && v <= real_t(1.0));
-				const auto bKeep = v < dropPercAct;
-				*pDM++ = bKeep ? a_dmKeepVal : real_t(0.);
-				*pmB++ = bKeep ? b_mbKeepVal : mbDropVal;
+ 				const auto bKeep = v < dropPercAct;
+ 				*pDM++ = bKeep ? a_dmKeepVal : real_t(0.);
+// 				*pA++ = bKeep ? (*pA*a_dmKeepVal + b_mbKeepVal) : mbDropVal;	//prevents loop vectorization
 			}
-			/*const auto pmB = mtxB.data();
-			const auto pDM = dropoutMask.data();
-			for (numel_cnt_t i = er.elmBegin; i < er.elmEnd; ++i) {
-				const auto v = pDM[i];
-				NNTL_ASSERT(v >= real_t(0.0) && v <= real_t(1.0));
-				const auto bKeep = v < dropPercAct;
-				pDM[i] = bKeep ? a_dmKeepVal : real_t(0.);
-				pmB[i] = bKeep ? b_mbKeepVal : mbDropVal;
-			}*/
 
-
-			//#todo: refactor to separate function
-			//const auto pA = act.data();
-			//for (numel_cnt_t i = er.elmBegin; i < er.elmEnd; ++i) pA[i] = pA[i] * pDM[i] + pmB[i];
-			auto pA = act.data();
-			const auto pAE = pA + er.elmEnd;
-			pA += er.elmBegin;
-			pmB = mtxB.data() + er.elmBegin;
 			pDM = dropoutMask.data() + er.elmBegin;
-			while (pA != pAE) {
-				*pA++ = *pA * (*pDM++) + *pmB++;
+			while (pDM != pDME) {
+				*pA++ = *pDM++ > real_t(0.) ? (*pA * a_dmKeepVal + b_mbKeepVal) : mbDropVal;
+			}*/
+			
+			real_t* pA = act.data() + er.elmBegin;
+			real_t* pDM = dropoutMask.data() + er.elmBegin;
+			const auto pDME = pDM + er.totalElements();
+			const real_t b_div_a = b_mbKeepVal / a_dmKeepVal;
+			const real_t mbDV_div_a = mbDropVal / a_dmKeepVal;
+			while (pDM != pDME) { //vectorizes!
+				const real_t v = *pDM;
+				NNTL_ASSERT(v >= real_t(0.0) && v <= real_t(1.0));
+				const real_t dv = v < dropPercAct ? a_dmKeepVal : real_t(0.);
+				*pA++ = dv*(*pA + b_div_a) + (a_dmKeepVal - dv)*mbDV_div_a;
+				*pDM++ = dv;
 			}
-
 		}
 		void make_alphaDropout_mt(realmtx_t& act, const real_t dropPercAct
-			, const real_t a_dmKeepVal, const real_t b_mbKeepVal, const real_t mbDropVal
-			, realmtx_t& dropoutMask, realmtx_t& mtxB)noexcept
+			, const real_t a_dmKeepVal, const real_t b_mbKeepVal, const real_t mbDropVal, realmtx_t& dropoutMask)noexcept
 		{
-			NNTL_ASSERT(act.emulatesBiases() && !dropoutMask.emulatesBiases() && !mtxB.emulatesBiases());
+			NNTL_ASSERT(act.emulatesBiases() && !dropoutMask.emulatesBiases());
 			NNTL_ASSERT(act.size_no_bias() == dropoutMask.size());
 			NNTL_ASSERT(dropPercAct > 0 && dropPercAct < 1);
-			NNTL_ASSERT(mtxB.size() == dropoutMask.size());
 
-			m_threads.run([&act, &dropoutMask, &mtxB, a_dmKeepVal, b_mbKeepVal, mbDropVal, dropPercAct, this](const par_range_t& r) {
-				get_self()._imake_alphaDropout_st(act, dropPercAct, a_dmKeepVal, b_mbKeepVal, mbDropVal, dropoutMask, mtxB, elms_range(r));
+			m_threads.run([&act, &dropoutMask, a_dmKeepVal, b_mbKeepVal, mbDropVal, dropPercAct, this](const par_range_t& r) {
+				get_self()._imake_alphaDropout_st(act, dropPercAct, a_dmKeepVal, b_mbKeepVal, mbDropVal, dropoutMask, elms_range(r));
 			}, dropoutMask.numel());
 		}
-		
+
 		////////////////////////////////////////////////////////////////////////// 
 		//////////////////////////////////////////////////////////////////////////
 		//apply individual learning rate to dLdW

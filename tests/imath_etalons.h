@@ -86,6 +86,7 @@ void evSquare_ET(realmtx_t& dest, const realmtx_t& src)noexcept;
 void evSub_ET(const realmtx_t& A, const realmtx_t& B, realmtx_t& C)noexcept;
 void evSub_ip_ET(realmtx_t& A, const realmtx_t& B)noexcept;
 real_t loss_xentropy_ET(const realmtx_t& activations, const realmtx_t& data_y)noexcept;
+
 void make_dropout_ET(realmtx_t& act, const real_t dfrac, realmtx_t& dropoutMask)noexcept;
 
 void ModProp_ET(realmtx_t& dW, realmtx_t& rmsF, const real_t learningRate, const real_t emaDecay, const real_t numericStabilizer)noexcept;
@@ -213,8 +214,8 @@ void dLoss_deCov_ET(const nntl::math::smatrix<typename iMathT::real_t>& A
 }
 
 void make_alphaDropout_ET(realmtx_t& act, const real_t dropPercAct
-	, const real_t a_dmKeepVal, const real_t b_mbKeepVal, const real_t mbDropVal
-	, realmtx_t& dropoutMask, realmtx_t& mtxB) noexcept;
+							  , const real_t a_dmKeepVal, const real_t b_mbKeepVal, const real_t mbDropVal
+							  , realmtx_t& dropoutMask) noexcept;
 
 void evSubMtxMulC_ip_nb_ET(realmtx_t& A, const realmtx_t& M, const real_t c)noexcept;
 

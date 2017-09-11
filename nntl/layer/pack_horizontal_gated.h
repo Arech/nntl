@@ -305,6 +305,7 @@ namespace nntl {
 				//we won't update the gate here, it's just an alias, therefore const_cast is safe
 				m_gatingMask.useExternalStorage(const_cast<realmtx_t&>(gate));
 			}
+			NNTL_ASSERT(m_gatingMask.isBinary());
 			
 			//finally we must update m_biasGatingMask -- it'll be used if we don't share ours activation matrix
 			reinit_biasGatingMask();
@@ -324,6 +325,7 @@ namespace nntl {
 			NNTL_ASSERT(gate.size() == m_gatingMask.size());
 
 			get_self().get_iMath().ewBinarize(m_gatingMask, gate, sBinarizeFrac);
+			NNTL_ASSERT(m_gatingMask.isBinary());
 
 			//finally we must update m_biasGatingMask -- it'll be used if we don't share ours activation matrix
 			reinit_biasGatingMask();

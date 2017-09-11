@@ -2093,101 +2093,62 @@ TEST(TestMathN, Radam) {
 
 //////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////
-template<typename iMath>
-void test_make_dropout_perf(iMath& iM, vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
-	const auto dataSize = realmtx_t::sNumel(rowsCnt, colsCnt);
-	STDCOUTL("******* testing make_dropout() over " << rowsCnt << "x" << colsCnt << " matrix (" << dataSize << " elements) **************");
 
-	double tstNaive, tmtNaive, tBest;
-	steady_clock::time_point bt;
-	nanoseconds diff;
-	constexpr unsigned maxReps = TEST_PERF_REPEATS_COUNT, testCorrRepCnt = TEST_CORRECTN_REPEATS_COUNT;
-
-	real_t dfrac = .5;
+void test_make_dropout_corr(vec_len_t rowsCnt, vec_len_t colsCnt = 10, const real_t dpa = real_t(.5)) {
+	constexpr unsigned testCorrRepCnt = TEST_CORRECTN_REPEATS_COUNT;
 
 	realmtx_t act(rowsCnt, colsCnt, true), dm(rowsCnt, colsCnt);
 	ASSERT_TRUE(!act.isAllocationFailed() && !dm.isAllocationFailed());
-	
+
 	d_interfaces::iRng_t rg;
 	rg.init_ithreads(iM.ithreads());
-	{
-		realmtx_t act2(rowsCnt, colsCnt, true), dm2(rowsCnt, colsCnt), act3(rowsCnt, colsCnt, true), dm3(rowsCnt, colsCnt);
-		ASSERT_TRUE(!act2.isAllocationFailed() && !dm2.isAllocationFailed()&& !act3.isAllocationFailed() && !dm3.isAllocationFailed());
-		for (unsigned r = 0; r < testCorrRepCnt; ++r) {
-			rg.gen_matrix_no_bias(act, 5);
-			ASSERT_TRUE(act.test_biases_ok());
-			act.clone_to(act2);
-			act.clone_to(act3);
-			rg.gen_matrix_norm(dm);
-			dm.clone_to(dm2);
-			dm.clone_to(dm3);
 
-			make_dropout_ET(act2, dfrac, dm2);
-			ASSERT_TRUE(act2.test_biases_ok());
-
-			iM.make_dropout_st(act, dfrac, dm);
-			ASSERT_MTX_EQ(act2, act, "make_dropout_st: wrong act");
-			ASSERT_MTX_EQ(dm2, dm, "make_dropout_st: wrong dm");
-
-			act3.clone_to(act);
-			dm3.clone_to(dm);
-			iM.make_dropout_mt(act, dfrac, dm);
-			ASSERT_MTX_EQ(act2, act, "make_dropout_mt: wrong act");
-			ASSERT_MTX_EQ(dm2, dm, "make_dropout_mt: wrong dm");
-
-			act3.clone_to(act);
-			dm3.clone_to(dm);
-			iM.make_dropout(act, dfrac, dm);
-			ASSERT_MTX_EQ(act2, act, "make_dropout: wrong act");
-			ASSERT_MTX_EQ(dm2, dm, "make_dropout: wrong dm");
-		}
-	}
-	//////////////////////////////////////////////////////////////////////////
-	//testing performance
-	threads::prioritize_workers<threads::PriorityClass::PerfTesting, iMath::iThreads_t> pw(iM.ithreads());
-
-	rg.gen_matrix_no_bias(act, 5);
-	ASSERT_TRUE(act.test_biases_ok());
-	diff = nanoseconds(0);
-	for (unsigned r = 0; r < maxReps; ++r) {
-		rg.gen_matrix_norm(dm);
-		bt = steady_clock::now();
-		iM.make_dropout_st(act, dfrac, dm);
-		diff += steady_clock::now() - bt;
+	realmtx_t act2(rowsCnt, colsCnt, true), dm2(rowsCnt, colsCnt), act3(rowsCnt, colsCnt, true), dm3(rowsCnt, colsCnt);
+	ASSERT_TRUE(!act2.isAllocationFailed() && !dm2.isAllocationFailed() && !act3.isAllocationFailed() && !dm3.isAllocationFailed());
+	for (unsigned r = 0; r < testCorrRepCnt; ++r) {
+		rg.gen_matrix_no_bias(act, 5);
 		ASSERT_TRUE(act.test_biases_ok());
-	}
-	STDCOUTL("st:\t\t" << utils::duration_readable(diff, maxReps, &tstNaive));
-
-	rg.gen_matrix_no_bias(act, 5);
-	ASSERT_TRUE(act.test_biases_ok());
-	diff = nanoseconds(0);
-	for (unsigned r = 0; r < maxReps; ++r) {
+		act.clone_to(act2);
+		act.clone_to(act3);
 		rg.gen_matrix_norm(dm);
-		bt = steady_clock::now();
-		iM.make_dropout_mt(act, dfrac, dm);
-		diff += steady_clock::now() - bt;
-		ASSERT_TRUE(act.test_biases_ok());
-	}
-	STDCOUTL("mt:\t\t" << utils::duration_readable(diff, maxReps, &tmtNaive));
+		dm.clone_to(dm2);
+		dm.clone_to(dm3);
 
-	rg.gen_matrix_no_bias(act, 5);
-	ASSERT_TRUE(act.test_biases_ok());
-	diff = nanoseconds(0);
-	for (unsigned r = 0; r < maxReps; ++r) {
-		rg.gen_matrix_norm(dm);
-		bt = steady_clock::now();
-		iM.make_dropout(act, dfrac, dm);
-		diff += steady_clock::now() - bt;
-		ASSERT_TRUE(act.test_biases_ok());
+		make_dropout_ET(act2, dpa, dm2);
+		ASSERT_TRUE(act2.test_biases_ok());
+
+		iM.make_dropout_st(act, dpa, dm);
+		ASSERT_MTX_EQ(act2, act, "make_dropout_st: wrong act");
+		ASSERT_MTX_EQ(dm2, dm, "make_dropout_st: wrong dm");
+
+		act3.clone_to(act);
+		dm3.clone_to(dm);
+		iM.make_dropout_mt(act, dpa, dm);
+		ASSERT_MTX_EQ(act2, act, "make_dropout_mt: wrong act");
+		ASSERT_MTX_EQ(dm2, dm, "make_dropout_mt: wrong dm");
+
+		act3.clone_to(act);
+		dm3.clone_to(dm);
+		iM.make_dropout(act, dpa, dm);
+		ASSERT_MTX_EQ(act2, act, "make_dropout: wrong act");
+		ASSERT_MTX_EQ(dm2, dm, "make_dropout: wrong dm");
 	}
-	STDCOUTL("best:\t\t" << utils::duration_readable(diff, maxReps, &tBest));
 }
 
-TEST(TestMathN, MakeDropoutPerf) {
-// 	typedef nntl::d_interfaces::iThreads_t def_threads_t;
-// 	typedef math::MathN<real_t, def_threads_t> iMB;
-// 	iMB iM;
-	NNTL_RUN_TEST2(imath_basic_t::Thresholds_t::make_dropout, 100) test_make_dropout_perf(iM, 100,i);
+TEST(TestMathN, make_dropout) {
+	for (vec_len_t r = 1; r < g_MinDataSizeDelta; ++r) {
+		for (vec_len_t c = 1; c < g_MinDataSizeDelta; ++c) {
+			ASSERT_NO_FATAL_FAILURE((test_make_dropout_corr(r, c)));
+		}
+	}
+
+	constexpr unsigned rowsCnt = _baseRowsCnt;
+	const vec_len_t maxCols = g_MinDataSizeDelta, maxRows = rowsCnt + g_MinDataSizeDelta;
+	for (vec_len_t r = rowsCnt; r < maxRows; ++r) {
+		for (vec_len_t c = 1; c < maxCols; ++c) {
+			ASSERT_NO_FATAL_FAILURE((test_make_dropout_corr(r, c)));
+		}
+	}
 }
 
 //////////////////////////////////////////////////////////////////////////
@@ -3659,12 +3620,10 @@ void test_make_alphaDropout(vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 	const real_t dpa = real_t(.6), a = real_t(2), b = real_t(-3), c = real_t(4);
 
 	realmtx_t A(rowsCnt, colsCnt, true), A_ET(rowsCnt, colsCnt, true), As(rowsCnt, colsCnt, true)
-		, DM(rowsCnt, colsCnt), DM_ET(rowsCnt, colsCnt), DMs(rowsCnt, colsCnt)
-		, mB(rowsCnt, colsCnt), mB_ET(rowsCnt, colsCnt);
+		, DM(rowsCnt, colsCnt), DM_ET(rowsCnt, colsCnt), DMs(rowsCnt, colsCnt);
 
 	ASSERT_TRUE(!A.isAllocationFailed() && !A_ET.isAllocationFailed() && !As.isAllocationFailed()
-		&& !DM.isAllocationFailed() && !DM_ET.isAllocationFailed() && !DMs.isAllocationFailed()
-		&& !mB.isAllocationFailed() && !mB_ET.isAllocationFailed());
+		&& !DM.isAllocationFailed() && !DM_ET.isAllocationFailed() && !DMs.isAllocationFailed());
 
 	d_interfaces::iRng_t rg;
 	rg.init_ithreads(iM.ithreads());
@@ -3674,37 +3633,30 @@ void test_make_alphaDropout(vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 		rg.gen_matrix_norm(DMs);
 
 		As.copy_data_skip_bias(A_ET);
-		DMs.copy_to(DM_ET);		
-		mB_ET.ones();
-		make_alphaDropout_ET(A_ET, dpa, a, b, c, DM_ET, mB_ET);
+		DMs.copy_to(DM_ET);
+		make_alphaDropout_ET(A_ET, dpa, a, b, c, DM_ET);
 		ASSERT_TRUE(A_ET.test_biases_strict());
 
 		As.copy_data_skip_bias(A);
 		DMs.copy_to(DM);
-		mB.ones();
-		iM.make_alphaDropout_st(A, dpa, a, b, c, DM, mB);
+		iM.make_alphaDropout_st(A, dpa, a, b, c, DM);
 		ASSERT_TRUE(A.test_biases_strict());
 		ASSERT_REALMTX_NEAR(A, A_ET, "_st() computes different A!!", make_alphaDropout_EPS<real_t>::eps);
 		ASSERT_REALMTX_NEAR(DM, DM_ET, "_st() computes different DM!!", make_alphaDropout_EPS<real_t>::eps);
-		ASSERT_REALMTX_NEAR(mB, mB_ET, "_st() computes different mB!!", make_alphaDropout_EPS<real_t>::eps);
 
 		As.copy_data_skip_bias(A);
 		DMs.copy_to(DM);
-		mB.ones();
-		iM.make_alphaDropout_mt(A, dpa, a, b, c, DM, mB);
+		iM.make_alphaDropout_mt(A, dpa, a, b, c, DM);
 		ASSERT_TRUE(A.test_biases_strict());
 		ASSERT_REALMTX_NEAR(A, A_ET, "_mt() computes different A!!", make_alphaDropout_EPS<real_t>::eps);
 		ASSERT_REALMTX_NEAR(DM, DM_ET, "_mt() computes different DM!!", make_alphaDropout_EPS<real_t>::eps);
-		ASSERT_REALMTX_NEAR(mB, mB_ET, "_mt() computes different mB!!", make_alphaDropout_EPS<real_t>::eps);
 
 		As.copy_data_skip_bias(A);
 		DMs.copy_to(DM);
-		mB.ones();
-		iM.make_alphaDropout(A, dpa, a, b, c, DM, mB);
+		iM.make_alphaDropout(A, dpa, a, b, c, DM);
 		ASSERT_TRUE(A.test_biases_strict());
 		ASSERT_REALMTX_NEAR(A, A_ET, "() computes different A!!", make_alphaDropout_EPS<real_t>::eps);
 		ASSERT_REALMTX_NEAR(DM, DM_ET, "() computes different DM!!", make_alphaDropout_EPS<real_t>::eps);
-		ASSERT_REALMTX_NEAR(mB, mB_ET, "() computes different mB!!", make_alphaDropout_EPS<real_t>::eps);
 	}
 }
 

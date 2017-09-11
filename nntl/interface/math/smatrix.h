@@ -349,13 +349,13 @@ namespace math {
 			const auto ne = numel();
 			auto pS = &m_pData[ne - m_rows];
 			const auto pE = m_pData + ne;
-			bool cond = true;
+			int cond = 1;
 			while (pS != pE) {
-				const auto c = *pS++ == value_type(1.0);
+				const int c = *pS++ == value_type(1.0);
 				NNTL_ASSERT(c || !"Bias check failed!");
-				cond = cond && c;
+				cond = cond & c;
 			}
-			return cond;
+			return !!cond;
 		}
 		bool test_biases_holey()const noexcept {
 			NNTL_ASSERT(emulatesBiases() && m_bHoleyBiases);
@@ -363,30 +363,48 @@ namespace math {
 			const auto ne = numel();
 			auto pS = &m_pData[ne - m_rows];
 			const auto pE = m_pData + ne;
-			bool cond = true;
+			int cond = 1;
 			while (pS != pE) {
 				const auto v = *pS++;
-				const auto c = ((v == value_type(1.0)) | (v == value_type(0.0)));
+				const int c = ((v == value_type(1.0)) | (v == value_type(0.0)));
 				NNTL_ASSERT(c || !"Holey bias check failed!");
-				cond = cond && c;
+				cond = cond & c;
 			}
-			return cond;
+			return !!cond;
 		}
 
-
+		//////////////////////////////////////////////////////////////////////////
 		//debug only
 		bool isBinary()const noexcept {
 			auto pS = m_pData;
 			const auto pE = end();
-			bool cond = true;
+			int cond = 1;
 			while (pS != pE) {
 				const auto v = *pS++;
-				const auto c = ((v == value_type(1.0)) | (v == value_type(0.0)));
+				const int c = ((v == value_type(1.0)) | (v == value_type(0.0)));
 				NNTL_ASSERT(c || !"Not a binary matrix!");
-				cond = cond && c;
+				cond = cond & c;
 			}
-			return cond;
+			return !!cond;
 		}
+
+		template<typename _T> struct isAlmostBinary_eps {};
+		template<> struct isAlmostBinary_eps<float> { static constexpr float eps = float(1e-8); };
+		template<> struct isAlmostBinary_eps<double> { static constexpr double eps = 1e-16; };
+		//to account numeric problems
+		bool isAlmostBinary(const value_type eps/* = isAlmostBinary_eps<value_type>::eps*/)const noexcept {
+			auto pS = m_pData;
+			const auto pE = end();
+			int cond = 1;
+			while (pS != pE) {
+				const auto v = *pS++;
+				const int c = (::std::abs(v - value_type(1.0)) < eps | ::std::abs(v) < eps);
+				NNTL_ASSERT(c || !"Not a (almost) binary matrix!");
+				cond = cond & c;
+			}
+			return !!cond;
+		}
+
 
 		//for testing only
 		void breakWhenDenormal()const noexcept {

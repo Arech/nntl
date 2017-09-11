@@ -55,6 +55,8 @@ namespace nntl {
 
 			//matrix of dropped out neuron activations, used when 1>m_dropoutPercentActive>0
 			realmtxdef_t m_dropoutMask;//<batch_size rows> x <m_neurons_cnt cols> (must not have a bias column)
+			realmtxdef_t m_origActivations;//<batch_size rows> x <m_neurons_cnt cols> (must not have a bias column)
+
 			real_t m_dropoutPercentActive;//probability of keeping unit active
 
 		protected:
@@ -62,13 +64,16 @@ namespace nntl {
 			_dropout_base()noexcept : m_dropoutPercentActive(real_t(1.)) {}
 
 			template<class Archive>
-			void _dropout_serialize(Archive & ar, const unsigned int ) noexcept {
+			void _dropout_serialize(Archive & ar, const unsigned int version) noexcept {
+				NNTL_UNREF(version);
 				if (utils::binary_option<true>(ar, serialization::serialize_training_parameters)) {
 					ar & NNTL_SERIALIZATION_NVP(m_dropoutPercentActive);
 				}
 
-				if (bDropout() && utils::binary_option<true>(ar, serialization::serialize_dropout_mask))
+				if (bDropout() && utils::binary_option<true>(ar, serialization::serialize_dropout_mask)) {
 					ar & NNTL_SERIALIZATION_NVP(m_dropoutMask);
+					ar & NNTL_SERIALIZATION_NVP(m_origActivations);
+				}
 			}
 
 			template<typename CommonDataT>
@@ -84,6 +89,9 @@ namespace nntl {
 					//resize to the biggest possible size during training
 					if (!m_dropoutMask.resize(max_batch_size, neurons_cnt)) return false;
 
+					NNTL_ASSERT(!m_origActivations.emulatesBiases());
+					if (!m_origActivations.resize(max_batch_size, neurons_cnt)) return false;
+
 					CD.iRng().preinit_additive_norm(m_dropoutMask.numel());
 				}
 				return true;
@@ -91,15 +99,32 @@ namespace nntl {
 
 			void _dropout_deinit()noexcept {
 				m_dropoutMask.clear();
+				m_origActivations.clear();
 				//we mustn't clear settings here
 			}
 
 			template<typename CommonDataT>
 			void _dropout_on_batch_size_change(const CommonDataT& CD)noexcept {
 				if (CD.is_training_mode() && bDropout()) {
+					const auto bs = CD.get_cur_batch_size();
+
 					NNTL_ASSERT(!m_dropoutMask.empty());
-					m_dropoutMask.deform_rows(CD.get_cur_batch_size());
+					m_dropoutMask.deform_rows(bs);
+
+					NNTL_ASSERT(!m_origActivations.empty());
+					m_origActivations.deform_rows(bs);
 				}
+			}
+
+			void _dropout_saveActivations(const realmtx_t& curAct)noexcept {
+				NNTL_ASSERT(curAct.size_no_bias() == m_origActivations.size());
+				const auto c = curAct.copy_data_skip_bias(m_origActivations);
+				NNTL_ASSERT(c);
+			}
+			void _dropout_restoreActivations(realmtx_t& Act)const noexcept {
+				NNTL_ASSERT(Act.size_no_bias() == m_origActivations.size());
+				const auto c = m_origActivations.copy_data_skip_bias(Act);
+				NNTL_ASSERT(c);
 			}
 
 		public:
@@ -151,10 +176,7 @@ namespace nntl {
 	protected:
 		~Dropout()noexcept {}
 		Dropout()noexcept : _base_class_t() {}
-
-// 		template<typename iMathT, typename iRngT, typename iInspectT>
-// 		void _dropout_apply(realmtx_t& activations, const bool bTrainingMode, iMathT& iM, iRngT& iR, iInspectT& _iI)noexcept {
-
+		
 		template<typename CommonDataT>
 		void _dropout_apply(realmtx_t& activations, const CommonDataT& CD) noexcept {
 			NNTL_ASSERT(bDropout());
@@ -163,11 +185,14 @@ namespace nntl {
 			if (CD.is_training_mode()) {
 				//must make dropoutMask and apply it
 				NNTL_ASSERT(m_dropoutMask.size() == activations.size_no_bias());
+				NNTL_ASSERT(m_dropoutMask.size() == m_origActivations.size());
+
+				_dropout_saveActivations(activations);
 				CD.iRng().gen_matrix_norm(m_dropoutMask);
 
 				auto& _iI = CD.iInspect();
 				_iI.fprop_preDropout(activations, m_dropoutPercentActive, m_dropoutMask);
-				
+
 				CD.iMath().make_dropout(activations, m_dropoutPercentActive, m_dropoutMask);
 
 				_iI.fprop_postDropout(activations, m_dropoutMask);
@@ -183,13 +208,14 @@ namespace nntl {
 			NNTL_ASSERT(bDropout());
 
 			NNTL_ASSERT(m_dropoutMask.size() == dLdA.size());
+			NNTL_ASSERT(m_dropoutMask.size() == m_origActivations.size());
 
 			auto& _iI = CD.iInspect();
 			_iI.bprop_preCancelDropout(dLdA, activations, m_dropoutPercentActive);
 
 			auto& iM = CD.iMath();
 			iM.evMul_ip(dLdA, m_dropoutMask);
-			iM.evMulC_ip_Anb(activations, m_dropoutPercentActive);
+			_dropout_restoreActivations(activations);
 
 			_iI.bprop_postCancelDropout(dLdA, activations);
 		}

@@ -1346,20 +1346,20 @@ void test_make_alphaDropout_perf(vec_len_t rowsCnt, vec_len_t colsCnt = 10, cons
 	const auto dataSize = realmtx_t::sNumel(rowsCnt, colsCnt);
 	STDCOUTL("**** testing make_alphaDropout() over " << rowsCnt << "x" << colsCnt << " matrix (" << dataSize << " elements) with dpa=" << dpa << " ****");
 	ASSERT_TRUE(dpa > 0 && dpa < 1);
-	
+
 	constexpr unsigned maxReps = TEST_PERF_REPEATS_COUNT;
-	realmtx_t A(rowsCnt, colsCnt, true), DM(rowsCnt, colsCnt), mB(rowsCnt, colsCnt);
+	realmtx_t A(rowsCnt, colsCnt, true), DM(rowsCnt, colsCnt);
 	const real_t a = real_t(2), b = real_t(-3), c = real_t(4);
-	
-	ASSERT_TRUE(!A.isAllocationFailed() && !DM.isAllocationFailed() && !mB.isAllocationFailed());
+
+	ASSERT_TRUE(!A.isAllocationFailed() && !DM.isAllocationFailed());
 
 	d_interfaces::iRng_t rg;
 	rg.init_ithreads(iM.ithreads());
 
-	const auto pA = A.data(), pDM = DM.data(), pB = mB.data();
+	const auto pA = A.data(), pDM = DM.data();
 
 	real_t t = real_t(0);
-	tictoc tSt, tMt, tB;
+	utils::tictoc tSt, tMt, tB;
 
 	threads::prioritize_workers<threads::PriorityClass::PerfTesting, imath_basic_t::iThreads_t> pw(iM.ithreads());
 	for (unsigned r = 0; r < maxReps; ++r) {
@@ -1367,23 +1367,23 @@ void test_make_alphaDropout_perf(vec_len_t rowsCnt, vec_len_t colsCnt = 10, cons
 		rg.gen_matrix_no_bias(A, real_t(5));
 		rg.gen_matrix_norm(DM);
 		tSt.tic();
-		iM.make_alphaDropout_st(A, dpa, a, b, c, DM, mB);
+		iM.make_alphaDropout_st(A, dpa, a, b, c, DM);
 		tSt.toc();
-		for (numel_cnt_t i = 0; i < dataSize; ++i) t += pA[i] + pDM[i] + pB[i];
-		
+		for (numel_cnt_t i = 0; i < dataSize; ++i) t += pA[i] + pDM[i];
+
 		rg.gen_matrix_no_bias(A, real_t(5));
 		rg.gen_matrix_norm(DM);
 		tMt.tic();
-		iM.make_alphaDropout_mt(A, dpa, a, b, c, DM, mB);
+		iM.make_alphaDropout_mt(A, dpa, a, b, c, DM);
 		tMt.toc();
-		for (numel_cnt_t i = 0; i < dataSize; ++i) t += pA[i] + pDM[i] + pB[i];
+		for (numel_cnt_t i = 0; i < dataSize; ++i) t += pA[i] + pDM[i];
 
 		rg.gen_matrix_no_bias(A, real_t(5));
 		rg.gen_matrix_norm(DM);
 		tB.tic();
-		iM.make_alphaDropout(A, dpa, a, b, c, DM, mB);
+		iM.make_alphaDropout(A, dpa, a, b, c, DM);
 		tB.toc();
-		for (numel_cnt_t i = 0; i < dataSize; ++i) t += pA[i] + pDM[i] + pB[i];
+		for (numel_cnt_t i = 0; i < dataSize; ++i) t += pA[i] + pDM[i];
 	}
 	tSt.say("st");
 	tMt.say("mt");
@@ -1391,7 +1391,6 @@ void test_make_alphaDropout_perf(vec_len_t rowsCnt, vec_len_t colsCnt = 10, cons
 
 	STDCOUTL(t);
 }
-
 TEST(TestMathNThr, make_alphaDropout) {
 	NNTL_RUN_TEST2(imath_basic_t::Thresholds_t::make_alphaDropout, 100) {
 		test_make_alphaDropout_perf(100, i, real_t(.5));
@@ -1707,4 +1706,59 @@ void test_mExtractRows_perf(vec_len_t rowsCnt, vec_len_t colsCnt, vec_len_t extr
 TEST(TestMathNThr, mExtractRowsPerf) {
 	NNTL_RUN_TEST2(imath_basic_t::Thresholds_t::mExtractRows, 100) test_mExtractRows_perf<false>(i, 100, 100);
 	NNTL_RUN_TEST2(imath_basic_t::Thresholds_t::mExtractRows, 20) test_mExtractRows_perf<false>(i, 20, 100);
+}
+
+//////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////// 
+void test_make_dropout_perf(vec_len_t rowsCnt, vec_len_t colsCnt = 10, const real_t dpa = real_t(.5)) {
+	const auto dataSize = realmtx_t::sNumel(rowsCnt, colsCnt);
+	STDCOUTL("******* testing make_dropout() over " << rowsCnt << "x" << colsCnt << " matrix (" << dataSize << " elements), dpa = "
+		<< dpa << " **************");
+
+	constexpr unsigned maxReps = TEST_PERF_REPEATS_COUNT;
+
+	realmtx_t act(rowsCnt, colsCnt, true), dm(rowsCnt, colsCnt);
+	ASSERT_TRUE(!act.isAllocationFailed() && !dm.isAllocationFailed());
+
+	d_interfaces::iRng_t rg;
+	rg.init_ithreads(iM.ithreads());
+
+	threads::prioritize_workers<threads::PriorityClass::PerfTesting, imath_basic_t::iThreads_t> pw(iM.ithreads());
+
+	utils::tictoc tS, tM, tB;
+
+	real_t v = real_t(0);
+	for (unsigned r = 0; r < maxReps; ++r) {
+		rg.gen_matrix_no_bias(act, 5);		rg.gen_matrix_norm(dm);
+		tS.tic();
+		iM.make_dropout_st(act, dpa, dm);
+		tS.toc();
+		for (const auto e : act) v += e;		for (const auto e : dm) v += e;
+		v = ::std::log10(::std::abs(v));
+
+		rg.gen_matrix_no_bias(act, 5);		rg.gen_matrix_norm(dm);
+		tM.tic();
+		iM.make_dropout_mt(act, dpa, dm);
+		tM.toc();
+		for (const auto e : act) v += e;		for (const auto e : dm) v += e;
+		v = ::std::log10(::std::abs(v));
+
+		rg.gen_matrix_no_bias(act, 5);		rg.gen_matrix_norm(dm);
+		tB.tic();
+		iM.make_dropout(act, dpa, dm);
+		tB.toc();
+		for (const auto e : act) v += e;		for (const auto e : dm) v += e;
+		v = ::std::log10(::std::abs(v));
+	}
+	tS.say("_st");
+	tM.say("_mt");
+	tB.say("()");
+	STDCOUTL(v);
+}
+
+TEST(TestMathNThr, make_dropout) {
+	// 	typedef nntl::d_interfaces::iThreads_t def_threads_t;
+	// 	typedef math::MathN<real_t, def_threads_t> iMB;
+	// 	iMB iM;
+	NNTL_RUN_TEST2(imath_basic_t::Thresholds_t::make_dropout, 10) test_make_dropout_perf(i, 10);
 }

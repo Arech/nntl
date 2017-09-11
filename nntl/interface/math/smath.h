@@ -118,14 +118,14 @@ namespace math {
 		// should expose it into public (for some testing purposes only at this moment)
 		// Always perform corresponding call to _istor_free() in LIFO (stack) order!
 		// THREAD UNSAFE BY DESIGN! NEVER call from inside of _st() which is called from _mt()
-		real_t* _istor_alloc(const numel_cnt_t& maxDataSize)noexcept {
+		real_t* _istor_alloc(const numel_cnt_t maxDataSize)noexcept {
 			NNTL_ASSERT(m_minTempStorageSize >= maxDataSize + m_curStorElementsAllocated);
 			NNTL_ASSERT(m_threadTempRawStorage.size() >= m_minTempStorageSize);
 			auto r = &m_threadTempRawStorage[m_curStorElementsAllocated];
 			m_curStorElementsAllocated += maxDataSize;
 			return r;
 		}
-		void _istor_free(real_t*const ptr, const numel_cnt_t& maxDataSize)noexcept {
+		void _istor_free(real_t*const ptr, const numel_cnt_t maxDataSize)noexcept {
 			NNTL_UNREF(ptr);
 			NNTL_ASSERT(m_curStorElementsAllocated >= maxDataSize);
 			m_curStorElementsAllocated -= maxDataSize;
