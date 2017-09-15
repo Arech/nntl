@@ -91,7 +91,7 @@ namespace nntl_tests {
 
 		typedef nntl::LFC<myActivation, myGradWorks> myLFC;
 	};
-
+	
 	template <typename NnInnerArchT>
 	struct NN_arch : public NN_base_arch_td<typename NnInnerArchT::ArchPrms_t> {
 		typedef NnInnerArchT nnInnerArch_t;
@@ -151,7 +151,7 @@ namespace nntl_tests {
 		~NN_arch()noexcept {}
 		NN_arch(const ArchPrms_t& Prms) noexcept
 			: lInput(Prms.xCols, "lInput")
-			, lUnderlay(Prms.lUnderlay_nc, Prms.learningRate, "lUnderlay")
+			, lUnderlay("lUnderlay", Prms.lUnderlay_nc, Prms.learningRate)
 			, ArchObj(Prms)
 			, lOutput(Prms.yCols, Prms.outputLearningRate, "lOutput")
 			, lp(lInput, lUnderlay, ArchObj.lFinal, lOutput)

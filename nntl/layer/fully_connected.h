@@ -66,7 +66,7 @@ namespace nntl {
 		realmtxdef_t m_dLdW;//doesn't guarantee to retain it's value between usage in different code flows;
 		// may share memory with some other data structure. Must be deformable for grad_works_t
 
-		real_t m_nTiledTimes;
+		real_t m_dLdWScale{ 0 }, m_nTiledTimes{ 0 };
 
 	public:
 		grad_works_t m_gradientWorks; //don't use directly, use getter		
@@ -151,6 +151,8 @@ namespace nntl {
 				return false;
 			}
 
+			NNTL_ASSERT(W.test_noNaNs());
+
 			m_weights = ::std::move(W);
 			m_bWeightsInitialized = true;
 			return true;
@@ -170,6 +172,7 @@ namespace nntl {
 			if (ErrorCode::Success != ec) return ec;
 			
 			m_nTiledTimes = real_t(lid.nTiledTimes);
+			m_dLdWScale = m_nTiledTimes / real_t(m_activations.rows());
 
 			const auto neurons_cnt = get_self().get_neurons_cnt();
 
@@ -223,6 +226,7 @@ namespace nntl {
 		void deinit() noexcept {
 			m_gradientWorks.deinit();
 			m_dLdW.clear();
+			m_dLdWScale = real_t(0.);
 			m_nTiledTimes = real_t(0.);
 			_base_class_t::deinit();
 		}
@@ -236,9 +240,18 @@ namespace nntl {
 			}
 		}
 
+		void on_batch_size_change(real_t*const pNewActivationStorage = nullptr)noexcept {
+			_base_class_t::on_batch_size_change(pNewActivationStorage);
+			m_dLdWScale = m_nTiledTimes / real_t(m_activations.rows());
+		}
+
 	protected:
 		//help compiler to isolate fprop functionality from the specific of previous layer
 		void _fprop(const realmtx_t& prevActivations)noexcept {
+#ifdef NNTL_AGGRESSIVE_NANS_DBG_CHECK
+			NNTL_ASSERT(prevActivations.test_noNaNs());
+#endif // NNTL_AGGRESSIVE_NANS_DBG_CHECK
+
 			const auto bTrainingMode = get_self().get_common_data().is_training_mode();
 			auto& _iI = get_self().get_iInspect();
 			_iI.fprop_begin(get_self().get_layer_idx(), prevActivations, bTrainingMode);
@@ -279,6 +292,11 @@ namespace nntl {
 		void _bprop(realmtx_t& dLdA, const realmtx_t& prevActivations, const bool bPrevLayerIsInput, realmtx_t& dLdAPrev)noexcept {
 			NNTL_ASSERT(m_bActivationsValid);
 			m_bActivationsValid = false;
+
+#ifdef NNTL_AGGRESSIVE_NANS_DBG_CHECK
+			NNTL_ASSERT(dLdA.test_noNaNs());
+			NNTL_ASSERT(prevActivations.test_noNaNs());
+#endif // NNTL_AGGRESSIVE_NANS_DBG_CHECK
 
 			auto& _iI = get_self().get_iInspect();
 			_iI.bprop_begin(get_self().get_layer_idx(), dLdA);
@@ -333,8 +351,19 @@ namespace nntl {
 			// to get some element of dLdW equals to zero, because it'll require that dLdZ entries for some neuron over the
 			// whole batch were set to zero.
 			NNTL_ASSERT(m_nTiledTimes > 0);
-			iM.mScaledMulAtB_C(m_nTiledTimes / real_t(dLdZ.rows()), dLdZ, prevActivations, m_dLdW);
-			_iI.bprop_dLdW(dLdZ, prevActivations, m_dLdW);
+			//iM.mScaledMulAtB_C(m_nTiledTimes / real_t(dLdZ.rows()), dLdZ, prevActivations, m_dLdW);
+			
+			const auto bCalcdLdW = m_dLdWScale > 0;
+			if (bCalcdLdW) {
+				iM.mScaledMulAtB_C(m_dLdWScale, dLdZ, prevActivations, m_dLdW);
+				_iI.bprop_dLdW(dLdZ, prevActivations, m_dLdW);
+			} else {
+				//dLdZ must contain zeros only
+#ifdef NNTL_DEBUG
+				for (const auto e : dLdZ) NNTL_ASSERT(e == real_t(0));
+#endif // NNTL_DEBUG
+
+			}
 
 			if (!bPrevLayerIsInput) {
 				NNTL_ASSERT(!m_weights.emulatesBiases());
@@ -344,8 +373,10 @@ namespace nntl {
 				m_weights.restore_last_col();//restore weights back
 			}
 
-			//now we can apply gradient to the weights
-			m_gradientWorks.apply_grad(m_weights, m_dLdW);
+			if (bCalcdLdW) {
+				//now we can apply gradient to the weights
+				m_gradientWorks.apply_grad(m_weights, m_dLdW);
+			}
 
 			NNTL_ASSERT(prevActivations.test_biases_ok());
 
@@ -372,12 +403,22 @@ namespace nntl {
 
 		static constexpr bool is_trivial_drop_samples()noexcept { return true; }
 
-		void drop_samples(const realmtx_t& mask, const bool bBiasesToo)noexcept {
+		void left_after_drop_samples(const numel_cnt_t nNZElems)noexcept {
+			NNTL_ASSERT(nNZElems <= m_activations.rows());
+			m_dLdWScale = nNZElems > 0 ? m_nTiledTimes / real_t(nNZElems) : real_t(0);
+		}
+
+		void drop_samples(const realmtx_t& mask, const bool bBiasesToo, const numel_cnt_t nNZElems)noexcept {
 			NNTL_ASSERT(m_bActivationsValid);
 			NNTL_ASSERT(get_self().is_drop_samples_mbc());
 			NNTL_ASSERT(!get_self().is_activations_shared() || !bBiasesToo);
 			NNTL_ASSERT(!mask.emulatesBiases() && 1 == mask.cols() && m_activations.rows() == mask.rows() && mask.isBinary());
 			NNTL_ASSERT(m_activations.emulatesBiases());
+
+#ifdef NNTL_AGGRESSIVE_NANS_DBG_CHECK
+			NNTL_ASSERT(m_activations.test_noNaNs());
+			NNTL_ASSERT(mask.test_noNaNs());
+#endif // NNTL_AGGRESSIVE_NANS_DBG_CHECK
 
 			m_activations.hide_last_col();
 			get_self().get_iMath().mrwMulByVec(m_activations, mask.data());
@@ -386,6 +427,8 @@ namespace nntl {
 			if (bBiasesToo) {
 				m_activations.copy_biases_from(mask.data());
 			}
+
+			left_after_drop_samples(nNZElems);//mustn't have get_self() in front of the call
 		}
 
 		//////////////////////////////////////////////////////////////////////////

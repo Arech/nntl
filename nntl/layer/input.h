@@ -136,7 +136,12 @@ namespace nntl {
 			return false;
 		}
 
-		void drop_samples(const realmtx_t& mask, const bool bBiasesToo)noexcept {
+		static constexpr void left_after_drop_samples(const numel_cnt_t nNZElems)noexcept {
+			NNTL_UNREF(nNZElems);
+		}
+
+		void drop_samples(const realmtx_t& mask, const bool bBiasesToo, const numel_cnt_t nNZElems)noexcept {
+			NNTL_UNREF(mask); NNTL_UNREF(bBiasesToo); NNTL_UNREF(nNZElems);
 			static_assert(false, "layer_input doesn't support the drop_samples()");
 		}
 		

@@ -551,6 +551,22 @@ namespace math {
 		}
 
 		//////////////////////////////////////////////////////////////////////////
+		// Returns the number of elements equal to zero
+		// Don't expect big n here, so no _mt version
+		template<typename T>
+		size_t vCountNonZeros(const T* pVec, const size_t ne)noexcept {
+			NNTL_ASSERT(pVec && ne);
+			size_t nz = 0;
+			const auto pE = pVec + ne;
+			while (pVec != pE) {//vectorizes!
+				const auto v = *pVec++;
+				nz += (v > T(+0.)) + (v < T(-0.));
+			}
+			return nz;
+		}
+
+
+		//////////////////////////////////////////////////////////////////////////
 		//returns how many elements in two vectors has exactly the same value. Vectors must have the same length
 		template<typename Contnr>
 		size_t vCountSame(const Contnr& A, const Contnr& B)noexcept {
@@ -3772,9 +3788,13 @@ namespace math {
 		template<bool bLowerTriangl, bool bNumStab>
 		void dLoss_deCov(const realmtx_t& Vals, realmtx_t& dLossdVals)noexcept {
 			NNTL_ASSERT(Vals.cols_no_bias() == dLossdVals.cols() && Vals.rows() == dLossdVals.rows());
+
+#ifndef NNTL_DECOV_DONT_CARE_ON_HOLEY_BIASES
 			NNTL_ASSERT(!Vals.isHoleyBiases() || !"Current deCov algorithm does not support holey biases!");
 			//to support holey biases algorithm must ignore rows with zeroed biases. Looks like the easiest (and probably the
 			//fastest to run) way to do it is to make a something like a Vals.clone_to_droping_holes(DeMeaned) and then proceed as normal
+#endif // !NNTL_DECOV_DONT_CARE_ON_HOLEY_BIASES
+
 			NNTL_ASSERT(Vals.cols_no_bias() > 1);
 			NNTL_ASSERT(!dLossdVals.emulatesBiases());
 

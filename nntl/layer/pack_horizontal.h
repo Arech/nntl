@@ -565,7 +565,13 @@ namespace nntl {
 			return b;
 		}
 
-		void drop_samples(const realmtx_t& mask, const bool bBiasesToo)noexcept {
+		void left_after_drop_samples(const numel_cnt_t nNZElems)noexcept {
+			get_self().for_each_packed_layer([nNZElems](auto& l) {
+				l.left_after_drop_samples(nNZElems);
+			});
+		}
+
+		void drop_samples(const realmtx_t& mask, const bool bBiasesToo, const numel_cnt_t nNZElems)noexcept {
 			NNTL_ASSERT(m_bActivationsValid);
 			NNTL_ASSERT(get_self().is_drop_samples_mbc());
 			NNTL_ASSERT(!get_self().is_activations_shared() || !bBiasesToo);
@@ -576,9 +582,10 @@ namespace nntl {
 				m_activations.hide_last_col();
 				get_self().get_iMath().mrwMulByVec(m_activations, mask.data());
 				m_activations.restore_last_col();
+				left_after_drop_samples(nNZElems);//also no get_self() in front of function call!!
 			} else {
-				get_self().for_each_packed_layer([&mask](auto& l) {
-					l.drop_samples(mask, false);
+				get_self().for_each_packed_layer([&mask, nNZElems](auto& l) {
+					l.drop_samples(mask, false, nNZElems);
 				});
 			}
 			if (bBiasesToo) {

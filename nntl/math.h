@@ -50,7 +50,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #endif
 
 #if NNTL_DENORMALS2ZERO
-#pragma message("NNTL_DENORMALS2ZERO: denormalized floats WILL BE flushed to zero in global_denormalized_floats_mode()" )
+//#pragma message("NNTL_DENORMALS2ZERO: denormalized floats WILL BE flushed to zero in global_denormalized_floats_mode()" )
 
 // the following defs is for debugging purposes.
 #if !defined(NNTL_DEBUGBREAK_ON_DENORMALS)
@@ -72,7 +72,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #endif
 
 #else //NNTL_DENORMALS2ZERO
-#pragma message("NNTL_DENORMALS2ZERO: global_denormalized_floats_mode() will leave handling of denormalized floats as it is" )
+//#pragma message("NNTL_DENORMALS2ZERO: global_denormalized_floats_mode() will leave handling of denormalized floats as it is" )
 
 #define NNTL_DEBUGBREAK_ON_DENORMALS 0
 #define NNTL_DEBUGBREAK_ON_OPENBLAS_DENORMALS 0
@@ -90,13 +90,16 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #endif // !NNTL_CFG_CAREFULL_LOG_EXP
 
 #if NNTL_CFG_CAREFULL_LOG_EXP
-#pragma message("NNTL_CFG_CAREFULL_LOG_EXP: will use log1p()/expm1() to favor their precision over speed of log()/exp()")
+//#pragma message("NNTL_CFG_CAREFULL_LOG_EXP: will use log1p()/expm1() to favor their precision over speed of log()/exp()")
 #else
-#pragma message("NNTL_CFG_CAREFULL_LOG_EXP: will NOT use log1p()/expm1() in favor of speed of log()/exp()")
+//#pragma message("NNTL_CFG_CAREFULL_LOG_EXP: will NOT use log1p()/expm1() in favor of speed of log()/exp()")
 #endif
 
-//TODO: there are faster implementations of stl vectors available. Find, evaluate and use them instead of ::std::vector
-//#include <vector>
+#ifndef NNTL_NO_AGGRESSIVE_NANS_DBG_CHECK
+#define NNTL_AGGRESSIVE_NANS_DBG_CHECK
+#endif
+
+//////////////////////////////////////////////////////////////////////////
 
 #include "_defs.h"
 #include "interface/math/smatrix.h"

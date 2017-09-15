@@ -49,11 +49,22 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include "../nntl/utils/tictoc.h"
 
+#include "../nntl/weights_init.h"
+#include "../nntl/activation.h"
+
 #include "imath_etalons.h"
 
 using namespace nntl;
 using namespace ::std::chrono;
 using namespace nntl::utils;
+
+//declaration of 'iM' hides global declaration
+#pragma warning(disable:4459)
+
+typedef d_interfaces::iThreads_t iThreads_t;
+typedef math::MathN<real_t, iThreads_t> imath_basic_t;
+
+static imath_basic_t iM;
 
 //////////////////////////////////////////////////////////////////////////
 #ifdef NNTL_DEBUG
@@ -1696,9 +1707,6 @@ TEST(TestPerfDecisions, RmsPropH) {
 
 //////////////////////////////////////////////////////////////////////////
 
-#include "../nntl/weights_init.h"
-#include "../nntl/activation.h"
-
 static void pt_ileakyrelu_st(realmtx_t& srcdest, const real_t leak) noexcept {
 	NNTL_ASSERT(!srcdest.empty());
 	NNTL_ASSERT(leak > real_t(0.0));
@@ -1855,3 +1863,65 @@ TEST(TestPerfDecisions, ActPrmVsNonprm) {
 	test_ActPrmVsNonprm_perf(100000, 5);
 	test_ActPrmVsNonprm_perf(100000, 50);
 }
+
+//////////////////////////////////////////////////////////////////////////
+void test_vCountNonZeros_perf(vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
+	const auto dataSize = realmtx_t::sNumel(rowsCnt, colsCnt);
+	STDCOUTL("******* testing vCountNonZeros() over " << rowsCnt << "x" << colsCnt << " matrix (" << dataSize << " elements) **************");
+
+	constexpr unsigned maxReps = TEST_PERF_REPEATS_COUNT;
+
+	realmtx_t dat(rowsCnt, colsCnt);
+	ASSERT_TRUE(!dat.isAllocationFailed());
+	const numel_cnt_t ne = dat.numel();
+
+	d_interfaces::iRng_t rg;
+	rg.init_ithreads(iM.ithreads());
+
+	threads::prioritize_workers<threads::PriorityClass::PerfTesting, imath_basic_t::iThreads_t> pw(iM.ithreads());
+
+	utils::tictoc tN, tN2, tV, tV2;
+
+	size_t a = 0, v;
+
+	for (unsigned r = 0; r < maxReps; ++r) {
+		rg.gen_matrix(dat, 1);
+		iM.ewBinarize_ip(dat, real_t(0.5), real_t(0), real_t(1));
+
+		real_t* ptr = dat.data();
+		ptr[0] = real_t(-0.0);
+		ptr[4] = real_t(-0.0);
+		ptr[1] = real_t(+0.0);
+
+		tN.tic();
+		v = vCountNonZeros_naive(ptr, ne);
+		tN.toc();
+		a += v;
+
+		tV.tic();
+		v = iM.vCountNonZeros(ptr, ne);
+		tV.toc();
+		a += v;
+
+		tN2.tic();
+		v = vCountNonZeros_naive(ptr, ne);
+		tN2.toc();
+		a += v;
+
+		tV2.tic();
+		v = iM.vCountNonZeros(ptr, ne);
+		tV2.toc();
+		a += v;
+	}
+	tN.say("n1");
+	tN2.say("n2");
+	tV.say("v1");
+	tV2.say("v2");
+	STDCOUTL(a);
+}
+
+TEST(TestPerfDecisions, vCountNonZeros) {
+	NNTL_RUN_TEST2(10000, 1) test_vCountNonZeros_perf(i, 1);
+}
+
+

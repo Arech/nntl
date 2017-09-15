@@ -64,6 +64,10 @@ namespace nntl {
 		_LI(const char* pCustomName)noexcept : _base_class(0, pCustomName) {
 			m_activations.will_emulate_biases();
 		}
+		/*_LI(const char* pCustomName, const neurons_count_t)noexcept : _base_class(pCustomName) {
+			m_gate.dont_emulate_biases();
+			STDCOUTL("*** WARNING: non standard contructor of _LI<> has been used. OK for for gradcheck only");
+		}*/
 
 		static constexpr const char _defName[] = "li";
 
@@ -178,7 +182,12 @@ namespace nntl {
 
 		static constexpr bool is_trivial_drop_samples()noexcept { return true; }
 
-		void drop_samples(const realmtx_t& mask, const bool bBiasesToo)noexcept {
+		static constexpr void left_after_drop_samples(const numel_cnt_t nNZElems)noexcept {
+			NNTL_UNREF(nNZElems);
+		}
+
+		void drop_samples(const realmtx_t& mask, const bool bBiasesToo, const numel_cnt_t nNZElems)noexcept {
+			NNTL_UNREF(nNZElems);
 			NNTL_ASSERT(m_bActivationsValid);
 			NNTL_ASSERT(get_self().is_drop_samples_mbc());
 			NNTL_ASSERT(!get_self().is_activations_shared() || !bBiasesToo);
@@ -239,6 +248,7 @@ namespace nntl {
 		_LIG(const char* pCustomName)noexcept : _base_class(pCustomName) {
 			m_gate.dont_emulate_biases();
 		}
+
 		static constexpr const char _defName[] = "lig";
 
 		//////////////////////////////////////////////////////////////////////////

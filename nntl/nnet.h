@@ -909,8 +909,8 @@ namespace nntl {
 				if (0 == dLan && 0 == dLnum) {
 					if (!(grp == _impl::gradcheck_paramsGroup::dLdW && lIdx == 1 && m_ngcSetts.evalSetts.bIgnoreZerodLdWInUndelyingLayer)) {
 						if (++zerodL > maxZerodL) {
-							char _s[128];
-							sprintf_s(_s, "Too many (%d of max %d) of %s equal to zero. If it is acceptable, adjust gradcheck_settings::evalSetts.percOfZerodLdA", zerodL, maxZerodL, checkName);
+							char _s[128+32];
+							sprintf_s(_s, "Too many (%d of max %d) of %s equal to zero. If it is acceptable, adjust corresponding gradcheck_settings::evalSetts.percOfZerodLd*", zerodL, maxZerodL, checkName);
 							_fail(lIdx, _s, coords);
 						}
 					}//yes, this is ugly hack to get rid of underlying layer's kinks

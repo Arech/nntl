@@ -152,6 +152,8 @@ namespace nntl {
 				NNTL_ASSERT(!"Wrong weight matrix passed!");
 				return false;
 			}
+			NNTL_ASSERT(W.test_noNaNs());
+
 			m_weights = ::std::move(W);
 			m_bWeightsInitialized = true;
 			return true;
@@ -236,6 +238,10 @@ namespace nntl {
 
 	protected:
 		void _fprop(const realmtx_t& prevActivations)noexcept {
+#ifdef NNTL_AGGRESSIVE_NANS_DBG_CHECK
+			NNTL_ASSERT(prevActivations.test_noNaNs());
+#endif // NNTL_AGGRESSIVE_NANS_DBG_CHECK
+
 			auto& _iI = get_self().get_iInspect();
 			_iI.fprop_begin(get_self().get_layer_idx(), prevActivations, get_self().get_common_data().is_training_mode());
 
@@ -263,6 +269,11 @@ namespace nntl {
 		void _bprop(const realmtx_t& data_y, const realmtx_t& prevActivations, const bool bPrevLayerIsInput, realmtx_t& dLdAPrev)noexcept {
 			NNTL_ASSERT(m_bActivationsValid);
 			m_bActivationsValid = false;
+
+#ifdef NNTL_AGGRESSIVE_NANS_DBG_CHECK
+			NNTL_ASSERT(prevActivations.test_noNaNs());
+			NNTL_ASSERT(data_y.test_noNaNs());
+#endif // NNTL_AGGRESSIVE_NANS_DBG_CHECK
 
 			auto& _iI = get_self().get_iInspect();
 			_iI.bprop_begin(get_self().get_layer_idx(), data_y);
@@ -336,8 +347,11 @@ namespace nntl {
 			static_assert(false, "layer_output doesn't support the drop_samples()");
 			return false;
 		}
-
-		void drop_samples(const realmtx_t& mask, const bool bBiasesToo)noexcept {
+		static constexpr void left_after_drop_samples(const numel_cnt_t nNZElems)noexcept {
+			NNTL_UNREF(nNZElems);
+		}
+		void drop_samples(const realmtx_t& mask, const bool bBiasesToo, const numel_cnt_t nNZElems)noexcept {
+			NNTL_UNREF(mask); NNTL_UNREF(bBiasesToo); NNTL_UNREF(nNZElems);
 			static_assert(false, "layer_output doesn't support the drop_samples()");
 		}
 		

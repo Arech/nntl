@@ -1381,9 +1381,10 @@ namespace math {
 		//////////////////////////////////////////////////////////////////////////
 		//////////////////////////////////////////////////////////////////////////
 		// performs rowwise binary OR operation over the matrix A into a pVec.
-		// A should contain only zeros and ones. Resulting column vector pVec contains 1 if corresponding row has at least single 1
+		// This function is intended to be used on biases only, therefore A must be a (strong) binary (i.e. contain only 1.0 or +0.0)
+		// If A contains only zeros and ones, the resulting column vector pVec contains 1 if corresponding row has at least single 1
 		// and zero otherwise.
-		// Heavily based on mrwSum
+		// Heavily based on mrwBinaryOR
 		void mrwOr(const realmtx_t& A, real_t*const pVec)noexcept {
 			NNTL_ASSERT(A.isBinary());
 			typedef real_t_limits<real_t>::similar_FWI_t similar_FWI_t;

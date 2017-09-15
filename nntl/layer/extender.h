@@ -85,12 +85,14 @@ namespace nntl {
 		typedef _PA_base_selector<LossAddsTupleTOrVoid> _PAB_t;
 
 	public:
+		//have to forward declarations (probably a MSVC bug)
 		typedef typename _base_class_t::real_t real_t;
 		typedef typename _base_class_t::realmtx_t realmtx_t;
 		typedef typename _base_class_t::realmtxdef_t realmtxdef_t;
 		typedef typename _base_class_t::ErrorCode ErrorCode;
 		typedef typename _base_class_t::_layer_init_data_t _layer_init_data_t;
 		typedef typename _base_class_t::iInspect_t iInspect_t;
+		typedef typename _base_class_t::interfaces_t interfaces_t;
 
 		typedef typename _base_class_t::self_t self_t;
 		typedef typename _base_class_t::self_ref_t self_ref_t;
@@ -205,6 +207,10 @@ namespace nntl {
 		}
 
 	protected:
+		//////////////////////////////////////////////////////////////////////////
+		// fprop() handling for various underlying layer types
+		//////////////////////////////////////////////////////////////////////////
+		// for PA
 		//we shouldn't apply dLdA penalty to the gating layer, it's useless but moreover it may even hurt DeCov
 		template<typename T = _base_class_t, bool ba = bActivationPenalizationAvailable>
 		::std::enable_if_t<ba && is_pack_gated<T>::value> _fprop4PA() noexcept {
@@ -227,6 +233,22 @@ namespace nntl {
 		template<typename T = _base_class_t, bool ba = bActivationPenalizationAvailable>
 		::std::enable_if_t<!ba> _fprop4PA() const noexcept {}
 
+		//////////////////////////////////////////////////////////////////////////
+		// for Dropout
+		// 
+		template<typename T = _base_class_t, bool ba = bDropoutAvailable>
+		::std::enable_if_t<ba && (is_pack_gated<T>::value && !Dropout_t::bDropoutIsZeroStable)> _fprop4Dropout() noexcept {
+			static_assert(false, "You are trying to use non zero stable dropout (such as AlphaDropout) with a gated layer. Such Dropout will distort entries that were removed by the gate!");
+			//try to apply the dropout to topmost inner layers (under the gate)
+		}		
+		template<typename T = _base_class_t, bool ba = bDropoutAvailable>
+		::std::enable_if_t<ba && !(is_pack_gated<T>::value && !Dropout_t::bDropoutIsZeroStable)> _fprop4Dropout() noexcept {
+			_dropout_apply(get_self()._get_activations_mutable(), get_self().get_common_data());
+		}
+
+		template<typename T = _base_class_t, bool ba = bDropoutAvailable>
+		::std::enable_if_t<!ba> _fprop4Dropout() const noexcept {}
+
 	public:
 		//////////////////////////////////////////////////////////////////////////
 		template<typename LowerLayer>
@@ -238,7 +260,7 @@ namespace nntl {
 			}			
 
 			if (bDropout()) {
-				_dropout_apply(get_self()._get_activations_mutable(), get_self().get_common_data());
+				_fprop4Dropout();
 				NNTL_ASSERT(get_self().is_activations_shared() || get_self().get_activations().test_biases_ok());
 			}
 		}

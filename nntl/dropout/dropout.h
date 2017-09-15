@@ -127,6 +127,25 @@ namespace nntl {
 				NNTL_ASSERT(c);
 			}
 
+			//this function restores zeros (dropped out values) and a proper scaling of dL/dA as well as undoes the scaling
+			//of activation values
+			// 		template<typename iMathT, typename iInspectT>
+			// 		void _dropout_restoreScaling(realmtx_t& dLdA, realmtx_t& activations, iMathT& iM, iInspectT& _iI)noexcept {
+			template<typename CommonDataT>
+			void _dropout_restoreScaling(realmtx_t& dLdA, realmtx_t& activations, const CommonDataT& CD)noexcept {
+				NNTL_ASSERT(bDropout());
+				NNTL_ASSERT(m_dropoutMask.size() == dLdA.size());
+				NNTL_ASSERT(m_dropoutMask.size() == m_origActivations.size());
+
+				auto& _iI = CD.iInspect();
+				_iI.bprop_preCancelDropout(dLdA, activations, m_dropoutPercentActive);
+
+				CD.iMath().evMul_ip(dLdA, m_dropoutMask);
+				_dropout_restoreActivations(activations);
+
+				_iI.bprop_postCancelDropout(dLdA, activations);
+			}
+
 		public:
 			bool bDropout()const noexcept { return m_dropoutPercentActive < real_t(1.); }
 
@@ -173,6 +192,11 @@ namespace nntl {
 	private:
 		typedef _impl::_dropout_base<RealT> _base_class_t;
 
+	public:
+		//this flag means that the dropout algorithm doesn't change the activation value if it is zero.
+		// for example, it is the case of classical dropout (it drops values to zeros), but not the case of AlphaDropout
+		static constexpr bool bDropoutIsZeroStable = true;
+
 	protected:
 		~Dropout()noexcept {}
 		Dropout()noexcept : _base_class_t() {}
@@ -197,27 +221,6 @@ namespace nntl {
 
 				_iI.fprop_postDropout(activations, m_dropoutMask);
 			}
-		}
-
-		//this function restores zeros (dropped out values) and a proper scaling of dL/dA as well as undoes the scaling
-		//of activation values
-// 		template<typename iMathT, typename iInspectT>
-// 		void _dropout_restoreScaling(realmtx_t& dLdA, realmtx_t& activations, iMathT& iM, iInspectT& _iI)noexcept {
- 		template<typename CommonDataT>
-		void _dropout_restoreScaling(realmtx_t& dLdA, realmtx_t& activations, const CommonDataT& CD)noexcept {
-			NNTL_ASSERT(bDropout());
-
-			NNTL_ASSERT(m_dropoutMask.size() == dLdA.size());
-			NNTL_ASSERT(m_dropoutMask.size() == m_origActivations.size());
-
-			auto& _iI = CD.iInspect();
-			_iI.bprop_preCancelDropout(dLdA, activations, m_dropoutPercentActive);
-
-			auto& iM = CD.iMath();
-			iM.evMul_ip(dLdA, m_dropoutMask);
-			_dropout_restoreActivations(activations);
-
-			_iI.bprop_postCancelDropout(dLdA, activations);
 		}
 	};
 

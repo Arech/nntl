@@ -46,23 +46,27 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 using namespace nntl;
 typedef nntl_supp::binfile reader_t;
 
+//current dLdW gradcheck will fail for layers under LPHG, because the check procedure knows nothing about gating and
+// therefore it will not change the loss appropriately
+//
+/*
 template<typename ArchPrmsT>
 struct GC_LPHG_NO : public nntl_tests::NN_base_arch_td<ArchPrmsT> {
 	LIG<myInterfaces_t> lGate;
 	myLFC l1;
 	myLFC l2;
-	LPHG<PHL<decltype(lGate)>,PHL<decltype(l1)>, PHL<decltype(l2)>> lFinal;
+	LPHGt<0, ::std::tuple<PHL<decltype(lGate)>, PHL<decltype(l1)>, PHL<decltype(l2)>>> lFinal;
 
 	~GC_LPHG_NO()noexcept {}
 	GC_LPHG_NO(const ArchPrms_t& Prms)noexcept
 		: lGate("lGate")
-		, l1(70, Prms.learningRate, "l1")
-		, l2(70, Prms.learningRate, "l2")
-		, lFinal("lFinal"
-			, make_PHL(lGate,0,2)
+		, l1(100, Prms.learningRate, "l1")
+		, l2(100, Prms.learningRate, "l2")
+		, lFinal("lFinal", ::std::make_tuple(
+			make_PHL(lGate, 0, 2)
 			, make_PHL(l1, 2, Prms.lUnderlay_nc / 2 - 2)
 			, make_PHL(l2, Prms.lUnderlay_nc / 2, Prms.lUnderlay_nc - (Prms.lUnderlay_nc / 2))//to get rid of integer division rounding
-		)
+		))
 	{}
 };
 //This test should be run multiple times to test variuos gate "positions". gradcheck() routine could be updated to handle
@@ -77,19 +81,22 @@ TEST(TestLayerPackHorizontalGated, GradCheck_nonoverlapping) {
 	readTd(td);
 
 	ArchPrms_t Prms(td);
-	Prms.lUnderlay_nc = 400;
+	Prms.lUnderlay_nc = 200;
 	nntl_tests::NN_arch<GC_LPHG_NO<ArchPrms_t>> nnArch(Prms);
 
-	auto ec = nnArch.warmup(td, 10, 100);
+	auto ec = nnArch.warmup(td, 5, 100);
 	ASSERT_EQ(decltype(nnArch)::ErrorCode_t::Success, ec) << "Reason: " << nnArch.NN.get_error_str(ec);
 
 	gradcheck_settings<real_t> ngcSetts;
-	ngcSetts.evalSetts.bIgnoreZerodLdWInUndelyingLayer = true;
-	ngcSetts.evalSetts.dLdA_setts.percOfZeros = 100;
-	ngcSetts.evalSetts.dLdW_setts.percOfZeros = 100;
+	//ngcSetts.onlineBatchSize = 5;
+	ngcSetts.evalSetts.bIgnoreZerodLdWInUndelyingLayer = false;
+	ngcSetts.evalSetts.dLdA_setts.percOfZeros = 70;
+	ngcSetts.evalSetts.dLdW_setts.percOfZeros = 70;
 	ngcSetts.evalSetts.dLdW_setts.relErrFailThrsh = real_t(5e-3);//numeric errors due to dLdAPrev addition in LPH stacks up significantly
+
 	ASSERT_TRUE(nnArch.NN.gradcheck(td.train_x(), td.train_y(), 10, ngcSetts));
-}
+}*/
+
 
 
 //////////////////////////////////////////////////////////////////////////
@@ -166,18 +173,18 @@ struct horzgate_type_obj {};
 //specialization
 template<bool b, typename _U, typename _G>
 struct horzgate_type_obj<b, _U, _G, ::std::void_t<typename ::std::enable_if_t<!b> >> {
-	typedef LPHGFI< PHL<_G>, PHL<_U> > type;
+	typedef LPHGFIt<::std::tuple<PHL<_G>, PHL<_U>>> type;
 	type value;
-	horzgate_type_obj(_U&u, _G&g, const vec_len_t nc) : value(make_layer_pack_horizontal_gated_from_input(
+	horzgate_type_obj(_U&u, _G&g, const vec_len_t nc) : value(::std::make_tuple (
 		make_PHL(g,0,1),
 		make_PHL(u,1,nc)
 	)) {}
 };
 template<bool b, typename _U, typename _G>
 struct horzgate_type_obj<b, _U, _G, ::std::void_t<typename ::std::enable_if_t<b> >> {
-	typedef LPHG < PHL<_G>, PHL<_U> > type;
+	typedef LPHGt<500000, ::std::tuple<PHL<_G>, PHL<_U> >> type;
 	type value;
-	horzgate_type_obj(_U&u, _G&g, const vec_len_t nc) : value(make_layer_pack_horizontal_gated(
+	horzgate_type_obj(_U&u, _G&g, const vec_len_t nc) : value(::std::make_tuple(
 		make_PHL(g, 0, 1),
 		make_PHL(u, 1, nc)
 	)) {}
@@ -272,8 +279,10 @@ void run_comparativeSimple(train_data<real_t>& gatedTd, const vec_len_t gateIdx,
 	comparative_gated<TLPHG_simple, true>(gatedTd, gateIdx, gt, seedV);
 	ASSERT_EQ(gf, gt) << "comparision between _gated with and without binarization failed";*/
 
+	comparative_horzgated<TLPHG_simple, false>(gatedTd, gateIdx, hf, seedV);
+
 	comparative_horzgated<TLPHG_simple, true>(gatedTd, gateIdx, ht, seedV);
-	//ASSERT_EQ(gt, ht) << "comparision between _gated and _horizontal_gated failed, binarization==true";
+	ASSERT_EQ(hf, ht) << "comparision between binarized and not binarized failed";
 }
 
 TEST(TestLayerPackHorizontalGated, Comparative) {
@@ -382,9 +391,9 @@ struct multihorzgate_type_obj {};
 //specialization
 template<bool b, typename U1, typename U2, typename U3, typename _G>
 struct multihorzgate_type_obj<b, U1,U2,U3, _G, ::std::void_t<typename ::std::enable_if_t<!b> >> {
-	typedef LPHGFI< PHL<_G>, PHL<U1>, PHL<U2>, PHL<U3> > type;
+	typedef LPHGFIt<::std::tuple<PHL<_G>, PHL<U1>, PHL<U2>, PHL<U3>> > type;
 	type value;
-	multihorzgate_type_obj(U1&u1, U2&u2, U3&u3, _G&g, vec_len_t nc1, vec_len_t nc2, vec_len_t nc3) : value(make_layer_pack_horizontal_gated_from_input(
+	multihorzgate_type_obj(U1&u1, U2&u2, U3&u3, _G&g, vec_len_t nc1, vec_len_t nc2, vec_len_t nc3) : value(::std::make_tuple(
 		make_PHL(g, 0, 3),
 		make_PHL(u1, 3, nc1),
 		make_PHL(u2, 3 + nc1, nc2),
@@ -393,9 +402,9 @@ struct multihorzgate_type_obj<b, U1,U2,U3, _G, ::std::void_t<typename ::std::ena
 };
 template<bool b, typename U1, typename U2, typename U3, typename _G>
 struct multihorzgate_type_obj<b, U1, U2, U3, _G, ::std::void_t<typename ::std::enable_if_t<b> >> {
-	typedef LPHG < PHL<_G>, PHL<U1>, PHL<U2>, PHL<U3> > type;
+	typedef LPHGt<500000, ::std::tuple<PHL<_G>, PHL<U1>, PHL<U2>, PHL<U3> >> type;
 	type value;
-	multihorzgate_type_obj(U1&u1, U2&u2, U3&u3, _G&g, vec_len_t nc1, vec_len_t nc2, vec_len_t nc3) : value(make_layer_pack_horizontal_gated(
+	multihorzgate_type_obj(U1&u1, U2&u2, U3&u3, _G&g, vec_len_t nc1, vec_len_t nc2, vec_len_t nc3) : value(::std::make_tuple(
 		make_PHL(g, 0, 3),
 		make_PHL(u1, 3, nc1),
 		make_PHL(u2, 3 + nc1, nc2),

@@ -333,10 +333,14 @@ deprecated:
 		
 		//#TODO we should adopt topmost_layer().is_trivial_drop_samples() function signature here, but it look like non-trivial
 		//to detect if the constexpr attribute was used.
-		const bool is_trivial_drop_samples() const noexcept { return get_self().topmost_layer().is_trivial_drop_samples(); }
+		bool is_trivial_drop_samples() const noexcept { return get_self().topmost_layer().is_trivial_drop_samples(); }
 
-		void drop_samples(const realmtx_t& mask, const bool bBiasesToo)noexcept {
-			get_self().topmost_layer().drop_samples(mask, bBiasesToo);
+		void left_after_drop_samples(const numel_cnt_t nNZElems)noexcept {
+			get_self().topmost_layer().left_after_drop_samples(nNZElems);
+		}
+
+		void drop_samples(const realmtx_t& mask, const bool bBiasesToo, const numel_cnt_t nNZElems)noexcept {
+			get_self().topmost_layer().drop_samples(mask, bBiasesToo, nNZElems);
 		}
 
 	private:

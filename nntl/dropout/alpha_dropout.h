@@ -66,6 +66,10 @@ namespace nntl {
 	public:
 		using _base_class_t::real_t;
 
+		//this flag means that the dropout algorithm doesn't change the activation value if it is zero.
+		// for example, it is the case of classical dropout (it drops values to zeros), but not the case of AlphaDropout
+		static constexpr bool bDropoutIsZeroStable = false;
+
 	protected:
 		real_t m_a, m_b, m_mbDropVal;
 
@@ -119,24 +123,6 @@ namespace nntl {
 
 				_iI.fprop_postDropout(activations, m_dropoutMask);
 			}
-		}
-
-		//For the _dropout_restoreScaling() phase we obtain almost original activations by doing A <- (A3-mtxB) ./ a.
-		// Dropped out values will have a value of zero. dL/dA scaling is the same as for the inverted dropout:
-		// dL/dA = dL/dA .* dropoutMask
-		template<typename CommonDataT>
-		void _dropout_restoreScaling(realmtx_t& dLdA, realmtx_t& activations, const CommonDataT& CD)noexcept {
-			NNTL_ASSERT(bDropout());
-			NNTL_ASSERT(m_dropoutMask.size() == dLdA.size());
-
-			auto& _iI = CD.iInspect();
-			_iI.bprop_preCancelDropout(dLdA, activations, m_dropoutPercentActive);
-
-			auto& iM = CD.iMath();
-			iM.evMul_ip(dLdA, m_dropoutMask);
-			_dropout_restoreActivations(activations);
-
-			_iI.bprop_postCancelDropout(dLdA, activations);
 		}
 
 	public:

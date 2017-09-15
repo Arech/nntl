@@ -3744,3 +3744,53 @@ TEST(TestMathN, evSubMtxMulC_ip_nb) {
 		}
 	}
 }
+
+//////////////////////////////////////////////////////////////////////////
+void test_vCountNonZeros_corr(vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
+	constexpr unsigned testCorrRepCnt = TEST_CORRECTN_REPEATS_COUNT;
+
+	realmtx_t dat(rowsCnt, colsCnt);
+	ASSERT_TRUE(!dat.isAllocationFailed());
+	const numel_cnt_t ne = dat.numel();
+
+	d_interfaces::iRng_t rg;
+	rg.init_ithreads(iM.ithreads());
+
+	for (unsigned r = 0; r < testCorrRepCnt; ++r) {
+		rg.gen_matrix(dat, 1);
+		iM.ewBinarize_ip(dat, real_t(0.5), real_t(0), real_t(1));
+
+		real_t* ptr = dat.data();
+		ptr[0] = real_t(-0.0);
+		if (ne > 1) {
+			ptr[1] = real_t(+0.0);
+		}
+
+		const auto et = vCountNonZeros_ET(ptr, ne);
+
+		auto v = iM.vCountNonZeros(ptr, ne);
+		ASSERT_EQ(et, v) << "vCountNonZeros failed!";
+
+		v = vCountNonZeros_naive(ptr, ne);
+		ASSERT_EQ(et, v) << "vCountNonZeros_naive failed!";
+	}
+}
+
+TEST(TestMathN, vCountNonZeros) {
+	for (vec_len_t r = 1; r < g_MinDataSizeDelta; ++r) {
+		for (vec_len_t c = 1; c < g_MinDataSizeDelta; ++c) {
+			ASSERT_NO_FATAL_FAILURE((test_vCountNonZeros_corr(r, c)));
+		}
+	}
+
+	constexpr unsigned rowsCnt = _baseRowsCnt;
+	const vec_len_t maxCols = g_MinDataSizeDelta, maxRows = rowsCnt + g_MinDataSizeDelta;
+	for (vec_len_t r = rowsCnt; r < maxRows; ++r) {
+		for (vec_len_t c = 1; c < maxCols; ++c) {
+			ASSERT_NO_FATAL_FAILURE((test_vCountNonZeros_corr(r, c)));
+		}
+	}
+}
+
+//////////////////////////////////////////////////////////////////////////
+

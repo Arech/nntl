@@ -234,3 +234,21 @@ real_t loss_quadratic_ET(const ::nntl::math::smatrix<real_t>& A, const ::nntl::m
 	}
 	return etQuadLoss / (2 * A.rows());
 }
+
+template<typename T>
+size_t vCountNonZeros_ET(const T*const pVec, const size_t n)noexcept {
+	NNTL_ASSERT(pVec && n);
+	size_t a = 0;
+	for (size_t i = 0; i < n; ++i) a += !(pVec[i] == T(0) || pVec[i] == T(+0.) || pVec[i] == T(-0.));
+	return a;
+}
+
+template<typename T>
+size_t vCountNonZeros_naive(const T*const pVec, const size_t ne)noexcept {
+	NNTL_ASSERT(pVec && ne);
+	size_t a = 0;
+	for (size_t i = 0; i < ne; ++i) {
+		a += pVec[i] != T(0.);
+	}
+	return a;
+}

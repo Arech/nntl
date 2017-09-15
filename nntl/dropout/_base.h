@@ -53,6 +53,10 @@ namespace nntl {
 		//but during evaluation too
 		static constexpr bool bDropoutWorksAtEvaluationToo = false;
 
+		//this flag means that the dropout algorithm doesn't change the activation value if it is zero.
+		// for example, it is the case of classical dropout (it drops values to zeros), but not the case of AlphaDropout
+		static constexpr bool bDropoutIsZeroStable = true;
+
 	protected:
 		//////////////////////////////////////////////////////////////////////////
 		//The following functions will always be called no matter what

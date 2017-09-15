@@ -282,12 +282,17 @@ namespace nntl {
 		// bBiasesToo controls whether the pMask should be applied to the bias column too. This var also sets
 		// activation matrix's m_bHoleyBiases flag to prevent false alarms of bias checking in debug builds
 		// Remember to do m_activations.set_biases() during first steps of fprop() if m_activations.isHoleyBiases() set
-		nntl_interface void drop_samples(const realmtx_t& mask, const bool bBiasesToo)noexcept;
+		// nNZElems - is the number of nonzero entries in mask.
+		nntl_interface void drop_samples(const realmtx_t& mask, const bool bBiasesToo, const numel_cnt_t nNZElems)noexcept;
 
 		// If the only thing the drop_samples() do is it applies a mask to the activations, then return true from this function.
 		// This would allow to optimize away a call to the drop_samples() in some situations.
 		// If the drop_samples() does something more, return false. This will make drop_samples() call to always occur.
 		nntl_interface bool is_trivial_drop_samples()const noexcept;
+
+		//if drop_samples() should be called, but is_trivial_drop_samples() returns true, then this function is used to
+		//notify the layer about a new samples count.
+		nntl_interface void left_after_drop_samples(const numel_cnt_t nNZElems)noexcept;
 
 		// dLdA is the derivative of the loss function wrt this layer neuron activations.
 		// Size [batchSize x layer_neuron_cnt] (bias units ignored - their weights actually belongs to an upper layer

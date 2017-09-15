@@ -516,12 +516,14 @@ namespace nntl {
 		}
 		//////////////////////////////////////////////////////////////////////////
 
-		//#TODO we should adopt last_layer().drop_activations_is_trivial() function signature here, but it look like non-trivial
-		//to detect if the constexpr attribute was used.
-		//If the m_tiledLayer.drop_activations_is_trivial() then ours drop_activations() is trivial too
-		const bool is_trivial_drop_samples() const noexcept { return m_tiledLayer.is_trivial_drop_samples(); }
+		//must always call drop_samples()
+		static constexpr bool is_trivial_drop_samples()noexcept { return false; }
 
-		void drop_samples(const realmtx_t& mask, const bool bBiasesToo)noexcept {
+		static constexpr void left_after_drop_samples(const numel_cnt_t nNZElems)noexcept {
+			static_assert(false, "_LPT::left_after_drop_samples() must never be called!");
+		}
+
+		void drop_samples(const realmtx_t& mask, const bool bBiasesToo, const numel_cnt_t nNZElems)noexcept {
 			NNTL_ASSERT(m_bActivationsValid);
 			NNTL_ASSERT(get_self().is_drop_samples_mbc());
 			NNTL_ASSERT(!get_self().is_activations_shared() || !bBiasesToo);
@@ -538,6 +540,7 @@ namespace nntl {
 
 			if (m_tiledLayer.is_trivial_drop_samples()) {
 				//just skipping m_tiledLayer.drop_samples() completely. BProp will be fine due to a correct (holey) dLdA passed
+				m_tiledLayer.left_after_drop_samples(nNZElems*tiles_count);
 			} else {
 				//we should preallocate  memory for the rolled mask. However, we can't use iMath's internal storage
 				//because there're no guarantees it won't be used during m_tiledLayer.drop_activations().
@@ -553,7 +556,7 @@ namespace nntl {
 				get_self().get_iMath().mCloneCol(mask, m_dropSamplesMask);
 				m_dropSamplesMask.deform(mask.rows()* tiles_count, 1);
 
-				m_tiledLayer.drop_samples(m_dropSamplesMask);
+				m_tiledLayer.drop_samples(m_dropSamplesMask, bBiasesToo, nNZElems*tiles_count);
 			}
 		}
 

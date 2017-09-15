@@ -339,11 +339,13 @@ namespace math {
 
 	public:
 		//function is expected to be called from context of NNTL_ASSERT macro.
+		//debug/NNTL_ASSERT only
 		bool test_biases_ok()const noexcept {
 			//NNTL_ASSERT(emulatesBiases());
 			//if (!emulatesBiases()) return false;//not necessary test, because there's no restriction to have biases otherwise
 			return m_bHoleyBiases ? test_biases_holey() : test_biases_strict();
 		}
+		//debug/NNTL_ASSERT only
 		bool test_biases_strict()const noexcept {
 			NNTL_ASSERT(emulatesBiases() && !m_bHoleyBiases);
 			const auto ne = numel();
@@ -357,6 +359,7 @@ namespace math {
 			}
 			return !!cond;
 		}
+		//debug/NNTL_ASSERT only
 		bool test_biases_holey()const noexcept {
 			NNTL_ASSERT(emulatesBiases() && m_bHoleyBiases);
 
@@ -366,28 +369,45 @@ namespace math {
 			int cond = 1;
 			while (pS != pE) {
 				const auto v = *pS++;
-				const int c = ((v == value_type(1.0)) | (v == value_type(0.0)));
+				const int c = ((v == value_type(1.0)) | ((real_t_limits<value_type>::similar_FWI_t)(v) == 0));
 				NNTL_ASSERT(c || !"Holey bias check failed!");
 				cond = cond & c;
 			}
 			return !!cond;
 		}
 
+		//debug/NNTL_ASSERT only
+		bool test_noNaNs()const noexcept {
+			const auto ne = numel();
+			auto pS = m_pData;
+			const auto pE = m_pData + ne;
+			int cond = 0;
+			while (pS != pE) {
+				const auto v = *pS++;
+				const int c = ::std::isnan(v);
+				NNTL_ASSERT(!c || !"NaN check failed!");
+				cond = cond | c;
+			}
+			return !cond;
+		}
+
 		//////////////////////////////////////////////////////////////////////////
-		//debug only
+		//debug/NNTL_ASSERT only
 		bool isBinary()const noexcept {
 			auto pS = m_pData;
 			const auto pE = end();
 			int cond = 1;
 			while (pS != pE) {
 				const auto v = *pS++;
-				const int c = ((v == value_type(1.0)) | (v == value_type(0.0)));
+				//we must make sure that binary zero is an actual unsigned(positive) zero
+				const int c = ((v == value_type(1.0)) | ((real_t_limits<value_type>::similar_FWI_t)(v) == 0));
 				NNTL_ASSERT(c || !"Not a binary matrix!");
 				cond = cond & c;
 			}
 			return !!cond;
 		}
-
+		
+		//debug/NNTL_ASSERT only
 		template<typename _T> struct isAlmostBinary_eps {};
 		template<> struct isAlmostBinary_eps<float> { static constexpr float eps = float(1e-8); };
 		template<> struct isAlmostBinary_eps<double> { static constexpr double eps = 1e-16; };
@@ -404,7 +424,6 @@ namespace math {
 			}
 			return !!cond;
 		}
-
 
 		//for testing only
 		void breakWhenDenormal()const noexcept {

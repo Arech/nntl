@@ -91,33 +91,33 @@ namespace nntl {
 	//////////////////////////////////////////////////////////////////////////
 	//template to extend an LPHG with penalized activations
 
-	template <typename LossAddsTupleT, typename DropoutT, unsigned int nBinarize1e6, typename PHLsTupleT>
+	template <typename LossAddsTupleT, typename DropoutT, int iBinarize1e6, bool bDoBinarizeGate, typename PHLsTupleT>
 	struct _LPHG_PA_DO {
 		template <typename FC>
-		using _tpl_LPHG = _LPHG<FC, nBinarize1e6, PHLsTupleT>;
+		using _tpl_LPHG = _LPHG<FC, iBinarize1e6, bDoBinarizeGate, PHLsTupleT>;
 
 		typedef LPAt_DO<_tpl_LPHG, DropoutT, LossAddsTupleT> type;
 	};
 
+	template <typename LossAddsTupleT, int iBinarize1e6, typename ...PHLsT>
+	using LPHG_PA = typename _LPHG_PA_DO<LossAddsTupleT, void, iBinarize1e6, true, ::std::tuple<PHLsT...>>::type;
+
+	template <typename LossAddsTupleT, int iBinarize1e6, typename PHLsTupleT>
+	using LPHGt_PA = typename _LPHG_PA_DO<LossAddsTupleT, void, iBinarize1e6, true, PHLsTupleT>::type;
+
 	template <typename LossAddsTupleT, typename ...PHLsT>
-	using LPHG_PA = typename _LPHG_PA_DO<LossAddsTupleT, void, 500000, ::std::tuple<PHLsT...>>::type;
+	using LPHGFI_PA = typename _LPHG_PA_DO<LossAddsTupleT,void, 0, false, ::std::tuple<PHLsT...>>::type;
 
 	template <typename LossAddsTupleT, typename PHLsTupleT>
-	using LPHGt_PA = typename _LPHG_PA_DO<LossAddsTupleT, void, 500000, PHLsTupleT>::type;
-
-	template <typename LossAddsTupleT, typename ...PHLsT>
-	using LPHGFI_PA = typename _LPHG_PA_DO<LossAddsTupleT,void, 0, ::std::tuple<PHLsT...>>::type;
-
-	template <typename LossAddsTupleT, typename PHLsTupleT>
-	using LPHGFIt_PA = typename _LPHG_PA_DO<LossAddsTupleT,void, 0, PHLsTupleT>::type;
+	using LPHGFIt_PA = typename _LPHG_PA_DO<LossAddsTupleT,void, 0, false, PHLsTupleT>::type;
 
 	template <typename DropoutT, typename ...PHLsT>
-	using LPHGFI_DO = typename _LPHG_PA_DO<void, DropoutT, 0, ::std::tuple<PHLsT...>>::type;
+	using LPHGFI_DO = typename _LPHG_PA_DO<void, DropoutT, 0, false, ::std::tuple<PHLsT...>>::type;
 	
 	template <typename LossAddsTupleT, typename DropoutT, typename ...PHLsT>
-	using LPHGFI_PA_DO = typename _LPHG_PA_DO<LossAddsTupleT, DropoutT, 0, ::std::tuple<PHLsT...>>::type;
+	using LPHGFI_PA_DO = typename _LPHG_PA_DO<LossAddsTupleT, DropoutT, 0, false, ::std::tuple<PHLsT...>>::type;
 
 	template <typename LossAddsTupleT, typename DropoutT, typename PHLsTupleT>
-	using LPHGFIt_PA_DO = typename _LPHG_PA_DO<LossAddsTupleT, DropoutT, 0, PHLsTupleT>::type;
+	using LPHGFIt_PA_DO = typename _LPHG_PA_DO<LossAddsTupleT, DropoutT, 0, false, PHLsTupleT>::type;
 	
 }
