@@ -1,4 +1,6 @@
 # nntl
+
+[![Join the chat at https://gitter.im/nntl/Lobby](https://badges.gitter.im/nntl/Lobby.svg)](https://gitter.im/nntl/Lobby?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
 Neural Network Templates Library is a set of C++14 template classes
 that helps to implement fast vectorized feedforward neural networks.
 It is multithreaded, x64 friendly and uses OpenBLAS only as a back-end
