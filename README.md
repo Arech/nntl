@@ -1,6 +1,5 @@
 # nntl
 
-[![Join the chat at https://gitter.im/nntl/Lobby](https://badges.gitter.im/nntl/Lobby.svg)](https://gitter.im/nntl/Lobby?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
 Neural Network Templates Library is a set of C++14 template classes
 that helps to implement fast vectorized feedforward neural networks.
 It is multithreaded, x64 friendly and uses OpenBLAS only as a back-end
@@ -9,6 +8,8 @@ other dependencies, except for OpenBLAS and Boost (header only). It is
 statically typed and doesn't use virtual functions.
 
 NNTL provides a way to convert an UML (class) diagramm of a neural network directly into C++ code (i.e. you draw something [like this](https://github.com/Arech/nntl/blob/master/arch_sample.png?raw=true) and it converts it to nntl-powered C++ code). This feature is extremely helpful for designing proper network architectures and an absolute time-saver. It allows a user to focus on incorporating domain knowledge into neural network instead of doing very error-prone architecture programming. However, it requires some additional software ([Visual Paradigm](https://www.visual-paradigm.com/) for diagramming and Matlab to execute converter scripts). See below for details.
+
+[![Join the chat at https://gitter.im/nntl/Lobby](https://badges.gitter.im/nntl/Lobby.svg)](https://gitter.im/nntl/Lobby?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
 
 ### Performance
 *This paragraph is outdated. The library was improved in many ways since the performance measurements, so current results are way better.
