@@ -102,6 +102,7 @@ Just want to stress again: NNTL is not a kind of a Plug-n-Play system to solve t
   * activation functions
   * weights initialization schemes
   * ...
+* Most of the critical code (almost all math subsystem code) is unit-tested.
 * OpenBLAS (for matrix*matrix multiplications) is the only external code dependency (not counting the Boost, which is de facto industry standard). OpenBLAS also could be easily replaced/substituted if needed.
 * Three data loaders already available (see `/nntl/_supp/io` folder):  
   * `matfile` implements "Saving" and "Loading Archive" Concepts from boost::serialization, therefore allowing reading and writing data to and from Matlab's native `.mat` files (including dumping a neural network object state into a .mat file for an inspection). Requires a Matlab installed as well as `#define NNTL_MATLAB_AVAILABLE 1` to compile. `NNTL_MATLAB_AVAILABLE` is defined by default for all projects (see it in `stdafx.h`). See `nntl/utils/matlab.h` for details how to setup a build environment to be able to compile the NNTL with a Matlab support (thanks to a Mathworks, it's not harder than to plug in a Boost support).
