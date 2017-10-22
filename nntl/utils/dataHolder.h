@@ -139,13 +139,18 @@ namespace utils {
 			} else {
 				NNTL_ASSERT(batchSize);
 				NNTL_ASSERT(!m_batchX.empty());
+
+				const auto bSetBiases = m_batchX.rows() != batchSize;
 				m_batchX.deform_rows(batchSize);
 				m_pBatchX = &m_batchX;
+				if (bSetBiases) m_batchX.set_biases();
+
 				if (m_pDataY) {
 					m_batchY.deform_rows(batchSize);
 					m_pBatchY = &m_batchY;
 				};
 			}
+			NNTL_ASSERT(m_pBatchX->test_biases_strict());
 		}
 		const vec_len_t curBatchSize()const noexcept { return m_pBatchX->rows(); }
 

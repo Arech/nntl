@@ -226,7 +226,7 @@ namespace math {
 			memcpy(srcdest.data(), pNumer, srcdest.byte_size());
 			get_self().mrwDivideByVec(srcdest, pDenom);
 
-			if (bRestoreBiases) srcdest.restore_biases();
+			srcdest.restore_biases(bRestoreBiases);
 			get_self()._istor_free(pTmp, tmemSize);
 		}
 		void softmax_mt(realmtxdef_t& srcdest) noexcept {
@@ -248,7 +248,7 @@ namespace math {
 			memcpy(srcdest.data(), pNumer, srcdest.byte_size());
 			get_self().mrwDivideByVec(srcdest, pDenom);
 
-			if (bRestoreBiases) srcdest.restore_biases();
+			srcdest.restore_biases(bRestoreBiases);
 			get_self()._istor_free(pTmp, tmemSize);
 		}
 
@@ -257,18 +257,18 @@ namespace math {
 		//////////////////////////////////////////////////////////////////////////
 		// ElementWise operations
 		//////////////////////////////////////////////////////////////////////////
-		//binarize elements of real-valued matrix according to their relaion to frac
+		//binarize elements of real-valued matrix according to their relation to frac
 		template<typename T>
 		void ewBinarize_ip(smatrix<T>& A, const T frac, const T lBnd = T(0.), const T uBnd = T(1.))noexcept {
-			if (A.numel() < Thresholds_t::ewBinarize_ip) {
+			if (A.numel_no_bias() < Thresholds_t::ewBinarize_ip) {
 				get_self().ewBinarize_ip_st(A, frac, lBnd, uBnd);
 			} else get_self().ewBinarize_ip_mt(A, frac, lBnd, uBnd);
 		}
 		template<typename T>
 		void ewBinarize_ip_st(smatrix<T>& A, const T frac, const T lBnd = T(0.), const T uBnd = T(1.), const elms_range*const pER = nullptr)noexcept
 		{
-			NNTL_ASSERT(!A.emulatesBiases() && !A.empty());
-			get_self()._iewBinarize_ip_st(A.data(), frac, lBnd, uBnd, pER ? *pER : elms_range(A));
+			NNTL_ASSERT(!A.empty());
+			get_self()._iewBinarize_ip_st(A.data(), frac, lBnd, uBnd, pER ? *pER : elms_range(0, A.numel_no_bias()));
 		}
 		template<typename T>
 		static void _iewBinarize_ip_st(T* pA, const T frac, const T lBnd, const T uBnd, const elms_range& er)noexcept {
@@ -283,10 +283,10 @@ namespace math {
 		}
 		template<typename T>
 		void ewBinarize_ip_mt(smatrix<T>& A, const T frac, const T lBnd = T(0.), const T uBnd = T(1.))noexcept {
-			NNTL_ASSERT(!A.emulatesBiases() && !A.empty());
+			NNTL_ASSERT(!A.empty());
 			m_threads.run([pA = A.data(), frac, lBnd, uBnd, this](const par_range_t& r) {
 				get_self()._iewBinarize_ip_st(pA, frac, lBnd, uBnd, elms_range(r));
-			}, A.numel());
+			}, A.numel_no_bias());
 		}
 
 		//#TODO finish refactoring; find out which algo is better; move to base SMath class
@@ -312,7 +312,7 @@ namespace math {
 		//binarize elements of real-valued matrix according to their relaion to frac into other matrix
 		template<typename DestContainerT>
 		void ewBinarize(DestContainerT& Dest, const realmtx_t& A, const real_t frac)noexcept {
-			if (A.numel() < Thresholds_t::ewBinarize) {
+			if (A.numel_no_bias() < Thresholds_t::ewBinarize) {
 				get_self().ewBinarize_st(Dest, A, frac);
 			} else get_self().ewBinarize_mt(Dest, A, frac);
 		}
@@ -332,20 +332,21 @@ namespace math {
 		template<typename DestContainerT>
 		static void ewBinarize_st(DestContainerT& Dest, const realmtx_t& A, const real_t frac, const elms_range*const pER = nullptr)noexcept {
 			//NNTL_ASSERT(A.size() == Dest.size()); //not compatible with std vector
-			_iewBinarize_st(Dest.data(), A, frac, pER ? *pER : elms_range(A));
+			_iewBinarize_st(Dest.data(), A, frac, pER ? *pER : elms_range(0, A.numel_no_bias()));
 		}
 		template<typename DestContainerT>
 		void ewBinarize_mt(DestContainerT& Dest, const realmtx_t& A, const real_t frac)noexcept {
 			m_threads.run([&Dest, &A, frac, this](const par_range_t& pr) {
 				get_self()._iewBinarize_st(Dest.data(), A, frac, elms_range(pr));
-			}, A.numel());
+			}, A.numel_no_bias());
 		}
 
+		//////////////////////////////////////////////////////////////////////////
 		//////////////////////////////////////////////////////////////////////////
 		//extract rows with indexes specified by Contnr ridxs into dest.
 		template<typename SeqIt>
 		void mExtractRows(const realmtx_t& src, const SeqIt& ridxsItBegin, realmtx_t& dest)noexcept {
-			if (dest.cols()<2 || dest.numel() < Thresholds_t::mExtractRows) {
+			if (dest.cols()<2 || dest.numel(src.hasHoleyBiases()) < Thresholds_t::mExtractRows) {
 				get_self().mExtractRows_seqWrite_st(src, ridxsItBegin, dest);
 			} else get_self().mExtractRows_seqWrite_mt(src, ridxsItBegin, dest);
 		}
@@ -353,7 +354,7 @@ namespace math {
 		static void _imExtractRows_seqWrite_st(const realmtx_t& src, const SeqIt& ridxsItBegin, realmtx_t& dest, const elms_range& er)noexcept {
 			NNTL_ASSERT(!dest.empty() && !src.empty());
 			src.assert_storage_does_not_intersect(dest);
-			static_assert(::std::is_same<vec_len_t, SeqIt::value_type>::value, "Contnr type should contain vec_len_t data");
+			//static_assert(::std::is_same<vec_len_t, SeqIt::value_type>::value, "Contnr type should contain vec_len_t data");
 
 			const numel_cnt_t destRows = dest.rows(), srcRows = src.rows();
 			NNTL_ASSERT(dest.cols() == src.cols() && destRows <= srcRows && !(src.emulatesBiases() ^ dest.emulatesBiases()));
@@ -367,9 +368,13 @@ namespace math {
 			// It don't. I've just tried. No significant change on big datasets.
 			// Probably a better idea is to transpose the source data to read rows sequentially. Need to implement and test.
 
+			if (src.emulatesBiases()) {
+				dest.holey_biases(src.isHoleyBiases());
+			}
+
 			auto pSrc = src.data();
 			auto pDest = dest.data() + er.elmBegin;
-			const auto pDestEnd = pDest + dest.numel();
+			const auto pDestEnd = pDest + dest.numel(src.hasHoleyBiases());//we're leaving bias column intact if it's a normal biases
 			SeqIt pThreadRI = ridxsItBegin + er.elmBegin;
 
 			while (pDest != pDestEnd) {
@@ -387,18 +392,155 @@ namespace math {
 		}
 		template<typename SeqIt>
 		static void mExtractRows_seqWrite_st(const realmtx_t& src, const SeqIt& ridxsItBegin, realmtx_t& dest, const elms_range*const pER = nullptr)noexcept {
+			NNTL_ASSERT(!src.emulatesBiases() || src.test_biases_strict());//if there're biases, they can't be holey
+			NNTL_ASSERT(!dest.emulatesBiases() || dest.test_biases_strict());
 			_imExtractRows_seqWrite_st(src, ridxsItBegin, dest, pER ? *pER : elms_range(0, dest.rows()));
+			NNTL_ASSERT(!src.emulatesBiases() || src.test_biases_strict());//if there're biases, they can't be holey
+			NNTL_ASSERT(!dest.emulatesBiases() || dest.test_biases_strict());
 		}
 		template<typename SeqIt>
 		void mExtractRows_seqWrite_mt(const realmtx_t& src, const SeqIt& ridxsItBegin, realmtx_t& dest)noexcept {
 			NNTL_ASSERT(!dest.empty() && !src.empty());
+			NNTL_ASSERT(!src.emulatesBiases() || src.test_biases_strict());//if there're biases, they can't be holey
+			NNTL_ASSERT(!dest.emulatesBiases() || dest.test_biases_strict());
 			src.assert_storage_does_not_intersect(dest);
-			static_assert(::std::is_same<vec_len_t, SeqIt::value_type>::value, "Contnr type should contain vec_len_t data");
+			//static_assert(::std::is_same<vec_len_t, SeqIt::value_type>::value, "Contnr type should contain vec_len_t data");
 			NNTL_ASSERT(dest.cols() == src.cols() && dest.rows() <= src.rows());
 
 			m_threads.run([&src, &dest, &ridxsItBegin](const par_range_t& r) {
 				_imExtractRows_seqWrite_st(src, ridxsItBegin, dest, elms_range(r));
 			}, dest.rows());
+
+			NNTL_ASSERT(!src.emulatesBiases() || src.test_biases_strict());//if there're biases, they can't be holey
+			NNTL_ASSERT(!dest.emulatesBiases() || dest.test_biases_strict());
+		}
+
+		//////////////////////////////////////////////////////////////////////////
+		//////////////////////////////////////////////////////////////////////////
+		//dest.rows() must be equal to vCountNonZeros(pMask, src.rows())!
+		//biases are ignored!
+		void mExtractRowsByMask(const realmtx_t& src, const real_t*const pMask, realmtx_t& dest)noexcept {
+			if (src.numel_no_bias() < Thresholds_t::mExtractRowsByMask) {
+				get_self().mExtractRowsByMask_st(src, pMask, dest);
+			} else get_self().mExtractRowsByMask_mt(src, pMask, dest);
+		}
+		//looks like we'd never need _st variation alone. Moreover, to make this function fully _st compatible,
+		// the expression executed if(dest.rows() == src.rows()) must also take into account pER. So just don't care about it now
+		void mExtractRowsByMask_st(const realmtx_t& src, const real_t*const pMask, realmtx_t& dest/*, const elms_range*const pER = nullptr*/)noexcept
+		{
+			NNTL_ASSERT(!src.empty() && pMask && !dest.empty() && src.cols_no_bias() == dest.cols_no_bias());
+			NNTL_ASSERT(dest.rows() <= src.rows() && dest.rows());
+			NNTL_ASSERT(dest.rows() == static_cast<vec_len_t>(get_self().vCountNonZeros(pMask, src.rows())));
+			
+			if (dest.rows() == src.rows()) {
+				//just copying src to dest
+				const auto b = src.copy_data_skip_bias(dest);
+				NNTL_ASSERT(b);
+			} else {
+				get_self()._imExtractRowsByMask_st(src, pMask, dest, /*pER ? *pER :*/ elms_range(0, src.cols_no_bias()));
+			}
+		}
+		static void _imExtractRowsByMask_st(const realmtx_t& src, const real_t*const pMask, realmtx_t& dest, const elms_range& er)noexcept {
+			NNTL_ASSERT(dest.rows() < src.rows() && dest.rows());
+			NNTL_ASSERT(src.cols_no_bias() >= er.elmEnd);
+
+			typedef real_t_limits<real_t>::similar_FWI_t similar_FWI_t;
+			const auto _z = similar_FWI_pos_zero<real_t>();
+			const auto _o = similar_FWI_one<real_t>();
+			
+			const size_t tr = src.rows(), tc = er.totalElements();
+			NNTL_ASSERT(tc);
+			auto _pS = src.colDataAsVec(static_cast<vec_len_t>(er.elmBegin));
+			auto pD = dest.colDataAsVec(static_cast<vec_len_t>(er.elmBegin));
+			const auto pM = reinterpret_cast<const similar_FWI_t*const>(pMask);
+			for (size_t ci = 0; ci < tc; ++ci) {
+				const auto pS = _pS;
+				_pS += tr;
+				for (size_t i = 0; i < tr; ++i) {
+					const auto m = pM[i];
+					if (m != _z) {
+						NNTL_ASSERT(m == _o);
+						*pD++ = pS[i];
+					}
+				}
+			}
+		}
+		void mExtractRowsByMask_mt(const realmtx_t& src, const real_t*const pMask, realmtx_t& dest)noexcept {
+			NNTL_ASSERT(!src.empty() && pMask && !dest.empty() && src.cols_no_bias() == dest.cols_no_bias());
+			NNTL_ASSERT(dest.rows() <= src.rows() && dest.rows());
+			NNTL_ASSERT(dest.rows() == static_cast<vec_len_t>(get_self().vCountNonZeros(pMask, src.rows())));
+
+			if (dest.rows() == src.rows()) {
+				//just copying src to dest
+				const auto b = src.copy_data_skip_bias(dest);
+				NNTL_ASSERT(b);
+			} else {
+				m_threads.run([&src, pMask, &dest, this](const par_range_t& r) {
+					get_self()._imExtractRowsByMask_st(src, pMask, dest, elms_range(r));
+				}, src.cols_no_bias());
+			}
+		}
+
+		//////////////////////////////////////////////////////////////////////////
+		//////////////////////////////////////////////////////////////////////////
+		//biases are ignored!
+		void mFillRowsByMask(const realmtx_t& src, const real_t*const pMask, realmtx_t& dest)noexcept {
+			if (dest.numel_no_bias() < Thresholds_t::mFillRowsByMask) {
+				get_self().mFillRowsByMask_st(src, pMask, dest);
+			} else get_self().mFillRowsByMask_mt(src, pMask, dest);
+		}
+		void mFillRowsByMask_st(const realmtx_t& src, const real_t*const pMask, realmtx_t& dest/*, const elms_range*const pER = nullptr*/)noexcept
+		{
+			NNTL_ASSERT(!src.empty() && pMask && !dest.empty() && src.cols_no_bias() == dest.cols_no_bias());
+			NNTL_ASSERT(src.rows() <= dest.rows() && src.rows());
+			NNTL_ASSERT(src.rows() == static_cast<vec_len_t>(get_self().vCountNonZeros(pMask, dest.rows())));
+
+			if (dest.rows() == src.rows()) {
+				//just copying src to dest
+				const auto b = src.copy_data_skip_bias(dest);
+				NNTL_ASSERT(b);
+			} else {
+				get_self()._imFillRowsByMask_st(src, pMask, dest, /*pER ? *pER :*/ elms_range(0, dest.cols_no_bias()));
+			}
+		}
+		static void _imFillRowsByMask_st(const realmtx_t& src, const real_t*const pMask, realmtx_t& dest, const elms_range& er)noexcept {
+			NNTL_ASSERT(dest.cols_no_bias() >= er.elmEnd);
+			NNTL_ASSERT(src.rows() < dest.rows() && src.rows());
+
+			typedef real_t_limits<real_t>::similar_FWI_t similar_FWI_t;
+			const auto _z = similar_FWI_pos_zero<real_t>();
+			const auto _o = similar_FWI_one<real_t>();
+
+			const size_t tr = dest.rows(), tc = er.totalElements();
+			NNTL_ASSERT(tc);
+			auto pS = src.colDataAsVec(static_cast<vec_len_t>(er.elmBegin));
+			auto _pD = dest.colDataAsVec(static_cast<vec_len_t>(er.elmBegin));
+			const auto pM = reinterpret_cast<const similar_FWI_t*const>(pMask);
+			for (size_t ci = 0; ci < tc; ++ci) {
+				NNTL_ASSERT(pS == src.colDataAsVec(static_cast<vec_len_t>(er.elmBegin + ci)));
+				const auto pD = _pD;
+				_pD += tr;
+				for (size_t i = 0; i < tr; ++i) {
+					const auto m = pM[i];
+					NNTL_ASSERT(m == _o || m == _z);
+					pD[i] = m != _z ? *pS++ : real_t(0);
+				}
+			}
+		}
+		void mFillRowsByMask_mt(const realmtx_t& src, const real_t*const pMask, realmtx_t& dest)noexcept {
+			NNTL_ASSERT(!src.empty() && pMask && !dest.empty() && src.cols_no_bias() == dest.cols_no_bias());
+			NNTL_ASSERT(src.rows() <= dest.rows() && src.rows());
+			NNTL_ASSERT(src.rows() == static_cast<vec_len_t>(get_self().vCountNonZeros(pMask, dest.rows())));
+
+			if (dest.rows() == src.rows()) {
+				//just copying src to dest
+				const auto b = src.copy_data_skip_bias(dest);
+				NNTL_ASSERT(b);
+			} else {
+				m_threads.run([&src, pMask, &dest, this](const par_range_t& r) {
+					get_self()._imFillRowsByMask_st(src, pMask, dest, elms_range(r));
+				}, dest.cols_no_bias());
+			}
 		}
 
 		//////////////////////////////////////////////////////////////////////////
@@ -472,7 +614,7 @@ namespace math {
 			memset(pRowsNorm, 0, sizeof(*pRowsNorm)*mRows);
 
 			//вычисляем нормы
-			if (!bNormIncludesBias) W.hide_last_col();
+			if (!bNormIncludesBias) W.//hide_last_col();
 			//#todo - _st версию
 			mrwL2NormSquared(W, pRowsNorm);
 			if (!bNormIncludesBias) W.restore_last_col();
@@ -503,6 +645,8 @@ namespace math {
 			const auto mRows = A.rows();
 			auto pTmp = get_self()._istor_alloc(mRows);
 			
+			//A could be (and almost always is) a weight matrix that doesn't have correct emulatesBias() property, therefore
+			//have to use unconditional .hide_last_col() instead of .hide_biases()
 			if (!bNormIncludesBias) A.hide_last_col();
 			get_self().mrwL2NormSquared_st(A, pTmp);
 			if (!bNormIncludesBias) A.restore_last_col();
@@ -532,6 +676,8 @@ namespace math {
 			const auto tmemSize = realmtx_t::sNumel(mRows, m_threads.workers_count());
 			const auto pTmpStor = get_self()._istor_alloc(tmemSize);
 
+			//A could be (and almost always is) a weight matrix that doesn't have correct emulatesBias() property, therefore
+			//have to use unconditional .hide_last_col() instead of .hide_biases()
 			if (!bNormIncludesBias) A.hide_last_col();
 			get_self().mrwL2NormSquared_mt(A, pTmpStor);
 			if (!bNormIncludesBias) A.restore_last_col();
@@ -554,13 +700,31 @@ namespace math {
 		// Returns the number of elements equal to zero
 		// Don't expect big n here, so no _mt version
 		template<typename T>
-		size_t vCountNonZeros(const T* pVec, const size_t ne)noexcept {
+		static ::std::enable_if_t<::std::is_floating_point<T>::value, size_t> vCountNonZeros(const T* pVec, const size_t ne)noexcept {
 			NNTL_ASSERT(pVec && ne);
 			size_t nz = 0;
 			const auto pE = pVec + ne;
 			while (pVec != pE) {//vectorizes!
 				const auto v = *pVec++;
 				nz += (v > T(+0.)) + (v < T(-0.));
+			}
+			return nz;
+		}
+
+		//Strict version counts only a positive zero as a zero. Works about a twice as fast as vCountNonZeros
+		template<typename T>
+		static ::std::enable_if_t<::std::is_floating_point<T>::value, size_t> vCountNonZerosStrict(const T* pVec, const size_t ne)noexcept {
+			NNTL_ASSERT(pVec && ne);
+			typedef typename real_t_limits<T>::similar_FWI_t similar_FWI_t;
+			NNTL_ASSERT(0 == similar_FWI_pos_zero<T>());
+			static_assert(::std::is_unsigned<similar_FWI_t>::value, "");
+
+			similar_FWI_t nz = 0;
+			const similar_FWI_t* ptr = reinterpret_cast<const similar_FWI_t*>(pVec);
+			const auto pE = ptr + ne;
+			while (ptr != pE) {
+				const auto v = *ptr++;
+				nz += v > 0;
 			}
 			return nz;
 		}
@@ -1321,11 +1485,50 @@ namespace math {
 			NNTL_ASSERT(pA && pB);
 			for (numel_cnt_t i = er.elmBegin; i < er.elmEnd; ++i) pA[i] = math::sign(pB[i]);
 		}
-		void evSign_mt(realmtx_t& A, const real_t c, const realmtx_t& B)noexcept {
+		void evSign_mt(realmtx_t& A, const realmtx_t& B)noexcept {
 			NNTL_ASSERT(A.size() == B.size() && !A.empty() && !B.empty());
 			m_threads.run([pA = A.data(), pB = B.data(), this](const par_range_t& r) {
 				get_self()._ievSign_st(pA, pB, elms_range(r));
 			}, A.numel());
+		}
+
+		//////////////////////////////////////////////////////////////////////////////
+		//////////////////////////////////////////////////////////////////////////
+		// For a (strict) binary matrix gate (i.e. when g \in gate is real_t \in {0,1}) makes a complement matrix gcompl = (1-gate)
+		void evOneCompl(const realmtx_t& gate, realmtx_t& gcompl)noexcept {
+			if (gate.numel_no_bias() < Thresholds_t::evOneCompl) {
+				get_self().evOneCompl_st(gate, gcompl);
+			} else get_self().evOneCompl_mt(gate, gcompl);
+		}
+		void evOneCompl_st(const realmtx_t& gate, realmtx_t& gcompl, const elms_range*const pER = nullptr)noexcept {
+			NNTL_ASSERT(gate.size_no_bias() == gcompl.size_no_bias() && !gate.empty() && !gcompl.empty());
+			get_self()._ievOneCompl_st(gate.data(), gcompl.data(), pER ? *pER : elms_range(gate, tag_noBias()));
+		}
+		template<typename T>
+		static void _ievOneCompl_st(const T*const _pG, T*const _pGc, const elms_range& er)noexcept {
+			NNTL_ASSERT(_pG && _pGc);
+			typedef real_t_limits<T>::similar_FWI_t similar_FWI_t;
+
+			const auto _zero = similar_FWI_pos_zero<T>();
+			const auto _one = similar_FWI_one<T>();
+
+			const similar_FWI_t* pG = reinterpret_cast<const similar_FWI_t*>(_pG) + er.elmBegin;
+			similar_FWI_t* pGc = reinterpret_cast<similar_FWI_t*>(_pGc) + er.elmBegin;
+			const auto pGE = pG + er.totalElements();
+
+			while (pG != pGE) {
+				const auto g = *pG++;
+				NNTL_ASSERT(g == _one || g == _zero);
+				const auto gc = _one - g;
+				NNTL_ASSERT(gc == _one || gc == _zero);
+				*pGc++ = gc;
+			}
+		}
+		void evOneCompl_mt(const realmtx_t& gate, realmtx_t& gcompl)noexcept {
+			NNTL_ASSERT(gate.size_no_bias() == gcompl.size_no_bias() && !gate.empty() && !gcompl.empty());
+			m_threads.run([pG = gate.data(), pGc = gcompl.data(), this](const par_range_t& r) {
+				get_self()._ievOneCompl_st(pG, pGc, elms_range(r));
+			}, gate.numel_no_bias());
 		}
 
 		////////////////////////////////////////////////////////////////////////// 
@@ -1553,6 +1756,7 @@ namespace math {
 			}, _vec_sum<false, real_t>, A.numel());
 		}
 
+		//////////////////////////////////////////////////////////////////////////
 		//////////////////////////////////////////////////////////////////////////
 		//C = A * B, - matrix multiplication
 		static void mMulAB_C(const realmtx_t& A, const realmtx_t& B, realmtx_t& C)noexcept {
@@ -3081,19 +3285,6 @@ namespace math {
 				return get_self().loss_quadratic_st_naive(activations, data_y);
 			} else return get_self().loss_quadratic_mt_naive(activations, data_y);
 		}
-
-		/*static real_t _iloss_quadratic_st_naive(const realmtx_t& activations, const realmtx_t& data_y, const elms_range& er)noexcept {
-			NNTL_ASSERT(activations.size() == data_y.size() && !activations.empty() && !data_y.empty());
-
-			const auto pA = activations.data();
-			const auto pY = data_y.data();
-			real_t ret(0.0);
-			for (numel_cnt_t i = er.elmBegin; i < er.elmEnd; ++i) {//doesn't get vectorized
-				const real_t e = pA[i] - pY[i];
-				ret += e*e;
-			}
-			return ret;
-		}*/
 		static real_t _iloss_quadratic_st_naive(const realmtx_t& activations, const realmtx_t& data_y, const elms_range& er)noexcept {
 			NNTL_ASSERT(activations.size() == data_y.size() && !activations.empty() && !data_y.empty());
 
@@ -3743,14 +3934,14 @@ namespace math {
 		// L = (norm(C, 'fro'). ^ 2 - norm(diag(C)). ^ 2). / 2;
 		template<bool bLowerTriangl, bool bNumStab>
 		real_t loss_deCov(const realmtx_t& Vals)noexcept {
-			NNTL_ASSERT(!Vals.isHoleyBiases() || !"Current deCov algorithm does not support holey biases!");
+			NNTL_ASSERT(!Vals.emulatesBiases() || !Vals.isHoleyBiases() || !"Current deCov algorithm does not support holey biases!");
 			//to support holey biases algorithm must ignore rows with zeroed biases. Looks like the easiest (and probably the
 			//fastest to run) way to do it is to make a something like a Vals.clone_to_droping_holes(DeMeaned) and then proceed as normal
 			NNTL_ASSERT(Vals.cols_no_bias() > 1);
 
 			const auto valsNumelNoBias = Vals.numel_no_bias();
 			real_t*const pDeMeaned = get_self()._istor_alloc(valsNumelNoBias);
-			realmtx_t DeMeaned(pDeMeaned, Vals, realmtx_t::tag_useExternalStorageNoBias());
+			realmtx_t DeMeaned(pDeMeaned, Vals, realmtx_t::tag_noBias());
 			NNTL_ASSERT(!DeMeaned.emulatesBiases());
 			const auto _clone_result = Vals.clone_to_no_bias(DeMeaned);
 			NNTL_ASSERT(_clone_result);
@@ -3790,7 +3981,7 @@ namespace math {
 			NNTL_ASSERT(Vals.cols_no_bias() == dLossdVals.cols() && Vals.rows() == dLossdVals.rows());
 
 #ifndef NNTL_DECOV_DONT_CARE_ON_HOLEY_BIASES
-			NNTL_ASSERT(!Vals.isHoleyBiases() || !"Current deCov algorithm does not support holey biases!");
+			NNTL_ASSERT(!Vals.emulatesBiases() || !Vals.isHoleyBiases() || !"Current deCov algorithm does not support holey biases!");
 			//to support holey biases algorithm must ignore rows with zeroed biases. Looks like the easiest (and probably the
 			//fastest to run) way to do it is to make a something like a Vals.clone_to_droping_holes(DeMeaned) and then proceed as normal
 #endif // !NNTL_DECOV_DONT_CARE_ON_HOLEY_BIASES
@@ -3800,7 +3991,7 @@ namespace math {
 
 			const auto valsNumelNoBias = Vals.numel_no_bias();
 			real_t*const pDeMeaned = get_self()._istor_alloc(valsNumelNoBias);
-			realmtx_t DeMeaned(pDeMeaned, Vals, realmtx_t::tag_useExternalStorageNoBias());
+			realmtx_t DeMeaned(pDeMeaned, Vals, realmtx_t::tag_noBias());
 			NNTL_ASSERT(!DeMeaned.emulatesBiases());
 			const auto _clone_result = Vals.clone_to_no_bias(DeMeaned);
 			NNTL_ASSERT(_clone_result);

@@ -45,7 +45,7 @@ namespace activation {
 	//stepwise activation: y = 0|x<0 & 1|x>=0
 	template<typename RealT, typename WeightsInitScheme = weights_init::He_Zhang<>>
 	class step
-		: public _i_activation<RealT, WeightsInitScheme>
+		: public _i_activation<RealT, WeightsInitScheme, false>
 		, public type_step
 	{
 	public:

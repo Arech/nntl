@@ -58,6 +58,9 @@ namespace nntl {
 
 	namespace _impl {
 
+		//#TODO: this should be refactored greatly. Gating layer is ALWAYS the first (leftmost) layer in a pack,
+		//because it must be fprop'ed first to produce correct gating mask.
+
 		template<typename RealT>
 		struct GatingContext : public math::smatrix_td {
 			typedef RealT real_t;
@@ -81,6 +84,14 @@ namespace nntl {
 
 	}
 
+	//////////////////////////////////////////////////////////////////////////
+	// Helper traits recognizer
+	// primary template handles types that have no nested ::wrapped_layer_t member:
+	template< class, class = ::std::void_t<> >
+	struct is_layer_wrapper : ::std::false_type { };
+	// specialization recognizes types that do have a nested ::wrapped_layer_t member:
+	template< class T >
+	struct is_layer_wrapper<T, ::std::void_t<typename T::wrapped_layer_t>> : ::std::true_type {};
 
 	//////////////////////////////////////////////////////////////////////////
 	// Tests if a layer applies tiling capabilities to its inner layer by checking the existance of ::tiled_layer_t type

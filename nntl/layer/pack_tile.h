@@ -39,23 +39,23 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 // Here is a picture
 // 
 //   |a1_1..a1_a. . . .ai_1..ai_a. . . .ak_1..ak_a|			- LPT activation matrix consists of k individual activation submatrices.
-// |----------------layer_pack_tile-----------------|			It has k*a columns (k*a+1 for the bias column) and m rows.
+// |----------------layer_pack_tile-----------------|			It has k*a columns (k*a+1 including the bias column) and m rows.
 // |	|	|			 |	 |			  |	  | 	|
 // |  a1_1..a1_a   .   ai_1..ai_a   .   ak_1..ak_a  |
 // | | L_inst_1 |  .  | L_inst_i |  .  | L_inst_k | |		- k "instances" of the same layer (actually it's the same layer application)
 // |  x1_1..x1_n   .   xi_1..xi_n   .   xk_1..xk_n  |		- source data, k groups with n columns each. (actually, n+1 columns
 // |   |   |   |		|   |   |		 |   |   |	|		-  - remember the bias column).
 // |------------------------------------------------|
-//   |x1_1..x1_n. . . .xi_1..xi_n. . . .xk_1..xk_n|			- source data concatentenated, k*n columns (k*n+1 for the bias column) and m rows.
+//   |x1_1..x1_n. . . .xi_1..xi_n. . . .xk_1..xk_n|			- source data concatentenated, k*n columns (k*n+1 with the bias column) and m rows.
 //
 // Now the tricky part: how to make it work? We must implement correct fprop() and bprop() routines, i.e. we should produce correct
 // activations in fprop() and by processing dLdA in bprop() produce correct dLdAPrev and update layer`s weights.
-// We can take layer_pack_horizontal approach for fprop() and apply the layer k times to k groups of data to produce activation values.
+// We may take the LPH<> approach for fprop() and apply the layer k times to k groups of data to produce activation values.
 // However, we can't run bprop() after that, because by design any layer expects that bprop() is called for the same data that was
-// passed to fprop(). For example, dropout relies on that property and expects it's dropoutMask variable to retain it's value between
+// passed to fprop(). For example, dropout relies on that property and expects it's internal variables to retain its values between
 // corresponding fprop() and bprop() calls. That would not be the case, because when the bprop() will be called first time
-// for the first layer "instance", it's dropoutMask will be describing the dropout state for the last layer instance, not the first.
-// All internal layer's state that corresponds to all fprop() calls except for the last call will be lost.
+// for the first layer "instance", its variables will be describing the dropout state for the last layer instance, not the first.
+// All internal layer state that corresponds to all fprop() calls except for the last call will be lost.
 // Moreover, because of weights update during each bprop() run, dLdAPrev calculated by the layer for all but the first processed
 // instance will be corrupted.
 // 
@@ -97,15 +97,8 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //			In that case we don't modify the data_x and therefore shouldn't do anything else on fprop()/bprop() beginning and
 //			ending. So it's a preferred solution, though it'd require more memory.
 //
-// Almost the same applies to the activation matrix. We could either
-// 1. allocate activation matrix of size [k*m,a+1], fprop() data directly into it, and then transform it inplace into [m,k*a+1].
-//		That would require us to make the inverse transformation before layer.bprop() call.
-// 2. or allocate in fact two activation matrices. One of size [k*m,a+1] to be used inside layer.fprop(), and the other of
-//		size [m,k*a+1] to be used as data source for upper layers. This approach doen't require additional inverse transformation
-//		before layer.bprop() at the cost of additional (m*k*a+m)*sizeof(real_t) bytes
 
-
-
+#include "_activation_storage.h"
 #include "_pack_.h"
 #include "../utils.h"
 
@@ -120,22 +113,19 @@ namespace nntl {
 	//		actually stored there as [k*m,n+1] matrix. And the last column already has biases incorporated by a data source.
 	//		If bExpectSpecialDataX is set to false, then incoming data is expected to be in a usual form of [m, k*n+1]
 	//		matrix that must be transformed by the layer into separate matrix of [k*m,n+1], usable by the underlying layer.
-	//		
-	// NOT SUPPORTED YET bool bSingleActivationMatrix - set this parameter to true to use a single output activation matrix to reduce memory usage at
-	//		the cost of additional transformation step. Use with care because after bprop() step activation matrix will be
-	//		transformed.
-	// 
+	
+	//#todo: there's no need to pass K_tiles as a template parameter. Same probably for bExpectSpecialDataX
+	
 	template<typename FinalPolymorphChild, typename LayerT, neurons_count_t K_tiles, bool bExpectSpecialDataX>
-	class _LPT 
-		: public _layer_base<FinalPolymorphChild, typename LayerT::interfaces_t>
+	class _LPT : public _impl::_act_stor<FinalPolymorphChild, typename LayerT::interfaces_t>
 	{
 	private:
-		static_assert(!::std::is_base_of<m_layer_input, LayerT>::value && !::std::is_base_of<m_layer_output, LayerT>::value,
+		static_assert(!is_layer_input<LayerT>::value && !is_layer_output<LayerT>::value,
 			"Tiled layer LayerT can't be an input or output layer!");
 		static_assert(::std::is_base_of<_i_layer<real_t>, LayerT>::value,
 			"LayerT parameter must implement _i_layer interface!");
 
-		typedef _layer_base<FinalPolymorphChild, typename LayerT::interfaces_t> _base_class;
+		typedef _impl::_act_stor<FinalPolymorphChild, typename LayerT::interfaces_t> _base_class_t;
 
 	public:
 		//LayerPack_t is used to distinguish ordinary layers from layer packs (for example, to implement call_F_for_each_layer())
@@ -148,20 +138,8 @@ namespace nntl {
 	protected:
 		tiled_layer_t& m_tiledLayer;
 
-		realmtxdef_t m_activations, m_innerActivations, m_innerLowerLayerActivations;
-		//m_innerActivations is a matrix of size [k*m,a+1] to receive output from m_tiledLayer. It's content then transformed
-		//		into [m,k*a+1] m_activations matrix.
-		//		We're allocating additional matrix and will pass it into m_tiledLayer's init()/on_batch_size_change() instead of using
-		//			m_tiledLayer's own activations to anticipate inplace activation matrix transformation (which is not
-		//			implemented yet). This should make it clear that activation matrix could be transformed.
-		//			WTFIT???
-		//			
-		// m_innerLowerLayerActivations is a transformed version of incoming data_x (or just a wrapper if the data_x is already
-		//		transformed)
-
-		//m_dropSamplesMask uses its chunk of memory passed to initMem() to evaluate non-trivial m_tiledLayer.drop_samples() control flow
-		//Size [k*m,1].
-		realmtxdef_t m_dropSamplesMask;
+		realmtxdef_t m_innerLowerLayerActivations;
+		// m_innerLowerLayerActivations is a transformed version of incoming data_x (or just a wrapper if the data_x is already transformed)
 		
 		common_data_t m_innerCD;//struct to pass to m_tiledLayer, must be persistent to the m_tiledLayer init/deinit duration
 		//It must be instantiated separately with the duration of m_tiledLayer because it'll contain DIFFERENT
@@ -183,7 +161,7 @@ namespace nntl {
 			NNTL_ASSERT((bExpectSpecialDataX && (inc_neurons_cnt % tiles_count == tiles_count-1))
 				|| (!bExpectSpecialDataX && (inc_neurons_cnt % tiles_count == 0)));
 
-			_base_class::_preinit_layer(ili, inc_neurons_cnt);
+			_base_class_t::_preinit_layer(ili, inc_neurons_cnt);
 
 			//by c++ design, integer division is rounded towards zero, i.e. floor()ed
 			_impl::_preinit_layers initializer(ili, inc_neurons_cnt / tiles_count);
@@ -193,32 +171,12 @@ namespace nntl {
 	public:
 		~_LPT()noexcept {}
 		_LPT(const char* pCustomName, tiled_layer_t& tl)noexcept
-			: _base_class(tiles_count*tl.get_neurons_cnt(), pCustomName)
+			: _base_class_t(tiles_count*tl.get_neurons_cnt(), pCustomName)
 			, m_tiledLayer(tl), m_innerCD()//initialize m_innerCD by default
 		{
-			m_activations.will_emulate_biases();
-			m_innerActivations.will_emulate_biases();
 			m_innerLowerLayerActivations.will_emulate_biases();
-			m_dropSamplesMask.dont_emulate_biases();
 		}
 		static constexpr const char _defName[] = "lpt";
-
-		const realmtxdef_t& get_activations()const noexcept { 
-			NNTL_ASSERT(m_bActivationsValid);
-			return m_activations;
-		}
-		realmtxdef_t& _get_activations_mutable()const noexcept {
-			return const_cast<realmtxdef_t&>(get_activations());
-		}
-		const realmtxdef_t* get_activations_storage()const noexcept { return &m_activations; }
-		const mtx_size_t get_activations_size()const noexcept { return m_activations.size(); }
-
-		const bool is_activations_shared()const noexcept {
-			const auto r = _base_class::is_activations_shared();
-			NNTL_ASSERT(!m_tiledLayer.is_activations_shared());
-			NNTL_ASSERT(!r || m_activations.bDontManageStorage());//shared activations can't manage their own storage
-			return r;
-		}
 
 		//////////////////////////////////////////////////////////////////////////
 		//and apply function _Func(auto& layer) to each underlying (non-pack) layer here
@@ -246,35 +204,22 @@ namespace nntl {
 
 		//////////////////////////////////////////////////////////////////////////
 		ErrorCode init(_layer_init_data_t& lid, real_t* pNewActivationStorage = nullptr)noexcept {
-			auto ec = _base_class::init(lid, pNewActivationStorage);
+			auto ec = _base_class_t::init(lid, pNewActivationStorage);
 			if (ErrorCode::Success != ec) return ec;
+
 			bool bSuccessfullyInitialized = false;
 			utils::scope_exit onExit([&bSuccessfullyInitialized, this]() {
 				if (!bSuccessfullyInitialized) get_self().deinit();
 			});
 			
-			const auto maxInnerFPropRowsCount = get_self().get_common_data().max_fprop_batch_size()*tiles_count;
-			const auto maxInnerBPropRowsCount = get_self().get_common_data().training_batch_size()*tiles_count;
+			const auto maxInnerFPropRowsCount = get_common_data().max_fprop_batch_size()*tiles_count;
+			const auto maxInnerBPropRowsCount = get_common_data().training_batch_size()*tiles_count;
 			const auto biggestInnerRowsCount = ::std::max(maxInnerFPropRowsCount, maxInnerBPropRowsCount);
-			const auto biggestBatchSize = get_self().get_common_data().biggest_batch_size();
+			const auto biggestBatchSize = get_common_data().biggest_batch_size();
 
 			//initialize common data for the m_tiledLayer
-			m_innerCD.setInterfacesFrom(get_self().get_common_data());
+			m_innerCD.setInterfacesFrom(get_common_data());
 			m_innerCD.init(maxInnerFPropRowsCount, maxInnerBPropRowsCount);
-
-			//allocating m_activations
-			NNTL_ASSERT(m_activations.emulatesBiases());
-			if (pNewActivationStorage) {
-				m_activations.useExternalStorage(pNewActivationStorage, biggestBatchSize, get_self().get_neurons_cnt() + 1, true);
-			} else {
-				if (!m_activations.resize(biggestBatchSize, get_self().get_neurons_cnt()))
-					return ErrorCode::CantAllocateMemoryForActivations;
-			}
-
-			//allocating innerActivations matrix
-			NNTL_ASSERT(m_innerActivations.emulatesBiases());
-			if (!m_innerActivations.resize(biggestInnerRowsCount, m_tiledLayer.get_neurons_cnt()))
-				return ErrorCode::CantAllocateMemoryForInnerActivations;
 
 			//allocating m_innerLowerLayerActivations matrix
 			NNTL_ASSERT(m_innerLowerLayerActivations.emulatesBiases());
@@ -286,12 +231,12 @@ namespace nntl {
 
 			//intializing layer memory requirements
 			NNTL_ASSERT(0 == lid.max_dLdA_numel && 0 == lid.maxMemFPropRequire && 0 == lid.maxMemTrainingRequire);
-			//lid.max_dLdA_numel = realmtx_t::sNumel(get_self().max_fprop_batch_size(), get_self().get_neurons_cnt());
+			//lid.max_dLdA_numel = realmtx_t::sNumel(max_fprop_batch_size(), get_neurons_cnt());
 
 			//we're going to use dLdA & dLdAPrev variables to also hold dLdA & dLdAPrev for the tiled layer.
 			//Therefore biggest dLdA could have a size of [max_BPropRowsCount, max(get_neurons_cnt(), m_tiledLayer.get_incoming_neurons_cnt())]
 			lid.max_dLdA_numel = ::std::max(
-				realmtx_t::sNumel(get_self().get_common_data().training_batch_size(), get_self().get_neurons_cnt()),//dLdA coming into this layer
+				realmtx_t::sNumel(get_common_data().training_batch_size(), get_neurons_cnt()),//dLdA coming into this layer
 				realmtx_t::sNumel(maxInnerBPropRowsCount, m_tiledLayer.get_incoming_neurons_cnt()) //sizeof dLdAPrev for m_tiledLayer
 			);
 
@@ -299,197 +244,137 @@ namespace nntl {
 			// that we'd return correct (aggregated) value for the max_dLdA_numel
 			_layer_init_data_t initD(m_innerCD);
 			initD.clean_using(lid);
-			initD.bActivationsShareSpace = false;
+			NNTL_ASSERT(initD.nTiledTimes > 0);
 			initD.nTiledTimes *= tiles_count;
-			ec = m_tiledLayer.init(initD, m_innerActivations.data());
-			if (ErrorCode::Success != ec)return ec;
-			lid.update(initD);
 
-			//requesting memory to store drop_samples() mask
-			if (get_self().is_drop_samples_mbc()) {
-				lid.maxMemFPropRequire += realmtx_t::sNumel(maxInnerFPropRowsCount, 1);
-				lid.maxMemTrainingRequire += realmtx_t::sNumel(maxInnerBPropRowsCount, 1);
-			}
+			ec = m_tiledLayer.init(initD, nullptr);
+			if (ErrorCode::Success != ec)return ec;
+
+			lid.update(initD);
 
 			bSuccessfullyInitialized = true;
 			//#TODO need some way to return failedLayerIdx
-			return ec;
+			return ErrorCode::Success;
 		}
 
 		void deinit() noexcept {
 			m_tiledLayer.deinit();
-			m_activations.clear();
-			m_innerActivations.clear();
 			m_innerLowerLayerActivations.clear();
-			m_dropSamplesMask.clear();
 			m_innerCD.deinit();
-			_base_class::deinit();
+			_base_class_t::deinit();
 		}
 
 		void initMem(real_t* ptr, numel_cnt_t cnt)noexcept {
-			if (get_self().is_drop_samples_mbc()) {
-				const auto maxInnerFPropRowsCount = get_self().get_common_data().max_fprop_batch_size()*tiles_count;
-				const auto maxInnerBPropRowsCount = get_self().get_common_data().training_batch_size()*tiles_count;
-				const auto biggestInnerRowsCount = ::std::max(maxInnerFPropRowsCount, maxInnerBPropRowsCount);
-				m_dropSamplesMask.useExternalStorage(ptr, biggestInnerRowsCount, 1, false);
-				const auto ne = m_dropSamplesMask.numel();
-				ptr += ne;
-				NNTL_ASSERT(cnt >= ne);
-				cnt -= ne;
-			}
 			m_tiledLayer.initMem(ptr, cnt);
 		}
 
 		void on_batch_size_change(real_t*const pNewActivationStorage = nullptr)noexcept {
-			const vec_len_t batchSize = get_self().get_common_data().get_cur_batch_size();
-			NNTL_ASSERT(batchSize > 0);
-			NNTL_ASSERT(m_activations.emulatesBiases());
-			// now we must resize m_activations and update activations of inner layers with on_batch_size_change variation
-			m_bActivationsValid = false;
-			const auto _biggest_batch_size = get_self().get_common_data().biggest_batch_size();
-			NNTL_ASSERT(batchSize <= _biggest_batch_size);
-
-			if (pNewActivationStorage) {
-				NNTL_ASSERT(m_activations.bDontManageStorage());
-				//m_neurons_cnt + 1 for biases
-				m_activations.useExternalStorage(pNewActivationStorage, batchSize, get_self().get_neurons_cnt() + 1, true);
-				//should not restore biases here, because for compound layers its a job for their fprop() implementation
-			} else {
-				NNTL_ASSERT(!m_activations.bDontManageStorage());
-				m_activations.deform_rows(batchSize);
-				if (batchSize != _biggest_batch_size) m_activations.set_biases();
-				NNTL_ASSERT(m_activations.test_biases_ok());
-			}
+			_base_class_t::on_batch_size_change(pNewActivationStorage);
 
 			//updating supplemental matrices
-			NNTL_ASSERT(m_innerActivations.emulatesBiases());
-			const auto tiledRowsCnt = batchSize*tiles_count;
-			const auto tiled_biggest_batch_size = _biggest_batch_size*tiles_count;
-			m_innerActivations.deform_rows(tiledRowsCnt);
-			if (tiledRowsCnt != tiled_biggest_batch_size) m_innerActivations.set_biases();
-			NNTL_ASSERT(m_innerActivations.test_biases_ok());
-
+			const auto tiledRowsCnt = get_common_data().get_cur_batch_size()*tiles_count;
+			
 			if (!bExpectSpecialDataX) {
+				const auto tiled_biggest_batch_size = get_common_data().biggest_batch_size()*tiles_count;
 				m_innerLowerLayerActivations.deform_rows(tiledRowsCnt);
 				if (tiledRowsCnt != tiled_biggest_batch_size) m_innerLowerLayerActivations.set_biases();
-				NNTL_ASSERT(m_innerLowerLayerActivations.test_biases_ok());
-			}
-
-			if (get_self().is_drop_samples_mbc()) {
-				NNTL_ASSERT(!m_dropSamplesMask.emulatesBiases() && !m_dropSamplesMask.empty() && 1 == m_dropSamplesMask.cols());
-				m_dropSamplesMask.deform_rows(tiledRowsCnt);
+				NNTL_ASSERT(m_innerLowerLayerActivations.test_biases_strict());
 			}
 
 			//changing the mode of m_tiledLayer.
-			//m_innerCD.set_training_mode(get_self().is_training_mode());
-			m_innerCD.set_mode_and_batch_size(get_self().get_common_data().is_training_mode(), tiledRowsCnt);
-			m_tiledLayer.on_batch_size_change(m_innerActivations.data());
+			m_innerCD.set_mode_and_batch_size(get_common_data().is_training_mode(), tiledRowsCnt);
+			m_tiledLayer.on_batch_size_change(nullptr);
 		}
 
-		////////////////////////////////////////////////////////////////////////////
-		// FProp for the incoming data that was properly transformed for use in a tiled layer
-		template <typename LowerLayer, bool _C = bExpectSpecialDataX>
-		::std::enable_if_t<_C> fprop(const LowerLayer& lowerLayer)noexcept {
-			static_assert(::std::is_base_of<_i_layer_fprop, LowerLayer>::value, "Template parameter LowerLayer must implement _i_layer_fprop");
-			static_assert(::std::is_base_of<m_layer_input, LowerLayer>::value, "When bExpectSpecialDataX is set the lowerLayer must be layer_input!");
+	protected:
+
+		template<bool _C = bExpectSpecialDataX>
+		::std::enable_if_t<_C> _lpt_fprop_prepareInnerLLAct(const realmtx_t& prevAct)noexcept {
+			static_assert(is_layer_input<LLWrapT>::value, "When bExpectSpecialDataX is set, the lowerLayer must be layer_input!");
 			//and moreover, it must produce specially prepared data!
-			auto& iI = get_self().get_iInspect();
-			iI.fprop_begin(get_self().get_layer_idx(), lowerLayer.get_activations(), get_self().get_common_data().is_training_mode());
 
-			NNTL_ASSERT(m_activations.rows() == get_self().get_common_data().get_cur_batch_size());
-			//restoring biases, should they were altered in drop_samples()
-			if (m_activations.isHoleyBiases() && !get_self().is_activations_shared()) {
-				m_activations.set_biases();
-			}
+			NNTL_ASSERT(prevAct.size() 
+				== realmtx_t::mtx_size_t(m_activations.rows(), tiles_count*(m_tiledLayer.get_incoming_neurons_cnt() + 1)));
+			NNTL_ASSERT(prevAct.test_biases_strict());
 
-			auto& llAct = lowerLayer.get_activations();
-			NNTL_ASSERT(llAct.test_biases_ok());
-			NNTL_ASSERT(llAct.size() == realmtx_t::mtx_size_t(m_activations.rows()
-				, tiles_count*(m_tiledLayer.get_incoming_neurons_cnt() + 1)));
-
-			// m_innerLowerLayerActivations are NOT expected to be changed anywhere later, therefore the trick with the const_cast<> should do no harm.
-			m_innerLowerLayerActivations.useExternalStorage(const_cast<real_t*>(llAct.data())
+			// m_innerLowerLayerActivations are NOT expected to be changed anywhere later, therefore
+			// the trick with the const_cast<> should do no harm.
+			m_innerLowerLayerActivations.useExternalStorage(const_cast<real_t*>(prevAct.data())
 				, tiles_count*m_activations.rows(), m_tiledLayer.get_incoming_neurons_cnt() + 1, true);
-			NNTL_ASSERT(m_innerLowerLayerActivations.test_biases_ok());
-			
-			m_tiledLayer.fprop(_impl::trainable_layer_wrapper<LowerLayer>(m_innerLowerLayerActivations));
-
-			get_self().get_iMath().mTilingUnroll(m_innerActivations, m_activations);
-
-			NNTL_ASSERT(m_innerLowerLayerActivations.test_biases_ok());
-			iI.fprop_activations(m_activations);
-			iI.fprop_end(m_activations);
-			m_bActivationsValid = true;
 		}
-		// FProp for the incoming data that wasn't transformed for use in a tiled layer
-		template <typename LowerLayer, bool _C = bExpectSpecialDataX>
-		::std::enable_if_t<!_C> fprop(const LowerLayer& lowerLayer)noexcept {
-			static_assert(::std::is_base_of<_i_layer_fprop, LowerLayer>::value, "Template parameter LowerLayer must implement _i_layer_fprop");
-			auto& iI = get_self().get_iInspect();
-			iI.fprop_begin(get_self().get_layer_idx(), lowerLayer.get_activations(), get_self().get_common_data().is_training_mode());
 
-			NNTL_ASSERT(m_activations.rows() == get_self().get_common_data().get_cur_batch_size());
-			auto& llAct = lowerLayer.get_activations();
-			NNTL_ASSERT(llAct.test_biases_ok());
-			NNTL_ASSERT(llAct.size() == realmtx_t::mtx_size_t(m_activations.rows()
-				, tiles_count*m_tiledLayer.get_incoming_neurons_cnt() + 1));
+		template<bool _C = bExpectSpecialDataX>
+		::std::enable_if_t<!_C> _lpt_fprop_prepareInnerLLAct(const realmtx_t& prevAct)noexcept {			
+			NNTL_ASSERT(prevAct.size()
+				== realmtx_t::mtx_size_t(m_activations.rows(), tiles_count*m_tiledLayer.get_incoming_neurons_cnt() + 1));
+			NNTL_ASSERT(prevAct.test_biases_strict());
 			NNTL_ASSERT(m_innerLowerLayerActivations.emulatesBiases());
-			NNTL_ASSERT(m_innerLowerLayerActivations.size() == realmtx_t::mtx_size_t(tiles_count*m_activations.rows()
-				, m_tiledLayer.get_incoming_neurons_cnt() + 1));
-			NNTL_ASSERT(m_innerLowerLayerActivations.test_biases_ok());
+			NNTL_ASSERT(m_innerLowerLayerActivations.size()
+				== realmtx_t::mtx_size_t(tiles_count*m_activations.rows(), m_tiledLayer.get_incoming_neurons_cnt() + 1));
+			NNTL_ASSERT(m_innerLowerLayerActivations.test_biases_strict());
 
-			auto& iM = get_self().get_iMath();
-			iM.mTilingRoll(llAct, m_innerLowerLayerActivations);
+			get_iMath().mTilingRoll(prevAct, m_innerLowerLayerActivations);
+		}
+		
+		template<typename LLWrapT>
+		void _lpt_fprop(const realmtx_t& prevAct)noexcept {
+			NNTL_ASSERT(m_activations.rows() == get_common_data().get_cur_batch_size());
+			NNTL_ASSERT(is_activations_shared() || m_activations.test_biases_strict());
 
-			m_tiledLayer.fprop(_impl::trainable_layer_wrapper<LowerLayer>(m_innerLowerLayerActivations));
+			auto& iI = get_iInspect();
+			iI.fprop_begin(get_layer_idx(), prevAct, get_common_data().is_training_mode());
 
-			iM.mTilingUnroll(m_innerActivations, m_activations);
+			_lpt_fprop_prepareInnerLLAct(prevAct);
+			NNTL_ASSERT(m_innerLowerLayerActivations.test_biases_strict());
 
-			NNTL_ASSERT(m_innerLowerLayerActivations.test_biases_ok());
+			m_tiledLayer.fprop(LLWrapT(m_innerLowerLayerActivations));
+
+			get_iMath().mTilingUnroll(m_tiledLayer.get_activations(), m_activations);
+
+			NNTL_ASSERT(is_activations_shared() || m_activations.test_biases_strict());
+
 			iI.fprop_activations(m_activations);
 			iI.fprop_end(m_activations);
 			m_bActivationsValid = true;
 		}
 
 		// in order to implement backprop for the m_tiledLayer, we must provide it with a correct dLdA and dLdAPrev
-		template <typename LowerLayer>
-		const unsigned bprop(realmtxdef_t& dLdA, const LowerLayer& lowerLayer, realmtxdef_t& dLdAPrev)noexcept {
-			static_assert(::std::is_base_of<_i_layer_trainable, LowerLayer>::value, "Template parameter LowerLayer must implement _i_layer_trainable");
+		template<typename LLWrapT>
+		unsigned _lpt_bprop(realmtxdef_t& dLdA, realmtxdef_t& dLdAPrev, const realmtx_t& prevAct)noexcept {
+			NNTL_ASSERT(is_activations_shared() || m_activations.test_biases_strict());
+			NNTL_ASSERT(prevAct.test_biases_strict());
 
 			NNTL_ASSERT(m_bActivationsValid);
 			m_bActivationsValid = false;
 
-			auto& iI = get_self().get_iInspect();
-			iI.bprop_begin(get_self().get_layer_idx(), dLdA);
+			auto& iI = get_iInspect();
+			iI.bprop_begin(get_layer_idx(), dLdA);
 			iI.bprop_finaldLdA(dLdA);
 
-			NNTL_ASSERT(m_activations.rows() == get_self().get_common_data().get_cur_batch_size());
-			NNTL_ASSERT(get_self().get_common_data().is_training_mode());
+			NNTL_ASSERT(m_activations.rows() == get_common_data().get_cur_batch_size());
+			NNTL_ASSERT(get_common_data().is_training_mode());
 			//we'd use m_innerLowerLayerActivations instead of lowerLayer.get_activations()
-			NNTL_ASSERT(m_innerLowerLayerActivations.test_biases_ok());
-			NNTL_ASSERT(m_innerActivations.test_biases_ok());
-
+			NNTL_ASSERT(m_innerLowerLayerActivations.test_biases_strict());
 			NNTL_ASSERT(dLdA.size() == m_activations.size_no_bias());
-
-			NNTL_ASSERT((::std::is_base_of<m_layer_input, LowerLayer>::value) || dLdAPrev.size() == lowerLayer.get_activations().size_no_bias());
+			NNTL_ASSERT((is_layer_input<LLWrapT>::value) || dLdAPrev.size() == prevAct.size_no_bias());
 
 			// The only problem now is in size of dLdA and dLdAPrev. Therefore we'll change matrices size appropriately and
 			// then transform dLdA into dLdAPrev storage. Then we'll use dLdAPrev as dLdA and vice versa. Once the bprop() finishes
 			// we'd transform dLdAPrev into dLdA storage to propagate dLdA correctly down over the layers stack
 			NNTL_ASSERT(!dLdA.emulatesBiases() && !dLdAPrev.emulatesBiases());
-			dLdAPrev.deform_like_no_bias(m_innerActivations);
+			dLdAPrev.deform_like_no_bias(m_tiledLayer.get_activations());
 
-			auto& iM = get_self().get_iMath();
+			auto& iM = get_iMath();
 			iM.mTilingRoll(dLdA, dLdAPrev);
 
-			constexpr bool bProducedLdAPrev = !::std::is_base_of<m_layer_input, LowerLayer>::value;
+			constexpr bool bProducedLdAPrev = !is_layer_input<LLWrapT>::value;
 			//now the correct dLdA for the m_tiledLayer is actually in dLdAPrev. We're going to store dLdAPrev in dLdA
 			//BTW: we've just switched the matrices, therefore at this moment we must return (1^switchMtxs) from bprop()
 			if (bProducedLdAPrev) {
 				dLdA.deform_like_no_bias(m_innerLowerLayerActivations);
-			}else dLdA.deform(0, 0);
+			} else dLdA.deform(0, 0);
 
-			const auto switchMtxs = m_tiledLayer.bprop(dLdAPrev, _impl::trainable_layer_wrapper<LowerLayer>(m_innerLowerLayerActivations), dLdA);
+			const auto switchMtxs = m_tiledLayer.bprop(dLdAPrev, LLWrapT(m_innerLowerLayerActivations), dLdA);
 			//here we must use a return value of (1^switchMtxs)
 
 			if (bProducedLdAPrev) {
@@ -503,63 +388,32 @@ namespace nntl {
 				NNTL_ASSERT(_dLdAPrev.size() == m_innerLowerLayerActivations.size_no_bias());
 
 				//now we should unroll _dLdAPrev value into the correct rolled version
-				_dLdA.deform_like_no_bias(lowerLayer.get_activations());
+				_dLdA.deform_like_no_bias(prevAct);
 				iM.mTilingUnroll(_dLdAPrev, _dLdA);
 				//we've switched dLdA matrices again. This adds another 1 to the function return value.
 				//We should return (1^1^switchMtxs)==(0^switchMtxs)==switchMtxs here
 			}
 			const unsigned ret = switchMtxs ^ static_cast<unsigned>(!bProducedLdAPrev);
-			NNTL_ASSERT(m_innerActivations.test_biases_ok());
-			NNTL_ASSERT(m_innerLowerLayerActivations.test_biases_ok());
+
+			NNTL_ASSERT(m_innerLowerLayerActivations.test_biases_strict());
 			iI.bprop_end(ret ? dLdAPrev : dLdA);
 			return ret;
 		}
-		//////////////////////////////////////////////////////////////////////////
 
-		//must always call drop_samples()
-		static constexpr bool is_trivial_drop_samples()noexcept { return false; }
-
-		static constexpr void left_after_drop_samples(const numel_cnt_t nNZElems)noexcept {
-			static_assert(false, "_LPT::left_after_drop_samples() must never be called!");
+	public:
+		////////////////////////////////////////////////////////////////////////////
+		
+		template <typename LowerLayer>
+		void fprop(const LowerLayer& lowerLayer)noexcept {
+			static_assert(::std::is_base_of<_i_layer_fprop, LowerLayer>::value, "Template parameter LowerLayer must implement _i_layer_fprop");
+			get_self()._lpt_fprop<_impl::wrap_trainable_layer<LowerLayer>>(lowerLayer.get_activations());
 		}
 
-		void drop_samples(const realmtx_t& mask, const bool bBiasesToo, const numel_cnt_t nNZElems)noexcept {
-			NNTL_ASSERT(m_bActivationsValid);
-			NNTL_ASSERT(get_self().is_drop_samples_mbc());
-			NNTL_ASSERT(!get_self().is_activations_shared() || !bBiasesToo);
-			NNTL_ASSERT(!mask.emulatesBiases() && 1 == mask.cols() && m_activations.rows() == mask.rows() && mask.isBinary());
-			NNTL_ASSERT(m_activations.emulatesBiases());
-
-			m_activations.hide_last_col();
-			get_self().get_iMath().mrwMulByVec(m_activations, mask.data());
-			m_activations.restore_last_col();
-
-			if (bBiasesToo) {
-				m_activations.copy_biases_from(mask.data());
-			}
-
-			if (m_tiledLayer.is_trivial_drop_samples()) {
-				//just skipping m_tiledLayer.drop_samples() completely. BProp will be fine due to a correct (holey) dLdA passed
-				m_tiledLayer.left_after_drop_samples(nNZElems*tiles_count);
-			} else {
-				//we should preallocate  memory for the rolled mask. However, we can't use iMath's internal storage
-				//because there're no guarantees it won't be used during m_tiledLayer.drop_activations().
-				// Also, we shouldn't make this matrix/memory for it private for this object only - it's too expensive
-				if (!get_self().is_drop_samples_mbc()) {
-					STDCOUTL("Unexpected call to .drop_samples(). _layer_init_data_t::bDropSamplesMightBeCalled must be set during init!");
-					abort();
-				}
-
-				NNTL_ASSERT(!m_dropSamplesMask.empty() && mask.rows()*tiles_count == m_dropSamplesMask.rows() && 1 == m_dropSamplesMask.cols());
-
-				m_dropSamplesMask.deform(mask.rows(), tiles_count);
-				get_self().get_iMath().mCloneCol(mask, m_dropSamplesMask);
-				m_dropSamplesMask.deform(mask.rows()* tiles_count, 1);
-
-				m_tiledLayer.drop_samples(m_dropSamplesMask, bBiasesToo, nNZElems*tiles_count);
-			}
+		template <typename LowerLayer>
+		unsigned bprop(realmtxdef_t& dLdA, const LowerLayer& lowerLayer, realmtxdef_t& dLdAPrev)noexcept {
+			static_assert(::std::is_base_of<_i_layer_trainable, LowerLayer>::value, "Template parameter LowerLayer must implement _i_layer_trainable");
+			return get_self()._lpt_bprop<_impl::wrap_trainable_layer<LowerLayer>>(dLdA, dLdAPrev, lowerLayer.get_activations());
 		}
-
 
 	private:
 		//support for ::boost::serialization
@@ -598,9 +452,10 @@ namespace nntl {
 	template <typename LayerT, neurons_count_t K_tiles, bool bExpectSpecialDataX>
 	using layer_pack_tile = typename LPT<LayerT, K_tiles, bExpectSpecialDataX>;
 
-	template <neurons_count_t K_tiles, bool bExpectSpecialDataX, typename LayerT> inline constexpr
+/*
+	template <neurons_count_t K_tiles, bool bExpectSpecialDataX, typename LayerT> inline
 	LPT <LayerT, K_tiles, bExpectSpecialDataX> make_layer_pack_tile(LayerT& tl, const char* pCustomName = nullptr) noexcept
 	{
 		return LPT<LayerT, K_tiles, bExpectSpecialDataX>(tl, pCustomName);
-	}
+	}*/
 }

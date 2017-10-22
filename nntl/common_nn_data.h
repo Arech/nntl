@@ -65,9 +65,9 @@ namespace _impl {
 		//////////////////////////////////////////////////////////////////////////
 		//could be different in different train() sessions.
 		vec_len_t m_max_fprop_batch_size;//The biggest samples count for fprop(), usually this is data_x.rows()
-		vec_len_t m_training_batch_size;//Fixed samples count for bprop(), usually it is a batchSize
+		vec_len_t m_training_batch_size;//The biggest batch size for bprop(), usually it is a batchSize
 
-		vec_len_t m_cur_batch_size;
+		mutable vec_len_t m_cur_batch_size;
 
 		bool m_bInTraining;
 
@@ -119,12 +119,12 @@ namespace _impl {
 		iInspect_t& iInspect()const noexcept { NNTL_ASSERT(m_pInspect); return *m_pInspect; }
 
 		template<bool B = bAllowToBlockLearning>
-		::std::enable_if_t<B, const bool> isLearningBlocked()const noexcept { NNTL_ASSERT(m_pbNotLearningNow); return *m_pbNotLearningNow; }
+		::std::enable_if_t<B, bool> isLearningBlocked()const noexcept { NNTL_ASSERT(m_pbNotLearningNow); return *m_pbNotLearningNow; }
 		template<bool B = bAllowToBlockLearning>
 		constexpr ::std::enable_if_t<!B, bool> isLearningBlocked()const noexcept { return false; }
 
 		void set_training_mode(bool bTraining)noexcept { m_bInTraining = bTraining; }
-		const bool is_training_mode()const noexcept { return m_bInTraining; }
+		bool is_training_mode()const noexcept { return m_bInTraining; }
 
 		void set_mode_and_batch_size(const bool bTraining, const vec_len_t BatchSize)noexcept {
 			NNTL_ASSERT(m_pMath && m_pRng && m_pInspect);//must be preinitialized!
@@ -134,29 +134,35 @@ namespace _impl {
 			m_cur_batch_size = BatchSize;
 		}
 
-		const vec_len_t get_cur_batch_size()const noexcept { return m_cur_batch_size; }
+		vec_len_t get_cur_batch_size()const noexcept { return m_cur_batch_size; }
 
-		const vec_len_t max_fprop_batch_size()const noexcept {
+		vec_len_t change_cur_batch_size(const vec_len_t bs)const noexcept {
+			const auto r = m_cur_batch_size;
+			m_cur_batch_size = bs;
+			return r;
+		}
+
+		vec_len_t max_fprop_batch_size()const noexcept {
 			NNTL_ASSERT(m_pMath && m_pRng && m_pInspect);//must be preinitialized!
 			NNTL_ASSERT(m_max_fprop_batch_size > 0);
 			return m_max_fprop_batch_size;
 		}
-		const vec_len_t training_batch_size()const noexcept {
+		vec_len_t training_batch_size()const noexcept {
 			//NNTL_ASSERT(m_training_batch_size >= 0);//batch size could be 0 to run fprop() only
 			NNTL_ASSERT(m_pMath && m_pRng && m_pInspect);//must be preinitialized!
 			return m_training_batch_size;
 		}
-		const vec_len_t biggest_batch_size()const noexcept {
+		vec_len_t biggest_batch_size()const noexcept {
 			NNTL_ASSERT(m_pMath && m_pRng && m_pInspect);//must be preinitialized!
 			NNTL_ASSERT(m_max_fprop_batch_size > 0);
 			return ::std::max(m_training_batch_size, m_max_fprop_batch_size);
 		}
 
-		const bool is_training_possible()const noexcept {
+		bool is_training_possible()const noexcept {
 			return training_batch_size() > 0;
 		}
 
-		const bool is_initialized()const noexcept {
+		bool is_initialized()const noexcept {
 			NNTL_ASSERT(m_pMath && m_pRng && m_pInspect);//must be preinitialized!
 			return m_max_fprop_batch_size > 0;
 		}
@@ -186,7 +192,7 @@ namespace _impl {
 
 		//////////////////////////////////////////////////////////////////////////
 		// helpers to access common data
-		const bool has_common_data()const noexcept { return !!m_pCommonData; }
+		bool has_common_data()const noexcept { return !!m_pCommonData; }
 		const common_data_t& get_common_data()const noexcept {
 			NNTL_ASSERT(m_pCommonData);
 			return *m_pCommonData;
@@ -196,7 +202,7 @@ namespace _impl {
 		iInspect_t& get_iInspect()const noexcept { NNTL_ASSERT(m_pCommonData); return m_pCommonData->iInspect(); }
 
 		template<bool B = bAllowToBlockLearning>
-		::std::enable_if_t<B, const bool> isLearningBlocked()const noexcept {
+		::std::enable_if_t<B, bool> isLearningBlocked()const noexcept {
 			NNTL_ASSERT(m_pCommonData);
 			return m_pCommonData->isLearningBlocked();
 		}

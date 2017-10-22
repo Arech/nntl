@@ -136,7 +136,7 @@ namespace nntl {
 		//#todo get rid of pTestEvalRes
 		//returns test loss
 		template<bool bPrioritizeThreads = true, typename Observer>
-		const real_t _report_training_fragment(const size_t& epoch, const real_t& trainLoss, train_data_t& td,
+		const real_t _report_training_fragment(const size_t& epoch, const real_t& trainLoss, const train_data_t& td,
 			const ::std::chrono::nanoseconds& tElapsed, Observer& obs, const bool& bTrainSetWasInspected = false,
 			nnet_eval_results<real_t>*const pTestEvalRes=nullptr) noexcept
 		{
@@ -285,6 +285,7 @@ namespace nntl {
 					NNTL_ASSERT(batchSize);
 					m_batch_x.useExternalStorage(&tempMemStorage[spreadTempMemSize], batchSize, m_Layers.input_layer().get_neurons_cnt() + 1, true);
 					spreadTempMemSize += m_batch_x.numel();
+					m_batch_x.set_biases();
 					m_batch_y.useExternalStorage(&tempMemStorage[spreadTempMemSize], batchSize, m_Layers.output_layer().get_neurons_cnt());
 					spreadTempMemSize += m_batch_y.numel();
 				}
@@ -329,7 +330,7 @@ namespace nntl {
 	public:
 
 		template <bool bPrioritizeThreads = true, typename TrainOptsT, typename OnEpochEndCbT = NNetCB_OnEpochEnd_Dummy>
-		ErrorCode train(train_data_t& td, TrainOptsT& opts, OnEpochEndCbT&& onEpochEndCB = NNetCB_OnEpochEnd_Dummy())noexcept
+		ErrorCode train(const train_data_t& td, TrainOptsT& opts, OnEpochEndCbT&& onEpochEndCB = NNetCB_OnEpochEnd_Dummy())noexcept
 		{
 			typedef ::std::conditional_t<bPrioritizeThreads
 				, threads::prioritize_workers<threads::PriorityClass::Working, iThreads_t>
@@ -379,8 +380,9 @@ namespace nntl {
 
 			if (m_bCalcFullLossValue) m_bCalcFullLossValue = m_LMR.bHasLossAddendum;
 
-			realmtx_t& batch_x = bMiniBatch ? m_batch_x : td.train_x_mutable();
-			realmtx_t& batch_y = bMiniBatch ? m_batch_y : td.train_y_mutable();
+			//dropping the const just for convenience. We mustn't modify any of the TD element
+			realmtx_t& batch_x = bMiniBatch ? m_batch_x : const_cast<realmtxdef_t&>(td.train_x());
+			realmtx_t& batch_y = bMiniBatch ? m_batch_y : const_cast<realmtxdef_t&>(td.train_y());
 			NNTL_ASSERT(batch_x.emulatesBiases() && !batch_y.emulatesBiases());
 
 			::std::vector<vec_len_t> vRowIdxs(bMiniBatch ? samplesCount : 0);
@@ -512,7 +514,6 @@ namespace nntl {
 					}
 #endif//NNTL_DEBUG_CHECK_DENORMALS_ON_EACH_EPOCH
 
-					//if (! ::std::forward<OnEpochEndCbT>(onEpochEndCB)(*this, opts, epochIdx)) break;
 					if (!onEpochEndCB(*this, opts, epochIdx)) break;//mustn't forward here, onEpochEndCB is called multiple times
 
 					if (bCalcLoss && (bInspectEpoch || !bOptFBErrCalcThisEpoch)) {

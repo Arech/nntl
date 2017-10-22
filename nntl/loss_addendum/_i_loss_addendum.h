@@ -35,20 +35,12 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "../common.h"
 
 // loss_addendums are small classes that implements some kind of (surprise!) addendum to a loss function.
-// Typically it's kind of a penalty like the weigth-decay.
+// Typically it's kind of a penalty like the weight-decay.
 // 
 
 namespace nntl {
 namespace loss_addendum {
-
-/*
-	struct init_struct : public math::smatrix_td {
-		//to initialize iMath internal memory storage a loss_addendum implementation must return maximum elements count for
-		//fprop() only case and training case
-		OUT numel_cnt_t maxIMathMemFPropRequire;
-		OUT numel_cnt_t maxIMathMemTrainingRequire;
-	};*/
-
+	
 	//////////////////////////////////////////////////////////////////////////
 	// Each _i_loss_addendum derived class must also be:
 	// - default constructible (it must be instantiate-able as other class's member)
@@ -109,6 +101,12 @@ namespace loss_addendum {
 	template<typename LaT>
 	using works_on_fprop = ::std::integral_constant<bool, LaT::calcOnFprop>;
 
+	template<typename LaT>
+	using depends_on_many = ::std::integral_constant<bool, LaT::dependsOnManyElements>;
+
+	template<typename LaT>
+	using depends_on_many_and_on_fprop = ::std::integral_constant<bool, LaT::dependsOnManyElements && LaT::calcOnFprop>;
+
 // 	enum {
 // 		la_CalcOnBprop = 0, //- calculate loss derivatives using values in bprop stage (prone to dropout'ed neurons if LA used on activations)
 // 		la_CalcOnFprop = 1, //- same, but for fprop stage (occurs before dropout, but requires additional memory to store gradient)
@@ -124,11 +122,17 @@ namespace loss_addendum {
 // 	}
 
 	namespace _impl {
-		template<typename RealT, bool bCalcOnFprop, bool bAppendToNZGrad>
+		//if bCalcOnFProp set to true, then it computes the necessary derivate during fprop step and stores it internally
+		//until bprop() phase. Be sure to undertand the whole computation sequence when change this parameter (especially,
+		// pay attention to the dropout and LPHG(usage of mask from drop_samples() call is not supported with bCalcOnFprop==true at this moment!))
+		// bDependsOnManyElements flag to define if the loss is calculated elementwise (such as L2 or L1), or it 
+		//		requires many elements (such as DeCov). I.e., whether the dLossAddendum/dA depends on a single element or many elements.
+		template<typename RealT, bool bCalcOnFprop, bool bAppendToNZGrad, bool bDependsOnManyElements>
 		class scaled_addendum : public _i_loss_addendum<RealT> {
 		public:
 			static constexpr bool calcOnFprop = bCalcOnFprop;
 			static constexpr bool appendToNZGrad = bAppendToNZGrad;
+			static constexpr bool dependsOnManyElements = bDependsOnManyElements;
 
 		protected:
 			real_t m_scale;
@@ -155,13 +159,15 @@ namespace loss_addendum {
 			}
 		};
 
-		template<typename RealT, bool bCalcOnFprop, bool bAppendToNZGrad>
-		struct scaled_addendum_with_mtx4fprop : public scaled_addendum<RealT, bCalcOnFprop, bAppendToNZGrad> {};
+		template<typename RealT, bool bCalcOnFprop, bool bAppendToNZGrad, bool bDependsOnManyElements>
+		struct scaled_addendum_with_mtx4fprop : public scaled_addendum<RealT, bCalcOnFprop, bAppendToNZGrad, bDependsOnManyElements> {};
 
-		template<typename RealT, bool bAppendToNZGrad>
-		struct scaled_addendum_with_mtx4fprop<RealT, true, bAppendToNZGrad> : public scaled_addendum<RealT, true, bAppendToNZGrad> {
+		template<typename RealT, bool bAppendToNZGrad, bool bDependsOnManyElements>
+		struct scaled_addendum_with_mtx4fprop<RealT, true, bAppendToNZGrad, bDependsOnManyElements>
+			: public scaled_addendum<RealT, true, bAppendToNZGrad, bDependsOnManyElements>
+		{
 		private:
-			typedef scaled_addendum<RealT, true, bAppendToNZGrad> _base_class_t;
+			typedef scaled_addendum<RealT, true, bAppendToNZGrad, bDependsOnManyElements> _base_class_t;
 		protected:
 			math::smatrix_deform<RealT> m_Mtx;
 

@@ -31,51 +31,35 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 #pragma once
 
-// This file defines a wrapper around _i_activation-derived class and a corresponding dropout class
-// Layer classes should derive from this class.
+// This file defines a wrapper around _i_activation-derived class.
 // Using inheritance allows to define a state-full _i_activation classes as well as zero-cost stateless.
 
-#include "_layer_base.h"
+#include "_activation_storage.h"
 #include "../activation.h"
-//#include "../dropout.h"
 
 namespace nntl {
 	namespace _impl {
 
-		template<typename FinalPolymorphChild, typename InterfacesT, typename ActivFuncT/*, typename DropoutT*/>
+		template<typename FinalPolymorphChild, typename InterfacesT, typename ActivFuncT>
 		class _act_wrap
-			: public _layer_base<FinalPolymorphChild, InterfacesT>
+			: public _act_stor<FinalPolymorphChild, InterfacesT>
 			, private ActivFuncT
-			//, public DropoutT
 		{
 		private:
-			typedef _layer_base<FinalPolymorphChild, InterfacesT> _base_class_t;
+			typedef _act_stor<FinalPolymorphChild, InterfacesT> _base_class_t;
 
 		public:
 			using _base_class_t::real_t;
 			using _base_class_t::realmtx_t;
 			using _base_class_t::realmtxdef_t;
-			//using _base_class_t::numel_cnt_t;
-
+			
 			static_assert(::std::is_same<typename InterfacesT::real_t, typename ActivFuncT::real_t>::value, "Invalid real_t");
-			//static_assert(::std::is_same<typename DropoutT::real_t, typename ActivFuncT::real_t>::value, "Invalid real_t");
 
 			typedef ActivFuncT Activation_t;
 			typedef typename Activation_t::weights_scheme_t Weights_Init_t;
 
 			static constexpr bool bActivationForOutput = ::std::is_base_of <activation::_i_activation_loss<real_t>, Activation_t>::value;
-			static constexpr bool bActivationForHidden = ::std::is_base_of<activation::_i_activation<real_t, Weights_Init_t>, Activation_t>::value;
-			
-// 			static_assert(!bActivationForOutput || is_dummy_dropout<DropoutT>::value, "There must be no dropout for output activation function");
-// 
-// 			typedef DropoutT Dropout_t;
-
-
-		protected:
-			// matrix of layer neurons activations: <batch_size rows> x <m_neurons_cnt+1(bias) cols> for fully connected layer
-			// Class assumes, that it's content on the beginning of the bprop() is the same as it was on exit from fprop().
-			// Don't change it outside of the class!
-			realmtxdef_t m_activations;
+			static constexpr bool bActivationForHidden = ::std::is_base_of<activation::_i_activation<real_t, Weights_Init_t, Activation_t::bFIsZeroStable>, Activation_t>::value;
 
 		protected:
 			~_act_wrap()noexcept {}
@@ -84,58 +68,24 @@ namespace nntl {
 			{}
 
 		public:
-			// Class assumes, that the content of the m_activations matrix on the beginning of the bprop() is the same as it was on exit from fprop().
-			// Don't change it outside of the class!
-			const realmtxdef_t& get_activations()const noexcept {
-				NNTL_ASSERT(m_bActivationsValid);
-#ifdef NNTL_AGGRESSIVE_NANS_DBG_CHECK
-				NNTL_ASSERT(m_activations.test_noNaNs());
-#endif // NNTL_AGGRESSIVE_NANS_DBG_CHECK
-				return m_activations;
-			}
-			const realmtxdef_t* get_activations_storage()const noexcept { return &m_activations; }
-			realmtxdef_t& _get_activations_mutable()const noexcept {
-				return const_cast<realmtxdef_t&>(get_activations());
-			}
-			mtx_size_t get_activations_size()const noexcept { return m_activations.size(); }
-
-			bool is_activations_shared()const noexcept {
-				const auto r = _base_class_t::is_activations_shared();
-				NNTL_ASSERT(!r || m_activations.bDontManageStorage());//shared activations can't manage their own storage
-				return r;
-			}
 
 			template<bool _b = bActivationForOutput>
 			::std::enable_if_t<_b, real_t> calc_loss(const realmtx_t& data_y)const noexcept {
-				return Activation_t::loss(m_activations, data_y, get_self().get_iMath());
+				return Activation_t::loss(m_activations, data_y, get_iMath());
 			}
 
 			//////////////////////////////////////////////////////////////////////////
-
 			ErrorCode init(_layer_init_data_t& lid, real_t* pNewActivationStorage = nullptr)noexcept {
 				const auto ec = _base_class_t::init(lid, pNewActivationStorage);
 				if (ErrorCode::Success != ec) return ec;
-				
-				//non output layers must have biases while output layers must not
-				NNTL_ASSERT(m_activations.emulatesBiases() ^ is_layer_output<self_t>::value);
 
-				const auto neurons_cnt = get_self().get_neurons_cnt();
-				const auto biggestBatchSize = get_self().get_common_data().biggest_batch_size();
-				if (pNewActivationStorage) {
-					NNTL_ASSERT(!is_layer_output<self_t>::value || !"WTF? pNewActivationStorage can't be set for output layer");
-					m_activations.useExternalStorage(pNewActivationStorage, biggestBatchSize, neurons_cnt + 1, true); //+1 for biases
-				} else {
-					if (!m_activations.resize(biggestBatchSize, neurons_cnt))
-						return ErrorCode::CantAllocateMemoryForActivations;
-				}
+				if (!Activation_t::act_init()) return ErrorCode::CantInitializeActFunc;
 
 				return ErrorCode::Success;
 			}
 
 			void deinit() noexcept {
 				Activation_t::act_deinit();
-				NNTL_ASSERT(m_activations.emulatesBiases() ^ is_layer_output<self_t>::value);
-				m_activations.clear();
 				_base_class_t::deinit();
 			}
 
@@ -143,52 +93,19 @@ namespace nntl {
 				return Activation_t::act_scaling_coeff();
 			}
 
-			void on_batch_size_change(real_t*const pNewActivationStorage = nullptr)noexcept {
-				constexpr bool bOutputLayer = is_layer_output<self_t>::value;
-
-				NNTL_ASSERT(m_activations.emulatesBiases() ^ bOutputLayer);
-				m_bActivationsValid = false;
-
-				const auto& CD = get_self().get_common_data();
-				const vec_len_t batchSize = CD.get_cur_batch_size();
-				const auto _biggest_batch_size = CD.biggest_batch_size();
-				NNTL_ASSERT(batchSize > 0 && batchSize <= _biggest_batch_size);
-
-#pragma warning(disable : 4127)
-				if (!bOutputLayer && pNewActivationStorage) {
-					NNTL_ASSERT(m_activations.bDontManageStorage());
-					//m_neurons_cnt + 1 for biases
-					m_activations.useExternalStorage(pNewActivationStorage, batchSize, get_self().get_neurons_cnt() + 1, true);
-					//should not restore biases here, because for compound layers its a job for their fprop() implementation
-				} else {
-					NNTL_ASSERT(bOutputLayer || !pNewActivationStorage);
-					NNTL_ASSERT(!m_activations.bDontManageStorage());
-					//we don't need to restore biases in one case - if new row count equals to maximum (_biggest_batch_size). Then the original
-					//(filled during resize()) bias column has been untouched
-					m_activations.deform_rows(batchSize);
-					if (!bOutputLayer && batchSize != _biggest_batch_size) m_activations.set_biases();
-					NNTL_ASSERT(bOutputLayer || m_activations.test_biases_ok());
-				}
-#pragma warning(default : 4127)
-			}
-
 		protected:
 			bool _activation_init_weights(realmtx_t& weights) noexcept {
 				NNTL_ASSERT(!weights.emulatesBiases());
-				if (!Weights_Init_t::init(weights, get_self().get_iRng(), get_self().get_iMath()))return false;
-				NNTL_ASSERT(!weights.emulatesBiases());
-
-				return Activation_t::act_init();
+				return Weights_Init_t::init(weights, get_iRng(), get_iMath());
 			}
 
 			//this is to return how many temporary real_t elements activation function might require the iMath interface to have
 			auto _activation_tmp_mem_reqs()const noexcept {
-				return Activation_t::needTempMem(m_activations, get_self().get_iMath());
+				return Activation_t::needTempMem(m_activations, get_iMath());
 			}
 
 			template<typename iMathT>
 			void _activation_fprop(iMathT& iM)noexcept {
-
 #ifdef NNTL_AGGRESSIVE_NANS_DBG_CHECK
 				NNTL_ASSERT(m_activations.test_noNaNs());
 #endif // NNTL_AGGRESSIVE_NANS_DBG_CHECK
@@ -199,7 +116,6 @@ namespace nntl {
 #ifdef NNTL_AGGRESSIVE_NANS_DBG_CHECK
 					NNTL_ASSERT(m_activations.test_noNaNs());
 #endif // NNTL_AGGRESSIVE_NANS_DBG_CHECK
-
 				}
 			}
 

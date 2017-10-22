@@ -40,7 +40,7 @@ namespace loss_addendum {
 	//until bprop() phase. This helps to deal with a dropout that modifies some activations and makes some loss_addendums
 	// produce bogus results
 	template<typename RealT, bool bCalcOnFProp = false, bool bAppendToNZGrad = false>
-	class L1 : public _impl::scaled_addendum_with_mtx4fprop<RealT, bCalcOnFProp, bAppendToNZGrad>{
+	class L1 : public _impl::scaled_addendum_with_mtx4fprop<RealT, bCalcOnFProp, bAppendToNZGrad, false>{
 	public:
 		static constexpr const char* getName()noexcept { return "L1"; }
 

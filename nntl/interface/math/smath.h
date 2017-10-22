@@ -611,20 +611,29 @@ namespace math {
 		// Variation to work with the A without additional tmp vector
 		//LambdaF is void(*F)(const rowcol_range& RCR)
 		template<typename VT, typename LambdaF>
-		nntl_probably_force_inline void _processMtx_cw(const smatrix<VT>& A, LambdaF&& Func)noexcept {
+		nntl_probably_force_inline void _do_processMtx_cw(const smatrix<VT>& A, LambdaF&& Func, const vec_len_t colsNum)noexcept {
 			NNTL_ASSERT(!A.empty() && A.numel() > 0);
 			//TODO: for some algorithms and datasizes it may be highly beneficial to make smart partitioning, that takes into account
 			//CPU cache size (will probably require more than workers_count() call to worker function, but each call will run significanly
 			// faster, due to correct cache use)
-			//m_threads.run([&A, F{ ::std::forward<LambdaF>(Func) }](const par_range_t& pr) {
 			m_threads.run([&A, &F{ Func }](const par_range_t& pr) {
 				const auto colBeg = static_cast<vec_len_t>(pr.offset());
-				//::std::forward<LambdaF>(F)(rowcol_range(A, colBeg, colBeg + static_cast<vec_len_t>(pr.cnt())));// , pr.tid());
 				F(rowcol_range(A, colBeg, colBeg + static_cast<vec_len_t>(pr.cnt())));// , pr.tid());
 				//#note we mustn't forward back to LambdaF here, because current lambda is called by a several threads simultaneously
 				//and if there are a rvalue-qualified operator() available, the first call to it might "spoil" the F object state
-			}, A.cols());
+			}, colsNum);
+		}		
+
+		template<typename VT, typename LambdaF>
+		nntl_probably_force_inline void _processMtx_cw(const smatrix<VT>& A, LambdaF&& Func)noexcept {
+			_do_processMtx_cw(A, ::std::forward<LambdaF>(Func), A.cols());
 		}
+
+		template<typename VT, typename LambdaF>
+		nntl_probably_force_inline void _processMtx_cw_nb(const smatrix<VT>& A, LambdaF&& Func)noexcept {
+			_do_processMtx_cw(A, ::std::forward<LambdaF>(Func), A.cols_no_bias());
+		}
+
 		//Variation to make a vector out of const A
 		//LambdaF is void(*Func)(const rowcol_range& RCR, real_t*const pVec), where pVec is temporary vector of length A.rows() to serve 
 		// as F destination
@@ -1753,8 +1762,8 @@ namespace math {
 			NNTL_ASSERT(dest.rows() && dest.cols_no_bias());
 			NNTL_ASSERT(src.rows() < dest.rows());
 			NNTL_ASSERT(dest.cols_no_bias() < src.cols_no_bias());
-			NNTL_ASSERT(firstCol != 0 || _lastCol != 0 || !src.emulatesBiases() || src.test_biases_ok());
-			NNTL_ASSERT(firstCol != 0 || _lastCol != 0 || !dest.emulatesBiases() || dest.test_biases_ok());
+			NNTL_ASSERT(firstCol != 0 || _lastCol != 0 || !src.emulatesBiases() || src.test_biases_strict());
+			NNTL_ASSERT(firstCol != 0 || _lastCol != 0 || !dest.emulatesBiases() || dest.test_biases_strict());
 
 			const vec_len_t lastCol = _lastCol ? _lastCol : src.cols_no_bias();
 			NNTL_ASSERT(firstCol < src.cols_no_bias());
@@ -1789,8 +1798,8 @@ namespace math {
 				}
 			}
 
-			NNTL_ASSERT(firstCol != 0 || _lastCol != 0 || !src.emulatesBiases() || src.test_biases_ok());
-			NNTL_ASSERT(firstCol != 0 || _lastCol != 0 || !dest.emulatesBiases() || dest.test_biases_ok());
+			NNTL_ASSERT(firstCol != 0 || _lastCol != 0 || !src.emulatesBiases() || src.test_biases_strict());
+			NNTL_ASSERT(firstCol != 0 || _lastCol != 0 || !dest.emulatesBiases() || dest.test_biases_strict());
 		}
 		void mTilingRoll_seqread_mt(const realmtx_t& src, realmtx_t& dest)noexcept {
 			NNTL_ASSERT(!src.empty() && !dest.empty());
@@ -1799,16 +1808,16 @@ namespace math {
 			NNTL_ASSERT(dest.rows() && dest.cols_no_bias());
 			NNTL_ASSERT(src.rows() < dest.rows());
 			NNTL_ASSERT(dest.cols_no_bias() < src.cols_no_bias());
-			NNTL_ASSERT(!src.emulatesBiases() || src.test_biases_ok());
-			NNTL_ASSERT(!dest.emulatesBiases() || dest.test_biases_ok());
+			NNTL_ASSERT(!src.emulatesBiases() || src.test_biases_strict());
+			NNTL_ASSERT(!dest.emulatesBiases() || dest.test_biases_strict());
 
 			m_threads.run([&src, &dest, this](const par_range_t& pr) {
 				const auto colBeg = static_cast<vec_len_t>(pr.offset());
 				get_self().mTilingRoll_seqread_st(src, dest, colBeg, colBeg + static_cast<vec_len_t>(pr.cnt()));
 			}, src.cols_no_bias());
 
-			NNTL_ASSERT(!src.emulatesBiases() || src.test_biases_ok());
-			NNTL_ASSERT(!dest.emulatesBiases() || dest.test_biases_ok());
+			NNTL_ASSERT(!src.emulatesBiases() || src.test_biases_strict());
+			NNTL_ASSERT(!dest.emulatesBiases() || dest.test_biases_strict());
 		}
 		//sequential writing version, firstCol and _lastCol applies to dest matrix
 		void mTilingRoll_seqwrite_st(const realmtx_t& src, realmtx_t& dest, const vec_len_t firstCol = 0, const vec_len_t _lastCol = 0)const noexcept {
@@ -1818,8 +1827,8 @@ namespace math {
 			NNTL_ASSERT(dest.rows() && dest.cols_no_bias());
 			NNTL_ASSERT(src.rows() < dest.rows());
 			NNTL_ASSERT(dest.cols_no_bias() < src.cols_no_bias());
-			NNTL_ASSERT(firstCol != 0 || _lastCol != 0 || !src.emulatesBiases() || src.test_biases_ok());
-			NNTL_ASSERT(firstCol != 0 || _lastCol != 0 || !dest.emulatesBiases() || dest.test_biases_ok());
+			NNTL_ASSERT(firstCol != 0 || _lastCol != 0 || !src.emulatesBiases() || src.test_biases_strict());
+			NNTL_ASSERT(firstCol != 0 || _lastCol != 0 || !dest.emulatesBiases() || dest.test_biases_strict());
 
 			const vec_len_t n = dest.cols_no_bias();
 			const vec_len_t lastCol = _lastCol ? _lastCol : n;
@@ -1854,8 +1863,8 @@ namespace math {
 					pS = pSFirst;
 				}
 			}
-			NNTL_ASSERT(firstCol != 0 || _lastCol != 0 || !src.emulatesBiases() || src.test_biases_ok());
-			NNTL_ASSERT(firstCol != 0 || _lastCol != 0 || !dest.emulatesBiases() || dest.test_biases_ok());
+			NNTL_ASSERT(firstCol != 0 || _lastCol != 0 || !src.emulatesBiases() || src.test_biases_strict());
+			NNTL_ASSERT(firstCol != 0 || _lastCol != 0 || !dest.emulatesBiases() || dest.test_biases_strict());
 		}
 		void mTilingRoll_seqwrite_mt(const realmtx_t& src, realmtx_t& dest)noexcept {
 			NNTL_ASSERT(!src.empty() && !dest.empty());
@@ -1864,16 +1873,16 @@ namespace math {
 			NNTL_ASSERT(dest.rows() && dest.cols_no_bias());
 			NNTL_ASSERT(src.rows() < dest.rows());
 			NNTL_ASSERT(dest.cols_no_bias() < src.cols_no_bias());
-			NNTL_ASSERT(!src.emulatesBiases() || src.test_biases_ok());
-			NNTL_ASSERT(!dest.emulatesBiases() || dest.test_biases_ok());
+			NNTL_ASSERT(!src.emulatesBiases() || src.test_biases_strict());
+			NNTL_ASSERT(!dest.emulatesBiases() || dest.test_biases_strict());
 
 			m_threads.run([&src, &dest, this](const par_range_t& pr) {
 				const auto colBeg = static_cast<vec_len_t>(pr.offset());
 				get_self().mTilingRoll_seqwrite_st(src, dest, colBeg, colBeg + static_cast<vec_len_t>(pr.cnt()));
 			}, dest.cols_no_bias());
 
-			NNTL_ASSERT(!src.emulatesBiases() || src.test_biases_ok());
-			NNTL_ASSERT(!dest.emulatesBiases() || dest.test_biases_ok());
+			NNTL_ASSERT(!src.emulatesBiases() || src.test_biases_strict());
+			NNTL_ASSERT(!dest.emulatesBiases() || dest.test_biases_strict());
 		}
 
 
@@ -1912,8 +1921,8 @@ namespace math {
 			NNTL_ASSERT(src.rows() && src.cols_no_bias());
 			NNTL_ASSERT(dest.rows() < src.rows());
 			NNTL_ASSERT(src.cols_no_bias() < dest.cols_no_bias());
-			//NNTL_ASSERT(firstCol != 0 || _lastCol != 0 || !dest.emulatesBiases() || dest.test_biases_ok());
-			NNTL_ASSERT(firstCol != 0 || _lastCol != 0 || !src.emulatesBiases() || src.test_biases_ok());
+			//NNTL_ASSERT(firstCol != 0 || _lastCol != 0 || !dest.emulatesBiases() || dest.test_biases_strict());
+			NNTL_ASSERT(firstCol != 0 || _lastCol != 0 || !src.emulatesBiases() || src.test_biases_strict());
 
 			const vec_len_t lastCol = _lastCol ? _lastCol : dest.cols_no_bias();
 			NNTL_ASSERT(firstCol < dest.cols_no_bias());
@@ -1949,8 +1958,8 @@ namespace math {
 					pS = pSFirst;
 				}
 			}
-			//NNTL_ASSERT(firstCol != 0 || _lastCol != 0 || !dest.emulatesBiases() || dest.test_biases_ok());
-			NNTL_ASSERT(firstCol != 0 || _lastCol != 0 || !src.emulatesBiases() || src.test_biases_ok());
+			//NNTL_ASSERT(firstCol != 0 || _lastCol != 0 || !dest.emulatesBiases() || dest.test_biases_strict());
+			NNTL_ASSERT(firstCol != 0 || _lastCol != 0 || !src.emulatesBiases() || src.test_biases_strict());
 		}
 		void mTilingUnroll_seqwrite_mt(const realmtx_t& src, realmtx_t& dest)noexcept {
 			NNTL_ASSERT(!dest.empty() && !src.empty());
@@ -1959,16 +1968,16 @@ namespace math {
 			NNTL_ASSERT(src.rows() && src.cols_no_bias());
 			NNTL_ASSERT(dest.rows() < src.rows());
 			NNTL_ASSERT(src.cols_no_bias() < dest.cols_no_bias());
-			//NNTL_ASSERT(!dest.emulatesBiases() || dest.test_biases_ok());
-			NNTL_ASSERT(!src.emulatesBiases() || src.test_biases_ok());
+			//NNTL_ASSERT(!dest.emulatesBiases() || dest.test_biases_strict());
+			NNTL_ASSERT(!src.emulatesBiases() || src.test_biases_strict());
 
 			m_threads.run([&dest, &src, this](const par_range_t& pr) {
 				const auto colBeg = static_cast<vec_len_t>(pr.offset());
 				get_self().mTilingUnroll_seqwrite_st(src, dest, colBeg, colBeg + static_cast<vec_len_t>(pr.cnt()));
 			}, dest.cols_no_bias());
 
-			//NNTL_ASSERT(!dest.emulatesBiases() || dest.test_biases_ok());
-			NNTL_ASSERT(!src.emulatesBiases() || src.test_biases_ok());
+			//NNTL_ASSERT(!dest.emulatesBiases() || dest.test_biases_strict());
+			NNTL_ASSERT(!src.emulatesBiases() || src.test_biases_strict());
 		}
 		//sequential reading version, firstCol and _lastCol applies to src matrix
 		void mTilingUnroll_seqread_st(const realmtx_t& src, realmtx_t& dest, const vec_len_t firstCol = 0, const vec_len_t _lastCol = 0)const noexcept {
@@ -1978,8 +1987,8 @@ namespace math {
 			NNTL_ASSERT(src.rows() && src.cols_no_bias());
 			NNTL_ASSERT(dest.rows() < src.rows());
 			NNTL_ASSERT(src.cols_no_bias() < dest.cols_no_bias());
-			//NNTL_ASSERT(firstCol != 0 || _lastCol != 0 || !dest.emulatesBiases() || dest.test_biases_ok());
-			NNTL_ASSERT(firstCol != 0 || _lastCol != 0 || !src.emulatesBiases() || src.test_biases_ok());
+			//NNTL_ASSERT(firstCol != 0 || _lastCol != 0 || !dest.emulatesBiases() || dest.test_biases_strict());
+			NNTL_ASSERT(firstCol != 0 || _lastCol != 0 || !src.emulatesBiases() || src.test_biases_strict());
 
 			const vec_len_t n = src.cols_no_bias();
 			const vec_len_t lastCol = _lastCol ? _lastCol : n;
@@ -2013,8 +2022,8 @@ namespace math {
 					pD = pDFirst;
 				}
 			}
-			//NNTL_ASSERT(firstCol != 0 || _lastCol != 0 || !dest.emulatesBiases() || dest.test_biases_ok());
-			NNTL_ASSERT(firstCol != 0 || _lastCol != 0 || !src.emulatesBiases() || src.test_biases_ok());
+			//NNTL_ASSERT(firstCol != 0 || _lastCol != 0 || !dest.emulatesBiases() || dest.test_biases_strict());
+			NNTL_ASSERT(firstCol != 0 || _lastCol != 0 || !src.emulatesBiases() || src.test_biases_strict());
 		}
 		void mTilingUnroll_seqread_mt(const realmtx_t& src, realmtx_t& dest)noexcept {
 			NNTL_ASSERT(!src.empty() && !dest.empty());
@@ -2023,16 +2032,16 @@ namespace math {
 			NNTL_ASSERT(dest.rows() && dest.cols_no_bias());
 			NNTL_ASSERT(dest.rows() < src.rows());
 			NNTL_ASSERT(src.cols_no_bias() < dest.cols_no_bias());
-			NNTL_ASSERT(!src.emulatesBiases() || src.test_biases_ok());
-			//NNTL_ASSERT(!dest.emulatesBiases() || dest.test_biases_ok());
+			NNTL_ASSERT(!src.emulatesBiases() || src.test_biases_strict());
+			//NNTL_ASSERT(!dest.emulatesBiases() || dest.test_biases_strict());
 
 			m_threads.run([&src, &dest, this](const par_range_t& pr) {
 				const auto colBeg = static_cast<vec_len_t>(pr.offset());
 				get_self().mTilingUnroll_seqread_st(src, dest, colBeg, colBeg + static_cast<vec_len_t>(pr.cnt()));
 			}, src.cols_no_bias());
 
-			NNTL_ASSERT(!src.emulatesBiases() || src.test_biases_ok());
-			//NNTL_ASSERT(!dest.emulatesBiases() || dest.test_biases_ok());
+			NNTL_ASSERT(!src.emulatesBiases() || src.test_biases_strict());
+			//NNTL_ASSERT(!dest.emulatesBiases() || dest.test_biases_strict());
 		}
 
 	};

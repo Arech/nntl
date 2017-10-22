@@ -42,6 +42,8 @@ namespace nntl {
 	//special marks for type checking of input and output layers
 	struct m_layer_input {};
 	struct m_layer_output {};
+	struct m_layer_gate {};
+	//struct m_layer_tolerates_no_biases {};//marks that a layer doesn't require a bias column to perform fprop/bprop correctly. (LI)
 
 	//this class marks a layer as learnable. It must provide get_weights/set_weights/reinit_weights(), bLayerIsLinear()/setLayerLinear()
 	// and get_gradWorks() functions,
@@ -49,14 +51,42 @@ namespace nntl {
 	struct m_layer_learnable {};
 
 	template<typename LayerT>
-	struct is_layer_learnable : public ::std::is_base_of<m_layer_learnable, LayerT> {};
+	using is_layer_learnable = ::std::is_base_of<m_layer_learnable, LayerT>;
 
 	template<typename LayerT>
-	struct is_layer_output : public ::std::is_base_of<m_layer_output, LayerT> {};
+	using is_layer_output = ::std::is_base_of<m_layer_output, LayerT>;
 
 	template<typename LayerT>
-	struct is_layer_input : public ::std::is_base_of<m_layer_input, LayerT> {};
+	using is_layer_input = ::std::is_base_of<m_layer_input, LayerT>;
 
+	template<typename LayerT>
+	using is_layer_gate = ::std::is_base_of<m_layer_gate, LayerT>;
+
+	//////////////////////////////////////////////////////////////////////////
+	template <typename T, typename = int>
+	struct Has_bLayerToleratesNoBiases : std::false_type { };
+
+	template <typename T>
+	struct Has_bLayerToleratesNoBiases <T, decltype((void)T::bLayerToleratesNoBiases, 0)> : std::true_type { };
+
+
+	template< class, class = ::std::void_t<> >
+	struct layer_tolerates_no_biases : ::std::false_type { };
+	template< class T >
+	struct layer_tolerates_no_biases<T, ::std::void_t<decltype((void)T::bLayerToleratesNoBiases, 0)>>
+		: ::std::integral_constant<bool, T::bLayerToleratesNoBiases>
+	{
+		//static_assert(::std::is_same<bool, T::bLayerToleratesNoBiases>::value, "");
+	};
+
+	template< class, class = ::std::void_t<> >
+	struct layer_has_trivial_bprop : ::std::false_type { };
+	template< class T >
+	struct layer_has_trivial_bprop<T, ::std::void_t<decltype((void)T::bLayerHasTrivialBProp, 0)>>
+		: ::std::integral_constant<bool, T::bLayerHasTrivialBProp>
+	{
+		//static_assert(::std::is_same<bool, T::bLayerHasTrivialBProp>::value, "");
+	};
 
 	//when a layer is derived from this class, it is expected to be used inside of some layer_pack_* objects and it
 	// doesn't have a neurons count specified in constructor. Instead, compound layer (or it's support objects) specifies
@@ -65,12 +95,24 @@ namespace nntl {
 	struct m_layer_autoneurons_cnt {};
 
 	namespace _impl {
+		//this definition of m_prop_input_marker<> strips away information about LT
+		template<typename RealT> struct _not_from_IL {
+			typedef RealT real_t;
+		};
+		template<typename RealT> struct _from_IL : m_layer_input {
+			typedef RealT real_t;
+		};
+		template<typename LT>
+		using m_prop_input_marker = ::std::conditional_t<is_layer_input<LT>::value
+			, _from_IL<typename LT::real_t>
+			, _not_from_IL<typename LT::real_t>
+		>;
 
-		template< class, class = ::std::void_t<> >
-		struct m_prop_input_marker { };
-		// specialization recognizes types derived from m_layer_input
-		template< class T >
-		struct m_prop_input_marker<T, ::std::void_t<typename ::std::enable_if< ::std::is_base_of<m_layer_input,T>::value >::type > > : m_layer_input {};
+		template<typename T>
+		using is_m_prop_input_marker = ::std::disjunction<
+			::std::is_base_of<_not_from_IL<typename T::real_t>,T>
+			, ::std::is_base_of<_from_IL<typename T::real_t>, T>
+		>;
 
 		//////////////////////////////////////////////////////////////////////////
 		class init_layer_index {
@@ -141,7 +183,7 @@ namespace nntl {
 			template<typename PHLT>
 			::std::enable_if_t<is_PHL<PHLT>::value> operator()(PHLT& phl)noexcept {
 				static_assert(::std::is_base_of<_i_layer<PHLT::phl_original_t::real_t>, PHLT::phl_original_t>::value, "Each layer must derive from i_layer");
-				static_assert(!::std::is_base_of<m_layer_input, PHLT::phl_original_t>::value && !::std::is_base_of<m_layer_output, PHLT::phl_original_t>::value,
+				static_assert(!is_layer_input<PHLT::phl_original_t>::value && !is_layer_output<PHLT::phl_original_t>::value,
 					"No input/output layers is allowed within _LPH");
 				
 				NNTL_ASSERT(m_pPHLCheckStorage && phl.coord.m_count && phl.coord.m_offset < _incNeurons && (phl.coord.m_offset + phl.coord.m_count) <= _incNeurons);
@@ -169,7 +211,6 @@ namespace nntl {
 			}
 		};
 
-
 		//////////////////////////////////////////////////////////////////////////
 		// This structure is passed to a _i_layer::init() during initialization phase.
 		// OUT marks variables that should be filled/returned by a layer if applicable. Most of this variables are used to
@@ -178,6 +219,7 @@ namespace nntl {
 		template<typename CommonNnData>
 		struct _layer_init_data : public math::smatrix_td {
 			typedef CommonNnData common_data_t;
+			typedef typename CommonNnData::real_t real_t;
 
 			// "IN" marks variables that are passed to init() function, "OUT" marks output from init()
 
@@ -228,15 +270,6 @@ namespace nntl {
 
 			IN unsigned nTiledTimes;
 
-			IN bool bDropSamplesMightBeCalled; //this flag allows the layer to prepare for future drop_samples() calls
-			IN bool bActivationsShareSpace; //This flag indicates that the layer's activation matrix (that is given by pNewActivationStorage)
-			//lies next to some other (activation) matrices in memory, therefore layer must NOT touch a bias column in all cases except it
-			//was ordered by a call to drop_samples(...,true) (applies to gating layers - the only type of layers now, that can
-			// change the bias column)
-			// Be aware, that the fact that the pNewActivationStorage was passed to init() does NOT always mean bActivationsShareSpace will be true
-			// Consider layer_pack_tile - it substitutes activations for the inner layer, but that never means that 
-			// bActivationsShareSpace will be true for that layer
-
 			OUT bool bHasLossAddendum;//to be set by layer.init()
 			OUT bool bOutputDifferentDuringTraining;//set by layer.init() to note that the layer output (fprop results)
 			// differs in the training and testing mode for the same data_x and parameters (for example, due to a dropout)
@@ -249,21 +282,19 @@ namespace nntl {
 			}
 
 		protected:
-			void _clean(const bool bDropSamplesMBC = false, const bool bActShareSp = false, const unsigned nTT = 1)noexcept {
+			void _clean(const unsigned nTT = 1)noexcept {
 				maxMemFPropRequire = 0;
 				maxMemTrainingRequire = 0;
 				max_dLdA_numel = 0;
 				nParamsToLearn = 0;
 				nTiledTimes = nTT;
 				
-				bDropSamplesMightBeCalled = bDropSamplesMBC;
-				bActivationsShareSpace = bActShareSp;
 				bHasLossAddendum = false;
 				bLossAddendumDependsOnActivations = false;
 				bOutputDifferentDuringTraining = false;
 			}
 			void _clean(const _layer_init_data& o)noexcept {
-				_clean(o.bDropSamplesMightBeCalled, o.bActivationsShareSpace, o.nTiledTimes);
+				_clean(o.nTiledTimes);
 			}
 			
 		public:
@@ -272,11 +303,11 @@ namespace nntl {
 			void clean_using(const _layer_init_data& o)noexcept {
 				_clean(o);
 			}
-			void clean_using(const bool bDropSamplesMBC = false, const bool bActShareSp = false)noexcept {
-				_clean(bDropSamplesMBC, bActShareSp, 1);
+			void clean_using()noexcept {
+				_clean();
 			}
 			void clean_passing(const _layer_init_data& o)noexcept {
-				_clean(false, false, o.nTiledTimes);
+				_clean(o.nTiledTimes);
 			}
 
 			//used by compound layers to gather data from layers encapsulated into them.

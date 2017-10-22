@@ -709,6 +709,14 @@ void test_mrwOr_perf(vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 	STDCOUTL("**** testing mrwOr() variations over " << rowsCnt << "x" << colsCnt << " matrix (" << realmtx_t::sNumel(rowsCnt, colsCnt) << " elements) ****");
 	constexpr unsigned maxReps = TEST_PERF_REPEATS_COUNT;
 	realmtx_t A(rowsCnt, colsCnt);
+	{
+		typedef math::real_t_limits<real_t>::similar_FWI_t similar_FWI_t;
+		typedef math::smatrix<similar_FWI_t> similar_FWI_mtx_t;
+
+		similar_FWI_mtx_t sM(rowsCnt, colsCnt);
+		ASSERT_EQ(A.byte_size(), sM.byte_size());
+	}
+
 	::std::vector<real_t> vec_test(rowsCnt);
 	ASSERT_TRUE(!A.isAllocationFailed());
 	iM.preinit(A.numel());

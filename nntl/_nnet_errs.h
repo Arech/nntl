@@ -54,6 +54,7 @@ namespace nntl {
 			CantInitializeIRng,
 			CantInitializeObserver,
 			CantInitializeGradWorks,
+			CantInitializeActFunc,
 			CantInitializeWeights,
 			CantInitializePAB,
 			NNDiverged,
@@ -80,6 +81,7 @@ namespace nntl {
 			case CantInitializeIRng: return NNTL_STRING("Cant initialize iRng interface");
 			case CantInitializeObserver: return NNTL_STRING("Cant initialize observer");
 			case CantInitializeGradWorks: return NNTL_STRING("Cant initialize grad_works object");
+			case CantInitializeActFunc: return NNTL_STRING("Cant initialize activation function");
 			case CantInitializeWeights: return NNTL_STRING("Weights initialization failed");
 			case CantInitializePAB: return NNTL_STRING("Activations penalizer initialization failed");
 			case NNDiverged: return NNTL_STRING("NN diverged! (Training loss value surpassed the threshold from opts.divergenceCheckThreshold())");

@@ -74,6 +74,18 @@ namespace nntl {
 
 		//////////////////////////////////////////////////////////////////////////
 
+		//using designated function instead of operator= to prevent accidential use
+		bool dupe(train_data& td)const noexcept {
+			mtxdef_t trx, trY, tx, ty;
+			if (!trx.cloneFrom(m_train_x)) return false;
+			if (!trY.cloneFrom(m_train_y)) return false;
+			if (!tx.cloneFrom(m_test_x)) return false;
+			if (!ty.cloneFrom(m_test_y)) return false;
+
+			return td.absorb(::std::move(trx), ::std::move(trY), ::std::move(tx), ::std::move(ty));
+		}
+
+		//////////////////////////////////////////////////////////////////////////
 		bool operator==(const train_data& rhs)const noexcept {
 			return m_train_x == rhs.m_train_x && m_train_y == rhs.m_train_y && m_test_x == rhs.m_test_x && m_test_y == rhs.m_test_y;
 		}
@@ -83,13 +95,15 @@ namespace nntl {
 		const mtxdef_t& test_x()const noexcept { return m_test_x; }
 		const mtxdef_t& test_y()const noexcept { return m_test_y; }
 
-		mtxdef_t& train_x()noexcept { return m_train_x; }
+		/*mtxdef_t& train_x()noexcept { return m_train_x; }
 		mtxdef_t& train_y()noexcept { return m_train_y; }
 		mtxdef_t& test_x()noexcept { return m_test_x; }
-		mtxdef_t& test_y()noexcept { return m_test_y; }
+		mtxdef_t& test_y()noexcept { return m_test_y; }*/
 
 		mtxdef_t& train_x_mutable() noexcept { return m_train_x; }
 		mtxdef_t& train_y_mutable() noexcept { return m_train_y; }
+		mtxdef_t& test_x_mutable() noexcept { return m_test_x; }
+		mtxdef_t& test_y_mutable() noexcept { return m_test_y; }
 
 		bool empty()const noexcept {
 			return m_train_x.empty() || m_train_y.empty() || m_test_x.empty() || m_test_y.empty();
@@ -99,8 +113,8 @@ namespace nntl {
 			//, const bool noBiasEmulationNecessary=false)noexcept {
 			
 			if (!absorbsion_will_succeed(_train_x, _train_y,_test_x,_test_y))  return false;
-			NNTL_ASSERT(_train_x.test_biases_ok());
-			NNTL_ASSERT(_test_x.test_biases_ok());
+			NNTL_ASSERT(_train_x.test_biases_strict());
+			NNTL_ASSERT(_test_x.test_biases_strict());
 
 			m_train_x = ::std::move(_train_x);
 			m_train_y = ::std::move(_train_y);

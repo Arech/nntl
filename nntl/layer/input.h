@@ -79,14 +79,15 @@ namespace nntl {
 			return *m_pActivations;
 		}
 		const realmtx_t* get_activations_storage()const noexcept { return m_pActivations; }
-		const mtx_size_t get_activations_size()const noexcept { 
+		mtx_size_t get_activations_size()const noexcept { 
 			NNTL_ASSERT(m_pActivations);
 			return m_pActivations->size();
 		}
-		const bool is_activations_shared()const noexcept {
-			const auto r = _base_class::is_activations_shared();
-			NNTL_ASSERT(!r || m_activations.bDontManageStorage());//shared activations can't manage their own storage
-			return r;
+		static constexpr bool is_activations_shared()noexcept {
+			return true;//input layer doesn't manage activation matrix
+// 			const auto r = _base_class::is_activations_shared();
+// 			NNTL_ASSERT(!r || m_activations.bDontManageStorage());//shared activations can't manage their own storage
+// 			return r;
 		}
 
 		ErrorCode init(_layer_init_data_t& lid)noexcept {
@@ -108,10 +109,10 @@ namespace nntl {
 		}
 
 		void fprop(const realmtx_t& data_x)noexcept {
-			auto& iI = get_self().get_iInspect();
-			iI.fprop_begin(get_self().get_layer_idx(),data_x, get_self().get_common_data().is_training_mode());
+			auto& iI = get_iInspect();
+			iI.fprop_begin(get_layer_idx(),data_x, get_common_data().is_training_mode());
 
-			NNTL_ASSERT(data_x.test_biases_ok());
+			NNTL_ASSERT(data_x.test_biases_strict());
 			m_pActivations = &data_x;
 
 			iI.fprop_activations(*m_pActivations);
@@ -120,31 +121,18 @@ namespace nntl {
 		}
 
 		template <typename LowerLayer>
-		const unsigned bprop(realmtx_t& dLdA, const LowerLayer& lowerLayer, realmtx_t& dLdAPrev)noexcept {
+		unsigned bprop(realmtx_t& dLdA, const LowerLayer& lowerLayer, realmtx_t& dLdAPrev)noexcept {
+			NNTL_ASSERT(!"shouldn't be in input_layer::bprop");
 			NNTL_ASSERT(m_bActivationsValid);
 			m_bActivationsValid = false;
-			//auto& iI = get_self().get_iInspect();
-			//iI.bprop_begin(get_self().get_layer_idx(), dLdA);
+			//auto& iI = get_iInspect();
+			//iI.bprop_begin(get_layer_idx(), dLdA);
 			// iI.bprop_finaldLdA(dLdA);
 
 			//iI.bprop_end(dLdAPrev);
 			return 1;
 		}
 
-		static constexpr bool is_trivial_drop_samples()noexcept {
-			static_assert(false, "layer_input doesn't support the drop_samples()");
-			return false;
-		}
-
-		static constexpr void left_after_drop_samples(const numel_cnt_t nNZElems)noexcept {
-			NNTL_UNREF(nNZElems);
-		}
-
-		void drop_samples(const realmtx_t& mask, const bool bBiasesToo, const numel_cnt_t nNZElems)noexcept {
-			NNTL_UNREF(mask); NNTL_UNREF(bBiasesToo); NNTL_UNREF(nNZElems);
-			static_assert(false, "layer_input doesn't support the drop_samples()");
-		}
-		
 		//should return true, if the layer has a value to add to Loss function value (there's some regularizer attached)
 		constexpr const bool hasLossAddendum()const noexcept { return false; }
 
@@ -153,7 +141,7 @@ namespace nntl {
 		void _preinit_layer(_impl::init_layer_index& ili, const neurons_count_t inc_neurons_cnt)noexcept {
 			NNTL_ASSERT(0 == inc_neurons_cnt);
 			_base_class::_preinit_layer(ili, inc_neurons_cnt);
-			NNTL_ASSERT(0 == get_self().get_layer_idx());
+			NNTL_ASSERT(0 == get_layer_idx());
 		}
 	};
 

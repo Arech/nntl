@@ -117,14 +117,30 @@ namespace nntl {
 			}
 
 			void _dropout_saveActivations(const realmtx_t& curAct)noexcept {
+				NNTL_ASSERT(bDropout());
 				NNTL_ASSERT(curAct.size_no_bias() == m_origActivations.size());
 				const auto c = curAct.copy_data_skip_bias(m_origActivations);
 				NNTL_ASSERT(c);
 			}
 			void _dropout_restoreActivations(realmtx_t& Act)const noexcept {
+				NNTL_ASSERT(bDropout());
 				NNTL_ASSERT(Act.size_no_bias() == m_origActivations.size());
 				const auto c = m_origActivations.copy_data_skip_bias(Act);
 				NNTL_ASSERT(c);
+			}
+
+			template<typename CommonDataT>
+			bool _dropout_has_original_activations(const CommonDataT& CD) const noexcept {
+				return (bDropoutWorksAtEvaluationToo || CD.is_training_mode()) && bDropout();
+			}
+
+			const realmtxdef_t& _dropout_get_original_activations()const noexcept {
+				NNTL_ASSERT(bDropout());
+				NNTL_ASSERT(!m_origActivations.empty() && !m_origActivations.emulatesBiases());
+#ifdef NNTL_AGGRESSIVE_NANS_DBG_CHECK
+				NNTL_ASSERT(m_origActivations.test_noNaNs());
+#endif // NNTL_AGGRESSIVE_NANS_DBG_CHECK
+				return m_origActivations;
 			}
 
 			//this function restores zeros (dropped out values) and a proper scaling of dL/dA as well as undoes the scaling
@@ -133,7 +149,7 @@ namespace nntl {
 			// 		void _dropout_restoreScaling(realmtx_t& dLdA, realmtx_t& activations, iMathT& iM, iInspectT& _iI)noexcept {
 			template<typename CommonDataT>
 			void _dropout_restoreScaling(realmtx_t& dLdA, realmtx_t& activations, const CommonDataT& CD)noexcept {
-				NNTL_ASSERT(bDropout());
+				NNTL_ASSERT(bDropout() && CD.is_training_mode());
 				NNTL_ASSERT(m_dropoutMask.size() == dLdA.size());
 				NNTL_ASSERT(m_dropoutMask.size() == m_origActivations.size());
 

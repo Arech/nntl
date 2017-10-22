@@ -51,8 +51,8 @@ void mTilingUnroll_ET(const realmtx_t& src, realmtx_t& dest)noexcept {
 	NNTL_ASSERT(src.rows() && (src.cols() > static_cast<vec_len_t>(src.emulatesBiases())));
 	NNTL_ASSERT(dest.rows() < src.rows());
 	NNTL_ASSERT(src.cols_no_bias() < dest.cols_no_bias());
-	NNTL_ASSERT(!dest.emulatesBiases() || dest.test_biases_ok());
-	NNTL_ASSERT(!src.emulatesBiases() || src.test_biases_ok());
+	NNTL_ASSERT(!dest.emulatesBiases() || dest.test_biases_strict());
+	NNTL_ASSERT(!src.emulatesBiases() || src.test_biases_strict());
 
 	const vec_len_t m = dest.rows();
 	const auto km = src.rows();
@@ -74,8 +74,8 @@ void mTilingUnroll_ET(const realmtx_t& src, realmtx_t& dest)noexcept {
 		}
 	}
 
-	NNTL_ASSERT(!dest.emulatesBiases() || dest.test_biases_ok());
-	NNTL_ASSERT(!src.emulatesBiases() || src.test_biases_ok());
+	NNTL_ASSERT(!dest.emulatesBiases() || dest.test_biases_strict());
+	NNTL_ASSERT(!src.emulatesBiases() || src.test_biases_strict());
 }
 
 
@@ -97,8 +97,8 @@ void mTilingRoll_ET(const realmtx_t& src, realmtx_t& dest)noexcept {
 	NNTL_ASSERT(dest.rows() && (dest.cols() > static_cast<vec_len_t>(dest.emulatesBiases())));
 	NNTL_ASSERT(src.rows() < dest.rows());
 	NNTL_ASSERT(dest.cols_no_bias() < src.cols_no_bias());
-	NNTL_ASSERT(!src.emulatesBiases() || src.test_biases_ok());
-	NNTL_ASSERT(!dest.emulatesBiases() || dest.test_biases_ok());
+	NNTL_ASSERT(!src.emulatesBiases() || src.test_biases_strict());
+	NNTL_ASSERT(!dest.emulatesBiases() || dest.test_biases_strict());
 
 	const vec_len_t m = src.rows();
 	const auto km = dest.rows();
@@ -120,8 +120,8 @@ void mTilingRoll_ET(const realmtx_t& src, realmtx_t& dest)noexcept {
 		}
 	}
 
-	NNTL_ASSERT(!src.emulatesBiases() || src.test_biases_ok());
-	NNTL_ASSERT(!dest.emulatesBiases() || dest.test_biases_ok());
+	NNTL_ASSERT(!src.emulatesBiases() || src.test_biases_strict());
+	NNTL_ASSERT(!dest.emulatesBiases() || dest.test_biases_strict());
 }
 
 real_t ewSumProd_ET(const realmtx_t& A, const realmtx_t& B)noexcept {

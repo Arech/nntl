@@ -39,20 +39,19 @@ namespace nntl {
 	class _layer_output 
 		: public m_layer_output
 		, public m_layer_learnable
-		, public _impl::_act_wrap<FinalPolymorphChild, typename GradWorks::interfaces_t, ActivFunc
-		//, _impl::_No_Dropout_at_All<typename GradWorks::real_t>
-		>
+		, public _impl::_act_wrap<FinalPolymorphChild, typename GradWorks::interfaces_t, ActivFunc>
 	{
 	private:
-		typedef _impl::_act_wrap<FinalPolymorphChild, typename GradWorks::interfaces_t, ActivFunc
-		//	, _impl::_No_Dropout_at_All<typename GradWorks::real_t>
-		> _base_class_t;
+		typedef _impl::_act_wrap<FinalPolymorphChild, typename GradWorks::interfaces_t, ActivFunc> _base_class_t;
 
 	public:
-		static_assert(::std::is_base_of<activation::_i_function<real_t, Weights_Init_t>, Activation_t>::value, "ActivFunc template parameter should be derived from activation::_i_function");
+		//seems like a bug in MSVC, it can't reference ActivFunc::bFIsZeroStable
+		//static_assert(::std::is_base_of<activation::_i_function<real_t, Weights_Init_t, ActivFunc::bFIsZeroStable>, ActivFunc>::value, "ActivFunc template parameter should be derived from activation::_i_function");
+
+		static_assert(::std::is_base_of<activation::_i_function<real_t, Weights_Init_t, true>, ActivFunc>::value
+			|| ::std::is_base_of<activation::_i_function<real_t, Weights_Init_t, false>, ActivFunc>::value, "ActivFunc template parameter should be derived from activation::_i_function");
+
 		static_assert(bActivationForOutput, "ActivFunc template parameter should be derived from activation::_i_activation_loss");
-// 		static_assert(is_dummy_dropout<Dropout_t>::value, "WTF? There must be no dropout!");
-// 		static_assert(!layer_has_dropout<self_t>::value, "WTF? There must be no dropout!");
 
 		typedef GradWorks grad_works_t;
 		static_assert(::std::is_base_of<_impl::_i_grad_works<real_t>, grad_works_t>::value, "GradWorks template parameter should be derived from _i_grad_works");
@@ -147,7 +146,7 @@ namespace nntl {
 		//should be called after assembling layers into layer_pack, - it initializes _incoming_neurons_cnt
 		bool set_weights(realmtx_t&& W)noexcept {
 			if (W.empty() || W.emulatesBiases() || (W.cols() != get_incoming_neurons_cnt() + 1)
-				|| W.rows() != get_self().get_neurons_cnt())
+				|| W.rows() != get_neurons_cnt())
 			{
 				NNTL_ASSERT(!"Wrong weight matrix passed!");
 				return false;
@@ -171,18 +170,20 @@ namespace nntl {
 
 			auto ec = _base_class_t::init(lid);
 			if (ErrorCode::Success != ec) return ec;
-
+			
 			NNTL_ASSERT(!m_weights.emulatesBiases());
-			if (m_bWeightsInitialized) {
+			if (m_bWeightsInitialized  && mtx_size_t(get_neurons_cnt(), get_incoming_neurons_cnt() + 1) == m_weights.size()) {
 				//just double check everything is fine
-				NNTL_ASSERT(get_self().get_neurons_cnt() == m_weights.rows());
-				NNTL_ASSERT(get_self().get_incoming_neurons_cnt() + 1 == m_weights.cols());
 				NNTL_ASSERT(!m_weights.empty());
 			} else {
+				NNTL_ASSERT(!m_bWeightsInitialized);//if this assert has fired, then you've tried to use incorrectly sized
+				//weight matrix. It'll be handled here, so you may safely skip the assert, but you have to know, it was a bad idea.
+				m_weights.clear();
+
 				//TODO: initialize weights from storage for nn eval only
 
 				// initializing
-				if (!m_weights.resize(get_self().get_neurons_cnt(), get_incoming_neurons_cnt() + 1)) return ErrorCode::CantAllocateMemoryForWeights;
+				if (!m_weights.resize(get_neurons_cnt(), get_incoming_neurons_cnt() + 1)) return ErrorCode::CantAllocateMemoryForWeights;
 
 				if (!reinit_weights()) return ErrorCode::CantInitializeWeights;
 
@@ -195,13 +196,13 @@ namespace nntl {
 			// m_weights, m_dLdW - (m_neurons_cnt, get_incoming_neurons_cnt() + 1)
 			// m_activations - (m_max_fprop_batch_size, m_neurons_cnt) and unbiased matrices derived from m_activations - such as m_dLdZ
 			// prevActivations - size (m_training_batch_size, get_incoming_neurons_cnt() + 1)
-			get_self().get_iMath().preinit(::std::max({
+			get_iMath().preinit(::std::max({
 				m_weights.numel()
 				, _activation_tmp_mem_reqs()
-				, realmtx_t::sNumel(get_self().get_common_data().training_batch_size(), get_incoming_neurons_cnt() + 1)
+				, realmtx_t::sNumel(get_common_data().training_batch_size(), get_incoming_neurons_cnt() + 1)
 			}));
 
-			if (get_self().get_common_data().is_training_possible()) {
+			if (get_common_data().is_training_possible()) {
 				//There's no dLdA coming into the output layer, therefore leave max_dLdA_numel it zeroed
 				//lid.max_dLdA_numel = 0;
 				
@@ -209,8 +210,11 @@ namespace nntl {
 				lid.maxMemTrainingRequire = m_weights.numel();
 			}
 
-			if (!m_gradientWorks.init(get_self().get_common_data(), m_weights.size()))return ErrorCode::CantInitializeGradWorks;
+			if (!m_gradientWorks.init(get_common_data(), m_weights.size()))return ErrorCode::CantInitializeGradWorks;
 
+			//#BUGBUG current implementation of GW::hasLossAddendum could return false because LAs are currently disabled,
+			//however they could be enabled later. Seems like not a major bug, so I'll leave it to fix later.
+			//#SeeAlso LFC
 			lid.bHasLossAddendum = hasLossAddendum();
 
 			bSuccessfullyInitialized = true;
@@ -225,34 +229,36 @@ namespace nntl {
 
 		void initMem(real_t* ptr, numel_cnt_t cnt)noexcept {
 			NNTL_UNREF(cnt);
-			if (get_self().get_common_data().is_training_possible()) {
+			if (get_common_data().is_training_possible()) {
 				NNTL_ASSERT(ptr && cnt >= m_weights.numel());
 				m_dLdW.useExternalStorage(ptr, m_weights);
 				NNTL_ASSERT(!m_dLdW.emulatesBiases());
 			}
 		}
 
-		void on_batch_size_change()noexcept {
-			_base_class_t::on_batch_size_change();
-		}
+		/*void on_batch_size_change()noexcept {
+			_base_class_t::on_batch_size_change(nullptr);
+		}*/
 
 	protected:
-		void _fprop(const realmtx_t& prevActivations)noexcept {
+		void _outp_fprop(const realmtx_t& prevActivations)noexcept {
 #ifdef NNTL_AGGRESSIVE_NANS_DBG_CHECK
 			NNTL_ASSERT(prevActivations.test_noNaNs());
 #endif // NNTL_AGGRESSIVE_NANS_DBG_CHECK
+			NNTL_ASSERT(prevActivations.test_biases_strict());
+			NNTL_ASSERT(!m_activations.emulatesBiases());
 
-			auto& _iI = get_self().get_iInspect();
-			_iI.fprop_begin(get_self().get_layer_idx(), prevActivations, get_self().get_common_data().is_training_mode());
+			auto& _iI = get_iInspect();
+			_iI.fprop_begin(get_layer_idx(), prevActivations, get_common_data().is_training_mode());
 
-			NNTL_ASSERT(m_activations.rows() == get_self().get_common_data().get_cur_batch_size());
+			NNTL_ASSERT(m_activations.rows() == get_common_data().get_cur_batch_size());
 			NNTL_ASSERT(m_activations.rows() == prevActivations.rows());
 			NNTL_ASSERT(prevActivations.cols() == m_weights.cols());
 
 			//might be necessary for Nesterov momentum application
-			if (get_self().get_common_data().is_training_mode()) m_gradientWorks.pre_training_fprop(m_weights);
+			if (get_common_data().is_training_mode()) m_gradientWorks.pre_training_fprop(m_weights);
 
-			auto& iM = get_self().get_iMath();
+			auto& iM = get_iMath();
 			_iI.fprop_makePreActivations(m_weights, prevActivations);
 			iM.mMulABt_Cnb(prevActivations, m_weights, m_activations);
 
@@ -264,9 +270,10 @@ namespace nntl {
 			m_bActivationsValid = true;
 		}
 
-		void _cust_inspect(const realmtx_t& M)const noexcept { NNTL_UNREF(M); }
+		void _cust_inspect(const realmtx_t&)const noexcept { }
 
-		void _bprop(const realmtx_t& data_y, const realmtx_t& prevActivations, const bool bPrevLayerIsInput, realmtx_t& dLdAPrev)noexcept {
+		unsigned _outp_bprop(const realmtx_t& data_y, const realmtx_t& prevActivations, const bool bPrevLayerIsInput, realmtx_t& dLdAPrev)noexcept {
+			NNTL_ASSERT(prevActivations.test_biases_strict());
 			NNTL_ASSERT(m_bActivationsValid);
 			m_bActivationsValid = false;
 
@@ -275,23 +282,21 @@ namespace nntl {
 			NNTL_ASSERT(data_y.test_noNaNs());
 #endif // NNTL_AGGRESSIVE_NANS_DBG_CHECK
 
-			auto& _iI = get_self().get_iInspect();
-			_iI.bprop_begin(get_self().get_layer_idx(), data_y);
+			auto& _iI = get_iInspect();
+			_iI.bprop_begin(get_layer_idx(), data_y);
 			//_iI.bprop_finaldLdA(dLdA); //--doesn't apply here actually
 
 			data_y.assert_storage_does_not_intersect(dLdAPrev);
 			dLdAPrev.assert_storage_does_not_intersect(m_dLdW);
-			NNTL_ASSERT(get_self().get_common_data().is_training_mode());
+			NNTL_ASSERT(get_common_data().is_training_mode());
 			NNTL_ASSERT(!m_dLdW.emulatesBiases());
 			NNTL_ASSERT(m_activations.size() == data_y.size());
-			//NNTL_ASSERT(m_dLdZ.size() == m_activations.size());
 			NNTL_ASSERT(m_dLdW.size() == m_weights.size());
-			NNTL_ASSERT(bPrevLayerIsInput || prevActivations.emulatesBiases());//input layer in batch mode may have biases included, but no emulatesBiases() set
-			NNTL_ASSERT(m_activations.rows() == get_self().get_common_data().get_cur_batch_size());
-			NNTL_ASSERT(mtx_size_t(get_self().get_common_data().get_cur_batch_size(), get_self().get_incoming_neurons_cnt() + 1) == prevActivations.size());
+			NNTL_ASSERT(m_activations.rows() == get_common_data().get_cur_batch_size());
+			NNTL_ASSERT(mtx_size_t(get_common_data().get_cur_batch_size(), get_incoming_neurons_cnt() + 1) == prevActivations.size());
 			NNTL_ASSERT(bPrevLayerIsInput || dLdAPrev.size() == prevActivations.size_no_bias());
 
-			auto& iM = get_self().get_iMath();
+			auto& iM = get_iMath();
 
 			//compute dL/dZ
 			_iI.bprop_predLdZOut(m_activations, data_y);
@@ -325,34 +330,18 @@ namespace nntl {
 			m_gradientWorks.apply_grad(m_weights, m_dLdW);
 
 			_iI.bprop_end(dLdAPrev);
+			return 1;
 		}
 	public:
 		template <typename LowerLayer>
 		void fprop(const LowerLayer& lowerLayer)noexcept {
 			static_assert(::std::is_base_of<_i_layer_fprop, LowerLayer>::value, "Template parameter LowerLayer must implement _i_layer");
-			NNTL_ASSERT(lowerLayer.get_activations().test_biases_ok());
-			get_self()._fprop(lowerLayer.get_activations());
-			NNTL_ASSERT(lowerLayer.get_activations().test_biases_ok());
+			get_self()._outp_fprop(lowerLayer.get_activations());
 		}		
 		template <typename LowerLayer>
-		const unsigned bprop(const realmtx_t& data_y, const LowerLayer& lowerLayer, realmtx_t& dLdAPrev)noexcept {
+		unsigned bprop(const realmtx_t& data_y, const LowerLayer& lowerLayer, realmtx_t& dLdAPrev)noexcept {
 			static_assert(::std::is_base_of<_i_layer_trainable, LowerLayer>::value, "Template parameter LowerLayer must implement _i_layer_trainable");
-			NNTL_ASSERT(lowerLayer.get_activations().test_biases_ok());
-			get_self()._bprop(data_y, lowerLayer.get_activations(), ::std::is_base_of<m_layer_input, LowerLayer>::value, dLdAPrev);
-			NNTL_ASSERT(lowerLayer.get_activations().test_biases_ok());
-			return 1;
-		}
-
-		static constexpr bool is_trivial_drop_samples()noexcept {
-			static_assert(false, "layer_output doesn't support the drop_samples()");
-			return false;
-		}
-		static constexpr void left_after_drop_samples(const numel_cnt_t nNZElems)noexcept {
-			NNTL_UNREF(nNZElems);
-		}
-		void drop_samples(const realmtx_t& mask, const bool bBiasesToo, const numel_cnt_t nNZElems)noexcept {
-			NNTL_UNREF(mask); NNTL_UNREF(bBiasesToo); NNTL_UNREF(nNZElems);
-			static_assert(false, "layer_output doesn't support the drop_samples()");
+			return get_self()._outp_bprop(data_y, lowerLayer.get_activations(), is_layer_input<LowerLayer>::value, dLdAPrev);
 		}
 		
 		//////////////////////////////////////////////////////////////////////////

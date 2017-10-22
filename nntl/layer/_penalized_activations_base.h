@@ -58,6 +58,8 @@ namespace nntl {
 			return (typename CommonDataT::real_t)(0);
 		}
 
+		static constexpr bool bAnyRequiresOnFprop = false;
+
 		template<typename CommonDataT>
 		static constexpr void _pab_fprop(const math::smatrix_deform<typename CommonDataT::real_t>& ThisActivations
 			, const CommonDataT& CD)noexcept {}
@@ -65,6 +67,14 @@ namespace nntl {
 		template<typename CommonDataT>
 		static constexpr void _pab_update_dLdA(const math::smatrix<typename CommonDataT::real_t>& dLdA
 			, const math::smatrix_deform<typename CommonDataT::real_t>& ThisActivations, CommonDataT& CD)noexcept{}
+
+		static constexpr bool bAnyDependsOnMany = false;
+		//bAnyRequiresDropSamples is set to true if any of loss_addendums depends on many elements to calculate derivative.
+		static constexpr bool bAnyRequiresDropSamples = false;
+
+		template<typename CommonDataT>
+		static constexpr void _pab_drop_samples(const math::smatrix_deform<typename CommonDataT::real_t>& finalActivations
+			, const CommonDataT& CD)noexcept {}
 	};
 #pragma warning(default : 4100)
 
@@ -150,7 +160,7 @@ namespace nntl {
 				}
 			});
 
-			if (bRestoreBiases) act.restore_biases();
+			act.restore_biases(bRestoreBiases);
 
 			return ret;
 		}
@@ -159,6 +169,8 @@ namespace nntl {
 
 		template<typename CommonDataT>
 		struct call_on_fprop {
+			typedef typename CommonDataT CommonData_t;
+
 			const realmtxdef_t& act;
 			const CommonDataT& CD;
 
@@ -173,21 +185,27 @@ namespace nntl {
 			template<typename LAT> ::std::enable_if_t<!LAT::calcOnFprop> operator()(LAT& )const noexcept {}
 		};
 
-	protected:
-
-		static constexpr bool bWorkOnFprop = tuple_utils::aggregate<::std::disjunction, loss_addendum::works_on_fprop, addendums_tuple_t>::value;
-		
-		template<typename CommonDataT, bool c = bWorkOnFprop>
-		::std::enable_if_t<!c> _pab_fprop(const realmtxdef_t& , const CommonDataT& )noexcept {}
-
-		template<typename CommonDataT, bool c = bWorkOnFprop>
-		::std::enable_if_t<c> _pab_fprop(const realmtxdef_t& ThisActivations, const CommonDataT& CD)noexcept {
+		template<typename Fnctr>
+		void _for_each_call_functor(const realmtxdef_t& ThisActivations, const typename Fnctr::CommonData_t& CD)noexcept {
 			//dropping const only to hide+restore biases
 			realmtxdef_t& act = const_cast<realmtxdef_t&>(ThisActivations);
-			NNTL_ASSERT(act.emulatesBiases());
+			//NNTL_ASSERT(act.emulatesBiases());//we may get a matrix without bias column here, that's ok
 			const auto bRestoreBiases = act.hide_biases();
-			tuple_utils::for_each_up(m_addendumsTuple, call_on_fprop<CommonDataT>(act, CD));
-			if (bRestoreBiases) act.restore_biases();
+			tuple_utils::for_each_up(m_addendumsTuple, Fnctr(act, CD));
+			act.restore_biases(bRestoreBiases);
+		}
+
+	protected:
+
+		//bAnyRequiresOnFprop is set to true if any of loss_addendums require on_fprop() call
+		static constexpr bool bAnyRequiresOnFprop = tuple_utils::aggregate<::std::disjunction, loss_addendum::works_on_fprop, addendums_tuple_t>::value;
+		
+		template<typename CommonDataT, bool c = bAnyRequiresOnFprop>
+		::std::enable_if_t<!c> _pab_fprop(const realmtxdef_t& , const CommonDataT& )noexcept {}
+
+		template<typename CommonDataT, bool c = bAnyRequiresOnFprop>
+		::std::enable_if_t<c> _pab_fprop(const realmtxdef_t& ThisActivations, const CommonDataT& CD)noexcept {
+			_for_each_call_functor<call_on_fprop<CommonDataT>>(ThisActivations, CD);
 		}
 
 		//#note: if we actually need to work with the output_layer, then there must be very special handling of this case because of how
@@ -205,14 +223,54 @@ namespace nntl {
 				}
 			});
 
-			if (bRestoreBiases) act.restore_biases();
+			act.restore_biases(bRestoreBiases);
 		}
 
-	public:
+		//////////////////////////////////////////////////////////////////////////
+		/*
+	private:
+		template<typename CommonDataT>
+		struct call_on_drop_samples {
+			typedef typename CommonDataT CommonData_t;
+
+			const realmtxdef_t& act;
+			const CommonDataT& CD;
+
+			call_on_drop_samples(const realmtxdef_t& a, const CommonDataT& _cd)noexcept : act(a), CD(_cd) {}
+
+			template<typename LAT>
+			nntl_static_warning("*** BEAWARE: some loss_addendum is configured to run on fprop() and requires handling of drop_samples(). It's on_fprop() is called twice for a single computation!")
+			::std::enable_if_t<LAT::dependsOnManyElements && LAT::calcOnFprop> operator()(LAT& la)const noexcept {
+// #ifndef NNTL_LA_I_WANT_SLOOOW
+// 				STDCOUTL("*** BEAWARE: some loss_addendum::" << la.getName << " is configured to run on fprop() and requires handling of drop_samples(). It is calculated twice!\n #define NNTL_LA_I_WANT_SLOOOW to get rid of this message or change architecture!");
+// #endif
+				if (la.bEnabled()) {
+					la.on_fprop(act, CD);
+				}
+			}
+			template<typename LAT> ::std::enable_if_t<!(LAT::dependsOnManyElements && LAT::calcOnFprop)> operator()(LAT&)const noexcept {}
+		};
+	protected:
+		static constexpr bool bAnyDependsOnMany = tuple_utils::aggregate<::std::disjunction, loss_addendum::depends_on_many, addendums_tuple_t>::value;
+
+		//bAnyRequiresDropSamples is set to true if any of loss_addendums depends on many elements to calculate derivative and
+		//it is calculated during fprop() phase. Then we must recalculate it
+		static constexpr bool bAnyRequiresDropSamples = tuple_utils::aggregate<::std::disjunction, loss_addendum::depends_on_many_and_on_fprop, addendums_tuple_t>::value;
+		//BTW, the code above is NOT the same as (bAnyDependsOnMany && bAnyRequiresOnFprop) !!!
+
+		template<typename CommonDataT, bool c = bAnyRequiresDropSamples>
+		::std::enable_if_t<!c> _pab_drop_samples(const realmtxdef_t&, const CommonDataT&)noexcept {}
+
+		template<typename CommonDataT, bool c = bAnyRequiresDropSamples>
+		::std::enable_if_t<c> _pab_drop_samples(const realmtxdef_t& finalActivations, const CommonDataT& CD)noexcept {
+			_for_each_call_functor<call_on_drop_samples<CommonDataT>>(finalActivations, CD);
+		}*/
+
 		//////////////////////////////////////////////////////////////////////////
 		//////////////////////////////////////////////////////////////////////////
 		// consider the following as an example of how to enable, setup and use a custom _i_loss_addendum derived class object.
 		/*
+	public:
 		DEPRECATED
 		typedef loss_addendum::L1<real_t> LA_L1_t;//for the convenience
 		typedef loss_addendum::L2<real_t> LA_L2_t;

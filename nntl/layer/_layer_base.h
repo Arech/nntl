@@ -60,11 +60,9 @@ namespace nntl {
 	template<typename Func, typename LayerT> inline
 		::std::enable_if_t<is_layer_pack<LayerT>::value> call_F_for_each_layer(Func&& F, LayerT& l)noexcept
 	{
-		//l.for_each_layer(::std::forward<Func>(F));
 		l.for_each_layer(F); //mustn't forward, because we'll be using F later!
 		
 		//must also call for the layer itself
-		//F(l);//not should do ::std::forward<Func>(F)(l); here ???
 		::std::forward<Func>(F)(l);//it's OK to cast to rvalue here if suitable, as we don't care what will happens with F after that.
 	}
 	template<typename Func, typename LayerT> inline
@@ -77,7 +75,6 @@ namespace nntl {
 	template<typename Func, typename LayerT> inline
 		::std::enable_if_t<is_layer_pack<LayerT>::value> call_F_for_each_layer_down(Func&& F, LayerT& l)noexcept
 	{
-		//::std::forward<Func>(F)(l);
 		F(l);//mustn't forward, we'll use it later
 		l.for_each_layer_down(::std::forward<Func>(F));//OK, last use
 	}
@@ -129,27 +126,19 @@ namespace nntl {
 		//Furthermore, DON'T ever change the activation matrix values from the ouside of the layer!
 		// Layer object expects it to be unchanged between fprop()/bprop() calls.
 		nntl_interface const realmtxdef_t& get_activations()const noexcept;
-		nntl_interface const mtx_size_t get_activations_size()const noexcept;
-		//shared activations implies that the bias column may hold not biases, but activations of some another layer
-		nntl_interface const bool is_activations_shared()const noexcept;
-
+		nntl_interface mtx_size_t get_activations_size()const noexcept;
+		
 		//essentially the same as get_activations(), however, it is allowed to call this function anytime to obtain the pointer
 		//However, if you are going to dereference the pointer, the same restrictions as for get_activations() applies.
 		//NOTE: It won't trigger assert if it's dereferenced in a wrong moment, therefore you'll get invalid values,
 		// so use it wisely only when you absolutely can't use the get_activations()
 		nntl_interface const realmtxdef_t* get_activations_storage()const noexcept;
-
-		//use it only if you really know what you're are doing and it won't hurt derivative calculation
-		//SOME LAYERS may NOT implement this function!
-		nntl_interface realmtxdef_t& _get_activations_mutable()const noexcept;
-
-	protected:
-		//see _layer_base::m_bIsDropSamplesMightBeCalled member comment
-		nntl_interface const bool is_drop_samples_mbc()const noexcept;
 	};
 
+/*
+//deprecated
 	template <typename RealT>
-	class _i_layer_gate : private _i_layer_td<RealT> {
+	class _i_layer_gate : private _i_layer_td<RealT>/ *, public m_layer_gate* / {
 	protected:
 		_i_layer_gate()noexcept {};
 		~_i_layer_gate()noexcept {};
@@ -160,9 +149,19 @@ namespace nntl {
 		_i_layer_gate& operator=(const _i_layer_gate& rhs) noexcept; // = delete; //-it should be `delete`d, but factory function won't work if it is
 
 	public:
+		//NB: gate is BINARY matrix
 		nntl_interface const realmtx_t& get_gate()const noexcept;
+		nntl_interface const realmtx_t* get_gate_storage()const noexcept;
+		//nntl_interface const real_t* get_bias_gate()const noexcept;
 		nntl_interface const vec_len_t get_gate_width()const noexcept;
 	};
+	
+	template<typename LayerT>
+	struct is_layer_gate : public ::std::is_base_of<_i_layer_gate<typename LayerT::real_t>, LayerT> {};
+
+	*/
+
+	//////////////////////////////////////////////////////////////////////////
 
 	// and the same for bprop(). Derives from _i_layer_fprop because it generally need it API
 	template <typename RealT>
@@ -193,24 +192,32 @@ namespace nntl {
 	public:
 		typedef _nnet_errs::ErrorCode ErrorCode;
 
-		// Each layer must define an alias for type of math interface and rng interface (and they must be the same for all layers)
-		//typedef .... iMath_t
-		//typedef .... iRng_t
-
 		//////////////////////////////////////////////////////////////////////////
 		// base interface
 		
 		// class constructor MUST have const char* pCustomName as the first parameter.
 		
-		// each call to own functions should go through get_self() to make polymorphyc function work
+		//shared activations implies that the bias column may hold not the biases, but activations of some another layer
+		//Therefore use such activation matrix only in proper context (biases of shared activations are valid only in
+		// contexts of fprop()/bprop() of upper layers).
+		//If the layer was given a pNewActivationStorage parameter in init/on_batch_size_change, it implies
+		//that the activations are shared.
+		nntl_interface bool is_activations_shared()const noexcept;
+
+		//use it only if you really know what you're are doing and it won't hurt derivatives calculation
+		//SOME LAYERS may NOT implement this function!
+		nntl_interface realmtxdef_t& _get_activations_mutable()const noexcept;
+
+		//////////////////////////////////////////////////////////////////////////
+		// Almost every call to layer's own functions should go through get_self() to make redefined in derived classes functions work.
 		nntl_interface auto get_self() const noexcept;
-		nntl_interface const layer_index_t get_layer_idx() const noexcept;
-		nntl_interface const neurons_count_t get_neurons_cnt() const noexcept;
+		nntl_interface layer_index_t get_layer_idx() const noexcept;
+		nntl_interface neurons_count_t get_neurons_cnt() const noexcept;
 
 		//For internal use only. DON'T call this function unless you know very well what you're doing
 		nntl_interface void _set_neurons_cnt(const neurons_count_t nc)noexcept;
 
-		nntl_interface const neurons_count_t get_incoming_neurons_cnt()const noexcept;
+		nntl_interface neurons_count_t get_incoming_neurons_cnt()const noexcept;
 		
 		//must obey to matlab variables naming convention
 		nntl_interface auto set_custom_name(const char* pCustName)noexcept;
@@ -222,6 +229,8 @@ namespace nntl {
 		//redefine in derived class in public scope. Array-style definition MUST be preserved.
 		//the _defName must be unique for each final layer class and mustn't be longer than sizeof(layer_type_id_t) (it's also used as a layer typeId)
 		static constexpr const char _defName[] = "_i_layer";
+		//#todo: this method of defining layer's name is ill. Should change it to something more workable.
+
 	public:
 		//returns layer type id based on layer's _defName
 		nntl_interface static constexpr layer_type_id_t get_layer_type_id()noexcept;
@@ -231,13 +240,17 @@ namespace nntl {
 		// inside of compound layers, should totally omit this parameter to break compilation.
 		// For the _layer_init_data_t parameter see the _impl::_layer_init_data<>.
 		template<typename _layer_init_data_t>
-		nntl_interface ErrorCode init(_layer_init_data_t& lid, real_t* pNewActivationStorage = nullptr)noexcept;
+		nntl_interface ErrorCode init(_layer_init_data_t& lid, real_t* pNewActivationStorage /*= nullptr*/)noexcept;
 		//If the layer was given a pNewActivationStorage (during the init() or on_batch_size_change()), then it MUST NOT touch a bit
 		// in the bias column of the activation storage during bprop()/fprop() and everywhere else.
 		// In general - if the layer allocates activation matrix by itself (when the pNewActivationStorage==nullptr),
-		//					then it also allocates and sets up biases. Also, during execution of
-		//					on_batch_size_change(), the layer has to restore its bias column, had the activation matrix been resized/deformed.
-		//					And that are the only things the layer is allowed to do with biases!
+		//					then it also allocates, sets up and manages biases keeping them in coherent state.
+		//					That means, that:
+		//					a) during on_batch_size_change() the layer has to restore its bias column, had the activation
+		//					matrix been resized/deformed and the layer is not under a gate
+		//					b) if the layer is under a gate, then it must copy gating mask to its biases during fprop()
+		//					c) it's a very good practice to place asserts that checks the biases of previous layer activation matrix
+		//					in fprop/bprop and layer's activation matrix on fprop() finish.
 		//			  - if the layer is given pNewActivationStorage, then it uses it supposing there's a space for a bias column,
 		//					however, layer must never touch data in that column.
 
@@ -250,7 +263,7 @@ namespace nntl {
 		// Resetting of biases is not required at this case, however.
 		// Layers, that should never be a part of other compound layers, should totally omit this parameter
 		// from function signature (not recommended use-case, however)
-		nntl_interface void on_batch_size_change(real_t*const pNewActivationStorage = nullptr)noexcept;
+		nntl_interface void on_batch_size_change(real_t*const pNewActivationStorage /*= nullptr*/)noexcept;
 		//If the layer was given a pNewActivationStorage (during the init() or on_batch_size_change()), then it MUST NOT touch a bit
 		// in the bias column of the activation storage during fprop() and everywhere else.
 		// For more information about how memory storage is organized, see discussion in _init_layers.h::_layer_init_data{}
@@ -263,36 +276,21 @@ namespace nntl {
 		//provides a temporary storage for a layer. It is guaranteed, that during fprop() or bprop() the storage
 		// can be modified only by the layer. However, it's not a persistent storage and layer mustn't rely on it
 		// to retain it's content between calls to fprop()/bprop().
-		// Compound layers (that call other's layers fprop()/bprop()) should use this storage with a great care.
-		// Function is guaranteed to be called if
-		// max(_layer_init_data::minMemFPropRequire,_layer_init_data::minMemBPropRequire) set to be >0 during init()
+		// Compound layers (that call other's layers fprop()/bprop()) should use this storage with a great care and make sure
+		// they offsets the memory pointer they pass to inner layers.
+		// Function is guaranteed to be called if any of {_layer_init_data::minMemFPropRequire,_layer_init_data::minMemBPropRequire}
+		// were set to non zero during init()
 		// cnt is guaranteed to be at least as big as max(minMemFPropRequire,minMemBPropRequire)
 		nntl_interface void initMem(real_t* ptr, numel_cnt_t cnt)noexcept;
 
-		//input layer should use slightly different specialization: void fprop(const realmtx_t& data_x)noexcept
+		// Forward propagation
 		template <typename LowerLayer>
 		nntl_interface void fprop(const LowerLayer& lowerLayer)noexcept;
-		// Layer MUST NOT touch a bit in the bias column of the activation storage during fprop()/bprop()
-		
-		// The drop_samples() function is used when someone from an outside wants to remove/set to zero some rows in
-		// the layer's activation matrix (gating layers are examples of such an use-case).
-		// If the drop_samples() was called, then the layer expects that the dLdA passed on subsequent bprop() call would have
-		// corresponding elements zeroed by the very same mask.
-		// mask is a single column array of current batch size (==m_activations.rows()).
-		// bBiasesToo controls whether the pMask should be applied to the bias column too. This var also sets
-		// activation matrix's m_bHoleyBiases flag to prevent false alarms of bias checking in debug builds
-		// Remember to do m_activations.set_biases() during first steps of fprop() if m_activations.isHoleyBiases() set
-		// nNZElems - is the number of nonzero entries in mask.
-		nntl_interface void drop_samples(const realmtx_t& mask, const bool bBiasesToo, const numel_cnt_t nNZElems)noexcept;
+		// Layer MUST NOT touch a bit in the bias column of the activation storage during fprop()/bprop() if the
+		// activation storage are shared.
+		//
+		// input layer should use a different variant: void fprop(const realmtx_t& data_x)noexcept
 
-		// If the only thing the drop_samples() do is it applies a mask to the activations, then return true from this function.
-		// This would allow to optimize away a call to the drop_samples() in some situations.
-		// If the drop_samples() does something more, return false. This will make drop_samples() call to always occur.
-		nntl_interface bool is_trivial_drop_samples()const noexcept;
-
-		//if drop_samples() should be called, but is_trivial_drop_samples() returns true, then this function is used to
-		//notify the layer about a new samples count.
-		nntl_interface void left_after_drop_samples(const numel_cnt_t nNZElems)noexcept;
 
 		// dLdA is the derivative of the loss function wrt this layer neuron activations.
 		// Size [batchSize x layer_neuron_cnt] (bias units ignored - their weights actually belongs to an upper layer
@@ -381,17 +379,13 @@ namespace nntl {
 		const char* m_customName;
 
 	protected:
-		//bool m_bTraining;
-		//bool m_bActivationsValid;
-
-	protected:
-		void init()noexcept { /*m_bActivationsValid = false;*/ }
-		void deinit()noexcept { /*m_bActivationsValid = false;*/ }
+		void init()noexcept {}
+		void deinit()noexcept {}
 
 	public:
 		//////////////////////////////////////////////////////////////////////////
 		~_cpolym_layer_base()noexcept {}
-		_cpolym_layer_base(const char* pCustName = nullptr)noexcept /*: m_bTraining(false),s m_bActivationsValid(false)*/ {
+		_cpolym_layer_base(const char* pCustName = nullptr)noexcept {
 			set_custom_name(pCustName);
 		}
 
@@ -459,12 +453,6 @@ namespace nntl {
 		bool m_bActivationsValid;
 
 	private: //shouldn't be updated from derived classes. Getter methords are provided
-		bool m_bIsSharedActivations;//taken from init()
-
-		bool m_bIsDropSamplesMightBeCalled;//taken from init(). This variable is for derived classes INTERNAL use only!
-		//It is NOT the same as statemed 'Are we to expect the activation matrix with removed samples (and probably biases too)?'
-		//For a gating class (such as LPG or LPHG) it shows whether they could have their .drop_samples() called by an some upped
-		// gating class. However, activations of these classes MAY contain zeroed samples due to their gates work.
 
 		//#todo this flag is probably worst possible solution, however we may need some mean to switch off nonlinearity in a run-time.
 		//Is there a better (non-branching when it's not necessary) solution available?
@@ -481,7 +469,6 @@ namespace nntl {
 		_layer_base(const neurons_count_t _neurons_cnt, const char* pCustomName=nullptr) noexcept 
 			: _base_class_t(pCustomName)
 			, m_layerIdx(0), m_neurons_cnt(_neurons_cnt), m_incoming_neurons_cnt(0), m_bActivationsValid(false)
-			, m_bIsSharedActivations(false), m_bIsDropSamplesMightBeCalled(false)
 			, m_bLayerIsLinear(false)
 		{};
 	
@@ -491,49 +478,46 @@ namespace nntl {
 		ErrorCode init(_layer_init_data_t& lid, real_t* pNewActivationStorage = nullptr)noexcept {
 			NNTL_UNREF(pNewActivationStorage);
 			_base_class_t::init();
+
 			m_bActivationsValid = false;
-			m_bIsSharedActivations = lid.bActivationsShareSpace;
-			m_bIsDropSamplesMightBeCalled = lid.bDropSamplesMightBeCalled;
 			set_common_data(lid.commonData);
 
-			get_self().get_iInspect().init_layer(get_self().get_layer_idx(), get_self().get_layer_name_str(), get_self().get_layer_type_id());
+			get_iInspect().init_layer(get_layer_idx(), get_self().get_layer_name_str(), get_self().get_layer_type_id());
 
 			return ErrorCode::Success;
 		}
 		void deinit() noexcept { 
 			m_bActivationsValid = false;
-			m_bIsSharedActivations = false;
-			m_bIsDropSamplesMightBeCalled = false;
 			clean_common_data();
 			_base_class_t::deinit();
 		}
 
-		const bool is_activations_shared()const noexcept { return m_bIsSharedActivations; }
-	//protected:
-		const bool is_drop_samples_mbc()const noexcept { return m_bIsDropSamplesMightBeCalled; }
+		void initMem(real_t* , numel_cnt_t )noexcept {}
 
 	public:
-		const layer_index_t& get_layer_idx() const noexcept { return m_layerIdx; }
-		const neurons_count_t get_neurons_cnt() const noexcept { 
+		layer_index_t get_layer_idx() const noexcept { 
+			NNTL_ASSERT(is_layer_input<self_t>::value || m_layerIdx);
+			return m_layerIdx;
+		}
+		neurons_count_t get_neurons_cnt() const noexcept { 
 			NNTL_ASSERT(m_neurons_cnt);
 			return m_neurons_cnt;
 		}
 		//for layers that need to calculate their neurons count in run-time (layer_pack_horizontal)
 		void _set_neurons_cnt(const neurons_count_t nc)noexcept {
 			NNTL_ASSERT(nc);
-			//NNTL_ASSERT(!m_neurons_cnt || nc==m_neurons_cnt);//to prevent double calls
-			NNTL_ASSERT(!m_neurons_cnt);//to prevent double calls
+			NNTL_ASSERT(!m_neurons_cnt || !"m_neurons_cnt has already been set!");
 			m_neurons_cnt = nc;
 		}
 
-		const neurons_count_t get_incoming_neurons_cnt()const noexcept { 
+		neurons_count_t get_incoming_neurons_cnt()const noexcept { 
 			NNTL_ASSERT(!m_layerIdx || m_incoming_neurons_cnt);//m_incoming_neurons_cnt will be zero in input layer (it has m_layerIdx==0)
 			return m_incoming_neurons_cnt;
 		}		
 
 		//returns a loss function summand, that's caused by this layer (for example, L2 regularizer adds term
 		// l2Coefficient*Sum(weights.^2) )
-		constexpr const real_t lossAddendum()const noexcept { return real_t(0.0); }
+		constexpr real_t lossAddendum()const noexcept { return real_t(0.0); }
 		
 		//////////////////////////////////////////////////////////////////////////
 
@@ -593,7 +577,7 @@ namespace nntl {
 		//////////////////////////////////////////////////////////////////////////
 		// helpers to access common data 
 		// #todo this implies, that the following functions are described in _i_layer interface. It's not the case at this moment.
-		const bool has_common_data()const noexcept { return get_self()._forwarder_layer().has_common_data(); }
+		bool has_common_data()const noexcept { return get_self()._forwarder_layer().has_common_data(); }
 		const auto& get_common_data()const noexcept { return get_self()._forwarder_layer().get_common_data(); }
 		iMath_t& get_iMath()const noexcept { return get_self()._forwarder_layer().get_iMath(); }
 		iRng_t& get_iRng()const noexcept { return get_self()._forwarder_layer().get_iRng(); }
@@ -606,23 +590,14 @@ namespace nntl {
 		template<bool B = bAllowToBlockLearning>
 		constexpr ::std::enable_if_t<!B, bool> isLearningBlocked() const noexcept { return false; }
 
-		/*const vec_len_t max_fprop_batch_size()const noexcept { return get_self()._forwarder_layer().max_fprop_batch_size(); }
-		const vec_len_t training_batch_size()const noexcept { return get_self()._forwarder_layer().training_batch_size(); }
-		const vec_len_t biggest_batch_size()const noexcept { return get_self()._forwarder_layer().biggest_batch_size(); }
-		const bool is_training_mode()const noexcept { return get_self()._forwarder_layer().is_training_mode(); }
-		const bool is_training_possible()const noexcept { return get_self()._forwarder_layer().is_training_possible(); }
-		const vec_len_t get_cur_batch_size()const noexcept { return get_self()._forwarder_layer().get_cur_batch_size(); }*/
-
-		const neurons_count_t get_neurons_cnt() const noexcept { return get_self()._forwarder_layer().get_neurons_cnt(); }
-		const neurons_count_t get_incoming_neurons_cnt()const noexcept { return  get_self()._forwarder_layer().get_incoming_neurons_cnt(); }
+		neurons_count_t get_neurons_cnt() const noexcept { return get_self()._forwarder_layer().get_neurons_cnt(); }
+		neurons_count_t get_incoming_neurons_cnt()const noexcept { return  get_self()._forwarder_layer().get_incoming_neurons_cnt(); }
 
 		const realmtxdef_t& get_activations()const noexcept { return get_self()._forwarder_layer().get_activations(); }
 		const realmtxdef_t* get_activations_storage()const noexcept { return get_self()._forwarder_layer().get_activations_storage(); }
 		realmtxdef_t& _get_activations_mutable()const noexcept { return get_self()._forwarder_layer()._get_activations_mutable(); }
-		const mtx_size_t get_activations_size()const noexcept { return get_self()._forwarder_layer().get_activations_size(); }
-		const bool is_activations_shared()const noexcept { return get_self()._forwarder_layer().is_activations_shared(); }
-
-		const bool is_drop_samples_mbc()const noexcept { return get_self()._forwarder_layer().is_drop_samples_mbc(); }
+		mtx_size_t get_activations_size()const noexcept { return get_self()._forwarder_layer().get_activations_size(); }
+		bool is_activations_shared()const noexcept { return get_self()._forwarder_layer().is_activations_shared(); }
 
 	};
 

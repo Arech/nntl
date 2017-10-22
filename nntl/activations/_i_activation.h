@@ -44,7 +44,7 @@ namespace activation {
 	//////////////////////////////////////////////////////////////////////////
 	//////////////////////////////////////////////////////////////////////////
 
-	template<typename RealT, typename WeightsInitT>
+	template<typename RealT, typename WeightsInitT, bool bZeroStable>
 	class _i_function : public math::smatrix_td
 	{
 	public:
@@ -58,6 +58,9 @@ namespace activation {
 		//apply f to each srcdest matrix element to compute activation values. The biases (if any) must be left untouched!
 		template <typename iMath>
 		nntl_interface static void f(realmtx_t& srcdest, iMath& m) noexcept;
+
+		//also each class must define a flag that describes whether f(0)==0. It's true for ReLU for example, but false for sigmoid
+		static constexpr bool bFIsZeroStable = bZeroStable;
 
 		//get requirements on temporary memory size needed to calculate f() over matrix act (need it for memory
 		// preallocation algorithm of iMath). This is default version. Override in derived class if need something more
@@ -76,8 +79,8 @@ namespace activation {
 
 	//class defines interface for activation functions. It's intended to be used as a parent class only
 	//usually, _i_activation implementation class is nothing more than a thunk into iMath, which contains efficient code
-	template<typename RealT, typename WeightsInitT>
-	class _i_activation : public _i_function<RealT, WeightsInitT> {
+	template<typename RealT, typename WeightsInitT, bool bZeroStable>
+	class _i_activation : public _i_function<RealT, WeightsInitT, bZeroStable> {
 	public:
 		//computes activation function derivative by using its value.
 		//i.e. computes y' based on y value ( not the x-value, where y=y(x) )

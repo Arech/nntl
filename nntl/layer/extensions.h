@@ -90,7 +90,7 @@ namespace nntl {
 
 	//////////////////////////////////////////////////////////////////////////
 	//template to extend an LPHG with penalized activations
-
+	/*
 	template <typename LossAddsTupleT, typename DropoutT, int iBinarize1e6, bool bDoBinarizeGate, typename PHLsTupleT>
 	struct _LPHG_PA_DO {
 		template <typename FC>
@@ -119,5 +119,6 @@ namespace nntl {
 
 	template <typename LossAddsTupleT, typename DropoutT, typename PHLsTupleT>
 	using LPHGFIt_PA_DO = typename _LPHG_PA_DO<LossAddsTupleT, DropoutT, 0, false, PHLsTupleT>::type;
-	
+	*/
+
 }

@@ -152,6 +152,9 @@ namespace nntl {
 		size_t m_epochs;
 
 	public:
+		real_t m_lastTrainErr, m_lastTestErr;
+
+	public:
 		template<typename iMath>
 		bool init(size_t epochs, const realmtx_t& train_y, const realmtx_t& test_y, iMath& iM)noexcept {
 			m_epochs = epochs;
@@ -187,6 +190,9 @@ namespace nntl {
 			static constexpr strchar_t* szReportFmt = "% 3zd/%-3zd %3.1fs trL=%05.3f, trErr=%.2f%% (%zd), vL=%05.3f, vErr=%.2f%% (%zd)";
 			static constexpr unsigned uBufSize = 128;
 			
+			m_lastTrainErr = trainLoss;
+			m_lastTestErr = testLoss;
+
 			strchar_t szRep[uBufSize];
 			const real_t secs = real_t(elapsedSincePrevFragment.count()) / real_t(1e9);
 

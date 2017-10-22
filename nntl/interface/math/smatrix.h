@@ -32,10 +32,11 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #pragma once
 
 #include <utility>
-//#include <memory>
+#include <intrin.h>
+
 #include "../../_defs.h"
 #include "../../common.h"
-#include <intrin.h>
+#include "_base.h"
 #include "../threads/parallel_range.h"
 
 //#TODO: Consider replacing generic memcpy/memcmp/memset and others similar generic functions with
@@ -44,17 +45,91 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 namespace nntl {
 namespace math {
 
+	struct tag_noBias {};
+
 	// types that don't rely on matrix value_type
 	struct smatrix_td {
 		//rows/cols type. int should be enought. If not, redifine to smth bigger
 		//typedef uint32_t vec_len_t;
 		typedef neurons_count_t vec_len_t;
 		
-		//#todo: size_t should be here?
-		typedef uint64_t numel_cnt_t;
+		typedef size_t numel_cnt_t;
 		
 		typedef ::std::pair<const vec_len_t, const vec_len_t> mtx_size_t;
 		typedef ::std::pair<vec_len_t, vec_len_t> mtx_coords_t;
+
+		typedef tag_noBias tag_noBias;
+
+		static /*constexpr*/ numel_cnt_t sNumel(const vec_len_t r, const vec_len_t c)noexcept {
+			//return static_cast<numel_cnt_t>(r)*static_cast<numel_cnt_t>(c); 
+			return __emulu(r, c);
+		}
+		static /*constexpr*/ numel_cnt_t sNumel(const mtx_size_t s)noexcept { return sNumel(s.first, s.second); }
+
+		//////////////////////////////////////////////////////////////////////////
+		//debug/NNTL_ASSERT use is preferred
+		template<typename T = value_type>
+		static ::std::enable_if_t<::std::is_floating_point<T>::value, bool>
+		isBinaryVec(const T* pData, const numel_cnt_t ne, const bool bNonBinIsOK = false) noexcept {
+			NNTL_UNREF(bNonBinIsOK);//it's used just to trigger assert and nothing more
+			typedef typename real_t_limits<T>::similar_FWI_t similar_FWI_t;
+
+			const auto _one = similar_FWI_one<T>();
+			const auto _poszero = similar_FWI_pos_zero<T>();
+			const auto _negzero = similar_FWI_neg_zero<T>();
+			auto ptr = reinterpret_cast<const similar_FWI_t*>(pData);
+
+			const auto pE = ptr + ne;
+			similar_FWI_t cond = similar_FWI_t(1);
+			while (ptr != pE) {//vectorizes
+				const auto v = *ptr++;
+				//we must make sure that binary zero is an actual unsigned(positive) zero
+				const similar_FWI_t c = ((v == _one) | (v == _poszero) | (v == _negzero));
+				NNTL_ASSERT(bNonBinIsOK || c || !"Not a binary vector!");
+				cond = cond & c;
+			}
+			return !!cond;
+		}
+		template<typename T = value_type>
+		static ::std::enable_if_t<::std::is_integral<T>::value, bool> isBinaryVec(const T* ptr, const numel_cnt_t ne, const bool bNonBinIsOK = false) noexcept {
+			return isBinaryStrictVec(ptr, ne, bNonBinIsOK);
+		}
+		//////////////////////////////////////////////////////////////////////////
+		template<typename T = value_type>
+		static ::std::enable_if_t<::std::is_floating_point<T>::value, bool> isBinaryStrictVec(const T* pData, const numel_cnt_t ne, const bool bNonBinIsOK = false) noexcept {
+			typedef typename real_t_limits<T>::similar_FWI_t similar_FWI_t;
+
+			const auto _one = similar_FWI_one<T>();
+			const auto _zero = similar_FWI_pos_zero<T>();
+			auto ptr = reinterpret_cast<const similar_FWI_t*>(pData);
+
+			const auto pE = ptr + ne;
+			similar_FWI_t cond = similar_FWI_t(1);
+			while (ptr != pE) {//vectorizes
+				const auto v = *ptr++;
+				//we must make sure that binary zero is an actual unsigned(positive) zero
+				const similar_FWI_t c = ((v == _one) | (v == _zero));
+				NNTL_ASSERT(bNonBinIsOK || c || !"Not a binary vector!");
+				cond = cond & c;
+			}
+			return !!cond;
+		}
+		template<typename T = value_type>
+		static ::std::enable_if_t<::std::is_integral<T>::value, bool> isBinaryStrictVec(const T* ptr, const numel_cnt_t ne, const bool bNonBinIsOK = false) noexcept {
+			const auto _one = T(1);
+			const auto _zero = T(0);
+
+			const auto pE = ptr + ne;
+			T cond = T(1);
+			while (ptr != pE) {//should vectorize, but better check for every type needed
+				const auto v = *ptr++;
+				//we must make sure that binary zero is an actual unsigned(positive) zero
+				const T c = ((v == _one) | (v == _zero));
+				NNTL_ASSERT(bNonBinIsOK || c || !"Not a binary vector!");
+				cond = cond & c;
+			}
+			return !!cond;
+		}
 	};
 
 	//////////////////////////////////////////////////////////////////////////
@@ -142,8 +217,7 @@ namespace math {
 
 		//useExternalStorage(value_ptr_t ptr, const smatrix& sizeLikeThis) variation
 		smatrix(value_ptr_t ptr, const smatrix& sizeLikeThis)noexcept : m_pData(nullptr), m_bDontManageStorage(false){
-			useExternalStorage(ptr, sizeLikeThis);
-			m_bHoleyBiases = sizeLikeThis.isHoleyBiases();
+			useExternalStorage(ptr, sizeLikeThis, sizeLikeThis.emulatesBiases() ? sizeLikeThis.isHoleyBiases() : false);
 		}
 
 		smatrix(value_ptr_t ptr, const mtx_size_t& sizeLikeThis, const bool bEmulateBiases = false, const bool _bHoleyBiases = false)noexcept
@@ -157,12 +231,10 @@ namespace math {
 			useExternalStorage(ptr, r, c, bEmulateBiases, _bHoleyBiases);
 		}
 
-		struct tag_useExternalStorageNoBias {};
 		//useExternalStorage_no_bias(value_ptr_t ptr, const smatrix& sizeLikeThis) variation
-		smatrix(value_ptr_t ptr, const smatrix& sizeLikeThisNoBias, const tag_useExternalStorageNoBias&)noexcept 
-			: m_pData(nullptr), m_bDontManageStorage(false)
+		smatrix(value_ptr_t ptr, const smatrix& sizeLikeThisNoBias, const tag_noBias&)noexcept : m_pData(nullptr), m_bDontManageStorage(false)
 		{
-			useExternalStorage_no_bias(ptr, sizeLikeThisNoBias, sizeLikeThisNoBias.isHoleyBiases());
+			useExternalStorage_no_bias(ptr, sizeLikeThisNoBias);
 		}
 
 		//////////////////////////////////////////////////////////////////////////
@@ -193,12 +265,22 @@ namespace math {
 			return *this;
 		}
 		
-
+		//////////////////////////////////////////////////////////////////////////
 		//!! copy constructor not needed
 		smatrix(const smatrix& other)noexcept; // = delete; //-it should be `delete`d, but factory function won't work if it is
 		//!!assignment is not needed
 		smatrix& operator=(const smatrix& rhs) noexcept; // = delete; //-it should be `delete`d, but factory function won't work if it is
 
+		//////////////////////////////////////////////////////////////////////////
+
+		smatrix submatrix_cols_no_bias(const vec_len_t colStart, const vec_len_t numCols)noexcept {
+			NNTL_ASSERT(numCols);
+			NNTL_ASSERT(colStart + numCols <= cols_no_bias());
+			return smatrix(colDataAsVec(colStart), rows(), numCols, false);
+		}
+
+		//////////////////////////////////////////////////////////////////////////
+		
 		//class object copying is a costly procedure, therefore making a special member function for it and will use only in special cases
 		bool clone_to(smatrix& dest)const noexcept {
 			if (dest.m_bDontManageStorage) {
@@ -296,53 +378,52 @@ namespace math {
 		bool emulatesBiases()const noexcept { return m_bEmulateBiases; }
 		void will_emulate_biases()noexcept {
 			NNTL_ASSERT(empty() && m_rows == 0 && m_cols == 0);
-			//for example, we can use bEmulateBiases-enabled matrix of neuron activations as destination of matrix product operation
-			// (prev layer activations times weights) as well as biased source of data for the next layer
 			m_bEmulateBiases = true;
 		}
 		void dont_emulate_biases()noexcept {
-			NNTL_ASSERT(empty());
+			NNTL_ASSERT(empty() && m_rows == 0 && m_cols == 0);
 			m_bEmulateBiases = false;
+		}
+		void emulate_biases(const bool b)noexcept {
+			NNTL_ASSERT(empty() && m_rows == 0 && m_cols == 0);
+			m_bEmulateBiases = b;
 		}
 
 		bool isHoleyBiases()const noexcept { 
-			NNTL_ASSERT(!empty());//this concept applies to non-empty matrices only
+			NNTL_ASSERT(!empty() && emulatesBiases());//this concept applies to non-empty matrices with a bias column only
 			return m_bHoleyBiases;
 		}
-		void copy_biases_from(const value_type* ptr)noexcept {
-			NNTL_ASSERT(m_bEmulateBiases && !empty());
-			memcpy(colDataAsVec(m_cols - 1), ptr, static_cast<numel_cnt_t>(rows())*sizeof(value_type));
-			m_bHoleyBiases = true;
-			NNTL_ASSERT(test_biases_holey());
+		bool hasHoleyBiases()const noexcept {//almost the same as isHoleyBiases() but doesn't require the matrix to have biases
+			NNTL_ASSERT(!empty());//this concept applies to non-empty matrices only
+			return m_bEmulateBiases && m_bHoleyBiases;
+		}
+		void holey_biases(const bool b)noexcept {
+			NNTL_ASSERT(emulatesBiases());
+			m_bHoleyBiases = b;
+		}
+
+		void copy_biases_from(const value_type* ptr, const vec_len_t countNonZeros = 0)noexcept {
+			NNTL_ASSERT(m_bEmulateBiases && !empty() && rows() >= countNonZeros);
+			NNTL_ASSERT(isBinaryVec(ptr, rows()));
+			memcpy(bias_column(), ptr, static_cast<numel_cnt_t>(rows())*sizeof(value_type));
+			m_bHoleyBiases = countNonZeros != rows();
 		}
 		void copy_biases_from(const smatrix& src)noexcept {
 			NNTL_ASSERT(m_bEmulateBiases && !empty() && src.emulatesBiases() && !src.empty());
+			NNTL_ASSERT(src.rows() == rows());
 
 			m_bHoleyBiases = src.isHoleyBiases();
 			if (m_bHoleyBiases) {
-				memcpy(colDataAsVec(m_cols - 1), src.colDataAsVec(src.cols() - 1), static_cast<numel_cnt_t>(rows()) * sizeof(value_type));
-			}else fill_column_with(m_cols - 1, value_type(1.0));			
-			
-			NNTL_ASSERT(test_biases_ok());
+				NNTL_ASSERT(isBinaryVec(src.bias_column(), src.rows()));
+				::std::memcpy(bias_column(), src.bias_column(), static_cast<numel_cnt_t>(rows()) * sizeof(value_type));
+			}else fill_column_with(m_cols - 1, value_type(1.0));
 		}
 
-// 		void _holey_biases()noexcept {
-// 			NNTL_ASSERT(!empty());//this concept applies to non-empty matrices only
-// 			m_bHoleyBiases = true;
-// 		}
-
-// 	protected:
-// 		void set_holey_biases(const bool b)noexcept { 
-// 			NNTL_ASSERT(!empty());//this concept applies to non-empty matrices only
-// 			m_bHoleyBiases = b;
-// 		}
-
-	public:
+		//////////////////////////////////////////////////////////////////////////
+		//////////////////////////////////////////////////////////////////////////
 		//function is expected to be called from context of NNTL_ASSERT macro.
 		//debug/NNTL_ASSERT only
 		bool test_biases_ok()const noexcept {
-			//NNTL_ASSERT(emulatesBiases());
-			//if (!emulatesBiases()) return false;//not necessary test, because there's no restriction to have biases otherwise
 			return m_bHoleyBiases ? test_biases_holey() : test_biases_strict();
 		}
 		//debug/NNTL_ASSERT only
@@ -362,18 +443,7 @@ namespace math {
 		//debug/NNTL_ASSERT only
 		bool test_biases_holey()const noexcept {
 			NNTL_ASSERT(emulatesBiases() && m_bHoleyBiases);
-
-			const auto ne = numel();
-			auto pS = &m_pData[ne - m_rows];
-			const auto pE = m_pData + ne;
-			int cond = 1;
-			while (pS != pE) {
-				const auto v = *pS++;
-				const int c = ((v == value_type(1.0)) | ((real_t_limits<value_type>::similar_FWI_t)(v) == 0));
-				NNTL_ASSERT(c || !"Holey bias check failed!");
-				cond = cond & c;
-			}
-			return !!cond;
+			return isBinaryVec(bias_column(), rows());
 		}
 
 		//debug/NNTL_ASSERT only
@@ -392,19 +462,15 @@ namespace math {
 		}
 
 		//////////////////////////////////////////////////////////////////////////
-		//debug/NNTL_ASSERT only
-		bool isBinary()const noexcept {
-			auto pS = m_pData;
-			const auto pE = end();
-			int cond = 1;
-			while (pS != pE) {
-				const auto v = *pS++;
-				//we must make sure that binary zero is an actual unsigned(positive) zero
-				const int c = ((v == value_type(1.0)) | ((real_t_limits<value_type>::similar_FWI_t)(v) == 0));
-				NNTL_ASSERT(c || !"Not a binary matrix!");
-				cond = cond & c;
-			}
-			return !!cond;
+		//debug/NNTL_ASSERT use is preferred
+		bool isBinary(const bool bNonBinIsOK = false)const noexcept {
+			return isBinaryVec<value_type>(m_pData, numel(), bNonBinIsOK);
+		}
+		bool isBinaryStrict(const bool bNonBinIsOK = false)const noexcept {
+			return isBinaryStrictVec<value_type>(m_pData, numel(), bNonBinIsOK);
+		}
+		bool isBinaryStrictNoBias(const bool bNonBinIsOK = false)const noexcept {
+			return isBinaryStrictVec<value_type>(m_pData, numel_no_bias(), bNonBinIsOK);
 		}
 		
 		//debug/NNTL_ASSERT only
@@ -449,6 +515,12 @@ namespace math {
 				return m_cols - 1;
 			}else return m_cols;
 		}
+		vec_len_t cols(const bool bNoBias) const noexcept {
+			if (bNoBias && m_bEmulateBiases) {
+				NNTL_ASSERT(m_cols > 0);
+				return m_cols - 1;
+			} else return m_cols;
+		}
 
 		mtx_size_t size()const noexcept { return mtx_size_t(m_rows, m_cols); }
 		mtx_size_t size_no_bias()const noexcept { 
@@ -457,12 +529,6 @@ namespace math {
 				return mtx_size_t(m_rows, m_cols-1);
 			}else return size();
 		}
-		
-		static constexpr numel_cnt_t sNumel(vec_len_t r, vec_len_t c)noexcept {
-			//return static_cast<numel_cnt_t>(r)*static_cast<numel_cnt_t>(c); 
-			return __emulu(r, c);
-		}
-		static constexpr numel_cnt_t sNumel(const mtx_size_t s)noexcept { return sNumel(s.first, s.second); }
 
 		numel_cnt_t numel()const noexcept { 
 			//NNTL_ASSERT(m_rows && m_cols);
@@ -472,6 +538,12 @@ namespace math {
 			if (m_bEmulateBiases) {
 				NNTL_ASSERT(m_cols > 0);
 				return sNumel(m_rows,m_cols-1);
+			} else return numel();
+		}
+		numel_cnt_t numel(const bool bNoBias)const noexcept {
+			if (bNoBias && m_bEmulateBiases) {
+				NNTL_ASSERT(m_cols > 0);
+				return sNumel(m_rows, m_cols - 1);
 			} else return numel();
 		}
 
@@ -560,6 +632,16 @@ namespace math {
 			return m_pData + sNumel(m_rows, c);
 		}
 
+		value_ptr_t bias_column()noexcept {
+			NNTL_ASSERT(emulatesBiases());
+			return colDataAsVec(m_cols - 1);
+		}
+		cvalue_ptr_t bias_column()const noexcept {
+			NNTL_ASSERT(emulatesBiases());
+			return colDataAsVec(m_cols - 1);
+		}
+
+		//////////////////////////////////////////////////////////////////////////
 		// get/set are for non performance critical code!
 		void set(const vec_len_t r, const vec_len_t c, const value_type& v)noexcept {
 			NNTL_ASSERT(!empty());
@@ -641,14 +723,15 @@ namespace math {
 		}
 
 
-		void useExternalStorage_no_bias(value_ptr_t ptr, const smatrix& sizeLikeThisNoBias, bool bHBiases = false)noexcept {
-			useExternalStorage(ptr, sizeLikeThisNoBias.rows(), sizeLikeThisNoBias.cols_no_bias(), false, bHBiases);
+		void useExternalStorage_no_bias(value_ptr_t ptr, const smatrix& sizeLikeThisNoBias)noexcept {
+			useExternalStorage(ptr, sizeLikeThisNoBias.rows(), sizeLikeThisNoBias.cols_no_bias(), false, false);
 		}
 		void useExternalStorage_no_bias(smatrix& src)noexcept {
 			useExternalStorage(src.data(), src.rows(), src.cols_no_bias(), false, false);
 		}
 		void useExternalStorage(smatrix& src)noexcept {
-			useExternalStorage(src.data(), src.rows(), src.cols(), src.emulatesBiases(), src.isHoleyBiases());
+			const auto b = src.emulatesBiases();
+			useExternalStorage(src.data(), src.rows(), src.cols(), b, b && src.isHoleyBiases());
 		}
 		void useExternalStorage(value_ptr_t ptr, const mtx_size_t sizeLikeThis, bool bEmulateBiases = false, bool bHBiases = false)noexcept {
 			useExternalStorage(ptr, sizeLikeThis.first, sizeLikeThis.second, bEmulateBiases, bHBiases);
@@ -727,18 +810,42 @@ namespace math {
 #endif // NNTL_DEBUG
 		}
 
+		smatrix_deform(value_ptr_t ptr, const smatrix_deform& sizeLikeThis) noexcept
+			: _base_class(ptr, sizeLikeThis)
+		{
+#ifdef NNTL_DEBUG
+			m_maxSize = sizeLikeThis.m_maxSize;
+#endif // NNTL_DEBUG
+		}
+
 
 		smatrix_deform(smatrix&& src)noexcept : _base_class(::std::move(src)) {
 #ifdef NNTL_DEBUG
 			m_maxSize = numel();
 #endif // NNTL_DEBUG
 		}
+		smatrix_deform(smatrix_deform&& src)noexcept : _base_class(::std::move(src)) {
+#ifdef NNTL_DEBUG
+			m_maxSize = src.m_maxSize;
+#endif // NNTL_DEBUG
+		}
+
+		smatrix_deform& operator=(const smatrix_deform& rhs) noexcept = delete;
 
 		smatrix_deform& operator=(smatrix&& rhs) noexcept {
 			if (this != &rhs) {
 				_base_class::operator =(::std::move(rhs));
 #ifdef NNTL_DEBUG
 				m_maxSize = numel();
+#endif // NNTL_DEBUG
+			}
+			return *this;
+		}
+		smatrix_deform& operator=(smatrix_deform&& rhs) noexcept {
+			if (this != &rhs) {
+				_base_class::operator =(::std::move(rhs));
+#ifdef NNTL_DEBUG
+				m_maxSize = rhs.m_maxSize;
 #endif // NNTL_DEBUG
 			}
 			return *this;
@@ -837,7 +944,7 @@ namespace math {
 		// ALWAYS run your code in debug mode first.
 		// ALWAYS think about biases - when they should be or should not be set/restored
 		// You've been warned
-		vec_len_t deform_cols(vec_len_t c)noexcept {
+		vec_len_t deform_cols(const vec_len_t c)noexcept {
 			NNTL_ASSERT(m_maxSize >= sNumel(m_rows, c));
 			NNTL_ASSERT(!empty());
 			auto ret = m_cols;
@@ -854,6 +961,21 @@ namespace math {
 			++m_cols;
 		}
 
+		bool hide_last_n_cols(const vec_len_t n)noexcept {
+			NNTL_ASSERT(!empty() && m_cols > n + emulatesBiases());
+			bool hasBiases = emulatesBiases();
+			m_cols -= n + hasBiases;
+			m_bEmulateBiases = false;
+			return hasBiases;
+		}
+		void restore_last_n_cols(const bool bThereWasBiases, const vec_len_t n)noexcept {
+			NNTL_ASSERT(!empty() && m_cols >= 1);
+			NNTL_ASSERT(m_maxSize >= sNumel(m_rows, m_cols + n + bThereWasBiases));
+			m_cols += n + bThereWasBiases;
+			m_bEmulateBiases = bThereWasBiases;
+		}
+
+
 		bool hide_biases()noexcept {
 			bool hasBiases = emulatesBiases();
 			if (hasBiases) {
@@ -862,10 +984,12 @@ namespace math {
 			}
 			return hasBiases;
 		}
-		void restore_biases()noexcept { //should only be called iff hide_biases() returned true
+		void restore_biases(const bool bHideBiasesReturned)noexcept { //should only be called iff hide_biases() returned true
 			NNTL_ASSERT(!emulatesBiases());
-			restore_last_col();
-			m_bEmulateBiases = true;
+			if (bHideBiasesReturned) {
+				restore_last_col();
+				m_bEmulateBiases = true;
+			}
 		}
 
 		// use deform_rows() with extreme care on col-major (default!!!) data!!!
@@ -906,6 +1030,9 @@ namespace math {
 		template<typename _T>
 		s_elems_range(const smatrix<_T>& A)noexcept : elmEnd(A.numel()), elmBegin(0){}
 
+		template<typename _T>
+		s_elems_range(const smatrix<_T>& A, const tag_noBias&)noexcept : elmEnd(A.numel_no_bias()), elmBegin(0) {}
+
 		s_elems_range(const par_range_t& pr)noexcept : elmEnd(pr.offset() + pr.cnt()), elmBegin(pr.offset()) {}
 
 		s_elems_range(const numel_cnt_t eb, const numel_cnt_t ee)noexcept : elmEnd(ee), elmBegin(eb) {
@@ -931,7 +1058,9 @@ namespace math {
 		~s_rowcol_range()noexcept {}
 
 		template<typename T_>
-		s_rowcol_range(const vec_len_t rb, const vec_len_t re, const smatrix<T_>& A)noexcept : rowEnd(re), rowBegin(rb), colEnd(A.cols()), colBegin(0) {
+		s_rowcol_range(const vec_len_t rb, const vec_len_t re, const smatrix<T_>& A)noexcept 
+			: rowEnd(re), rowBegin(rb), colEnd(A.cols()), colBegin(0)
+		{
 			NNTL_ASSERT(rowEnd >= rowBegin);
 		}
 
@@ -942,6 +1071,9 @@ namespace math {
 
 		template<typename T_>
 		s_rowcol_range(const smatrix<T_>& A)noexcept : rowEnd(A.rows()), rowBegin(0), colEnd(A.cols()), colBegin(0) {}
+
+		template<typename T_>
+		s_rowcol_range(const smatrix<T_>& A, const tag_noBias&)noexcept : rowEnd(A.rows()), rowBegin(0), colEnd(A.cols_no_bias()), colBegin(0) {}
 
 		vec_len_t totalRows()const noexcept { return rowEnd - rowBegin; }
 		vec_len_t totalCols()const noexcept { return colEnd - colBegin; }

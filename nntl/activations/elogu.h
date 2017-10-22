@@ -46,11 +46,12 @@ namespace activation {
 	template<typename RealT, unsigned int Alpha1e3 = 1000, unsigned int LogBase1e3 = 2000
 		, typename WeightsInitScheme = weights_init::He_Zhang<>>
 	class elogu 
-		: public _i_activation<RealT, WeightsInitScheme>
+		: public _i_activation<RealT, WeightsInitScheme, true>
 		, public type_elogu
 	{
 	public:
-		//typedef WeightsInitScheme weights_scheme;
+
+
 		static constexpr real_t Alpha = real_t(Alpha1e3) / real_t(1000.0);
 		static constexpr bool bIsUnitAlpha = (Alpha1e3 == 1000);
 

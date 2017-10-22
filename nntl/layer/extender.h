@@ -87,6 +87,7 @@ namespace nntl {
 	public:
 		//have to forward declarations (probably a MSVC bug)
 		typedef typename _base_class_t::real_t real_t;
+		typedef typename _base_class_t::numel_cnt_t numel_cnt_t;
 		typedef typename _base_class_t::realmtx_t realmtx_t;
 		typedef typename _base_class_t::realmtxdef_t realmtxdef_t;
 		typedef typename _base_class_t::ErrorCode ErrorCode;
@@ -120,8 +121,7 @@ namespace nntl {
 		~_LEx()noexcept {}
 
 		template<typename... ArgsTs>
-		_LEx(ArgsTs&&... _args)noexcept
-			: _base_class_t(::std::forward<ArgsTs>(_args)...)
+		_LEx(ArgsTs&&... _args)noexcept : _base_class_t(::std::forward<ArgsTs>(_args)...)
 		{}
 
 		static constexpr const char _defName[] = "lex";
@@ -140,14 +140,17 @@ namespace nntl {
 		// l2Coefficient*Sum(weights.^2) )
 		template<bool c = bActivationPenalizationAvailable>
 		::std::enable_if_t<c, real_t> lossAddendum()const noexcept {
-			// 			return _PAB_t::_pab_lossAddendum(get_self().get_activations(), get_self().get_iMath())
+			// 			return _PAB_t::_pab_lossAddendum(get_activations(), get_iMath())
 			// 				+ (_base_class_t::hasLossAddendum() ? _base_class_t::lossAddendum() : real_t(0));
 			// 			//the commented code above costs about 2% of run time comparing to variant without _base_class_t::hasLossAddendum() call
-			return _PAB_t::_pab_lossAddendum(get_self().get_activations(), get_self().get_common_data())
+			return _PAB_t::_pab_lossAddendum(get_activations(), get_common_data())
 				+ _base_class_t::lossAddendum();
 		}
 		template<bool c = bActivationPenalizationAvailable>
 		::std::enable_if_t<!c, real_t> lossAddendum()const noexcept { return _base_class_t::lossAddendum(); }
+
+		//////////////////////////////////////////////////////////////////////////
+		//////////////////////////////////////////////////////////////////////////
 
 	private:
 		template<bool c = bDropoutAvailable>
@@ -155,15 +158,15 @@ namespace nntl {
 
 		template<bool c = bDropoutAvailable>
 		::std::enable_if_t<c, bool> _init_do(_layer_init_data_t& lid) noexcept {
-			if (!_dropout_init(get_self().get_neurons_cnt(), get_self().get_common_data()))
+			if (!_dropout_init(get_neurons_cnt(), get_common_data()))
 				return false;
 
-			if (get_self().get_common_data().is_training_possible()) {
+			if (get_common_data().is_training_possible()) {
 				lid.bOutputDifferentDuringTraining = true;
 			}
 
-			if (lid.bActivationsShareSpace) {
-				STDCOUTL("** Attention! Layer " << get_self().get_layer_name_str() 
+			if (is_activations_shared()) {
+				STDCOUTL("** Attention! Layer " << get_layer_name_str() 
 					<< " is configured to have a Dropout, however it's activations are shared. Sure there's no double dropout application?");
 			}
 
@@ -175,8 +178,8 @@ namespace nntl {
 			const auto ec = _base_class_t::init(lid, pNewActivationStorage);
 			if (ec != ErrorCode::Success) return ec;
 
-			auto as = get_self().get_activations_size();
-			if (!_PAB_t::_pab_init(mtx_size_t(as.first, as.second - 1), get_self().get_common_data()))
+			const auto as = get_activations_size();
+			if (!_PAB_t::_pab_init(mtx_size_t(as.first, as.second - 1), get_common_data()))
 				return ErrorCode::CantInitializePAB;
 
 			if (bActivationPenalizationAvailable) {
@@ -198,7 +201,7 @@ namespace nntl {
 		template<bool c = bDropoutAvailable>
 		::std::enable_if_t<c> on_batch_size_change(real_t*const pNewActivationStorage = nullptr)noexcept {
 			_base_class_t::on_batch_size_change(pNewActivationStorage);
-			_dropout_on_batch_size_change(get_self().get_common_data());
+			_dropout_on_batch_size_change(get_common_data());
 		}
 
 		template<bool c = bDropoutAvailable>
@@ -209,89 +212,88 @@ namespace nntl {
 	protected:
 		//////////////////////////////////////////////////////////////////////////
 		// fprop() handling for various underlying layer types
-		//////////////////////////////////////////////////////////////////////////
-		// for PA
+		//////////////////////////////////////////////////////////////////////////		
 		//we shouldn't apply dLdA penalty to the gating layer, it's useless but moreover it may even hurt DeCov
-		template<typename T = _base_class_t, bool ba = bActivationPenalizationAvailable>
-		::std::enable_if_t<ba && is_pack_gated<T>::value> _fprop4PA() noexcept {
-			//we won't modify activations, just a trick to create a wrapper matrix 
-			auto& fullAct = const_cast<realmtxdef_t&>(get_self().get_activations());
-			NNTL_ASSERT(fullAct.emulatesBiases());
 
-			//first _base_class_t::gated_layers_count neurons in activations are for the gate. Just skipping them
-			realmtxdef_t noGateAct(fullAct.colDataAsVec(_base_class_t::gated_layers_count), fullAct.rows()
-				, fullAct.cols() - _base_class_t::gated_layers_count, fullAct.emulatesBiases(), fullAct.isHoleyBiases());
-			
-			_PAB_t::_pab_fprop(noGateAct, get_self().get_common_data());
+		template<typename T = _base_class_t, bool ba = bActivationPenalizationAvailable>
+		::std::enable_if_t< ba && is_pack_gated<T>::value> _fprop4PA() noexcept {
+			static_assert(_base_class_t::gate_neurons_count > 0, "invalid gate_neurons_count");
+			const auto& CD = get_common_data();
+			if (CD.is_training_mode()) {
+				//we won't modify activations, just a trick to create a wrapper matrix 
+				auto& act = const_cast<realmtxdef_t&>(get_activations());
+				NNTL_ASSERT(act.emulatesBiases());
+
+				//first _base_class_t::gate_neurons_count neurons in activations are for the gate. Just dropping them
+				auto nogateAct = act.submatrix_cols_no_bias(_base_class_t::gate_neurons_count, act.cols_no_bias() - _base_class_t::gate_neurons_count);
+				_PAB_t::_pab_fprop(nogateAct, CD);
+			}
 		}
 
 		template<typename T = _base_class_t, bool ba = bActivationPenalizationAvailable>
 		::std::enable_if_t<ba && !is_pack_gated<T>::value> _fprop4PA() noexcept {
-			_PAB_t::_pab_fprop(get_self().get_activations(), get_self().get_common_data());
+			const auto& CD = get_common_data();
+			if (CD.is_training_mode()) {
+				_PAB_t::_pab_fprop(get_activations(), CD);
+			}
 		}
 
 		template<typename T = _base_class_t, bool ba = bActivationPenalizationAvailable>
-		::std::enable_if_t<!ba> _fprop4PA() const noexcept {}
+		constexpr ::std::enable_if_t<!ba> _fprop4PA() const noexcept {}
 
 		//////////////////////////////////////////////////////////////////////////
 		// for Dropout
-		// 
 		template<typename T = _base_class_t, bool ba = bDropoutAvailable>
-		::std::enable_if_t<ba && (is_pack_gated<T>::value && !Dropout_t::bDropoutIsZeroStable)> _fprop4Dropout() noexcept {
-			static_assert(false, "You are trying to use non zero stable dropout (such as AlphaDropout) with a gated layer. Such Dropout will distort entries that were removed by the gate!");
-			//try to apply the dropout to topmost inner layers (under the gate)
-		}		
+		::std::enable_if_t<ba && is_pack_gated<T>::value && !Dropout_t::bDropoutIsZeroStable> _fprop4Dropout() noexcept {
+			static_assert(false, "Don't put LEx with a non zero stable dropout over the gated/LPO layer. Do the inverse!");
+			// changing absent activations to a non-zero value _may_ screw upper layers. It's better to move dropout inside
+			// of individual inner layers
+		}
 		template<typename T = _base_class_t, bool ba = bDropoutAvailable>
 		::std::enable_if_t<ba && !(is_pack_gated<T>::value && !Dropout_t::bDropoutIsZeroStable)> _fprop4Dropout() noexcept {
-			_dropout_apply(get_self()._get_activations_mutable(), get_self().get_common_data());
+			//no need to make special handling of gating layers etc.
+			if (bDropout()) {
+				_dropout_apply(_get_activations_mutable(), get_common_data());
+			}
 		}
-
 		template<typename T = _base_class_t, bool ba = bDropoutAvailable>
-		::std::enable_if_t<!ba> _fprop4Dropout() const noexcept {}
+		constexpr ::std::enable_if_t<!ba> _fprop4Dropout() const noexcept {}
 
 	public:
 		//////////////////////////////////////////////////////////////////////////
 		template<typename LowerLayer>
 		void fprop(const LowerLayer& lowerLayer)noexcept {
 			_base_class_t::fprop(lowerLayer);
-
-			if (get_self().get_common_data().is_training_mode()) {
-				_fprop4PA();
-			}			
-
-			if (bDropout()) {
-				_fprop4Dropout();
-				NNTL_ASSERT(get_self().is_activations_shared() || get_self().get_activations().test_biases_ok());
-			}
+			_fprop4PA();
+			_fprop4Dropout();
 		}
 
 
 	protected:
-		//we shouldn't apply dLdA penalty to the gating layer, it's useless but moreover it may even hurt DeCov
+
 		template<typename T = _base_class_t, bool ba = bActivationPenalizationAvailable>
-		::std::enable_if_t<ba && is_pack_gated<T>::value> _update_dLdA4PA(realmtx_t& dLdA) noexcept {
+		::std::enable_if_t< ba && is_pack_gated<T>::value> _update_dLdA4PA(realmtxdef_t& dLdA) noexcept {
 			//we won't modify activations, just a trick to create a wrapper matrix 
-			auto& fullAct = const_cast<realmtxdef_t&>(get_self().get_activations());
-			NNTL_ASSERT(fullAct.emulatesBiases() && fullAct.size_no_bias() == dLdA.size());
+			auto& act = const_cast<realmtxdef_t&>(get_activations());
+			NNTL_ASSERT(act.emulatesBiases() && act.size_no_bias() == dLdA.size());
 			NNTL_ASSERT(!dLdA.emulatesBiases());
-			const auto bs = fullAct.rows();
 
-			//first _base_class_t::gated_layers_count neurons in activations are for the gate. Just skipping them
-			realmtxdef_t noGateAct(fullAct.colDataAsVec(_base_class_t::gated_layers_count), bs
-				, fullAct.cols() - _base_class_t::gated_layers_count, fullAct.emulatesBiases(), fullAct.isHoleyBiases());
-			realmtx_t noGatedLdA(dLdA.colDataAsVec(_base_class_t::gated_layers_count), bs
-				, dLdA.cols() - _base_class_t::gated_layers_count, false, false);
+			//first _base_class_t::gate_neurons_count neurons in activations are for the gate. Just dropping them
+			auto nogateAct = act.submatrix_cols_no_bias(_base_class_t::gate_neurons_count, act.cols_no_bias() - _base_class_t::gate_neurons_count);
+			auto nogatedLdA = dLdA.submatrix_cols_no_bias(_base_class_t::gate_neurons_count, dLdA.cols_no_bias() - _base_class_t::gate_neurons_count);
 
-			_PAB_t::_pab_update_dLdA(noGatedLdA, noGateAct, get_self().get_common_data());
+			_PAB_t::_pab_update_dLdA(nogatedLdA, nogateAct, get_common_data());
 		}
 
 		template<typename T = _base_class_t, bool ba = bActivationPenalizationAvailable>
 		::std::enable_if_t<ba && !is_pack_gated<T>::value> _update_dLdA4PA(realmtx_t& dLdA) noexcept {
-			_PAB_t::_pab_update_dLdA(dLdA, get_self().get_activations(), get_self().get_common_data());
+			_PAB_t::_pab_update_dLdA(dLdA, get_activations(), get_common_data());
 		}
 
 		template<typename T = _base_class_t, bool ba = bActivationPenalizationAvailable>
 		::std::enable_if_t<!ba> _update_dLdA4PA(realmtx_t&) const noexcept {}
+
+		//////////////////////////////////////////////////////////////////////////
 
 		template<bool c = bDropoutAvailable>
 		::std::enable_if_t<c> _update_dLdA4Dropout(realmtx_t& dLdA) noexcept {
@@ -299,22 +301,22 @@ namespace nntl {
 				//we must cancel activations that was dropped out by the mask (should they've been restored by activation_f_t::df())
 				//and restore the scale of dL/dA according to 1/p
 				//because the true scaled_dL/dA = 1/p * computed_dL/dA
-				//we must undo the scaling step from inverted dropout in order to obtain correct activation values
+				//we must undo the scaling of activations done by inverted dropout in order to obtain correct activation values
 				//It must be done as a basis to obtain correct dA/dZ
-				_dropout_restoreScaling(dLdA, get_self()._get_activations_mutable(), get_self().get_common_data());
+				_dropout_restoreScaling(dLdA, _get_activations_mutable(), get_common_data());
 			}
 		}
 
 		template<bool c = bDropoutAvailable>
-		::std::enable_if_t<!c> _update_dLdA4Dropout(realmtx_t&)const noexcept{}
+		constexpr ::std::enable_if_t<!c> _update_dLdA4Dropout(realmtx_t&)const noexcept{}
 
 	public:
 		template <typename LowerLayerT>
-		const unsigned bprop(realmtxdef_t& dLdA, const LowerLayerT& lowerLayer, realmtxdef_t& dLdAPrev)noexcept {
+		unsigned bprop(realmtxdef_t& dLdA, const LowerLayerT& lowerLayer, realmtxdef_t& dLdAPrev)noexcept {
 			static_assert(::std::is_base_of<_i_layer_trainable, LowerLayerT>::value, "Template parameter LowerLayer must implement _i_layer_trainable");
 
-			auto& iI = get_self().get_iInspect();
-			iI.bprop_begin(get_self().get_layer_idx(), dLdA);
+			auto& iI = get_iInspect();
+			iI.bprop_begin(get_layer_idx(), dLdA);
 
 			//first we erase dL/dA for dropped out activations and scale dL/dA for others and then
 			// restore activations magnitude after dropout
@@ -329,6 +331,7 @@ namespace nntl {
 			iI.bprop_end(ret ? dLdAPrev : dLdA);
 			return ret;
 		}
+
 	};
 
 	//////////////////////////////////////////////////////////////////////////

@@ -131,3 +131,39 @@ TEST(TestSimpleMatrix, ColMajorWithBiases) {
 }
 
 
+template<typename real_t>
+bool IsBinaryET(const real_t*const ptr, const size_t n)noexcept {
+	typedef typename math::real_t_limits<real_t>::similar_FWI_t similar_FWI_t;
+	bool r = true;
+
+	const auto _one = math::similar_FWI_one<real_t>();
+	const auto _zero = math::similar_FWI_pos_zero<real_t>();
+
+	auto p = reinterpret_cast<const similar_FWI_t*const>(ptr);
+	for (size_t i = 0; i < n; ++i) {
+		const auto v = p[i];
+		r = r & (v == _one || v == _zero);
+		//if (!r)break;
+	}
+	return r;
+}
+
+TEST(TestSimpleMatrix, IsBinaryET) {
+	typedef float real_t;
+	typedef ::std::pair<real_t, bool> tset_t;
+
+	static constexpr unsigned vLen = 4;
+	real_t v[vLen];
+	v[0] = real_t(1.);
+	v[1] = real_t(+0.);
+	v[2] = real_t(0);
+
+	static constexpr unsigned tLen = 4;
+	::std::array<tset_t, tLen> tset = { tset_t(real_t(-0.),false), tset_t(real_t(-1.),false)
+		, tset_t(real_t(2.),false), tset_t(real_t(0), true) };
+
+	for (const auto& ts : tset) {
+		v[vLen - 1] = ts.first;
+		ASSERT_TRUE(ts.second == IsBinaryET(v, vLen)) << "failed for " << ts.first;
+	}
+}

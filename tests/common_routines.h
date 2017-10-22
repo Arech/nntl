@@ -46,10 +46,19 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #define MNIST_FILE MNIST_FILE_RELEASE
 #endif // _DEBUG
 
-void seqFillMtx(realmtx_t& m);
+//#todo better use ::std::iota()
+template<typename real_t>
+void seqFillMtx(::nntl::math::smatrix<real_t>& m) {
+	NNTL_ASSERT(!m.empty() && m.numel_no_bias());
+	const auto p = m.data();
+	const auto ne = m.numel_no_bias();
+	for (size_t i = 0; i < ne; ++i) {
+		p[i] = static_cast<real_t>(i + 1);
+	}
+}
 
 template<typename real_t>
-void readTd(nntl::train_data<real_t>& td, const char* pFile = MNIST_FILE){
+void readTd(::nntl::train_data<real_t>& td, const char* pFile = MNIST_FILE) {
 	typedef nntl_supp::binfile reader_t;
 
 	SCOPED_TRACE("readTd");
@@ -61,63 +70,6 @@ void readTd(nntl::train_data<real_t>& td, const char* pFile = MNIST_FILE){
 	ASSERT_TRUE(td.train_x().emulatesBiases());
 	ASSERT_TRUE(td.test_x().emulatesBiases());
 }
-
-void _allowMask(const realmtx_t& srcMask, realmtx_t& mask, const realmtx_t& data_y, const vec_len_t c);
-
-void _maskStat(const realmtx_t& m);
-
-
-template<typename iRngT, typename iMathT>
-void makeDataXForGatedSetup(const realmtx_t& data_x, const realmtx_t& data_y, iRngT& iR, iMathT& iM, const bool bBinarize, realmtx_t& new_x) {
-	NNTL_UNREF(data_y);
-	SCOPED_TRACE("makeDataXForGatedSetup");
-
-	realmtx_t realMask(data_x.rows(), 1, false);
-	ASSERT_TRUE(!realMask.isAllocationFailed());
-	iR.gen_matrix_norm(realMask);
-	if (bBinarize) iM.ewBinarize_ip(realMask, real_t(.5));
-
-	_maskStat(realMask);
-
-	const auto gateIdx = data_x.cols_no_bias() / 2;
-
-	new_x.will_emulate_biases();
-	ASSERT_TRUE(new_x.resize(data_x.rows(), data_x.cols_no_bias() + 1)) << "Failed to resize new_x";
-
-	memcpy(new_x.data(), data_x.data(), data_x.byte_size_no_bias() / 2);
-	memcpy(new_x.colDataAsVec(gateIdx), realMask.data(), realMask.byte_size());
-	memcpy(new_x.colDataAsVec(gateIdx + 1), data_x.colDataAsVec(gateIdx), data_x.byte_size_no_bias() / 2);
-}
-
-template<typename iRngT, typename iMathT>
-void makeDataXForGatedSetup(const realmtx_t& data_x, const realmtx_t& data_y, iRngT& iR, iMathT& iM,
-	const bool bBinarize, const vec_len_t gatesCnt, realmtx_t& new_x)
-{
-	NNTL_UNREF(data_y);
-	SCOPED_TRACE("makeDataXForGatedSetup");
-	const auto xWidth = data_x.cols_no_bias();
-
-	realmtx_t realMask(data_x.rows(), gatesCnt, false);
-	ASSERT_TRUE(!realMask.isAllocationFailed());
-	iR.gen_matrix_norm(realMask);
-	if (bBinarize) iM.ewBinarize_ip(realMask, real_t(.5));
-
-	_maskStat(realMask);
-
-	const auto gateIdx = xWidth / 4;
-
-	new_x.will_emulate_biases();
-	ASSERT_TRUE(new_x.resize(data_x.rows(), data_x.cols_no_bias() + gatesCnt)) << "Failed to resize new_x";
-	
-	memcpy(new_x.data(), data_x.data(), sizeof(real_t)*(data_x.colDataAsVec(gateIdx)-data_x.data()));
-	memcpy(new_x.colDataAsVec(gateIdx), realMask.data(), realMask.byte_size());
-	memcpy(new_x.colDataAsVec(gateIdx + gatesCnt), data_x.colDataAsVec(gateIdx),
-		sizeof(real_t)*(data_x.colDataAsVec(xWidth) - data_x.colDataAsVec(gateIdx)));
-}
-
-void makeTdForGatedSetup(const nntl::train_data<real_t>& td, nntl::train_data<real_t>& tdGated, const uint64_t seedV
-	, const bool bBinarize, const vec_len_t gatesCnt=1);
-
 
 template<typename _I>
 struct modify_layer_set_RMSProp_and_NM {

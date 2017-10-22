@@ -104,29 +104,29 @@ namespace nntl {
 					rg.gen_matrix_no_bias(XSrc, real_t(5.));
 				} else rg.gen_matrix(XSrc, real_t(5.));
 			}
-			ASSERT_TRUE(!XHasBiases || XSrc.test_biases_ok());
+			ASSERT_TRUE(!XHasBiases || XSrc.test_biases_strict());
 
 			XSrc.clone_to(X_ET);
 			//(::std::forward<FET>(fet))(X_ET);
 			fet(X_ET);
-			ASSERT_TRUE(!XHasBiases || X_ET.test_biases_ok());
+			ASSERT_TRUE(!XHasBiases || X_ET.test_biases_strict());
 
 			XSrc.clone_to(X);
 			//(::std::forward<FST>(fst))(X);
 			fst(X);
-			ASSERT_TRUE(!XHasBiases || X.test_biases_ok());
+			ASSERT_TRUE(!XHasBiases || X.test_biases_strict());
 			ASSERT_MTX_EQ(X_ET, X, "_st");
 
 			XSrc.clone_to(X);
 			//(::std::forward<FMT>(fmt))(X);
 			fmt(X);
-			ASSERT_TRUE(!XHasBiases || X.test_biases_ok());
+			ASSERT_TRUE(!XHasBiases || X.test_biases_strict());
 			ASSERT_MTX_EQ(X_ET, X, "_mt");
 
 			XSrc.clone_to(X);
 			//(::std::forward<FB>(fb))(X);
 			fb(X);
-			ASSERT_TRUE(!XHasBiases || X.test_biases_ok());
+			ASSERT_TRUE(!XHasBiases || X.test_biases_strict());
 			ASSERT_MTX_EQ(X_ET, X, "()");
 		}
 	}
@@ -155,29 +155,29 @@ namespace nntl {
 					rg.gen_matrix_no_bias(XSrc, real_t(5.));
 				} else rg.gen_matrix(XSrc, real_t(5.));
 			}
-			ASSERT_TRUE(!XHasBiases || XSrc.test_biases_ok());
+			ASSERT_TRUE(!XHasBiases || XSrc.test_biases_strict());
 
 			XSrc.clone_to(X_ET);
 			//(::std::forward<FET>(fet))(X_ET);
 			fet(X_ET);
-			ASSERT_TRUE(!XHasBiases || X_ET.test_biases_ok());
+			ASSERT_TRUE(!XHasBiases || X_ET.test_biases_strict());
 
 			XSrc.clone_to(X);
 			//(::std::forward<FST>(fst))(X);
 			fst(X);
-			ASSERT_TRUE(!XHasBiases || X.test_biases_ok());
+			ASSERT_TRUE(!XHasBiases || X.test_biases_strict());
 			ASSERT_REALMTX_NEAR(X_ET, X, "_st", EpsT::eps);
 
 			XSrc.clone_to(X);
 			//(::std::forward<FMT>(fmt))(X);
 			fmt(X);
-			ASSERT_TRUE(!XHasBiases || X.test_biases_ok());
+			ASSERT_TRUE(!XHasBiases || X.test_biases_strict());
 			ASSERT_REALMTX_NEAR(X_ET, X, "_mt", EpsT::eps);
 
 			XSrc.clone_to(X);
 			//(::std::forward<FB>(fb))(X);
 			fb(X);
-			ASSERT_TRUE(!XHasBiases || X.test_biases_ok());
+			ASSERT_TRUE(!XHasBiases || X.test_biases_strict());
 			ASSERT_REALMTX_NEAR(X_ET, X, "()", EpsT::eps);
 		}
 	}
@@ -207,28 +207,28 @@ namespace nntl {
 					rg.gen_matrix_no_bias(X, real_t(5.));
 				} else rg.gen_matrix(X, real_t(5.));
 			}
-			ASSERT_TRUE(!XHasBiases || F.test_biases_ok());
+			ASSERT_TRUE(!XHasBiases || F.test_biases_strict());
 
 			//(::std::forward<FET>(fet))(X, F_ET);
 			fet(X, F_ET);
-			ASSERT_TRUE(!XHasBiases || F_ET.test_biases_ok());
+			ASSERT_TRUE(!XHasBiases || F_ET.test_biases_strict());
 
 			X.clone_to(F);
 			//(::std::forward<FST>(fst))(F);
 			fst(F);
-			ASSERT_TRUE(!XHasBiases || F.test_biases_ok());
+			ASSERT_TRUE(!XHasBiases || F.test_biases_strict());
 			ASSERT_REALMTX_NEAR(F_ET, F, "_st", EPST::eps);
 
 			X.clone_to(F);
 			//(::std::forward<FMT>(fmt))(F);
 			fmt(F);
-			ASSERT_TRUE(!XHasBiases || F.test_biases_ok());
+			ASSERT_TRUE(!XHasBiases || F.test_biases_strict());
 			ASSERT_REALMTX_NEAR(F_ET, F, "_mt", EPST::eps);
 
 			X.clone_to(F);
 			//(::std::forward<FB>(fb))(F);
 			fb(F);
-			ASSERT_TRUE(!XHasBiases || F.test_biases_ok());
+			ASSERT_TRUE(!XHasBiases || F.test_biases_strict());
 			ASSERT_REALMTX_NEAR(F_ET, F, "()", EPST::eps);
 		}
 	}
@@ -250,13 +250,13 @@ namespace nntl {
 
 		for (unsigned r = 0; r < testCorrRepCnt; ++r) {
 			rg.gen_matrix_no_bias(X, real_t(5.));
-			ASSERT_TRUE(X.test_biases_ok());
+			ASSERT_TRUE(X.test_biases_strict());
 
 			//(::std::forward<DFET>(dfet))(X, df_ET);
 			dfet(X, df_ET);
 			//(::std::forward<FET>(fet))(X, F);
 			fet(X, F);
-			ASSERT_TRUE(F.test_biases_ok());
+			ASSERT_TRUE(F.test_biases_strict());
 
 			F.clone_to_no_bias(DF);
 			//(::std::forward<DFST>(dfst))(DF);

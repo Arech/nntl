@@ -1641,7 +1641,7 @@ TEST(TestMathNThr, evMul_ip) {
 //////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////
 
-template<bool bWsort>
+//template<bool bWsort>
 void test_mExtractRows_perf(vec_len_t rowsCnt, vec_len_t colsCnt, vec_len_t extrCnt) {
 	typedef ::std::vector<realmtx_t::vec_len_t> vec_t;
 
@@ -1649,7 +1649,8 @@ void test_mExtractRows_perf(vec_len_t rowsCnt, vec_len_t colsCnt, vec_len_t extr
 
 	realmtx_t src(rowsCnt, colsCnt), dest(extrCnt, colsCnt);
 	ASSERT_TRUE(!src.isAllocationFailed() && !dest.isAllocationFailed());
-	vec_t vec(extrCnt);
+	vec_t vec(rowsCnt);
+	::std::iota(vec.begin(), vec.end(), 0);
 
 	STDCOUTL("******* testing mExtractRows() over " << rowsCnt << "x" << colsCnt << " matrix (" << src.numel()
 		<< " elems) ExtractRows=" << extrCnt << " -> " << dest.numel() << " elems *********");
@@ -1665,33 +1666,33 @@ void test_mExtractRows_perf(vec_len_t rowsCnt, vec_len_t colsCnt, vec_len_t extr
 	real_t v = real_t(0);
 	for (unsigned r = 0; r < maxReps; ++r) {
 		rg.gen_matrix(src, real_t(100));
-		rg.gen_vector_gtz(&vec[0], vec.size(), rowsCnt - 1);
+		::std::random_shuffle(vec.begin(), vec.end(), rg);
 		tS.tic();
-		if (bWsort) {
-			::std::sort(vec.begin(), vec.end());
-		}
+// 		if (bWsort) {
+// 			::std::sort(vec.begin(), vec.end());
+// 		}
 		iM.mExtractRows_seqWrite_st(src, vec.begin(), dest);
 		tS.toc();
 		for (const auto& e : dest) v += e;
 		v = ::std::log(::std::abs(v));
 
 		rg.gen_matrix(src, real_t(100));
-		rg.gen_vector_gtz(&vec[0], vec.size(), rowsCnt - 1);
+		::std::random_shuffle(vec.begin(), vec.end(), rg);
 		tM.tic();
-		if (bWsort) {
-			::std::sort(vec.begin(), vec.end());
-		}
+// 		if (bWsort) {
+// 			::std::sort(vec.begin(), vec.end());
+// 		}
 		iM.mExtractRows_seqWrite_mt(src, vec.begin(), dest);
 		tM.toc();
 		for (const auto& e : dest) v += e;
 		v = ::std::log(::std::abs(v));
 
 		rg.gen_matrix(src, real_t(100));
-		rg.gen_vector_gtz(&vec[0], vec.size(), rowsCnt - 1);
+		::std::random_shuffle(vec.begin(), vec.end(), rg);
 		tB.tic();
-		if (bWsort) {
-			::std::sort(vec.begin(), vec.end());
-		}
+// 		if (bWsort) {
+// 			::std::sort(vec.begin(), vec.end());
+// 		}
 		iM.mExtractRows(src, vec.begin(), dest);
 		tB.toc();
 		for (const auto& e : dest) v += e;
@@ -1704,8 +1705,8 @@ void test_mExtractRows_perf(vec_len_t rowsCnt, vec_len_t colsCnt, vec_len_t extr
 }
 
 TEST(TestMathNThr, mExtractRowsPerf) {
-	NNTL_RUN_TEST2(imath_basic_t::Thresholds_t::mExtractRows, 100) test_mExtractRows_perf<false>(i, 100, 100);
-	NNTL_RUN_TEST2(imath_basic_t::Thresholds_t::mExtractRows, 20) test_mExtractRows_perf<false>(i, 20, 100);
+	NNTL_RUN_TEST2(imath_basic_t::Thresholds_t::mExtractRows, 100) test_mExtractRows_perf(i, 100, 100);
+	NNTL_RUN_TEST2(imath_basic_t::Thresholds_t::mExtractRows, 20) test_mExtractRows_perf(i, 20, 100);
 }
 
 //////////////////////////////////////////////////////////////////////////
@@ -1757,8 +1758,206 @@ void test_make_dropout_perf(vec_len_t rowsCnt, vec_len_t colsCnt = 10, const rea
 }
 
 TEST(TestMathNThr, make_dropout) {
-	// 	typedef nntl::d_interfaces::iThreads_t def_threads_t;
-	// 	typedef math::MathN<real_t, def_threads_t> iMB;
-	// 	iMB iM;
 	NNTL_RUN_TEST2(imath_basic_t::Thresholds_t::make_dropout, 10) test_make_dropout_perf(i, 10);
 }
+
+//////////////////////////////////////////////////////////////////////////
+
+void test_evOneCompl_perf(vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
+	const auto dataSize = realmtx_t::sNumel(rowsCnt, colsCnt);
+	STDCOUTL("******* testing evOneCompl() over " << rowsCnt << "x" << colsCnt << " matrix (" << dataSize << " elements) **************");
+
+	constexpr unsigned maxReps = TEST_PERF_REPEATS_COUNT;
+
+	realmtx_t gate(rowsCnt, colsCnt), gcompl(rowsCnt, colsCnt);
+
+	d_interfaces::iRng_t rg;
+	rg.init_ithreads(iM.ithreads());
+
+	threads::prioritize_workers<threads::PriorityClass::PerfTesting, imath_basic_t::iThreads_t> pw(iM.ithreads());
+
+	utils::tictoc tSt, tMt, tB;
+	real_t v = real_t(0.);
+
+	for (unsigned r = 0; r < maxReps; ++r) {
+		rg.gen_matrix_norm(gate);
+		iM.ewBinarize_ip(gate, real_t(0.5), real_t(0), real_t(1));
+		gcompl.zeros();
+		tSt.tic();
+		iM.evOneCompl_st(gate, gcompl);
+		tSt.toc();
+		for (const auto e : gcompl) v += e;
+
+		rg.gen_matrix_norm(gate);
+		iM.ewBinarize_ip(gate, real_t(0.5), real_t(0), real_t(1));
+		gcompl.zeros();
+		tMt.tic();
+		iM.evOneCompl_mt(gate, gcompl);
+		tMt.toc();
+		for (const auto e : gcompl) v += e;
+
+		rg.gen_matrix_norm(gate);
+		iM.ewBinarize_ip(gate, real_t(0.5), real_t(0), real_t(1));
+		gcompl.zeros();
+		tB.tic();
+		iM.evOneCompl(gate, gcompl);
+		tB.toc();
+		for (const auto e : gcompl) v += e;
+	}
+	tSt.say("st");
+	tMt.say("mt");
+	tB.say("()");
+	STDCOUTL(v);
+}
+
+TEST(TestMathNThr, evOneCompl) {
+	NNTL_RUN_TEST2(imath_basic_t::Thresholds_t::evOneCompl, 10) test_evOneCompl_perf(i, 10);
+}
+
+//////////////////////////////////////////////////////////////////////////
+
+void test_mExtractRowsByMask_perf(real_t offProb, vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
+	const auto dataSize = realmtx_t::sNumel(rowsCnt, colsCnt);
+	STDCOUTL("******* testing mExtractRowsByMask() over " << rowsCnt << "x" << colsCnt << " matrix (" << dataSize
+		<< " elements). offProb = " << offProb << " **************");
+
+	constexpr unsigned maxReps = TEST_PERF_REPEATS_COUNT;
+	realmtx_t src(rowsCnt, colsCnt), mask(rowsCnt, 1);
+	realmtxdef_t dest(rowsCnt, colsCnt);
+
+	d_interfaces::iRng_t rg;
+	rg.init_ithreads(iM.ithreads());
+
+	threads::prioritize_workers<threads::PriorityClass::PerfTesting, imath_basic_t::iThreads_t> pw(iM.ithreads());
+
+	utils::tictoc tSt, tMt, tB;
+	real_t v = real_t(0.);
+
+	for (unsigned r = 0; r < maxReps; ++r) {
+		rg.gen_matrix(src, real_t(5));
+		vec_len_t nzc;
+		do {
+			rg.gen_matrix_norm(mask);
+			iM.ewBinarize_ip(mask, offProb, real_t(0), real_t(1));
+			nzc = static_cast<vec_len_t>(iM.vCountNonZeros(mask.data(), mask.rows()));
+		} while (0 == nzc);
+		dest.deform_rows(nzc);
+		tSt.tic();
+		iM.mExtractRowsByMask_st(src, mask.data(), dest);
+		tSt.toc();
+		for (const auto e : dest) v += e;
+
+		rg.gen_matrix(src, real_t(5));
+		do {
+			rg.gen_matrix_norm(mask);
+			iM.ewBinarize_ip(mask, offProb, real_t(0), real_t(1));
+			nzc = static_cast<vec_len_t>(iM.vCountNonZeros(mask.data(), mask.rows()));
+		} while (0 == nzc);
+		dest.deform_rows(nzc);
+		tMt.tic();
+		iM.mExtractRowsByMask_mt(src, mask.data(), dest);
+		tMt.toc();
+		for (const auto e : dest) v += e;
+
+		rg.gen_matrix(src, real_t(5));
+		do {
+			rg.gen_matrix_norm(mask);
+			iM.ewBinarize_ip(mask, offProb, real_t(0), real_t(1));
+			nzc = static_cast<vec_len_t>(iM.vCountNonZeros(mask.data(), mask.rows()));
+		} while (0 == nzc);
+		dest.deform_rows(nzc);
+		tB.tic();
+		iM.mExtractRowsByMask(src, mask.data(), dest);
+		tB.toc();
+		for (const auto e : dest) v += e;
+	}
+
+	tSt.say("st");
+	tMt.say("mt");
+	tB.say("()");
+	STDCOUTL(v);
+}
+
+TEST(TestMathNThr, mExtractRowsByMask) {
+	::std::array<real_t, 3> aMaskProb = { real_t(.99), real_t(.9), real_t(.5), };
+	for (const auto prob : aMaskProb) {
+		NNTL_RUN_TEST2(imath_basic_t::Thresholds_t::mExtractRowsByMask, 24) test_mExtractRowsByMask_perf(real_t(1) - prob, i, 24);
+	}
+}
+
+//////////////////////////////////////////////////////////////////////////
+void test_mFillRowsByMask_perf(real_t offProb, vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
+	const auto dataSize = realmtx_t::sNumel(rowsCnt, colsCnt);
+	STDCOUTL("******* testing mFillRowsByMask() over " << rowsCnt << "x" << colsCnt << " matrix (" << dataSize
+		<< " elements). offProb = " << offProb << " **************");
+
+	constexpr unsigned maxReps = TEST_PERF_REPEATS_COUNT;
+	realmtx_t dest(rowsCnt, colsCnt), mask(rowsCnt, 1);
+	realmtxdef_t src(rowsCnt, colsCnt);
+
+	d_interfaces::iRng_t rg;
+	rg.init_ithreads(iM.ithreads());
+
+	threads::prioritize_workers<threads::PriorityClass::PerfTesting, imath_basic_t::iThreads_t> pw(iM.ithreads());
+
+	utils::tictoc tSt, tMt, tB;
+	real_t v = real_t(0.);
+
+	for (unsigned r = 0; r < maxReps; ++r) {
+		size_t nzc;
+		do {
+			rg.gen_matrix_norm(mask);
+			iM.ewBinarize_ip(mask, offProb, real_t(0), real_t(1));
+			nzc = iM.vCountNonZeros(mask.data(), mask.rows());
+		} while (0 == nzc);
+		src.deform_rows(static_cast<neurons_count_t>(nzc));
+		rg.gen_matrix(src, real_t(5));
+		tSt.tic();
+		iM.mFillRowsByMask_st(src, mask.data(), dest);
+		tSt.toc();
+		for (const auto e : dest) v += e;
+
+		do {
+			rg.gen_matrix_norm(mask);
+			iM.ewBinarize_ip(mask, offProb, real_t(0), real_t(1));
+			nzc = iM.vCountNonZeros(mask.data(), mask.rows());
+		} while (0 == nzc);
+		src.deform_rows(static_cast<neurons_count_t>(nzc));
+		rg.gen_matrix(src, real_t(5));
+		tMt.tic();
+		iM.mFillRowsByMask_mt(src, mask.data(), dest);
+		tMt.toc();
+		for (const auto e : dest) v += e;
+
+		do {
+			rg.gen_matrix_norm(mask);
+			iM.ewBinarize_ip(mask, offProb, real_t(0), real_t(1));
+			nzc = iM.vCountNonZeros(mask.data(), mask.rows());
+		} while (0 == nzc);
+		src.deform_rows(static_cast<neurons_count_t>(nzc));
+		rg.gen_matrix(src, real_t(5));
+		tB.tic();
+		iM.mFillRowsByMask(src, mask.data(), dest);
+		tB.toc();
+		for (const auto e : dest) v += e;
+	}
+
+	tSt.say("st");
+	tMt.say("mt");
+	tB.say("()");
+	STDCOUTL(v);
+}
+
+TEST(TestMathNThr, mFillRowsByMask) {
+	::std::array<real_t, 3> aMaskProb = { real_t(.99), real_t(.9), real_t(.5), };
+	for (const auto prob : aMaskProb) {
+		NNTL_RUN_TEST2(imath_basic_t::Thresholds_t::mFillRowsByMask, 24) test_mFillRowsByMask_perf(real_t(1) - prob, i, 24);
+	}
+}
+//////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////
+
+
+
+////////////////////////////////////////////////////////////////////////// 
+////////////////////////////////////////////////////////////////////////// 

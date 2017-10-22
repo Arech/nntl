@@ -1733,7 +1733,7 @@ void pt_iact_asymm_st(realmtx_t& srcdest, FunctorT&& fnc) noexcept {
 }
 //slightly faster (177vs192)
 template<typename RealT, size_t LeakKInv100 = 10000, typename WeightsInitScheme = weights_init::He_Zhang<>>
-class exp_leaky_relu : public activation::_i_activation<RealT, WeightsInitScheme> {
+class exp_leaky_relu : public activation::_i_activation<RealT, WeightsInitScheme,true> {
 	exp_leaky_relu() = delete;
 	~exp_leaky_relu() = delete;
 public:
@@ -1771,7 +1771,7 @@ public:
 //well, this one and current pt_iact_asymm_st() is a bit better and approximately as fast as plain version.
 //however, better fire me than make me refactor the old code now... Leave it for a future.
 template<typename RealT, size_t LeakKInv100 = 10000, typename WeightsInitScheme = weights_init::He_Zhang<>>
-class exp3_leaky_relu : public activation::_i_activation<RealT, WeightsInitScheme> {
+class exp3_leaky_relu : public activation::_i_activation<RealT, WeightsInitScheme, true> {
 	exp3_leaky_relu() = delete;
 	~exp3_leaky_relu() = delete;
 public:
@@ -1880,9 +1880,9 @@ void test_vCountNonZeros_perf(vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 
 	threads::prioritize_workers<threads::PriorityClass::PerfTesting, imath_basic_t::iThreads_t> pw(iM.ithreads());
 
-	utils::tictoc tN, tN2, tV, tV2;
+	utils::tictoc tN, tN2, tV, tV2, tS, tS2;
 
-	size_t a = 0, v;
+	size_t a = 0, v, s;
 
 	for (unsigned r = 0; r < maxReps; ++r) {
 		rg.gen_matrix(dat, 1);
@@ -1897,31 +1897,268 @@ void test_vCountNonZeros_perf(vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 		v = vCountNonZeros_naive(ptr, ne);
 		tN.toc();
 		a += v;
+		s = v;
 
 		tV.tic();
 		v = iM.vCountNonZeros(ptr, ne);
 		tV.toc();
 		a += v;
+		ASSERT_EQ(s, v);
+		s = v;
 
+		ptr[0] = real_t(0.0); ptr[4] = real_t(0.0);
+		tS.tic();
+		v = iM.vCountNonZerosStrict(ptr, ne);
+		tS.toc();
+		a += v;
+		ASSERT_EQ(s, v);
+		s = v;
+
+		ptr[0] = real_t(-0.0); ptr[4] = real_t(-0.0);
 		tN2.tic();
 		v = vCountNonZeros_naive(ptr, ne);
 		tN2.toc();
 		a += v;
+		ASSERT_EQ(s, v);
+		s = v;
 
 		tV2.tic();
 		v = iM.vCountNonZeros(ptr, ne);
 		tV2.toc();
 		a += v;
+		ASSERT_EQ(s, v);
+		s = v;
+
+		ptr[0] = real_t(0.0); ptr[4] = real_t(0.0);
+		tS2.tic();
+		v = iM.vCountNonZerosStrict(ptr, ne);
+		tS2.toc();
+		a += v;
+		ASSERT_EQ(s, v);
+		s = v;
 	}
 	tN.say("n1");
 	tN2.say("n2");
 	tV.say("v1");
 	tV2.say("v2");
+	tS.say("s1");
+	tS2.say("s2");
 	STDCOUTL(a);
 }
 
 TEST(TestPerfDecisions, vCountNonZeros) {
 	NNTL_RUN_TEST2(10000, 1) test_vCountNonZeros_perf(i, 1);
+	NNTL_RUN_TEST2(100000, 1) test_vCountNonZeros_perf(i, 1);
 }
 
+
+//////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////
+template<typename real_t>
+static bool isBinaryVec_rt(const real_t* ptr, const numel_cnt_t ne) noexcept {
+	static_assert(::std::is_floating_point<real_t>::value, "");
+
+	const auto pE = ptr + ne;
+	int cond = 1;
+	while (ptr != pE) {//err 500, doesn't vectorize
+		const auto v = *ptr++;
+		//doesn't catch negative zero, but it's ok for the test
+		const int c = ((v == real_t(1.0)) | (v == real_t(0)));
+		//NNTL_ASSERT(c || !"Not a binary vector!");
+		cond = cond & c;
+	}
+	return !!cond;
+}
+
+template<typename real_t>
+static bool isBinaryVec_st(const typename math::real_t_limits<real_t>::similar_FWI_t* ptr, const numel_cnt_t ne) noexcept {
+	static_assert(::std::is_floating_point<real_t>::value, "");
+	typedef typename math::real_t_limits<real_t>::similar_FWI_t similar_FWI_t;
+
+	const auto _one = math::similar_FWI_one<real_t>();
+	const auto _zero = math::similar_FWI_pos_zero<real_t>();
+
+	const auto pE = ptr + ne;
+	int cond = 1;
+	while (ptr != pE) {//vectorizes
+		const auto v = *ptr++;
+		//we must make sure that binary zero is an actual unsigned(positive) zero
+		const int c = ((v == _one) | (v == _zero));
+		//NNTL_ASSERT(c || !"Not a binary vector!");
+		cond = cond & c;
+	}
+	return !!cond;
+}
+
+template<typename real_t>
+static bool isBinaryVec_stst(const typename math::real_t_limits<real_t>::similar_FWI_t* ptr, const numel_cnt_t ne) noexcept {
+	static_assert(::std::is_floating_point<real_t>::value, "");
+	typedef typename math::real_t_limits<real_t>::similar_FWI_t similar_FWI_t;
+
+	const auto _one = math::similar_FWI_one<real_t>();
+	const auto _zero = math::similar_FWI_pos_zero<real_t>();
+
+	const auto pE = ptr + ne;
+	similar_FWI_t cond = 1;
+	while (ptr != pE) {//vectorizes
+		const auto v = *ptr++;
+		//we must make sure that binary zero is an actual unsigned(positive) zero
+		const similar_FWI_t c = ((v == _one) | (v == _zero));
+		//NNTL_ASSERT(c || !"Not a binary vector!");
+		cond = cond & c;
+	}
+	return !!cond;
+}
+
+template<typename real_t>
+void IsBinary_diffDataTypes_perf(const vec_len_t rowsCnt, const vec_len_t colsCnt) {
+	typedef math::smatrix<real_t> realmtx_t;
+	typedef math::real_t_limits<real_t>::similar_FWI_t similar_FWI_t;
+	typedef math::smatrix<similar_FWI_t> similar_FWI_mtx_t;
+
+	typedef typename d_int_nI<real_t>::iRng_t iRng_t;
+	typedef typename d_int_nI<real_t>::iMath_t iMath_t;
+
+	constexpr unsigned maxReps = TEST_PERF_REPEATS_COUNT;
+
+	const auto dataSize = realmtx_t::sNumel(rowsCnt, colsCnt);
+	STDCOUTL("**** testing IsBinary() variations over " << rowsCnt << "x" << colsCnt << " matrix (" << dataSize << " elements) ****");
+
+	realmtx_t rM(rowsCnt, colsCnt);
+	similar_FWI_mtx_t sM(rowsCnt, colsCnt), sM2(rowsCnt, colsCnt);
+	ASSERT_EQ(rM.byte_size(), sM.byte_size());
+
+	iMath_t iM;
+	iRng_t rg;
+	rg.init_ithreads(iM.ithreads());
+
+	utils::tictoc tR, tS, tS2;
+	threads::prioritize_workers<threads::PriorityClass::PerfTesting, iMath_t::iThreads_t> pw(iM.ithreads());
+
+	for (unsigned r = 0; r < maxReps; ++r) {
+		rg.gen_matrix(rM, real_t(2.));
+
+		tR.tic();
+		const auto vr = isBinaryVec_rt(rM.data(), dataSize);
+		tR.toc();
+
+		::std::memcpy(sM.data(), rM.data(), rM.byte_size());
+		tS.tic();
+		const auto vs = isBinaryVec_st<real_t>(sM.data(), dataSize);
+		tS.toc();
+
+		::std::memcpy(sM2.data(), rM.data(), rM.byte_size());
+		tS2.tic();
+		const auto vs2 = isBinaryVec_stst<real_t>(sM2.data(), dataSize);
+		tS2.toc();
+
+		ASSERT_EQ(vr, vs);
+		ASSERT_EQ(vr, vs2);
+	}
+	tR.say("real_t");
+	tS.say("int");
+	tS2.say("size_t");
+}
+
+
+TEST(TestPerfDecisions, IsBinary_diffDataTypes) {
+	IsBinary_diffDataTypes_perf<float>(1000, 100);
+	IsBinary_diffDataTypes_perf<float>(1000, 1000);
+	IsBinary_diffDataTypes_perf<float>(1000, 2000);
+
+	IsBinary_diffDataTypes_perf<double>(1000, 10);
+	IsBinary_diffDataTypes_perf<double>(1000, 100);
+	IsBinary_diffDataTypes_perf<double>(1000, 200);
+}
+
+//////////////////////////////////////////////////////////////////////////
+/*
+void mExtractRowsByMask_baseline(const realmtx_t& src, realmtxdef_t& dest, const realmtx_t& mask, size_t*const pTmpIdxs)noexcept {
+	NNTL_ASSERT(src.rows() == mask.rows());
+
+	typedef ::nntl::math::real_t_limits<real_t>::similar_FWI_t similar_FWI_t;
+
+	//making indexing vector
+	const auto pM = reinterpret_cast<const similar_FWI_t*>(mask.data());
+	const auto _one = ::nntl::math::similar_FWI_one<real_t>();
+	const auto _zero = ::nntl::math::similar_FWI_pos_zero<real_t>();
+	NNTL_ASSERT(_zero == 0);
+	const size_t nRows = mask.rows();
+	size_t ci = 0;
+	for (size_t i = 0; i < nRows; ++i) {
+		const auto m = pM[i];
+		NNTL_ASSERT(m == _one || m == _zero);
+		if (m) {
+			pTmpIdxs[ci++] = i;
+		}
+	}
+
+	NNTL_ASSERT(dest.cols() == src.cols());
+	dest.deform_rows(static_cast<vec_len_t>(ci));
+
+	iM.mExtractRows(src, pTmpIdxs, dest);
+}
+
+
+void test_mExtractRowsByMask_perfdec(real_t offProb, vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
+	const auto dataSize = realmtx_t::sNumel(rowsCnt, colsCnt);
+	STDCOUTL("******* testing mExtractRowsByMask() variations over " << rowsCnt << "x" << colsCnt << " matrix (" << dataSize
+		<< " elements). offProb = " << offProb << " **************");
+
+	constexpr unsigned maxReps = TEST_PERF_REPEATS_COUNT;
+
+	realmtx_t src(rowsCnt, colsCnt), mask(rowsCnt, 1);
+	realmtxdef_t dest(rowsCnt, colsCnt), dest2(rowsCnt, colsCnt);
+	::nntl::math::smatrix<size_t> maskIdxs(rowsCnt, 1);
+	ASSERT_TRUE(!src.isAllocationFailed() && !dest.isAllocationFailed() && !mask.isAllocationFailed() && !maskIdxs.isAllocationFailed());
+
+	d_interfaces::iRng_t rg;
+	rg.init_ithreads(iM.ithreads());
+
+	threads::prioritize_workers<threads::PriorityClass::PerfTesting, imath_basic_t::iThreads_t> pw(iM.ithreads());
+
+	utils::tictoc tBL, tSpec;
+
+	real_t v = real_t(0);
+
+	for (unsigned r = 0; r < maxReps; ++r) {
+		rg.gen_matrix(src, real_t(5));
+		rg.gen_matrix_norm(mask);
+		iM.ewBinarize_ip(mask, offProb, real_t(0), real_t(1));
+		tBL.tic();
+		mExtractRowsByMask_baseline(src, dest, mask, maskIdxs.data());
+		tBL.toc();
+		for (const auto e : dest) v += e;
+
+		iM.mExtractRowsByMask(src, mask.data(), dest2);
+		ASSERT_EQ(dest, dest2) << "mismatched results";
+
+		rg.gen_matrix(src, real_t(5));
+		rg.gen_matrix_norm(mask);
+		iM.ewBinarize_ip(mask, offProb, real_t(0), real_t(1));
+		tSpec.tic();
+		iM.mExtractRowsByMask(src, mask.data(), dest2);
+		tSpec.toc();
+		for (const auto e : dest) v += e;
+	}
+
+	tBL.say("bl");
+	tSpec.say("cust");
+	STDCOUTL(v);
+}
+
+TEST(TestPerfDecisions, mExtractRowsByMask) {
+	::std::array<real_t, 3> aMaskProb = { real_t(.99), real_t(.9), real_t(.5), };
+	::std::array<vec_len_t, 3> aRows = { 100, 300, 1000 };
+	::std::array<vec_len_t, 3> aCols = { 20, 70, 200 };
+
+	for (const auto prob : aMaskProb) {
+		for (const auto c : aCols) {
+			for (const auto r : aRows) {
+				test_mExtractRowsByMask_perfdec(real_t(1.) - prob, r, c);
+			}
+		}
+	}
+}
+*/
 

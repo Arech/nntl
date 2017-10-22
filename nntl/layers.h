@@ -159,7 +159,6 @@ namespace nntl {
 		template<typename _Func>
 		void for_each_layer(_Func&& f)noexcept {
 			tuple_utils::for_each_up(m_layers, [&func{ f }](auto& l) {
-				//call_F_for_each_layer(::std::forward<_Func>(func), l);
 				call_F_for_each_layer(func, l);//mustn't forward because lambda is called multiple times
 			});
 		}
@@ -173,7 +172,6 @@ namespace nntl {
 		template<typename _Func>
 		void for_each_layer_exc_input(_Func&& f)noexcept {
 			tuple_utils::for_each_exc_first_up(m_layers, [&func{ f }](auto& l) {
-				//call_F_for_each_layer(::std::forward<_Func>(func), l);
 				call_F_for_each_layer(func, l);
 			});
 		}
@@ -255,14 +253,14 @@ namespace nntl {
 		}
 
 		void fprop(const realmtx_t& data_x) noexcept {
-			NNTL_ASSERT(data_x.test_biases_ok());
+			NNTL_ASSERT(data_x.test_biases_strict());
 
 			input_layer().fprop(data_x);
 
 			tuple_utils::for_eachwp_up(m_layers, [](auto& lcur, auto& lprev, const bool)noexcept {
-				NNTL_ASSERT(lprev.get_activations().test_biases_ok());
+				NNTL_ASSERT(lprev.get_activations().test_biases_strict());
 				lcur.fprop(lprev);
-				NNTL_ASSERT(lprev.get_activations().test_biases_ok());
+				NNTL_ASSERT(lprev.get_activations().test_biases_strict());
 			});
 		}
 
@@ -287,11 +285,11 @@ namespace nntl {
 					_a_dLdA[nextMtxIdx].deform_like_no_bias(lprev.get_activations());
 				}
 				
-				NNTL_ASSERT(lprev.get_activations().test_biases_ok());
+				NNTL_ASSERT(lprev.get_activations().test_biases_strict());
 				NNTL_ASSERT(_a_dLdA[mtxIdx].size() == lcur.get_activations().size_no_bias());
 				const unsigned bAlternate = lcur.bprop(_a_dLdA[mtxIdx], lprev, _a_dLdA[nextMtxIdx]);
 				NNTL_ASSERT(1 == bAlternate || 0 == bAlternate);
-				NNTL_ASSERT(lprev.get_activations().test_biases_ok());
+				NNTL_ASSERT(lprev.get_activations().test_biases_strict());
 
 				mtxIdx ^= bAlternate;
 			});

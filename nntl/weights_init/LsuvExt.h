@@ -564,8 +564,9 @@ namespace weights_init {
 				while (pBegin < pEnd) {
 					NNTL_ASSERT(pEnd >= pBegin + rowsCnt);
 					for (size_t ri = 0; ri < rowsCnt; ++ri) {
-						//floating-point zero is bitwise equal to fixed-point zero but the latter probably (fuck) works faster.
-						const math::real_t_limits<real_t>::similar_FWI_t* pCond = reinterpret_cast<const math::real_t_limits<real_t>::similar_FWI_t*>(pMask + ri);
+						//floating-point positive zero is bitwise equal to fixed-point zero, but the latter works faster.
+						//thought, it's probably doesn't make a big difference, because this loop can't be vectorized
+						const math::real_t_limits<real_t>::similar_FWI_t*const pCond = reinterpret_cast<const math::real_t_limits<real_t>::similar_FWI_t*>(pMask + ri);
 						if (*pCond != 0) {
 							acc(*pBegin);
 						}

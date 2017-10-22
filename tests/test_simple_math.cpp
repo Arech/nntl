@@ -324,43 +324,43 @@ void test_mTilingUnroll_corr(const vec_len_t maxSrcRows, const vec_len_t maxSrcC
 
 					mTilingUnroll_ET(src, destET);
 					if (bBiased) {
-						ASSERT_TRUE(src.test_biases_ok());
-						ASSERT_TRUE(destET.test_biases_ok());
+						ASSERT_TRUE(src.test_biases_strict());
+						ASSERT_TRUE(destET.test_biases_strict());
 					}
 
 					dest.zeros();
 					iM.mTilingUnroll_seqread_st(src, dest);
-					if (bBiased) ASSERT_TRUE(dest.test_biases_ok());
+					if (bBiased) ASSERT_TRUE(dest.test_biases_strict());
 					ASSERT_MTX_EQ(destET, dest, "_seqread_st()");
 
 					dest.zeros();
 					iM.mTilingUnroll_seqwrite_st(src, dest);
-					if (bBiased) ASSERT_TRUE(dest.test_biases_ok());
+					if (bBiased) ASSERT_TRUE(dest.test_biases_strict());
 					ASSERT_MTX_EQ(destET, dest, "_seqwrite_st()");
 
 					dest.zeros();
 					iM.mTilingUnroll_seqread_mt(src, dest);
-					if (bBiased) ASSERT_TRUE(dest.test_biases_ok());
+					if (bBiased) ASSERT_TRUE(dest.test_biases_strict());
 					ASSERT_MTX_EQ(destET, dest, "_seqread_mt()");
 
 					dest.zeros();
 					iM.mTilingUnroll_seqwrite_mt(src, dest);
-					if (bBiased) ASSERT_TRUE(dest.test_biases_ok());
+					if (bBiased) ASSERT_TRUE(dest.test_biases_strict());
 					ASSERT_MTX_EQ(destET, dest, "_seqwrite_mt()");
 
 					dest.zeros();
 					iM.mTilingUnroll_st(src, dest);
-					if (bBiased) ASSERT_TRUE(dest.test_biases_ok());
+					if (bBiased) ASSERT_TRUE(dest.test_biases_strict());
 					ASSERT_MTX_EQ(destET, dest, "_st()");
 
 					dest.zeros();
 					iM.mTilingUnroll_mt(src, dest);
-					if (bBiased) ASSERT_TRUE(dest.test_biases_ok());
+					if (bBiased) ASSERT_TRUE(dest.test_biases_strict());
 					ASSERT_MTX_EQ(destET, dest, "_mt()");
 
 					dest.zeros();
 					iM.mTilingUnroll(src, dest);
-					if (bBiased) ASSERT_TRUE(dest.test_biases_ok());
+					if (bBiased) ASSERT_TRUE(dest.test_biases_strict());
 					ASSERT_MTX_EQ(destET, dest, "()");
 				}
 			}
@@ -392,8 +392,8 @@ void test_mTilingEtalons(const vec_len_t maxSrcRows, const vec_len_t maxSrcCols,
 
 					mTilingRoll_ET(src, destET);
 					if (bBiased) {
-						ASSERT_TRUE(src.test_biases_ok());
-						ASSERT_TRUE(destET.test_biases_ok());
+						ASSERT_TRUE(src.test_biases_strict());
+						ASSERT_TRUE(destET.test_biases_strict());
 					}
 					mTilingUnroll_ET(destET, src2);
 					ASSERT_MTX_EQ(src, src2, "Roll/Unroll failed");
@@ -435,43 +435,43 @@ void test_mTilingRoll_corr(const vec_len_t maxSrcRows,const vec_len_t maxSrcCols
 
 					mTilingRoll_ET(src, destET);
 					if (bBiased) {
-						ASSERT_TRUE(src.test_biases_ok());
-						ASSERT_TRUE(destET.test_biases_ok());
+						ASSERT_TRUE(src.test_biases_strict());
+						ASSERT_TRUE(destET.test_biases_strict());
 					}
 
 					dest.zeros();
 					iM.mTilingRoll_seqread_st(src, dest);
-					if (bBiased) ASSERT_TRUE(dest.test_biases_ok());
+					if (bBiased) ASSERT_TRUE(dest.test_biases_strict());
 					ASSERT_MTX_EQ(destET, dest, "_seqread_st()");
 
 					dest.zeros();
 					iM.mTilingRoll_seqwrite_st(src, dest);
-					if (bBiased) ASSERT_TRUE(dest.test_biases_ok());
+					if (bBiased) ASSERT_TRUE(dest.test_biases_strict());
 					ASSERT_MTX_EQ(destET, dest, "_seqwrite_st()");
 
 					dest.zeros();
 					iM.mTilingRoll_seqread_mt(src, dest);
-					if (bBiased) ASSERT_TRUE(dest.test_biases_ok());
+					if (bBiased) ASSERT_TRUE(dest.test_biases_strict());
 					ASSERT_MTX_EQ(destET, dest, "_seqread_mt()");
 
 					dest.zeros();
 					iM.mTilingRoll_seqwrite_mt(src, dest);
-					if (bBiased) ASSERT_TRUE(dest.test_biases_ok());
+					if (bBiased) ASSERT_TRUE(dest.test_biases_strict());
 					ASSERT_MTX_EQ(destET, dest, "_seqwrite_mt()");
 
 					dest.zeros();
 					iM.mTilingRoll_st(src, dest);
-					if (bBiased) ASSERT_TRUE(dest.test_biases_ok());
+					if (bBiased) ASSERT_TRUE(dest.test_biases_strict());
 					ASSERT_MTX_EQ(destET, dest, "_st()");
 
 					dest.zeros();
 					iM.mTilingRoll_mt(src, dest);
-					if (bBiased) ASSERT_TRUE(dest.test_biases_ok());
+					if (bBiased) ASSERT_TRUE(dest.test_biases_strict());
 					ASSERT_MTX_EQ(destET, dest, "_mt()");
 
 					dest.zeros();
 					iM.mTilingRoll(src, dest);
-					if (bBiased) ASSERT_TRUE(dest.test_biases_ok());
+					if (bBiased) ASSERT_TRUE(dest.test_biases_strict());
 					ASSERT_MTX_EQ(destET, dest, "()");
 				}
 			}

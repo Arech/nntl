@@ -46,7 +46,7 @@ namespace activation {
 	template<typename RealT, unsigned int LogBaseNeg1e3 = 2718, unsigned int LogBasePos1e3 = 2000
 		, typename WeightsInitScheme = weights_init::He_Zhang<>>
 	class loglogu 
-		: public _i_activation<RealT, WeightsInitScheme>
+		: public _i_activation<RealT, WeightsInitScheme, true>
 		, public type_loglogu
 	{
 	public:

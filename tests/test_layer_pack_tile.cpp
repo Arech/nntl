@@ -141,7 +141,7 @@ TEST(TestLayerPackTile, ComparativeNonSpecialX) {
 	FCL Aund(tiledLayerIncomingNeurons * K, lr);//underlying layer to test dLdA correctness
 
 	FCL Atlfc(tiledLayerNeurons, lr);//layer to tile
-	auto Alpt = make_layer_pack_tile<K, false>(Atlfc);
+	LPT<decltype(Atlfc),K,false> Alpt(Atlfc);
 
 	LO Aoutp(_train_y.cols(), lr);
 
@@ -184,7 +184,8 @@ TEST(TestLayerPackTile, ComparativeNonSpecialX) {
 	FCL Bund(tiledLayerIncomingNeurons * K, lr);//underlying layer to test dLdA correctness
 
 	FCL Blfc1(tiledLayerNeurons, lr), Blfc2(tiledLayerNeurons, lr), Blfc3(tiledLayerNeurons, lr);
-	auto Blph = make_layer_pack_horizontal(
+
+	LPH<PHL<decltype(Blfc1)>, PHL<decltype(Blfc2)>, PHL<decltype(Blfc3)>> Blph(
 		make_PHL(Blfc1, 0 * tiledLayerIncomingNeurons, tiledLayerIncomingNeurons),
 		make_PHL(Blfc2, 1 * tiledLayerIncomingNeurons, tiledLayerIncomingNeurons),
 		make_PHL(Blfc3, 2 * tiledLayerIncomingNeurons, tiledLayerIncomingNeurons)

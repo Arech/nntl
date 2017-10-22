@@ -46,7 +46,7 @@ namespace activation {
 	template<typename RealT, unsigned int A1e3 = 1000
 		, typename WeightsInitScheme = weights_init::He_Zhang<>>
 	class softsigm
-		: public _i_activation<RealT, WeightsInitScheme>
+		: public _i_activation<RealT, WeightsInitScheme, false>
 		, public type_softsigm
 	{
 	public:

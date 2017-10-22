@@ -42,8 +42,8 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 typedef nntl::d_interfaces::real_t real_t;
 typedef nntl::math::smatrix<real_t> realmtx_t;
 typedef nntl::math::smatrix_deform<real_t> realmtxdef_t;
-typedef typename realmtx_t::vec_len_t vec_len_t;
-typedef typename realmtx_t::numel_cnt_t numel_cnt_t;
+typedef typename ::nntl::math::smatrix_td::vec_len_t vec_len_t;
+typedef typename ::nntl::math::smatrix_td::numel_cnt_t numel_cnt_t;
 
 #define MTXSIZE_SCOPED_TRACE(_r,_c,_descr) constexpr unsigned _scopeMsgLen = 128; \
 char _scopeMsg[_scopeMsgLen]; \

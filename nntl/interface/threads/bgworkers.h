@@ -220,9 +220,9 @@ namespace threads {
 			return m_tasks.size(); //should be safe to call from the main thread without mutex
 		}
 
-		template<typename T> void S() {
+		/*template<typename T> static void S() {
 			static_assert(false, "you've requested type of T, see below");
-		};
+		};*/
 
 		//in general, func must have a duration greater than duration of the task
 		template<typename FTask>

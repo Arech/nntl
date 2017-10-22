@@ -44,7 +44,7 @@ namespace activation {
 	template<typename RealT = d_interfaces::real_t
 		, typename WeightsInitScheme = weights_init::SNNInit>
 		class linear
-		: public _i_activation<RealT, WeightsInitScheme>
+		: public _i_activation<RealT, WeightsInitScheme, true>
 		, public type_linear
 	{
 	public:

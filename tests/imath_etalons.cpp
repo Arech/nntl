@@ -81,7 +81,7 @@ void softmax_ET(realmtxdef_t& act, real_t* pTmp)noexcept {
 	memcpy(act.data(), pNumerator, act.byte_size());
 	mrwDivideByVec_ET(act, pDenominator);
 
-	if (bRestoreBiases) act.restore_biases();
+	act.restore_biases(bRestoreBiases);
 }
 
 // L = sum( -y*log(a) )/activations.rows()

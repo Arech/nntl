@@ -124,3 +124,10 @@ self_cref_t get_self() const noexcept { \
 NNTL_TYPEDEFS_SELF() \
 self_ref_t get_self() noexcept { return static_cast<self_ref_t>(*this); } \
 self_cref_t get_self() const noexcept {  return static_cast<self_cref_t>(*this); }
+
+//helper to show type T in MSVC
+template<typename T> static constexpr int static_show_type() {
+	static_assert(false, "you've requested type of T, see below");
+};
+//static constexpr int v = static_show_type<TypeToCheck>();
+

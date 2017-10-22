@@ -72,6 +72,12 @@ namespace nntl {
 		template<typename CommonDataT>
 		static constexpr void _dropout_on_batch_size_change(const CommonDataT& CD) noexcept {}
 
+		//const realmtxdef_t& _dropout_get_original_activations()const noexcept{};
+
+		//if _dropout_have_original_activations() returns true, then _dropout_get_original_activations() must be workable
+		template<typename CommonDataT>
+		static constexpr bool _dropout_has_original_activations(const CommonDataT& CD) noexcept { return false; }
+
 		//////////////////////////////////////////////////////////////////////////
 		//The following functions will be called only if bDropout() returns true
 		template<typename CommonDataT>
@@ -80,6 +86,7 @@ namespace nntl {
 		template<typename CommonDataT>
 		static constexpr void _dropout_restoreScaling(realmtx_t& dLdA, realmtx_t& activations, const CommonDataT& CD)noexcept {}
 
+		//////////////////////////////////////////////////////////////////////////
 	public:
 		static constexpr bool bDropout() noexcept { return false; }
 		static constexpr real_t dropoutPercentActive() noexcept { return real_t(1.); }

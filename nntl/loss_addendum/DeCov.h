@@ -48,19 +48,13 @@ namespace nntl {
 		// BE AWARE that the amount of scaling applied to this regularized is not stable w.r.t. the batch size and layer neurons count.
 		// I.e. if you found some good scaling value for DeCov and then changed the batch size or the layer neurons count, then you'd
 		// have to repeat the search for the proper scaling again!
-		// 
-		//if bCalcOnFProp set to true, then it computes the necessary derivate during fprop step and stores it internally
-		//until bprop() phase. This helps to deal with a dropout that modifies some activations and makes some loss_addendums
-		// produce bogus results. This is especially important to DeCov
-		template<typename RealT, bool bNumStab = false, bool bLowerTriangl = false, bool bCalcOnFProp = true, bool bAppendToNZGrad=false>
-		class DeCov : public _impl::scaled_addendum_with_mtx4fprop<RealT, bCalcOnFProp, bAppendToNZGrad> {
+		template<typename RealT, bool bNumStab = false, bool bLowerTriangl = false, bool bCalcOnFProp = false, bool bAppendToNZGrad=false>
+		class DeCov : public _impl::scaled_addendum_with_mtx4fprop<RealT, bCalcOnFProp, bAppendToNZGrad, true> {
 		private:
-			typedef _impl::scaled_addendum_with_mtx4fprop<RealT, bCalcOnFProp, bAppendToNZGrad> _base_class_t;
+			typedef _impl::scaled_addendum_with_mtx4fprop<RealT, bCalcOnFProp, bAppendToNZGrad, true> _base_class_t;
 		public:
 			static constexpr const char* getName()noexcept { return "DeCov"; }
 			
-			//template <typename iMathT>
-			//static void init(const bool bWillDoTraining, const realmtx_t& biggestMtx, iMathT& iM) noexcept {
 			template <typename CommonDataT>
 			bool init(const mtx_size_t biggestMtx, const CommonDataT& CD) noexcept {
 				if (!_base_class_t::init(biggestMtx, CD)) return false;

@@ -252,3 +252,64 @@ size_t vCountNonZeros_naive(const T*const pVec, const size_t ne)noexcept {
 	}
 	return a;
 }
+
+template<typename T>
+void evOneCompl_ET(const ::nntl::math::smatrix<T>& gate, ::nntl::math::smatrix<T>& gcompl)noexcept{
+	static_assert(::std::is_floating_point<T>::value, "");
+	NNTL_ASSERT(gate.size() == gcompl.size());
+	const auto pG = gate.data();
+	const auto pGc = gcompl.data();
+	const auto ne = gate.numel_no_bias();
+	for (numel_cnt_t i = 0; i < ne; ++i) {
+		const auto g = pG[i];
+		NNTL_ASSERT(g == T(1.) || g == T(0.));
+		const auto gc = T(1.) - g;
+		pGc[i] = gc;
+	}
+}
+
+template<typename real_t>
+void mExtractRowsByMask_ET(const ::nntl::math::smatrix<real_t>& src, const real_t*const pMask, ::nntl::math::smatrix_deform<real_t>& dest) noexcept{
+	NNTL_ASSERT(!src.empty() && pMask && !dest.empty() && src.cols() == dest.cols());
+
+	const size_t nzCnt = vCountNonZeros_naive(pMask, src.rows());
+	NNTL_ASSERT(nzCnt);
+	dest.deform_rows(static_cast<::nntl::neurons_count_t>(nzCnt));
+
+	const size_t r = src.rows(), c = src.cols_no_bias();
+	auto pD = dest.data();
+	for (size_t ci = 0; ci < c; ++ci) {
+		const auto pS = src.colDataAsVec(static_cast<vec_len_t>(ci));
+		NNTL_ASSERT(pD == dest.colDataAsVec(static_cast<vec_len_t>(ci)));
+		for (size_t i = 0; i < r; ++i) {
+			const auto m = pMask[i];
+			NNTL_ASSERT(m == real_t(0) || m == real_t(1.));
+			if (pMask[i] != real_t(0.)) {
+				*pD++ = pS[i];
+			}
+		}
+		NNTL_ASSERT(ci == c - 1 || pD == dest.colDataAsVec(static_cast<vec_len_t>(ci + 1)));
+	}
+}
+
+
+template<typename real_t>
+void mFillRowsByMask_ET(const ::nntl::math::smatrix<real_t>& src, const real_t*const pMask, ::nntl::math::smatrix<real_t>& dest) noexcept {
+	NNTL_ASSERT(!src.empty() && pMask && !dest.empty() && src.cols() == dest.cols());
+
+	const size_t nzCnt = vCountNonZeros_naive(pMask, dest.rows());
+	NNTL_ASSERT(nzCnt == src.rows());
+	
+	const size_t r = dest.rows(), c = dest.cols_no_bias();
+	auto pS = src.data();
+	for (size_t ci = 0; ci < c; ++ci) {
+		const auto pD = dest.colDataAsVec(static_cast<vec_len_t>(ci));
+		NNTL_ASSERT(pS == src.colDataAsVec(static_cast<vec_len_t>(ci)));
+		for (size_t i = 0; i < r; ++i) {
+			const auto m = pMask[i];
+			NNTL_ASSERT(m == real_t(0) || m == real_t(1.));
+			pD[i] = m != real_t(0.) ? *pS++ : real_t(0);
+		}
+		NNTL_ASSERT(ci == c - 1 || pS == src.colDataAsVec(static_cast<vec_len_t>(ci + 1)));
+	}
+}

@@ -53,6 +53,9 @@ namespace _impl {
 		static constexpr size_t ewBinarize = 11000;
 
 		static constexpr size_t mExtractRows = 8000000/2;//nt
+		static constexpr vec_len_t mExtractRowsByMask = 100;//NT
+
+		static constexpr vec_len_t mFillRowsByMask = 100;//nt
 
 		static constexpr size_t mrwL2NormSquared = 124000;
 		static constexpr vec_len_t mrwL2NormSquared_mt_cw_ColsPerThread = 3;
@@ -82,6 +85,8 @@ namespace _impl {
 		static constexpr size_t evNZAddScaledSign_ip = 4000; //nt
 
 		static constexpr size_t evSign = 15000;//not tested
+
+		static constexpr size_t evOneCompl = 15000;//nt
 
 		static constexpr size_t evSub_ip = 22000;
 		static constexpr size_t evSub = 12600;
@@ -178,7 +183,10 @@ namespace _impl {
 		static constexpr size_t ewBinarize_ip = 13000;
 		static constexpr size_t ewBinarize = 9200;
 
-		static constexpr size_t mExtractRows = 800000;
+		static constexpr size_t mExtractRows = 830000;
+
+		static constexpr vec_len_t mExtractRowsByMask = 12000;//*
+		static constexpr vec_len_t mFillRowsByMask = 10000;//*
 
 		static constexpr size_t mrwL2NormSquared = 250000;
 		static constexpr vec_len_t mrwL2NormSquared_mt_cw_ColsPerThread = 3;
@@ -208,6 +216,8 @@ namespace _impl {
 		static constexpr size_t evNZAddScaledSign_ip = 6000; //nt
 
 		static constexpr size_t evSign = 30000;//not tested
+
+		static constexpr size_t evOneCompl = 40000;//*
 
 		static constexpr size_t evSub_ip = 12000;//*
 		static constexpr size_t evSub = 28000;

@@ -50,7 +50,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "layer/pack_vertical.h"
 #include "layer/pack_horizontal.h"
 #include "layer/identity.h"
-#include "layer/pack_horizontal_gated.h"
+#include "layer/pack_horizontal_optional.h"
 #include "layer/pack_tile.h"
 #include "layer/extensions.h"
 #include "nnet.h"

@@ -2107,7 +2107,7 @@ void test_make_dropout_corr(vec_len_t rowsCnt, vec_len_t colsCnt = 10, const rea
 	ASSERT_TRUE(!act2.isAllocationFailed() && !dm2.isAllocationFailed() && !act3.isAllocationFailed() && !dm3.isAllocationFailed());
 	for (unsigned r = 0; r < testCorrRepCnt; ++r) {
 		rg.gen_matrix_no_bias(act, 5);
-		ASSERT_TRUE(act.test_biases_ok());
+		ASSERT_TRUE(act.test_biases_strict());
 		act.clone_to(act2);
 		act.clone_to(act3);
 		rg.gen_matrix_norm(dm);
@@ -2115,7 +2115,7 @@ void test_make_dropout_corr(vec_len_t rowsCnt, vec_len_t colsCnt = 10, const rea
 		dm.clone_to(dm3);
 
 		make_dropout_ET(act2, dpa, dm2);
-		ASSERT_TRUE(act2.test_biases_ok());
+		ASSERT_TRUE(act2.test_biases_strict());
 
 		iM.make_dropout_st(act, dpa, dm);
 		ASSERT_MTX_EQ(act2, act, "make_dropout_st: wrong act");
@@ -2304,30 +2304,37 @@ TEST(TestMathN, evClampPerf) {
 }
 
 //////////////////////////////////////////////////////////////////////////
-TEST(TestMathN, mExtractRowsCorrectness) {	
-	constexpr vec_len_t rowsCnt = 2000, colsCnt = 50, extrCnt = 1000;
-
-	realmtx_t src(rowsCnt, colsCnt), destSt(extrCnt, colsCnt), destMt(extrCnt, colsCnt);;
+void test_mExtractRows_corr(const bool bBiases, const vec_len_t rowsCnt, const vec_len_t colsCnt, const vec_len_t extrCnt) {
+	realmtx_t src(rowsCnt, colsCnt, bBiases), destSt(extrCnt, colsCnt, bBiases), destMt(extrCnt, colsCnt, bBiases);
 	ASSERT_TRUE(!src.isAllocationFailed() && !destSt.isAllocationFailed() && !destMt.isAllocationFailed());
+	
 	auto pSrc = src.data();
-	for (numel_cnt_t i = 0, im = src.numel(); i < im; ++i) pSrc[i] = static_cast<real_t>(i);
+	for (numel_cnt_t i = 0, im = src.numel_no_bias(); i < im; ++i) pSrc[i] = static_cast<real_t>(i);
+	ASSERT_TRUE(!src.emulatesBiases() || src.test_biases_strict());
 
 	::std::vector<vec_len_t> vec(extrCnt);
 	d_interfaces::iRng_t rg;
 	rg.init_ithreads(iM.ithreads());
 
-	rg.gen_vector_gtz(&vec[0], vec.size(), rowsCnt - 1);
+	::std::iota(vec.begin(), vec.end(), 0);
+	::std::random_shuffle(vec.begin(), vec.end(), rg);
 
 	iM.mExtractRows_seqWrite_st(src, vec.begin(), destSt);
 	iM.mExtractRows_seqWrite_mt(src, vec.begin(), destMt);
 
 	ASSERT_EQ(destSt, destMt);
+	ASSERT_TRUE(!destSt.emulatesBiases() || destSt.test_biases_strict());
+
 	for (vec_len_t r = 0; r < extrCnt; ++r) {
-		for (vec_len_t c = 0; c < colsCnt; ++c) {
-			ASSERT_DOUBLE_EQ(destSt.get(r, c), src.get(vec[r], c));
-			//ASSERT_DOUBLE_EQ(destMt.get(r, c), src.get(vec[r], c));
+		for (vec_len_t c = 0, cm = src.cols(); c < cm; ++c) { //using src.cols() to take biases into account
+			ASSERT_EQ(destSt.get(r, c), src.get(vec[r], c));//must be binary equal
 		}
 	}
+}
+
+TEST(TestMathN, mExtractRowsCorrectness) {
+	ASSERT_NO_FATAL_FAILURE(test_mExtractRows_corr(false, 3000, 50, 1000));
+	ASSERT_NO_FATAL_FAILURE(test_mExtractRows_corr(true, 3000, 50, 1000));
 }
 
 //////////////////////////////////////////////////////////////////////////
@@ -2689,14 +2696,14 @@ void test_elu_corr(vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 	rg.init_ithreads(iM.ithreads());
 	for (unsigned r = 0; r < testCorrRepCnt; ++r) {
 		rg.gen_matrix_no_bias(src, 2);
-		ASSERT_TRUE(src.test_biases_ok());
+		ASSERT_TRUE(src.test_biases_strict());
 
 		src.clone_to(F_ET);
 		elu_ET(F_ET, alpha);
-		ASSERT_TRUE(F_ET.test_biases_ok());
+		ASSERT_TRUE(F_ET.test_biases_strict());
 		src.clone_to(FU_ET);
 		elu_unitalpha_ET(FU_ET);
-		ASSERT_TRUE(FU_ET.test_biases_ok());
+		ASSERT_TRUE(FU_ET.test_biases_strict());
 		//ASSERT_TRUE(FU_ET != F_ET);
 
 		src.clone_to(F);
@@ -2800,16 +2807,16 @@ void test_elogu_corr(vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 	rg.init_ithreads(iM.ithreads());
 	for (unsigned r = 0; r < testCorrRepCnt; ++r) {
 		rg.gen_matrix_no_bias(X, 5);
-		ASSERT_TRUE(X.test_biases_ok());
+		ASSERT_TRUE(X.test_biases_strict());
 
 		elogu_ET(X, F_ET, alpha, b);
-		ASSERT_TRUE(F_ET.test_biases_ok());
+		ASSERT_TRUE(F_ET.test_biases_strict());
 		elogu_ua_ET(X, FUA_ET, b);
-		ASSERT_TRUE(FUA_ET.test_biases_ok());
+		ASSERT_TRUE(FUA_ET.test_biases_strict());
 		elogu_nb_ET(X, FNB_ET, alpha);
-		ASSERT_TRUE(FNB_ET.test_biases_ok());
+		ASSERT_TRUE(FNB_ET.test_biases_strict());
 		elogu_ua_nb_ET(X, FUANB_ET);
-		ASSERT_TRUE(FUANB_ET.test_biases_ok());
+		ASSERT_TRUE(FUANB_ET.test_biases_strict());
 
 
 		X.clone_to(F);
@@ -2880,7 +2887,7 @@ void test_delogu_corr(vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 	rg.init_ithreads(iM.ithreads());
 	for (unsigned r = 0; r < testCorrRepCnt; ++r) {
 		rg.gen_matrix_no_bias(X, 5);
-		ASSERT_TRUE(X.test_biases_ok());
+		ASSERT_TRUE(X.test_biases_strict());
 
 		delogu_ET(X, df_ET, alpha, b);
 		delogu_ua_ET(X, dfUA_ET, b);
@@ -2888,7 +2895,7 @@ void test_delogu_corr(vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 		delogu_ua_nb_ET(X, dfUANB_ET);
 
 		elogu_ET(X, F, alpha, b);
-		ASSERT_TRUE(F.test_biases_ok());
+		ASSERT_TRUE(F.test_biases_strict());
 
 		ASSERT_TRUE(F.clone_to_no_bias(DF));
 		iM.delogu_st(DF, alpha, b);
@@ -2903,7 +2910,7 @@ void test_delogu_corr(vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 		ASSERT_REALMTX_NEAR(df_ET, DF, "delogu() failed", delogu_EPS<real_t>::eps);
 
 		elogu_ua_ET(X, F, b);
-		ASSERT_TRUE(F.test_biases_ok());
+		ASSERT_TRUE(F.test_biases_strict());
 		
 		ASSERT_TRUE(F.clone_to_no_bias(DF));
 		iM.delogu_ua_st(DF, b);
@@ -2918,7 +2925,7 @@ void test_delogu_corr(vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 		ASSERT_REALMTX_NEAR(dfUA_ET, DF, "delogu_ua() failed", delogu_EPS<real_t>::eps);
 
 		elogu_nb_ET(X, F, alpha);
-		ASSERT_TRUE(F.test_biases_ok());
+		ASSERT_TRUE(F.test_biases_strict());
 		
 		ASSERT_TRUE(F.clone_to_no_bias(DF));
 		iM.delogu_nb_st(DF, alpha);
@@ -2933,7 +2940,7 @@ void test_delogu_corr(vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 		ASSERT_REALMTX_NEAR(dfNB_ET, DF, "delogu_nb() failed", delogu_EPS<real_t>::eps);
 
 		elogu_ua_nb_ET(X, F);
-		ASSERT_TRUE(F.test_biases_ok());
+		ASSERT_TRUE(F.test_biases_strict());
 		
 		ASSERT_TRUE(F.clone_to_no_bias(DF));
 		iM.delogu_ua_nb_st(DF);
@@ -2977,16 +2984,16 @@ void test_loglogu_corr(vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 	rg.init_ithreads(iM.ithreads());
 	for (unsigned r = 0; r < testCorrRepCnt; ++r) {
 		rg.gen_matrix_no_bias(X, 5);
-		ASSERT_TRUE(X.test_biases_ok());
+		ASSERT_TRUE(X.test_biases_strict());
 
 		loglogu_ET(X, F_ET, b_neg, b_pos);
-		ASSERT_TRUE(F_ET.test_biases_ok());
+		ASSERT_TRUE(F_ET.test_biases_strict());
 		loglogu_nbn_ET(X, FUA_ET, b_pos);
-		ASSERT_TRUE(FUA_ET.test_biases_ok());
+		ASSERT_TRUE(FUA_ET.test_biases_strict());
 		loglogu_nbp_ET(X, FNB_ET, b_neg);
-		ASSERT_TRUE(FNB_ET.test_biases_ok());
+		ASSERT_TRUE(FNB_ET.test_biases_strict());
 		loglogu_nbn_nbp_ET(X, FUANB_ET);
-		ASSERT_TRUE(FUANB_ET.test_biases_ok());
+		ASSERT_TRUE(FUANB_ET.test_biases_strict());
 
 
 		X.clone_to(F);
@@ -3057,7 +3064,7 @@ void test_dloglogu_corr(vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 	rg.init_ithreads(iM.ithreads());
 	for (unsigned r = 0; r < testCorrRepCnt; ++r) {
 		rg.gen_matrix_no_bias(X, 5);
-		ASSERT_TRUE(X.test_biases_ok());
+		ASSERT_TRUE(X.test_biases_strict());
 
 		dloglogu_ET(X, df_ET, b_neg, b_pos);
 		dloglogu_nbn_ET(X, dfUA_ET, b_pos);
@@ -3065,7 +3072,7 @@ void test_dloglogu_corr(vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 		dloglogu_nbn_nbp_ET(X, dfUANB_ET);
 
 		loglogu_ET(X, F, b_neg, b_pos);
-		ASSERT_TRUE(F.test_biases_ok());
+		ASSERT_TRUE(F.test_biases_strict());
 
 		ASSERT_TRUE(F.clone_to_no_bias(DF));
 		iM.dloglogu_st(DF, b_neg, b_pos);
@@ -3080,7 +3087,7 @@ void test_dloglogu_corr(vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 		ASSERT_REALMTX_NEAR(df_ET, DF, "dloglogu() failed", dloglogu_EPS<real_t>::eps);
 
 		loglogu_nbn_ET(X, F, b_pos);
-		ASSERT_TRUE(F.test_biases_ok());
+		ASSERT_TRUE(F.test_biases_strict());
 
 		ASSERT_TRUE(F.clone_to_no_bias(DF));
 		iM.dloglogu_nbn_st(DF, b_pos);
@@ -3095,7 +3102,7 @@ void test_dloglogu_corr(vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 		ASSERT_REALMTX_NEAR(dfUA_ET, DF, "dloglogu_nbn() failed", dloglogu_EPS<real_t>::eps);
 
 		loglogu_nbp_ET(X, F, b_neg);
-		ASSERT_TRUE(F.test_biases_ok());
+		ASSERT_TRUE(F.test_biases_strict());
 
 		ASSERT_TRUE(F.clone_to_no_bias(DF));
 		iM.dloglogu_nbp_st(DF, b_neg);
@@ -3110,7 +3117,7 @@ void test_dloglogu_corr(vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 		ASSERT_REALMTX_NEAR(dfNB_ET, DF, "dloglogu_nbp() failed", dloglogu_EPS<real_t>::eps);
 
 		loglogu_nbn_nbp_ET(X, F);
-		ASSERT_TRUE(F.test_biases_ok());
+		ASSERT_TRUE(F.test_biases_strict());
 
 		ASSERT_TRUE(F.clone_to_no_bias(DF));
 		iM.dloglogu_nbn_nbp_st(DF);
@@ -3154,12 +3161,12 @@ void test_softsign_corr(vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 	rg.init_ithreads(iM.ithreads());
 	for (unsigned r = 0; r < testCorrRepCnt; ++r) {
 		rg.gen_matrix_no_bias(X, 5);
-		ASSERT_TRUE(X.test_biases_ok());
+		ASSERT_TRUE(X.test_biases_strict());
 
 		softsign_ET(X, F_ET, a, c);
-		ASSERT_TRUE(F_ET.test_biases_ok());
+		ASSERT_TRUE(F_ET.test_biases_strict());
 		softsign_ET(X, FUC_ET, a, real_t(1));
-		ASSERT_TRUE(FUC_ET.test_biases_ok());
+		ASSERT_TRUE(FUC_ET.test_biases_strict());
 		
 		X.clone_to(F);
 		iM.softsign_st(F, a, c);
@@ -3210,11 +3217,11 @@ void test_dsoftsign_corr(vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 	rg.init_ithreads(iM.ithreads());
 	for (unsigned r = 0; r < testCorrRepCnt; ++r) {
 		rg.gen_matrix_no_bias(X, 5);
-		ASSERT_TRUE(X.test_biases_ok());
+		ASSERT_TRUE(X.test_biases_strict());
 
 		dsoftsign_ET(X, df_ET, a, c);
 		softsign_ET(X, F, a, c);
-		ASSERT_TRUE(F.test_biases_ok());
+		ASSERT_TRUE(F.test_biases_strict());
 
 		ASSERT_TRUE(F.clone_to_no_bias(DF));
 		iM.dsoftsign_st(DF, a, c);
@@ -3230,7 +3237,7 @@ void test_dsoftsign_corr(vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 
 		dsoftsign_ET(X, dfUAUC_ET, real_t(1), real_t(1));
 		softsign_ET(X, F, real_t(1), real_t(1));
-		ASSERT_TRUE(F.test_biases_ok());
+		ASSERT_TRUE(F.test_biases_strict());
 
 		ASSERT_TRUE(F.clone_to_no_bias(DF));
 		iM.dsoftsign_ua_uc_st(DF);
@@ -3746,6 +3753,7 @@ TEST(TestMathN, evSubMtxMulC_ip_nb) {
 }
 
 //////////////////////////////////////////////////////////////////////////
+
 void test_vCountNonZeros_corr(vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 	constexpr unsigned testCorrRepCnt = TEST_CORRECTN_REPEATS_COUNT;
 
@@ -3773,6 +3781,10 @@ void test_vCountNonZeros_corr(vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 
 		v = vCountNonZeros_naive(ptr, ne);
 		ASSERT_EQ(et, v) << "vCountNonZeros_naive failed!";
+
+		ptr[0] = real_t(0);
+		v = iM.vCountNonZerosStrict(ptr, ne);
+		ASSERT_EQ(et, v) << "vCountNonZeros2 failed!";
 	}
 }
 
@@ -3793,4 +3805,162 @@ TEST(TestMathN, vCountNonZeros) {
 }
 
 //////////////////////////////////////////////////////////////////////////
+
+void test_evOneCompl_corr(vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
+	constexpr unsigned testCorrRepCnt = TEST_CORRECTN_REPEATS_COUNT;
+
+	realmtx_t gate(rowsCnt, colsCnt), gcompl(rowsCnt, colsCnt), gcomplET(rowsCnt, colsCnt);
+
+	d_interfaces::iRng_t rg;
+	rg.init_ithreads(iM.ithreads());
+
+	for (unsigned r = 0; r < testCorrRepCnt; ++r) {
+		rg.gen_matrix_norm(gate);
+		iM.ewBinarize_ip(gate, real_t(0.5), real_t(0), real_t(1));
+
+		evOneCompl_ET(gate, gcomplET);
+
+		gcompl.zeros();
+		iM.evOneCompl_st(gate, gcompl);
+		ASSERT_EQ(gcomplET, gcompl) << "evOneCompl_st failed!";
+
+		gcompl.zeros();
+		iM.evOneCompl_mt(gate, gcompl);
+		ASSERT_EQ(gcomplET, gcompl) << "evOneCompl_mt failed!";
+
+		gcompl.zeros();
+		iM.evOneCompl(gate, gcompl);
+		ASSERT_EQ(gcomplET, gcompl) << "evOneCompl failed!";
+	}
+}
+
+TEST(TestMathN, evOneCompl) {
+	for (vec_len_t r = 1; r < g_MinDataSizeDelta; ++r) {
+		for (vec_len_t c = 1; c < g_MinDataSizeDelta; ++c) {
+			ASSERT_NO_FATAL_FAILURE((test_evOneCompl_corr(r, c)));
+		}
+	}
+
+	constexpr unsigned rowsCnt = _baseRowsCnt;
+	const vec_len_t maxCols = g_MinDataSizeDelta, maxRows = rowsCnt + g_MinDataSizeDelta;
+	for (vec_len_t r = rowsCnt; r < maxRows; ++r) {
+		for (vec_len_t c = 1; c < maxCols; ++c) {
+			ASSERT_NO_FATAL_FAILURE((test_evOneCompl_corr(r, c)));
+		}
+	}
+}
+
+//////////////////////////////////////////////////////////////////////////
+
+void test_mExtractRowsByMask_corr(vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
+	constexpr unsigned testCorrRepCnt = TEST_CORRECTN_REPEATS_COUNT;
+
+	realmtx_t src(rowsCnt, colsCnt), mask(rowsCnt, 1);
+	realmtxdef_t dest(rowsCnt, colsCnt), destET(rowsCnt, colsCnt);
+
+	d_interfaces::iRng_t rg;
+	rg.init_ithreads(iM.ithreads());
+
+	for (unsigned r = 0; r < testCorrRepCnt; ++r) {
+		vec_len_t nzc;
+		do {
+			rg.gen_matrix_norm(mask);
+			iM.ewBinarize_ip(mask, real_t(0.3), real_t(0), real_t(1));
+			nzc = static_cast<vec_len_t>(iM.vCountNonZeros(mask.data(), mask.rows()));
+		} while (0 == nzc);
+		dest.deform_rows(nzc);
+		destET.deform_rows(nzc);
+
+		rg.gen_matrix(src, real_t(5));
+
+		destET.zeros();
+		mExtractRowsByMask_ET(src, mask.data(), destET);
+
+		dest.zeros();
+		iM.mExtractRowsByMask_st(src, mask.data(), dest);
+		ASSERT_EQ(destET, dest) << "mExtractRowsByMask_st failed!";
+
+		dest.zeros();
+		iM.mExtractRowsByMask_mt(src, mask.data(), dest);
+		ASSERT_EQ(destET, dest) << "mExtractRowsByMask_mt failed!";
+
+		dest.zeros();
+		iM.mExtractRowsByMask(src, mask.data(), dest);
+		ASSERT_EQ(destET, dest) << "mExtractRowsByMask() failed!";
+	}
+}
+
+TEST(TestMathN, mExtractRowsByMask) {
+	for (vec_len_t r = 1; r < g_MinDataSizeDelta; ++r) {
+		for (vec_len_t c = 1; c < g_MinDataSizeDelta; ++c) {
+			ASSERT_NO_FATAL_FAILURE((test_mExtractRowsByMask_corr(r, c)));
+		}
+	}
+
+	constexpr unsigned rowsCnt = _baseRowsCnt;
+	const vec_len_t maxCols = g_MinDataSizeDelta, maxRows = rowsCnt + g_MinDataSizeDelta;
+	for (vec_len_t r = rowsCnt; r < maxRows; ++r) {
+		for (vec_len_t c = 1; c < maxCols; ++c) {
+			ASSERT_NO_FATAL_FAILURE((test_mExtractRowsByMask_corr(r, c)));
+		}
+	}
+}
+
+//////////////////////////////////////////////////////////////////////////
+
+void test_mFillRowsByMask_corr(vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
+	constexpr unsigned testCorrRepCnt = TEST_CORRECTN_REPEATS_COUNT;
+
+	realmtx_t dest(rowsCnt, colsCnt), mask(rowsCnt, 1), destET(rowsCnt, colsCnt);
+	realmtxdef_t src(rowsCnt, colsCnt);
+
+	d_interfaces::iRng_t rg;
+	rg.init_ithreads(iM.ithreads());
+
+	for (unsigned r = 0; r < testCorrRepCnt; ++r) {
+		size_t nzc;
+		do {
+			rg.gen_matrix_norm(mask);
+			iM.ewBinarize_ip(mask, real_t(0.3), real_t(0), real_t(1));
+			nzc = iM.vCountNonZeros(mask.data(), mask.rows());
+		} while (0 == nzc);
+		src.deform_rows(static_cast<neurons_count_t>(nzc));
+		rg.gen_matrix(src, real_t(5));
+
+		destET.ones();
+		mFillRowsByMask_ET(src, mask.data(), destET);
+
+		dest.ones();
+		iM.mFillRowsByMask_st(src, mask.data(), dest);
+		ASSERT_EQ(destET, dest) << "mFillRowsByMask_st failed!";
+
+		dest.ones();
+		iM.mFillRowsByMask_mt(src, mask.data(), dest);
+		ASSERT_EQ(destET, dest) << "mFillRowsByMask_mt failed!";
+
+		dest.ones();
+		iM.mFillRowsByMask(src, mask.data(), dest);
+		ASSERT_EQ(destET, dest) << "mFillRowsByMask() failed!";
+	}
+}
+
+TEST(TestMathN, mFillRowsByMask) {
+	for (vec_len_t r = 1; r < g_MinDataSizeDelta; ++r) {
+		for (vec_len_t c = 1; c < g_MinDataSizeDelta; ++c) {
+			ASSERT_NO_FATAL_FAILURE((test_mFillRowsByMask_corr(r, c)));
+		}
+	}
+
+	constexpr unsigned rowsCnt = _baseRowsCnt;
+	const vec_len_t maxCols = g_MinDataSizeDelta, maxRows = rowsCnt + g_MinDataSizeDelta;
+	for (vec_len_t r = rowsCnt; r < maxRows; ++r) {
+		for (vec_len_t c = 1; c < maxCols; ++c) {
+			ASSERT_NO_FATAL_FAILURE((test_mFillRowsByMask_corr(r, c)));
+		}
+	}
+}
+
+//////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////
+
 

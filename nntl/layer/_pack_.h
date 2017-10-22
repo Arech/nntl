@@ -58,15 +58,12 @@ namespace nntl {
 		typedef LayerT phl_original_t;
 
 		phl_original_t& l;
-
 		const PHL_coord coord;
-		//const neurons_count_t m_offset;//offset to a first neuron of previous layer activation that is sent to the LayerT input
-		//const neurons_count_t m_count;//total number of neurons of previous layer that is sent to the LayerT input
 
 		template<typename _L = phl_original_t>
 		PHL(phl_original_t& _l, const neurons_count_t _ofs, const neurons_count_t _cnt
 			, typename ::std::enable_if<::std::is_base_of<m_layer_autoneurons_cnt, _L>::value>::type* = 0)noexcept
-			:l(_l), coord(_ofs,_cnt) //m_offset(_ofs), m_count(_cnt)
+			:l(_l), coord(_ofs,_cnt)
 		{
 			l._set_neurons_cnt(_cnt);
 		}
@@ -74,7 +71,7 @@ namespace nntl {
 		template<typename _L = phl_original_t >
 		PHL(phl_original_t& _l, const neurons_count_t _ofs, const neurons_count_t _cnt
 			, typename ::std::enable_if<!::std::is_base_of<m_layer_autoneurons_cnt, _L>::value>::type* = 0)noexcept
-			:l(_l), coord(_ofs, _cnt) //m_offset(_ofs), m_count(_cnt)
+			:l(_l), coord(_ofs, _cnt)
 		{ }
 	};
 	template<typename LayerT> inline constexpr
@@ -90,34 +87,52 @@ namespace nntl {
 
 		//////////////////////////////////////////////////////////////////////////
 		// trainable_layer_wrapper wraps all activation matrix of a layer
-		template<typename WrappedLayerT>
-		class trainable_layer_wrapper : public _i_layer_trainable<typename WrappedLayerT::real_t>, public m_prop_input_marker<WrappedLayerT> {
+		// PIMLT is the type you get by specializing m_prop_input_marker<> with a corresponding layer type, m_prop_input_marker<WrappedLayerT>
+		// Don't use directly if you can, use the wrap_trainable_layer<> template below.
+		template<typename PIMLT>
+		class _trainable_layer_wrapper : public _i_layer_trainable<typename PIMLT::real_t>, public PIMLT {
+			static_assert(_impl::is_m_prop_input_marker<PIMLT>::value, "Wrong PIMLT, did you use wrap_trainable_layer<>?");
 		public:
-			static_assert(::std::is_same<WrappedLayerT, ::std::decay_t<WrappedLayerT>>::value, "invalid type for trainable_layer_wrapper");
-
 			//this typedef helps to distinguish *_wrapper classes from other classes
-			typedef WrappedLayerT wrapped_layer_t;
+			typedef PIMLT wrapped_layer_t;
+			typedef typename PIMLT::real_t real_t;
 
 		protected:
 			const realmtx_t& m_act;
 
 		public:
-			~trainable_layer_wrapper()noexcept {}
-			trainable_layer_wrapper(const realmtx_t& underlyingLayerAct) : m_act(underlyingLayerAct) {}
+			~_trainable_layer_wrapper()noexcept {}
+
+			template<typename LayerT>
+			_trainable_layer_wrapper(const LayerT& L)noexcept
+				: m_act(L.get_activations()) {}
+
+			_trainable_layer_wrapper(const realmtx_t& underlyingLayerAct) noexcept : m_act(underlyingLayerAct) {}
+			_trainable_layer_wrapper(const realmtxdef_t& underlyingLayerAct) noexcept 
+				: m_act(static_cast<const realmtx_t&>(underlyingLayerAct)) {}
 
 			const realmtx_t& get_activations()const noexcept { return m_act; }
 			const realmtx_t* get_activations_storage()const noexcept { return &m_act; }
 			const mtx_size_t get_activations_size()const noexcept { return m_act.size(); }
 		};
 
+		template<typename LayerT>
+		using wrap_trainable_layer = _trainable_layer_wrapper< m_prop_input_marker<LayerT> >;
 
 
 		//////////////////////////////////////////////////////////////////////////
 		// trainable_partial_layer_wrapper wraps a subset of columns of activation matrix of a layer, defined by struct PHL
 		
 		// implementation of trainable_partial_layer_wrapper doesn't need the type of wrapped layer
-		template <typename RealT>
-		class _trainable_partial_layer_wrapper : public _i_layer_trainable<RealT> {
+		template <typename PIMLT>
+		class _trainable_partial_layer_wrapper : public _i_layer_trainable<typename PIMLT::real_t>, public PIMLT {
+			static_assert(_impl::is_m_prop_input_marker<PIMLT>::value, "Wrong PIMLT, did you use wrap_part_trainable_layer<>?");
+			
+		public:
+			//this typedef helps to distinguish *_wrapper classes from other classes
+			typedef PIMLT wrapped_layer_t;
+			typedef typename PIMLT::real_t real_t;
+
 		protected:
 			realmtx_t m_act;
 			real_t* m_pTmpBiasStor;
@@ -125,78 +140,83 @@ namespace nntl {
 		public:
 			~_trainable_partial_layer_wrapper()noexcept {
 				//we must restore the original data back to bias column
-				NNTL_ASSERT(m_act.test_biases_ok());
-				if (m_pTmpBiasStor) memcpy(m_act.colDataAsVec(m_act.cols() - 1), m_pTmpBiasStor, sizeof(*m_pTmpBiasStor)*m_act.rows());
+				NNTL_ASSERT(!m_act.emulatesBiases() || m_act.test_biases_strict());
+				if (m_pTmpBiasStor) {
+					NNTL_ASSERT(m_act.emulatesBiases());
+					memcpy(m_act.bias_column(), m_pTmpBiasStor, sizeof(*m_pTmpBiasStor)*m_act.rows());
+				}
 			}
 
-			//template<typename PhlT>
-			_trainable_partial_layer_wrapper(const realmtx_t& underlyingLayerAct, real_t* pTmpBiasStor, const PHL_coord& phl_coord)
-				: m_pTmpBiasStor(pTmpBiasStor)
-			{
-				NNTL_ASSERT(underlyingLayerAct.test_biases_ok());
-				//don't test for underlyingLayerAct.emulatesBiases() here because if underlyingLayerAct belongs to a input_layer in
-				//a minibatch mode, then this flag might be turned off while still there're biases set.
-				// #todo: this flag should be turned ON for all layer activations INCLUDING input layer.
-
+		private:
+			void _ctor(const realmtx_t& underlyingLayerAct, const PHL_coord& phl_coord, const bool bMakeBiases)noexcept {
+				NNTL_ASSERT(underlyingLayerAct.test_biases_strict());
 				NNTL_ASSERT(phl_coord.m_offset + phl_coord.m_count <= underlyingLayerAct.cols_no_bias());
+
 				// activation matrix (m_act) are NOT expected to be changed from the outside, therefore trick with const_cast<> should do no harm.
 				m_act.useExternalStorage(const_cast<real_t*>(underlyingLayerAct.colDataAsVec(phl_coord.m_offset))
-					, underlyingLayerAct.rows(), phl_coord.m_count + 1, true, underlyingLayerAct.isHoleyBiases());
+					, underlyingLayerAct.rows(), phl_coord.m_count + bMakeBiases, bMakeBiases
+					, bMakeBiases ? underlyingLayerAct.isHoleyBiases() : false);
 
 				if (phl_coord.m_offset + phl_coord.m_count >= underlyingLayerAct.cols_no_bias()) {
 					//biases must have already been set, because it's the end of the underlyingLayerAct matrix!
-					NNTL_ASSERT(m_act.test_biases_ok());
+					NNTL_ASSERT(!bMakeBiases || m_act.test_biases_strict());
+					m_pTmpBiasStor = nullptr;
+				} else {
+					if (bMakeBiases) {
+						NNTL_ASSERT(m_pTmpBiasStor);
+						//now we must save the real data under bias column and refill biases. On object destruction we must restore this data back
+						memcpy(m_pTmpBiasStor, m_act.bias_column(), sizeof(*m_pTmpBiasStor)*m_act.rows());
+
+						//we must use the bias column of original matrix, because biases might be holey --- no, they can't
+						//m_act.copy_biases_from(underlyingLayerAct);
+						m_act.set_biases();
+					}else m_pTmpBiasStor = nullptr;
+				}
+			}
+
+		public:
+			template<typename LayerT>
+			_trainable_partial_layer_wrapper(const LayerT& L, real_t*const pTmpBiasStor, const PHL_coord& phl_coord, const bool bMakeBiases = true)
+				: m_pTmpBiasStor(pTmpBiasStor)
+			{
+				_ctor(L.get_activations(), phl_coord, bMakeBiases);
+			}
+
+			_trainable_partial_layer_wrapper(const realmtx_t& underlyingLayerAct
+				, real_t*const pTmpBiasStor, const PHL_coord& phl_coord, const bool bMakeBiases = true)
+				: m_pTmpBiasStor(pTmpBiasStor)
+			{
+				_ctor(underlyingLayerAct, phl_coord, bMakeBiases);
+			}
+
+			//constructor to use in *_optional layer. Assumes that underlyingLayerAct is a matrix
+			//that might already has a valid bias column, if it's numel is less than or equal to a specified value.
+			// However, if it has more than maxNumel elements than the bias column might be distorted and must be restored
+			_trainable_partial_layer_wrapper(const realmtx_t& underlyingLayerAct, real_t*const pTmpBiasStor, const numel_cnt_t maxNumel)
+				: m_pTmpBiasStor(pTmpBiasStor)
+			{
+				NNTL_ASSERT(underlyingLayerAct.emulatesBiases() && pTmpBiasStor);
+				// activation matrix (m_act) are NOT expected to be changed from the outside, therefore trick with const_cast<> should do no harm.
+				m_act.useExternalStorage(const_cast<real_t*>(underlyingLayerAct.data()), underlyingLayerAct.rows(), underlyingLayerAct.cols(), true);
+
+				if (m_act.numel() <= maxNumel) {
+					NNTL_ASSERT(m_act.test_biases_strict());
 					m_pTmpBiasStor = nullptr;
 				} else {
 					//now we must save the real data under bias column and refill biases. On object destruction we must restore this data back
-					memcpy(m_pTmpBiasStor, m_act.colDataAsVec(phl_coord.m_count), sizeof(*m_pTmpBiasStor)*m_act.rows());
-
-					//m_act.set_biases();
-					//we must use the bias column of original matrix, because biases might be holey
-					m_act.copy_biases_from(underlyingLayerAct);
+					memcpy(m_pTmpBiasStor, m_act.bias_column(), sizeof(*m_pTmpBiasStor)*m_act.rows());
+					m_act.set_biases();
 				}
 			}
 
 			const realmtx_t& get_activations()const noexcept { return m_act; }
 			const realmtx_t* get_activations_storage()const noexcept { return &m_act; }
-			const mtx_size_t get_activations_size()const noexcept { return m_act.size(); }
+			mtx_size_t get_activations_size()const noexcept { return m_act.size(); }
 		};
 
-		//#TODO seems like we don't need WrappedLayerT parameter here. Better make it type-less and 
-		//update LPH::bprop and other related code
-		//final wrapper
-		template<typename WrappedLayerT>
-		class trainable_partial_layer_wrapper 
-			: public m_prop_input_marker<WrappedLayerT>
-			, public _trainable_partial_layer_wrapper<typename WrappedLayerT::real_t>
-		{
-		private:
-			typedef _trainable_partial_layer_wrapper<typename WrappedLayerT::real_t> _base_class_t;
-		public:
-			static_assert(::std::is_same<WrappedLayerT, ::std::decay_t<WrappedLayerT>>::value, "invalid type for trainable_layer_wrapper");
-			typedef WrappedLayerT wrapped_layer_t;//this typedef helps to distinguish *_wrapper classes from other classes
-		public:
-			~trainable_partial_layer_wrapper()noexcept {}
-			trainable_partial_layer_wrapper(const realmtx_t& underlyingLayerAct, real_t* pTmpBiasStor, const PHL_coord& phl_coord)
-				: _base_class_t(underlyingLayerAct, pTmpBiasStor, phl_coord)
-			{}
-
-			//we could generalize to the following constructor, however, it'll bring unnecessary dependence on the wrapped_layer_t type
-			//that require to store layer object for some callers (see LPH::fprop()) and this might be overkill
-// 			trainable_partial_layer_wrapper(const wrapped_layer_t& underlyingLayer, real_t* pTmpBiasStor, const PHL_coord& phl_coord)
-// 				: _base_class_t(underlyingLayer.get_activations(), pTmpBiasStor, phl_coord)
-// 			{}
-		};
-
-
-		//////////////////////////////////////////////////////////////////////////
-		// Helper traits recognizer
-		// primary template handles types that have no nested ::wrapped_layer_t member:
-		template< class, class = ::std::void_t<> >
-		struct is_layer_wrapper : ::std::false_type { };
-		// specialization recognizes types that do have a nested ::wrapped_layer_t member:
-		template< class T >
-		struct is_layer_wrapper<T, ::std::void_t<typename T::wrapped_layer_t>> : ::std::true_type {};
+		template<typename LayerT>
+		using wrap_part_trainable_layer = _trainable_partial_layer_wrapper< m_prop_input_marker<LayerT> >;
+		
 
 		//////////////////////////////////////////////////////////////////////////
 		// Helper for the LPH to recognize if a LayerT class has .OuterLayerCustomFlag1Eval(const PhlsTupleT&) function to calculate bLPH_CustomFlag1 var

@@ -146,17 +146,13 @@ namespace nntl {
 		//and apply function _Func(auto& layer) to each underlying (non-pack) layer here
 		template<typename _Func>
 		void for_each_layer(_Func&& f)const noexcept {
-			//tuple_utils::for_each_up(m_layers, [&func{ ::std::forward<_Func>(f) }](auto& l)noexcept {
 			tuple_utils::for_each_up(m_layers, [&func{ f }](auto& l)noexcept {
-				//call_F_for_each_layer(::std::forward<_Func>(func), l);
 				call_F_for_each_layer(func, l);//mustn't forward, because lambda is called multiple times
 			});
 		}
 		template<typename _Func>
 		void for_each_layer_down(_Func&& f)const noexcept {
-			//tuple_utils::for_each_down(m_layers, [&func{ ::std::forward<_Func>(f) }](auto& l)noexcept {
 			tuple_utils::for_each_down(m_layers, [&func{ f }](auto& l)noexcept {
-				//call_F_for_each_layer_down(::std::forward<_Func>(func), l);
 				call_F_for_each_layer_down(func, l);
 			});
 		}
@@ -174,31 +170,20 @@ namespace nntl {
 		const layer_index_t& get_layer_idx() const noexcept { return m_layerIdx; }
 
 		//overriding _layer_base_forwarder<> implementation.
-		const neurons_count_t get_incoming_neurons_cnt()const noexcept { return  get_self().lowmost_layer().get_incoming_neurons_cnt(); }
+		const neurons_count_t get_incoming_neurons_cnt()const noexcept { return  lowmost_layer().get_incoming_neurons_cnt(); }
 
 		//should return true, if the layer has a value to add to Loss function value (there's some regularizer attached)
 		bool hasLossAddendum()const noexcept {
 			bool b = false;
-			get_self().for_each_packed_layer([&b](auto& l) {				b |= l.hasLossAddendum();			});
+			for_each_packed_layer([&b](auto& l) {				b |= l.hasLossAddendum();			});
 			return b;
 		}
 		//returns a loss function summand, that's caused by this layer
 		real_t lossAddendum()const noexcept {
 			real_t la(.0);
-			get_self().for_each_packed_layer([&la](auto& l) {				la += l.lossAddendum();			});
+			for_each_packed_layer([&la](auto& l) {				la += l.lossAddendum();			});
 			return la;
 		}
-
-		//////////////////////////////////////////////////////////////////////////
-		//in order to pass correct initialization values to underlying topmost layer, we must define a .OuterLayerCustomFlag1Eval()
-/*
-deprecated:
-		template<typename PhlsTupleT>
-		::std::enable_if_t< _impl::layer_has_OuterLayerCustomFlag1Eval<topmost_layer_t, PhlsTupleT, _layer_init_data_t>::value, bool>
-			OuterLayerCustomFlag1Eval(const PhlsTupleT& lphTuple, const _layer_init_data_t& lphLid)const noexcept
-		{
-			return topmost_layer().OuterLayerCustomFlag1Eval(lphTuple, lphLid);
-		}*/
 
 		//////////////////////////////////////////////////////////////////////////
 		//
@@ -230,14 +215,14 @@ deprecated:
 			//doubling the code by intention, because some layers can be incompatible with pNewActivationStorage specification
 			if (ErrorCode::Success == ec) {
 				initD.clean_using(lid);//we must propagate any IN flags set in the .lid variable to the topmost layer being initialized.
-				ec = get_self().topmost_layer().init(initD, pNewActivationStorage);
+				ec = topmost_layer().init(initD, pNewActivationStorage);
 				if (ErrorCode::Success == ec) {
 					lid.update(initD);
-				} else failedLayerIdx = get_self().topmost_layer().get_layer_idx();
+				} else failedLayerIdx = topmost_layer().get_layer_idx();
 			}
 
 			//must be called after first inner layer initialization complete - see our get_iInspect() implementation
-			get_iInspect().init_layer(get_self().get_layer_idx(), get_self().get_layer_name_str(), get_self().get_layer_type_id());
+			get_iInspect().init_layer(get_layer_idx(), get_layer_name_str(), get_layer_type_id());
 
 			//#TODO need some way to return failedLayerIdx
 			if (ErrorCode::Success == ec) bSuccessfullyInitialized = true;
@@ -245,61 +230,49 @@ deprecated:
 		}
 
 		void deinit() noexcept {
-			get_self().for_each_packed_layer([](auto& l) {l.deinit(); });
+			for_each_packed_layer([](auto& l) {l.deinit(); });
 			_base_class_t::deinit();
 		}
 
 		void initMem(real_t* ptr, numel_cnt_t cnt)noexcept {
 			//we'd just pass the pointer data down to the layer stack
-			get_self().for_each_packed_layer([=](auto& l) {l.initMem(ptr, cnt); });
+			for_each_packed_layer([=](auto& l) {l.initMem(ptr, cnt); });
 		}
 
 		void on_batch_size_change(real_t*const pNewActivationStorage = nullptr)noexcept {
 			tuple_utils::for_each_exc_last_up(m_layers, [](auto& lyr)noexcept {
 				lyr.on_batch_size_change();
 			});
-			get_self().topmost_layer().on_batch_size_change(pNewActivationStorage);
+			topmost_layer().on_batch_size_change(pNewActivationStorage);
 		}
 
-		//////////////////////////////////////////////////////////////////////////
-		//variation of fprop for normal layer
-		template <typename LowerLayer>
-		::std::enable_if_t<!_impl::is_layer_wrapper<LowerLayer>::value> fprop(const LowerLayer& lowerLayer)noexcept
-		{
-			static_assert(::std::is_base_of<_i_layer_fprop, LowerLayer>::value, "Template parameter LowerLayer must implement _i_layer_fprop");
-			get_self().fprop(_impl::trainable_layer_wrapper<LowerLayer>(lowerLayer.get_activations()));
-		}
-		//variation of fprop for layerwrappers
-		template <typename LowerLayerWrapper>
-		::std::enable_if_t<_impl::is_layer_wrapper<LowerLayerWrapper>::value> fprop(const LowerLayerWrapper& lowerLayer)noexcept
-		{
-			auto& iI = get_self().get_iInspect();
-			iI.fprop_begin(get_self().get_layer_idx(), lowerLayer.get_activations(), get_self().get_common_data().is_training_mode());
+	protected:
+		template<typename LLWrapT>
+		void _lpv_fprop(const realmtx_t& prevAct)noexcept {
+			NNTL_ASSERT(prevAct.test_biases_strict());
+			auto& iI = get_iInspect();
+			iI.fprop_begin(get_layer_idx(), prevAct, get_common_data().is_training_mode());
 
-			NNTL_ASSERT(lowerLayer.get_activations().test_biases_ok());
-			get_self().lowmost_layer().fprop(lowerLayer);
+			lowmost_layer().fprop(LLWrapT(prevAct));
+
 			tuple_utils::for_eachwp_up(m_layers, [](auto& lcur, auto& lprev, const bool)noexcept {
-				NNTL_ASSERT(lprev.get_activations().test_biases_ok());
 				lcur.fprop(lprev);
-				NNTL_ASSERT(lprev.get_activations().test_biases_ok());
 			});
-			NNTL_ASSERT(lowerLayer.get_activations().test_biases_ok());
-
-			iI.fprop_activations(get_self().get_activations());
-			iI.fprop_end(get_self().get_activations());
+			
+			iI.fprop_activations(get_activations());
+			iI.fprop_end(get_activations());
 		}
 
-		template <typename LowerLayer>
-		const unsigned bprop(realmtxdef_t& dLdA, const LowerLayer& lowerLayer, realmtxdef_t& dLdAPrev)noexcept {
-			static_assert(::std::is_base_of<_i_layer_trainable, LowerLayer>::value, "Template parameter LowerLayer must implement _i_layer_trainable");
-
-			auto& iI = get_self().get_iInspect();
-			iI.bprop_begin(get_self().get_layer_idx(), dLdA);
-			iI.bprop_finaldLdA(dLdA);
-
-			NNTL_ASSERT(lowerLayer.get_activations().test_biases_ok());
+		template<typename LLWrapT>
+		unsigned _lpv_bprop(realmtxdef_t& dLdA, realmtxdef_t& dLdAPrev, const realmtx_t& prevAct)noexcept {
+			static constexpr bool bLowerLayerIsInput = is_layer_input<LLWrapT>::value;
+			NNTL_ASSERT(prevAct.test_biases_strict());
 			NNTL_ASSERT(dLdA.size() == topmost_layer().get_activations().size_no_bias());
-			NNTL_ASSERT( (::std::is_base_of<m_layer_input, LowerLayer>::value) || dLdAPrev.size() == lowerLayer.get_activations().size_no_bias());
+			NNTL_ASSERT(bLowerLayerIsInput || dLdAPrev.size() == prevAct.size_no_bias());
+
+			auto& iI = get_iInspect();
+			iI.bprop_begin(get_layer_idx(), dLdA);
+			iI.bprop_finaldLdA(dLdA);
 
 			realmtxdefptr_array_t a_dLdA = { &dLdA, &dLdAPrev };
 			unsigned mtxIdx = 0;
@@ -307,40 +280,43 @@ deprecated:
 			tuple_utils::for_eachwn_downfullbp(m_layers, [&mtxIdx, &a_dLdA](auto& lcur, auto& lprev, const bool)noexcept {
 				const unsigned nextMtxIdx = mtxIdx ^ 1;
 				a_dLdA[nextMtxIdx]->deform_like_no_bias(lprev.get_activations());
-				NNTL_ASSERT(lprev.get_activations().test_biases_ok());
+				NNTL_ASSERT(lprev.get_activations().test_biases_strict());
 				NNTL_ASSERT(a_dLdA[mtxIdx]->size() == lcur.get_activations().size_no_bias());
 
 				const unsigned bAlternate = lcur.bprop(*a_dLdA[mtxIdx], lprev, *a_dLdA[nextMtxIdx]);
 
 				NNTL_ASSERT(1 == bAlternate || 0 == bAlternate);
-				NNTL_ASSERT(lprev.get_activations().test_biases_ok());
+				NNTL_ASSERT(lprev.get_activations().test_biases_strict());
 				mtxIdx ^= bAlternate;
 			});
 
 			const unsigned nextMtxIdx = mtxIdx ^ 1;
-			if (::std::is_base_of<m_layer_input, LowerLayer>::value) {
+			if (bLowerLayerIsInput) {
 				a_dLdA[nextMtxIdx]->deform(0, 0);
-			}else a_dLdA[nextMtxIdx]->deform_like_no_bias(lowerLayer.get_activations());
-			const unsigned bAlternate = get_self().lowmost_layer().bprop(*a_dLdA[mtxIdx], lowerLayer, *a_dLdA[nextMtxIdx]);
+			} else a_dLdA[nextMtxIdx]->deform_like_no_bias(prevAct);
+			const unsigned bAlternate = lowmost_layer().bprop(*a_dLdA[mtxIdx], LLWrapT(prevAct), *a_dLdA[nextMtxIdx]);
 			NNTL_ASSERT(1 == bAlternate || 0 == bAlternate);
 			mtxIdx ^= bAlternate;
 
-			NNTL_ASSERT(lowerLayer.get_activations().test_biases_ok());
+			NNTL_ASSERT(prevAct.test_biases_strict());
 
 			iI.bprop_end(mtxIdx ? dLdAPrev : dLdA);
 			return mtxIdx;
 		}
-		
-		//#TODO we should adopt topmost_layer().is_trivial_drop_samples() function signature here, but it look like non-trivial
-		//to detect if the constexpr attribute was used.
-		bool is_trivial_drop_samples() const noexcept { return get_self().topmost_layer().is_trivial_drop_samples(); }
 
-		void left_after_drop_samples(const numel_cnt_t nNZElems)noexcept {
-			get_self().topmost_layer().left_after_drop_samples(nNZElems);
+	public:
+		//////////////////////////////////////////////////////////////////////////
+		//variation of fprop for normal layer
+		template <typename LowerLayer>
+		void fprop(const LowerLayer& lowerLayer)noexcept {
+			static_assert(::std::is_base_of<_i_layer_fprop, LowerLayer>::value, "Template parameter LowerLayer must implement _i_layer_fprop");
+			get_self()._lpv_fprop<_impl::wrap_trainable_layer<LowerLayer>>(lowerLayer.get_activations());
 		}
 
-		void drop_samples(const realmtx_t& mask, const bool bBiasesToo, const numel_cnt_t nNZElems)noexcept {
-			get_self().topmost_layer().drop_samples(mask, bBiasesToo, nNZElems);
+		template <typename LowerLayer>
+		unsigned bprop(realmtxdef_t& dLdA, const LowerLayer& lowerLayer, realmtxdef_t& dLdAPrev)noexcept {
+			static_assert(::std::is_base_of<_i_layer_trainable, LowerLayer>::value, "Template parameter LowerLayer must implement _i_layer_trainable");
+			return get_self()._lpv_bprop<_impl::wrap_trainable_layer<LowerLayer>>(dLdA, dLdAPrev, lowerLayer.get_activations());
 		}
 
 	private:
@@ -348,7 +324,7 @@ deprecated:
 		friend class ::boost::serialization::access;
 		template<class Archive> void serialize(Archive & ar, const unsigned int version) {
 			NNTL_UNREF(version);
-			get_self().for_each_packed_layer([&ar](auto& l) {
+			for_each_packed_layer([&ar](auto& l) {
 				ar & serialization::make_named_struct(l.get_layer_name_str().c_str(), l);
 			});
 		}
