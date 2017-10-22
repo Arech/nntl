@@ -104,34 +104,14 @@ namespace weights_init {
 			typedef WeightNormSetts<real_t> LayerSetts_t;
 			typedef utils::layer_settings<LayerSetts_t> setts_keeper_t;
 
-		protected:
-			struct gating_context_t : public nntl::_impl::GatingContext<real_t> {
-				//vec_len_t curGatingMaskColumn;
-				const real_t* pCurGatingColumn;//is has pGatingMask->rows()
-
-				void updateCurColumn(const layer_index_t& idx)noexcept {
-					NNTL_ASSERT(colsDescr.size() > 0);
-					NNTL_ASSERT(pGatingMask);
-					NNTL_ASSERT(colsDescr.size() <= pGatingMask->cols());
-					const auto curGatingMaskColumn = colsDescr.at(idx);
-					NNTL_ASSERT(curGatingMaskColumn < pGatingMask->cols());
-					pCurGatingColumn = pGatingMask->colDataAsVec(curGatingMaskColumn);
-				}
-			};
-			typedef ::std::vector<gating_context_t> gating_ctx_stack_t;
-
 		public:
 			setts_keeper_t m_setts;
-
-		protected:
-			gating_ctx_stack_t m_gatingStack;
-
+			
 		public:
 			layer_index_t m_firstFailedLayerIdx;
 
 		protected:
 			vec_len_t m_fullBatchSize;
-			bool m_bImmediatelyUnderGated;
 
 		public:
 			LSUVExt(nnet_t& nn) noexcept : _base_class_t(nn), m_firstFailedLayerIdx(0) {}
@@ -140,10 +120,7 @@ namespace weights_init {
 			LSUVExt(nnet_t& nn, ST&& defSetts) noexcept 
 				: _base_class_t(nn), m_firstFailedLayerIdx(0), m_setts(::std::forward<ST>(defSetts))
 				, m_fullBatchSize(0)
-			{}/*
-			LSUVExt(nnet_t& nn, const LayerSetts_t& defSetts) noexcept
-				: _base_class_t(nn), m_firstFailedLayerIdx(0), m_setts(defSetts)
-			{}*/
+			{}
 
 			setts_keeper_t& setts()noexcept { return m_setts; }
 
@@ -163,9 +140,7 @@ namespace weights_init {
 				_base_class_t::init(secondBiggestBatch, data_x);
 
 				m_firstFailedLayerIdx = 0;
-				m_gatingStack.clear();
-				m_bImmediatelyUnderGated = false;
-
+				
 				//to fully initialize the nn and its layers
 				prepareToBatchSize(biggestBatch);
 				_fprop();
@@ -173,35 +148,11 @@ namespace weights_init {
 				m_nn.get_layer_pack().for_each_packed_layer_exc_input(*this);
 
 				_base_class_t::deinit();
-				NNTL_ASSERT(m_gatingStack.size() == 0);
-				NNTL_ASSERT(!m_bImmediatelyUnderGated);
-				
+
 				return m_firstFailedLayerIdx == 0;
 			}
 
 			template<typename LayerT> void operator()(LayerT& lyr) noexcept {
-				const bool bImmUnderGated = m_bImmediatelyUnderGated;
-				if (m_bImmediatelyUnderGated) {
-					NNTL_ASSERT(m_gatingStack.size() > 0);
-
-					auto& ctx = m_gatingStack.back();
-					const auto& lIdx = lyr.get_layer_idx();
-					if (ctx.bShouldProcessLayer(lIdx)) {
-						ctx.updateCurColumn(lIdx);
-						if (m_setts[lIdx].bVerbose) {
-							STDCOUTL("Layer \'" << lyr.get_layer_name_str()
-								<< "\' is directly under a gated layer. Switched current gating mask column to column#"
-								<< ctx.colsDescr[lIdx]);
-						}
-					} else {
-						if (m_setts[lIdx].bVerbose) {
-							STDCOUTL("Layer \'" << lyr.get_layer_name_str()
-								<< "\' is directly under a gated layer, but the gate is non applicable to it.");
-						}
-					}
-				}
-				m_bImmediatelyUnderGated = false;
-
 				_packGatingPrologue(lyr);
 				_packTilingPrologue(lyr);
 				
@@ -211,64 +162,29 @@ namespace weights_init {
 				_packTilingEpilogue(lyr);
 				_packGatingEpilogue(lyr);
 
-				m_bImmediatelyUnderGated = bImmUnderGated;
-
 				//then adjusting own weights if applicable
 				_processLayer(lyr);
 			}
 
 		protected:
-			// Few special considirations:
-			// In order to correctly rescale weights of layers that works under gates (such as parts of LPHG), we must keep a track of gating layers
-			// and corresponding gates (they can be stacked on top of each other, BTW). Also, we must provide special handling for
-			// tiled layers under gates, because they have different batchSizes and a gating mask must be applied appropriately.
-
 			template<typename LayerT>
 			::std::enable_if_t<is_layer_pack<LayerT>::value> _checkInnerLayers(LayerT& lyr)noexcept {
 				lyr.for_each_packed_layer(*this);
 			}
 			template<typename LayerT> ::std::enable_if_t<!is_layer_pack<LayerT>::value> _checkInnerLayers(LayerT&)const noexcept {}
 
-
-			template<typename LayerT>
-			::std::enable_if_t<is_pack_gated<LayerT>::value> _packGatingPrologue(LayerT& lyr)noexcept {
-				if (m_gatingStack.size() > 0) {
-					//#todo we should make a mix of two masks - the new one and the previous
-					STDCOUTL("*** attention, LSUVExt code for enclosed gated layers is not yet written. Proceed as there's only a single gated layer");
-				}
-				gating_context_t ctx;
-				lyr.get_gating_info(ctx);
-				ctx.pCurGatingColumn = nullptr;
-				m_gatingStack.push_back(::std::move(ctx));
-
-				m_bImmediatelyUnderGated = true;
-			}
+			//implementation was left empty by intent. Probably, will remove later
+			template<typename LayerT> ::std::enable_if_t<is_pack_gated<LayerT>::value> _packGatingPrologue(LayerT& lyr)noexcept {}
 			template<typename LayerT> ::std::enable_if_t<!is_pack_gated<LayerT>::value> _packGatingPrologue(LayerT&)const noexcept {}
-
-			template<typename LayerT>
-			::std::enable_if_t<is_pack_gated<LayerT>::value> _packGatingEpilogue(LayerT&)noexcept {
-				m_gatingStack.pop_back();
-			}
+			template<typename LayerT> ::std::enable_if_t<is_pack_gated<LayerT>::value> _packGatingEpilogue(LayerT&)noexcept {}
 			template<typename LayerT> ::std::enable_if_t<!is_pack_gated<LayerT>::value> _packGatingEpilogue(LayerT&)const noexcept {}
 
-
-			template<typename LayerT>
-			::std::enable_if_t<is_pack_tiled<LayerT>::value> _packTilingPrologue(LayerT&)noexcept {
-				//#todo
-				static_assert(false, "There must be code to synchronize current gating mask with a different batch size of tiled layer");
-				//if you will not use a LPT under a LPHG, you may safely comment out the assert and leave everything as it is now.
-			}
+			template<typename LayerT> ::std::enable_if_t<is_pack_tiled<LayerT>::value> _packTilingPrologue(LayerT&)noexcept {}
 			template<typename LayerT> ::std::enable_if_t<!is_pack_tiled<LayerT>::value> _packTilingPrologue(LayerT&)const noexcept {}
-
-			template<typename LayerT>
-			::std::enable_if_t<is_pack_tiled<LayerT>::value> _packTilingEpilogue(LayerT&)noexcept {
-
-			}
+			template<typename LayerT> ::std::enable_if_t<is_pack_tiled<LayerT>::value> _packTilingEpilogue(LayerT&)noexcept {}
 			template<typename LayerT> ::std::enable_if_t<!is_pack_tiled<LayerT>::value> _packTilingEpilogue(LayerT&)const noexcept {}
 
-
-			template<typename LayerT>
-			::std::enable_if_t<!is_layer_learnable<LayerT>::value> _processLayer(LayerT&) const noexcept {}
+			template<typename LayerT> ::std::enable_if_t<!is_layer_learnable<LayerT>::value> _processLayer(LayerT&) const noexcept {}
 
 			template<typename LayerT>
 			::std::enable_if_t<is_layer_learnable<LayerT>::value> _processLayer(LayerT& lyr) noexcept {
@@ -285,8 +201,7 @@ namespace weights_init {
 				lyr.setLayerLinear(lSetts.bOverPreActivations);
 
 				const real_t actScaling = lSetts.bOverPreActivations ? real_t(1.) : lyr.act_scaling_coeff();
-				//const real_t actScaling = real_t(1.);
-
+				
 				prepareToBatchSize(lSetts.batchSize);
 
 				unsigned rt;
@@ -326,14 +241,13 @@ namespace weights_init {
 				NNTL_ASSERT(weights.rows() == pAct->cols_no_bias());
 				NNTL_ASSERT(actScaling > real_t(0));
 
-				const real_t*const pCurGatingColumn = m_gatingStack.size() > 0 ? m_gatingStack.back().pCurGatingColumn : nullptr;
 				bool bScaleIsOk = true, bCentralIsOk = true, bForceReinit = false;
 
 				if (lSetts.bScaleNormalize) {
 					for (unsigned i = 0; i < lSetts.maxTries; ++i) {
 						_fprop();
 
-						const auto stat = _calc<ScaleMeasureT>(pAct->begin(), pAct->end_no_bias(), pAct->rows(), pCurGatingColumn);
+						const auto stat = _calc<ScaleMeasureT>(pAct->begin(), pAct->end_no_bias(), pAct->rows());
 
 						if (::std::isnan(stat) || real_t(0) == stat || !::std::isfinite(stat)) {
 							STDCOUTL("*** got invalid scale statistic, will try to reinit weights");
@@ -363,7 +277,7 @@ namespace weights_init {
 					//if (!bScaleIsOk) _say_failed();
 				} else {
 					_fprop();
-					const auto stat = _calc<ScaleMeasureT>(pAct->begin(), pAct->end_no_bias(), pAct->rows(), pCurGatingColumn);
+					const auto stat = _calc<ScaleMeasureT>(pAct->begin(), pAct->end_no_bias(), pAct->rows());
 
 					if (::std::isnan(stat) || real_t(0) == stat || !::std::isfinite(stat)) {
 						STDCOUTL("*** got invalid scale statistic, will try to reinit weights");
@@ -384,7 +298,7 @@ namespace weights_init {
 						for (unsigned i = 0; i < lSetts.maxTries; ++i) {
 							_fprop();
 
-							const auto stat = _calc<CentralMeasureT>(pAct->begin(), pAct->end_no_bias(), pAct->rows(), pCurGatingColumn);
+							const auto stat = _calc<CentralMeasureT>(pAct->begin(), pAct->end_no_bias(), pAct->rows());
 							bCentralIsOk = (::std::abs(stat - real_t(0.)) < lSetts.CentralTolerance);
 
 							if (lSetts.bVerbose) STDCOUTL("#" << i << " central (\"mean\") = " << stat << (bCentralIsOk ? "(ok)" : ""));
@@ -399,7 +313,7 @@ namespace weights_init {
 					} else if (lSetts.bVerbose) {
 						_fprop();
 
-						const auto stat = _calc<CentralMeasureT>(pAct->begin(), pAct->end_no_bias(), pAct->rows(), pCurGatingColumn);
+						const auto stat = _calc<CentralMeasureT>(pAct->begin(), pAct->end_no_bias(), pAct->rows());
 						bCentralIsOk = (::std::abs(stat - real_t(0.)) < lSetts.CentralTolerance);
 						STDCOUTL("central (\"mean\") = " << stat << (bCentralIsOk ? "(ok)" : "(*doesn't fit, but changing was forbidden*)"));
 						bCentralIsOk = true;
@@ -416,7 +330,6 @@ namespace weights_init {
 				const neurons_count_t total_nc = pAct->cols_no_bias();
 				const ptrdiff_t batchSize = static_cast<ptrdiff_t>(pAct->rows());
 				const ptrdiff_t _total_nc = static_cast<ptrdiff_t>(total_nc);
-				const real_t*const pCurGatingColumn = m_gatingStack.size() > 0 ? m_gatingStack.back().pCurGatingColumn : nullptr;
 				bool bScaleStatOK = true, bCentralStatOK = true, bForceReinit = false;
 				if (lSetts.bScaleNormalize) {
 					for (unsigned i = 0; i < lSetts.maxTries; ++i) {
@@ -426,7 +339,7 @@ namespace weights_init {
 
 						for (neurons_count_t nrn = 0; nrn < total_nc; ++nrn) {
 							const auto pD = pAct->colDataAsVec(nrn);
-							const auto stat = _calc<ScaleMeasureT>(pD, pD + batchSize, batchSize, pCurGatingColumn);
+							const auto stat = _calc<ScaleMeasureT>(pD, pD + batchSize, batchSize);
 
 							if (::std::isnan(stat) || real_t(0)==stat || !::std::isfinite(stat)) {
 								STDCOUTL("*** got invalid scale statistic, will try to reinit weights");
@@ -463,7 +376,7 @@ namespace weights_init {
 
 					for (neurons_count_t nrn = 0; nrn < total_nc; ++nrn) {
 						const auto pD = pAct->colDataAsVec(nrn);
-						const auto stat = _calc<ScaleMeasureT>(pD, pD + batchSize, batchSize, pCurGatingColumn);
+						const auto stat = _calc<ScaleMeasureT>(pD, pD + batchSize, batchSize);
 
 						if (::std::isnan(stat) || real_t(0) == stat || !::std::isfinite(stat)) {
 							STDCOUTL("*** got invalid scale statistic, will try to reinit weights");
@@ -498,7 +411,7 @@ namespace weights_init {
 
 							for (neurons_count_t nrn = 0; nrn < total_nc; ++nrn) {
 								const auto pD = pAct->colDataAsVec(nrn);
-								const auto stat = _calc<CentralMeasureT>(pD, pD + batchSize, batchSize, pCurGatingColumn);
+								const auto stat = _calc<CentralMeasureT>(pD, pD + batchSize, batchSize);
 								const bool bCentralIsOk = (::std::abs(stat - real_t(0.)) < lSetts.CentralTolerance);
 								statSum += stat;
 
@@ -518,7 +431,7 @@ namespace weights_init {
 
 						for (neurons_count_t nrn = 0; nrn < total_nc; ++nrn) {
 							const auto pD = pAct->colDataAsVec(nrn);
-							const auto stat = _calc<CentralMeasureT>(pD, pD + batchSize, batchSize, pCurGatingColumn);
+							const auto stat = _calc<CentralMeasureT>(pD, pD + batchSize, batchSize);
 							const bool bCentralIsOk = (::std::abs(stat - real_t(0.)) < lSetts.CentralTolerance);
 							statSum += stat;
 
@@ -535,10 +448,6 @@ namespace weights_init {
 				return !bForceReinit && bCentralStatOK && bScaleStatOK;
 			}
 
-			/*void _say_failed()noexcept {
-				STDCOUTL("**** failed to converge");
-			}*/
-
 			void _fprop()noexcept {
 				m_data.nextBatch(m_nn.get_iRng(), m_nn.get_iMath());
 				m_nn.doFixedBatchFprop(m_data.batchX());
@@ -554,7 +463,7 @@ namespace weights_init {
 				}
 				return extract_result<TagStatT>(acc);
 			}
-			template<typename TagStatT>
+			/*template<typename TagStatT>
 			real_t _calc_with_mask(const real_t* pBegin, const real_t*const pEnd, const size_t rowsCnt, const real_t*const pMask)noexcept {
 				NNTL_ASSERT(static_cast<double>(pEnd - pBegin) / rowsCnt == (pEnd - pBegin) / rowsCnt);
 
@@ -574,32 +483,17 @@ namespace weights_init {
 					}
 				}
 				return extract_result<TagStatT>(acc);
-			}
+			}*/
 
 			template<typename TagStatT>
-			real_t _calc(const real_t* pBegin, const real_t*const pEnd, const size_t rowsCnt, const real_t*const pMask)noexcept {
+			real_t _calc(const real_t* pBegin, const real_t*const pEnd, const size_t rowsCnt/*, const real_t*const pMask*/)noexcept {
 				NNTL_ASSERT(static_cast<double>(pEnd - pBegin) / rowsCnt == (pEnd - pBegin) / rowsCnt);
 
-				const auto r= pMask ? _calc_with_mask<TagStatT>(pBegin, pEnd, rowsCnt, pMask) : _calc_simple<TagStatT>(pBegin, pEnd);
+				//const auto r= pMask ? _calc_with_mask<TagStatT>(pBegin, pEnd, rowsCnt, pMask) : _calc_simple<TagStatT>(pBegin, pEnd);
+				const auto r = _calc_simple<TagStatT>(pBegin, pEnd);
 				NNTL_ASSERT(!isnan(r) && isfinite(r));
 				return r;
 			}
-
-			/*void _calc(const real_t* pBegin, const real_t*const pEnd, _calcRes& res, const ptrdiff_t stride=1)noexcept {
-				using namespace ::boost::accumulators;
-
-				accumulator_set<real_t, stats<CentralMeasureT, ScaleMeasureT>> acc;
-				while (pBegin < pEnd) {
-					acc(*pBegin);
-					pBegin += stride;
-				}
-				res.central = extract_result<CentralMeasureT>(acc);
-				res.scale = extract_result<ScaleMeasureT>(acc);
-
-				res.bCentralIsOk = !m_bCentralNormalize || (::std::abs(res.central - real_t(0.)) < m_CentralTolerance);
-				res.bScaleIsOk = !m_bScaleNormalize || (::std::abs(res.scale - m_targetScale) < m_ScaleTolerance);
-			}*/
-
 		};
 
 	}

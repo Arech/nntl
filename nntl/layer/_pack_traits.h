@@ -54,35 +54,6 @@ namespace nntl {
 	struct is_pack_gated : ::std::false_type { };
 	template< class T >
 	struct is_pack_gated<T, ::std::void_t<typename T::gating_layer_t>> : ::std::true_type {};
-	//Such layer must provide a function get_gating_info(_impl::GatingContext&)
-
-	namespace _impl {
-
-		//#TODO: this should be refactored greatly. Gating layer is ALWAYS the first (leftmost) layer in a pack,
-		//because it must be fprop'ed first to produce correct gating mask.
-
-		template<typename RealT>
-		struct GatingContext : public math::smatrix_td {
-			typedef RealT real_t;
-			typedef math::smatrix<real_t> realmtx_t;
-
-			//it's safe to use a pointer to gating mask as the mask matrix itself doesn't move with fprop()'s/bprop()'s/etc
-			const realmtx_t* pGatingMask;
-
-			//this type makes a connection between an inner LPHG's layer and its corresponding gating mask column.
-			typedef ::std::map<layer_index_t, vec_len_t> gating_mask_columns_descr_t;
-			gating_mask_columns_descr_t colsDescr;
-
-			//this type to hold layers ids of gating layers
-			typedef ::std::set<layer_index_t> nongated_layers_set_t;
-			nongated_layers_set_t nongatedIds;
-
-			bool bShouldProcessLayer(const layer_index_t& lIdx) const noexcept {
-				return 0 == nongatedIds.count(lIdx);
-			}
-		};
-
-	}
 
 	//////////////////////////////////////////////////////////////////////////
 	// Helper traits recognizer
