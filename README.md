@@ -31,16 +31,20 @@ I wouldn't state the NNTL is the fastest CPU implementation of feedforward neura
 * Individually tunable feedforward layers (i.e. almost all layer properties such as an activation function, a learning rate, a dropout, etc and so on are defined on a per layer basis).
 * The following feedforward layer types has been implemented allowing one to create many different types of feedforward neuron connectivity that helps to encapsulate some important prior knowledge of a data into a neural network architecture:
   * ordinary layers:
-    * layer_**fully_connected** is a basic layer type where all the magic happens
+    * layer_**fully_connected**, **LFC** is a basic layer type where all the magic happens
     * layer_**output** is a variation of fully connected layer specialized to be an output of a neural network
     * layer_**input** provides a common interface to a training data for hidden layers
-    * layer_**identity** allows one to pass an incoming data to upper layers unmodified
-    * layer_**identity_gate** passes incoming neurons up to a layer stack while allowing *_gated layer types to use them as a gating source.
+    * layer_**identity**, **LI** allows one to pass an incoming data to upper layers unmodified
+    * layer_**identity_gate**, **LIG** passes incoming neurons up to a layer stack while allowing LPHO layer to use them as a gating source. Optionally, LIG is capable to binarize the gating neurons.
   * compound layers (these layer types allows to encapsulate other layers in some way to produce more sophisticated architectures):
-    * layer_**pack_horizontal** is designed to feed different sequential (and possibly overlapping) ranges of underlying neurons to a corresponding different layers. For example, this allows one to build a set of feature detectors each of which is specialized on a specific subset of data features.
-    * layer_**pack_horizontal_gated** helps to deal with optional source data sets and allows to train feature detectors that are specialized only on optional parts of the data. **NB: it is still broken now and it was always been broken. Fix will be published soon**. Neural Networks is a tricky thing.
-    * layer_**pack_tile** allows to process different sequential subsets of neurons by a single layer producing different output for each subset. It's kind a 'predecessor' of a convolutional layer, that implies strong regularization by a network architecture means.
-    * layer_**pack_vertical** helps to build a vertical stack of layers that is represented as a single (compound) layer.
+    * layer_**pack_horizontal**, **LPH** is designed to feed different sequential (and possibly overlapping) ranges of underlying neurons to a corresponding different layers. For example, this allows one to build a set of feature detectors each of which is specialized on a specific subset of data features.
+    * layer_**pack_horizontal_optional**, **LPHO** helps to deal with optional
+source datasets and allows to train feature detectors that are
+specialized only on the specific optional parts of the data.
+(This component was formerly known as a layer_pack_horizontal_gated/LPHG,
+but it was broken by design).
+    * layer_**pack_tile**, **LPT** allows to process different sequential subsets of neurons (different columns of activation matrix) by a single layer producing different output for each subset. It's kind a 'predecessor' of a convolutional layer, that implies strong regularization by a network architecture means.
+    * layer_**pack_vertical**, **LPV** helps to build a vertical stack of layers that is represented as a single (compound) layer.
 * Activation units for an output layer:
   * sigmoid with a **quadratic** and a **cross-entropy** (for binary target data) loss function
   * **softmax** with a cross-entropy loss function.
