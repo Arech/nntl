@@ -851,6 +851,11 @@ namespace math {
 			return *this;
 		}
 
+		smatrix_deform submatrix_cols_no_bias(const vec_len_t colStart, const vec_len_t numCols)noexcept {
+			NNTL_ASSERT(numCols);
+			NNTL_ASSERT(colStart + numCols <= cols_no_bias());
+			return smatrix_deform(colDataAsVec(colStart), rows(), numCols, false);
+		}
 
 		void clear()noexcept {
 #ifdef NNTL_DEBUG

@@ -174,7 +174,7 @@ namespace weights_init {
 			template<typename LayerT> ::std::enable_if_t<!is_layer_pack<LayerT>::value> _checkInnerLayers(LayerT&)const noexcept {}
 
 			//implementation was left empty by intent. Probably, will remove later
-			template<typename LayerT> ::std::enable_if_t<is_pack_gated<LayerT>::value> _packGatingPrologue(LayerT& lyr)noexcept {}
+			template<typename LayerT> ::std::enable_if_t<is_pack_gated<LayerT>::value> _packGatingPrologue(LayerT&)noexcept {}
 			template<typename LayerT> ::std::enable_if_t<!is_pack_gated<LayerT>::value> _packGatingPrologue(LayerT&)const noexcept {}
 			template<typename LayerT> ::std::enable_if_t<is_pack_gated<LayerT>::value> _packGatingEpilogue(LayerT&)noexcept {}
 			template<typename LayerT> ::std::enable_if_t<!is_pack_gated<LayerT>::value> _packGatingEpilogue(LayerT&)const noexcept {}
@@ -487,6 +487,7 @@ namespace weights_init {
 
 			template<typename TagStatT>
 			real_t _calc(const real_t* pBegin, const real_t*const pEnd, const size_t rowsCnt/*, const real_t*const pMask*/)noexcept {
+				NNTL_UNREF(rowsCnt);
 				NNTL_ASSERT(static_cast<double>(pEnd - pBegin) / rowsCnt == (pEnd - pBegin) / rowsCnt);
 
 				//const auto r= pMask ? _calc_with_mask<TagStatT>(pBegin, pEnd, rowsCnt, pMask) : _calc_simple<TagStatT>(pBegin, pEnd);

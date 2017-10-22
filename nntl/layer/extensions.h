@@ -89,36 +89,32 @@ namespace nntl {
 	using LPHt_PA_DO = typename _LPH_PA_DO<LossAddsTupleT, DropoutT, PHLsTupleT>::type;
 
 	//////////////////////////////////////////////////////////////////////////
-	//template to extend an LPHG with penalized activations
-	/*
-	template <typename LossAddsTupleT, typename DropoutT, int iBinarize1e6, bool bDoBinarizeGate, typename PHLsTupleT>
-	struct _LPHG_PA_DO {
+	//template to extend an LPHO with penalized activations & Dropout (use only a zero-stable dropout, i.e. the dropout
+	// that drops values to zero)
+	template <typename LossAddsTupleT, typename DropoutT, bool bAddDataNotPresentFeature, typename PHLsTupleT>
+	struct _LPHO_PA_DO {
 		template <typename FC>
-		using _tpl_LPHG = _LPHG<FC, iBinarize1e6, bDoBinarizeGate, PHLsTupleT>;
+		using _tpl_LPHO = _LPHO<FC, bAddDataNotPresentFeature, PHLsTupleT>;
 
-		typedef LPAt_DO<_tpl_LPHG, DropoutT, LossAddsTupleT> type;
+		typedef LPAt_DO<_tpl_LPHO, DropoutT, LossAddsTupleT> type;
 	};
 
-	template <typename LossAddsTupleT, int iBinarize1e6, typename ...PHLsT>
-	using LPHG_PA = typename _LPHG_PA_DO<LossAddsTupleT, void, iBinarize1e6, true, ::std::tuple<PHLsT...>>::type;
+	template <typename LossAddsTupleT, bool bAddDataNotPresentFeature, typename ...PHLsT>
+	using LPHO_PA = typename _LPHO_PA_DO<LossAddsTupleT, void, bAddDataNotPresentFeature, ::std::tuple<PHLsT...>>::type;
 
-	template <typename LossAddsTupleT, int iBinarize1e6, typename PHLsTupleT>
-	using LPHGt_PA = typename _LPHG_PA_DO<LossAddsTupleT, void, iBinarize1e6, true, PHLsTupleT>::type;
-
-	template <typename LossAddsTupleT, typename ...PHLsT>
-	using LPHGFI_PA = typename _LPHG_PA_DO<LossAddsTupleT,void, 0, false, ::std::tuple<PHLsT...>>::type;
-
-	template <typename LossAddsTupleT, typename PHLsTupleT>
-	using LPHGFIt_PA = typename _LPHG_PA_DO<LossAddsTupleT,void, 0, false, PHLsTupleT>::type;
-
-	template <typename DropoutT, typename ...PHLsT>
-	using LPHGFI_DO = typename _LPHG_PA_DO<void, DropoutT, 0, false, ::std::tuple<PHLsT...>>::type;
+	template <typename LossAddsTupleT, bool bAddDataNotPresentFeature, typename PHLsTupleT>
+	using LPHOt_PA = typename _LPHO_PA_DO<LossAddsTupleT, void, bAddDataNotPresentFeature, PHLsTupleT>::type;
 	
-	template <typename LossAddsTupleT, typename DropoutT, typename ...PHLsT>
-	using LPHGFI_PA_DO = typename _LPHG_PA_DO<LossAddsTupleT, DropoutT, 0, false, ::std::tuple<PHLsT...>>::type;
+	template <typename DropoutT, bool bAddDataNotPresentFeature, typename ...PHLsT>
+	using LPHO_DO = typename _LPHO_PA_DO<void, DropoutT, bAddDataNotPresentFeature, ::std::tuple<PHLsT...>>::type;
 
-	template <typename LossAddsTupleT, typename DropoutT, typename PHLsTupleT>
-	using LPHGFIt_PA_DO = typename _LPHG_PA_DO<LossAddsTupleT, DropoutT, 0, false, PHLsTupleT>::type;
-	*/
+	template <typename DropoutT, bool bAddDataNotPresentFeature, typename PHLsTupleT>
+	using LPHOt_DO = typename _LPHO_PA_DO<void, DropoutT, bAddDataNotPresentFeature, PHLsTupleT>::type;
+
+	template <typename LossAddsTupleT, typename DropoutT, bool bAddDataNotPresentFeature, typename ...PHLsT>
+	using LPHO_PA_DO = typename _LPHO_PA_DO<LossAddsTupleT, DropoutT, bAddDataNotPresentFeature, ::std::tuple<PHLsT...>>::type;
+
+	template <typename LossAddsTupleT, typename DropoutT, bool bAddDataNotPresentFeature, typename PHLsTupleT>
+	using LPHOt_PA_DO = typename _LPHO_PA_DO<LossAddsTupleT, DropoutT, bAddDataNotPresentFeature, PHLsTupleT>::type;
 
 }

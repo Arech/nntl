@@ -219,7 +219,8 @@ namespace nntl {
 		::std::enable_if_t< ba && is_pack_gated<T>::value> _fprop4PA() noexcept {
 			static_assert(_base_class_t::gate_neurons_count > 0, "invalid gate_neurons_count");
 			const auto& CD = get_common_data();
-			if (CD.is_training_mode()) {
+#pragma warning(disable : 4127)
+			if (_PAB_t::bAnyRequiresOnFprop && CD.is_training_mode()) {
 				//we won't modify activations, just a trick to create a wrapper matrix 
 				auto& act = const_cast<realmtxdef_t&>(get_activations());
 				NNTL_ASSERT(act.emulatesBiases());
@@ -228,6 +229,7 @@ namespace nntl {
 				auto nogateAct = act.submatrix_cols_no_bias(_base_class_t::gate_neurons_count, act.cols_no_bias() - _base_class_t::gate_neurons_count);
 				_PAB_t::_pab_fprop(nogateAct, CD);
 			}
+#pragma warning(default : 4127)
 		}
 
 		template<typename T = _base_class_t, bool ba = bActivationPenalizationAvailable>

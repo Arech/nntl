@@ -151,7 +151,7 @@ namespace nntl {
 			//the only modification of activations we may use is stripping/restoring last (bias) column,
 			//which is in fact not a modification from outside POV
 			realmtxdef_t& act = const_cast<realmtxdef_t&>(ThisActivations);
-			NNTL_ASSERT(act.emulatesBiases());
+			//NNTL_ASSERT(act.emulatesBiases());
 			const auto bRestoreBiases = act.hide_biases();
 
 			tuple_utils::for_each_up(m_addendumsTuple, [&act, &ret, &CD](auto& la) {
@@ -195,11 +195,11 @@ namespace nntl {
 			act.restore_biases(bRestoreBiases);
 		}
 
-	protected:
-
+	public:
 		//bAnyRequiresOnFprop is set to true if any of loss_addendums require on_fprop() call
 		static constexpr bool bAnyRequiresOnFprop = tuple_utils::aggregate<::std::disjunction, loss_addendum::works_on_fprop, addendums_tuple_t>::value;
 		
+	protected:
 		template<typename CommonDataT, bool c = bAnyRequiresOnFprop>
 		::std::enable_if_t<!c> _pab_fprop(const realmtxdef_t& , const CommonDataT& )noexcept {}
 
@@ -214,7 +214,6 @@ namespace nntl {
 		void _pab_update_dLdA(realmtx_t& dLdA, const realmtxdef_t& ThisActivations, const CommonDataT& CD)noexcept {
 			//dropping const only to hide+restore biases
 			realmtxdef_t& act = const_cast<realmtxdef_t&>(ThisActivations);
-			NNTL_ASSERT(act.emulatesBiases());
 			const auto bRestoreBiases = act.hide_biases();
 
 			tuple_utils::for_each_up(m_addendumsTuple, [&act, &dLdA, &CD](auto& la) {
