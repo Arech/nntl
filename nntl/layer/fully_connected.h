@@ -67,7 +67,7 @@ namespace nntl {
 		//realmtxdef_t m_dLdW;//doesn't guarantee to retain it's value between usage in different code flows;
 		// may share memory with some other data structure. Must be deformable for grad_works_t
 
-		real_t m_dLdWScale{ 0 }, m_nTiledTimes{ 0 };
+		real_t m_nTiledTimes{ 0 };
 
 	public:
 		grad_works_t m_gradientWorks; //don't use directly, use getter		
@@ -173,7 +173,6 @@ namespace nntl {
 			if (ErrorCode::Success != ec) return ec;
 			
 			m_nTiledTimes = real_t(lid.nTiledTimes);
-			m_dLdWScale = m_nTiledTimes / real_t(m_activations.rows());
 
 			const auto neurons_cnt = get_neurons_cnt();
 
@@ -231,8 +230,6 @@ namespace nntl {
 
 		void deinit() noexcept {
 			m_gradientWorks.deinit();
-			//m_dLdW.clear();
-			m_dLdWScale = real_t(0.);
 			m_nTiledTimes = real_t(0.);
 			_base_class_t::deinit();
 		}
@@ -250,7 +247,6 @@ namespace nntl {
 		void on_batch_size_change(real_t*const pNewActivationStorage = nullptr)noexcept {
 			_base_class_t::on_batch_size_change(pNewActivationStorage);
 			NNTL_ASSERT(m_activations.rows() && m_activations.rows() == get_common_data().get_cur_batch_size());
-			m_dLdWScale = m_nTiledTimes / real_t(m_activations.rows());
 		}
 
 	protected:
@@ -350,9 +346,8 @@ namespace nntl {
 			
 			realmtxdef_t& dLdW = dLdA;//we'll be using dLdA to compute dLdW and now creating a corresponding alias to it for readability
 
-			NNTL_ASSERT(m_dLdWScale > 0);
 			dLdW.deform_like(m_weights);
-			iM.mScaledMulAtB_C(m_dLdWScale, dLdZ, prevAct, dLdW);
+			iM.mScaledMulAtB_C(m_nTiledTimes / real_t(m_activations.rows()), dLdZ, prevAct, dLdW);
 			_iI.bprop_dLdW(dLdZ, prevAct, dLdW);
 			
 			if (!bPrevLayerIsInput) {

@@ -247,6 +247,8 @@ namespace nntl {
 			{
 				const real_t*const pG = gate.colDataAsVec(lIdx);
 				const vec_len_t nzc = static_cast<vec_len_t>(iM.vCountNonZeros(pG, gate.rows()));
+				//#TODO closed gate handling here and for bprop()
+				NNTL_ASSERT(nzc || !"The gate is completely shut for the batch, need code to handle this case");
 
 				//changing the batch size and notifying the layer about it
 				CD.change_cur_batch_size(nzc);
@@ -331,7 +333,9 @@ namespace nntl {
 				const real_t*const pG = gate.colDataAsVec(--lIdx);
 
 				const auto& prA = aPA[lIdx];
-				NNTL_ASSERT(prA.emulatesBiases());
+				//#todo closed gate handling here and for fprop()
+
+				NNTL_ASSERT(prA.emulatesBiases() && prA.rows());
 				//before any lyr.() calls, restoring correct batch size for the layer.
 				CD.change_cur_batch_size(prA.rows());
 
@@ -346,6 +350,9 @@ namespace nntl {
 				NNTL_ASSERT(prA.size_no_bias() == mtx_size_t(_innerdLdA.rows(), lyr.get_incoming_neurons_cnt()));
 				auto curdLdA = dLdA.submatrix_cols_no_bias(firstNeuronOfs, _innerdLdA.cols());
 				_Math.mExtractRowsByMask(curdLdA, pG, _innerdLdA);
+
+				//we also must upscale dLdA to reflect the proper batch size --- should we?
+				//_Math.evMulC_ip(_innerdLdA, real_t(dLdA.rows()) / real_t(_innerdLdA.rows()));
 				
 				//setting up the _innerdLdAPrev
 				if (bLowerLayerIsInput) {

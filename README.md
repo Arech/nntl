@@ -42,7 +42,10 @@ I wouldn't state the NNTL is the fastest CPU implementation of feedforward neura
 source datasets and allows to train feature detectors that are
 specialized only on the specific optional parts of the data.
 (This component was formerly known as a layer_pack_horizontal_gated/LPHG,
-but it was broken by design).
+but it was broken by design). **Update:** oops, no jokes, but it seems
+(I'm not sure though) it is still broken :-D, just less severe
+than LPHG was. Love Neural Networks!
+Fix will be pushed as soon as it's ready.
     * layer_**pack_tile**, **LPT** allows to process different sequential subsets of neurons (different columns of activation matrix) by a single layer producing different output for each subset. It's kind a 'predecessor' of a convolutional layer, that implies strong regularization by a network architecture means.
     * layer_**pack_vertical**, **LPV** helps to build a vertical stack of layers that is represented as a single (compound) layer.
 * Activation units for an output layer:
