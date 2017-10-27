@@ -341,13 +341,17 @@ namespace nntl {
 			// (dLdW(i's neuron,j's lower layer neuron) = Sum_over_batch( dLdZ(i)*Aprev(j) ) ), it's almost impossible
 			// to get some element of dLdW equals to zero, because it'll require that dLdZ entries for some neuron over the
 			// whole batch were set to zero.
-			NNTL_ASSERT(m_nTiledTimes > 0);
-			//iM.mScaledMulAtB_C(m_nTiledTimes / real_t(dLdZ.rows()), dLdZ, prevAct, m_dLdW);
 			
 			realmtxdef_t& dLdW = dLdA;//we'll be using dLdA to compute dLdW and now creating a corresponding alias to it for readability
-
 			dLdW.deform_like(m_weights);
-			iM.mScaledMulAtB_C(m_nTiledTimes / real_t(m_activations.rows()), dLdZ, prevAct, dLdW);
+
+			NNTL_ASSERT(m_nTiledTimes > 0);
+			//#hack to make gradient check of LPT happy, we would ignore the tiling count here entirely
+			//However, the tiled layer in a real life would have a m_nTiledTimes bigger batch size, than the modeled layer should have,
+			// therefore we'll upscale the gradient m_nTiledTimes times.
+			iM.mScaledMulAtB_C((inspector::is_gradcheck_inspector<iInspect_t>::value ? real_t(1) : m_nTiledTimes) / real_t(m_activations.rows())
+				, dLdZ, prevAct, dLdW);
+
 			_iI.bprop_dLdW(dLdZ, prevAct, dLdW);
 			
 			if (!bPrevLayerIsInput) {

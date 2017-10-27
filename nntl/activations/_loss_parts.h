@@ -40,7 +40,9 @@ namespace activation {
 			typedef RealT real_t;
 
 			static constexpr real_t normalize(const real_t lossVal, const math::smatrix_td::vec_len_t batchSiz)noexcept {
-				return lossVal / (2 * batchSiz);
+				//return lossVal / (2 * batchSiz);
+				NNTL_UNREF(batchSiz);
+				return lossVal / 2;
 			}
 		};
 	}

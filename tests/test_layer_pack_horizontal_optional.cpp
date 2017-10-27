@@ -41,7 +41,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "../nntl/_test/test_weights_init.h"
 #include "asserts.h"
 #include "common_routines.h"
-//#include "nn_base_arch.h"
+#include "nn_base_arch.h"
 
 using namespace nntl;
 
@@ -353,6 +353,121 @@ TEST(TestLayerPackHorizontalOptional, MakeDump) {
 	auto ec = nn.train<false>(td, opts);
 	ASSERT_EQ(decltype(nn)::ErrorCode::Success, ec) << "Error code description: " << nn.get_last_error_string();
 }
-
-
 #endif
+
+//////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////
+
+
+template<typename ArchPrmsT>
+struct GC_LPHO : public nntl_tests::NN_base_arch_td<ArchPrmsT> {
+	/*template<typename FpcT>
+	using _MyLFC_tpl = _LFC<FpcT, myActivation, myGradWorks>;
+	typedef LPHO<_MyLFC_tpl, loss_addendum::DeCov<real_t, true>> MyLPHO;
+	//typedef myLFC MyLPHO;
+	MyLPHO lFinal;*/
+
+	LIGf<ArchPrmsT::gateZeroProb1e6, ArchPrmsT::bBinarizeGate, myInterfaces_t> lGate;
+	myLFC lInner1, lInner2;
+
+	static_assert(ArchPrmsT::nGatesCnt == 2, "Change the code below");
+	LPHOt<ArchPrmsT::bAddFeatureNotPresent, ::std::tuple<PHL<decltype(lGate)>, PHL<myLFC>, PHL<myLFC>>> lFinal;
+
+	~GC_LPHO()noexcept {}
+	GC_LPHO(const ArchPrms_t& Prms)noexcept
+		: lGate("lGate")
+		, lInner1("lInner1", ArchPrmsT::simple_l1nc, Prms.learningRate)
+		, lInner2("lInner2", ArchPrmsT::simple_l2nc, Prms.learningRate)
+		, lFinal("LPHO", ::std::make_tuple(
+			make_PHL(lGate, 0, ArchPrmsT::nGatesCnt)
+			, make_PHL(lInner1, ArchPrmsT::nGatesCnt + 0 * (Prms.lUnderlay_nc / ArchPrmsT::nGatesCnt), Prms.lUnderlay_nc / ArchPrmsT::nGatesCnt)
+			, make_PHL(lInner2, ArchPrmsT::nGatesCnt + 1 * (Prms.lUnderlay_nc / ArchPrmsT::nGatesCnt), Prms.lUnderlay_nc - (Prms.lUnderlay_nc / ArchPrmsT::nGatesCnt) - ArchPrmsT::nGatesCnt)
+		))
+	{}
+};
+
+template<typename RealT, bool bAddFeatureNotPres>
+struct GC_LPHO_ArchPrms : public nntl_tests::NN_base_params<RealT, nntl::inspector::GradCheck<RealT>> {
+private:
+	typedef nntl_tests::NN_base_params<RealT, nntl::inspector::GradCheck<RealT>> _base_class_t;
+public:
+	//typedef nntl::activation::softsigm_quad_loss <real_t, 1000, nntl::weights_init::He_Zhang<>, true> myOutputActivation;
+	//typedef nntl::activation::debug_softsigm_zeros <real_t, 1000, nntl::weights_init::He_Zhang<>> myOutputActivation;
+
+	typedef nntl::activation::softsign<real_t, 1000000, 1000000, weights_init::XavierFour> underlayActivation;
+
+
+	static constexpr bool bAddFeatureNotPresent = bAddFeatureNotPres;
+	static constexpr vec_len_t nGatesCnt = 2;
+	static constexpr real_t gateZeroProb = real_t(0.3);
+
+	static constexpr int gateZeroProb1e6 = 0;
+	static constexpr bool bBinarizeGate = true;
+
+	static constexpr size_t simple_l1nc = 30;
+	static constexpr size_t simple_l2nc = 20;
+
+	~GC_LPHO_ArchPrms()noexcept {}
+	GC_LPHO_ArchPrms(const nntl::train_data<real_t>& td)noexcept : _base_class_t(td) {}
+};
+
+template<typename RealT, bool bAddFeatureNotPres>
+void run_gc4lpho(const train_data<RealT>& td)noexcept {
+#pragma warning(disable:4459)
+	typedef RealT real_t;
+	//typedef nntl_tests::NN_base_params<real_t, nntl::inspector::GradCheck<real_t>> ArchPrms_t;
+	typedef GC_LPHO_ArchPrms<real_t, bAddFeatureNotPres> ArchPrms_t;
+#pragma warning(default:4459)
+
+	STDCOUTL("Warning!" << ::std::endl << "This test might fail occasionally while testing dL/dW of lUnderlay layer, "
+		"because of the way how the loss value is normalized using a batch size (that may fluctuate inside LPHO, effectively "
+		"throwing away some lUnderlay activations). The second possible cause of failure is when it tests activation values "
+		"that serves as a gate later. So if doubt - execute the test several times.");
+
+	STDCOUTL("***** Checking with bAddFeatureNotPresent=" << bAddFeatureNotPres);
+
+	/*nntl::train_data<real_t> td;
+	{
+	typedef typename ArchPrms_t::DefInterfaceNoInsp_t::iMath_t iMath_t;
+	typedef typename ArchPrms_t::DefInterfaceNoInsp_t::iRng_t iRng_t;
+	iMath_t iM;
+	iRng_t iR;
+	iR.init_ithreads(iM.ithreads()/ *, iRng_t::s64to32(seedV)* /);
+	makeTdForGatedSetup(iM, iR, baseTd, td, ArchPrms_t::nGatesCnt, ArchPrms_t::gateZeroProb);
+	}*/
+
+	ArchPrms_t Prms(td);
+	nntl_tests::NN_arch<GC_LPHO<ArchPrms_t>> nnArch(Prms);
+
+
+	auto ec = nnArch.warmup(td, 5, 200);
+	ASSERT_EQ(decltype(nnArch)::ErrorCode_t::Success, ec) << "Reason: " << nnArch.NN.get_error_str(ec);
+
+	gradcheck_settings<real_t> ngcSetts(true, false);
+	ngcSetts.evalSetts.bIgnoreZerodLdWInUndelyingLayer = true;
+	ngcSetts.onlineBatchSize = 25;//batch must be big enough to minimize probability of the whole gate==0
+	ngcSetts.evalSetts.dLdW_setts.relErrFailThrsh = real_t(5e-4);
+	ngcSetts.evalSetts.dLdW_setts.percOfZeros = 10;
+	ngcSetts.evalSetts.dLdA_setts.percOfZeros = 90;
+
+	ngcSetts.ignoreLayerIds.push_back(nnArch.ArchObj.lGate.get_layer_idx());
+	ngcSetts.ignoreLayerIds.push_back(nnArch.ArchObj.lFinal.get_layer_idx());
+
+	ngcSetts.layerCanSkipExecIds.push_back(nnArch.ArchObj.lInner1.get_layer_idx());
+	ngcSetts.layerCanSkipExecIds.push_back(nnArch.ArchObj.lInner2.get_layer_idx());
+
+	ASSERT_TRUE(nnArch.NN.gradcheck(td.train_x(), td.train_y(), 25, ngcSetts));
+}
+
+TEST(TestLayerPackHorizontalOptional, GradCheck) {
+#pragma warning(disable:4459)
+	typedef double real_t;
+#pragma warning(default:4459)
+
+	nntl::train_data<real_t> td;
+	readTd(td);
+
+	run_gc4lpho<real_t, false>(td);
+	STDCOUTL(::std::endl);
+	run_gc4lpho<real_t, true>(td);
+}

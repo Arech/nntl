@@ -50,11 +50,9 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 namespace nntl {
 	
-	//Note: LPHO probably will not pass a gradient check procedure now due to technical issues:
-	// it's internal layers have a variable sized batch and therefore, the loss value get's divided by a wrong batch size.
-
 	//bAddDataNotPresentFeature is a switch that appends to LPHO activations a feature that equals to !gate value
-	//One may treat them as an offsetting bias for absent features. I don't know yet if it's helpful thing or not.
+	//One may treat them as an offsetting bias for absent features. I don't know yet if it's helpful thing or not
+	// (looks like it was a bad idea, but leave it here for some more tests)
 
 	template<typename FinalPolymorphChild, bool bAddDataNotPresentFeature, typename PHLsTuple>
 	class _LPHO : public _impl::_LPH_base<FinalPolymorphChild, PHLsTuple> {
@@ -247,37 +245,41 @@ namespace nntl {
 			{
 				const real_t*const pG = gate.colDataAsVec(lIdx);
 				const vec_len_t nzc = static_cast<vec_len_t>(iM.vCountNonZeros(pG, gate.rows()));
-				//#TODO closed gate handling here and for bprop()
-				NNTL_ASSERT(nzc || !"The gate is completely shut for the batch, need code to handle this case");
 
-				//changing the batch size and notifying the layer about it
-				CD.change_cur_batch_size(nzc);
-				phl.l.on_batch_size_change(nullptr);
-
-				//constructing alias to relevant columns of prevAct
-				NNTL_ASSERT(phl.coord.m_offset + phl.coord.m_count <= prevAct.cols_no_bias());
-				NNTL_ASSERT(phl.coord.m_count == phl.l.get_incoming_neurons_cnt());
-				//const_cast here is just a trict to get necessary pointer. We won't modify the data under it
-				const realmtx_t curPrevAct(const_cast<real_t*>(prevAct.colDataAsVec(phl.coord.m_offset))
-					, prevAct.rows(), phl.coord.m_count, false);
-
-				//updating the storage of extracted from curPrevAct rows
+				//updating the storage of rows extracted from curPrevAct
 				realmtxdef_t& gatedPrevAct = aPA[lIdx];
 				NNTL_ASSERT(!gatedPrevAct.empty() && gatedPrevAct.emulatesBiases() && gatedPrevAct.cols_no_bias() == phl.l.get_incoming_neurons_cnt());
 				gatedPrevAct.deform_rows(nzc);
-				// fetching relevant rows into gatedPrevAct
-				iM.mExtractRowsByMask(curPrevAct, pG, gatedPrevAct);
-				gatedPrevAct.set_biases();
 
-				//doing fprop with gatedPrevAct
-				phl.l.fprop(_impl::wrap_trainable_layer<LLWrapT>(gatedPrevAct));
-
-				//pushing the layer's activations to our's activations
 				const auto nc = phl.l.get_neurons_cnt();
 				NNTL_ASSERT(ofs + nc <= act.cols_no_bias());
 				realmtx_t curAct(act.colDataAsVec(ofs), act.rows(), nc, false);
-				
-				iM.mFillRowsByMask(phl.l.get_activations(), pG, curAct);
+
+				if (nzc) {
+					//changing the batch size and notifying the layer about it
+					CD.change_cur_batch_size(nzc);
+					phl.l.on_batch_size_change(nullptr);
+
+					//constructing alias to relevant columns of prevAct
+					NNTL_ASSERT(phl.coord.m_offset + phl.coord.m_count <= prevAct.cols_no_bias());
+					NNTL_ASSERT(phl.coord.m_count == phl.l.get_incoming_neurons_cnt());
+					//const_cast here is just a trick to get necessary pointer. We won't modify the data under it
+					const realmtx_t curPrevAct(const_cast<real_t*>(prevAct.colDataAsVec(phl.coord.m_offset))
+						, prevAct.rows(), phl.coord.m_count, false);
+
+					// fetching relevant rows into gatedPrevAct
+					iM.mExtractRowsByMask(curPrevAct, pG, gatedPrevAct);
+					gatedPrevAct.set_biases();
+
+					//doing fprop with gatedPrevAct
+					phl.l.fprop(_impl::wrap_trainable_layer<LLWrapT>(gatedPrevAct));
+
+					//pushing the layer's activations to our's activations				
+					iM.mFillRowsByMask(phl.l.get_activations(), pG, curAct);
+				} else {
+					//just zeroing current activations
+					curAct.zeros();
+				}
 
 				//getting ready to a next layer
 				ofs += nc;
@@ -332,45 +334,53 @@ namespace nntl {
 				NNTL_ASSERT(lIdx > 0);
 				const real_t*const pG = gate.colDataAsVec(--lIdx);
 
-				const auto& prA = aPA[lIdx];
-				//#todo closed gate handling here and for fprop()
-
-				NNTL_ASSERT(prA.emulatesBiases() && prA.rows());
-				//before any lyr.() calls, restoring correct batch size for the layer.
-				CD.change_cur_batch_size(prA.rows());
-
 				NNTL_ASSERT(firstNeuronOfs >= lyr.get_neurons_cnt());
 				firstNeuronOfs -= lyr.get_neurons_cnt();
 				NNTL_ASSERT(phl.coord.m_count == lyr.get_incoming_neurons_cnt());
 
-				//setting up the _innerdLdA
-				_innerdLdA.deform_like_no_bias(lyr.get_activations());
-				NNTL_ASSERT(firstNeuronOfs + _innerdLdA.cols() <= dLdA.cols());
-				NNTL_ASSERT(_innerdLdA.rows() == _Math.vCountNonZeros(pG, gate.rows()));
-				NNTL_ASSERT(prA.size_no_bias() == mtx_size_t(_innerdLdA.rows(), lyr.get_incoming_neurons_cnt()));
-				auto curdLdA = dLdA.submatrix_cols_no_bias(firstNeuronOfs, _innerdLdA.cols());
-				_Math.mExtractRowsByMask(curdLdA, pG, _innerdLdA);
+				const auto& prA = aPA[lIdx];
+				NNTL_ASSERT(prA.emulatesBiases());
+				NNTL_ASSERT(prA.rows() == _Math.vCountNonZeros(pG, gate.rows()));
 
-				//we also must upscale dLdA to reflect the proper batch size --- should we?
-				//_Math.evMulC_ip(_innerdLdA, real_t(dLdA.rows()) / real_t(_innerdLdA.rows()));
-				
-				//setting up the _innerdLdAPrev
-				if (bLowerLayerIsInput) {
-					_innerdLdAPrev.deform(0, 0);
-				} else _innerdLdAPrev.deform(_innerdLdA.rows(), phl.coord.m_count);
-				
-				const auto switchMtxs = lyr.bprop(_innerdLdA
-					, LLWrapT(prA, _pTmpBiasStorage, realmtx_t::sNumel(bbs, lyr.get_incoming_neurons_cnt())), _innerdLdAPrev);
+				if (prA.rows()) {
+					//before any lyr.() calls, restoring correct batch size for the layer.
+					CD.change_cur_batch_size(prA.rows());
+					
+					//setting up the _innerdLdA
+					_innerdLdA.deform_like_no_bias(lyr.get_activations());
+					NNTL_ASSERT(firstNeuronOfs + _innerdLdA.cols() <= dLdA.cols());
+					NNTL_ASSERT(_innerdLdA.rows() == prA.rows());
+					NNTL_ASSERT(prA.size_no_bias() == mtx_size_t(_innerdLdA.rows(), lyr.get_incoming_neurons_cnt()));
+					auto curdLdA = dLdA.submatrix_cols_no_bias(firstNeuronOfs, _innerdLdA.cols());
+					_Math.mExtractRowsByMask(curdLdA, pG, _innerdLdA);
 
-				if (!bLowerLayerIsInput) {
-					const auto& gatedCurdLdAPrev = switchMtxs ? _innerdLdAPrev : _innerdLdA;
-					NNTL_ASSERT(gatedCurdLdAPrev.size() == prA.size_no_bias());
+					//we also must upscale dLdA to reflect the proper batch size --- should we?
+					//_Math.evMulC_ip(_innerdLdA, real_t(dLdA.rows()) / real_t(_innerdLdA.rows()));
 
-					//saving curdLdAPrev to dLdAPrev
-					auto curdLdAPrev = dLdAPrev.submatrix_cols_no_bias(phl.coord.m_offset, phl.coord.m_count);
+					//setting up the _innerdLdAPrev
+					if (bLowerLayerIsInput) {
+						_innerdLdAPrev.deform(0, 0);
+					} else _innerdLdAPrev.deform(_innerdLdA.rows(), phl.coord.m_count);
 
-					_Math.mFillRowsByMask(gatedCurdLdAPrev, pG, curdLdAPrev);
-				}
+					const auto switchMtxs = lyr.bprop(_innerdLdA
+						, LLWrapT(prA, _pTmpBiasStorage, realmtx_t::sNumel(bbs, lyr.get_incoming_neurons_cnt())), _innerdLdAPrev);
+
+					if (!bLowerLayerIsInput) {
+						const auto& gatedCurdLdAPrev = switchMtxs ? _innerdLdAPrev : _innerdLdA;
+						NNTL_ASSERT(gatedCurdLdAPrev.size() == prA.size_no_bias());
+
+						//saving curdLdAPrev to dLdAPrev
+						auto curdLdAPrev = dLdAPrev.submatrix_cols_no_bias(phl.coord.m_offset, phl.coord.m_count);
+
+						_Math.mFillRowsByMask(gatedCurdLdAPrev, pG, curdLdAPrev);
+					}
+				} else {
+					//gate is completely closed and nothing to do here except for zeroing corresponding region of dLdAPrev
+					if (!bLowerLayerIsInput) {
+						auto curdLdAPrev = dLdAPrev.submatrix_cols_no_bias(phl.coord.m_offset, phl.coord.m_count);
+						curdLdAPrev.zeros();
+					}
+				}				
 			});
 			NNTL_ASSERT(firstNeuronOfs == gate_neurons_count);
 			NNTL_ASSERT(prevAct.test_biases_strict());

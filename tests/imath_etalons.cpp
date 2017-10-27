@@ -99,7 +99,7 @@ real_t loss_softmax_xentropy_ET(const realmtx_t& activations, const realmtx_t& d
 		ret -= y*a;
 		NNTL_ASSERT(!isnan(ret));
 	}
-	return ret/ activations.rows();
+	return ret/*/ activations.rows()*/;
 }
 
 void dSigmQuadLoss_dZ_ET(const realmtx_t& data_y, realmtx_t& act_dLdZ)noexcept {
@@ -248,7 +248,7 @@ real_t loss_xentropy_ET(const realmtx_t& activations, const realmtx_t& data_y)no
 		}
 		NNTL_ASSERT(!isnan(ql));
 	}
-	return -ql / activations.rows();
+	return -ql /*/ activations.rows()*/;
 }
 
 //inverted dropout

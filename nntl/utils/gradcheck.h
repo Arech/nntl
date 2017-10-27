@@ -193,6 +193,9 @@ namespace nntl {
 
 		gradcheck_evalSetts<real_t> evalSetts;
 
+		::std::vector<layer_index_t> ignoreLayerIds;
+		::std::vector<layer_index_t> layerCanSkipExecIds;
+
 		const real_t stepSize;
 		const bool bVerbose;
 		const bool bForceSeed;

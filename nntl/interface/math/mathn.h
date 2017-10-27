@@ -3300,13 +3300,13 @@ namespace math {
 			return ret;
 		}
 		static real_t loss_quadratic_st_naive(const realmtx_t& activations, const realmtx_t& data_y, const elms_range*const pER = nullptr)noexcept {
-			return _iloss_quadratic_st_naive(activations, data_y, pER ? *pER : elms_range(activations)) / (2 * activations.rows());
+			return _iloss_quadratic_st_naive(activations, data_y, pER ? *pER : elms_range(activations)) / (2 /** activations.rows()*/);
 		}
 		real_t loss_quadratic_mt_naive(const realmtx_t& activations, const realmtx_t& data_y)noexcept {
 			const real_t ql = m_threads.reduce([&activations, &data_y](const par_range_t& r)->real_t {
 				return _iloss_quadratic_st_naive(activations, data_y, elms_range(r));
 			}, _vec_sum<false, real_t>, activations.numel());
-			return ql / (2 * activations.rows());
+			return ql / (2 /** activations.rows()*/);
 		}
 
 		//////////////////////////////////////////////////////////////////////////
@@ -3335,13 +3335,13 @@ namespace math {
 		}
 
 		static real_t loss_quadratic_st_naive_ns(const realmtx_t& activations, const realmtx_t& data_y, const elms_range*const pER = nullptr)noexcept {
-			return _iloss_quadratic_st_naive_ns(activations, data_y, pER ? *pER : elms_range(activations)) / (2 * activations.rows());
+			return _iloss_quadratic_st_naive_ns(activations, data_y, pER ? *pER : elms_range(activations)) / (2 /** activations.rows()*/);
 		}
 		real_t loss_quadratic_mt_naive_ns(const realmtx_t& activations, const realmtx_t& data_y)noexcept {
 			real_t ql = m_threads.reduce([&activations, &data_y](const par_range_t& r)->real_t {
 				return _iloss_quadratic_st_naive_ns(activations, data_y, elms_range(r));
 			}, _vec_sum<true, real_t>, activations.numel());
-			return ql / (2 * activations.rows());
+			return ql / (2 /** activations.rows()*/);
 		}
 
 		//////////////////////////////////////////////////////////////////////////
@@ -3353,7 +3353,7 @@ namespace math {
 			} else return get_self().loss_xentropy_mt(activations, data_y);
 		}
 		real_t loss_xentropy_st(const realmtx_t& activations, const realmtx_t& data_y, const elms_range*const pER = nullptr)noexcept {
-			return -get_self()._iloss_xentropy_st(activations, data_y, pER ? *pER : elms_range(activations)) / activations.rows();
+			return -get_self()._iloss_xentropy_st(activations, data_y, pER ? *pER : elms_range(activations)) /*/ activations.rows()*/;
 		}
 		static real_t _iloss_xentropy_st(const realmtx_t& activations, const realmtx_t& data_y, const elms_range& er)noexcept {
 			NNTL_ASSERT(activations.size() == data_y.size() && !activations.empty() && !data_y.empty());
@@ -3383,7 +3383,7 @@ namespace math {
 		real_t loss_xentropy_mt(const realmtx_t& activations, const realmtx_t& data_y)noexcept {
 			return -m_threads.reduce([&activations, &data_y, this](const par_range_t& pr)->real_t {
 				return get_self()._iloss_xentropy_st(activations, data_y, elms_range(pr));
-			}, _vec_sum<false, real_t>, activations.numel()) / activations.rows();
+			}, _vec_sum<false, real_t>, activations.numel()) /*/ activations.rows()*/;
 		}
 		//////////////////////////////////////////////////////////////////////////
 		real_t loss_xentropy_ns(const realmtx_t& activations, const realmtx_t& data_y)noexcept {
@@ -3392,7 +3392,7 @@ namespace math {
 			} else return get_self().loss_xentropy_ns_mt(activations, data_y);
 		}
 		real_t loss_xentropy_ns_st(const realmtx_t& activations, const realmtx_t& data_y, const elms_range*const pER = nullptr)noexcept {
-			return -get_self()._iloss_xentropy_ns_st(activations, data_y, pER ? *pER : elms_range(activations)) / activations.rows();
+			return -get_self()._iloss_xentropy_ns_st(activations, data_y, pER ? *pER : elms_range(activations)) /*/ activations.rows()*/;
 		}
 		static real_t _iloss_xentropy_ns_st(const realmtx_t& activations, const realmtx_t& data_y, const elms_range& er)noexcept {
 			NNTL_ASSERT(activations.size() == data_y.size() && !activations.empty() && !data_y.empty());
@@ -3426,7 +3426,7 @@ namespace math {
 		real_t loss_xentropy_ns_mt(const realmtx_t& activations, const realmtx_t& data_y)noexcept {
 			return -m_threads.reduce([&activations, &data_y, this](const par_range_t& pr)->real_t {
 				return get_self()._iloss_xentropy_ns_st(activations, data_y, elms_range(pr));
-			}, _vec_sum<true, real_t>, activations.numel()) / activations.rows();
+			}, _vec_sum<true, real_t>, activations.numel()) /*/ activations.rows()*/;
 		}
 
 
@@ -3454,14 +3454,14 @@ namespace math {
 		}
 		static real_t loss_softmax_xentropy_st(const realmtx_t& activations, const realmtx_t& data_y, const elms_range*const pER = nullptr)noexcept {
 			NNTL_ASSERT(!activations.empty() && !data_y.empty() && data_y.size() == activations.size());
-			return _iloss_softmax_xentropy_sum_st(activations.data(), data_y.data(), pER ? *pER : elms_range(activations)) / activations.rows();
+			return _iloss_softmax_xentropy_sum_st(activations.data(), data_y.data(), pER ? *pER : elms_range(activations)) /*/ activations.rows()*/;
 		}
 		real_t loss_softmax_xentropy_mt(const realmtx_t& activations, const realmtx_t& data_y)noexcept {
 			NNTL_ASSERT(!activations.empty() && !data_y.empty() && data_y.size() == activations.size());
 			const auto pA = activations.data(), pY = data_y.data();
 			return m_threads.reduce([pA, pY](const par_range_t& pr)->real_t {
 				return _iloss_softmax_xentropy_sum_st(pA, pY, elms_range(pr));
-			}, _vec_sum<false, real_t>, activations.numel()) / activations.rows();
+			}, _vec_sum<false, real_t>, activations.numel()) /*/ activations.rows()*/;
 		}
 
 
@@ -3960,8 +3960,8 @@ namespace math {
 			get_self().mColumnsCov<bLowerTriangl>(DeMeaned, CovMtx);
 			//sum over a single triangle of a symmetric matrix is a half smaller than the sum over the whole matrix (excluding the main diagonal)
 			//therefore we shouldn't divide it by 2 to fit the formula.
-			// However, we must normalize the error to the batchSize since the error must be normalized
-			const auto ret = get_self().ewSumSquaresTriang<bLowerTriangl, bNumStab>(CovMtx) / Vals.rows();
+			// However, we must normalize the error to the batchSize since the error must be normalized --- obsolete
+			const auto ret = get_self().ewSumSquaresTriang<bLowerTriangl, bNumStab>(CovMtx) /*/ Vals.rows()*/;
 			// - and to the amount of active neurons
 			//const auto ret = get_self().ewSumSquaresTriang<bLowerTriangl, bNumStab>(CovMtx) / (valsNumelNoBias * (DeMeaned.cols() - 1));
 

@@ -247,7 +247,7 @@ void test_loss_deCov(vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 
 		loss = iM.loss_deCov<bLowerTriangl, bNumStab>(A);
 		ASSERT_MTX_EQ(A, A2, "() has changed const A!!");
-		ASSERT_NEAR(etLoss, loss, loss_deCov_EPS<real_t>::eps) << "<" << bLowerTriangl << "," << bNumStab << "> failed";
+		ASSERT_NEAR(etLoss / rowsCnt, loss / rowsCnt, loss_deCov_EPS<real_t>::eps) << "<" << bLowerTriangl << "," << bNumStab << "> failed";
 
 	}
 }
@@ -320,13 +320,13 @@ void test_loss_xentropy(vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 		real_t loss, etLoss = loss_xentropy_ET(A, Y);
 
 		loss = iM.loss_xentropy_st(A, Y);
-		ASSERT_NEAR(etLoss, loss, loss_xentropy_EPS<real_t>::eps);
+		ASSERT_NEAR(etLoss / rowsCnt, loss / rowsCnt, loss_xentropy_EPS<real_t>::eps);
 
 		loss = iM.loss_xentropy_mt(A, Y);
-		ASSERT_NEAR(etLoss, loss, loss_xentropy_EPS<real_t>::eps);
+		ASSERT_NEAR(etLoss / rowsCnt, loss / rowsCnt, loss_xentropy_EPS<real_t>::eps);
 
 		loss = iM.loss_xentropy(A, Y);
-		ASSERT_NEAR(etLoss, loss, loss_xentropy_EPS<real_t>::eps);
+		ASSERT_NEAR(etLoss / rowsCnt, loss / rowsCnt, loss_xentropy_EPS<real_t>::eps);
 	}
 }
 
@@ -609,13 +609,13 @@ void test_loss_softmax_xentropy(vec_len_t rowsCnt, vec_len_t colsCnt) {
 		et = loss_softmax_xentropy_ET(A, Y);
 
 		l = iM.loss_softmax_xentropy_st(A, Y);
-		ASSERT_NEAR(et, l, loss_softmax_xentropy_EPS<real_t>::eps) << "st failed";
+		ASSERT_NEAR(et / rowsCnt, l / rowsCnt, loss_softmax_xentropy_EPS<real_t>::eps) << "st failed";
 
 		l = iM.loss_softmax_xentropy_mt(A, Y);
-		ASSERT_NEAR(et, l, loss_softmax_xentropy_EPS<real_t>::eps) << "mt failed";
+		ASSERT_NEAR(et / rowsCnt, l / rowsCnt, loss_softmax_xentropy_EPS<real_t>::eps) << "mt failed";
 
 		l = iM.loss_softmax_xentropy(A, Y);
-		ASSERT_NEAR(et, l, loss_softmax_xentropy_EPS<real_t>::eps) << "() failed";
+		ASSERT_NEAR(et / rowsCnt, l / rowsCnt, loss_softmax_xentropy_EPS<real_t>::eps) << "() failed";
 	}
 }
 TEST(TestMathN, LossSoftmaxXentropy) {
@@ -3340,32 +3340,32 @@ void test_loss_quadratic(iMath& iM, vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 		quadLoss = iM.loss_quadratic_st_naive(A, Y);
 		ASSERT_EQ(A, etA);
 		ASSERT_EQ(Y, etY);
-		ASSERT_NEAR(etQuadLoss, quadLoss, loss_quadratic_EPS<real_t>::eps) << "_st";
+		ASSERT_NEAR(etQuadLoss / rowsCnt, quadLoss / rowsCnt, loss_quadratic_EPS<real_t>::eps) << "_st";
 
 		quadLoss = iM.loss_quadratic_mt_naive(A, Y);
 		ASSERT_EQ(A, etA);
 		ASSERT_EQ(Y, etY);
-		ASSERT_NEAR(etQuadLoss, quadLoss, loss_quadratic_EPS<real_t>::eps) << "_mt";
+		ASSERT_NEAR(etQuadLoss / rowsCnt, quadLoss / rowsCnt, loss_quadratic_EPS<real_t>::eps) << "_mt";
 
 		quadLoss = iM.loss_quadratic(A, Y);
 		ASSERT_EQ(A, etA);
 		ASSERT_EQ(Y, etY);
-		ASSERT_NEAR(etQuadLoss, quadLoss, loss_quadratic_EPS<real_t>::eps) << "()";
+		ASSERT_NEAR(etQuadLoss / rowsCnt, quadLoss / rowsCnt, loss_quadratic_EPS<real_t>::eps) << "()";
 
 		quadLoss = iM.compute_loss_st<Loss_t>(A, Y);
 		ASSERT_EQ(A, etA);
 		ASSERT_EQ(Y, etY);
-		ASSERT_NEAR(etQuadLoss, quadLoss, loss_quadratic_EPS<real_t>::eps) << "_st";
+		ASSERT_NEAR(etQuadLoss / rowsCnt, quadLoss / rowsCnt, loss_quadratic_EPS<real_t>::eps) << "_st";
 
 		quadLoss = iM.compute_loss_mt<Loss_t>(A, Y);
 		ASSERT_EQ(A, etA);
 		ASSERT_EQ(Y, etY);
-		ASSERT_NEAR(etQuadLoss, quadLoss, loss_quadratic_EPS<real_t>::eps) << "_mt";
+		ASSERT_NEAR(etQuadLoss / rowsCnt, quadLoss / rowsCnt, loss_quadratic_EPS<real_t>::eps) << "_mt";
 
 		quadLoss = iM.compute_loss<Loss_t>(A, Y);
 		ASSERT_EQ(A, etA);
 		ASSERT_EQ(Y, etY);
-		ASSERT_NEAR(etQuadLoss, quadLoss, loss_quadratic_EPS<real_t>::eps) << "()";
+		ASSERT_NEAR(etQuadLoss / rowsCnt, quadLoss / rowsCnt, loss_quadratic_EPS<real_t>::eps) << "()";
 	}
 
 	quadLoss = real_t(0);

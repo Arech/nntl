@@ -42,6 +42,7 @@ namespace nntl_tests {
 		typedef DefIntnIT DefInterfaceNoInsp_t;
 
 		typedef nntl::activation::softsign<real_t> myActivation;
+		typedef myActivation underlayActivation;
 		//typedef nntl::activation::leaky_relu_100<real_t> myActivation;
 
 		typedef nntl::activation::softsigm_quad_loss <real_t, 1000, nntl::weights_init::He_Zhang<>, true> myOutputActivation;
@@ -90,6 +91,7 @@ namespace nntl_tests {
 		typedef typename ArchPrms_t::myActivation myActivation;
 
 		typedef nntl::LFC<myActivation, myGradWorks> myLFC;
+		typedef nntl::LFC<typename ArchPrms_t::underlayActivation, myGradWorks> Underlay_t;
 	};
 	
 	template <typename NnInnerArchT>
@@ -105,7 +107,7 @@ namespace nntl_tests {
 		//////////////////////////////////////////////////////////////////////////
 
 		myLayerInput lInput;
-		myLFC lUnderlay; //need it to check dLdA computed inside of ArchObj.lFinal
+		Underlay_t lUnderlay; //need it to check dLdA computed inside of ArchObj.lFinal
 		nnInnerArch_t ArchObj;
 		myLayerOutput lOutput;
 
@@ -167,7 +169,7 @@ namespace nntl_tests {
 			});
 		}
 
-		ErrorCode_t warmup(nntl::train_data<real_t>& td, const size_t epochs, const vec_len_t batch_size
+		ErrorCode_t warmup(const nntl::train_data<real_t>& td, const size_t epochs, const vec_len_t batch_size
 			, const bool bCalcFullLoss=true)noexcept
 		{
 			STDCOUTL("Going to perform warmup for "<<epochs<<" epochs...");

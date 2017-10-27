@@ -56,6 +56,7 @@ namespace inspector {
 		using real_t = typename _base_class_t::real_t;
 		using realmtx_t = typename _base_class_t::realmtx_t;
 		using realmtxdef_t = typename _base_class_t::realmtxdef_t;
+		using vec_len_t = typename _base_class_t::vec_len_t;
 
 	protected:
 		keeper_t m_curLayer;
@@ -71,8 +72,12 @@ namespace inspector {
 		real_t m_analyticalValue;
 		static_assert(::std::numeric_limits<real_t>::has_quiet_NaN, "real_t MUST have quiet NaN available!");
 
+		vec_len_t m_realBatchSize;
+
 		real_t* m_pChangedEl;
 		real_t m_origElVal;
+
+		bool m_curLayerMayNeverRun;
 		
 	public:
 		~GradCheck() noexcept {}
@@ -93,21 +98,29 @@ namespace inspector {
 			return m_checkParamsGroup;
 		}
 
-		void gc_prep_check_layer(const layer_index_t lidx, const nntl::_impl::gradcheck_paramsGroup gcpg, const mtx_coords_t& coord)noexcept {
+		void gc_prep_check_layer(const layer_index_t lidx, const nntl::_impl::gradcheck_paramsGroup gcpg
+			, const mtx_coords_t& coord, const bool bMayNeverRun = false)noexcept
+		{
 			m_layerIdxToCheck = lidx;
 			m_checkParamsGroup = gcpg;
 			m_coord = coord;
+			m_curLayerMayNeverRun = bMayNeverRun;
 			//return *this;
 		}
-		const real_t& get_analytical_value()const noexcept {
-			NNTL_ASSERT(!::std::isnan(m_analyticalValue));
+		real_t get_analytical_value()const noexcept {
+			NNTL_ASSERT(m_curLayerMayNeverRun || !::std::isnan(m_analyticalValue));
 			NNTL_ASSERT(nntl::_impl::gradcheck_phase::df_analytical == m_checkPhase);
-			return m_analyticalValue;
+			return (m_curLayerMayNeverRun && ::std::isnan(m_analyticalValue)) ? real_t(0.) : m_analyticalValue;
+		}
+		vec_len_t get_real_batch_size()const noexcept {
+			NNTL_ASSERT(m_curLayerMayNeverRun || m_realBatchSize);
+			return (m_curLayerMayNeverRun && !m_realBatchSize) ? 1 : m_realBatchSize;
 		}
 
 		void gc_set_phase(nntl::_impl::gradcheck_phase ph)noexcept {
 			m_checkPhase = ph;
 			m_analyticalValue = ::std::numeric_limits<real_t>::quiet_NaN();
+			m_realBatchSize = 0;
 		}
 
 		//////////////////////////////////////////////////////////////////////////
@@ -126,6 +139,7 @@ namespace inspector {
 					m_pChangedEl = &const_cast<realmtx_t&>(W).get(m_coord);
 					m_origElVal = *m_pChangedEl;
 					*m_pChangedEl += nntl::_impl::gradcheck_phase::df_numeric_plus == m_checkPhase ? m_stepSize : -m_stepSize;
+					m_realBatchSize = prevAct.rows();
 				}
 			}
 			_base_class_t::fprop_makePreActivations(W, prevAct);
@@ -154,6 +168,7 @@ namespace inspector {
 			{
 				const_cast<realmtx_t&>(Act).get(m_coord) += nntl::_impl::gradcheck_phase::df_numeric_plus == m_checkPhase
 					? m_stepSize : -m_stepSize;
+				m_realBatchSize = Act.rows();
 			}
 			_base_class_t::fprop_activations(Act);
 		}
@@ -189,6 +204,7 @@ namespace inspector {
 			{
 				NNTL_ASSERT(::std::isnan(m_analyticalValue));
 				m_analyticalValue = dLdA.get(m_coord);
+				m_realBatchSize = dLdA.rows();
 			}
 			_base_class_t::bprop_finaldLdA(dLdA);
 		}
@@ -204,6 +220,7 @@ namespace inspector {
 			{
 				NNTL_ASSERT(::std::isnan(m_analyticalValue));
 				m_analyticalValue = dLdW.get(m_coord);
+				m_realBatchSize = dLdZ.rows();
 			}
 			_base_class_t::bprop_dLdW(dLdZ, prevAct, dLdW);
 		}
@@ -213,11 +230,6 @@ namespace inspector {
 			_base_class_t::bprop_end(dLdAPrev);
 		}
 	};
-
-	template< class, class = ::std::void_t<> >
-	struct is_gradcheck_inspector : ::std::false_type { };
-	template< class T >
-	struct is_gradcheck_inspector<T, ::std::void_t<typename T::gradcheck_inspector_t>> : ::std::true_type {};
 
 }
 }

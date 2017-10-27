@@ -219,7 +219,7 @@ TEST(TestLPA, deCovGradCheck) {
 
 	gradcheck_settings<real_t> ngcSetts;
 	ngcSetts.evalSetts.bIgnoreZerodLdWInUndelyingLayer = true;
-	ngcSetts.onlineBatchSize = 4;//batch must be big enought to compute columnwise covariance
+	ngcSetts.onlineBatchSize = 4;//batch must be big enough to compute columnwise covariance
 	
 	//ngcSetts.evalSetts.dLdW_setts.percOfZeros = 100; //for debug_softsigm_zeros
 	

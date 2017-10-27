@@ -186,13 +186,14 @@ namespace nntl {
 			return r;
 		}
 
+		template<bool bNormalizeToDataSize = true>
 		real_t _calcLoss(const realmtx_t*const pData_x, const realmtx_t& data_y) noexcept {
 			NNTL_ASSERT(!pData_x || pData_x->rows() == data_y.rows());
 			if (pData_x) _fprop(*pData_x);
 
 			auto lossValue = m_Layers.output_layer().calc_loss(data_y);
 			if (m_bCalcFullLossValue) lossValue += m_Layers.calcLossAddendum();
-			return lossValue;
+			return bNormalizeToDataSize ? lossValue / data_y.rows() : lossValue;
 		}
 
 		const bool _is_initialized(const vec_len_t biggestFprop, const vec_len_t batchSize)const noexcept {
@@ -634,7 +635,8 @@ namespace nntl {
 			//////////////////////////////////////////////////////////////////////////
 
 			bool performCheck(const vec_len_t batchSize, const realmtx_t& data_x, const realmtx_t& data_y)noexcept {
-				m_data.init(batchSize == data_x.rows() ? 0 : batchSize, data_x, &data_y);
+				const vec_len_t biggestBatch = ::std::max(batchSize, m_ngcSetts.onlineBatchSize);
+				m_data.init(biggestBatch == data_x.rows() ? 0 : biggestBatch, data_x, &data_y);
 				
 				bool bRet = false;
 				NNTL_ASSERT(m_ngcSetts.onlineBatchSize > 0);
@@ -666,6 +668,16 @@ namespace nntl {
 				_checkInnerLayers(lyr);
 
 				if (m_failedLayerIdx) return;//do nothing, check has already been failed.
+
+				if (::std::any_of(m_ngcSetts.ignoreLayerIds.cbegin(), m_ngcSetts.ignoreLayerIds.cend()
+					, [lidx = lyr.get_layer_idx()](const auto v)
+				{
+					return lidx == v;
+				}))
+				{
+					if (m_ngcSetts.bVerbose) STDCOUTL("*** Skipping layer " << lyr.get_layer_name_str() << " by request.");
+					return;
+				}
 
 				switch (m_mode) {
 				case nntl::_impl::gradcheck_mode::batch:
@@ -749,7 +761,8 @@ namespace nntl {
 
 				//const auto doubleSs = m_ngcSetts.stepSize * 2;
 				// numeric error is already batchsize-normalized. however, analytical does not.
-				const real_t numMult = static_cast<real_t>(m_ngcSetts.onlineBatchSize) / (m_ngcSetts.stepSize * 2);
+				//const real_t numMult = static_cast<real_t>(m_ngcSetts.onlineBatchSize) / (m_ngcSetts.stepSize * 2);
+				const real_t numMult = static_cast<real_t>(1) / (m_ngcSetts.stepSize * 2);
 
 				auto& iI = m_nn.get_iInspect();
 				for (neurons_count_t i = 0; i < checkNeuronsCnt; ++i) {
@@ -760,8 +773,11 @@ namespace nntl {
 					m_data.nextBatch(m_nn.get_iRng(), m_nn.get_iMath());
 
 					const mtx_coords_t coords(0, neurIdx);
-					const auto s = ::std::time(0);
-					iI.gc_prep_check_layer(lIdx, _impl::gradcheck_paramsGroup::dLdA, coords);
+					const bool bLayerMayBeExcluded = ::std::any_of(m_ngcSetts.layerCanSkipExecIds.cbegin(), m_ngcSetts.layerCanSkipExecIds.cend(), [lIdx](const auto i) {
+						return i == lIdx;
+					});
+					const size_t s = m_ngcSetts.bForceSeed ? ::std::time(0) : 0;
+					iI.gc_prep_check_layer(lIdx, _impl::gradcheck_paramsGroup::dLdA, coords, bLayerMayBeExcluded);
 
 					//_prepNetToBatchSize(false, m_data.batchX().rows());
 					//we must not change the bTraining state, because this would screw the loss value with dropout for example
@@ -803,17 +819,24 @@ namespace nntl {
 				auto& iI = m_nn.get_iInspect();
 
 				m_data.nextBatch(m_nn.get_iRng(), m_nn.get_iMath());
-				const auto s = ::std::time(0);
 
-				iI.gc_prep_check_layer(lIdx, _impl::gradcheck_paramsGroup::dLdW, coords);
+				const bool bLayerMayBeExcluded = ::std::any_of(m_ngcSetts.layerCanSkipExecIds.cbegin(), m_ngcSetts.layerCanSkipExecIds.cend(), [lIdx](const auto i) {
+					return i == lIdx;
+				});
+				const size_t s = m_ngcSetts.bForceSeed ? ::std::time(0) : 0;
+
+				iI.gc_prep_check_layer(lIdx, _impl::gradcheck_paramsGroup::dLdW, coords, bLayerMayBeExcluded);
 
 				//_prepNetToBatchSize(false, m_data.batchX().rows());
 
 				iI.gc_set_phase(_impl::gradcheck_phase::df_numeric_minus);
 				const real_t LossMinus = _calcLossF(s);
 
+				const auto curBs = iI.get_real_batch_size();
 				iI.gc_set_phase(_impl::gradcheck_phase::df_numeric_plus);
-				const real_t dLnum = (_calcLossF(s) - LossMinus) / doubleSs;
+				const real_t LossPlus = _calcLossF(s);
+
+				const real_t dLnum = (LossPlus - LossMinus) / (doubleSs*curBs);
 
 				iI.gc_set_phase(_impl::gradcheck_phase::df_analytical);
 				//_prepNetToBatchSize(true, m_data.batchX().rows());
@@ -954,11 +977,11 @@ namespace nntl {
 				_say_final(coords);
 			}
 
-			const real_t _calcLossF(size_t s)noexcept {
+			real_t _calcLossF(const size_t s)noexcept {
 				m_nn.m_Layers.prepToCalcLossAddendum();//cleanup cached loss version to always recalculate it from scratch, because we aren't interested in any cheats here.
 				if (m_ngcSetts.bForceSeed) m_nn.get_iRng().seed64(s);
 				m_nn.m_Layers.fprop(m_data.batchX());
-				return m_nn._calcLoss(nullptr, m_data.batchY());
+				return m_nn._calcLoss<false>(nullptr, m_data.batchY());
 			}
 		};
 

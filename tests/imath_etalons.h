@@ -175,7 +175,7 @@ auto loss_deCov_ET(const nntl::math::smatrix<typename iMathT::real_t>& A, nntl::
 	mcwSub_ip_ET(tDM, &vMean[0]);
 	mColumnsCov_ET(tDM, tCov, iM);
 	//return ewSumSquaresTriang_ET<bLowerTriangl>(tCov) / (static_cast<numel_cnt_t>(A.rows())*tDM.cols()*(tDM.cols() - 1));
-	return ewSumSquaresTriang_ET<bLowerTriangl>(tCov) / A.rows();
+	return ewSumSquaresTriang_ET<bLowerTriangl>(tCov) /*/ A.rows()*/;
 }
 
 template<bool bLowerTriangl, typename iMathT>
@@ -232,7 +232,7 @@ real_t loss_quadratic_ET(const ::nntl::math::smatrix<real_t>& A, const ::nntl::m
 		const real_t v = ptrEtA[i] - ptrEtY[i];
 		etQuadLoss += v*v;
 	}
-	return etQuadLoss / (2 * A.rows());
+	return etQuadLoss / (2 /** A.rows()*/);
 }
 
 template<typename T>

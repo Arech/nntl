@@ -49,6 +49,12 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 namespace nntl {
 namespace inspector {
 
+	template< class, class = ::std::void_t<> >
+	struct is_gradcheck_inspector : ::std::false_type { };
+	template< class T >
+	struct is_gradcheck_inspector<T, ::std::void_t<typename T::gradcheck_inspector_t>> : ::std::true_type {};
+
+
 	// interface is nowhere near a stable state, so expect changes.
 	template<typename RealT>
 	class _i_inspector : public math::smatrix_td {
