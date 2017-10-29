@@ -199,14 +199,14 @@ namespace nntl {
 		//////////////////////////////////////////////////////////////////////////
 
 		template<bool c = bDropoutAvailable>
-		::std::enable_if_t<c> on_batch_size_change(real_t*const pNewActivationStorage = nullptr)noexcept {
-			_base_class_t::on_batch_size_change(pNewActivationStorage);
+		::std::enable_if_t<c> on_batch_size_change(const real_t learningRateScale, real_t*const pNewActivationStorage = nullptr)noexcept {
+			_base_class_t::on_batch_size_change(learningRateScale, pNewActivationStorage);
 			_dropout_on_batch_size_change(get_common_data());
 		}
 
 		template<bool c = bDropoutAvailable>
-		::std::enable_if_t<!c> on_batch_size_change(real_t*const pNewActivationStorage = nullptr)noexcept {
-			_base_class_t::on_batch_size_change(pNewActivationStorage);
+		::std::enable_if_t<!c> on_batch_size_change(const real_t learningRateScale, real_t*const pNewActivationStorage = nullptr)noexcept {
+			_base_class_t::on_batch_size_change(learningRateScale, pNewActivationStorage);
 		}
 
 	protected:

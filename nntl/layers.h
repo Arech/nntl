@@ -249,7 +249,7 @@ namespace nntl {
 		}
 
 		void on_batch_size_change()noexcept {
-			tuple_utils::for_each_up(m_layers, [](auto& lyr)noexcept { lyr.on_batch_size_change(); });
+			tuple_utils::for_each_up(m_layers, [](auto& lyr)noexcept { lyr.on_batch_size_change(real_t(1.)); });
 		}
 
 		void fprop(const realmtx_t& data_x) noexcept {

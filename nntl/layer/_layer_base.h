@@ -263,7 +263,9 @@ namespace nntl {
 		// Resetting of biases is not required at this case, however.
 		// Layers, that should never be a part of other compound layers, should totally omit this parameter
 		// from function signature (not recommended use-case, however)
-		nntl_interface void on_batch_size_change(real_t*const pNewActivationStorage /*= nullptr*/)noexcept;
+		// learningRateScale - is a scaling coefficient that must be applied to a learningRate value to account for some
+		//	specific layer usage (inside LPT or LPHO, for example).
+		nntl_interface void on_batch_size_change(const real_t learningRateScale, real_t*const pNewActivationStorage /*= nullptr*/)noexcept;
 		//If the layer was given a pNewActivationStorage (during the init() or on_batch_size_change()), then it MUST NOT touch a bit
 		// in the bias column of the activation storage during fprop() and everywhere else.
 		// For more information about how memory storage is organized, see discussion in _init_layers.h::_layer_init_data{}

@@ -239,11 +239,11 @@ namespace nntl {
 			for_each_packed_layer([=](auto& l) {l.initMem(ptr, cnt); });
 		}
 
-		void on_batch_size_change(real_t*const pNewActivationStorage = nullptr)noexcept {
-			tuple_utils::for_each_exc_last_up(m_layers, [](auto& lyr)noexcept {
-				lyr.on_batch_size_change();
+		void on_batch_size_change(const real_t learningRateScale, real_t*const pNewActivationStorage = nullptr)noexcept {
+			tuple_utils::for_each_exc_last_up(m_layers, [learningRateScale](auto& lyr)noexcept {
+				lyr.on_batch_size_change(learningRateScale);
 			});
-			topmost_layer().on_batch_size_change(pNewActivationStorage);
+			topmost_layer().on_batch_size_change(learningRateScale, pNewActivationStorage);
 		}
 
 	protected:

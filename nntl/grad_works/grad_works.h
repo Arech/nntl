@@ -61,7 +61,11 @@ namespace nntl {
 			nntl_interface void deinit()noexcept;
 
 			nntl_interface auto learning_rate(const real_t learningRate)noexcept;
-			nntl_interface const real_t learning_rate()const noexcept;
+			nntl_interface real_t learning_rate()const noexcept;
+
+			//DON'T use these 2 functions for learning rate decay! They're intended to be used internally only!
+			nntl_interface auto _learning_rate_scale(const real_t lrScale)noexcept;
+			nntl_interface real_t _learning_rate_scale()const noexcept;
 
 			nntl_interface void pre_training_fprop(realmtx_t& weights)noexcept;
 
@@ -174,8 +178,14 @@ namespace nntl {
 	protected:
 		NNTL_METHODS_MIXIN_ROOT_OPTIONS();
 
+	public:
+		//::std::bitset<opts_total> m_flags;
+		//unfortunately, it must be left inside public scope at this moment
+		// #TODO: should be private/protected
+		utils::mixins::binary_options_storage<mixin_opts_ofs, TotalOpts> m_opts;//never use it directly! Only via get_opt()/set_opt()
+
 	protected:		
-		real_t m_learningRate;
+		real_t m_learningRate, m_lrScale{real_t(1.)};
 
 		real_t m_momentum;
 		real_t m_optBeta1, m_optBeta2, m_optGamma;
@@ -190,12 +200,6 @@ namespace nntl {
 		realmtx_t m_optMtxA, m_optMtxB;//some optimizers require additional memory.
 
 		real_t m_optBeta1t, m_optBeta2t;//storage for coefficients some optimizers (Adam, AdaMax) needed
-
-	public:
-		//::std::bitset<opts_total> m_flags;
-		//unfortunately, it must be left inside public scope at this moment
-		// #TODO: should be private/protected
-		utils::mixins::binary_options_storage<mixin_opts_ofs, TotalOpts> m_opts;//never use it directly! Only via get_opt()/set_opt()
 
 	protected:
 		//////////////////////////////////////////////////////////////////////////
@@ -215,6 +219,7 @@ namespace nntl {
 
 			if (utils::binary_option<true>(ar, serialization::serialize_training_parameters)) {
 				ar & NNTL_SERIALIZATION_NVP(m_learningRate);
+				ar & NNTL_SERIALIZATION_NVP(m_lrScale);
 				ar & NNTL_SERIALIZATION_NVP(m_momentum);
 				ar & NNTL_SERIALIZATION_NVP(m_optBeta1);
 				ar & NNTL_SERIALIZATION_NVP(m_optBeta2);
@@ -256,7 +261,7 @@ namespace nntl {
 			, m_optBeta1(real_t(0.9)), m_optBeta2(real_t(0.999)), m_optGamma(real_t(0.05))
 			, m_numericStabilizerEps(_impl::NUM_STAB_EPS<real_t>::value), m_WeightVecNormSqared(real_t(0.0))
 			, m_optBeta1t(real_t(1.)), m_optBeta2t(real_t(1.))
-			, m_type(ClassicalConstant)
+			, m_type(ClassicalConstant), m_lrScale(real_t(1.))
 		{
 			learning_rate(lr);
 			_flags_default();
@@ -369,35 +374,39 @@ namespace nntl {
 				//				= W`(t+1) - scaling * grad_Loss( W`(t+1) )
 			}*/
 
+			//const real_t curLr = static_cast<real_t>(ext_real_t(m_learningRate)*ext_real_t(m_lrScale));
+			const real_t curLr = m_learningRate*m_lrScale;
+
+
 			switch (m_type) {
 			case ClassicalConstant:
-				iM.evMulC_ip(dLdW, m_learningRate);
+				iM.evMulC_ip(dLdW, curLr);
 				break;
 
 			case RMSProp_Hinton:
 				if (bFirstRun) {
 					iM.evSquare(m_optMtxA, dLdW);
-					iM.evMulC_ip(dLdW, m_learningRate);
-				} else iM.RMSProp_Hinton(dLdW, m_optMtxA, m_learningRate, m_optBeta1, m_numericStabilizerEps);
+					iM.evMulC_ip(dLdW, curLr);
+				} else iM.RMSProp_Hinton(dLdW, m_optMtxA, curLr, m_optBeta1, m_numericStabilizerEps);
 				break;
 
 			case RMSProp_Graves:
 				if (bFirstRun) {
 					iM.evSquare(m_optMtxA, dLdW);
 					dLdW.clone_to(m_optMtxB);
-					iM.evMulC_ip(dLdW, m_learningRate);
-				} else iM.RMSProp_Graves(dLdW, m_optMtxA, m_optMtxB, m_learningRate, m_optBeta1, m_numericStabilizerEps);
+					iM.evMulC_ip(dLdW, curLr);
+				} else iM.RMSProp_Graves(dLdW, m_optMtxA, m_optMtxB, curLr, m_optBeta1, m_numericStabilizerEps);
 				break;
 
 			case RProp:
-				iM.RProp(dLdW, m_learningRate);
+				iM.RProp(dLdW, curLr);
 				break;
 
 			case ModProp:
 				if (bFirstRun) {
 					iM.evAbs(m_optMtxA, dLdW);
-					iM.evMulC_ip(dLdW, m_learningRate);
-				} else iM.ModProp(dLdW, m_optMtxA, m_learningRate, m_optBeta1, m_numericStabilizerEps);
+					iM.evMulC_ip(dLdW, curLr);
+				} else iM.ModProp(dLdW, m_optMtxA, curLr, m_optBeta1, m_numericStabilizerEps);
 				break;
 
 			case Adam:
@@ -407,7 +416,7 @@ namespace nntl {
 					m_optMtxA.zeros();
 					m_optMtxB.zeros();
 				};
-				iM.Adam(dLdW, m_optMtxA, m_optMtxB, m_optBeta1t, m_optBeta2t, m_learningRate, m_optBeta1, m_optBeta2, m_numericStabilizerEps);
+				iM.Adam(dLdW, m_optMtxA, m_optMtxB, m_optBeta1t, m_optBeta2t, curLr, m_optBeta1, m_optBeta2, m_numericStabilizerEps);
 				break;
 
 			case AdaMax:
@@ -416,7 +425,7 @@ namespace nntl {
 					m_optMtxA.zeros();
 					m_optMtxB.zeros();
 				};
-				iM.AdaMax(dLdW, m_optMtxA, m_optMtxB, m_optBeta1t, m_learningRate, m_optBeta1, m_optBeta2, m_numericStabilizerEps);
+				iM.AdaMax(dLdW, m_optMtxA, m_optMtxB, m_optBeta1t, curLr, m_optBeta1, m_optBeta2, m_numericStabilizerEps);
 				break;
 
 			case Nadam:
@@ -430,7 +439,7 @@ namespace nntl {
 						m_optGamma = real_t(0.);
 					}
 				};
-				iM.RNadam(dLdW, m_optMtxA, m_optMtxB, m_optBeta1t, m_optBeta2t, m_learningRate, m_optBeta1, m_optBeta2, m_optGamma, m_numericStabilizerEps);
+				iM.RNadam(dLdW, m_optMtxA, m_optMtxB, m_optBeta1t, m_optBeta2t, curLr, m_optBeta1, m_optBeta2, m_optGamma, m_numericStabilizerEps);
 				break;
 
 			default:
@@ -487,11 +496,19 @@ namespace nntl {
 
 		//////////////////////////////////////////////////////////////////////////
 
-		self_ref_t learning_rate(const real_t& learningRate)noexcept {
+		self_ref_t learning_rate(const real_t learningRate)noexcept {
 			m_learningRate = learningRate;
 			return get_self();
 		}
-		const real_t& learning_rate()const noexcept { return m_learningRate; }
+		real_t learning_rate()const noexcept { return m_learningRate; }
+
+		//DON'T use these 2 functions for learning rate decay! They're intended to be used internally only!
+		self_ref_t _learning_rate_scale(const real_t lrScale)noexcept {
+			m_lrScale = lrScale;
+			return get_self();
+		}
+		real_t _learning_rate_scale()const noexcept { return m_lrScale; }
+
 
 		self_ref_t momentum(const real_t m)noexcept {
 			NNTL_ASSERT(m >= 0 && m < 1);
@@ -513,20 +530,20 @@ namespace nntl {
 			m_optBeta1 = c;
 			return get_self();
 		}
-		const real_t& beta1()const noexcept { return m_optBeta1; }
+		real_t beta1()const noexcept { return m_optBeta1; }
 		self_ref_t beta2(const real_t c)noexcept {
 			NNTL_ASSERT(c > 0 && c < 1);
 			m_optBeta2 = c;
 			return get_self();
 		}
-		const real_t& beta2()const noexcept { return m_optBeta2; }
+		real_t beta2()const noexcept { return m_optBeta2; }
 
 		self_ref_t gamma(const real_t c)noexcept {
 			NNTL_ASSERT(c > 0 && c < 1);
 			m_optGamma = c;
 			return get_self();
 		}
-		const real_t& gamma()const noexcept { return m_optGamma; }
+		real_t gamma()const noexcept { return m_optGamma; }
 
 
 		self_ref_t numeric_stabilizer(const real_t n)noexcept {
@@ -567,15 +584,15 @@ namespace nntl {
 			set_opt(f_NormIncludesBias, bNormIncludesBias);
 			return get_self();
 		}
-		const real_t max_norm()const noexcept { return use_max_norm() ? m_WeightVecNormSqared : real_t(.0); }
+		real_t max_norm()const noexcept { return use_max_norm() ? m_WeightVecNormSqared : real_t(.0); }
 
-		const bool use_momentums()const noexcept { return get_opt(f_UseMomentum); } // m_momentum > real_t(0.0);
-		const bool nesterov_momentum()const noexcept { return get_opt(f_UseNesterovMomentum); }
-		const bool use_nesterov_momentum()const noexcept { return get_opt(f_UseMomentum) & get_opt(f_UseNesterovMomentum); }
-		const bool use_classical_momentum()const noexcept { return get_opt(f_UseMomentum) & (!get_opt(f_UseNesterovMomentum)); }
+		bool use_momentums()const noexcept { return get_opt(f_UseMomentum); } // m_momentum > real_t(0.0);
+		bool nesterov_momentum()const noexcept { return get_opt(f_UseNesterovMomentum); }
+		bool use_nesterov_momentum()const noexcept { return get_opt(f_UseMomentum) & get_opt(f_UseNesterovMomentum); }
+		bool use_classical_momentum()const noexcept { return get_opt(f_UseMomentum) & (!get_opt(f_UseNesterovMomentum)); }
 
-		const bool use_max_norm()const noexcept { return get_opt(f_UseMaxNorm); }
-		const bool isFirstRun()const noexcept { return get_opt(f_FirstRun); }
+		bool use_max_norm()const noexcept { return get_opt(f_UseMaxNorm); }
+		bool isFirstRun()const noexcept { return get_opt(f_FirstRun); }
 	};
 
 

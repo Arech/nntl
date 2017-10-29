@@ -316,15 +316,15 @@ namespace nntl {
 				for_each_packed_layer([=](auto& l) {l.initMem(ptr, cnt); });
 			}
 
-			void on_batch_size_change(real_t*const pNewActivationStorage = nullptr)noexcept {
-				_base_class_t::on_batch_size_change(pNewActivationStorage);
+			void on_batch_size_change(const real_t learningRateScale, real_t*const pNewActivationStorage = nullptr)noexcept {
+				_base_class_t::on_batch_size_change(learningRateScale, pNewActivationStorage);
 				const vec_len_t batchSize = get_common_data().get_cur_batch_size();
 
 				neurons_count_t firstNeuronOfs = 0;
-				for_each_packed_layer([&act = m_activations, &firstNeuronOfs](auto& lyr)noexcept {
+				for_each_packed_layer([&act = m_activations, &firstNeuronOfs, learningRateScale](auto& lyr)noexcept {
 					//we're just setting memory to store activation values of inner layers here.
 					//there's no need to play with biases here.
-					lyr.on_batch_size_change(act.colDataAsVec(firstNeuronOfs));
+					lyr.on_batch_size_change(learningRateScale, act.colDataAsVec(firstNeuronOfs));
 					firstNeuronOfs += lyr.get_neurons_cnt();
 				});
 				NNTL_ASSERT(firstNeuronOfs + 1 == m_activations.cols());

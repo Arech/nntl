@@ -244,8 +244,9 @@ namespace nntl {
 			}
 		}*/
 
-		void on_batch_size_change(real_t*const pNewActivationStorage = nullptr)noexcept {
-			_base_class_t::on_batch_size_change(pNewActivationStorage);
+		void on_batch_size_change(const real_t learningRateScale, real_t*const pNewActivationStorage = nullptr)noexcept {
+			_base_class_t::on_batch_size_change(learningRateScale, pNewActivationStorage);
+			m_gradientWorks._learning_rate_scale(learningRateScale);
 			NNTL_ASSERT(m_activations.rows() && m_activations.rows() == get_common_data().get_cur_batch_size());
 		}
 

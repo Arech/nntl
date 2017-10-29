@@ -236,10 +236,6 @@ namespace nntl {
 			}
 		}
 
-		/*void on_batch_size_change()noexcept {
-			_base_class_t::on_batch_size_change(nullptr);
-		}*/
-
 	protected:
 		void _outp_fprop(const realmtx_t& prevActivations)noexcept {
 #ifdef NNTL_AGGRESSIVE_NANS_DBG_CHECK
@@ -274,6 +270,8 @@ namespace nntl {
 
 		unsigned _outp_bprop(const realmtx_t& data_y, const realmtx_t& prevActivations, const bool bPrevLayerIsInput, realmtx_t& dLdAPrev)noexcept {
 			NNTL_ASSERT(prevActivations.test_biases_strict());
+			NNTL_ASSERT(real_t(1.) == m_gradientWorks._learning_rate_scale());//output layer mustn't have lr scaled.
+			// Don't implement lrdecay using the _learning_rate_scale(), it's for internal use only!
 			NNTL_ASSERT(m_bActivationsValid);
 			m_bActivationsValid = false;
 

@@ -104,7 +104,8 @@ namespace nntl {
 
 
 		void initMem(real_t* ptr, numel_cnt_t cnt)noexcept { NNTL_UNREF(ptr); NNTL_UNREF(cnt); }
-		void on_batch_size_change()noexcept {
+		void on_batch_size_change(const real_t learningRateScale)noexcept {
+			NNTL_UNREF(learningRateScale);
 			m_bActivationsValid = false;
 		}
 

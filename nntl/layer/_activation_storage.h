@@ -111,7 +111,8 @@ namespace _impl {
 			_base_class_t::deinit();
 		}
 
-		void on_batch_size_change(real_t*const pNewActivationStorage = nullptr)noexcept {
+		void on_batch_size_change(const real_t learningRateScale, real_t*const pNewActivationStorage = nullptr)noexcept {
+			NNTL_UNREF(learningRateScale);
 			constexpr bool bOutputLayer = is_layer_output<self_t>::value;
 
 			NNTL_ASSERT(get_neurons_cnt());

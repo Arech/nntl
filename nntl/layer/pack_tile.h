@@ -268,8 +268,8 @@ namespace nntl {
 			m_tiledLayer.initMem(ptr, cnt);
 		}
 
-		void on_batch_size_change(real_t*const pNewActivationStorage = nullptr)noexcept {
-			_base_class_t::on_batch_size_change(pNewActivationStorage);
+		void on_batch_size_change(const real_t learningRateScale, real_t*const pNewActivationStorage = nullptr)noexcept {
+			_base_class_t::on_batch_size_change(learningRateScale, pNewActivationStorage);
 
 			//updating supplemental matrices
 			const auto tiledRowsCnt = get_common_data().get_cur_batch_size()*tiles_count;
@@ -283,7 +283,7 @@ namespace nntl {
 
 			//changing the mode of m_tiledLayer.
 			m_innerCD.set_mode_and_batch_size(get_common_data().is_training_mode(), tiledRowsCnt);
-			m_tiledLayer.on_batch_size_change(nullptr);
+			m_tiledLayer.on_batch_size_change(learningRateScale*tiles_count, nullptr);
 		}
 
 	protected:

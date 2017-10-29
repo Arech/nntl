@@ -25,14 +25,6 @@ while ~isempty(rem)
 		case 'l2'
 			la=[la 'L2'];
 		
-		%the next strings might be found in a layer stereotype for a compound layer. They shouldn't trigger
-		%the warning message
-		%case {'lpv','lph'}
-			
-		%if it specifies dropout we should stop parsing
-		%case {'dropout','nodropout','do','nodo'}
-		%	break;
-		
 		otherwise
 			if bWarnForUnknown
 				warning('Unexpected token %s found while parsing string %s for loss_addendums specification. It was ignored', tok, str);
