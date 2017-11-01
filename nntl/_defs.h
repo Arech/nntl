@@ -84,13 +84,20 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #else
 
-#define NNTL_ASSERT(a) ((void)(0))
+#ifdef NNTL_RELEASE_WITH_DEBUG
 
+#define NNTL_DEBUG
+#define NNTL_ASSERT(a) if(!(a)) __debugbreak()
+#define NNTL_DEBUG_DECLARE(v) v
+#define NNTL_DEBUG_ARG(p) ,p
+
+#else
+
+#define NNTL_ASSERT(a) ((void)(0))
 #define NNTL_DEBUG_ARG(p)
 #define NNTL_DEBUG_DECLARE(v)
 
-//#define NNTL_DEBUG
-//#define NNTL_ASSERT(a) _ASSERT_AND_INVOKE_WATSON(a)
+#endif // !NNTL_RELEASE_WITH_DEBUG
 
 #endif // defined(_DEBUG) || defined(DEBUG)
 

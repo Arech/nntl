@@ -39,13 +39,17 @@ using namespace nntl;
 typedef nntl_supp::binfile reader_t;
 using real_t = d_interfaces::real_t;
 
+#define MNIST_FILE_DEBUG "../data/mnist200_100.bin"
+#define MNIST_FILE_RELEASE  "../data/mnist60000.bin"
+
 #if defined(TESTS_SKIP_NNET_LONGRUNNING)
 //ALWAYS run debug build with similar relations of data sizes:
 // if release will run in minibatches - make sure, there will be at least 2 minibatches)
 // if release will use different data sizes for train/test - make sure, debug will also run on different datasizes
-#define MNIST_FILE "../data/mnist200_100.bin"
+#define MNIST_FILE MNIST_FILE_DEBUG
+//MNIST_FILE_DEBUG
 #else
-#define MNIST_FILE "../data/mnist60000.bin"
+#define MNIST_FILE MNIST_FILE_RELEASE
 #endif // _DEBUG
 
 //////////////////////////////////////////////////////////////////////////
@@ -125,7 +129,9 @@ TEST(Simple, NotSoPlainFFN) {
 
 	//2. define NN layers and their properties
 	size_t epochs = 30;
-	const real_t learningRate(real_t(.001)), dropoutActiveRate(real_t(.5)), momntm(real_t(.9))
+	const real_t learningRate(real_t(.001))
+		, dropoutActiveRate(real_t(.5))
+		, momntm(real_t(.9))
 		, learningRateDecayCoeff(real_t(.97)), numStab(real_t(1e-8));// _impl::NUM_STAB_EPS<real_t>::value);//real_t(1e-8));
 	
 	// a. input layer

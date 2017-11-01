@@ -136,6 +136,9 @@ namespace math {
 	// wrapper class to store vectors/matrices in column-major ordering
 	template <typename T_>
 	class smatrix : public smatrix_td {
+		static_assert(::std::is_pod<T_>::value, "Matrix type must be POD type for proper mem allocation");
+		//non-pod type would require constructor/destructor code to run during new/delete
+
 	public:
 		typedef T_ value_type;
 		typedef value_type* value_ptr_t;
@@ -173,9 +176,12 @@ namespace math {
 				NNTL_ASSERT(!"Hey! WTF? You cant manage matrix memory in m_bDontManageStorage mode!");
 				abort();
 			} else {
-				delete[] m_pData;
+				//delete[] m_pData;
+				_aligned_free(m_pData);
 				if (m_rows > 0 && m_cols > 0) {
-					m_pData = new(::std::nothrow) value_type[numel()];
+					//m_pData = new(::std::nothrow) value_type[numel()];
+					m_pData = reinterpret_cast<value_type*>(_aligned_malloc(byte_size(), NNTL_CFG_DEFAULT_PTR_ALIGN));
+					NNTL_ASSERT(m_pData);
 				} else {
 					m_rows = 0;
 					m_cols = 0;
@@ -184,7 +190,10 @@ namespace math {
 			}
 		}
 		void _free()noexcept {
-			if (! m_bDontManageStorage) delete[] m_pData;
+			if (!m_bDontManageStorage) {
+				//delete[] m_pData;
+				_aligned_free(m_pData);
+			}
 			m_pData = nullptr;
 			m_rows = 0;
 			m_cols = 0;
@@ -904,7 +913,8 @@ namespace math {
 		bool resize(const numel_cnt_t ne)noexcept {
 			NNTL_ASSERT(ne > 0);
 			_free();
-			auto ptr = new(::std::nothrow) value_type[ne];
+			//auto ptr = new(::std::nothrow) value_type[ne];
+			value_type* ptr = reinterpret_cast<value_type*>(_aligned_malloc(sizeof(value_type)*ne, NNTL_CFG_DEFAULT_PTR_ALIGN));
 			if (nullptr == ptr) {
 				NNTL_ASSERT(!"Memory allocation failed!");
 				return false;

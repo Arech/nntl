@@ -2074,13 +2074,27 @@ namespace math {
 			NNTL_ASSERT(!srcdest.empty());
 // 			const auto ptr = srcdest.data();
 // 			for (range_t i = er.elmBegin; i < er.elmEnd; ++i) ptr[i] = real_t(1.0) / (real_t(1.0) + ::std::exp(-ptr[i]));
+
 			auto pA = srcdest.data() + er.elmBegin;
 			const auto pAE = pA + er.totalElements();
+
+			/*while (pA != pAE) {
+				NNTL_ASSERT(!::std::isnan(*pA++));
+			}
+			pA = srcdest.data() + er.elmBegin;*/
+
 			while (pA != pAE) {
 				const auto x = *pA;
-				*pA++ = real_t(1.0) / (real_t(1.0) + ::std::exp(-x));
-
+				const auto a = real_t(1.0) / (real_t(1.0) + ::std::exp(-x));
+				//FUUUUUUU!!!!!
+				// when the code is vectorized, ::std::exp(-x) may produce -nan(ind) instead of standard 0.
+				*pA++ = a;
 			}
+
+			/*pA = srcdest.data() + er.elmBegin;
+			while (pA != pAE) {
+				NNTL_ASSERT(!::std::isnan(*pA++));
+			}*/
 		}
 		void sigm_mt(realmtx_t& srcdest) noexcept {
 			NNTL_ASSERT(!srcdest.empty());

@@ -339,6 +339,10 @@ namespace nntl {
 		//#todo this code should be refactored.
 		void apply_grad(realmtxdef_t& weights, realmtxdef_t& dLdW) noexcept {
 			NNTL_ASSERT(dLdW.size() == weights.size());
+#ifdef NNTL_AGGRESSIVE_NANS_DBG_CHECK
+			NNTL_ASSERT(weights.test_noNaNs());
+			NNTL_ASSERT(dLdW.test_noNaNs());
+#endif // NNTL_AGGRESSIVE_NANS_DBG_CHECK
 
 			auto& iI = get_iInspect();
 
@@ -490,6 +494,10 @@ namespace nntl {
 			if (use_max_norm()) {
 				iM.mCheck_normalize_rows(weights, m_WeightVecNormSqared, get_opt(f_NormIncludesBias));
 			}
+
+#ifdef NNTL_AGGRESSIVE_NANS_DBG_CHECK
+			NNTL_ASSERT(weights.test_noNaNs());
+#endif // NNTL_AGGRESSIVE_NANS_DBG_CHECK
 
 			iI.apply_grad_end(weights);
 		}

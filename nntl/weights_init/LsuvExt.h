@@ -65,7 +65,7 @@ namespace weights_init {
 		struct WeightNormSetts : public math::smatrix_td {
 			typedef RealT real_t;
 
-			real_t targetScale;
+			real_t targetScale, targetCentral;
 			real_t ScaleTolerance, CentralTolerance;
 
 			vec_len_t batchSize;//set to 0 for a full-batch mode (default)
@@ -82,7 +82,7 @@ namespace weights_init {
 			bool bOverPreActivations;
 			bool bVerbose;
 
-			WeightNormSetts()noexcept:targetScale(real_t(1.))
+			WeightNormSetts()noexcept:targetScale(real_t(1.)), targetCentral(real_t(0.))
 				, ScaleTolerance(real_t(.01)), CentralTolerance(real_t(.01))
 				, maxTries(20), bCentralNormalize(false), bNormalizeIndividualNeurons(false)
 				, bOverPreActivations(false), bVerbose(true), bScaleNormalize(true)
@@ -299,14 +299,15 @@ namespace weights_init {
 							_fprop();
 
 							const auto stat = _calc<CentralMeasureT>(pAct->begin(), pAct->end_no_bias(), pAct->rows());
-							bCentralIsOk = (::std::abs(stat - real_t(0.)) < lSetts.CentralTolerance);
+							const auto statDiff = stat - lSetts.targetCentral;
+							bCentralIsOk = (::std::abs(statDiff) < lSetts.CentralTolerance);
 
 							if (lSetts.bVerbose) STDCOUTL("#" << i << " central (\"mean\") = " << stat << (bCentralIsOk ? "(ok)" : ""));
 
 							if (!bCentralIsOk) {
 								auto pB = weights.colDataAsVec(weights.cols() - 1);
 								const auto pBE = weights.end();
-								while (pB < pBE) *pB++ -= stat*actScaling;
+								while (pB < pBE) *pB++ -= statDiff*actScaling;
 							} else break;
 						}
 						//if (!bCentralIsOk) _say_failed();
@@ -314,7 +315,7 @@ namespace weights_init {
 						_fprop();
 
 						const auto stat = _calc<CentralMeasureT>(pAct->begin(), pAct->end_no_bias(), pAct->rows());
-						bCentralIsOk = (::std::abs(stat - real_t(0.)) < lSetts.CentralTolerance);
+						bCentralIsOk = (::std::abs(stat - lSetts.targetCentral) < lSetts.CentralTolerance);
 						STDCOUTL("central (\"mean\") = " << stat << (bCentralIsOk ? "(ok)" : "(*doesn't fit, but changing was forbidden*)"));
 						bCentralIsOk = true;
 					}
@@ -412,12 +413,13 @@ namespace weights_init {
 							for (neurons_count_t nrn = 0; nrn < total_nc; ++nrn) {
 								const auto pD = pAct->colDataAsVec(nrn);
 								const auto stat = _calc<CentralMeasureT>(pD, pD + batchSize, batchSize);
-								const bool bCentralIsOk = (::std::abs(stat - real_t(0.)) < lSetts.CentralTolerance);
+								const auto statDiff = stat - lSetts.targetCentral;
+								const bool bCentralIsOk = (::std::abs(statDiff) < lSetts.CentralTolerance);
 								statSum += stat;
 
 								if (!bCentralIsOk) {
 									bCentralStatOK = false;
-									weights.get(nrn, weights.cols() - 1) -= stat*actScaling;
+									weights.get(nrn, weights.cols() - 1) -= statDiff*actScaling;
 								}
 							}
 
@@ -432,7 +434,7 @@ namespace weights_init {
 						for (neurons_count_t nrn = 0; nrn < total_nc; ++nrn) {
 							const auto pD = pAct->colDataAsVec(nrn);
 							const auto stat = _calc<CentralMeasureT>(pD, pD + batchSize, batchSize);
-							const bool bCentralIsOk = (::std::abs(stat - real_t(0.)) < lSetts.CentralTolerance);
+							const bool bCentralIsOk = (::std::abs(stat - lSetts.targetCentral) < lSetts.CentralTolerance);
 							statSum += stat;
 
 							if (!bCentralIsOk) {

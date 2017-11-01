@@ -41,12 +41,22 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //#define NNTL_CFG_DEFAULT_TYPE double
 #endif
 
+#ifndef NNTL_CFG_DEFAULT_PTR_ALIGN
+#define NNTL_CFG_DEFAULT_PTR_ALIGN 32
+#endif
+
 //////////////////////////////////////////////////////////////////////////
 //most of the time you would not want to have denormals, but they may occur during even a
 // normal neural net training (not counting most of the cases with wrong/ill metaparameters).
 // If you have to rely on them - you're probably doing something very wrong.
 #if !defined(NNTL_DENORMALS2ZERO) || NNTL_DENORMALS2ZERO!=0
 #define NNTL_DENORMALS2ZERO 1
+#endif
+
+//::std::exp() with large negative argument may produce -nan(ind) when compiler vectorizes and it into intinsic.
+//To prevent this behaviour while maintaining the same code performance helps setting floating point roundind towards zero
+#if !defined(NNTL_FP_ROUND_TO_ZERO) || NNTL_FP_ROUND_TO_ZERO!=0
+#define NNTL_FP_ROUND_TO_ZERO 1
 #endif
 
 #if NNTL_DENORMALS2ZERO

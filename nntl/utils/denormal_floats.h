@@ -23,6 +23,12 @@ namespace nntl {
 #if NNTL_DENORMALS2ZERO
 		disable_denormals();
 #endif
+
+#if NNTL_FP_ROUND_TO_ZERO
+		unsigned int current_word = 0;
+		_controlfp_s(&current_word, _RC_CHOP, _MCW_RC);
+		//_controlfp_s(&current_word, _RC_NEAR, _MCW_RC);//--default mode breaks intrinsic of ::std::exp
+#endif
 	}
 
 	bool inline isDenormalsOn()noexcept {

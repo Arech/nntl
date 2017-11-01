@@ -189,6 +189,7 @@ namespace nntl {
 		template<bool bNormalizeToDataSize = true>
 		real_t _calcLoss(const realmtx_t*const pData_x, const realmtx_t& data_y) noexcept {
 			NNTL_ASSERT(!pData_x || pData_x->rows() == data_y.rows());
+			NNTL_ASSERT(data_y.rows());
 			if (pData_x) _fprop(*pData_x);
 
 			auto lossValue = m_Layers.output_layer().calc_loss(data_y);
