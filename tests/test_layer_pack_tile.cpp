@@ -121,7 +121,7 @@ TEST(TestLayerPackTile, GradCheck_LPV) {
 
 template<typename base_t> struct TestLayerPackTile_EPS {};
 template<> struct TestLayerPackTile_EPS <double> { static constexpr double eps = 1e-15; };
-template<> struct TestLayerPackTile_EPS <float> { static constexpr double eps = 5e-7; };
+template<> struct TestLayerPackTile_EPS <float> { static constexpr float eps = 7e-7; };
 
 TEST(TestLayerPackTile, ComparativeNonSpecialX) {
 	constexpr vec_len_t samplesCount = 109;

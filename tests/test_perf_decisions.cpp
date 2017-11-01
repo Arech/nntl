@@ -378,7 +378,7 @@ void softmax_parts_st_rw(const realmtx_t& act, const real_t* pMax, real_t* pDeno
 }
 template<typename base_t> struct softmax_parts_EPS {};
 template<> struct softmax_parts_EPS<double> { static constexpr double eps = 1e-10; };
-template<> struct softmax_parts_EPS<float> { static constexpr double eps = 1e-5; };
+template<> struct softmax_parts_EPS<float> { static constexpr double eps = 2e-5; };
 template<typename iMath>
 void check_softmax_parts(iMath& iM, vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 	const auto dataSize = realmtx_t::sNumel(rowsCnt, colsCnt);
@@ -1319,7 +1319,7 @@ real_t sigm_loss_xentropy_vec(const realmtx_t& activations, const realmtx_t& dat
 }
 template<typename base_t> struct run_sigm_loss_xentropy_EPS {};
 template<> struct run_sigm_loss_xentropy_EPS<double> { static constexpr double eps = 1e-8; };
-template<> struct run_sigm_loss_xentropy_EPS<float> { static constexpr double eps = 8e-4; };
+template<> struct run_sigm_loss_xentropy_EPS<float> { static constexpr double eps = 2e-2; };
 template <typename iRng, typename iMath>
 void run_sigm_loss_xentropy(iRng& rg, iMath &iM, realmtx_t& act, realmtx_t& data_y, realmtx_t& t1, realmtx_t& t2,unsigned maxReps,real_t binFrac)noexcept {
 

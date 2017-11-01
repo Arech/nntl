@@ -81,6 +81,10 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #define NNTL_MATLAB_AVAILABLE 1
 
+//rounding slightly decreases accuracy, however it prevents nan occuring (possibly from std::exp() vectorized form)
+//this test project requires accuracy more than edge computations, so disable it.
+#define NNTL_FP_ROUND_TO_ZERO 0
+
 //////////////////////////////////////////////////////////////////////////
 
 #ifdef _DEBUG
