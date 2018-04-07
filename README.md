@@ -162,10 +162,11 @@ There may be some other projects referenced in the `nntl.sln` solution file, but
 2. [Download](https://yadi.sk/d/xr4BJKV4vRjh6) or (provided you have a Matlab/Octave installed) convert the MNIST data with the `%NNTL_ROOT%/nntl/_supp/matlab/mnist2bin.m` script from the [mnist_uint8.mat](https://github.com/rasmusbergpalm/DeepLearnToolbox/blob/master/data/mnist_uint8.mat) file (supplied with the DeepLearnToolbox) to a corresponding small and a full file. Put the `mnist60000.bin` and the `mnist200_100.bin` (the last file is the MNIST dataset cropped to the 200 train and the 100 test samples for use in debug builds) to the `%NNTL_ROOT%/data/` folder.
 3. I guess, that's enough to build and run the `tests` project. It should pass all tests in a debug and release modes. To run an individual test case use the [--gtest_filter](https://github.com/google/googletest/blob/master/googletest/docs/V1_7_AdvancedGuide.md#running-a-subset-of-the-tests) command line option.
 
-## The Code Status
-The only thing I can guarantee at this moment is that I'm actively working on and with this project. I won't issue any guarantees on any parts of API being stable. I'm pretty sure it may be changed from a commit to a commit, so keep it in mind while working on derived projects.
+## The Status of the NNTL
 
-The code itself however should be fairly stable, but I won't guarantee that also. Please note, it's mostly an experimental project therefore you may expect any kind of weirdness. Remember to check commit descriptions to find out if there're some instabilities expected.
+As I finished the main project, that was a reason to develop NNTL, the NNTL development was also put on hold. However, the code in general are pretty stable and could be used for tasks it was made for and as a basis for extension.
+
+At this moment I don't have a plan to continue NNTL development, however, I'm keeping it in a sight and would like to catch a chance to continue developing it.
 
 Feel free to contact me if you need some assistance.
 
