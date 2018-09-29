@@ -107,6 +107,13 @@ namespace loss_addendum {
 	template<typename LaT>
 	using depends_on_many_and_on_fprop = ::std::integral_constant<bool, LaT::dependsOnManyElements && LaT::calcOnFprop>;
 
+
+	template<typename LaT>
+	struct comparatorTpl {
+		template<typename LaT2>
+		using cmp_tpl = ::std::is_same<LaT, LaT2>;
+	};
+
 // 	enum {
 // 		la_CalcOnBprop = 0, //- calculate loss derivatives using values in bprop stage (prone to dropout'ed neurons if LA used on activations)
 // 		la_CalcOnFprop = 1, //- same, but for fprop stage (occurs before dropout, but requires additional memory to store gradient)

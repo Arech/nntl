@@ -155,17 +155,32 @@ namespace nntl {
 			static constexpr float _rnegz = float(-0.);
 		};
 
+		//////////////////////////////////////////////////////////////////////////
+		//#TODO WARNING!!! Судя по всему, разыменование указателей, полученных преобразованием одного типа в другой
+		//является неопределённым поведением по стандарту и то, что тут это работало - просто артефакт компилятора,
+		// который может в любой момент сломаться.
+		// Правильно делать через memcpy
+		//////////////////////////////////////////////////////////////////////////
 		template<typename real_t>
 		static inline typename real_t_limits<real_t>::similar_FWI_t similar_FWI_one() noexcept {
-			return *reinterpret_cast<const typename real_t_limits<real_t>::similar_FWI_t*>(&real_t_limits<real_t>::_rone);
+			typename real_t_limits<real_t>::similar_FWI_t r;
+			memcpy(&r, &real_t_limits<real_t>::_rone, sizeof(typename real_t_limits<real_t>::similar_FWI_t));
+			return r;
+			//return *reinterpret_cast<const typename real_t_limits<real_t>::similar_FWI_t*>(&real_t_limits<real_t>::_rone);
 		}
 		template<typename real_t>
 		static inline typename real_t_limits<real_t>::similar_FWI_t similar_FWI_pos_zero() noexcept {
-			return *reinterpret_cast<const typename real_t_limits<real_t>::similar_FWI_t*>(&real_t_limits<real_t>::_rposz);
+			typename real_t_limits<real_t>::similar_FWI_t r;
+			memcpy(&r, &real_t_limits<real_t>::_rposz, sizeof(typename real_t_limits<real_t>::similar_FWI_t));
+			return r;
+			//return *reinterpret_cast<const typename real_t_limits<real_t>::similar_FWI_t*>(&real_t_limits<real_t>::_rposz);
 		}
 		template<typename real_t>
 		static inline typename real_t_limits<real_t>::similar_FWI_t similar_FWI_neg_zero() noexcept {
-			return *reinterpret_cast<const typename real_t_limits<real_t>::similar_FWI_t*>(&real_t_limits<real_t>::_rnegz);
+			typename real_t_limits<real_t>::similar_FWI_t r;
+			memcpy(&r, &real_t_limits<real_t>::_rnegz, sizeof(typename real_t_limits<real_t>::similar_FWI_t));
+			return r;
+			//return *reinterpret_cast<const typename real_t_limits<real_t>::similar_FWI_t*>(&real_t_limits<real_t>::_rnegz);
 		}
 	}
 }

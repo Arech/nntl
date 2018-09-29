@@ -295,9 +295,23 @@ namespace nntl {
 	template< class, class = ::std::void_t<> >
 	struct can_penalize_activations : ::std::false_type { };
 	// specialization recognizes types that do have a nested ::addendums_tuple_t member:
-	template< class T >
-	struct can_penalize_activations<T, ::std::void_t<typename T::addendums_tuple_t>> : ::std::true_type {};
+	template< class LyrT >
+	struct can_penalize_activations<LyrT, ::std::void_t<typename LyrT::addendums_tuple_t>> : ::std::true_type {};
 
+	//////////////////////////////////////////////////////////////////////////
+	
+	template<class LyrT, class LA_T>
+	using has_addendum = tuple_utils::aggregate<::std::disjunction, loss_addendum::comparatorTpl<LA_T>::template cmp_tpl, typename LyrT::addendums_tuple_t>;
+
+	//////////////////////////////////////////////////////////////////////////
+
+	template< class LyrT, class LA_T, class = ::std::void_t<> >
+	struct layer_has_addendum : ::std::false_type { };
+	// specialization recognizes types that do have a nested ::addendums_tuple_t member:
+	template< class LyrT, class LA_T >
+	struct layer_has_addendum<LyrT, LA_T, ::std::void_t<typename LyrT::addendums_tuple_t>> : has_addendum<LyrT,LA_T> {};
+
+	//////////////////////////////////////////////////////////////////////////
 
 	template<typename AddendumsTupleT>
 	using _PA_base_selector = typename ::std::conditional<
