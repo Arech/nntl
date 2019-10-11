@@ -172,4 +172,4 @@ The code uses very tight loops of mathematical operations that creates a huge lo
 
 ## Contact information
 
-Use the [chat](https://gitter.im/nntl/Lobby?utm_source=share-link&utm_medium=link&utm_campaign=share-link) or email me to `al.rech@gmail.com` (please, use the `NNTL` as a subject line).
+Use the [chat](https://gitter.im/nntl/Lobby?utm_source=share-link&utm_medium=link&utm_campaign=share-link) or email me to `aradvert@gmail.com` (please, use `NNTL` as subject line).
