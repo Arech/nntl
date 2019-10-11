@@ -154,9 +154,6 @@ There is a lot of things to be said about how to draw a proper class-diagramm, h
 
 The main rule - don't hesitate to ask for help, if you are interested.
 
-#### Note
-There may be some other projects referenced in the `nntl.sln` solution file, but absent in the distribution, - it's ok, just ignore them.
-
 ### How to Build the `tests` Project
 1. You'll also need to download the [Google Test](https://github.com/google/googletest) (preferably version 1.7) to the `%NNTL_ROOT%/_extern/gtest-1.7.0/` folder and to build the `/msvc/gtest.vcxproj` project. Also download the [RapidJson](http://rapidjson.org/) and unpack it to the `%NNTL_ROOT%/_extern/rapidjson/`
 2. [Download](https://yadi.sk/d/xr4BJKV4vRjh6) or (provided you have a Matlab/Octave installed) convert the MNIST data with the `%NNTL_ROOT%/nntl/_supp/matlab/mnist2bin.m` script from the [mnist_uint8.mat](https://github.com/rasmusbergpalm/DeepLearnToolbox/blob/master/data/mnist_uint8.mat) file (supplied with the DeepLearnToolbox) to a corresponding small and a full file. Put the `mnist60000.bin` and the `mnist200_100.bin` (the last file is the MNIST dataset cropped to the 200 train and the 100 test samples for use in debug builds) to the `%NNTL_ROOT%/data/` folder.
