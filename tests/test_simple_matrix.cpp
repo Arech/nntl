@@ -1,7 +1,7 @@
 /*
 This file is a part of NNTL project (https://github.com/Arech/nntl)
 
-Copyright (c) 2015-2016, Arech (aradvert@gmail.com; https://github.com/Arech)
+Copyright (c) 2015-2019, Arech (al.rech@gmail.com; https://github.com/Arech)
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without
@@ -139,6 +139,7 @@ bool IsBinaryET(const real_t*const ptr, const size_t n)noexcept {
 	const auto _one = math::similar_FWI_one<real_t>();
 	const auto _zero = math::similar_FWI_pos_zero<real_t>();
 
+	//#todo for C++17 must change to ::std::launder(reinterpret_cast< ... 
 	auto p = reinterpret_cast<const similar_FWI_t*const>(ptr);
 	for (size_t i = 0; i < n; ++i) {
 		const auto v = p[i];

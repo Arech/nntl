@@ -1,7 +1,7 @@
 /*
 This file is a part of NNTL project (https://github.com/Arech/nntl)
 
-Copyright (c) 2015-2016, Arech (aradvert@gmail.com; https://github.com/Arech)
+Copyright (c) 2015-2019, Arech (al.rech@gmail.com; https://github.com/Arech)
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without
@@ -166,11 +166,13 @@ namespace nntl {
 
 			template <typename T>
 			auto target() noexcept {
+				//#todo for C++17 must change to ::std::launder(reinterpret_cast< ... 
 				return reinterpret_cast<T*>(&store_);
 			}
 
 			template <typename T>
 			auto target() const noexcept {
+				//#todo for C++17 must change to ::std::launder(reinterpret_cast< ... 
 				return reinterpret_cast<T const*>(&store_);
 			}
 		};

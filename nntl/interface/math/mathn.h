@@ -1,7 +1,7 @@
 ﻿/*
 This file is a part of NNTL project (https://github.com/Arech/nntl)
 
-Copyright (c) 2015-2016, Arech (aradvert@gmail.com; https://github.com/Arech)
+Copyright (c) 2015-2019, Arech (al.rech@gmail.com; https://github.com/Arech)
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without
@@ -452,6 +452,7 @@ namespace math {
 			NNTL_ASSERT(tc);
 			auto _pS = src.colDataAsVec(static_cast<vec_len_t>(er.elmBegin));
 			auto pD = dest.colDataAsVec(static_cast<vec_len_t>(er.elmBegin));
+			//#todo for C++17 must change to ::std::launder(reinterpret_cast< ... 
 			const auto pM = reinterpret_cast<const similar_FWI_t*const>(pMask);
 			for (size_t ci = 0; ci < tc; ++ci) {
 				const auto pS = _pS;
@@ -515,6 +516,7 @@ namespace math {
 			NNTL_ASSERT(tc);
 			auto pS = src.colDataAsVec(static_cast<vec_len_t>(er.elmBegin));
 			auto _pD = dest.colDataAsVec(static_cast<vec_len_t>(er.elmBegin));
+			//#todo for C++17 must change to ::std::launder(reinterpret_cast< ... 
 			const auto pM = reinterpret_cast<const similar_FWI_t*const>(pMask);
 			for (size_t ci = 0; ci < tc; ++ci) {
 				NNTL_ASSERT(pS == src.colDataAsVec(static_cast<vec_len_t>(er.elmBegin + ci)));
@@ -720,6 +722,7 @@ namespace math {
 			static_assert(::std::is_unsigned<similar_FWI_t>::value, "");
 
 			similar_FWI_t nz = 0;
+			//#todo for C++17 must change to ::std::launder(reinterpret_cast< ... 
 			const similar_FWI_t* ptr = reinterpret_cast<const similar_FWI_t*>(pVec);
 			const auto pE = ptr + ne;
 			while (ptr != pE) {
@@ -1512,6 +1515,7 @@ namespace math {
 			const auto _zero = similar_FWI_pos_zero<T>();
 			const auto _one = similar_FWI_one<T>();
 
+			//#todo for C++17 must change to ::std::launder(reinterpret_cast< ... 
 			const similar_FWI_t* pG = reinterpret_cast<const similar_FWI_t*>(_pG) + er.elmBegin;
 			similar_FWI_t* pGc = reinterpret_cast<similar_FWI_t*>(_pGc) + er.elmBegin;
 			const auto pGE = pG + er.totalElements();

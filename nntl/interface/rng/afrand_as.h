@@ -1,7 +1,7 @@
 /*
 This file is a part of NNTL project (https://github.com/Arech/nntl)
 
-Copyright (c) 2015-2016, Arech (aradvert@gmail.com; https://github.com/Arech)
+Copyright (c) 2015-2019, Arech (al.rech@gmail.com; https://github.com/Arech)
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without
@@ -166,6 +166,7 @@ namespace rng {
 				//available after init_rng was called()
 				NNTL_ASSERT(m_pMainBuffer && ma_bufferSize[static_cast<size_t>(_TaskId::normal_distr)]);
 				//auto& r = *reinterpret_cast<DataBuffer_t*>(&m_storage_Normal_distr);
+				//#todo for C++17 must change to ::std::launder(reinterpret_cast< ... 
 				auto& r = *reinterpret_cast<DataBuffer_t*>(&ma_Storage[static_cast<size_t>(_TaskId::normal_distr)]);
 				NNTL_ASSERT(r.isInitialized());
 				return r;
@@ -175,6 +176,7 @@ namespace rng {
 				//available after init_rng was called()
 				NNTL_ASSERT(m_pMainBuffer && ma_bufferSize[static_cast<size_t>(_TaskId::vector_norm)]);
 				//auto& r = *reinterpret_cast<DataBuffer_t*>(&m_storage_Norm);
+				//#todo for C++17 must change to ::std::launder(reinterpret_cast< ... 
 				auto& r = *reinterpret_cast<DataBuffer_t*>(&ma_Storage[static_cast<size_t>(_TaskId::vector_norm)]);
 				NNTL_ASSERT(r.isInitialized());
 				return r;
@@ -287,6 +289,7 @@ namespace rng {
 
 				if (m_pMainBuffer) {
 					for (auto& e : ma_Storage) {
+						//#todo for C++17 must change to ::std::launder(reinterpret_cast< ... 
 						reinterpret_cast<DataBuffer_t*>(&e)->~DataBuffer();
 					}
 
@@ -319,6 +322,7 @@ namespace rng {
 				NNTL_ASSERT(m_pMainBuffer && ma_bufferSize[tsk]);
 				if (!m_pMainBuffer || !ma_bufferSize[tsk])return false;
 
+				//#todo for C++17 must change to ::std::launder(reinterpret_cast< ... 
 				auto& Buf = *reinterpret_cast<DataBuffer_t*>(&ma_Storage[tsk]);
 				NNTL_ASSERT(Buf.isInitialized());
 

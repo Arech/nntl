@@ -1,7 +1,7 @@
 /*
 This file is a part of NNTL project (https://github.com/Arech/nntl)
 
-Copyright (c) 2015-2016, Arech (aradvert@gmail.com; https://github.com/Arech)
+Copyright (c) 2015-2019, Arech (al.rech@gmail.com; https://github.com/Arech)
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without
@@ -77,6 +77,7 @@ namespace math {
 			const auto _one = similar_FWI_one<T>();
 			const auto _poszero = similar_FWI_pos_zero<T>();
 			const auto _negzero = similar_FWI_neg_zero<T>();
+			//#todo for C++17 must change to ::std::launder(reinterpret_cast< ... 
 			auto ptr = reinterpret_cast<const similar_FWI_t*>(pData);
 
 			const auto pE = ptr + ne;
@@ -101,6 +102,7 @@ namespace math {
 
 			const auto _one = similar_FWI_one<T>();
 			const auto _zero = similar_FWI_pos_zero<T>();
+			//#todo for C++17 must change to ::std::launder(reinterpret_cast< ... 
 			auto ptr = reinterpret_cast<const similar_FWI_t*>(pData);
 
 			const auto pE = ptr + ne;
@@ -180,6 +182,7 @@ namespace math {
 				_aligned_free(m_pData);
 				if (m_rows > 0 && m_cols > 0) {
 					//m_pData = new(::std::nothrow) value_type[numel()];
+					//#todo for C++17 must change to ::std::launder(reinterpret_cast< ... 
 					m_pData = reinterpret_cast<value_type*>(_aligned_malloc(byte_size(), NNTL_CFG_DEFAULT_PTR_ALIGN));
 					NNTL_ASSERT(m_pData);
 				} else {
@@ -914,6 +917,7 @@ namespace math {
 			NNTL_ASSERT(ne > 0);
 			_free();
 			//auto ptr = new(::std::nothrow) value_type[ne];
+			//#todo for C++17 must change to ::std::launder(reinterpret_cast< ... 
 			value_type* ptr = reinterpret_cast<value_type*>(_aligned_malloc(sizeof(value_type)*ne, NNTL_CFG_DEFAULT_PTR_ALIGN));
 			if (nullptr == ptr) {
 				NNTL_ASSERT(!"Memory allocation failed!");

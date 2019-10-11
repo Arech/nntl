@@ -1,7 +1,7 @@
 /*
 This file is a part of NNTL project (https://github.com/Arech/nntl)
 
-Copyright (c) 2015-2016, Arech (aradvert@gmail.com; https://github.com/Arech)
+Copyright (c) 2015-2019, Arech (al.rech@gmail.com; https://github.com/Arech)
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without
@@ -650,6 +650,7 @@ namespace math {
 			static_assert(sizeof(VT) == sizeof(real_t),"Mismatching type sizes will lead to wrong malloc");
 
 			numel_cnt_t elmsToAlloc(0);
+			//#todo for C++17 must change to ::std::launder(reinterpret_cast< ... 
 			const auto pTmpMem = pTVec ? pTVec : reinterpret_cast<VT*>(get_self()._istor_alloc(elmsToAlloc = smatrix<VT>::sNumel(rm, threadsToUse)));
 			thread_id_t threadsUsed = 0;
 			//TODO: for some algorithms and datasizes it may be highly beneficial to make smart partitioning, that takes into account
@@ -669,6 +670,7 @@ namespace math {
 
 			::std::forward<LambdaFinal>(FinFunc)(fin);//forwarding is OK here, because FinFunc is used only once
 			if (!pTVec) {
+				//#todo for C++17 must change to ::std::launder(reinterpret_cast< ... 
 				get_self()._istor_free(reinterpret_cast<real_t*>(pTmpMem), elmsToAlloc);
 			}
 		}
@@ -693,6 +695,7 @@ namespace math {
 			const auto pTmpMem = get_self()._istor_alloc(tmemSize);
 
 			const auto pMainVec = pTmpMem;
+			//#todo for C++17 must change to ::std::launder(reinterpret_cast< ... 
 			ScndVecType*const pScndVec = reinterpret_cast<ScndVecType*>(pTmpMem + elemsCnt);
 
 			thread_id_t threadsUsed = 0;
@@ -1144,6 +1147,7 @@ namespace math {
 			const auto tmemSize = _elmsCnt + static_cast<numel_cnt_t>(ceil((real_t(sizeof(vec_len_t)) / sizeof(real_t))*_elmsCnt));
 			const auto pTmp = get_self()._istor_alloc(tmemSize);
 			const auto pMaxStor = pTmp;
+			//#todo for C++17 must change to ::std::launder(reinterpret_cast< ... 
 			vec_len_t*const pIdxsStor = reinterpret_cast<vec_len_t*>(pTmp + _elmsCnt);
 
 			//now we may run max calculation in parallel for each column-set into pMaxStor and pIdxsStor
@@ -1397,36 +1401,43 @@ namespace math {
 		void mrwOr(const realmtx_t& A, real_t*const pVec)noexcept {
 			NNTL_ASSERT(A.isBinary());
 			typedef real_t_limits<real_t>::similar_FWI_t similar_FWI_t;
+			//#todo for C++17 must change to ::std::launder(reinterpret_cast< ... 
 			mrwBinaryOR(reinterpret_cast<const smatrix<similar_FWI_t>&>(A), reinterpret_cast<similar_FWI_t*const>(pVec));
 		}
 		void mrwOr_st(const realmtx_t& A, real_t*const pVec)noexcept {
 			NNTL_ASSERT(A.isBinary());
 			typedef real_t_limits<real_t>::similar_FWI_t similar_FWI_t;
+			//#todo for C++17 must change to ::std::launder(reinterpret_cast< ... 
 			mrwBinaryOR_st(reinterpret_cast<const smatrix<similar_FWI_t>&>(A), reinterpret_cast<similar_FWI_t*const>(pVec));
 		}
 		void mrwOr_st_cw(const realmtx_t& A, real_t*const pVec)noexcept {
 			NNTL_ASSERT(A.isBinary());
 			typedef real_t_limits<real_t>::similar_FWI_t similar_FWI_t;
+			//#todo for C++17 must change to ::std::launder(reinterpret_cast< ... 
 			mrwBinaryOR_st_cw(reinterpret_cast<const smatrix<similar_FWI_t>&>(A), reinterpret_cast<similar_FWI_t*const>(pVec));
 		}
 		void mrwOr_st_rw(const realmtx_t& A, real_t*const pVec)noexcept {
 			NNTL_ASSERT(A.isBinary());
 			typedef real_t_limits<real_t>::similar_FWI_t similar_FWI_t;
+			//#todo for C++17 must change to ::std::launder(reinterpret_cast< ... 
 			mrwBinaryOR_st_rw(reinterpret_cast<const smatrix<similar_FWI_t>&>(A), reinterpret_cast<similar_FWI_t*const>(pVec));
 		}
 		void mrwOr_mt(const realmtx_t& A, real_t*const pVec)noexcept {
 			NNTL_ASSERT(A.isBinary());
 			typedef real_t_limits<real_t>::similar_FWI_t similar_FWI_t;
+			//#todo for C++17 must change to ::std::launder(reinterpret_cast< ... 
 			mrwBinaryOR_mt(reinterpret_cast<const smatrix<similar_FWI_t>&>(A), reinterpret_cast<similar_FWI_t*const>(pVec));
 		}
 		void mrwOr_mt_cw(const realmtx_t& A, real_t*const pVec)noexcept {
 			NNTL_ASSERT(A.isBinary());
 			typedef real_t_limits<real_t>::similar_FWI_t similar_FWI_t;
+			//#todo for C++17 must change to ::std::launder(reinterpret_cast< ... 
 			mrwBinaryOR_mt_cw(reinterpret_cast<const smatrix<similar_FWI_t>&>(A), reinterpret_cast<similar_FWI_t*const>(pVec));
 		}
 		void mrwOr_mt_rw(const realmtx_t& A, real_t*const pVec)noexcept {
 			NNTL_ASSERT(A.isBinary());
 			typedef real_t_limits<real_t>::similar_FWI_t similar_FWI_t;
+			//#todo for C++17 must change to ::std::launder(reinterpret_cast< ... 
 			mrwBinaryOR_mt_rw(reinterpret_cast<const smatrix<similar_FWI_t>&>(A), reinterpret_cast<similar_FWI_t*const>(pVec));
 		}
 

@@ -1,7 +1,7 @@
 /*
 This file is a part of NNTL project (https://github.com/Arech/nntl)
 
-Copyright (c) 2015-2016, Arech (aradvert@gmail.com; https://github.com/Arech)
+Copyright (c) 2015-2019, Arech (al.rech@gmail.com; https://github.com/Arech)
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without
@@ -82,6 +82,14 @@ namespace threads {
 	//////////////////////////////////////////////////////////////////////////
 	//////////////////////////////////////////////////////////////////////////
 
+	//#todo: triple check it, might need another memory ordering
+	//#WARNING! It seems that it is almost the worst possible implementation of spinlock.
+	//https://stackoverflow.com/questions/26583433/c11-implementation-of-spinlock-using-atomic#comment47623821_26583433
+	// "Among other problems: 1) When you finally do acquire the lock, you take the mother of all mispredicted branches
+	// leaving the while loop, which is the worst possible time for such a thing. 2) The lock function can starve another
+	// thread running in the same virtual core on a hyper-threaded CPU."
+	//and btw, why it's derived from ::std::atomic_flag ???
+	//better use #include <boost/smart_ptr/detail/spinlock.hpp>
 	struct spin_lock : public ::std::atomic_flag {
 	protected:
 		::std::atomic_flag m_lock{ ATOMIC_FLAG_INIT };

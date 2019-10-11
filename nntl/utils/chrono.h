@@ -1,7 +1,7 @@
 /*
 This file is a part of NNTL project (https://github.com/Arech/nntl)
 
-Copyright (c) 2015-2016, Arech (aradvert@gmail.com; https://github.com/Arech)
+Copyright (c) 2015-2019, Arech (al.rech@gmail.com; https://github.com/Arech)
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without
@@ -32,8 +32,15 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #pragma once
 
 #include <chrono>
-//#include "../_defs.h"
-//#include "../common.h"
+
+#ifndef NNTL_COMP_SILENCE_RETVAL_IGNORED
+#define NNTL_COMP_SILENCE_RETVAL_IGNORED __pragma(warning( push )) \
+    __pragma(warning(disable : 6031))
+#endif
+
+#ifndef NNTL_COMP_POP
+#define NNTL_COMP_POP __pragma(warning( pop ))
+#endif
 
 namespace nntl {
 namespace utils {
@@ -92,27 +99,29 @@ namespace utils {
 		}else if (t < 1000000) {
 			t /= 1000;
 			name = chrono::period_name<
-				chrono::period_3oom_bigger<durType>::type
+				typename chrono::period_3oom_bigger<durType>::type
 			>::name;
 		} else if (t < 1000000000) {
 			t /= 1000000;
 			name = chrono::period_name<
-				chrono::period_3oom_bigger<
-				chrono::period_3oom_bigger<durType>::type
+				typename chrono::period_3oom_bigger<
+				typename chrono::period_3oom_bigger<durType>::type
 				>::type >::name;
 		} else {
 			t /= 1000000000;
 			name = chrono::period_name<
-				chrono::period_3oom_bigger<
-				chrono::period_3oom_bigger<
-				chrono::period_3oom_bigger<durType>::type
+				typename chrono::period_3oom_bigger<
+				typename chrono::period_3oom_bigger<
+				typename chrono::period_3oom_bigger<durType>::type
 				>::type >::type >::name;
 		}
 		constexpr unsigned MAX_STR_SIZE = 256;
 		char str[MAX_STR_SIZE];
-#pragma warning(disable : 6031)
+
+		NNTL_COMP_SILENCE_RETVAL_IGNORED
 		::std::snprintf(str, MAX_STR_SIZE, "%8.3f %-2s", t, name);
-#pragma warning(default : 6031)
+		NNTL_COMP_POP
+
 		return ::std::string(str);
 	};
 
