@@ -95,7 +95,7 @@ but it was broken by design).
 
 ## The Pros and Cons
 ### Nuances
-Just want to stress again: NNTL is not a kind of a Plug-n-Play system to solve typical tasks. And it's not mean to do so (however, it's perfectly capable with some tasks out of the box). NNTL is a C++ framework to build fast neural networks and experiment with them. That means, in particular, that you should understand what are you doing, because it's not a completely fool-proof and you may "shoot your leg" if you're not sufficiently familiar with the C++ or neural networks. If you just want to play with neural networks and see what happens, it's probably better to start with something like [TensorFlow](http://tensorflow.org/) or [PyTorch](https://pytorch.org/).
+Just want to stress again: NNTL is not a kind of a Plug-n-Play system to solve typical tasks. And it's not mean to do so (however, it's perfectly capable with some tasks out of the box). NNTL is a C++ framework to build fast neural networks and experiment with them. If you just want to play with neural networks and see what happens, it's definitely better to start with something like [TensorFlow](http://tensorflow.org/) or [PyTorch](https://pytorch.org/).
 
 ### The Pros
 * pretty fast x64 vectorized multithreaded header only C++14 implementation, that allows to build almost any kind of feedforward neural network architecture.
