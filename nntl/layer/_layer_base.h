@@ -108,7 +108,7 @@ namespace nntl {
 
 	////////////////////////////////////////////////////////////////////////// 
 	// interface that must be implemented by a layer in order to make fprop() function work
-	// Layer, passed to fprop as the PrevLayer parameter must obey this interface.
+	// Every layer passed to fprop() function as PrevLayer parameter must obey this interface.
 	// (#TODO is it necessary? Can we just drop it?)
 	template <typename RealT>
 	class _i_layer_fprop : public _i_layer_td<RealT> {
@@ -123,8 +123,8 @@ namespace nntl {
 
 	public:
 		//It is allowed to call get_activations() after fprop() and before bprop() only. bprop() invalidates activation values!
-		//Furthermore, DON'T ever change the activation matrix values from the ouside of the layer!
-		// Layer object expects it to be unchanged between fprop()/bprop() calls.
+		//Furthermore, DON'T ever change the activation matrix values from the outside of the layer!
+		// Layer object expects it to be unchanged between fprop()/bprop() calls to make a proper gradient.
 		nntl_interface const realmtxdef_t& get_activations()const noexcept;
 		nntl_interface mtx_size_t get_activations_size()const noexcept;
 		
@@ -294,32 +294,36 @@ namespace nntl {
 		// input layer should use a different variant: void fprop(const realmtx_t& data_x)noexcept
 
 
-		// dLdA is the derivative of the loss function wrt this layer neuron activations.
-		// Size [batchSize x layer_neuron_cnt] (bias units ignored - their weights actually belongs to an upper layer
+		// dLdA is the derivative of the loss function wrt this layer neurons activations.
+		// Size is [batchSize x layer_neuron_cnt] (bias units are ignored - their weights actually belongs to an upper layer
 		// and therefore are updated during that layer's bprop() phase and dLdW application)
 		// 
 		// dLdAPrev is the derivative of the loss function wrt to a previous (lower) layer activations to be computed by the bprop().
-		// Size [batchSize x prev_layer_neuron_cnt] (bias units ignored)
+		// Size is [batchSize x prev_layer_neuron_cnt] (bias units are also ignored)
 		// 
-		// The layer must compute a dL/dW (the derivative of the loss function wrt the layer parameters (weights)) and adjust
+		// The layer must compute a dL/dW (the derivative of the loss function wrt the layer parameters (weights) if any) and adjust
 		// its parameters accordingly after a computation of dLdAPrev during the bprop() function.
 		//  
-		// realmtxdef_t type is used in pack_* layers. Non-compound layers should use realmtxt_t type instead.
-		// The function is allowed to use the dLdA parameter once it's not needed anymore as it wants (A resizing operation included,
-		// provided that it won't resize it greater than a max size. BTW, beware! The run-time check of maximum matrix size works only
-		// in DEBUG builds!). Same for the dLdAPrev, but on exit from the bprop() it must have a proper size and expected content.
+		// realmtxdef_t type is used in pack_* layers. Non-compound layers should use less generic realmtxt_t type instead.
+		// The function is allowed to use the dLdA parameter once it's not needed anymore as it wants (including resizing operation,
+		// provided that it won't resize it greater than a max size previuosly set by the layer during init() phase.
+		// BTW, beware! The run-time check of maximum matrix size works only
+		// in DEBUG builds!).
+		// Same for the dLdAPrev, - layer is free to use it as it wants during bprop(), - but on exit from the bprop()
+		// it must have a proper size and expected content.
 		template <typename LowerLayer>
 		nntl_interface unsigned bprop(realmtxdef_t& dLdA, const LowerLayer& lowerLayer, realmtxdef_t& dLdAPrev)noexcept;
 		// Layer MUST NOT touch a bit in the bias column of the activation storage during fprop()/bprop()
 		// 
-		//Output layer must use a signature of void bprop(const realmtx_t& data_y, const LowerLayer& lowerLayer, realmtxdef_t& dLdAPrev);
+		//Output layer must use different signature:
+		//    void bprop(const realmtx_t& data_y, const LowerLayer& lowerLayer, realmtxdef_t& dLdAPrev);
 		// 
 		//On the function return value: in a short, simple/single layers should return 1.
-		// In a long: during the init() phase, each layer returns the total size of its dLdA matrix in _layer_init_data_t::max_dLdA_numel.
+		// In a long: during the init() phase, each layer returns the total (maximum) size of its dLdA matrix in _layer_init_data_t::max_dLdA_numel.
 		// This value, gathered from every layer in a layers stack, are gets aggregated by the max()
 		// into the biggest possible dLdA size for a whole NNet.
 		// Then two matrices of this (biggest) size are allocated and passed to a layers::bprop() function during backpropagation. One of these
-		// matrices will be used as a dLdA and the other as a dLdAPrev during an each call to a layer::bprop().
+		// matrices will be used as a dLdA and the other as a dLdAPrev during an each call to every layer::bprop() in the layers stack.
 		// What does the return value from a bprop() do is it governs whether the caller must alternate these matrices
 		// on a call to a lower layer bprop() (i.e. whether a real dLdAPrev is actually stored in dLdAPrev variable (return 1) or
 		// the dLdAPrev is really stored in the (appropriately resized by the layers bprop()) dLdA variable - return 0).
@@ -329,14 +333,12 @@ namespace nntl {
 		// just by switching between dLdA and dLdAPrev between calls to inner layer's bprop()s.
 		// So (continuing layer_pack_vertical example) if there was
 		// an even number of calls to inner layers bprop(), then the actual dLdAPrev of the whole compound
-		// layer will be inside of dLdA and a caller of compound layer's bprop() should NOT switch matrices on
+		// layer will be inside of dLdA variable and a caller of compound layer's bprop() should NOT switch matrices on
 		// subsequent call to lower layer bprop(). Therefore, the compound layer's bprop() must return 0 in that case.
 		
-
-		
-		//returns a loss function summand, that's caused by this layer (for example, L2 regularizer adds term
+		//returns a loss function summand, that's caused by this layer (for example, L2 regularizer applied to weights adds a term
 		// l2Coefficient*Sum(weights.^2) )
-		// At this moment, the code of layers::calcLossAddendum() depends on a (possibly non-stable) fact, that a loss function
+		// At this moment, code of layers::calcLossAddendum() depends on a (possibly non-stable) fact, that a loss function
 		// addendum to be calculated doesn't depend on data_x or data_y (it depends on only internal nn properties, such as weights).
 		// This might not be the case in a future, - update layers::calcLossAddendum() definition then.
 		nntl_interface real_t lossAddendum()const noexcept;
@@ -412,6 +414,7 @@ namespace nntl {
 		//#todo: need a way to define layer type based on something more versatile than a self_t::_defName
 		//probably based on https://akrzemi1.wordpress.com/2017/06/28/compile-time-string-concatenation/
 		//or https://crazycpp.wordpress.com/2014/10/17/compile-time-strings-with-constexpr/
+		// better use boost::hana:string, but need to switch compiler first.
 	private:
 		template<unsigned LEN>
 		static constexpr layer_type_id_t _get_layer_type_id(const char(&pStr)[LEN], const unsigned pos = 0)noexcept {
@@ -454,9 +457,9 @@ namespace nntl {
 	protected:
 		bool m_bActivationsValid;
 
-	private: //shouldn't be updated from derived classes. Getter methords are provided
+	private: //shouldn't be updated from derived classes. Getter methods are provided
 
-		//#todo this flag is probably worst possible solution, however we may need some mean to switch off nonlinearity in a run-time.
+		//#todo this flag is probably worst possible solution, however we may need some flag to switch off nonlinearity in a run-time.
 		//Is there a better (non-branching when it's not necessary) solution available?
 		// Might be unused in some derived class (until conditional member variables are allowed). Lives here for packing reasons.
 		bool m_bLayerIsLinear;
@@ -508,7 +511,7 @@ namespace nntl {
 		//for layers that need to calculate their neurons count in run-time (layer_pack_horizontal)
 		void _set_neurons_cnt(const neurons_count_t nc)noexcept {
 			NNTL_ASSERT(nc);
-			NNTL_ASSERT(!m_neurons_cnt || !"m_neurons_cnt has already been set!");
+			NNTL_ASSERT(!m_neurons_cnt || !"m_neurons_cnt has already been set!");//shouldn't be set multiple times
 			m_neurons_cnt = nc;
 		}
 

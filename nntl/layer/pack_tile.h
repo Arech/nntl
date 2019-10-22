@@ -108,7 +108,7 @@ namespace nntl {
 	//Special parameters are:
 	// K_tiles - the number of tiles
 	// bExpectSpecialDataX - set it to true when LPT is placed on top of (probably, a part of) a layer_input and original
-	//		training/testing data are specially prepared to be used in and only by the LPT. This parameter set corresponds
+	//		training/testing data are specially prepared to be used by and only by the LPT. This parameter set corresponds
 	//		to the first data_x scenario described earlier. It means, that incoming data despite being stored in [m, k*(n+1)] matrix,
 	//		actually stored there as [k*m,n+1] matrix. And the last column already has biases incorporated by a data source.
 	//		If bExpectSpecialDataX is set to false, then incoming data is expected to be in a usual form of [m, k*n+1]

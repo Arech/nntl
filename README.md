@@ -2,17 +2,17 @@
 
 Neural Network Templates Library is a set of C++14 template classes
 that helps to implement fast vectorized feedforward neural networks.
-It is multithreaded, x64 friendly and uses OpenBLAS only as a back-end
+It is multithreaded, memory optimized and uses OpenBLAS only as a back-end
 to multiply matrices. NNTL is a header only library and requires no
-other dependencies, except for OpenBLAS and Boost (header only). It is
-statically typed and doesn't use virtual functions.
+other dependencies, except for OpenBLAS and Boost (in header-only mode). It is
+statically typed and doesn't use virtual functions, allowing compiler to generate very efficient code.
 
-NNTL provides a way to convert an UML (class) diagramm of a neural network directly into C++ code (i.e. you draw something [like this](https://github.com/Arech/nntl/blob/master/arch_sample.png?raw=true) and it converts it to nntl-powered C++ code). This feature is extremely helpful for designing proper network architectures and an absolute time-saver. It allows a user to focus on incorporating domain knowledge into neural network instead of doing very error-prone architecture programming. However, it requires some additional software ([Visual Paradigm](https://www.visual-paradigm.com/) for diagramming and Matlab to execute converter scripts). See below for details.
+NNTL provides a way to describe desired neural network architecture in a form of UML class diagram and convert the diagram directly into C++ code (allowing to draw something [like this](https://github.com/Arech/nntl/blob/master/arch_sample.png?raw=true) and directly convert it to nntl-powered code). This feature is extremely helpful for designing proper network architectures and an absolute time-saver. It allows a user to focus on incorporating domain knowledge into neural network instead of doing error-prone architecture programming. However, it requires some additional software - [Visual Paradigm](https://www.visual-paradigm.com/) for diagramming and Matlab (probably Octave) to execute converter scripts. See below for details.
 
 [![Join the chat at https://gitter.im/nntl/Lobby](https://badges.gitter.im/nntl/Lobby.svg)](https://gitter.im/nntl/Lobby?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
 
 ### Performance
-*This paragraph is outdated. The library was improved in many ways since the performance measurements, so current results are way better.
+*This paragraph is outdated. The library was improved in many ways since the performance measurements, so current results are better.
 
 Here is the performance of training a 3 layer `768->500->300->10` network with a sigmoid activation function and a quadratic loss function over the MNIST dataset (60000 training samples and 10000 validation samples) for 20 epochs in a minibatches of size 100 using double precision floating point math. A NN implementation from [DeepLearnToolbox](https://github.com/rasmusbergpalm/DeepLearnToolbox) on a Matlab R2014a x64 is taken as a baseline (it also uses vectorized computations, multithreading and double as a basic floating-point type). The hardware in both cases are the same: AMD Phenom II X6 1090T @3500Mhz CPU (with all power-saving features turned off) with 16Gb of RAM under Windows 7 (swap file turned off, so no paging occur during testing). The CPU is pretty old today, it has only SSE2+ instructions (no AVX/AVX2), so everything should work a way faster on newer CPUs).
 
@@ -24,7 +24,7 @@ base + momentum + dropout|332s|**166s**|**x2.0**
 
 One may switch computations to use a float data type instead of a double to run the code even more faster (roughly at about 2/3 of the time required to run with a double precision). Also it's possible to tune a loss evaluation strategy to skip evaluation at some/all epochs, which will allow to train the NN even more faster.
 
-I wouldn't state the NNTL is the fastest CPU implementation of feedforward neural networks, but nonetheless it's pretty fast and BSD-licensed (except for [random number generators](https://github.com/Arech/AF_randomc_h), which is GPL licensed, - but it's easy to substitute RNG (as well as almost any other part of the library) for another implementation if needed).
+I wouldn't state the NNTL is the fastest CPU implementation of feedforward neural networks, but nonetheless it's indeed fast due to proper architecture, vectorizable math code and memory use optimization, and it is BSD-licensed (except for [random number generators](https://github.com/Arech/AF_randomc_h), which is GPL licensed, - but it's easy to substitute RNG (as well as almost any other part of the library) for another implementation if needed).
 
 ## Currently Implemented NN Features
 * A full-batch or a mini-batch SGD
@@ -95,12 +95,12 @@ but it was broken by design).
 
 ## The Pros and Cons
 ### Nuances
-Just want to stress again: NNTL is not a kind of a Plug-n-Play system to solve typical tasks. And it's not mean to do so (however, it's perfectly capable with some tasks out of the box). NNTL is a C++ framework to build fast neural networks and experiment with them. That means, in particular, that you should understand what are you doing, because it's not a completely fool-proof and you may "shoot your leg" if you're not sufficiently familiar with the C++ or neural networks. If you just want to play with neural networks and see what happens, it's probably better to start with something more suitable like [DeepLearnToolbox](https://github.com/rasmusbergpalm/DeepLearnToolbox) for Matlab or [Theano](http://deeplearning.net/tutorial/) for Python. [TensorFlow](http://tensorflow.org/) or [DMTK](http://www.dmtk.io/) is great if you have a lot of computing power.
+Just want to stress again: NNTL is not a kind of a Plug-n-Play system to solve typical tasks. And it's not mean to do so (however, it's perfectly capable with some tasks out of the box). NNTL is a C++ framework to build fast neural networks and experiment with them. That means, in particular, that you should understand what are you doing, because it's not a completely fool-proof and you may "shoot your leg" if you're not sufficiently familiar with the C++ or neural networks. If you just want to play with neural networks and see what happens, it's probably better to start with something like [TensorFlow](http://tensorflow.org/) or [PyTorch](https://pytorch.org/).
 
 ### The Pros
 * pretty fast x64 vectorized multithreaded header only C++14 implementation, that allows to build almost any kind of feedforward neural network architecture.
 * provides a way to define a network architecture using UML class diagramm and convert it directly to C++ code.
-* single (float) and double precision floating point data types are supported.
+* single (float) and double precision floating point data types are directly supported.
 * modular low coupled architecture that is (I think) easy to understand, maintain and use. Replace / update / derive any module you need, like:
   * math subsystem
   * random number generators
@@ -124,12 +124,14 @@ Just want to stress again: NNTL is not a kind of a Plug-n-Play system to solve t
 * Random number generator is made on very fast RNGs developed by [Agner Fog](http://www.agner.org/random/randomc.zip). But they are GPL-licensed, therefore are distributed as a separate package [AF_randomc_h](https://github.com/Arech/AF_randomc_h) that has to be downloaded and placed at the `/_extern/agner.org/AF_randomc_h` folder. If you don't like it, you can easily use your own RNG by implementing a few interface functions. I wouldn't recommend using a `\nntl\interface\rng\std.h`, because it is about a 100-200 times slower than Agner Fog's RNGs (it matters a lot for a dropout, for example).
 * Built and tested with only one compiler: the MSVC2015 on Windows 7. That means, that most likely you'll have to fix some technical issues and incompatibles before you'll be able to compile it with another compiler. Please, submit patches.
 * Due to some historical reasons the code lacks handling exceptions that can be thrown by external components (such as indicating low memory conditions in STL). Moreover, most of a code has the noexcept attribute. Probably, it won't hurt you much, if you have enought RAM.
-* There are almost no documentation at this moment. Unfortunately, I'm too busy with my own work and NNTL development that I have virtually no time for it. You shouldn't be scared by necessity of reading a code and a code comments in order to undestand how to use some components. I tried to make this process easy by extensively commenting a code and making it clean&clear. You decide if it helps and feel free to contact me if you need clarifications. I'll be happy to help.
+* There is no documentation except rich code comments at this moment. Unfortunately, I'm too busy with my own work and NNTL development that I have virtually no time for it. You shouldn't be scared by necessity of reading a code and code comments in order to undestand how to use components. I tried to make this process easy by extensively commenting a code and making it clean&clear. You decide if it helps and feel free to contact me if you need clarifications. I'll be happy to help.
 
 ## Compilers Supported
 Developed and tested on the MSVC2015 on Windows 7. Be sure to have the latest service pack installed as well as other hotfixes (such as [KB3207317](https://support.microsoft.com/en-us/help/3207317/visual-c-optimizer-fixes-for-visual-studio-2015-update-3) ).
 
-MSVC2017 with the latest updates should probably work out of the box. Other modern compilers will probably require some hacks to compile, however, I don't think these hacks would be critical. Please, submit your patches.
+MSVC2017/2019 with the latest updates should probably work out of the box. Other modern compilers will probably require some hacks to compile, however, I don't think these hacks would be critical. Please, submit your patches.
+
+Please note, that despite Clang compiler is being mentioned in some project build configurations, it's not yet supported. I'll definitely update NNTL at some moment to support CLang, but it's not a top priority for me this moment.
 
 ## On converting UML diagrams to NNTL-powered C++ code
 
@@ -161,9 +163,7 @@ The main rule - don't hesitate to ask for help, if you are interested.
 
 ## The Status of the NNTL
 
-As I finished the main project, that was a reason to develop NNTL, the NNTL development was also put on hold. However, the code in general are pretty stable and could be used for tasks it was made for and as a basis for extension.
-
-At this moment I don't have a plan to continue NNTL development, however, I'm keeping it in a sight and would like to catch a chance to continue developing it.
+The code in general is pretty stable and could be used for tasks it was made for in production and as a basis for extension.
 
 Feel free to contact me if you need some assistance.
 

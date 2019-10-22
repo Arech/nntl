@@ -322,9 +322,10 @@ namespace nntl {
 			_iI.bprop_dAdZ(dLdZ);
 			//compute dL/dZ=dL/dA.*dA/dZ into dA/dZ
 			iM.evMul_ip(dLdZ, dLdA);
-			//since that moment, we no longer need the data in dLdA, therefore we're free to use that space for any
-			//temporary computations we need provided that we keep the dLdA size untouched.
-			// We'll be using dLdA later to compute and apply dL/dW
+			//since that moment, we no longer need the data in dLdA, therefore we're free to reuse that space for any
+			//temporary computations we need provided that we keep the size of dLdA on function exit untouched.
+			// We'll be using dLdA later to compute and apply dL/dW. Note, that we've stated during init() that dLdA
+			// must have enough size to fit dL/dW in it.
 			_iI.bprop_dLdZ(dLdZ);
 
 			//NB: if we're going to use some kind of regularization of the activation values, we should make sure, that excluded
@@ -344,10 +345,14 @@ namespace nntl {
 			// whole batch were set to zero.
 			
 			realmtxdef_t& dLdW = dLdA;//we'll be using dLdA to compute dLdW and now creating a corresponding alias to it for readability
-			dLdW.deform_like(m_weights);
+			dLdW.deform_like(m_weights); //ok to do that, because the storage (dLdA) was allocated using layer_init_data::max_dLdA_numel
+			//member variable, that we've set to fit m_weights during init()
 
 			NNTL_ASSERT(m_nTiledTimes > 0);
-			//#hack to make gradient check of LPT happy, we would ignore the tiling count here entirely
+			//#hack to make gradient check of LPT happy, we would ignore the tiling count here entirely (because numerical error is
+			// implicitly normalized to batch size, however, analytical - doesn't and it's normalized to the current batch size. Inner
+			// layers of LPT have different batch sizes, so we just going to ignore that here. Probably we should:
+			//#todo update grad checking algo to take tiling count into account.
 			//However, the tiled layer in a real life would have a m_nTiledTimes bigger batch size, than the modeled layer should have,
 			// therefore we'll upscale the gradient m_nTiledTimes times.
 			iM.mScaledMulAtB_C((inspector::is_gradcheck_inspector<iInspect_t>::value ? real_t(1) : m_nTiledTimes) / real_t(m_activations.rows())

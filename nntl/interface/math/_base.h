@@ -44,7 +44,7 @@ namespace nntl {
 	namespace math {
 
 		typedef NNTL_CFG_DEFAULT_TYPE d_real_t;
-		static constexpr char* d_real_t_name = NNTL_STRINGIZE(NNTL_CFG_DEFAULT_TYPE);
+		//static constexpr char* d_real_t_name = NNTL_STRINGIZE(NNTL_CFG_DEFAULT_TYPE); //obsolete?
 
 		//////////////////////////////////////////////////////////////////////////
 		//computes ln(x+1)

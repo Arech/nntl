@@ -1913,7 +1913,7 @@ namespace math {
 		//////////////////////////////////////////////////////////////////////////
 		template<typename base_t> struct _mIsOrthogonal_defEps {};
 		template<> struct _mIsOrthogonal_defEps<double> { static constexpr double eps = 1e-11; };
-		template<> struct _mIsOrthogonal_defEps<float> { static constexpr float eps = 1e-5f; };
+		template<> struct _mIsOrthogonal_defEps<float> { static constexpr float eps = 1e-4f; };
 		// This function checks whether A is orthogonal, i.e. A'*A is identity matrix.
 		// Not optimized, FOR DEBUG PURPOSES ONLY!
 		static bool _mIsOrthogonal(const realmtx_t& A,  bool bFirstTransposed = true, const real_t epsV = _mIsOrthogonal_defEps<real_t>::eps)noexcept {
