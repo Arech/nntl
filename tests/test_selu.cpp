@@ -301,6 +301,9 @@ void test_selu_distr(const size_t seedVal, const RealT dpa, const neurons_count_
 
 TEST(TestSelu, SELU_Distribution) {
 	typedef float real_t;
+	
+	//#TODO
+	STDCOUTL("#Warning it seems that the test might generate some false failures. Need to redesign it.");
 
 	const size_t t = ::std::time(0);
 	const real_t dpa = real_t(.8);

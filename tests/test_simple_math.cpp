@@ -740,8 +740,6 @@ TEST(TestSMath, mrwMulByVec) {
 
 //////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////
-//#TODO this test might fail _mt() checks when identical source values are processed by different threads.
-//(they may return different indexes). It shouldn't be an issue for nntl, however it may annoy a user...
 void test_mrwIdxsOfMaxCorrectness(vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 	typedef ::std::vector<realmtx_t::vec_len_t> vec_t;
 	MTXSIZE_SCOPED_TRACE(rowsCnt, colsCnt, "mrwIdxsOfMax");
@@ -756,48 +754,49 @@ void test_mrwIdxsOfMaxCorrectness(vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 	vec_t vec_et(rowsCnt), vec_test(rowsCnt);
 
 	for (unsigned tr = 0; tr < testCorrRepCnt; ++tr) {
-		rg.gen_matrix(A, 1000000);
+		rg.gen_matrix(A, 1);
 		mrwMax_ET(A, nullptr, &vec_et[0]);
 
 		::std::fill(vec_test.begin(), vec_test.end(), vec_t::value_type(-1));
 		iM.mrwIdxsOfMax_st_cw(A, &vec_test[0]);
-		ASSERT_EQ(vec_et, vec_test) << "st_cw";
-		
+		if(vec_et != vec_test) ASSERT_TRUE(isMtxRwElmsAreBinEqual(A, vec_et, vec_test)) << "st_cw";
+
 		::std::fill(vec_test.begin(), vec_test.end(), vec_t::value_type(-1));
 		iM.mrwIdxsOfMax_st_rw(A, &vec_test[0]);
-		ASSERT_EQ(vec_et, vec_test) << "st_rw";
+		if (vec_et != vec_test) ASSERT_TRUE(isMtxRwElmsAreBinEqual(A, vec_et, vec_test)) << "st_rw";
 
 		::std::fill(vec_test.begin(), vec_test.end(), vec_t::value_type(-1));
 		iM.mrwIdxsOfMax_st_rw_small(A, &vec_test[0]);
-		ASSERT_EQ(vec_et, vec_test) << "st_rw_small";
+		if (vec_et != vec_test) ASSERT_TRUE(isMtxRwElmsAreBinEqual(A, vec_et, vec_test)) << "st_rw_small";
 
 		::std::fill(vec_test.begin(), vec_test.end(), vec_t::value_type(-1));
 		iM.mrwIdxsOfMax_st(A, &vec_test[0]);
-		ASSERT_EQ(vec_et, vec_test) << "st";
+		if (vec_et != vec_test) ASSERT_TRUE(isMtxRwElmsAreBinEqual(A, vec_et, vec_test)) << "st";
 
 		if (colsCnt > SMath_t::Thresholds_t::mrwIdxsOfMax_ColsPerThread) {
 			::std::fill(vec_test.begin(), vec_test.end(), vec_t::value_type(-1));
 			iM.mrwIdxsOfMax_mt_cw(A, &vec_test[0]);
-			ASSERT_EQ(vec_et, vec_test) << "mt_cw";
+			if (vec_et != vec_test) ASSERT_TRUE(isMtxRwElmsAreBinEqual(A, vec_et, vec_test)) << "mt_cw";
 
 			::std::fill(vec_test.begin(), vec_test.end(), vec_t::value_type(-1));
 			iM.mrwIdxsOfMax_mt_cw_small(A, &vec_test[0]);
-			ASSERT_EQ(vec_et, vec_test) << "mt_cw_small";
+			if (vec_et != vec_test) ASSERT_TRUE(isMtxRwElmsAreBinEqual(A, vec_et, vec_test)) << "mt_cw_small";
 		}
 
 		::std::fill(vec_test.begin(), vec_test.end(), vec_t::value_type(-1));
 		iM.mrwIdxsOfMax_mt_rw(A, &vec_test[0]);
-		ASSERT_EQ(vec_et, vec_test) << "mt_rw";
+		if (vec_et != vec_test) ASSERT_TRUE(isMtxRwElmsAreBinEqual(A, vec_et, vec_test)) << "mt_rw";
 
 		::std::fill(vec_test.begin(), vec_test.end(), vec_t::value_type(-1));
 		iM.mrwIdxsOfMax_mt(A, &vec_test[0]);
-		ASSERT_EQ(vec_et, vec_test) << "mt";
+		if (vec_et != vec_test) ASSERT_TRUE(isMtxRwElmsAreBinEqual(A, vec_et, vec_test)) << "mt";
 
 		::std::fill(vec_test.begin(), vec_test.end(), vec_t::value_type(-1));
 		iM.mrwIdxsOfMax(A, &vec_test[0]);
-		ASSERT_EQ(vec_et, vec_test) << "()";
+		if (vec_et != vec_test) ASSERT_TRUE(isMtxRwElmsAreBinEqual(A, vec_et, vec_test)) << "()";
 	}
 }
+
 
 TEST(TestSMath, mrwIdxsOfMax) {
 	constexpr unsigned rowsCnt = _baseRowsCnt;

@@ -50,6 +50,14 @@ namespace nntl {
 	// as well as compute dL/dW during bprop()
 	struct m_layer_learnable {};
 
+	//when a layer is derived from this class, it is expected to be used inside of some layer_pack_* objects and it
+	// doesn't have a neurons count specified in constructor. Instead, compound layer (or it's support objects) specifies
+	// the number of neurons during their construction via _set_neurons_cnt().
+	// See LI for an example
+	struct m_layer_autoneurons_cnt {};
+
+	//////////////////////////////////////////////////////////////////////////
+
 	template<typename LayerT>
 	using is_layer_learnable = ::std::is_base_of<m_layer_learnable, LayerT>;
 
@@ -88,13 +96,16 @@ namespace nntl {
 		//static_assert(::std::is_same<bool, T::bLayerHasTrivialBProp>::value, "");
 	};
 
-	//when a layer is derived from this class, it is expected to be used inside of some layer_pack_* objects and it
-	// doesn't have a neurons count specified in constructor. Instead, compound layer (or it's support objects) specifies
-	// the number of neurons during their construction via _set_neurons_cnt().
-	// See LI for an example
-	struct m_layer_autoneurons_cnt {};
+	//////////////////////////////////////////////////////////////////////////
 
 	namespace _impl {
+
+		struct _m_dummy {};//when condition forbids derivation from main mark
+
+		template<bool b>
+		using conditional_layer_output = ::std::conditional_t<b, m_layer_output, _m_dummy>;
+
+		//////////////////////////////////////////////////////////////////////////
 		//this definition of m_prop_input_marker<> strips away information about LT
 		template<typename RealT> struct _not_from_IL {
 			typedef RealT real_t;

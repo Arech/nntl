@@ -543,7 +543,7 @@ namespace nntl {
 			NNTL_ASSERT(!m_layerIdx);
 			NNTL_ASSERT(!m_incoming_neurons_cnt);
 
-			if (m_layerIdx || m_incoming_neurons_cnt) abort();
+			if (m_layerIdx || m_incoming_neurons_cnt) ::abort();
 			m_layerIdx = ili.newIndex();
 			if (m_layerIdx) {//special check for the first (input) layer that doesn't have any incoming neurons
 				NNTL_ASSERT(inc_neurons_cnt);

@@ -45,17 +45,14 @@ namespace nntl {
 		typedef _impl::_act_wrap<FinalPolymorphChild, typename GradWorks::interfaces_t, ActivFunc> _base_class_t;
 
 	public:
-		//seems like a bug in MSVC, it can't reference ActivFunc::bFIsZeroStable
-		//static_assert(::std::is_base_of<activation::_i_function<real_t, Weights_Init_t, ActivFunc::bFIsZeroStable>, ActivFunc>::value, "ActivFunc template parameter should be derived from activation::_i_function");
-
-		static_assert(::std::is_base_of<activation::_i_function<real_t, Weights_Init_t, true>, ActivFunc>::value
-			|| ::std::is_base_of<activation::_i_function<real_t, Weights_Init_t, false>, ActivFunc>::value, "ActivFunc template parameter should be derived from activation::_i_function");
-
-		static_assert(bActivationForOutput, "ActivFunc template parameter should be derived from activation::_i_activation_loss");
+		static_assert(bActivationForOutput && bActivationForHidden, "ActivFunc template parameter must be derived from "
+			"activation::_i_activation_loss<> and activation::_i_activation<>");
 
 		typedef GradWorks grad_works_t;
 		static_assert(::std::is_base_of<_impl::_i_grad_works<real_t>, grad_works_t>::value, "GradWorks template parameter should be derived from _i_grad_works");
 		
+		static constexpr const char _defName[] = "outp";
+
 		//////////////////////////////////////////////////////////////////////////
 		//members
 	protected:
@@ -135,8 +132,6 @@ namespace nntl {
 		{
 			m_activations.dont_emulate_biases();
 		};
-
-		static constexpr const char _defName[] = "outp";
 
 		//#TODO: move all generic fullyconnected stuff into a special base class!
 
@@ -296,9 +291,8 @@ namespace nntl {
 
 			auto& iM = get_iMath();
 
-			//compute dL/dZ
 			_iI.bprop_predLdZOut(m_activations, data_y);
-			
+			//compute dL/dZ
 			_activation_bprop_output(data_y, iM);
 
 			//now dLdZ is calculated into m_activations

@@ -58,8 +58,15 @@ namespace nntl {
 			typedef ActivFuncT Activation_t;
 			typedef typename Activation_t::weights_scheme_t Weights_Init_t;
 
-			static constexpr bool bActivationForOutput = ::std::is_base_of <activation::_i_activation_loss<real_t>, Activation_t>::value;
+			static constexpr bool bActivationForOutput = ::std::is_base_of<activation::_i_activation_loss<real_t>, Activation_t>::value;
 			static constexpr bool bActivationForHidden = ::std::is_base_of<activation::_i_activation<real_t, Weights_Init_t, Activation_t::bFIsZeroStable>, Activation_t>::value;
+
+			/* static_assert(::std::is_base_of<activation::_i_function<real_t, Weights_Init_t, true>, Activation_t>::value
+				|| ::std::is_base_of<activation::_i_function<real_t, Weights_Init_t, false>, Activation_t>::value
+				, "ActivFuncT template parameter should be derived from activation::_i_function"); */
+			
+			static_assert(::std::is_base_of<activation::_i_function<real_t, Weights_Init_t, Activation_t::bFIsZeroStable>, Activation_t>::value
+				, "ActivFuncT template parameter should be derived from activation::_i_function");
 
 		protected:
 			~_act_wrap()noexcept {}

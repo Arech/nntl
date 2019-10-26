@@ -823,6 +823,8 @@ TEST(TestPerfDecisions, mTranspose) {
 	typedef math::MathN<real_t, def_threads_t> iMB;
 	iMB iM;
 
+	STDCOUTL("sizeof(real_t) = " << sizeof(real_t));
+
 	//for (unsigned i = 100; i <= 10000; i*=10) check_mTranspose(iM, i,i/10);
 	check_mTranspose(iM, 100, 100);
 	//check_mTranspose(iM, 10000,1000);

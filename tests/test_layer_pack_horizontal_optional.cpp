@@ -272,7 +272,8 @@ void run_testLPHO_simple(const train_data<typename ParamsT::real_t>& baseTd, con
 //approximately right (expected) output. It doesn't make a full-scale testing of LPHO, but that should be enough to
 // see whether it works or not.
 TEST(TestLayerPackHorizontalOptional, Simple) {
-	typedef float real_t;
+	//typedef float real_t; //why the hell I did this?
+	typedef NNTL_CFG_DEFAULT_TYPE real_t;
 // 	template<int iGateZeroProb1e6, bool bBinGate, bool bAddFeatureNotPres>
 // 	using Prms_t = TLPHO_simple_prms<real_t, iGateZeroProb1e6, bBinGate, bAddFeatureNotPres>;
 
@@ -319,7 +320,8 @@ TEST(TestLayerPackHorizontalOptional, Simple) {
 
 //to visually inspect what's inside
 TEST(TestLayerPackHorizontalOptional, MakeDump) {
-	typedef float real_t;
+	//typedef float real_t; //why the hell I did this?
+	typedef NNTL_CFG_DEFAULT_TYPE real_t;
 	struct my_interfaces : public d_int_nI<real_t> {
 		typedef inspector::dumper<real_t, nntl_supp::omatfileEx<>, inspector::conds::EpochNum> iInspect_t;
 	};

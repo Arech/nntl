@@ -54,6 +54,24 @@ void mrwBinaryOR_ET(const realmtx_t& A, real_t* pVec)noexcept;
 
 real_t ewSumSquares_ET(const realmtx_t& A)noexcept;
 
+//////////////////////////////////////////////////////////////////////////
+
+template<typename T>
+bool isMtxRwElmsAreBinEqual(const ::nntl::math::smatrix<T>& A
+	, const ::std::vector<typename ::nntl::math::smatrix<T>::vec_len_t>& colIdxs1
+	, const ::std::vector<typename ::nntl::math::smatrix<T>::vec_len_t>& colIdxs2)
+{
+	const auto r = A.rows();
+	NNTL_ASSERT(r == colIdxs1.size() && r == colIdxs2.size());
+
+	for (::std::decay_t<decltype(r)> i = 0; i < r; ++i) {
+		if (colIdxs1[i] != colIdxs2[i]) {
+			if (A.get(i, colIdxs1[i]) != A.get(i, colIdxs2[i])) return false;
+		}
+	}
+	return true;
+}
+
 template<bool bLowerTriangl, typename _T>
 _T ewSumSquaresTriang_ET(const nntl::math::smatrix<_T>& A) noexcept {
 	NNTL_ASSERT(A.rows() == A.cols());
