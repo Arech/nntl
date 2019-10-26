@@ -139,6 +139,8 @@ The only software that is supported at this moment is [Visual Paradigm](https://
 
 The general workflow is the following: at first, one draws a class diagramm of NN architecture in the Visual Paradigm software. Then he/she exports the diagram into XML file using "Export XML..." feature. After that one executes [convertVPxml.m](https://github.com/Arech/nntl/tree/master/nntl/_uml_converter/convertVPxml.m) Matlab script on the exported XML and obtains a new processed XML file and a `.h` file with a real code. `.h` file is generated using `xslt` on the processed XML. Now one may #include obtained `.h` file and build the net.
 
+Note that, in principle, it's possible to manually describe NN architecture using XML file and process it with the `xslt` to obtain C++ code, however I'm not sure who'd like to use these method when a proper software available.
+
 There is a lot of things to be said about how to draw a proper class-diagramm, how to use the converter properly, what restrictions does it have and so on. Unfortunately, I don't have a time to describe it all now and I can't even publish architectures I use as examples (they are under an NDA), so let's do the following: I'll make a proper diagramm, the code and post more details here for the first one who will mail me a request for it with a required NN architecture sketch concept attached.
 
 
