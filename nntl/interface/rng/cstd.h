@@ -87,7 +87,7 @@ namespace rng {
 
 		//////////////////////////////////////////////////////////////////////////
 		// weights generation (sequence from begin to end of numbers drawn from uniform distribution in [-a,a])
-		static void gen_vector(real_t* ptr, const size_t n, const real_t a)noexcept {
+		static void gen_vector(real_t* ptr, const numel_cnt_t n, const real_t a)noexcept {
 			const real_t scale = 2 * a;
 			const real_t rm = static_cast<real_t>(_rand_max());
 			const auto pE = ptr + n;
@@ -98,7 +98,7 @@ namespace rng {
 
 		//////////////////////////////////////////////////////////////////////////
 		//generate vector with values in range [0,1]
-		static void gen_vector_norm(real_t* ptr, const size_t n)noexcept {
+		static void gen_vector_norm(real_t* ptr, const numel_cnt_t n)noexcept {
 			const real_t rm = static_cast<real_t>(_rand_max());
 			const auto pE = ptr + n;
 			while (ptr != pE) {
@@ -107,7 +107,7 @@ namespace rng {
 		}
 		//generate vector with values in range [0,a]
 		template<typename BaseType>
-		static void gen_vector_gtz(BaseType* ptr, const size_t n, const BaseType a)noexcept {
+		static void gen_vector_gtz(BaseType* ptr, const numel_cnt_t n, const BaseType a)noexcept {
 			const real_t scale = static_cast<real_t>(a);
 			const real_t rm = static_cast<real_t>(_rand_max());
 			const auto pE = ptr + n;

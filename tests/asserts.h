@@ -39,20 +39,22 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <numeric>
 
 //#BUGBUG there must be no global typedefs!!!!
-typedef nntl::d_interfaces::real_t real_t;
-typedef nntl::math::smatrix<real_t> realmtx_t;
-typedef nntl::math::smatrix_deform<real_t> realmtxdef_t;
-typedef typename ::nntl::math::smatrix_td::vec_len_t vec_len_t;
-typedef typename ::nntl::math::smatrix_td::numel_cnt_t numel_cnt_t;
+//typedef nntl::d_interfaces::real_t real_t;
+//typedef nntl::math::smatrix<real_t> realmtx_t;
+//typedef nntl::math::smatrix_deform<real_t> realmtxdef_t;
+//typedef typename ::nntl::math::smatrix_td::vec_len_t vec_len_t;
+//typedef typename ::nntl::math::smatrix_td::numel_cnt_t numel_cnt_t;
+//typedef ::nntl::vec_len_t vec_len_t;
+//typedef ::nntl::numel_cnt_t numel_cnt_t;
 
 #define MTXSIZE_SCOPED_TRACE(_r,_c,_descr) constexpr unsigned _scopeMsgLen = 128; \
 char _scopeMsg[_scopeMsgLen]; \
-sprintf_s(_scopeMsg, "%s: data size is %dx%d (%lld elements)", (_descr), (_r), (_c), realmtx_t::sNumel((_r), (_c))); \
+sprintf_s(_scopeMsg, "%s: data size is %dx%d (%lld elements)", (_descr), (_r), (_c), ::nntl::math::smatrix_td::sNumel((_r), (_c))); \
 SCOPED_TRACE(_scopeMsg);
 
 #define MTXSIZE_SCOPED_TRACE1(_r,_c,_descr, fparam) constexpr unsigned _scopeMsgLen = 128; \
 char _scopeMsg[_scopeMsgLen]; \
-sprintf_s(_scopeMsg, "%s%f: data size is %dx%d (%lld elements)", (_descr), (fparam),(_r), (_c), realmtx_t::sNumel((_r), (_c))); \
+sprintf_s(_scopeMsg, "%s%f: data size is %dx%d (%lld elements)", (_descr), (fparam),(_r), (_c), ::nntl::math::smatrix_td::sNumel((_r), (_c))); \
 SCOPED_TRACE(_scopeMsg);
 
 template<typename _T>
@@ -61,8 +63,8 @@ inline void _ASSERT_REALMTX_NEAR(const nntl::math::smatrix<_T>& c1, const nntl::
 	ASSERT_EQ(c1.emulatesBiases(), c2.emulatesBiases()) << descr;
 	const auto p1 = c1.data(), p2 = c2.data();
 	const auto im = c1.numel();
-	for (numel_cnt_t i = 0; i < im; ++i) {
-		ASSERT_NEAR(p1[i], p2[i], eps) << "Mismatches element #" << i << "(" << (i%c1.rows()) << "," << (i/c1.rows()) 
+	for (::nntl::numel_cnt_t i = 0; i < im; ++i) {
+		ASSERT_NEAR(p1[i], p2[i], eps) << "Mismatches element #" << i << "(" << (i%c1.rows()) << "," << (i / c1.rows())
 			<< ") of [" << c1.rows() << "," << c1.cols() << "] @ " << descr;
 	}
 }
@@ -76,12 +78,12 @@ void _ASSERT_MTX_EQ(const BaseT& c1, const BaseT& c2, const char* descr = "") no
 
 template<typename BaseT>
 ::std::enable_if_t<::std::is_integral<BaseT>::value>
-_ASSERT_MTX_EQ(const nntl::math::smatrix<BaseT>& c1, const nntl::math::smatrix<BaseT>& c2, const char* descr = "") noexcept {
+	_ASSERT_MTX_EQ(const nntl::math::smatrix<BaseT>& c1, const nntl::math::smatrix<BaseT>& c2, const char* descr = "") noexcept {
 	ASSERT_EQ(c1.size(), c2.size()) << descr;
 	ASSERT_EQ(c1.emulatesBiases(), c2.emulatesBiases()) << descr;
 	const auto p1 = c1.data(), p2 = c2.data();
 	const auto im = c1.numel();
-	for (numel_cnt_t i = 0; i < im; ++i) {
+	for (::nntl::numel_cnt_t i = 0; i < im; ++i) {
 		ASSERT_EQ(p1[i], p2[i]) << "Mismatches element #" << i << " @ " << descr;
 	}
 }
@@ -92,7 +94,7 @@ inline void _ASSERT_MTX_EQ(const nntl::math::smatrix<float>& c1, const nntl::mat
 	ASSERT_EQ(c1.emulatesBiases(), c2.emulatesBiases()) << descr;
 	const auto p1 = c1.data(), p2 = c2.data();
 	const auto im = c1.numel();
-	for (numel_cnt_t i = 0; i < im; ++i) {
+	for (::nntl::numel_cnt_t i = 0; i < im; ++i) {
 		ASSERT_FLOAT_EQ(p1[i], p2[i]) << "Mismatches element #" << i << " @ " << descr;
 	}
 }
@@ -102,7 +104,7 @@ inline void _ASSERT_MTX_EQ(const nntl::math::smatrix<double>& c1, const nntl::ma
 	ASSERT_EQ(c1.emulatesBiases(), c2.emulatesBiases()) << descr;
 	const auto p1 = c1.data(), p2 = c2.data();
 	const auto im = c1.numel();
-	for (numel_cnt_t i = 0; i < im; ++i) {
+	for (::nntl::numel_cnt_t i = 0; i < im; ++i) {
 		ASSERT_DOUBLE_EQ(p1[i], p2[i]) << "Mismatches element #" << i << " @ " << descr;
 	}
 }
@@ -116,8 +118,8 @@ inline void _ASSERT_MTX_EQ(const nntl::math::smatrix<double>& c1, const nntl::ma
 template<typename BaseT>
 void _ASSERT_VECTOR_NEAR(const ::std::vector<BaseT>& v1, const ::std::vector<BaseT>& v2, const char* descr, const double eps) noexcept {
 	ASSERT_EQ(v1.size(), v2.size()) << descr;
-	const auto im = v1.size();
-	for (numel_cnt_t i = 0; i < im; ++i) {
+	const auto im = ::nntl::conform_sign(v1.size());
+	for (::nntl::numel_cnt_t i = 0; i < im; ++i) {
 		ASSERT_NEAR(v1[i], v2[i], eps) << "Mismatches element #" << i << " @ " << descr;
 	}
 }
@@ -131,8 +133,8 @@ template<>
 inline void _ASSERT_VECTOR_EQ(const ::std::vector<double>& v1, const ::std::vector<double>& v2, const char* descr) noexcept {
 	ASSERT_EQ(v1.size(), v2.size()) << descr;
 	if (!descr) descr = "";
-	const auto im = v1.size();
-	for (numel_cnt_t i = 0; i < im; ++i) {
+	const auto im = ::nntl::conform_sign(v1.size());
+	for (::nntl::numel_cnt_t i = 0; i < im; ++i) {
 		ASSERT_DOUBLE_EQ(v1[i], v2[i]) << "Mismatches element #" << i << " @ " << descr;
 	}
 }
@@ -140,8 +142,8 @@ template<>
 inline void _ASSERT_VECTOR_EQ(const ::std::vector<float>& v1, const ::std::vector<float>& v2, const char* descr) noexcept {
 	ASSERT_EQ(v1.size(), v2.size()) << descr;
 	if (!descr) descr = "";
-	const auto im = v1.size();
-	for (numel_cnt_t i = 0; i < im; ++i) {
+	const auto im = ::nntl::conform_sign(v1.size());
+	for (::nntl::numel_cnt_t i = 0; i < im; ++i) {
 		ASSERT_FLOAT_EQ(v1[i], v2[i]) << "Mismatches element #" << i << " @ " << descr;
 	}
 }

@@ -35,6 +35,9 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 namespace nntl_tests {
 
+	typedef ::nntl::vec_len_t  vec_len_t;
+	typedef ::nntl::numel_cnt_t numel_cnt_t;
+
 	template <typename RealT, typename InspectorT = nntl::inspector::dummy<RealT>, typename DefIntnIT = ::nntl::d_int_nI<RealT>>
 	struct NN_base_params : public nntl::math::smatrix_td {
 		typedef RealT real_t;
@@ -169,7 +172,7 @@ namespace nntl_tests {
 			});
 		}
 
-		ErrorCode_t warmup(const nntl::train_data<real_t>& td, const size_t epochs, const vec_len_t batch_size
+		ErrorCode_t warmup(const nntl::train_data<real_t>& td, const numel_cnt_t epochs, const vec_len_t batch_size
 			, const bool bCalcFullLoss=true)noexcept
 		{
 			STDCOUTL("Going to perform warmup for "<<epochs<<" epochs...");

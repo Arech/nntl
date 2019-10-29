@@ -67,7 +67,7 @@ namespace nntl {
 
 			struct {
 				neurons_count_t paramsToCheck;
-				unsigned NPercents;
+				int NPercents;
 			} perc;
 		} u;
 
@@ -75,7 +75,7 @@ namespace nntl {
 		~gradcheck_groupSetts()noexcept{}
 		gradcheck_groupSetts()noexcept { set(20, 10); }
 		gradcheck_groupSetts(neurons_count_t ptc)noexcept { set(ptc); }
-		gradcheck_groupSetts(neurons_count_t ptc, unsigned percCnt)noexcept { set(ptc, percCnt); }
+		gradcheck_groupSetts(neurons_count_t ptc, int percCnt)noexcept { set(ptc, percCnt); }
 
 		void set(neurons_count_t ptc)noexcept {
 			NNTL_ASSERT(ptc > 0);
@@ -142,7 +142,7 @@ namespace nntl {
 		real_t relErrWarnThrsh;
 		real_t relErrFailThrsh;
 
-		unsigned percOfZeros;//max percent of dL/dX==0 from the total number of dL/dX to check. If there's more zeroed 
+		int percOfZeros;//max percent of dL/dX==0 from the total number of dL/dX to check. If there's more zeroed 
 							 //dL/dX than this threshold, error will be emitted
 							 //in order to reduce number of zeroed entries one may try to increase batch_size, however, this still may not work
 							 //as some neurons still might be left unused.

@@ -56,7 +56,7 @@ namespace inspector {
 		using real_t = typename _base_class_t::real_t;
 		using realmtx_t = typename _base_class_t::realmtx_t;
 		using realmtxdef_t = typename _base_class_t::realmtxdef_t;
-		using vec_len_t = typename _base_class_t::vec_len_t;
+		//using vec_len_t = typename _base_class_t::vec_len_t;
 
 	protected:
 		keeper_t m_curLayer;

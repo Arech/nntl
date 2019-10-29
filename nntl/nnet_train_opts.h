@@ -135,22 +135,22 @@ namespace nntl {
 
 	public:
 		~nnet_train_opts()noexcept {}
-		nnet_train_opts(size_t _maxEpoch, const bool& defVal = true)noexcept : m_vbEpochEval(_maxEpoch, defVal)
+		nnet_train_opts(numel_cnt_t _maxEpoch, const bool& defVal = true)noexcept : m_vbEpochEval(_maxEpoch, defVal)
 		{_ctor();}
-		nnet_train_opts(size_t _maxEpoch, size_t stride)noexcept : m_vbEpochEval(_maxEpoch, stride)
+		nnet_train_opts(numel_cnt_t _maxEpoch, numel_cnt_t stride)noexcept : m_vbEpochEval(_maxEpoch, stride)
 		{		_ctor();	}
-		nnet_train_opts(size_t _maxEpoch, size_t startsAt, size_t stride)noexcept : m_vbEpochEval(_maxEpoch, startsAt, stride)
+		nnet_train_opts(numel_cnt_t _maxEpoch, numel_cnt_t startsAt, numel_cnt_t stride)noexcept : m_vbEpochEval(_maxEpoch, startsAt, stride)
 		{		_ctor();	}
 
 
-		size_t maxEpoch()const noexcept { return m_vbEpochEval.maxEpoch(); }
+		numel_cnt_t maxEpoch()const noexcept { return m_vbEpochEval.maxEpoch(); }
 		vector_conditions& getCondEpochEval() noexcept { return m_vbEpochEval; }
 		const vector_conditions& getCondEpochEval()const noexcept { return m_vbEpochEval; }
 
 		real_t divergenceCheckThreshold() const noexcept { return m_DivergenceCheckThreshold; }
 		self_t& divergenceCheckThreshold(real_t val) noexcept { m_DivergenceCheckThreshold = val; return *this; }
 
-		size_t divergenceCheckLastEpoch() const noexcept { return m_DivergenceCheckLastEpoch; }
+		numel_cnt_t divergenceCheckLastEpoch() const noexcept { return m_DivergenceCheckLastEpoch; }
 		self_t& divergenceCheckLastEpoch(int16_t val) noexcept { m_DivergenceCheckLastEpoch = val; return *this; }
 
 		vec_len_t batchSize() const noexcept { return m_BatchSize; }

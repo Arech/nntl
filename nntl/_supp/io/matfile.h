@@ -142,6 +142,9 @@ namespace nntl_supp {
 		structure_stack_t m_structureStack;
 
 	public:
+		typedef nntl::vec_len_t vec_len_t;
+		typedef nntl::numel_cnt_t numel_cnt_t;
+
 		enum FileOpenMode {
 			Read,//read only mode
 			WriteDelete,//write only, delete before opening

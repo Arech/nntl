@@ -521,13 +521,7 @@
     <ClCompile Include="test_imath_basic.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="imath_etalons.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
     <ClCompile Include="test_simple_math.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="simple_math_etalons.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="test_simple_math_thr.cpp">

@@ -474,8 +474,6 @@
     <ClInclude Include="targetver.h" />
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="imath_etalons.cpp" />
-    <ClCompile Include="simple_math_etalons.cpp" />
     <ClCompile Include="test_activations.cpp" />
     <ClCompile Include="test_binfile.cpp" />
     <ClCompile Include="test_imath_basic.cpp" />

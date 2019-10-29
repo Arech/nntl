@@ -145,14 +145,15 @@ namespace nntl {
 				m_asArray = rhs.m_asArray;
 			}
 			void operator+=(const ConfusionMtx& rhs)noexcept {
-				for (unsigned i = 0; i < m_asArray.size(); ++i) {
+				const numel_cnt_t mi = conform_sign(m_asArray.size());
+				for (numel_cnt_t i = 0; i < mi; ++i) {
 					m_asArray[i] += rhs.m_asArray[i];
 				}
 			}
-			void reduce(const ConfusionMtx*const pCM, const unsigned& _cnt)noexcept {
+			void reduce(const ConfusionMtx*const pCM, const int _cnt)noexcept {
 				NNTL_ASSERT(_cnt > 0 && pCM);
 				*this = *pCM;
-				for (unsigned i = 1; i < _cnt; ++i) *this += pCM[i];
+				for (int i = 1; i < _cnt; ++i) *this += pCM[i];
 			}
 
 		};

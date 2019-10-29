@@ -51,8 +51,8 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 namespace nntl {
 	
 	//bAddDataNotPresentFeature is a switch that appends to LPHO activations a feature that equals to !gate value
-	//One may treat them as an offsetting bias for absent features. I don't know yet if it's helpful thing or not
-	// (looks like it was a bad idea, but leave it here for some more tests)
+	// One may treat them as an offsetting bias for absent features.
+	// I don't know yet if it's helpful thing or not (looks like it was a bad idea, but leave it here for some more tests)
 
 	template<typename FinalPolymorphChild, bool bAddDataNotPresentFeature, typename PHLsTuple>
 	class _LPHO : public _impl::_LPH_base<FinalPolymorphChild, PHLsTuple> {

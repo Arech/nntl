@@ -153,7 +153,7 @@ namespace math {
 		//////////////////////////////////////////////////////////////////////////
 		//returns how many elements in two vectors has exactly the same value. Vectors must have the same length
 		template<typename Contnr>
-		size_t vCountSame(const Contnr& A, const Contnr& B)noexcept {
+		auto vCountSame(const Contnr& A, const Contnr& B)noexcept {
 			return base_class_t::vCountSame_st_naive(A, B);
 			// 			if (A.size()<=50000) {
 			// 				return vCountSame_st_naive(A, B);

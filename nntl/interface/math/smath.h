@@ -64,8 +64,8 @@ namespace math {
 
 		typedef RealT real_t;
 		typedef smatrix<real_t> realmtx_t;
-		typedef typename realmtx_t::vec_len_t vec_len_t;
-		typedef typename realmtx_t::numel_cnt_t numel_cnt_t;
+		//typedef typename realmtx_t::vec_len_t vec_len_t;
+		//typedef typename realmtx_t::numel_cnt_t numel_cnt_t;
 
 		typedef smatrix_deform<real_t> realmtxdef_t;
 
@@ -89,7 +89,8 @@ namespace math {
 		typedef typename iThreads_t::par_range_t par_range_t;
 		//typedef typename iThreads_t::thread_id_t thread_id_t;
 
-		static_assert(::std::is_same<typename realmtx_t::numel_cnt_t, typename iThreadsT::range_t>::value, "iThreads::range_t should be the same as realmtx_t::numel_cnt_t");
+		//static_assert(::std::is_same<typename realmtx_t::numel_cnt_t, typename iThreadsT::range_t>::value, "iThreads::range_t should be the same as realmtx_t::numel_cnt_t");
+		static_assert(::std::is_same<numel_cnt_t, typename iThreadsT::range_t>::value, "iThreads::range_t should be the same as realmtx_t::numel_cnt_t");
 
 		//ALL branching functions require refactoring
 		typedef typename ThresholdsT Thresholds_t;
@@ -120,7 +121,7 @@ namespace math {
 		// THREAD UNSAFE BY DESIGN! NEVER call from inside of _st() which is called from _mt()
 		real_t* _istor_alloc(const numel_cnt_t maxDataSize)noexcept {
 			NNTL_ASSERT(m_minTempStorageSize >= maxDataSize + m_curStorElementsAllocated);
-			NNTL_ASSERT(m_threadTempRawStorage.size() >= m_minTempStorageSize);
+			NNTL_ASSERT(conform_sign(m_threadTempRawStorage.size()) >= m_minTempStorageSize);
 			auto r = &m_threadTempRawStorage[m_curStorElementsAllocated];
 			m_curStorElementsAllocated += maxDataSize;
 			return r;
@@ -142,7 +143,7 @@ namespace math {
 
 		//real math initialization, used to allocate necessary temporary storage of size max(preinit::n)
 		bool init()noexcept {
-			if (m_threadTempRawStorage.size() < m_minTempStorageSize) {
+			if (conform_sign(m_threadTempRawStorage.size()) < m_minTempStorageSize) {
 				//TODO: memory allocation exception handling here!
 				m_threadTempRawStorage.resize(m_minTempStorageSize);
 			}
@@ -161,9 +162,9 @@ namespace math {
 		// Math Methods
 	//protected:
 		template<typename FuncT>
-		static void _vec_apply_func(const typename ::std::remove_reference_t<FuncT>::value_type * _ptr, const size_t _cnt, FuncT&& F)noexcept {
+		static void _vec_apply_func(const typename ::std::remove_reference_t<FuncT>::value_type * _ptr, const numel_cnt_t _cnt, FuncT&& F)noexcept {
 			NNTL_ASSERT(_ptr && _cnt > 0);
-			for (size_t i = 0; i < _cnt; ++i) {//seems to vectorize better than while{}
+			for (numel_cnt_t i = 0; i < _cnt; ++i) {//seems to vectorize better than while{}
 				//(::std::forward<FuncT>(F)).op(_ptr[i]);
 				F.op(_ptr[i]);
 				// There's no move happening here! ::std::forward<FuncT> is just a type cast that restores original variable type.
@@ -176,7 +177,7 @@ namespace math {
 			}
 		}
 		template <typename FunctorT>
-		static typename FunctorT::value_type _vec_apply_func_get_result(const typename FunctorT::value_type* _ptr, const size_t _cnt)noexcept {
+		static typename FunctorT::value_type _vec_apply_func_get_result(const typename FunctorT::value_type* _ptr, const numel_cnt_t _cnt)noexcept {
 			FunctorT f;
 			_vec_apply_func(_ptr, _cnt, f);
 			return f.result();
@@ -193,7 +194,7 @@ namespace math {
 			value_type ret;
 
 			func_SUM()noexcept:ret(value_type(0.)) {}
-			void op(const value_type& v)noexcept {
+			void op(const value_type v)noexcept {
 				ret += v;
 			}
 			value_type result()const noexcept { return ret; }
@@ -206,7 +207,7 @@ namespace math {
 			value_type ret, C;
 
 			func_SUM()noexcept:ret(value_type(0.)), C(value_type(0.)) {}
-			void op(const value_type& v)noexcept {
+			void op(const value_type v)noexcept {
 				const auto Y = v - C;
 				const auto T = ret + Y;
 				C = T - ret - Y;
@@ -220,18 +221,18 @@ namespace math {
 		private:
 			typedef func_SUM<_T, bNumStab> _base_class_t;
 		public:
-			void op(const _T& v)noexcept {
+			void op(const _T v)noexcept {
 				_base_class_t::op(v*v);
 			}
 		};
 
 		//////////////////////////////////////////////////////////////////////////
 		template <bool bNumStab, typename _T>
-		static _T _vec_sum(const _T* _ptr, const size_t& _cnt)noexcept {
+		static _T _vec_sum(const _T* _ptr, const numel_cnt_t _cnt)noexcept {
 			return _vec_apply_func_get_result<func_SUM<_T, bNumStab>>(_ptr, _cnt);
 		}
 		template <bool bNumStab, typename _T>
-		static _T _vec_sum_squares(const _T* _ptr, const size_t& _cnt)noexcept {
+		static _T _vec_sum_squares(const _T* _ptr, const numel_cnt_t _cnt)noexcept {
 			return _vec_apply_func_get_result<func_SUM_squares<_T, bNumStab>>(_ptr, _cnt);
 		}
 
@@ -301,7 +302,7 @@ namespace math {
 		template<typename T_>
 		nntl_force_inline static void _memcpy_rowcol_range(T_* dest, const smatrix<T_>& A, const rowcol_range*const pRCR)noexcept {
 			const T_* src;
-			size_t rm;
+			vec_len_t rm;
 			if (pRCR) {
 				NNTL_ASSERT(pRCR->can_apply(A));
 				dest += pRCR->rowBegin;
@@ -314,7 +315,7 @@ namespace math {
 			memcpy(dest, src, sizeof(T_)*rm);
 		}
 		template<typename T_>
-		nntl_force_inline static void _memset_rowrange(T_* dest, const T_ v, size_t elems, const rowcol_range*const pRCR)noexcept {
+		nntl_force_inline static void _memset_rowrange(T_* dest, const T_ v, numel_cnt_t elems, const rowcol_range*const pRCR)noexcept {
 			if (pRCR) {
 				dest += pRCR->rowBegin;
 				elems = pRCR->totalRows();
@@ -322,7 +323,7 @@ namespace math {
 			//#todo which one is really faster?
 			//memset(dest, src, sizeof(T_)*elems);
 			//::std::fill(dest, dest + elems, v); //doesn't get vectorized!
-			for (size_t i = 0; i < elems; ++i) dest[i] = v;
+			for (numel_cnt_t i = 0; i < elems; ++i) dest[i] = v;
 		}
 
 		//////////////////////////////////////////////////////////////////////////
@@ -337,19 +338,19 @@ namespace math {
 		struct _mrwHlpr_rw_InitVecElmByVec {
 			static constexpr vec_len_t rw_FirstColumnIdx = 0;
 
-			//size_t mtxRows - size_t by intention!
+			//numel_cnt_t mtxRows - numel_cnt_t by intention!
 			template<typename VecBaseT, typename MtxBaseT>
-			static constexpr VecBaseT rw_initVecElm(VecBaseT& vecElm, MtxBaseT*& pFirstMtxElm, const size_t mtxRows
-				, const vec_len_t colBegin, const vec_len_t r)noexcept 
+			static constexpr VecBaseT rw_initVecElm(VecBaseT& vecElm, MtxBaseT*& pFirstMtxElm, const numel_cnt_t mtxRows
+				, const numel_cnt_t colBegin, const numel_cnt_t r)noexcept
 			{ return vecElm; }
 		};
 		struct _mrwHlpr_rw_InitVecElmByMtxElm {
 			static constexpr vec_len_t rw_FirstColumnIdx = 1;
 
-			//size_t mtxRows - size_t by intention!
+			//numel_cnt_t mtxRows - numel_cnt_t by intention!
 			template<typename VecBaseT, typename MtxBaseT>
-			static VecBaseT rw_initVecElm(VecBaseT& vecElm, MtxBaseT*& pFirstMtxElm, const size_t mtxRows
-				, const vec_len_t colBegin, const vec_len_t r)noexcept
+			static VecBaseT rw_initVecElm(VecBaseT& vecElm, MtxBaseT*& pFirstMtxElm, const numel_cnt_t mtxRows
+				, const numel_cnt_t colBegin, const numel_cnt_t r)noexcept
 			{
 				const auto v = *pFirstMtxElm;
 				pFirstMtxElm += mtxRows;
@@ -359,54 +360,54 @@ namespace math {
 		struct _mrwHlpr_rw_InitVecElmByZero {
 			static constexpr vec_len_t rw_FirstColumnIdx = 0;
 
-			//size_t mtxRows - size_t by intention!
+			//numel_cnt_t mtxRows - numel_cnt_t by intention!
 			template<typename VecBaseT, typename MtxBaseT>
-			static constexpr VecBaseT rw_initVecElm(const VecBaseT& vecElm, const MtxBaseT*const & pFirstMtxElm, const size_t mtxRows
-				, const vec_len_t colBegin, const vec_len_t r)noexcept
+			static constexpr VecBaseT rw_initVecElm(const VecBaseT& vecElm, const MtxBaseT*const & pFirstMtxElm, const numel_cnt_t mtxRows
+				, const numel_cnt_t colBegin, const numel_cnt_t r)noexcept
 			{
 				return VecBaseT(0);
 			}
 		};
 		struct _mrwHlpr_rw_Dont_UpdVecElm {
 			template<typename BaseT>
-			static constexpr void rw_updVecElm(BaseT& vecElm, BaseT& v, const vec_len_t r)noexcept {}
+			static constexpr void rw_updVecElm(BaseT& vecElm, BaseT& v, const numel_cnt_t r)noexcept {}
 		};
 		struct _mrwHlpr_rw_UpdVecElm {
 			template<typename BaseT>
-			static constexpr void rw_updVecElm(BaseT& vecElm, BaseT& v, const vec_len_t r)noexcept {
+			static constexpr void rw_updVecElm(BaseT& vecElm, BaseT& v, const numel_cnt_t r)noexcept {
 				vecElm = v;
 			}
 		};
 		struct _mrwHlpr_simpleLoops {
 			static constexpr void initOperation(const vec_len_t colBegin, const vec_len_t mtxRows)noexcept {};
 
-			static constexpr void cw_toNextCol(const size_t mtxRows)noexcept {};
+			static constexpr void cw_toNextCol(const numel_cnt_t mtxRows)noexcept {};
 		};
 
 		//////////////////////////////////////////////////////////////////////////
 		//operations
 		/*struct _mrw_COUNT_Zeros : public _mrwHlpr_rw_InitVecElmByZero, public _mrwHlpr_rw_UpdVecElm, public _mrwHlpr_simpleLoops {
 			template<_OperationType OpType, typename BaseT>
-			static void op(const BaseT& mtxElm, BaseT& vecElm, const vec_len_t r, const vec_len_t c, const size_t mtxRows)noexcept {
+			static void op(const BaseT& mtxElm, BaseT& vecElm, const vec_len_t r, const vec_len_t c, const numel_cnt_t mtxRows)noexcept {
 				vecElm += (mtxElm==real_t(0));
 			}
 		};*/
 
 		struct _mrw_MUL_mtx_by_vec : public _mrwHlpr_rw_InitVecElmByVec, public _mrwHlpr_rw_Dont_UpdVecElm, public _mrwHlpr_simpleLoops {
 			template<_OperationType OpType, typename BaseT>
-			static void op(BaseT& mtxElm, const BaseT& vecElm, const vec_len_t r, const vec_len_t c, const size_t mtxRows)noexcept {
+			static void op(BaseT& mtxElm, const BaseT& vecElm, const numel_cnt_t r, const numel_cnt_t c, const numel_cnt_t mtxRows)noexcept {
 				mtxElm *= vecElm;
 			}
 		};
 		struct _mrw_DIV_mtx_by_vec : public _mrwHlpr_rw_InitVecElmByVec, public _mrwHlpr_rw_Dont_UpdVecElm, public _mrwHlpr_simpleLoops {
 			template<_OperationType OpType, typename BaseT>
-			static void op(BaseT& mtxElm, const BaseT& vecElm, const vec_len_t r, const vec_len_t c, const size_t mtxRows)noexcept {
+			static void op(BaseT& mtxElm, const BaseT& vecElm, const numel_cnt_t r, const numel_cnt_t c, const numel_cnt_t mtxRows)noexcept {
 				mtxElm /= vecElm;
 			}
 		};
 		struct _mrwFind_MAX : public _mrwHlpr_rw_InitVecElmByMtxElm, public _mrwHlpr_rw_UpdVecElm, public _mrwHlpr_simpleLoops {
 			template<_OperationType OpType, typename BaseT>
-			static void op(const BaseT& mtxElm, BaseT& vecElm, const vec_len_t r, const vec_len_t c, const size_t mtxRows)noexcept {
+			static void op(const BaseT& mtxElm, BaseT& vecElm, const numel_cnt_t r, const numel_cnt_t c, const numel_cnt_t mtxRows)noexcept {
 				const auto cv = mtxElm;
 				if (cv > vecElm) vecElm = cv;
 			}
@@ -414,19 +415,19 @@ namespace math {
 		template<bool bSaveMaxOnUpdate>
 		struct _mrwFindIdxsOf_MAX : public _mrwHlpr_simpleLoops {
 			vec_len_t*const pDest;
-			vec_len_t _maxColumnIdx;
+			numel_cnt_t _maxColumnIdx;
 			_mrwFindIdxsOf_MAX(vec_len_t* pd)noexcept : pDest(pd) {}
 
 			template<_OperationType OpType, typename BaseT>
-			::std::enable_if_t<OpType == mrw_cw> op(const BaseT& mtxElm, BaseT& vecElm, const vec_len_t r, const vec_len_t c, const size_t mtxRows)noexcept {
+			::std::enable_if_t<OpType == mrw_cw> op(const BaseT& mtxElm, BaseT& vecElm, const numel_cnt_t r, const numel_cnt_t c, const numel_cnt_t mtxRows)noexcept {
 				const auto cv = mtxElm;
 				if (cv > vecElm) {
 					vecElm = cv;
-					pDest[r] = c;
+					pDest[r] = static_cast<vec_len_t>(c);
 				}
 			}
 			template<_OperationType OpType, typename BaseT>
-			::std::enable_if_t<OpType == mrw_rw> op(const BaseT& mtxElm, BaseT& vecElm, const vec_len_t r, const vec_len_t c, const size_t mtxRows)noexcept {
+			::std::enable_if_t<OpType == mrw_rw> op(const BaseT& mtxElm, BaseT& vecElm, const numel_cnt_t r, const numel_cnt_t c, const numel_cnt_t mtxRows)noexcept {
 				const auto cv = mtxElm;
 				if (cv > vecElm) {
 					vecElm = cv;
@@ -437,8 +438,8 @@ namespace math {
 			static constexpr vec_len_t rw_FirstColumnIdx = 1;
 
 			template<typename VecBaseT, typename MtxBaseT>
-			VecBaseT rw_initVecElm(VecBaseT& vecElm, MtxBaseT*& pFirstMtxElm, const size_t mtxRows
-				, const vec_len_t colBegin, const vec_len_t r)noexcept 
+			VecBaseT rw_initVecElm(VecBaseT& vecElm, MtxBaseT*& pFirstMtxElm, const numel_cnt_t mtxRows
+				, const numel_cnt_t colBegin, const numel_cnt_t r)noexcept
 			{
 				_maxColumnIdx = colBegin;
 				const auto v = *pFirstMtxElm;
@@ -447,18 +448,18 @@ namespace math {
 			}
 
 			template<typename BaseT, bool B = bSaveMaxOnUpdate>
-			::std::enable_if_t<!B> rw_updVecElm(BaseT& vecElm, BaseT& v, const vec_len_t r)noexcept {
-				pDest[r] = _maxColumnIdx;
+			::std::enable_if_t<!B> rw_updVecElm(BaseT& vecElm, BaseT& v, const numel_cnt_t r)noexcept {
+				pDest[r] = static_cast<vec_len_t>(_maxColumnIdx);
 			}
 			template<typename BaseT, bool B = bSaveMaxOnUpdate>
-			::std::enable_if_t<B> rw_updVecElm(BaseT& vecElm, BaseT& v, const vec_len_t r)noexcept {
-				pDest[r] = _maxColumnIdx;
+			::std::enable_if_t<B> rw_updVecElm(BaseT& vecElm, BaseT& v, const numel_cnt_t r)noexcept {
+				pDest[r] = static_cast<vec_len_t>(_maxColumnIdx);
 				vecElm = v;
 			}
 		};
 		struct _mrw_SUM : public _mrwHlpr_rw_InitVecElmByMtxElm, public _mrwHlpr_rw_UpdVecElm, public _mrwHlpr_simpleLoops {
 			template<_OperationType OpType, typename BaseT>
-			static void op(const BaseT& mtxElm, BaseT& vecElm, const vec_len_t r, const vec_len_t c, const size_t mtxRows)noexcept {
+			static void op(const BaseT& mtxElm, BaseT& vecElm, const numel_cnt_t r, const numel_cnt_t c, const numel_cnt_t mtxRows)noexcept {
 				vecElm += mtxElm;
 			}
 		};
@@ -466,7 +467,7 @@ namespace math {
 		//Binary/bitwise OR
 		struct _mrw_BinaryOR : public _mrwHlpr_rw_InitVecElmByMtxElm, public _mrwHlpr_rw_UpdVecElm, public _mrwHlpr_simpleLoops {
 			template<_OperationType OpType, typename BaseT>
-			static void op(const BaseT& mtxElm, BaseT& vecElm, const vec_len_t r, const vec_len_t c, const size_t mtxRows)noexcept {
+			static void op(const BaseT& mtxElm, BaseT& vecElm, const numel_cnt_t r, const numel_cnt_t c, const numel_cnt_t mtxRows)noexcept {
 				vecElm |= mtxElm;
 			}
 		};
@@ -512,15 +513,15 @@ namespace math {
 			NNTL_UNREF(F);
 			NNTL_ASSERT(!A.empty() && A.numel() > 0 && pVec);
 			NNTL_ASSERT(colBegin == 0 || colBegin == 1);
-			const size_t rm = A.rows(); // , cm = A.cols();
+			const numel_cnt_t rm = A.rows(); // , cm = A.cols();
 			colBegin += RCR.colBegin;
 			NNTL_ASSERT(colBegin <= RCR.colEnd);
 			auto pA = A.colDataAsVec(colBegin);
 			//::std::forward<mrwOperationT>(F).initOperation(colBegin, A.rows());
 			F.initOperation(colBegin, A.rows());
-			const neurons_count_t ce = RCR.colEnd, re = RCR.rowEnd;
-			for (auto c = colBegin; c < ce; ++c) {
-				for (vec_len_t r = RCR.rowBegin; r < re; ++r) {//FOR cycle with offset calculation is generally faster than WHILE,
+			const numel_cnt_t ce = RCR.colEnd, re = RCR.rowEnd;
+			for (numel_cnt_t c = colBegin; c < ce; ++c) {
+				for (numel_cnt_t r = RCR.rowBegin; r < re; ++r) {//FOR cycle with offset calculation is generally faster than WHILE,
 					const auto pV = pVec + r;//because usually compiler can unfold a cycle into many instructions
 					const auto pElm = pA + r;//In WHILE setup with mrwOperationT::op(*pA++, *pV++) it can't
 					//and calculating offsets is faster than mrwOperationT::op(*pA++, *pV++);
@@ -542,16 +543,16 @@ namespace math {
 			NNTL_UNREF(F);
 			NNTL_ASSERT(!A.empty() && A.numel() > 0 && pVec);
 			const auto pA = A.colDataAsVec(RCR.colBegin); //A.data();
-			const size_t rm = A.rows();
+			const numel_cnt_t rm = A.rows();
 			//::std::forward<mrwOperationT>(F).initOperation(RCR.colBegin, A.rows());
 			F.initOperation(RCR.colBegin, A.rows());
-			const neurons_count_t ce = RCR.colEnd, re = RCR.rowEnd;
-			for (vec_len_t r = RCR.rowBegin; r < re; ++r) {
+			const numel_cnt_t ce = RCR.colEnd, re = RCR.rowEnd;
+			for (numel_cnt_t r = RCR.rowBegin; r < re; ++r) {
 				const auto pV = pVec + r;
 				auto pElm = pA + r;
 				//auto v = ::std::forward<mrwOperationT>(F).rw_initVecElm(*pV, pElm, rm, RCR.colBegin, r);
 				auto v = F.rw_initVecElm(*pV, pElm, rm, RCR.colBegin, r);
-				for (vec_len_t c = RCR.colBegin + mrwOperationT::rw_FirstColumnIdx; c < ce; ++c) {
+				for (numel_cnt_t c = RCR.colBegin + mrwOperationT::rw_FirstColumnIdx; c < ce; ++c) {
 					//::std::forward<mrwOperationT>(F).op<mrw_rw>(*pElm, v, r, c, rm);
 					F.op<mrw_rw>(*pElm, v, r, c, rm);
 					pElm += rm;

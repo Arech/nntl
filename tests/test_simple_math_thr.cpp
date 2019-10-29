@@ -45,6 +45,11 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 using namespace nntl;
 using namespace nntl::utils;
+using namespace nntl::math_etalons;
+
+typedef d_interfaces::real_t real_t;
+typedef math::smatrix<real_t> realmtx_t;
+typedef math::smatrix_deform<real_t> realmtxdef_t;
 
 typedef d_interfaces::iThreads_t iThreads_t;
 typedef math::SMath < real_t, iThreads_t> SMath_t;

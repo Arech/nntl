@@ -32,7 +32,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #pragma once
 
 #include <utility>
-#include <intrin.h>
+//#include <intrin.h>
 
 #include "../../_defs.h"
 #include "../../common.h"
@@ -49,22 +49,39 @@ namespace math {
 
 	// types that don't rely on matrix value_type
 	struct smatrix_td {
-		//rows/cols type. int should be enought. If not, redifine to smth bigger
+		//rows/cols type. int should be enough. If not, redefine to smth bigger
 		//typedef uint32_t vec_len_t;
-		typedef neurons_count_t vec_len_t;
+		// And note! To allow efficient vectorization of for() loops, their loop variable MUST be of a signed type, because
+		//signed overflow is an "undefined behavior" that allow compiler to skip an additional check each increment.
+		// In contrast to this, unsigned overflow is well defined and for that reason for loops can't be properly vectorized in many cases.
+		// So counter variables actually MUST be signed!
+		//static_assert(::std::is_signed<neurons_count_t>::value, "Hey! neurons_count_t MUST be signed!");
+		//typedef neurons_count_t vec_len_t;
 		
-		typedef size_t numel_cnt_t;
+		//typedef ::std::make_signed_t<size_t> numel_cnt_t;
 		
 		typedef ::std::pair<const vec_len_t, const vec_len_t> mtx_size_t;
 		typedef ::std::pair<vec_len_t, vec_len_t> mtx_coords_t;
 
 		typedef tag_noBias tag_noBias;
 
-		static /*constexpr*/ numel_cnt_t sNumel(const vec_len_t r, const vec_len_t c)noexcept {
-			//return static_cast<numel_cnt_t>(r)*static_cast<numel_cnt_t>(c); 
-			return __emulu(r, c);
+		/*typedef ::std::make_signed_t<vec_len_t> vec_len_idx_t;
+		typedef ::std::make_signed_t<numel_cnt_t> numel_cnt_idx_t;
+
+		//////////////////////////////////////////////////////////////////////////
+
+		static constexpr vec_len_idx_t s_vec_len_2_idx(vec_len_t v)noexcept{
+			return static_cast<vec_len_idx_t>(v);
+		}*/
+
+		//////////////////////////////////////////////////////////////////////////
+
+		static constexpr numel_cnt_t sNumel(const vec_len_t r, const vec_len_t c)noexcept {
+			return static_cast<numel_cnt_t>(r)*static_cast<numel_cnt_t>(c); 
+			//return __emulu(r, c);
+			//return __emul(r, c);
 		}
-		static /*constexpr*/ numel_cnt_t sNumel(const mtx_size_t s)noexcept { return sNumel(s.first, s.second); }
+		static constexpr numel_cnt_t sNumel(const mtx_size_t s)noexcept { return sNumel(s.first, s.second); }
 
 		//////////////////////////////////////////////////////////////////////////
 		//debug/NNTL_ASSERT use is preferred

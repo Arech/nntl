@@ -64,8 +64,8 @@ constexpr unsigned TEST_PERF_REPEATS_COUNT = 10;
 constexpr unsigned TEST_PERF_REPEATS_COUNT = 400;
 #endif // NNTL_DEBUG
 
-void test_rng_perf(realmtx_t::vec_len_t rowsCnt, realmtx_t::vec_len_t colsCnt = 10) {
-	typedef realmtx_t::numel_cnt_t numel_cnt_t;
+void test_rng_perf(vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
+	//typedef realmtx_t::numel_cnt_t numel_cnt_t;
 	
 	using namespace ::std::chrono;
 	const auto dataSize = realmtx_t::sNumel(rowsCnt, colsCnt);
@@ -171,7 +171,7 @@ void test_rngmt(iThreadsT&iT, realmtx_t& m) {
 }
 
 template<typename iRng, typename iThreadsT>
-void test_rng_mt_perf(iThreadsT& iT, char* pName, realmtx_t::vec_len_t rowsCnt, realmtx_t::vec_len_t colsCnt = 10) {
+void test_rng_mt_perf(iThreadsT& iT, char* pName, vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 	const auto dataSize = realmtx_t::sNumel(rowsCnt, colsCnt);
 	STDCOUTL("******* testing multithreaded "<< pName<<	" performance over " << rowsCnt << "x" << colsCnt << " matrix (" << dataSize << " elements) **************");
 	realmtx_t m(rowsCnt, colsCnt);
@@ -202,7 +202,7 @@ TEST(TestRNG, NormDistrCompat) {
 	typedef ::std::vector<real_t> vec_t;
 
 	static constexpr real_t targMean(real_t(.5)), targStddev(real_t(2.));
-	static constexpr unsigned maxReps = 5, totalElms = 1000000;
+	static constexpr int maxReps = 5, totalElms = 1000000;
 
 	vec_t dest(totalElms);
 
@@ -210,7 +210,7 @@ TEST(TestRNG, NormDistrCompat) {
 	iRng_t iR(Thr);
 	rng::distr_normal_naive<iRng_t> d(iR, targMean, targStddev);
 
-	for (unsigned i = 0; i < maxReps; ++i) {
+	for (int i = 0; i < maxReps; ++i) {
 		::std::fill(dest.begin(), dest.end(), real_t(0.));
 		d.gen_vector(&dest.front(), totalElms);
 
@@ -267,7 +267,7 @@ TEST(TestRNG, normal_vector_Compat) {
 //////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////
 template<typename iRng, typename iThreadsT>
-void test_bernoulli_perf(iThreadsT& iT, char* pName, realmtx_t::vec_len_t rowsCnt, realmtx_t::vec_len_t colsCnt = 10) {
+void test_bernoulli_perf(iThreadsT& iT, char* pName, vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 	const auto dataSize = realmtx_t::sNumel(rowsCnt, colsCnt);
 	STDCOUTL("******* testing " << pName << ".bernoulli_vector performance over " << rowsCnt << "x" << colsCnt << " matrix (" << dataSize << " elements) **************");
 	realmtx_t m(rowsCnt, colsCnt);
@@ -322,7 +322,7 @@ TEST(TestRNG, BernoulliVectorPerf) {
 //////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////
 template<typename iRng, typename iThreadsT>
-void test_normal_perf(iThreadsT& iT, char* pName, realmtx_t::vec_len_t rowsCnt, realmtx_t::vec_len_t colsCnt = 10) {
+void test_normal_perf(iThreadsT& iT, char* pName, vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 	const auto dataSize = realmtx_t::sNumel(rowsCnt, colsCnt);
 	STDCOUTL("******* testing " << pName << ".normal_vector performance over " << rowsCnt << "x" << colsCnt << " matrix (" << dataSize << " elements) **************");
 	realmtx_t M(rowsCnt, colsCnt);

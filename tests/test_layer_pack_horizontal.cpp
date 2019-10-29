@@ -47,6 +47,9 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 using namespace nntl;
 typedef nntl_supp::binfile reader_t;
 
+typedef d_interfaces::real_t real_t;
+typedef math::smatrix<real_t> realmtx_t;
+typedef math::smatrix_deform<real_t> realmtxdef_t;
 
 //this is just to make sure it'll compile within nnet object
 TEST(TestLayerPackHorizontal, Simple) {

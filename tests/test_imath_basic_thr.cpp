@@ -47,6 +47,11 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 using namespace nntl;
 using namespace nntl::utils;
+using namespace nntl::math_etalons;
+
+typedef d_interfaces::real_t real_t;
+typedef math::smatrix<real_t> realmtx_t;
+typedef math::smatrix_deform<real_t> realmtxdef_t;
 
 typedef d_interfaces::iThreads_t iThreads_t;
 typedef math::MathN<real_t, iThreads_t> imath_basic_t;
@@ -1643,7 +1648,7 @@ TEST(TestMathNThr, evMul_ip) {
 
 //template<bool bWsort>
 void test_mExtractRows_perf(vec_len_t rowsCnt, vec_len_t colsCnt, vec_len_t extrCnt) {
-	typedef ::std::vector<realmtx_t::vec_len_t> vec_t;
+	typedef ::std::vector<vec_len_t> vec_t;
 
 	if (rowsCnt < extrCnt) extrCnt = rowsCnt;
 

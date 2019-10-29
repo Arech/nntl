@@ -45,7 +45,7 @@ typedef d_interfaces::real_t real_t;
 
 TEST(TestBinFile, ReadMatrix) {
 	typedef math::smatrix<real_t> realmtx_t;
-	typedef realmtx_t::vec_len_t vec_len_t;
+	//typedef realmtx_t::vec_len_t vec_len_t;
 	typedef nntl_supp::binfile binfile;
 	typedef binfile::ErrorCode ErrorCode;
 
@@ -61,14 +61,14 @@ TEST(TestBinFile, ReadMatrix) {
 	
 	const auto p = m.data();
 	const auto im = m.numel();
-	for (realmtx_t::numel_cnt_t i = 0; i < im; ++i) ASSERT_EQ(mtx_content[i], p[i]);
+	for (numel_cnt_t i = 0; i < im; ++i) ASSERT_EQ(mtx_content[i], p[i]);
 
 }
 
 TEST(TestBinFile, ReadTrainData) {
 	typedef train_data<real_t> train_data_t;
 	typedef train_data_t::mtx_t realmtx_t;
-	typedef realmtx_t::vec_len_t vec_len_t;
+	//typedef realmtx_t::vec_len_t vec_len_t;
 	using mtx_size_t = realmtx_t::mtx_size_t;
 
 	typedef nntl_supp::binfile binfile;

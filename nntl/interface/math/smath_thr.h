@@ -39,16 +39,17 @@ namespace nntl {
 namespace math {
 
 	namespace _impl {
-		using vec_len_t = smatrix_td::vec_len_t;
+		//using vec_len_t = smatrix_td::vec_len_t;
+		//using numel_cnt_t = smatrix_td::numel_cnt_t;
 
 		template <typename real_t> struct SMATH_THR {};
 
 		//It is better, than nothing. But in future this pron should be substituted by a run-time function profiling over real-task data
 
 		template <> struct SMATH_THR<double> {
-			static constexpr size_t ewSumProd = 8800;
-			static constexpr size_t ewSumSquares = 8800;//nt
-			static constexpr size_t ewSumSquares_ns = 8800;//nt
+			static constexpr numel_cnt_t ewSumProd = 8800;
+			static constexpr numel_cnt_t ewSumSquares = 8800;//nt
+			static constexpr numel_cnt_t ewSumSquares_ns = 8800;//nt
 
 			template <bool bLowerTriangl, bool bNumStab> struct ewSumSquaresTriang {};
 			template<>struct ewSumSquaresTriang<false, true> { static constexpr vec_len_t v = 90; };//*
@@ -56,58 +57,58 @@ namespace math {
 			template<>struct ewSumSquaresTriang<true, true> { static constexpr vec_len_t v = 90; };//*
 			template<>struct ewSumSquaresTriang<true, false> { static constexpr vec_len_t v = 165; };//*
 
-			static constexpr size_t mrwDivideByVec_rw = 10000;
-			static constexpr size_t mrwDivideByVec_mt_rows = 5000;
-			static constexpr size_t mrwDivideByVec = 5000;
+			static constexpr numel_cnt_t mrwDivideByVec_rw = 10000;
+			static constexpr numel_cnt_t mrwDivideByVec_mt_rows = 5000;
+			static constexpr numel_cnt_t mrwDivideByVec = 5000;
 
-			static constexpr size_t mrwMulByVec_st_rows = 11000;
-			static constexpr size_t mrwMulByVec_mt_rows = 80000;
-			static constexpr size_t mrwMulByVec = 20000;
+			static constexpr numel_cnt_t mrwMulByVec_st_rows = 11000;
+			static constexpr numel_cnt_t mrwMulByVec_mt_rows = 80000;
+			static constexpr numel_cnt_t mrwMulByVec = 20000;
 
-// 			static constexpr size_t mrwCountZeros_st_rows = 20000;//nt
-// 			static constexpr size_t mrwCountZeros_mt_rows = 20000;//nt
-// 			static constexpr size_t mrwCountZeros = 20000;//nt
+// 			static constexpr numel_cnt_t mrwCountZeros_st_rows = 20000;//nt
+// 			static constexpr numel_cnt_t mrwCountZeros_mt_rows = 20000;//nt
+// 			static constexpr numel_cnt_t mrwCountZeros = 20000;//nt
 
-			static constexpr size_t mrwIdxsOfMax = 3700;
-			static constexpr size_t mrwIdxsOfMax_st_rows = 20;//not tested
-			static constexpr size_t mrwIdxsOfMax_mt_rows = 20;//not tested
-			static constexpr size_t mrwIdxsOfMax_ColsPerThread = 4;//DON'T make it less than 3 or you'll run in troubles with size of temp mem!!!
+			static constexpr numel_cnt_t mrwIdxsOfMax = 3700;
+			static constexpr numel_cnt_t mrwIdxsOfMax_st_rows = 20;//not tested
+			static constexpr numel_cnt_t mrwIdxsOfMax_mt_rows = 20;//not tested
+			static constexpr numel_cnt_t mrwIdxsOfMax_ColsPerThread = 4;//DON'T make it less than 3 or you'll run in troubles with size of temp mem!!!
 			
-			static constexpr size_t mrwMax = 5200;
-			static constexpr size_t mrwMax_mt_cw_ColsPerThread = 4;//DON'T make it less than 3 or you'll run in troubles with size of temp mem!!!
+			static constexpr numel_cnt_t mrwMax = 5200;
+			static constexpr numel_cnt_t mrwMax_mt_cw_ColsPerThread = 4;//DON'T make it less than 3 or you'll run in troubles with size of temp mem!!!
 
-			static constexpr size_t mrwSum_ip_st_cols = 11;
-			static constexpr size_t mrwSum_ip_st_rows = 500;
+			static constexpr numel_cnt_t mrwSum_ip_st_cols = 11;
+			static constexpr numel_cnt_t mrwSum_ip_st_rows = 500;
 
-			static constexpr size_t mrwSum = 5000;
-			static constexpr size_t mrwSum_st = 24000;
+			static constexpr numel_cnt_t mrwSum = 5000;
+			static constexpr numel_cnt_t mrwSum_st = 24000;
 			static constexpr vec_len_t mrwSum_mt_cw_colsPerThread = 3;
 
-			static constexpr size_t mrwBinaryOR = 5000;
-			//static constexpr size_t mrwBinaryOR_st = 24000;
+			static constexpr numel_cnt_t mrwBinaryOR = 5000;
+			//static constexpr numel_cnt_t mrwBinaryOR_st = 24000;
 			static constexpr vec_len_t mrwBinaryOR_mt_cw_colsPerThread = 3;
 
 			template <bool bNumStab> struct mcwMean {};
-			template<>struct mcwMean<true> { static constexpr size_t v = 10000; };
-			template<>struct mcwMean<false> { static constexpr size_t v = 10000; };
+			template<>struct mcwMean<true> { static constexpr numel_cnt_t v = 10000; };
+			template<>struct mcwMean<false> { static constexpr numel_cnt_t v = 10000; };
 
-			static constexpr size_t mcwSub_ip = 30000;
-			static constexpr size_t mcwMulDiag_ip = 20000;//*
+			static constexpr numel_cnt_t mcwSub_ip = 30000;
+			static constexpr numel_cnt_t mcwMulDiag_ip = 20000;//*
 
 			static constexpr vec_len_t mCloneCols = 2;
 			static constexpr vec_len_t mCloneCol = 2;
 
-			static constexpr size_t mTilingRoll = 23000;
+			static constexpr numel_cnt_t mTilingRoll = 23000;
 			static constexpr vec_len_t mTilingRoll_mt_cols = 3;
 
-			static constexpr size_t mTilingUnroll = 23000;
+			static constexpr numel_cnt_t mTilingUnroll = 23000;
 			static constexpr vec_len_t mTilingUnroll_mt_cols = 3;
 		};
 
 		template <> struct SMATH_THR<float> {
-			static constexpr size_t ewSumProd = 880*19;
-			static constexpr size_t ewSumSquares = 18000;
-			static constexpr size_t ewSumSquares_ns = 17000;
+			static constexpr numel_cnt_t ewSumProd = 880*19;
+			static constexpr numel_cnt_t ewSumSquares = 18000;
+			static constexpr numel_cnt_t ewSumSquares_ns = 17000;
 
 			template <bool bLowerTriangl,bool bNumStab> struct ewSumSquaresTriang {};
 			template<>struct ewSumSquaresTriang<false, true> { static constexpr vec_len_t v = 90; };
@@ -115,52 +116,52 @@ namespace math {
 			template<>struct ewSumSquaresTriang<true, true> { static constexpr vec_len_t v = 90; };
 			template<>struct ewSumSquaresTriang<true, false> { static constexpr vec_len_t v = 165; };
 
-			static constexpr size_t mrwDivideByVec_rw = 20000;
-			static constexpr size_t mrwDivideByVec = 30000;
-			static constexpr size_t mrwDivideByVec_mt_rows = 10000;
+			static constexpr numel_cnt_t mrwDivideByVec_rw = 20000;
+			static constexpr numel_cnt_t mrwDivideByVec = 30000;
+			static constexpr numel_cnt_t mrwDivideByVec_mt_rows = 10000;
 
-			static constexpr size_t mrwMulByVec_st_rows = 20000;
-			static constexpr size_t mrwMulByVec_mt_rows = 150000;
-			static constexpr size_t mrwMulByVec = 30000;
+			static constexpr numel_cnt_t mrwMulByVec_st_rows = 20000;
+			static constexpr numel_cnt_t mrwMulByVec_mt_rows = 150000;
+			static constexpr numel_cnt_t mrwMulByVec = 30000;
 
-// 			static constexpr size_t mrwCountZeros_st_rows = 30000;//nt
-// 			static constexpr size_t mrwCountZeros_mt_rows = 30000;//nt
-// 			static constexpr size_t mrwCountZeros = 30000;//nt
+// 			static constexpr numel_cnt_t mrwCountZeros_st_rows = 30000;//nt
+// 			static constexpr numel_cnt_t mrwCountZeros_mt_rows = 30000;//nt
+// 			static constexpr numel_cnt_t mrwCountZeros = 30000;//nt
 
-			static constexpr size_t mrwIdxsOfMax = 5000;
-			static constexpr size_t mrwIdxsOfMax_st_rows = 30;//not tested
-			static constexpr size_t mrwIdxsOfMax_mt_rows = 30;//not tested
-			static constexpr size_t mrwIdxsOfMax_ColsPerThread = 4;//DON'T make it less than 3 or you'll run in troubles with size of temp mem!!!
+			static constexpr numel_cnt_t mrwIdxsOfMax = 5000;
+			static constexpr numel_cnt_t mrwIdxsOfMax_st_rows = 30;//not tested
+			static constexpr numel_cnt_t mrwIdxsOfMax_mt_rows = 30;//not tested
+			static constexpr numel_cnt_t mrwIdxsOfMax_ColsPerThread = 4;//DON'T make it less than 3 or you'll run in troubles with size of temp mem!!!
 
-			static constexpr size_t mrwMax = 8000;
-			static constexpr size_t mrwMax_mt_cw_ColsPerThread = 4;//DON'T make it less than 3 or you'll run in troubles with size of temp mem!!!
+			static constexpr numel_cnt_t mrwMax = 8000;
+			static constexpr numel_cnt_t mrwMax_mt_cw_ColsPerThread = 4;//DON'T make it less than 3 or you'll run in troubles with size of temp mem!!!
 
-			static constexpr size_t mrwSum_ip_st_cols = 11;
-			static constexpr size_t mrwSum_ip_st_rows = 500;
+			static constexpr numel_cnt_t mrwSum_ip_st_cols = 11;
+			static constexpr numel_cnt_t mrwSum_ip_st_rows = 500;
 
-			static constexpr size_t mrwSum = 10000;
-			static constexpr size_t mrwSum_st = 24000*19/10;
+			static constexpr numel_cnt_t mrwSum = 10000;
+			static constexpr numel_cnt_t mrwSum_st = 24000*19/10;
 			static constexpr vec_len_t mrwSum_mt_cw_colsPerThread = 3;
 
 			template <bool bNumStab> struct mcwMean {};
-			template<>struct mcwMean<true> { static constexpr size_t v = 5000; };
-			template<>struct mcwMean<false> { static constexpr size_t v = 17000; };
+			template<>struct mcwMean<true> { static constexpr numel_cnt_t v = 5000; };
+			template<>struct mcwMean<false> { static constexpr numel_cnt_t v = 17000; };
 			
-			static constexpr size_t mcwSub_ip = 30000;
+			static constexpr numel_cnt_t mcwSub_ip = 30000;
 
-			static constexpr size_t mcwMulDiag_ip = 24500;
+			static constexpr numel_cnt_t mcwMulDiag_ip = 24500;
 
-			static constexpr size_t mrwBinaryOR = 10000;
-			//static constexpr size_t mrwBinaryOR_st = 24000 * 19 / 10;
+			static constexpr numel_cnt_t mrwBinaryOR = 10000;
+			//static constexpr numel_cnt_t mrwBinaryOR_st = 24000 * 19 / 10;
 			static constexpr vec_len_t mrwBinaryOR_mt_cw_colsPerThread = 3;
 
 			static constexpr vec_len_t mCloneCols = 2;
 			static constexpr vec_len_t mCloneCol = 2;
 
-			static constexpr size_t mTilingRoll = 23000*19/10;
+			static constexpr numel_cnt_t mTilingRoll = 23000*19/10;
 			static constexpr vec_len_t mTilingRoll_mt_cols = 3;
 
-			static constexpr size_t mTilingUnroll = 23000*19/10;
+			static constexpr numel_cnt_t mTilingUnroll = 23000*19/10;
 			static constexpr vec_len_t mTilingUnroll_mt_cols = 3;
 		};
 

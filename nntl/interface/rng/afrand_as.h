@@ -33,7 +33,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 //Well, it was kinda experiment, and it proved to be unsuccessful.
 //The code is probably correct (though, not 100% sure and there might be bugs), but actually it is slower, than a synchronous
-// version. Either should change some scheduling parameters and buffer sizes, or more likely the root cause it cache incoherency:
+// version. Either should change some scheduling parameters and buffer sizes, or more likely the root cause is in cache incoherency:
 // background threads permanently working with a huge memory buffer contaminates processor's cache and cause much more cache misses
 // for main algorithms. Cache misses actually slows down computations significantly more than a synchronous RNG.
 // Leave the code here, thought it's kinda at max "early beta" quality.

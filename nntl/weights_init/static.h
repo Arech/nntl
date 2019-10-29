@@ -156,7 +156,7 @@ namespace nntl {
 #pragma warning(disable : 4459)
 				typedef typename iRng_t::real_t real_t;
 				typedef typename iRng_t::realmtx_t realmtx_t;
-				typedef realmtx_t::vec_len_t vec_len_t;
+				//typedef realmtx_t::vec_len_t vec_len_t;
 #pragma warning(default : 4459)
 				NNTL_UNREF(iM);
 				NNTL_ASSERT(!W.empty() && W.numel() > 0);
@@ -230,7 +230,7 @@ namespace nntl {
 #pragma warning(disable : 4459)
 				typedef typename iRng_t::real_t real_t;
 				typedef typename iRng_t::realmtx_t realmtx_t;
-				typedef realmtx_t::vec_len_t vec_len_t;
+				//typedef realmtx_t::vec_len_t vec_len_t;
 #pragma warning(default : 4459)
 
 				NNTL_ASSERT(!W.empty() && W.numel() > 0);

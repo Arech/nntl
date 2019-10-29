@@ -75,7 +75,7 @@ TEST(Simple, PlainFFN) {
 
 
 	//2. define NN layers and their properties
-	size_t epochs = 20;
+	int epochs = 20;
 	const real_t learningRate(real_t(.1));
 
 	// a. input layer (take a look at .cols_no_bias() call - it's required here instead .cols() because upon data
@@ -128,7 +128,7 @@ TEST(Simple, NotSoPlainFFN) {
 	ASSERT_EQ(reader_t::ErrorCode::Success, rec) << "Error code description: " << reader.get_last_error_str();
 
 	//2. define NN layers and their properties
-	size_t epochs = 30;
+	int epochs = 30;
 	const real_t learningRate(real_t(.001))
 		, dropoutActiveRate(real_t(.5))
 		, momntm(real_t(.9))
@@ -175,7 +175,7 @@ TEST(Simple, NotSoPlainFFN) {
 	//nn.get_iRng().seed64(0x01ed59);
 
 	//5.5 define callback
-	auto onEpochEndCB = [learningRateDecayCoeff](auto& nn, auto& opts, const size_t epochIdx)->bool {
+	auto onEpochEndCB = [learningRateDecayCoeff](auto& nn, auto& opts, const numel_cnt_t epochIdx)->bool {
 		NNTL_UNREF(epochIdx); NNTL_UNREF(opts);
 		// well, we can capture references to layer objects in lambda capture clause and use them directly here,
 		// but lets get an access to them through nn object, passed as function parameter.
@@ -203,7 +203,7 @@ TEST(Simple, NesterovMomentumAndRMSPropOnly) {
 	reader_t::ErrorCode rec = reader.read(NNTL_STRING(MNIST_FILE), td);
 	ASSERT_EQ(reader_t::ErrorCode::Success, rec) << "Error code description: " << reader.get_last_error_str();
 
-	size_t epochs = 20;
+	int epochs = 20;
 	const real_t learningRate (real_t(0.0005));
 	const real_t momntm (real_t(0.9));
 

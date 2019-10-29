@@ -45,6 +45,10 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 using namespace nntl;
 
+typedef d_interfaces::real_t real_t;
+typedef math::smatrix<real_t> realmtx_t;
+typedef math::smatrix_deform<real_t> realmtxdef_t;
+
 template<typename ArchPrmsT>
 struct GC_LPT : public nntl_tests::NN_base_arch_td<ArchPrmsT> {
 	myLFC lBase;
@@ -121,7 +125,7 @@ TEST(TestLayerPackTile, GradCheck_LPV) {
 
 template<typename base_t> struct TestLayerPackTile_EPS {};
 template<> struct TestLayerPackTile_EPS <double> { static constexpr double eps = 1e-15; };
-template<> struct TestLayerPackTile_EPS <float> { static constexpr float eps = 7e-7; };
+template<> struct TestLayerPackTile_EPS <float> { static constexpr float eps = 7e-7f; };
 
 TEST(TestLayerPackTile, ComparativeNonSpecialX) {
 	constexpr vec_len_t samplesCount = 109;

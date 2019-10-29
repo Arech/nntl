@@ -68,7 +68,7 @@ template<typename TT>
 void threads_basics_test(TT& t) {
 	typedef TT::range_t range_t;
 	typedef TT::par_range_t par_range_t;
-	typedef math::smatrix_td::vec_len_t vec_len_t;
+	//typedef math::smatrix_td::vec_len_t vec_len_t;
 
 	const auto workersCnt = t.workers_count();
 
@@ -132,7 +132,7 @@ void threads_basics_test(TT& t) {
 // }
 
 TEST(TestThreading, WorkersBasics) {
-	threads::Workers<real_t, math::smatrix_td::numel_cnt_t> t;
+	threads::Workers<real_t, numel_cnt_t> t;
 	threads_basics_test(t);
 	threads_basics_test(t);
 }
@@ -155,7 +155,7 @@ struct sp_stdShared : public threads::stdSync {
 
 TEST(TestThreading, PerfComparision) {
 
-	typedef math::smatrix_td::numel_cnt_t numel_cnt_t;
+	//typedef math::smatrix_td::numel_cnt_t numel_cnt_t;
 	STDCOUTL("The test may require a few seconds to complete. Define TESTS_SKIP_THREADING_PERFS 1 to skip.");
 
 #ifdef _DEBUG
@@ -254,7 +254,7 @@ void threading_delay_test(TT& t) {
 // }
 
 TEST(TestThreading, WorkersDelays) {
-	threads::Workers<real_t, math::smatrix_td::numel_cnt_t> t;
+	threads::Workers<real_t, numel_cnt_t> t;
 	threading_delay_test(t);
 	ASSERT_TRUE(true) << "This tests if the execution reaches here or binary hangs";
 }

@@ -42,8 +42,8 @@ namespace nntl {
 	struct i_nnet_evaluator {
 		typedef RealT real_t;
 		typedef math::smatrix<real_t> realmtx_t;
-		typedef math::smatrix_td::vec_len_t vec_len_t;
-		typedef math::smatrix_td::numel_cnt_t numel_cnt_t;
+		//typedef math::smatrix_td::vec_len_t vec_len_t;
+		//typedef math::smatrix_td::numel_cnt_t numel_cnt_t;
 
 		//may preprocess train_y/test_y here
 		template<typename iMath>
@@ -52,7 +52,7 @@ namespace nntl {
 
 		//define correct returning type
 		template<typename iMath>
-		nntl_interface size_t correctlyClassified(const realmtx_t& data_y, const realmtx_t& activations, const bool bOnTestData, iMath& iM)noexcept;
+		nntl_interface numel_cnt_t correctlyClassified(const realmtx_t& data_y, const realmtx_t& activations, const bool bOnTestData, iMath& iM)noexcept;
 
 	};
 
@@ -101,7 +101,7 @@ namespace nntl {
 		}
 
 		void deinit()noexcept {
-			for (unsigned i = 0; i <= 1; ++i) {
+			for (int i = 0; i <= 1; ++i) {
 				m_ydataPP[i].clear();
 				m_predictionsPP[i].clear();
 			}
@@ -109,7 +109,7 @@ namespace nntl {
 
 		//returns a count of correct predictions, i.e. (True Positive + True Negative)'s
 		template<typename iMath>
-		size_t correctlyClassified(const realmtx_t& data_y, const realmtx_t& activations, const bool bOnTestData, iMath& iM)noexcept {
+		numel_cnt_t correctlyClassified(const realmtx_t& data_y, const realmtx_t& activations, const bool bOnTestData, iMath& iM)noexcept {
 			NNTL_UNREF(data_y);
 			NNTL_ASSERT(data_y.size() == activations.size());
 			NNTL_ASSERT(data_y.rows() == m_ydataPP[bOnTestData].size());
@@ -154,7 +154,7 @@ namespace nntl {
 		}
 
 		void deinit()noexcept {
-			for (unsigned i = 0; i <= 1; ++i) {
+			for (int i = 0; i <= 1; ++i) {
 				m_ydataClassIdxs[i].clear();
 				m_predictionClassIdxs[i].clear();
 			}
@@ -162,7 +162,7 @@ namespace nntl {
 
 		//returns a count of correct predictions, i.e. (True Positive + True Negative)'s
 		template<typename iMath>
-		size_t correctlyClassified(const realmtx_t& data_y, const realmtx_t& activations, const bool bOnTestData, iMath& iM)noexcept {
+		numel_cnt_t correctlyClassified(const realmtx_t& data_y, const realmtx_t& activations, const bool bOnTestData, iMath& iM)noexcept {
 			NNTL_UNREF(data_y);
 			NNTL_ASSERT(data_y.size() == activations.size());
 			NNTL_ASSERT(data_y.rows() == m_ydataClassIdxs[bOnTestData].size());

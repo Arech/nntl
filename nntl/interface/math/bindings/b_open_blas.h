@@ -96,6 +96,30 @@ namespace math {
 			cblas_saxpy(static_cast<blasint>(n), alpha, x, static_cast<blasint>(incx), y, static_cast<blasint>(incy));
 		}
 
+		//////////////////////////////////////////////////////////////////////////
+		// cblas_?dot
+		// Computes a vector - vector dot product.
+		//	Input Parameters
+		// n - Specifies the number of elements in vectors x and y.
+		// x - Array, size at least(1 + (n - 1)*abs(incx)).
+		// incx - Specifies the increment for the elements of x.
+		// y - Array, size at least(1 + (n - 1)*abs(incy)).
+		// incy - Specifies the increment for the elements of y.
+		// Return Values - The result of the dot product of x and y, if n is positive.Otherwise, returns 0.
+		//https://software.intel.com/en-us/mkl-developer-reference-c-cblas-dot
+		template<typename sz_t, typename fl_t>
+		static typename ::std::enable_if_t< ::std::is_same< ::std::remove_pointer_t<fl_t>, double>::value, double >
+			dot(const sz_t n, const fl_t *x, const sz_t incx, const fl_t *y, const sz_t incy)
+		{
+			return cblas_ddot(static_cast<blasint>(n), x, static_cast<blasint>(incx), y, static_cast<blasint>(incy));
+		}
+		template<typename sz_t, typename fl_t>
+		static typename ::std::enable_if_t< ::std::is_same< ::std::remove_pointer_t<fl_t>, float>::value, float >
+			dot(const sz_t n, const fl_t *x, const sz_t incx, const fl_t *y, const sz_t incy)
+		{
+			return cblas_sdot(static_cast<blasint>(n), x, static_cast<blasint>(incx), y, static_cast<blasint>(incy));
+		}
+
 
 		//////////////////////////////////////////////////////////////////////////
 		//////////////////////////////////////////////////////////////////////////

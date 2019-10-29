@@ -49,7 +49,8 @@ namespace nntl {
 // #endif
 		//WinQDU+forwarder is about 1.5/22 ~ 7% faster than Std+std::function in one sample setup (everything else remains fixed)
 		
-		typedef threads::Workers<real_t, math::smatrix_td::numel_cnt_t> iThreads_t;
+		//typedef threads::Workers<real_t, math::smatrix_td::numel_cnt_t> iThreads_t;
+		typedef threads::Workers<real_t, numel_cnt_t> iThreads_t;
 
 		//_mt is deprecated. Going to make run-time profiler sometime
 		//typedef math::MathN_mt<real_t, iThreads_t> iMath_t;
@@ -92,7 +93,8 @@ namespace nntl {
 		static_assert(::std::is_same<real_t, typename iRng_t::real_t>::value, "real_t must resolve to the same type!");
 		static_assert(::std::is_same<real_t, typename iInspect_t::real_t>::value, "real_t must resolve to the same type!");
 
-		static_assert(::std::is_same<typename iMath_t::numel_cnt_t, typename iThreads_t::range_t>::value, "iThreads_t::range_t must be the same as iMath_t::numel_cnt_t!");
+		//static_assert(::std::is_same<typename iMath_t::numel_cnt_t, typename iThreads_t::range_t>::value, "iThreads_t::range_t must be the same as iMath_t::numel_cnt_t!");
+		static_assert(::std::is_same<numel_cnt_t, typename iThreads_t::range_t>::value, "iThreads_t::range_t must be the same as iMath_t::numel_cnt_t!");
 	};
 
 }

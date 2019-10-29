@@ -42,8 +42,13 @@ namespace nntl {
 	// must be unsigned
 	typedef ::std::uint16_t layer_index_t;
 
-	// must be unsigned
-	typedef ::std::uint32_t neurons_count_t;
+	// must be unsigned -- What the hell? Why "must"?
+	// It's unlikely we ever get stuck into the signed int32 limit, but signed integers allows to perform loop vectorization much better
+	// If we'd ever stuck int INT_MAX, just set to int64
+	typedef ::std::int32_t neurons_count_t;
+	typedef neurons_count_t vec_len_t;
+
+	typedef ::std::conditional_t<::std::is_signed<neurons_count_t>::value, ::std::make_signed_t<size_t>, size_t> numel_cnt_t;
 
 	//by convention layer_type_id_t can't be zero
 	typedef ::std::uint64_t layer_type_id_t;
@@ -56,7 +61,8 @@ namespace nntl {
 	// If scheduler will launch less than workers_count() threads to process task, 
 	// then maximum tid must be equal to <scheduled workers count>+1 (+1 refers to a main thread, that's also
 	// used in scheduling)
-	typedef unsigned int thread_id_t;
+	// Making signed to ease working with neurons_count_t/vec_len_t type that is signed.
+	typedef neurons_count_t thread_id_t;
 
 	//see also NNTL_STRING macro
 	// by now some code such as file-related functions in _supp{} may be bounded to char only in strchar_t
@@ -75,5 +81,26 @@ namespace nntl {
 
 		// 		template <typename T>
 		// 		using is_tuple2 = is_specialization_of<T, ::std::tuple>;
+	}
+
+	//////////////////////////////////////////////////////////////////////////
+
+	template<typename T>
+	::std::conditional_t<::std::is_unsigned<neurons_count_t>::value, ::std::make_unsigned_t<T>, ::std::make_signed_t<T>>
+		conform_sign(T v)
+	#ifndef NNTL_DEBUG
+		noexcept
+	#endif // NNTL_DEBUG
+	{
+		static_assert(::std::is_unsigned<neurons_count_t>::value || ::std::is_unsigned<T>::value, "WTF? It's for unsigned types only!");
+		typedef ::std::conditional_t<::std::is_unsigned<neurons_count_t>::value, ::std::make_unsigned_t<T>, ::std::make_signed_t<T>> conf_T;
+
+	#ifdef NNTL_DEBUG
+		if (v > static_cast<T>(::std::numeric_limits<conf_T>::max())) {
+			NNTL_ASSERT(!"Failed to convert to signed");
+			throw ::std::overflow_error("Failed to convert to signed");
+		}
+	#endif
+		return static_cast<conf_T>(v);
 	}
 }

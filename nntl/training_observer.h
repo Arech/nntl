@@ -45,14 +45,14 @@ namespace nntl {
 	struct i_training_observer {
 		typedef RealT real_t;
 		typedef math::smatrix<real_t> realmtx_t;
-		typedef math::smatrix_td::vec_len_t vec_len_t;
-		typedef math::smatrix_td::numel_cnt_t numel_cnt_t;
+		//typedef math::smatrix_td::vec_len_t vec_len_t;
+		//typedef math::smatrix_td::numel_cnt_t numel_cnt_t;
 		
 		typedef ::std::chrono::nanoseconds nanoseconds;
 
 		//may preprocess train_y/test_y here
 		template<typename iMath>
-		nntl_interface bool init(size_t epochs, const realmtx_t& train_y, const realmtx_t& test_y, iMath& iM)noexcept;
+		nntl_interface bool init(numel_cnt_t epochs, const realmtx_t& train_y, const realmtx_t& test_y, iMath& iM)noexcept;
 		nntl_interface void deinit()noexcept;
 
 		//always called before on_training_fragment_end() twice: on the training and on the testing data
@@ -60,26 +60,26 @@ namespace nntl {
 		// + inspect_results(bOnTestData==true) + on_training_fragment_end()> is guaranteed for every epoch to be evaluated
 		// data_y is the same as init(train_y)|bOnTestData==false or init(test_y)|bOnTestData==true
 		template<typename NnetT>
-		nntl_interface void inspect_results(const size_t epochEnded, const realmtx_t& data_y, const bool bOnTestData, const NnetT& nn)noexcept;
+		nntl_interface void inspect_results(const numel_cnt_t epochEnded, const realmtx_t& data_y, const bool bOnTestData, const NnetT& nn)noexcept;
 
 		nntl_interface void on_training_start(vec_len_t trainElements, vec_len_t testElements, vec_len_t inDim, vec_len_t outDim, vec_len_t batchSize, numel_cnt_t nL)noexcept;
 		//epochEnded is zero based, so the first epoch is 0. Will be ==-1 on initial report (before training begins)
-		nntl_interface void on_training_fragment_end(const size_t epochEnded, const real_t trainLoss, const real_t testLoss, const nanoseconds& elapsedSincePrevFragment)noexcept;
+		nntl_interface void on_training_fragment_end(const numel_cnt_t epochEnded, const real_t trainLoss, const real_t testLoss, const nanoseconds& elapsedSincePrevFragment)noexcept;
 		nntl_interface void on_training_end(const nanoseconds& trainTime)noexcept;
 	};
 
 	template<typename RealT=d_interfaces::real_t>
 	struct training_observer_silent : public i_training_observer<RealT> {
 		template<typename iMath>
-		constexpr bool init(size_t epochs, const realmtx_t& train_y, const realmtx_t& test_y, iMath& iM)const noexcept { return true; }
+		constexpr bool init(numel_cnt_t epochs, const realmtx_t& train_y, const realmtx_t& test_y, iMath& iM)const noexcept { return true; }
 		void deinit()const noexcept {}
 
 		//always called before on_training_fragment_end() twice: on the training and on the testing data
 		template<typename NnetT>
-		void inspect_results(const size_t epochEnded, const realmtx_t& data_y, const bool bOnTestData, const NnetT& nn)const noexcept {}
+		void inspect_results(const numel_cnt_t epochEnded, const realmtx_t& data_y, const bool bOnTestData, const NnetT& nn)const noexcept {}
 
 		void on_training_start(vec_len_t trainElements, vec_len_t testElements, vec_len_t inDim, vec_len_t outDim, vec_len_t batchSize, numel_cnt_t nL)const noexcept {}
-		void on_training_fragment_end(const size_t epochEnded, const real_t trainLoss, const real_t testLoss, const nanoseconds& elapsedSincePrevFragment)const noexcept{}
+		void on_training_fragment_end(const numel_cnt_t epochEnded, const real_t trainLoss, const real_t testLoss, const nanoseconds& elapsedSincePrevFragment)const noexcept{}
 		void on_training_end(const nanoseconds& trainTime)const noexcept {}
 	};
 
@@ -88,11 +88,11 @@ namespace nntl {
 	template<typename RealT = d_interfaces::real_t>
 	class training_observer_simple_stdcout : public i_training_observer<RealT> {
 	protected:
-		size_t m_epochs;
+		numel_cnt_t m_epochs;
 
 	public:
 		template<typename iMath>
-		bool init(size_t epochs, const realmtx_t& train_y, const realmtx_t& test_y, iMath& iM)noexcept {
+		bool init(numel_cnt_t epochs, const realmtx_t& train_y, const realmtx_t& test_y, iMath& iM)noexcept {
 			m_epochs = epochs;
 			return true;
 		}
@@ -110,9 +110,9 @@ namespace nntl {
 		//always called before on_training_fragment_end() twice: on the training and on the testing data
 		//data_y must be the same as init(train_y)|bOnTestData==false or init(test_y)|bOnTestData==true
 		template<typename NnetT>
-		void inspect_results(const size_t epochEnded, const realmtx_t& data_y, const bool bOnTestData, const NnetT& nn)noexcept { }
+		void inspect_results(const numel_cnt_t epochEnded, const realmtx_t& data_y, const bool bOnTestData, const NnetT& nn)noexcept { }
 
-		void on_training_fragment_end(const size_t epochEnded, const real_t trainLoss, const real_t testLoss, const nanoseconds& elapsedSincePrevFragment)noexcept {
+		void on_training_fragment_end(const numel_cnt_t epochEnded, const real_t trainLoss, const real_t testLoss, const nanoseconds& elapsedSincePrevFragment)noexcept {
 			static constexpr strchar_t* szReportFmt = "% 3zd/%-3zd %3.1fs trL=%8.5f, vL=%8.5f";
 			static constexpr unsigned uBufSize = 128;
 			
@@ -134,8 +134,8 @@ namespace nntl {
 	class training_observer_stdcout : public i_training_observer<typename Evaluator::real_t> {
 	protected:
 		struct CLASSIFICATION_RESULTS {
-			size_t totalElements;
-			size_t correctlyClassified;//in fact, it's kind of a metric... Will refactor in future
+			numel_cnt_t totalElements;
+			numel_cnt_t correctlyClassified;//in fact, it's kind of a metric... Will refactor in future
 		};
 
 		typedef ::std::array<CLASSIFICATION_RESULTS, 2> classif_results_t;
@@ -149,14 +149,14 @@ namespace nntl {
 	public:
 		evaluator_t m_evaluator;
 	protected:
-		size_t m_epochs;
+		numel_cnt_t m_epochs;
 
 	public:
 		real_t m_lastTrainErr, m_lastTestErr;
 
 	public:
 		template<typename iMath>
-		bool init(size_t epochs, const realmtx_t& train_y, const realmtx_t& test_y, iMath& iM)noexcept {
+		bool init(numel_cnt_t epochs, const realmtx_t& train_y, const realmtx_t& test_y, iMath& iM)noexcept {
 			m_epochs = epochs;
 			return m_evaluator.init(train_y, test_y, iM);
 		}
@@ -176,7 +176,7 @@ namespace nntl {
 		//always called before on_training_fragment_end() twice: on the training and on the testing data
 		//data_y is the same as init(train_y)|bOnTestData==false or init(test_y)|bOnTestData==true
 		template<typename NnetT>
-		void inspect_results(const size_t epochEnded, const realmtx_t& data_y, const bool bOnTestData, const NnetT& nn)noexcept {
+		void inspect_results(const numel_cnt_t epochEnded, const realmtx_t& data_y, const bool bOnTestData, const NnetT& nn)noexcept {
 			NNTL_UNREF(epochEnded);
 
 			const auto& activations = nn.get_layer_pack().output_layer().get_activations();
@@ -186,7 +186,7 @@ namespace nntl {
 			m_classifRes[bOnTestData].correctlyClassified = m_evaluator.correctlyClassified(data_y, activations, bOnTestData, nn.get_iMath());
 		}
 
-		void on_training_fragment_end(const size_t epochEnded, const real_t trainLoss, const real_t testLoss, const nanoseconds& elapsedSincePrevFragment)noexcept {
+		void on_training_fragment_end(const numel_cnt_t epochEnded, const real_t trainLoss, const real_t testLoss, const nanoseconds& elapsedSincePrevFragment)noexcept {
 			static constexpr strchar_t* szReportFmt = "% 3zd/%-3zd %3.1fs trL=%05.3f, trErr=%.2f%% (%zd), vL=%05.3f, vErr=%.2f%% (%zd)";
 			static constexpr unsigned uBufSize = 128;
 			

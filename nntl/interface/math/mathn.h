@@ -59,8 +59,8 @@ namespace math {
 		using base_class_t::real_t;
 		using base_class_t::realmtx_t;
 		using base_class_t::realmtxdef_t;
-		using base_class_t::numel_cnt_t;
-		using base_class_t::vec_len_t;
+		//using base_class_t::numel_cnt_t;
+		//using base_class_t::vec_len_t;
 
 		//TODO: probably don't need this assert
 		static_assert(::std::is_base_of<_impl::MATHN_THR<real_t>, Thresholds_t>::value, "Thresholds_t must be derived from _impl::MATHN_THR<real_t>");
@@ -79,14 +79,14 @@ namespace math {
 			_mrw_SOFTMAXPARTS(const real_t*const _pMax, real_t*const _pNum)noexcept : pMax(_pMax), pNumerator(_pNum) {}
 
 			template<_OperationType OpType, typename BaseT>
-			::std::enable_if_t<OpType == mrw_cw> op(const BaseT& mtxElm, BaseT& vecElm, const vec_len_t r, const vec_len_t c, const size_t mtxRows)noexcept {
+			::std::enable_if_t<OpType == mrw_cw> op(const BaseT& mtxElm, BaseT& vecElm, const numel_cnt_t r, const numel_cnt_t c, const numel_cnt_t mtxRows)noexcept {
 				const auto numerator = ::std::exp(mtxElm - *(pMax + r));
 				vecElm += numerator;
 				*(pNumerator + r) = numerator;
 			}
 
 			template<_OperationType OpType, typename BaseT>
-			::std::enable_if_t<OpType == mrw_rw> op(const BaseT& mtxElm, BaseT& vecElm, const vec_len_t r, const vec_len_t c, const size_t mtxRows)noexcept {
+			::std::enable_if_t<OpType == mrw_rw> op(const BaseT& mtxElm, BaseT& vecElm, const numel_cnt_t r, const numel_cnt_t c, const numel_cnt_t mtxRows)noexcept {
 				const auto numerator = ::std::exp(mtxElm - *pMx);
 				vecElm += numerator;
 				*pNum = numerator;
@@ -98,15 +98,15 @@ namespace math {
 				pNumerator += realmtx_t::sNumel(mtxRows, colBegin);
 			};
 
-			void cw_toNextCol(const size_t mtxRows)noexcept {
+			void cw_toNextCol(const numel_cnt_t mtxRows)noexcept {
 				//proceeding to next column
 				pNumerator += mtxRows;
 			};
 
 			static constexpr vec_len_t rw_FirstColumnIdx = 0;
 			template<typename VecBaseT, typename MtxBaseT>
-			VecBaseT rw_initVecElm(VecBaseT& vecElm, MtxBaseT*& pFirstMtxElm, const size_t mtxRows
-				, const vec_len_t colBegin, const vec_len_t r)noexcept
+			VecBaseT rw_initVecElm(VecBaseT& vecElm, MtxBaseT*& pFirstMtxElm, const numel_cnt_t mtxRows
+				, const numel_cnt_t colBegin, const numel_cnt_t r)noexcept
 			{
 				pNum = pNumerator + r;
 				pMx = pMax + r;
@@ -448,16 +448,16 @@ namespace math {
 			const auto _z = similar_FWI_pos_zero<real_t>();
 			const auto _o = similar_FWI_one<real_t>();
 			
-			const size_t tr = src.rows(), tc = er.totalElements();
+			const numel_cnt_t tr = src.rows(), tc = er.totalElements();
 			NNTL_ASSERT(tc);
 			auto _pS = src.colDataAsVec(static_cast<vec_len_t>(er.elmBegin));
 			auto pD = dest.colDataAsVec(static_cast<vec_len_t>(er.elmBegin));
 			//#todo for C++17 must change to ::std::launder(reinterpret_cast< ... 
 			const auto pM = reinterpret_cast<const similar_FWI_t*const>(pMask);
-			for (size_t ci = 0; ci < tc; ++ci) {
+			for (numel_cnt_t ci = 0; ci < tc; ++ci) {
 				const auto pS = _pS;
 				_pS += tr;
-				for (size_t i = 0; i < tr; ++i) {
+				for (numel_cnt_t i = 0; i < tr; ++i) {
 					const auto m = pM[i];
 					if (m != _z) {
 						NNTL_ASSERT(m == _o);
@@ -512,17 +512,17 @@ namespace math {
 			const auto _z = similar_FWI_pos_zero<real_t>();
 			const auto _o = similar_FWI_one<real_t>();
 
-			const size_t tr = dest.rows(), tc = er.totalElements();
+			const numel_cnt_t tr = dest.rows(), tc = er.totalElements();
 			NNTL_ASSERT(tc);
 			auto pS = src.colDataAsVec(static_cast<vec_len_t>(er.elmBegin));
 			auto _pD = dest.colDataAsVec(static_cast<vec_len_t>(er.elmBegin));
 			//#todo for C++17 must change to ::std::launder(reinterpret_cast< ... 
 			const auto pM = reinterpret_cast<const similar_FWI_t*const>(pMask);
-			for (size_t ci = 0; ci < tc; ++ci) {
+			for (numel_cnt_t ci = 0; ci < tc; ++ci) {
 				NNTL_ASSERT(pS == src.colDataAsVec(static_cast<vec_len_t>(er.elmBegin + ci)));
 				const auto pD = _pD;
 				_pD += tr;
-				for (size_t i = 0; i < tr; ++i) {
+				for (numel_cnt_t i = 0; i < tr; ++i) {
 					const auto m = pM[i];
 					NNTL_ASSERT(m == _o || m == _z);
 					pD[i] = m != _z ? *pS++ : real_t(0);
@@ -702,9 +702,9 @@ namespace math {
 		// Returns the number of elements equal to zero
 		// Don't expect big n here, so no _mt version
 		template<typename T>
-		static ::std::enable_if_t<::std::is_floating_point<T>::value, size_t> vCountNonZeros(const T* pVec, const size_t ne)noexcept {
-			NNTL_ASSERT(pVec && ne);
-			size_t nz = 0;
+		static ::std::enable_if_t<::std::is_floating_point<T>::value, numel_cnt_t> vCountNonZeros(const T* pVec, const numel_cnt_t ne)noexcept {
+			NNTL_ASSERT(pVec && ne > 0);
+			numel_cnt_t nz = 0;
 			const auto pE = pVec + ne;
 			while (pVec != pE) {//vectorizes!
 				const auto v = *pVec++;
@@ -715,8 +715,8 @@ namespace math {
 
 		//Strict version counts only a positive zero as a zero. Works about a twice as fast as vCountNonZeros
 		template<typename T>
-		static ::std::enable_if_t<::std::is_floating_point<T>::value, size_t> vCountNonZerosStrict(const T* pVec, const size_t ne)noexcept {
-			NNTL_ASSERT(pVec && ne);
+		static ::std::enable_if_t<::std::is_floating_point<T>::value, numel_cnt_t> vCountNonZerosStrict(const T* pVec, const numel_cnt_t ne)noexcept {
+			NNTL_ASSERT(pVec && ne > 0);
 			typedef typename real_t_limits<T>::similar_FWI_t similar_FWI_t;
 			NNTL_ASSERT(0 == similar_FWI_pos_zero<T>());
 			static_assert(::std::is_unsigned<similar_FWI_t>::value, "");
@@ -736,45 +736,45 @@ namespace math {
 		//////////////////////////////////////////////////////////////////////////
 		//returns how many elements in two vectors has exactly the same value. Vectors must have the same length
 		template<typename Contnr>
-		size_t vCountSame(const Contnr& A, const Contnr& B)noexcept {
+		numel_cnt_t vCountSame(const Contnr& A, const Contnr& B)noexcept {
 			return get_self().vCountSame_st_naive(A, B);
 			// 			if (A.size()<=50000) {
 			// 				return vCountSame_st_naive(A, B);
 			// 			}else return vCountSame_mt_naive(A, B);
 		}
 		template<typename Contnr>
-		static size_t vCountSame_st_naive(const Contnr& A, const Contnr& B)noexcept {
+		static numel_cnt_t vCountSame_st_naive(const Contnr& A, const Contnr& B)noexcept {
 			NNTL_ASSERT(A.size() == B.size());
 
-			size_t ret = 0;
-			const auto dataCnt = A.size();
+			numel_cnt_t ret = 0;
+			const auto dataCnt = conform_sign(A.size());
 			for (numel_cnt_t i = 0; i < dataCnt; ++i) {
 				//if (A[i] == B[i]) ret++;
 				//ret += A[i] == B[i] ? 1 : 0;
-				ret += size_t(A[i] == B[i]);
+				ret += numel_cnt_t(A[i] == B[i]);
 			}
 			return ret;
 		}
 		template<typename Contnr>
-		size_t vCountSame_mt_naive(const Contnr& A, const Contnr& B)noexcept {
+		numel_cnt_t vCountSame_mt_naive(const Contnr& A, const Contnr& B)noexcept {
 			NNTL_ASSERT(A.size() == B.size());
 
 			auto pAc = &A[0];
 			auto pBc = &B[0];
 			real_t ret = m_threads.reduce([pAc, pBc](const par_range_t& r)->real_t {
 				const auto ofs = r.offset();
-				size_t ret = 0;
+				numel_cnt_t ret = 0;
 				const auto pA = &pAc[ofs];
 				const auto pB = &pBc[ofs];
 				const auto cnt = r.cnt();
 				for (range_t i = 0; i < cnt; ++i) {
 					//if (pA[i] == pB[i]) ret++;
-					ret += size_t(pA[i] == pB[i]);
+					ret += numel_cnt_t(pA[i] == pB[i]);
 				}
 				return static_cast<real_t>(ret);
-			}, _vec_sum<false, real_t>, A.size());
+			}, _vec_sum<false, real_t>, conform_sign(A.size()));
 
-			return static_cast<size_t>(ret);
+			return static_cast<numel_cnt_t>(ret);
 		}
 
 		//////////////////////////////////////////////////////////////////////////
@@ -1507,7 +1507,7 @@ namespace math {
 			NNTL_ASSERT(gate.size_no_bias() == gcompl.size_no_bias() && !gate.empty() && !gcompl.empty());
 			get_self()._ievOneCompl_st(gate.data(), gcompl.data(), pER ? *pER : elms_range(gate, tag_noBias()));
 		}
-		template<typename T>
+		/*template<typename T>
 		static void _ievOneCompl_st(const T*const _pG, T*const _pGc, const elms_range& er)noexcept {
 			NNTL_ASSERT(_pG && _pGc);
 			typedef real_t_limits<T>::similar_FWI_t similar_FWI_t;
@@ -1527,7 +1527,25 @@ namespace math {
 				NNTL_ASSERT(gc == _one || gc == _zero);
 				*pGc++ = gc;
 			}
+		}*/
+		//fuck it
+		template<typename T>
+		static void _ievOneCompl_st(const T* pG, T* pGc, const elms_range& er)noexcept {
+			NNTL_ASSERT(pG && pGc);
+
+			pG += er.elmBegin;
+			pGc += er.elmBegin;
+			const auto pGE = pG + er.totalElements();
+
+			while (pG != pGE) {
+				const auto g = *pG++;
+				NNTL_ASSERT(g == T(1) || g == T(0));
+				const auto gc = T(1) - g;
+				NNTL_ASSERT(gc == T(1) || gc == T(0));
+				*pGc++ = gc;
+			}
 		}
+
 		void evOneCompl_mt(const realmtx_t& gate, realmtx_t& gcompl)noexcept {
 			NNTL_ASSERT(gate.size_no_bias() == gcompl.size_no_bias() && !gate.empty() && !gcompl.empty());
 			m_threads.run([pG = gate.data(), pGc = gcompl.data(), this](const par_range_t& r) {
@@ -3239,7 +3257,7 @@ namespace math {
 		// functions, one for f(x) and the other for dF/dX. However, possible performance penalty should be considered
 		// -- well, it's a bit slower than Indian-style copy&pasted code...
 		/* see test_perf_decisions for better solution. will update code later...
-		template<size_t MtThreshold, typename FunctorT>
+		template<numel_cnt_t MtThreshold, typename FunctorT>
 		void act_asymm(realmtx_t& srcdest) noexcept {
 			if (srcdest.numel_no_bias() < MtThreshold) {
 				get_self().act_asymm_st<FunctorT>(srcdest);
@@ -3267,7 +3285,7 @@ namespace math {
 			}
 		}
 		//////////////////////////////////////////////////////////////////////////
-		template<size_t MtThreshold, typename FunctorT>
+		template<numel_cnt_t MtThreshold, typename FunctorT>
 		void dact_asymm(realmtx_t& f_df) noexcept {
 			if (f_df.numel() < MtThreshold) {
 				get_self().dact_asymm_st<FunctorT>(f_df);

@@ -87,7 +87,7 @@ namespace nntl {
 	public:
 		//have to forward declarations (probably a MSVC bug)
 		typedef typename _base_class_t::real_t real_t;
-		typedef typename _base_class_t::numel_cnt_t numel_cnt_t;
+		//typedef typename _base_class_t::numel_cnt_t numel_cnt_t;
 		typedef typename _base_class_t::realmtx_t realmtx_t;
 		typedef typename _base_class_t::realmtxdef_t realmtxdef_t;
 		typedef typename _base_class_t::ErrorCode ErrorCode;

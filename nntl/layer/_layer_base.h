@@ -475,7 +475,9 @@ namespace nntl {
 			: _base_class_t(pCustomName)
 			, m_layerIdx(0), m_neurons_cnt(_neurons_cnt), m_incoming_neurons_cnt(0), m_bActivationsValid(false)
 			, m_bLayerIsLinear(false)
-		{};
+		{
+			NNTL_ASSERT(m_neurons_cnt >= 0);
+		};
 	
 	public:
 		//////////////////////////////////////////////////////////////////////////
@@ -505,13 +507,13 @@ namespace nntl {
 			return m_layerIdx;
 		}
 		neurons_count_t get_neurons_cnt() const noexcept { 
-			NNTL_ASSERT(m_neurons_cnt);
+			NNTL_ASSERT(m_neurons_cnt > 0);
 			return m_neurons_cnt;
 		}
 		//for layers that need to calculate their neurons count in run-time (layer_pack_horizontal)
 		void _set_neurons_cnt(const neurons_count_t nc)noexcept {
-			NNTL_ASSERT(nc);
-			NNTL_ASSERT(!m_neurons_cnt || !"m_neurons_cnt has already been set!");//shouldn't be set multiple times
+			NNTL_ASSERT(nc > 0);
+			NNTL_ASSERT(m_neurons_cnt==0 || !"m_neurons_cnt has already been set!");//shouldn't be set multiple times
 			m_neurons_cnt = nc;
 		}
 

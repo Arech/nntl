@@ -34,6 +34,8 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <type_traits>
 #include <algorithm>
 
+#include "common.h"
+
 #include "errors.h"
 #include "_nnet_errs.h"
 #include "utils.h"
@@ -136,7 +138,7 @@ namespace nntl {
 		//#todo get rid of pTestEvalRes
 		//returns test loss
 		template<bool bPrioritizeThreads = true, typename Observer>
-		const real_t _report_training_fragment(const size_t& epoch, const real_t& trainLoss, const train_data_t& td,
+		const real_t _report_training_fragment(const numel_cnt_t epoch, const real_t trainLoss, const train_data_t& td,
 			const ::std::chrono::nanoseconds& tElapsed, Observer& obs, const bool& bTrainSetWasInspected = false,
 			nnet_eval_results<real_t>*const pTestEvalRes=nullptr) noexcept
 		{
@@ -360,7 +362,7 @@ namespace nntl {
 			const bool bMiniBatch = opts.batchSize() > 0 && opts.batchSize() < samplesCount;
 			const bool bSaveNNEvalResults = opts.evalNNFinalPerf();
 
-			const size_t maxEpoch = opts.maxEpoch();
+			const numel_cnt_t maxEpoch = opts.maxEpoch();
 			const auto lastEpoch = maxEpoch - 1;
 			const vec_len_t batchSize = bMiniBatch ? opts.batchSize() : samplesCount;
 			const vec_len_t numBatches = samplesCount / batchSize;
@@ -436,7 +438,7 @@ namespace nntl {
 				//threads::prioritize_workers<threads::PriorityClass::Working, iThreads_t> pw(get_iMath().ithreads());
 				PW_t pw(get_iMath().ithreads());
 
-				for (size_t epochIdx = 0; epochIdx < maxEpoch; ++epochIdx) {
+				for (numel_cnt_t epochIdx = 0; epochIdx < maxEpoch; ++epochIdx) {
 					iI.train_epochBegin(epochIdx);
 
 					real_t trainLoss = ::std::numeric_limits<real_t>::max();

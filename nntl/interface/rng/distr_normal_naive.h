@@ -47,6 +47,7 @@ namespace rng {
 		typedef iRng iRng_t;
 		typedef typename iRng_t::real_t real_t;
 		typedef typename iRng_t::realmtx_t realmtx_t;
+		//typedef typename realmtx_t::numel_cnt_t numel_cnt_t;
 
 	protected:
 		iRng_t& m_iR;
@@ -57,7 +58,7 @@ namespace rng {
 		distr_normal_naive(iRng_t& iR, real_t mn = real_t(0.0), real_t stdev = real_t(1.0))noexcept
 			: m_iR(iR), m_distr(mn, stdev) {}
 
-		void gen_vector(real_t* ptr, const size_t n)noexcept {
+		void gen_vector(real_t* ptr, const numel_cnt_t n)noexcept {
 			const auto pE = ptr + n;
 			while (ptr != pE) *ptr++ = m_distr(m_iR);
 		}

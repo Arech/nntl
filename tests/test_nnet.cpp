@@ -51,6 +51,10 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 using namespace nntl;
 typedef nntl_supp::binfile reader_t;
 
+typedef d_interfaces::real_t real_t;
+typedef math::smatrix<real_t> realmtx_t;
+typedef math::smatrix_deform<real_t> realmtxdef_t;
+
 //////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////
 
@@ -322,7 +326,7 @@ TEST(TestNnet, GradCheck_dropout) {
 	readTd(td);
 
 	ArchPrms_t Prms(td);
-	Prms.specialDropoutAlivePerc = real_t(.75);
+	Prms.specialDropoutAlivePerc = real_t(.8);
 	
 	nntl_tests::NN_arch<GC_DROPOUT<ArchPrms_t>> nnArch(Prms);
 

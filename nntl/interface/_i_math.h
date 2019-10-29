@@ -57,8 +57,8 @@ namespace math {
 		typedef RealT real_t;
 		typedef smatrix<real_t> realmtx_t;
 		typedef smatrix_deform<real_t> realmtxdef_t;
-		typedef typename realmtx_t::vec_len_t vec_len_t;
-		typedef typename realmtx_t::numel_cnt_t numel_cnt_t;
+		//typedef typename realmtx_t::vec_len_t vec_len_t;
+		//typedef typename realmtx_t::numel_cnt_t numel_cnt_t;
 
 		//last operation succeded
 		//nntl_interface bool succeded()const noexcept;

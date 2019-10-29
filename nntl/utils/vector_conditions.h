@@ -32,12 +32,14 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #pragma once
 
 #include <vector>
+#include "../interface/math/smatrix.h"
 
 namespace nntl {
 
 	//this is to define some flags for each epoch (currently it is whether to launch nn evaluation after an epoch or not)
 	class vector_conditions {
 	public:
+		//using numel_cnt_t = math::smatrix_td::numel_cnt_t;
 		typedef vector_conditions self_t;
 
 		//////////////////////////////////////////////////////////////////////////
@@ -49,16 +51,16 @@ namespace nntl {
 	public:
 		~vector_conditions()noexcept {}
 		vector_conditions()noexcept {}
-		vector_conditions(size_t maxEpoch, const bool& defVal=true)noexcept:m_flgEvalPerf(maxEpoch, defVal) {
+		vector_conditions(numel_cnt_t maxEpoch, const bool& defVal=true)noexcept:m_flgEvalPerf(maxEpoch, defVal) {
 			NNTL_ASSERT(maxEpoch > 0);
 			verbose(maxEpoch - 1);
 		}
-		vector_conditions(size_t maxEpoch,size_t stride)noexcept : m_flgEvalPerf(maxEpoch, false) {
+		vector_conditions(numel_cnt_t maxEpoch,numel_cnt_t stride)noexcept : m_flgEvalPerf(maxEpoch, false) {
 			NNTL_ASSERT(maxEpoch > 0 && stride>0);
 			verbose(stride, maxEpoch, stride);
 			verbose(maxEpoch - 1);
 		}
-		vector_conditions(size_t maxEpoch, size_t startsAt, size_t stride)noexcept : m_flgEvalPerf(maxEpoch, false) {
+		vector_conditions(numel_cnt_t maxEpoch, numel_cnt_t startsAt, numel_cnt_t stride)noexcept : m_flgEvalPerf(maxEpoch, false) {
 			NNTL_ASSERT(maxEpoch > 0 && startsAt <= maxEpoch && stride > 0);
 			verbose(startsAt, maxEpoch, stride);
 			verbose(maxEpoch - 1);
@@ -70,7 +72,7 @@ namespace nntl {
 		//!!assignment is not needed
 		vector_conditions& operator=(const vector_conditions& rhs) noexcept = delete;
 
-		self_t& resize(size_t maxEpoch, const bool& defVal = false)noexcept {
+		self_t& resize(numel_cnt_t maxEpoch, const bool& defVal = false)noexcept {
 			m_flgEvalPerf.resize(maxEpoch, defVal);
 			return *this;
 		}
@@ -79,24 +81,24 @@ namespace nntl {
 			return *this;
 		}
 
-		size_t size()const noexcept { return m_flgEvalPerf.size(); }
-		size_t maxEpoch()const noexcept { return size(); }
+		numel_cnt_t size()const noexcept { return conform_sign(m_flgEvalPerf.size()); }
+		numel_cnt_t maxEpoch()const noexcept { return size(); }
 
 		//using () instead of [] because can't (and don't need to) return reference
-		const bool operator()(size_t e)const noexcept { return m_flgEvalPerf[e]; }
+		const bool operator()(numel_cnt_t e)const noexcept { return m_flgEvalPerf[e]; }
 
-		self_t& set(size_t i, const bool v)noexcept { m_flgEvalPerf[i] = v; return *this; }
-		self_t& set(const size_t _beg, const size_t _end, const size_t stride, const bool v)noexcept {
+		self_t& set(numel_cnt_t i, const bool v)noexcept { m_flgEvalPerf[i] = v; return *this; }
+		self_t& set(const numel_cnt_t _beg, const numel_cnt_t _end, const numel_cnt_t stride, const bool v)noexcept {
 			NNTL_ASSERT(stride > 0 && _beg > 0 && _end >= _beg);
-			for (size_t i = _beg - 1; i < _end; i += stride) m_flgEvalPerf[i] = v;
+			for (numel_cnt_t i = _beg - 1; i < _end; i += stride) m_flgEvalPerf[i] = v;
 			return *this;
 		}
 
-		self_t& verbose(size_t i)noexcept { return set(i, true); }
-		self_t& verbose(size_t _beg, size_t _end, size_t stride = 1)noexcept { return set(_beg, _end, stride, true); }
+		self_t& verbose(numel_cnt_t i)noexcept { return set(i, true); }
+		self_t& verbose(numel_cnt_t _beg, numel_cnt_t _end, numel_cnt_t stride = 1)noexcept { return set(_beg, _end, stride, true); }
 
-		self_t& silence(size_t i)noexcept { return set(i, false); }
-		self_t& silence(size_t _beg, size_t _end, size_t stride = 1)noexcept { return set(_beg, _end, stride, false); }
+		self_t& silence(numel_cnt_t i)noexcept { return set(i, false); }
+		self_t& silence(numel_cnt_t _beg, numel_cnt_t _end, numel_cnt_t stride = 1)noexcept { return set(_beg, _end, stride, false); }
 	};
 
 }

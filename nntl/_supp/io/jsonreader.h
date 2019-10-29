@@ -214,7 +214,9 @@ namespace nntl_supp {
 
 		template <typename MembersEnumId, typename T_>
 		const ErrorCode _parse_as_mtx(const rapidjson::Document::ValueType& vec, const MembersEnumId memberId, smatrix<T_>& dest)noexcept {
-			if (vec.Begin()->Size() > ::std::numeric_limits<vec_len_t>::max()) { return _members2ErrorCode(ErrorCode::InvalidTrainX, memberId); }
+			if (vec.Begin()->Size() > static_cast<decltype(vec.Begin()->Size())>(::std::numeric_limits<vec_len_t>::max())) {
+				return _members2ErrorCode(ErrorCode::InvalidTrainX, memberId);
+			}
 			
 			const vec_len_t inrd = static_cast<vec_len_t>(vec.Begin()->Size());
 			if (0 == inrd) { return _members2ErrorCode(ErrorCode::InvalidTrainX, memberId); }
@@ -224,7 +226,7 @@ namespace nntl_supp {
 			vec_len_t i = 0;
 			rapidjson::Document::ValueType::ConstValueIterator itrend = vec.End();
 			for (rapidjson::Document::ValueType::ConstValueIterator itr = vec.Begin(); itr != itrend; ++itr, ++i) {
-				if (!itr->IsArray() || inrd != itr->Size()) {
+				if (!itr->IsArray() || inrd != conform_sign(itr->Size())) {
 					dest.clear();
 					return _members2ErrorCode(ErrorCode::InvalidTrainX, memberId);
 				}
@@ -246,7 +248,9 @@ namespace nntl_supp {
 
 		template <typename MembersEnumId, typename T_>
 		const ErrorCode _parse_as_vector(const rapidjson::Document::ValueType& vec, const MembersEnumId memberId, smatrix<T_>& dest)noexcept {
-			if (vec.Size() > ::std::numeric_limits<vec_len_t>::max()) { return _members2ErrorCode(ErrorCode::InvalidTrainX, memberId); }
+			if (vec.Size() > static_cast<decltype(vec.Size())>(::std::numeric_limits<vec_len_t>::max())) {
+				return _members2ErrorCode(ErrorCode::InvalidTrainX, memberId);
+			}
 
 			if (!dest.resize(vec.Size(), 1)) { return _set_last_error(ErrorCode::MemoryAllocationFailed); }
 

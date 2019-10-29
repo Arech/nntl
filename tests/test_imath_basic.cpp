@@ -59,6 +59,11 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 using namespace nntl;
 using namespace nntl::utils;
+using namespace nntl::math_etalons;
+
+typedef d_interfaces::real_t real_t;
+typedef math::smatrix<real_t> realmtx_t;
+typedef math::smatrix_deform<real_t> realmtxdef_t;
 
 typedef d_interfaces::iThreads_t iThreads_t;
 typedef math::MathN<real_t, iThreads_t> imath_basic_t;
@@ -70,13 +75,13 @@ const vec_len_t g_MinDataSizeDelta = 2 * iM.ithreads().workers_count() + 2;
 using namespace ::std::chrono;
 
 #ifdef TESTS_SKIP_LONGRUNNING
-constexpr unsigned TEST_PERF_REPEATS_COUNT = 10;
-//constexpr unsigned TEST_CORRECTN_REPEATS_COUNT = 100;
-constexpr unsigned TEST_CORRECTN_REPEATS_COUNT = 5, _baseRowsCnt = 20;
+constexpr vec_len_t TEST_PERF_REPEATS_COUNT = 10;
+//constexpr vec_len_t TEST_CORRECTN_REPEATS_COUNT = 100;
+constexpr vec_len_t TEST_CORRECTN_REPEATS_COUNT = 5, _baseRowsCnt = 20;
 #else
-constexpr unsigned TEST_PERF_REPEATS_COUNT = 500;
-//constexpr unsigned TEST_CORRECTN_REPEATS_COUNT = 50;
-constexpr unsigned TEST_CORRECTN_REPEATS_COUNT = 10, _baseRowsCnt = 200;
+constexpr vec_len_t TEST_PERF_REPEATS_COUNT = 500;
+//constexpr vec_len_t TEST_CORRECTN_REPEATS_COUNT = 50;
+constexpr vec_len_t TEST_CORRECTN_REPEATS_COUNT = 10, _baseRowsCnt = 200;
 #endif // NNTL_DEBUG
 
 //////////////////////////////////////////////////////////////////////////
@@ -146,7 +151,7 @@ void test_dLoss_deCov(vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 
 
 	MTXSIZE_SCOPED_TRACE(rowsCnt, colsCnt, "dLoss_deCov");
-	constexpr unsigned testCorrRepCnt = TEST_CORRECTN_REPEATS_COUNT;
+	constexpr vec_len_t testCorrRepCnt = TEST_CORRECTN_REPEATS_COUNT;
 
 	realmtx_t A(rowsCnt, colsCnt, true), A2(rowsCnt, colsCnt, true), tDM(rowsCnt, colsCnt), tCov(colsCnt, colsCnt);
 	ASSERT_TRUE(!A.isAllocationFailed() && !A2.isAllocationFailed() && !tDM.isAllocationFailed() && !tCov.isAllocationFailed());
@@ -159,7 +164,7 @@ void test_dLoss_deCov(vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 	d_int_nI<real_t>::iRng_t rg;
 	rg.init_ithreads(iM.ithreads());
 
-	for (unsigned r = 0; r < testCorrRepCnt; ++r) {
+	for (vec_len_t r = 0; r < testCorrRepCnt; ++r) {
 		rg.gen_matrix_no_bias(A, real_t(5));
 		A.copy_data_skip_bias(A2);
 
@@ -190,7 +195,7 @@ TEST(TestMathN, dLoss_deCov) {
 		}
 	}
 
-	constexpr unsigned rowsCnt = _baseRowsCnt;
+	constexpr vec_len_t rowsCnt = _baseRowsCnt;
 	const vec_len_t maxCols = g_MinDataSizeDelta, maxRows = rowsCnt + g_MinDataSizeDelta;
 	for (vec_len_t r = rowsCnt; r < maxRows; ++r) {
 		for (vec_len_t c = 2; c < maxCols; ++c) {
@@ -221,7 +226,7 @@ void test_loss_deCov(vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 
 
 	MTXSIZE_SCOPED_TRACE(rowsCnt, colsCnt, "loss_deCov");
-	constexpr unsigned testCorrRepCnt = TEST_CORRECTN_REPEATS_COUNT;
+	constexpr vec_len_t testCorrRepCnt = TEST_CORRECTN_REPEATS_COUNT;
 
 	realmtx_t A(rowsCnt, colsCnt, true), A2(rowsCnt, colsCnt, true), tDM(rowsCnt, colsCnt), tCov(colsCnt, colsCnt);
 	ASSERT_TRUE(!A.isAllocationFailed() && !A2.isAllocationFailed() && !tDM.isAllocationFailed() && !tCov.isAllocationFailed());
@@ -232,7 +237,7 @@ void test_loss_deCov(vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 	d_int_nI<real_t>::iRng_t rg;
 	rg.init_ithreads(iM.ithreads());
 
-	for (unsigned r = 0; r < testCorrRepCnt; ++r) {
+	for (vec_len_t r = 0; r < testCorrRepCnt; ++r) {
 		rg.gen_matrix_no_bias(A, real_t(5));
 		A.copy_data_skip_bias(A2);
 
@@ -263,7 +268,7 @@ TEST(TestMathN, loss_deCov) {
 		}
 	}
 
-	constexpr unsigned rowsCnt = _baseRowsCnt;
+	constexpr vec_len_t rowsCnt = _baseRowsCnt;
 	const vec_len_t maxCols = g_MinDataSizeDelta, maxRows = rowsCnt + g_MinDataSizeDelta;
 	for (vec_len_t r = rowsCnt; r < maxRows; ++r) {
 		for (vec_len_t c = 2; c < maxCols; ++c) {
@@ -284,7 +289,7 @@ template<> struct loss_xentropy_EPS<double> { static constexpr double eps = 1e-1
 template<> struct loss_xentropy_EPS<float> { static constexpr float eps = 7e-5f; };
 void test_loss_xentropy(vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 	MTXSIZE_SCOPED_TRACE(rowsCnt, colsCnt, "loss_xentropy");
-	constexpr unsigned testCorrRepCnt = TEST_CORRECTN_REPEATS_COUNT;
+	constexpr vec_len_t testCorrRepCnt = TEST_CORRECTN_REPEATS_COUNT;
 	const real_t frac = .5;
 	realmtx_t A(rowsCnt, colsCnt), Y(rowsCnt, colsCnt);
 	ASSERT_TRUE(!A.isAllocationFailed() && !Y.isAllocationFailed());
@@ -297,7 +302,7 @@ void test_loss_xentropy(vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 	auto pA = A.data();
 	auto pY = Y.data();
 	const auto anum = A.numel();
-	for (unsigned r = 0; r < testCorrRepCnt; ++r) {
+	for (vec_len_t r = 0; r < testCorrRepCnt; ++r) {
 		rg.gen_matrix_norm(A);
 		rg.gen_matrix_norm(Y);
 		iM.ewBinarize_ip(Y, frac);
@@ -335,7 +340,7 @@ TEST(TestMathN, lossXentropy) {
 	for (numel_cnt_t e = 1; e < elmsMax; ++e) {
 		ASSERT_NO_FATAL_FAILURE(test_loss_xentropy(static_cast<vec_len_t>(e), 1));
 	}
-	constexpr unsigned rowsCnt = _baseRowsCnt;
+	constexpr vec_len_t rowsCnt = _baseRowsCnt;
 	const vec_len_t maxCols = g_MinDataSizeDelta, maxRows = rowsCnt + g_MinDataSizeDelta;
 	for (vec_len_t r = rowsCnt; r < maxRows; ++r) {
 		for (vec_len_t c = 1; c < maxCols; ++c) ASSERT_NO_FATAL_FAILURE(test_loss_xentropy(r, c));
@@ -347,14 +352,14 @@ TEST(TestMathN, lossXentropy) {
 
 void test_ewBinarize_ip_corr(vec_len_t rowsCnt, vec_len_t colsCnt = 10, const real_t frac = .5) {
 	MTXSIZE_SCOPED_TRACE1(rowsCnt, colsCnt, "ewBinarize_ip, frac=", frac);
-	constexpr unsigned testCorrRepCnt = TEST_CORRECTN_REPEATS_COUNT;
+	constexpr vec_len_t testCorrRepCnt = TEST_CORRECTN_REPEATS_COUNT;
 
 	realmtx_t A(rowsCnt, colsCnt), A_orig(rowsCnt, colsCnt), A_ET(rowsCnt, colsCnt);
 	ASSERT_TRUE(!A_orig.isAllocationFailed() && !A.isAllocationFailed() && !A_ET.isAllocationFailed());
 	d_interfaces::iRng_t rg;
 	rg.init_ithreads(iM.ithreads());
 
-	for (unsigned r = 0; r < testCorrRepCnt; ++r) {
+	for (vec_len_t r = 0; r < testCorrRepCnt; ++r) {
 		rg.gen_matrix_norm(A_orig);
 
 		A_orig.clone_to(A_ET);
@@ -390,7 +395,7 @@ TEST(TestMathN, ewBinarizeIp) {
 		ASSERT_NO_FATAL_FAILURE(test_ewBinarize_ip_corr(static_cast<vec_len_t>(e), 1, real_t(.9)));
 	}
 
-	constexpr unsigned rowsCnt = _baseRowsCnt;
+	constexpr vec_len_t rowsCnt = _baseRowsCnt;
 	const vec_len_t maxCols = g_MinDataSizeDelta, maxRows = rowsCnt + g_MinDataSizeDelta;
 	for (vec_len_t r = rowsCnt; r < maxRows; ++r) {
 		for (vec_len_t c = 1; c < maxCols; ++c) ASSERT_NO_FATAL_FAILURE(test_ewBinarize_ip_corr(r, c, real_t(.5)));
@@ -399,7 +404,7 @@ TEST(TestMathN, ewBinarizeIp) {
 
 void test_ewBinarize_corr(vec_len_t rowsCnt, vec_len_t colsCnt = 10, const real_t frac = real_t(.5)) {
 	MTXSIZE_SCOPED_TRACE1(rowsCnt, colsCnt, "ewBinarize, frac=", frac);
-	constexpr unsigned testCorrRepCnt = TEST_CORRECTN_REPEATS_COUNT;
+	constexpr vec_len_t testCorrRepCnt = TEST_CORRECTN_REPEATS_COUNT;
 
 	typedef math::smatrix<char> binmtx_t;
 
@@ -410,7 +415,7 @@ void test_ewBinarize_corr(vec_len_t rowsCnt, vec_len_t colsCnt = 10, const real_
 	d_interfaces::iRng_t rg;
 	rg.init_ithreads(iM.ithreads());
 
-	for (unsigned r = 0; r < testCorrRepCnt; ++r) {
+	for (vec_len_t r = 0; r < testCorrRepCnt; ++r) {
 		rg.gen_matrix_norm(A);
 
 		ewBinarize_ET(DestET, A, frac);
@@ -437,7 +442,7 @@ TEST(TestMathN, ewBinarize) {
 		ASSERT_NO_FATAL_FAILURE(test_ewBinarize_corr(static_cast<vec_len_t>(e), 1, real_t(.9)));
 	}
 
-	constexpr unsigned rowsCnt = _baseRowsCnt;
+	constexpr vec_len_t rowsCnt = _baseRowsCnt;
 	const vec_len_t maxCols = g_MinDataSizeDelta, maxRows = rowsCnt + g_MinDataSizeDelta;
 	for (vec_len_t r = rowsCnt; r < maxRows; ++r) {
 		for (vec_len_t c = 1; c < maxCols; ++c) ASSERT_NO_FATAL_FAILURE(test_ewBinarize_corr(r, c, real_t(.5)));
@@ -456,7 +461,7 @@ void test_softmax_parts(vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 	MTXSIZE_SCOPED_TRACE(rowsCnt, colsCnt, "softmax_parts");
 	const auto dataSize = realmtx_t::sNumel(rowsCnt, colsCnt);
 
-	constexpr unsigned testCorrRepCnt = TEST_CORRECTN_REPEATS_COUNT;
+	constexpr vec_len_t testCorrRepCnt = TEST_CORRECTN_REPEATS_COUNT;
 
 	realmtx_t A(rowsCnt, colsCnt);
 	ASSERT_TRUE(!A.isAllocationFailed());
@@ -468,7 +473,7 @@ void test_softmax_parts(vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 	d_interfaces::iRng_t rg;
 	rg.init_ithreads(iM.ithreads());
 
-	for (unsigned rr = 0; rr < testCorrRepCnt; ++rr) {
+	for (vec_len_t rr = 0; rr < testCorrRepCnt; ++rr) {
 		rg.gen_matrix(A, 2);
 		mrwMax_ET(A, &vec_max[0]);
 
@@ -478,21 +483,21 @@ void test_softmax_parts(vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 		::std::fill(vec_num2.begin(), vec_num2.end(), real_t(-1));
 		iM.softmax_parts_st_rw(A, &vec_max[0], &vec_den2[0], &vec_num2[0]);
 		//real denominator takes only a first row of vec_den
-		for (unsigned i = 0; i < rowsCnt; ++i) ASSERT_NEAR(vec_den[i], vec_den2[i], softmax_parts_EPS<real_t>::eps) << "st_rw() failed denominator vector comparision @ " << i;
+		for (vec_len_t i = 0; i < rowsCnt; ++i) ASSERT_NEAR(vec_den[i], vec_den2[i], softmax_parts_EPS<real_t>::eps) << "st_rw() failed denominator vector comparision @ " << i;
 		ASSERT_VECTOR_NEAR(vec_num, vec_num2, "st_rw() failed numerator matrix comparision", softmax_parts_EPS<real_t>::eps);
 
 		::std::fill(vec_den2.begin(), vec_den2.end(), real_t(-1));
 		::std::fill(vec_num2.begin(), vec_num2.end(), real_t(-1));
 		iM.softmax_parts_st_cw(A, &vec_max[0], &vec_den2[0], &vec_num2[0]);
 		//real denominator takes only a first row of vec_den
-		for (unsigned i = 0; i < rowsCnt; ++i) ASSERT_NEAR(vec_den[i], vec_den2[i], softmax_parts_EPS<real_t>::eps) << "st_cw() failed denominator vector comparision @ " << i;
+		for (vec_len_t i = 0; i < rowsCnt; ++i) ASSERT_NEAR(vec_den[i], vec_den2[i], softmax_parts_EPS<real_t>::eps) << "st_cw() failed denominator vector comparision @ " << i;
 		ASSERT_VECTOR_NEAR(vec_num, vec_num2, "st_cw() failed numerator matrix comparision", softmax_parts_EPS<real_t>::eps);
 
 		::std::fill(vec_den2.begin(), vec_den2.end(), real_t(-1));
 		::std::fill(vec_num2.begin(), vec_num2.end(), real_t(-1));
 		iM.softmax_parts_st(A, &vec_max[0], &vec_den2[0], &vec_num2[0]);
 		//real denominator takes only a first row of vec_den
-		for (unsigned i = 0; i < rowsCnt; ++i) ASSERT_NEAR(vec_den[i], vec_den2[i], softmax_parts_EPS<real_t>::eps) << "st() failed denominator vector comparision @ " << i;
+		for (vec_len_t i = 0; i < rowsCnt; ++i) ASSERT_NEAR(vec_den[i], vec_den2[i], softmax_parts_EPS<real_t>::eps) << "st() failed denominator vector comparision @ " << i;
 		ASSERT_VECTOR_NEAR(vec_num, vec_num2, "st() failed numerator matrix comparision", softmax_parts_EPS<real_t>::eps);
 
 		if (colsCnt > imath_basic_t::Thresholds_t::softmax_parts_mt_cw_ColsPerThread) {
@@ -500,7 +505,7 @@ void test_softmax_parts(vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 			::std::fill(vec_num2.begin(), vec_num2.end(), real_t(-1));
 			iM.softmax_parts_mt_cw(A, &vec_max[0], &vec_den2[0], &vec_num2[0]);
 			//real denominator takes only a first row of vec_den
-			for (unsigned i = 0; i < rowsCnt; ++i) ASSERT_NEAR(vec_den[i], vec_den2[i], softmax_parts_EPS<real_t>::eps) << "mt_cw() failed denominator vector comparision @ " << i;
+			for (vec_len_t i = 0; i < rowsCnt; ++i) ASSERT_NEAR(vec_den[i], vec_den2[i], softmax_parts_EPS<real_t>::eps) << "mt_cw() failed denominator vector comparision @ " << i;
 			ASSERT_VECTOR_NEAR(vec_num, vec_num2, "mt_cw() failed numerator matrix comparision", softmax_parts_EPS<real_t>::eps);
 		}
 		
@@ -508,26 +513,26 @@ void test_softmax_parts(vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 		::std::fill(vec_num2.begin(), vec_num2.end(), real_t(-1));
 		iM.softmax_parts_mt_rw(A, &vec_max[0], &vec_den2[0], &vec_num2[0]);
 		//real denominator takes only a first row of vec_den
-		for (unsigned i = 0; i < rowsCnt; ++i) ASSERT_NEAR(vec_den[i], vec_den2[i], softmax_parts_EPS<real_t>::eps) << "mt_rw() failed denominator vector comparision @ " << i;
+		for (vec_len_t i = 0; i < rowsCnt; ++i) ASSERT_NEAR(vec_den[i], vec_den2[i], softmax_parts_EPS<real_t>::eps) << "mt_rw() failed denominator vector comparision @ " << i;
 		ASSERT_VECTOR_NEAR(vec_num, vec_num2, "mt_rw() failed numerator matrix comparision", softmax_parts_EPS<real_t>::eps);
 				
 		::std::fill(vec_den2.begin(), vec_den2.end(), real_t(-1));
 		::std::fill(vec_num2.begin(), vec_num2.end(), real_t(-1));
 		iM.softmax_parts_mt(A, &vec_max[0], &vec_den2[0], &vec_num2[0]);
 		//real denominator takes only a first row of vec_den
-		for (unsigned i = 0; i < rowsCnt; ++i) ASSERT_NEAR(vec_den[i], vec_den2[i], softmax_parts_EPS<real_t>::eps) << "mt() failed denominator vector comparision @ " << i;
+		for (vec_len_t i = 0; i < rowsCnt; ++i) ASSERT_NEAR(vec_den[i], vec_den2[i], softmax_parts_EPS<real_t>::eps) << "mt() failed denominator vector comparision @ " << i;
 		ASSERT_VECTOR_NEAR(vec_num, vec_num2, "mt() failed numerator matrix comparision", softmax_parts_EPS<real_t>::eps);
 
 		::std::fill(vec_den2.begin(), vec_den2.end(), real_t(-1));
 		::std::fill(vec_num2.begin(), vec_num2.end(), real_t(-1));
 		iM.softmax_parts(A, &vec_max[0], &vec_den2[0], &vec_num2[0]);
 		//real denominator takes only a first row of vec_den
-		for (unsigned i = 0; i < rowsCnt; ++i) ASSERT_NEAR(vec_den[i], vec_den2[i], softmax_parts_EPS<real_t>::eps) << "() failed denominator vector comparision @ " << i;
+		for (vec_len_t i = 0; i < rowsCnt; ++i) ASSERT_NEAR(vec_den[i], vec_den2[i], softmax_parts_EPS<real_t>::eps) << "() failed denominator vector comparision @ " << i;
 		ASSERT_VECTOR_NEAR(vec_num, vec_num2, "() failed numerator matrix comparision", softmax_parts_EPS<real_t>::eps);
 	}
 }
 TEST(TestMathN, SoftmaxParts) {
-	constexpr unsigned rowsCnt = _baseRowsCnt;
+	constexpr vec_len_t rowsCnt = _baseRowsCnt;
 	const vec_len_t maxCols = g_MinDataSizeDelta, maxRows = rowsCnt + g_MinDataSizeDelta;
 	for (vec_len_t r = rowsCnt; r < maxRows; ++r) {
 		for (vec_len_t c = 1; c < maxCols; ++c) ASSERT_NO_FATAL_FAILURE(test_softmax_parts(r, c));
@@ -544,7 +549,7 @@ template<> struct softmax_EPS<float> { static constexpr double eps = 1e-5; };
 template<bool bHasBiases>
 void test_softmax(vec_len_t rowsCnt, vec_len_t colsCnt) {
 	MTXSIZE_SCOPED_TRACE(rowsCnt, colsCnt, bHasBiases ? "softmax with biases" : "softmax");
-	constexpr unsigned testCorrRepCnt = TEST_CORRECTN_REPEATS_COUNT;
+	constexpr vec_len_t testCorrRepCnt = TEST_CORRECTN_REPEATS_COUNT;
 
 	realmtxdef_t A(rowsCnt, colsCnt, bHasBiases), A_ET(rowsCnt, colsCnt, bHasBiases), A_orig(rowsCnt, colsCnt, bHasBiases);
 	ASSERT_TRUE(!A.isAllocationFailed() && !A_ET.isAllocationFailed() && !A_orig.isAllocationFailed());
@@ -555,7 +560,7 @@ void test_softmax(vec_len_t rowsCnt, vec_len_t colsCnt) {
 	d_interfaces::iRng_t rg;
 	rg.init_ithreads(iM.ithreads());
 
-	for (unsigned rr = 0; rr < testCorrRepCnt; ++rr) {
+	for (vec_len_t rr = 0; rr < testCorrRepCnt; ++rr) {
 		if (bHasBiases) rg.gen_matrix_no_bias(A_orig, 5);
 		else rg.gen_matrix(A_orig, 5);
 
@@ -578,7 +583,7 @@ void test_softmax(vec_len_t rowsCnt, vec_len_t colsCnt) {
 	}
 }
 TEST(TestMathN, Softmax) {
-	constexpr unsigned rowsCnt = _baseRowsCnt;
+	constexpr vec_len_t rowsCnt = _baseRowsCnt;
 	const vec_len_t maxCols = g_MinDataSizeDelta, maxRows = rowsCnt + g_MinDataSizeDelta;
 	for (vec_len_t r = rowsCnt; r < maxRows; ++r) {
 		for (vec_len_t c = 1; c < maxCols; ++c) {
@@ -596,13 +601,13 @@ template<> struct loss_softmax_xentropy_EPS<double> { static constexpr double ep
 template<> struct loss_softmax_xentropy_EPS<float> { static constexpr float eps = 4e-5f; };
 void test_loss_softmax_xentropy(vec_len_t rowsCnt, vec_len_t colsCnt) {
 	MTXSIZE_SCOPED_TRACE(rowsCnt, colsCnt, "loss_softmax_xentropy");
-	constexpr unsigned testCorrRepCnt = TEST_CORRECTN_REPEATS_COUNT;
+	constexpr vec_len_t testCorrRepCnt = TEST_CORRECTN_REPEATS_COUNT;
 	realmtx_t A(rowsCnt, colsCnt), Y(rowsCnt, colsCnt);
 	ASSERT_TRUE(!A.isAllocationFailed() && !Y.isAllocationFailed());
 	d_interfaces::iRng_t rg;
 	rg.init_ithreads(iM.ithreads());
 	real_t et, l;
-	for (unsigned rr = 0; rr < testCorrRepCnt; ++rr) {
+	for (vec_len_t rr = 0; rr < testCorrRepCnt; ++rr) {
 		rg.gen_matrix_norm(A);
 		rg.gen_matrix_norm(Y);
 
@@ -619,7 +624,7 @@ void test_loss_softmax_xentropy(vec_len_t rowsCnt, vec_len_t colsCnt) {
 	}
 }
 TEST(TestMathN, LossSoftmaxXentropy) {
-	constexpr unsigned rowsCnt = _baseRowsCnt;
+	constexpr vec_len_t rowsCnt = _baseRowsCnt;
 	const vec_len_t maxCols = g_MinDataSizeDelta, maxRows = rowsCnt + g_MinDataSizeDelta;
 	for (vec_len_t r = rowsCnt; r < maxRows; ++r) {
 		for (vec_len_t c = 1; c < maxCols; ++c) ASSERT_NO_FATAL_FAILURE(test_loss_softmax_xentropy(r, c));
@@ -638,14 +643,14 @@ void test_vSumAbs(iMath& iM, vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 	const auto dataSize = realmtx_t::sNumel(rowsCnt, colsCnt);
 	STDCOUTL("******* testing vSumAbs() over " << rowsCnt << "x" << colsCnt << " matrix (" << dataSize << " elements) **************");
 
-	constexpr unsigned maxReps = TEST_PERF_REPEATS_COUNT, testCorrRepCnt = TEST_CORRECTN_REPEATS_COUNT;
+	constexpr vec_len_t maxReps = TEST_PERF_REPEATS_COUNT, testCorrRepCnt = TEST_CORRECTN_REPEATS_COUNT;
 
 	realmtx_t A(rowsCnt, colsCnt);
 	ASSERT_TRUE(!A.isAllocationFailed());
 
 	d_interfaces::iRng_t rg;
 	rg.init_ithreads(iM.ithreads());
-	for (unsigned r = 0; r < testCorrRepCnt; ++r) {
+	for (vec_len_t r = 0; r < testCorrRepCnt; ++r) {
 		rg.gen_matrix(A, 1);
 
 		const auto vss = vSumAbs_ET(A);
@@ -667,7 +672,7 @@ void test_vSumAbs(iMath& iM, vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 
 	//FFFFfffffffff... don't ever think about removing rg. calls that randomizes data...
 	real_t vv = 0;
-	for (unsigned r = 0; r < maxReps; ++r) {
+	for (vec_len_t r = 0; r < maxReps; ++r) {
 		rg.gen_matrix(A, 2);
 		tst.tic();
 		vv += iM.vSumAbs_st(A);
@@ -705,7 +710,7 @@ void test_evAddScaledSign_ip(iMath& iM, vec_len_t rowsCnt, vec_len_t colsCnt = 1
 	const auto dataSize = realmtx_t::sNumel(rowsCnt, colsCnt);
 	STDCOUTL("******* testing evAddScaledSign_ip() over " << rowsCnt << "x" << colsCnt << " matrix (" << dataSize << " elements) **************");
 
-	constexpr unsigned maxReps = TEST_PERF_REPEATS_COUNT, testCorrRepCnt = TEST_CORRECTN_REPEATS_COUNT;
+	constexpr vec_len_t maxReps = TEST_PERF_REPEATS_COUNT, testCorrRepCnt = TEST_CORRECTN_REPEATS_COUNT;
 
 	realmtx_t B(rowsCnt, colsCnt), A(rowsCnt, colsCnt);
 	ASSERT_TRUE(!B.isAllocationFailed() && !A.isAllocationFailed());
@@ -720,7 +725,7 @@ void test_evAddScaledSign_ip(iMath& iM, vec_len_t rowsCnt, vec_len_t colsCnt = 1
 		realmtx_t A2(rowsCnt, colsCnt), A3(rowsCnt, colsCnt);
 		ASSERT_TRUE(!A2.isAllocationFailed() && !A3.isAllocationFailed());
 
-		for (unsigned r = 0; r < testCorrRepCnt; ++r) {
+		for (vec_len_t r = 0; r < testCorrRepCnt; ++r) {
 			rg.gen_matrix(A, 2);
 			A.clone_to(A2);
 			A.clone_to(A3);
@@ -746,7 +751,7 @@ void test_evAddScaledSign_ip(iMath& iM, vec_len_t rowsCnt, vec_len_t colsCnt = 1
 	threads::prioritize_workers<threads::PriorityClass::PerfTesting, iMath::iThreads_t> pw(iM.ithreads());
 
 	//FFFFfffffffff... don't ever think about removing rg. calls that randomizes data...
-	for (unsigned r = 0; r < maxReps; ++r) {
+	for (vec_len_t r = 0; r < maxReps; ++r) {
 		rg.gen_matrix(A, 2); rg.gen_matrix(B, 2);
 		tst.tic();
 		iM.evAddScaledSign_ip_st(A, scaleCoeff, B);
@@ -780,7 +785,7 @@ TEST(TestMathN, evAddScaledSign_ip) {
 void test_evAddScaled_ip_corr(vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 	const auto dataSize = realmtx_t::sNumel(rowsCnt, colsCnt);
 	MTXSIZE_SCOPED_TRACE(rowsCnt, colsCnt, "evAddScaled_ip");
-	constexpr unsigned testCorrRepCnt = TEST_CORRECTN_REPEATS_COUNT;
+	constexpr vec_len_t testCorrRepCnt = TEST_CORRECTN_REPEATS_COUNT;
 
 	realmtx_t B(rowsCnt, colsCnt), A(rowsCnt, colsCnt);
 	ASSERT_TRUE(!B.isAllocationFailed() && !A.isAllocationFailed());
@@ -794,7 +799,7 @@ void test_evAddScaled_ip_corr(vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 	realmtx_t A2(rowsCnt, colsCnt), A3(rowsCnt, colsCnt);
 	ASSERT_TRUE(!A2.isAllocationFailed() && !A3.isAllocationFailed());
 
-	for (unsigned r = 0; r < testCorrRepCnt; ++r) {
+	for (vec_len_t r = 0; r < testCorrRepCnt; ++r) {
 		rg.gen_matrix(A, 2);
 		A.clone_to(A2);
 		A.clone_to(A3);
@@ -829,7 +834,7 @@ void test_evAdd_ip(iMath& iM, vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 	const auto dataSize = realmtx_t::sNumel(rowsCnt, colsCnt);
 	STDCOUTL("******* testing evAdd_ip() over " << rowsCnt << "x" << colsCnt << " matrix (" << dataSize << " elements) **************");
 
-	constexpr unsigned maxReps = TEST_PERF_REPEATS_COUNT, testCorrRepCnt = TEST_CORRECTN_REPEATS_COUNT;
+	constexpr vec_len_t maxReps = TEST_PERF_REPEATS_COUNT, testCorrRepCnt = TEST_CORRECTN_REPEATS_COUNT;
 
 	realmtx_t B(rowsCnt, colsCnt), A(rowsCnt, colsCnt);
 	ASSERT_TRUE(!B.isAllocationFailed() && !A.isAllocationFailed());
@@ -842,7 +847,7 @@ void test_evAdd_ip(iMath& iM, vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 		realmtx_t A2(rowsCnt, colsCnt), A3(rowsCnt, colsCnt);
 		ASSERT_TRUE(!A2.isAllocationFailed() && !A3.isAllocationFailed());
 
-		for (unsigned r = 0; r < testCorrRepCnt; ++r) {
+		for (vec_len_t r = 0; r < testCorrRepCnt; ++r) {
 			rg.gen_matrix(A, 2);
 			A.clone_to(A2);
 			A.clone_to(A3);
@@ -868,7 +873,7 @@ void test_evAdd_ip(iMath& iM, vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 	threads::prioritize_workers<threads::PriorityClass::PerfTesting, iMath::iThreads_t> pw(iM.ithreads());
 
 	//FFFFfffffffff... don't ever think about removing rg. calls that randomizes data...
-	for (unsigned r = 0; r < maxReps; ++r) {
+	for (vec_len_t r = 0; r < maxReps; ++r) {
 		rg.gen_matrix(A, 2); rg.gen_matrix(B, 2);
 		tst.tic();
 		iM.evAdd_ip_st(A, B);
@@ -903,7 +908,7 @@ void test_evMulCipSubip(iMath& iM, vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 	const auto dataSize = realmtx_t::sNumel(rowsCnt, colsCnt);
 	STDCOUTL("********* testing evMulC_ip_Sub_ip() over " << rowsCnt << "x" << colsCnt << " matrix (" << dataSize << " elements) **************");
 
-	constexpr unsigned maxReps = TEST_PERF_REPEATS_COUNT, testCorrRepCnt = TEST_CORRECTN_REPEATS_COUNT;
+	constexpr vec_len_t maxReps = TEST_PERF_REPEATS_COUNT, testCorrRepCnt = TEST_CORRECTN_REPEATS_COUNT;
 
 	const real_t momentum(real_t(.9));
 	realmtx_t vW(rowsCnt, colsCnt), W(colsCnt, rowsCnt), vW2(colsCnt, rowsCnt), W2(colsCnt, rowsCnt), vW3(colsCnt, rowsCnt), W3(colsCnt, rowsCnt);
@@ -919,7 +924,7 @@ void test_evMulCipSubip(iMath& iM, vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 	vW2.clone_to(vW3);
 	W2.clone_to(W3);
 
-	for (unsigned r = 0; r < testCorrRepCnt; ++r) {
+	for (vec_len_t r = 0; r < testCorrRepCnt; ++r) {
 		evCMulSub_ET(iM, vW3, momentum, W3);
 			
 		iM.evMulC_ip_Sub_ip_st(vW, momentum, W);
@@ -941,7 +946,7 @@ void test_evMulCipSubip(iMath& iM, vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 	tictoc tst, tmt, tb;
 	//testing performance
 	threads::prioritize_workers<threads::PriorityClass::PerfTesting, iMath::iThreads_t> pw(iM.ithreads());
-	for (unsigned r = 0; r < maxReps; ++r) {
+	for (vec_len_t r = 0; r < maxReps; ++r) {
 		rg.gen_matrix(vW, 2);
 		rg.gen_matrix(W, 2);
 		tst.tic();
@@ -984,7 +989,7 @@ void test_mCheck_normalize_rows(vec_len_t rowsCnt, vec_len_t colsCnt, const bool
 
 	MTXSIZE_SCOPED_TRACE1(rowsCnt, colsCnt, "mCheck_normalize_rows, bNormIncludesBias=", real_t(bNormIncludesBias));
 
-	constexpr unsigned testCorrRepCnt = TEST_CORRECTN_REPEATS_COUNT;
+	constexpr vec_len_t testCorrRepCnt = TEST_CORRECTN_REPEATS_COUNT;
 
 	const real_t scale = 3;
 	const real_t newNormSq = 1;//3*3/sqrt(colsCnt - (!bNormIncludesBias));
@@ -1001,7 +1006,7 @@ void test_mCheck_normalize_rows(vec_len_t rowsCnt, vec_len_t colsCnt, const bool
 	realmtxdef_t etW(rowsCnt, colsCnt);
 	ASSERT_TRUE(!etW.isAllocationFailed());
 
-	for (unsigned r = 0; r < testCorrRepCnt; ++r) {
+	for (vec_len_t r = 0; r < testCorrRepCnt; ++r) {
 		rg.gen_matrix_gtz(srcW, scale);
 		iM.evAdd_ip(srcW, ones);//to make sure norms will be greater than 1
 
@@ -1046,7 +1051,7 @@ void test_evSub(iMath& iM, vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 	double tstNaive, tmtNaive, tBest;
 	steady_clock::time_point bt;
 	nanoseconds diff;
-	constexpr unsigned maxReps = TEST_PERF_REPEATS_COUNT, testCorrRepCnt = TEST_CORRECTN_REPEATS_COUNT;
+	constexpr vec_len_t maxReps = TEST_PERF_REPEATS_COUNT, testCorrRepCnt = TEST_CORRECTN_REPEATS_COUNT;
 
 	realmtx_t B(rowsCnt, colsCnt), A(rowsCnt, colsCnt), C(rowsCnt, colsCnt);
 	ASSERT_TRUE(!B.isAllocationFailed() && !A.isAllocationFailed() && !C.isAllocationFailed());
@@ -1060,7 +1065,7 @@ void test_evSub(iMath& iM, vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 		realmtx_t C2(rowsCnt, colsCnt);
 		ASSERT_TRUE(!C2.isAllocationFailed());
 
-		for (unsigned r = 0; r < testCorrRepCnt; ++r) {
+		for (vec_len_t r = 0; r < testCorrRepCnt; ++r) {
 			evSub_ET(A, B, C2);
 
 			iM.evSub_st_naive(A, B, C);
@@ -1079,17 +1084,17 @@ void test_evSub(iMath& iM, vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 	threads::prioritize_workers<threads::PriorityClass::PerfTesting, iMath::iThreads_t> pw(iM.ithreads());
 
 	bt = steady_clock::now();
-	for (unsigned r = 0; r < maxReps; ++r) iM.evSub_st_naive(A, B, C);
+	for (vec_len_t r = 0; r < maxReps; ++r) iM.evSub_st_naive(A, B, C);
 	diff = steady_clock::now() - bt;
 	STDCOUTL("st_naive:\t" << utils::duration_readable(diff, maxReps, &tstNaive));
 
 	bt = steady_clock::now();
-	for (unsigned r = 0; r < maxReps; ++r) iM.evSub_mt_naive(A, B, C);
+	for (vec_len_t r = 0; r < maxReps; ++r) iM.evSub_mt_naive(A, B, C);
 	diff = steady_clock::now() - bt;
 	STDCOUTL("mt_naive:\t" << utils::duration_readable(diff, maxReps, &tmtNaive));
 
 	bt = steady_clock::now();
-	for (unsigned r = 0; r < maxReps; ++r) iM.evSub(A, B, C);
+	for (vec_len_t r = 0; r < maxReps; ++r) iM.evSub(A, B, C);
 	diff = steady_clock::now() - bt;
 	STDCOUTL("best:\t\t" << utils::duration_readable(diff, maxReps, &tBest));
 }
@@ -1110,7 +1115,7 @@ void test_evSub_ip(iMath& iM, vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 	const auto dataSize = realmtx_t::sNumel(rowsCnt, colsCnt);
 	STDCOUTL("******* testing evSub_ip() over " << rowsCnt << "x" << colsCnt << " matrix (" << dataSize << " elements) **************");
 
-	constexpr unsigned maxReps = TEST_PERF_REPEATS_COUNT, testCorrRepCnt = TEST_CORRECTN_REPEATS_COUNT;
+	constexpr vec_len_t maxReps = TEST_PERF_REPEATS_COUNT, testCorrRepCnt = TEST_CORRECTN_REPEATS_COUNT;
 
 	realmtx_t B(rowsCnt, colsCnt), A(rowsCnt, colsCnt);
 	ASSERT_TRUE(!B.isAllocationFailed() && !A.isAllocationFailed());
@@ -1123,7 +1128,7 @@ void test_evSub_ip(iMath& iM, vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 		realmtx_t A2(rowsCnt, colsCnt), A3(rowsCnt, colsCnt);
 		ASSERT_TRUE(!A2.isAllocationFailed() && !A3.isAllocationFailed());
 
-		for (unsigned r = 0; r < testCorrRepCnt; ++r) {
+		for (vec_len_t r = 0; r < testCorrRepCnt; ++r) {
 			rg.gen_matrix(A, 2);
 			A.clone_to(A2);
 			A.clone_to(A3);
@@ -1156,7 +1161,7 @@ void test_evSub_ip(iMath& iM, vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 	
 	utils::tictoc tS, tM, tB;
 
-	for (unsigned r = 0; r < maxReps; ++r) {
+	for (vec_len_t r = 0; r < maxReps; ++r) {
 		rg.gen_matrix(A, 2); rg.gen_matrix(B, 2);
 		tS.tic();
 		iM.evSub_ip_st_naive(A, B);
@@ -1196,7 +1201,7 @@ void test_apply_momentum(iMath& iM, vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 	double tstNaive, tmtNaive, tBest;
 	steady_clock::time_point bt;
 	nanoseconds diff;
-	constexpr unsigned maxReps = TEST_PERF_REPEATS_COUNT, testCorrRepCnt = TEST_CORRECTN_REPEATS_COUNT;
+	constexpr vec_len_t maxReps = TEST_PERF_REPEATS_COUNT, testCorrRepCnt = TEST_CORRECTN_REPEATS_COUNT;
 
 	const real_t momentum(real_t(0.9));
 	realmtx_t dW(rowsCnt, colsCnt), vW(rowsCnt, colsCnt);
@@ -1210,7 +1215,7 @@ void test_apply_momentum(iMath& iM, vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 		realmtx_t vW2(rowsCnt, colsCnt), vW3(rowsCnt, colsCnt);
 		ASSERT_TRUE(!vW2.isAllocationFailed() && !vW3.isAllocationFailed());
 
-		for (unsigned r = 0; r < testCorrRepCnt; ++r) {
+		for (vec_len_t r = 0; r < testCorrRepCnt; ++r) {
 			rg.gen_matrix(vW, 2);
 			vW.clone_to(vW2);
 			vW.clone_to(vW3);
@@ -1236,17 +1241,17 @@ void test_apply_momentum(iMath& iM, vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 	threads::prioritize_workers<threads::PriorityClass::PerfTesting, iMath::iThreads_t> pw(iM.ithreads());
 
 	bt = steady_clock::now();
-	for (unsigned r = 0; r < maxReps; ++r) iM.apply_momentum_st(vW, momentum, dW);
+	for (vec_len_t r = 0; r < maxReps; ++r) iM.apply_momentum_st(vW, momentum, dW);
 	diff = steady_clock::now() - bt;
 	STDCOUTL("st:\t" << utils::duration_readable(diff, maxReps, &tstNaive));
 
 	bt = steady_clock::now();
-	for (unsigned r = 0; r < maxReps; ++r) iM.apply_momentum_mt(vW, momentum, dW);
+	for (vec_len_t r = 0; r < maxReps; ++r) iM.apply_momentum_mt(vW, momentum, dW);
 	diff = steady_clock::now() - bt;
 	STDCOUTL("mt:\t" << utils::duration_readable(diff, maxReps, &tmtNaive));
 
 	bt = steady_clock::now();
-	for (unsigned r = 0; r < maxReps; ++r) iM.apply_momentum(vW, momentum, dW);
+	for (vec_len_t r = 0; r < maxReps; ++r) iM.apply_momentum(vW, momentum, dW);
 	diff = steady_clock::now() - bt;
 	STDCOUTL("best:\t" << utils::duration_readable(diff, maxReps, &tBest));
 }
@@ -1263,7 +1268,7 @@ TEST(TestMathN, applyMomentum) {
 
 void test_ApplyILR_corr(vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 	MTXSIZE_SCOPED_TRACE(rowsCnt, colsCnt, "ApplyILR");
-	constexpr unsigned testCorrRepCnt = TEST_CORRECTN_REPEATS_COUNT;
+	constexpr vec_len_t testCorrRepCnt = TEST_CORRECTN_REPEATS_COUNT;
 
 	const auto dataSize = realmtx_t::sNumel(rowsCnt, colsCnt);
 
@@ -1284,7 +1289,7 @@ void test_ApplyILR_corr(vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 	realmtx_t dW2(rowsCnt, colsCnt), dW3(rowsCnt, colsCnt), gain2(rowsCnt, colsCnt), gain3(rowsCnt, colsCnt);
 	ASSERT_TRUE(!dW2.isAllocationFailed() && !dW3.isAllocationFailed() && !gain2.isAllocationFailed() && !gain3.isAllocationFailed());
 
-	for (unsigned r = 0; r < testCorrRepCnt; ++r) {
+	for (vec_len_t r = 0; r < testCorrRepCnt; ++r) {
 		rg.gen_matrix(dW, 10);
 		auto pDD = dW.data();
 		pDD[0] = 0;
@@ -1330,7 +1335,7 @@ void test_ApplyILR_corr(vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 }
 
 TEST(TestMathN, ApplyILR) {
-	constexpr unsigned rowsCnt = _baseRowsCnt;
+	constexpr vec_len_t rowsCnt = _baseRowsCnt;
 	const vec_len_t maxCols = g_MinDataSizeDelta, maxRows = rowsCnt + g_MinDataSizeDelta;
 	for (vec_len_t r = rowsCnt; r < maxRows; ++r) {
 		for (vec_len_t c = 1; c < maxCols; ++c) {
@@ -1350,7 +1355,7 @@ void test_evAbs_perf(iMath& iM, vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 	double tstNaive, tmtNaive, tBest;
 	steady_clock::time_point bt;
 	nanoseconds diff;
-	constexpr unsigned maxReps = TEST_PERF_REPEATS_COUNT, testCorrRepCnt = TEST_CORRECTN_REPEATS_COUNT;
+	constexpr vec_len_t maxReps = TEST_PERF_REPEATS_COUNT, testCorrRepCnt = TEST_CORRECTN_REPEATS_COUNT;
 
 	realmtx_t src(rowsCnt, colsCnt), dest(rowsCnt, colsCnt);
 	ASSERT_TRUE(!src.isAllocationFailed() && !dest.isAllocationFailed());
@@ -1362,7 +1367,7 @@ void test_evAbs_perf(iMath& iM, vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 		realmtx_t dest2(rowsCnt, colsCnt);
 		ASSERT_TRUE(!dest2.isAllocationFailed());
 
-		for (unsigned r = 0; r < testCorrRepCnt; ++r) {
+		for (vec_len_t r = 0; r < testCorrRepCnt; ++r) {
 			rg.gen_matrix(src, 10);
 			evAbs_ET(dest2, src);
 
@@ -1383,17 +1388,17 @@ void test_evAbs_perf(iMath& iM, vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 	threads::prioritize_workers<threads::PriorityClass::PerfTesting, iMath::iThreads_t> pw(iM.ithreads());
 
 	bt = steady_clock::now();
-	for (unsigned r = 0; r < maxReps; ++r)  iM.evAbs_st(dest, src);
+	for (vec_len_t r = 0; r < maxReps; ++r)  iM.evAbs_st(dest, src);
 	diff = steady_clock::now() - bt;
 	STDCOUTL("st:\t" << utils::duration_readable(diff, maxReps, &tstNaive));
 
 	bt = steady_clock::now();
-	for (unsigned r = 0; r < maxReps; ++r)  iM.evAbs_mt(dest, src);
+	for (vec_len_t r = 0; r < maxReps; ++r)  iM.evAbs_mt(dest, src);
 	diff = steady_clock::now() - bt;
 	STDCOUTL("mt:\t" << utils::duration_readable(diff, maxReps, &tmtNaive));
 
 	bt = steady_clock::now();
-	for (unsigned r = 0; r < maxReps; ++r) iM.evAbs(dest, src);
+	for (vec_len_t r = 0; r < maxReps; ++r) iM.evAbs(dest, src);
 	diff = steady_clock::now() - bt;
 	STDCOUTL("best:\t" << utils::duration_readable(diff, maxReps, &tBest));
 }
@@ -1416,7 +1421,7 @@ void test_evSquare_perf(iMath& iM, vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 	double tstNaive, tmtNaive, tBest;
 	steady_clock::time_point bt;
 	nanoseconds diff;
-	constexpr unsigned maxReps = TEST_PERF_REPEATS_COUNT, testCorrRepCnt = TEST_CORRECTN_REPEATS_COUNT;
+	constexpr vec_len_t maxReps = TEST_PERF_REPEATS_COUNT, testCorrRepCnt = TEST_CORRECTN_REPEATS_COUNT;
 
 	realmtx_t src(rowsCnt, colsCnt), dest(rowsCnt, colsCnt);
 	ASSERT_TRUE(!src.isAllocationFailed() && !dest.isAllocationFailed());
@@ -1428,7 +1433,7 @@ void test_evSquare_perf(iMath& iM, vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 		realmtx_t dest2(rowsCnt, colsCnt);
 		ASSERT_TRUE(!dest2.isAllocationFailed());
 
-		for (unsigned r = 0; r < testCorrRepCnt; ++r) {
+		for (vec_len_t r = 0; r < testCorrRepCnt; ++r) {
 			rg.gen_matrix(src, 10);
 			evSquare_ET(dest2, src);
 
@@ -1449,17 +1454,17 @@ void test_evSquare_perf(iMath& iM, vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 	threads::prioritize_workers<threads::PriorityClass::PerfTesting, iMath::iThreads_t> pw(iM.ithreads());
 	
 	bt = steady_clock::now();
-	for (unsigned r = 0; r < maxReps; ++r) iM.evSquare_st(dest,src);
+	for (vec_len_t r = 0; r < maxReps; ++r) iM.evSquare_st(dest,src);
 	diff = steady_clock::now() - bt;
 	STDCOUTL("st:\t" << utils::duration_readable(diff, maxReps, &tstNaive));
 
 	bt = steady_clock::now();
-	for (unsigned r = 0; r < maxReps; ++r) iM.evSquare_mt(dest, src);
+	for (vec_len_t r = 0; r < maxReps; ++r) iM.evSquare_mt(dest, src);
 	diff = steady_clock::now() - bt;
 	STDCOUTL("mt:\t" << utils::duration_readable(diff, maxReps, &tmtNaive));
 
 	bt = steady_clock::now();
-	for (unsigned r = 0; r < maxReps; ++r) iM.evSquare(dest, src);
+	for (vec_len_t r = 0; r < maxReps; ++r) iM.evSquare(dest, src);
 	diff = steady_clock::now() - bt;
 	STDCOUTL("best:\t" << utils::duration_readable(diff, maxReps, &tBest));
 }
@@ -1482,7 +1487,7 @@ void test_modprop_perf(iMath& iM, vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 	double tstNaive, tmtNaive, tBest;
 	steady_clock::time_point bt;
 	nanoseconds diff;
-	constexpr unsigned maxReps = TEST_PERF_REPEATS_COUNT, testCorrRepCnt = TEST_CORRECTN_REPEATS_COUNT;
+	constexpr vec_len_t maxReps = TEST_PERF_REPEATS_COUNT, testCorrRepCnt = TEST_CORRECTN_REPEATS_COUNT;
 
 	real_t emaCoeff = real_t(.9), lr = real_t(.1), numStab = real_t(.00001);
 
@@ -1500,7 +1505,7 @@ void test_modprop_perf(iMath& iM, vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 		realmtx_t dW2(rowsCnt, colsCnt), rms2(rowsCnt, colsCnt), dW3(rowsCnt, colsCnt), rms3(rowsCnt, colsCnt);
 		ASSERT_TRUE(!dW2.isAllocationFailed() && !rms2.isAllocationFailed() && !dW3.isAllocationFailed() && !rms3.isAllocationFailed());
 
-		for (unsigned r = 0; r < testCorrRepCnt; ++r) {
+		for (vec_len_t r = 0; r < testCorrRepCnt; ++r) {
 			rg.gen_matrix(dW, 10);
 			dW.clone_to(dW2);
 			dW.clone_to(dW3);
@@ -1533,7 +1538,7 @@ void test_modprop_perf(iMath& iM, vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 	threads::prioritize_workers<threads::PriorityClass::PerfTesting, iMath::iThreads_t> pw(iM.ithreads());
 
 	diff = nanoseconds(0);
-	for (unsigned r = 0; r < maxReps; ++r) {
+	for (vec_len_t r = 0; r < maxReps; ++r) {
 		rg.gen_matrix(dW, 10);
 		bt = steady_clock::now();
 		iM.ModProp_st(dW, rms, lr, emaCoeff, numStab);
@@ -1542,7 +1547,7 @@ void test_modprop_perf(iMath& iM, vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 	STDCOUTL("st:\t" << utils::duration_readable(diff, maxReps, &tstNaive));
 
 	diff = nanoseconds(0);
-	for (unsigned r = 0; r < maxReps; ++r) {
+	for (vec_len_t r = 0; r < maxReps; ++r) {
 		rg.gen_matrix(dW, 10);
 		bt = steady_clock::now();
 		iM.ModProp_mt(dW, rms, lr, emaCoeff, numStab);
@@ -1551,7 +1556,7 @@ void test_modprop_perf(iMath& iM, vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 	STDCOUTL("mt:\t" << utils::duration_readable(diff, maxReps, &tmtNaive));
 
 	diff = nanoseconds(0);
-	for (unsigned r = 0; r < maxReps; ++r) {
+	for (vec_len_t r = 0; r < maxReps; ++r) {
 		rg.gen_matrix(dW, 10);
 		bt = steady_clock::now();
 		iM.ModProp(dW, rms, lr, emaCoeff, numStab);
@@ -1577,7 +1582,7 @@ void test_rprop_perf(iMath& iM, vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 	double tstNaive, tmtNaive, tBest;
 	steady_clock::time_point bt;
 	nanoseconds diff;
-	constexpr unsigned maxReps = TEST_PERF_REPEATS_COUNT, testCorrRepCnt = TEST_CORRECTN_REPEATS_COUNT;
+	constexpr vec_len_t maxReps = TEST_PERF_REPEATS_COUNT, testCorrRepCnt = TEST_CORRECTN_REPEATS_COUNT;
 
 	real_t lr = real_t(.1);
 
@@ -1591,7 +1596,7 @@ void test_rprop_perf(iMath& iM, vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 		realmtx_t dW2(rowsCnt, colsCnt), dW3(rowsCnt, colsCnt);
 		ASSERT_TRUE(!dW2.isAllocationFailed() && !dW3.isAllocationFailed());
 
-		for (unsigned r = 0; r < testCorrRepCnt; ++r) {
+		for (vec_len_t r = 0; r < testCorrRepCnt; ++r) {
 			rg.gen_matrix(dW, 10);
 			dW.clone_to(dW2);
 			dW.clone_to(dW3);
@@ -1615,7 +1620,7 @@ void test_rprop_perf(iMath& iM, vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 	threads::prioritize_workers<threads::PriorityClass::PerfTesting, iMath::iThreads_t> pw(iM.ithreads());
 
 	diff = nanoseconds(0);
-	for (unsigned r = 0; r < maxReps; ++r) {
+	for (vec_len_t r = 0; r < maxReps; ++r) {
 		rg.gen_matrix(dW, 10);
 		bt = steady_clock::now();
 		iM.RProp_st(dW, lr);
@@ -1624,7 +1629,7 @@ void test_rprop_perf(iMath& iM, vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 	STDCOUTL("st:\t" << utils::duration_readable(diff, maxReps, &tstNaive));
 
 	diff = nanoseconds(0);
-	for (unsigned r = 0; r < maxReps; ++r) {
+	for (vec_len_t r = 0; r < maxReps; ++r) {
 		rg.gen_matrix(dW, 10);
 		bt = steady_clock::now();
 		iM.RProp_mt(dW, lr);
@@ -1633,7 +1638,7 @@ void test_rprop_perf(iMath& iM, vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 	STDCOUTL("mt:\t" << utils::duration_readable(diff, maxReps, &tmtNaive));
 
 	diff = nanoseconds(0);
-	for (unsigned r = 0; r < maxReps; ++r) {
+	for (vec_len_t r = 0; r < maxReps; ++r) {
 		rg.gen_matrix(dW, 10);
 		bt = steady_clock::now();
 		iM.RProp(dW, lr);
@@ -1660,7 +1665,7 @@ void test_rmspropgraves_perf(iMath& iM, vec_len_t rowsCnt, vec_len_t colsCnt = 1
 	double tstNaive, tmtNaive, tBest;
 	steady_clock::time_point bt;
 	nanoseconds diff;
-	constexpr unsigned maxReps = TEST_PERF_REPEATS_COUNT, testCorrRepCnt = TEST_CORRECTN_REPEATS_COUNT;
+	constexpr vec_len_t maxReps = TEST_PERF_REPEATS_COUNT, testCorrRepCnt = TEST_CORRECTN_REPEATS_COUNT;
 
 	real_t emaCoeff = real_t(.9), lr = real_t(.1), numStab = real_t(.00001);
 
@@ -1676,7 +1681,7 @@ void test_rmspropgraves_perf(iMath& iM, vec_len_t rowsCnt, vec_len_t colsCnt = 1
 		ASSERT_TRUE(!dW2.isAllocationFailed() && !rms2.isAllocationFailed() && !dW3.isAllocationFailed() && !rms3.isAllocationFailed()
 			&& !rmsG2.isAllocationFailed() && !rmsG3.isAllocationFailed());
 
-		for (unsigned r = 0; r < testCorrRepCnt; ++r) {
+		for (vec_len_t r = 0; r < testCorrRepCnt; ++r) {
 			rg.gen_matrix(dW, 10);
 			dW.clone_to(dW2);
 			dW.clone_to(dW3);
@@ -1716,7 +1721,7 @@ void test_rmspropgraves_perf(iMath& iM, vec_len_t rowsCnt, vec_len_t colsCnt = 1
 	threads::prioritize_workers<threads::PriorityClass::PerfTesting, iMath::iThreads_t> pw(iM.ithreads());
 
 	diff = nanoseconds(0);
-	for (unsigned r = 0; r < maxReps; ++r) {
+	for (vec_len_t r = 0; r < maxReps; ++r) {
 		rg.gen_matrix(dW, 10);
 		bt = steady_clock::now();
 		iM.RMSProp_Graves_st(dW, rms, rmsG, lr, emaCoeff, numStab);
@@ -1725,7 +1730,7 @@ void test_rmspropgraves_perf(iMath& iM, vec_len_t rowsCnt, vec_len_t colsCnt = 1
 	STDCOUTL("st:\t" << utils::duration_readable(diff, maxReps, &tstNaive));
 
 	diff = nanoseconds(0);
-	for (unsigned r = 0; r < maxReps; ++r) {
+	for (vec_len_t r = 0; r < maxReps; ++r) {
 		rg.gen_matrix(dW, 10);
 		bt = steady_clock::now();
 		iM.RMSProp_Graves_mt(dW, rms, rmsG, lr, emaCoeff, numStab);
@@ -1734,7 +1739,7 @@ void test_rmspropgraves_perf(iMath& iM, vec_len_t rowsCnt, vec_len_t colsCnt = 1
 	STDCOUTL("mt:\t" << utils::duration_readable(diff, maxReps, &tmtNaive));
 
 	diff = nanoseconds(0);
-	for (unsigned r = 0; r < maxReps; ++r) {
+	for (vec_len_t r = 0; r < maxReps; ++r) {
 		rg.gen_matrix(dW, 10);
 		bt = steady_clock::now();
 		iM.RMSProp_Graves(dW, rms, rmsG, lr, emaCoeff, numStab);
@@ -1761,7 +1766,7 @@ void test_rmsprophinton_perf(iMath& iM, vec_len_t rowsCnt, vec_len_t colsCnt = 1
 	double tstNaive, tmtNaive, tBest;
 	steady_clock::time_point bt;
 	nanoseconds diff;
-	constexpr unsigned maxReps = TEST_PERF_REPEATS_COUNT, testCorrRepCnt = TEST_CORRECTN_REPEATS_COUNT;
+	constexpr vec_len_t maxReps = TEST_PERF_REPEATS_COUNT, testCorrRepCnt = TEST_CORRECTN_REPEATS_COUNT;
 
 	real_t emaCoeff = real_t(.9), lr = real_t(.1), numStab = real_t(.00001);
 
@@ -1774,7 +1779,7 @@ void test_rmsprophinton_perf(iMath& iM, vec_len_t rowsCnt, vec_len_t colsCnt = 1
 		realmtx_t dW2(rowsCnt, colsCnt), rms2(rowsCnt, colsCnt), dW3(rowsCnt, colsCnt), rms3(rowsCnt, colsCnt);
 		ASSERT_TRUE(!dW2.isAllocationFailed() && !rms2.isAllocationFailed() && !dW3.isAllocationFailed() && !rms3.isAllocationFailed());
 
-		for (unsigned r = 0; r < testCorrRepCnt; ++r) {
+		for (vec_len_t r = 0; r < testCorrRepCnt; ++r) {
 			rg.gen_matrix(dW, 10);
 			dW.clone_to(dW2);
 			dW.clone_to(dW3);
@@ -1806,7 +1811,7 @@ void test_rmsprophinton_perf(iMath& iM, vec_len_t rowsCnt, vec_len_t colsCnt = 1
 	threads::prioritize_workers<threads::PriorityClass::PerfTesting, iMath::iThreads_t> pw(iM.ithreads());
 
 	diff = nanoseconds(0);
-	for (unsigned r = 0; r < maxReps; ++r) {
+	for (vec_len_t r = 0; r < maxReps; ++r) {
 		rg.gen_matrix(dW, 10);
 		bt = steady_clock::now();
 		iM.RMSProp_Hinton_st(dW, rms, lr, emaCoeff, numStab);
@@ -1815,7 +1820,7 @@ void test_rmsprophinton_perf(iMath& iM, vec_len_t rowsCnt, vec_len_t colsCnt = 1
 	STDCOUTL("st:\t" << utils::duration_readable(diff, maxReps, &tstNaive));
 
 	diff = nanoseconds(0);
-	for (unsigned r = 0; r < maxReps; ++r) {
+	for (vec_len_t r = 0; r < maxReps; ++r) {
 		rg.gen_matrix(dW, 10);
 		bt = steady_clock::now();
 		iM.RMSProp_Hinton_mt(dW, rms, lr, emaCoeff, numStab);
@@ -1824,7 +1829,7 @@ void test_rmsprophinton_perf(iMath& iM, vec_len_t rowsCnt, vec_len_t colsCnt = 1
 	STDCOUTL("mt:\t" << utils::duration_readable(diff, maxReps, &tmtNaive));
 
 	diff = nanoseconds(0);
-	for (unsigned r = 0; r < maxReps; ++r) {
+	for (vec_len_t r = 0; r < maxReps; ++r) {
 		rg.gen_matrix(dW, 10);
 		bt = steady_clock::now();
 		iM.RMSProp_Hinton(dW, rms, lr, emaCoeff, numStab);
@@ -1842,7 +1847,7 @@ TEST(TestMathN, RMSProp_Hinton) {
 
 //////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////
-void test_Adam_corr(const size_t epochs, const vec_len_t maxRowsCnt, const vec_len_t maxColsCnt = 10) {
+void test_Adam_corr(const numel_cnt_t epochs, const vec_len_t maxRowsCnt, const vec_len_t maxColsCnt = 10) {
 	const real_t beta1 = real_t(.9), beta2=real_t(.999), learningRate=real_t(.001), numStab=real_t(1e-8);
 	d_interfaces::iRng_t rg;
 	rg.init_ithreads(iM.ithreads());
@@ -1868,7 +1873,7 @@ void test_Adam_corr(const size_t epochs, const vec_len_t maxRowsCnt, const vec_l
 			real_t beta1t_mt = real_t(1.), beta2t_mt = real_t(1.);
 			real_t beta1t_ = real_t(1.), beta2t_ = real_t(1.);
 			
-			for (size_t e = 0; e < epochs; ++e) {
+			for (numel_cnt_t e = 0; e < epochs; ++e) {
 				rg.gen_matrix(dW_ET, real_t(3.0));
 				ASSERT_TRUE(dW_ET.clone_to(dW_st)); ASSERT_TRUE(dW_ET.clone_to(dW_mt)); ASSERT_TRUE(dW_ET.clone_to(dW_));
 				
@@ -1905,7 +1910,7 @@ TEST(TestMathN, Adam) {
 
 //////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////
-void test_AdaMax_corr(const size_t epochs, const vec_len_t maxRowsCnt, const vec_len_t maxColsCnt = 10) {
+void test_AdaMax_corr(const numel_cnt_t epochs, const vec_len_t maxRowsCnt, const vec_len_t maxColsCnt = 10) {
 	const real_t beta1 = real_t(.9), beta2 = real_t(.999), learningRate = real_t(.001), numStab = real_t(1e-8);
 	d_interfaces::iRng_t rg;
 	rg.init_ithreads(iM.ithreads());
@@ -1928,7 +1933,7 @@ void test_AdaMax_corr(const size_t epochs, const vec_len_t maxRowsCnt, const vec
 
 			real_t beta1t_ET = real_t(1.), beta1t_st = real_t(1.), beta1t_mt = real_t(1.), beta1t_ = real_t(1.);
 
-			for (size_t e = 0; e < epochs; ++e) {
+			for (numel_cnt_t e = 0; e < epochs; ++e) {
 				rg.gen_matrix(dW_ET, real_t(3.0));
 				ASSERT_TRUE(dW_ET.clone_to(dW_st)); ASSERT_TRUE(dW_ET.clone_to(dW_mt)); ASSERT_TRUE(dW_ET.clone_to(dW_));
 
@@ -1963,7 +1968,7 @@ TEST(TestMathN, AdaMax) {
 //////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////
 
-void test_Nadam_corr(const size_t epochs, const vec_len_t maxRowsCnt, const vec_len_t maxColsCnt = 10) {
+void test_Nadam_corr(const numel_cnt_t epochs, const vec_len_t maxRowsCnt, const vec_len_t maxColsCnt = 10) {
 	const real_t mu = real_t(.9), eta = real_t(.999), learningRate = real_t(.001), numStab = real_t(1e-8);
 	const real_t _g = real_t(0);
 
@@ -1991,7 +1996,7 @@ void test_Nadam_corr(const size_t epochs, const vec_len_t maxRowsCnt, const vec_
 			real_t mu_t_mt = real_t(1.), eta_t_mt = real_t(1.);
 			real_t mu_t_ = real_t(1.), eta_t_ = real_t(1.);
 
-			for (size_t e = 0; e < epochs; ++e) {
+			for (numel_cnt_t e = 0; e < epochs; ++e) {
 				rg.gen_matrix(dW_ET, real_t(3.0));
 				ASSERT_TRUE(dW_ET.clone_to(dW_st)); ASSERT_TRUE(dW_ET.clone_to(dW_mt)); ASSERT_TRUE(dW_ET.clone_to(dW_));
 
@@ -2027,7 +2032,7 @@ TEST(TestMathN, Nadam) {
 }
 
 
-void test_Radam_corr(const size_t epochs, const vec_len_t maxRowsCnt, const vec_len_t maxColsCnt = 10) {
+void test_Radam_corr(const numel_cnt_t epochs, const vec_len_t maxRowsCnt, const vec_len_t maxColsCnt = 10) {
 	const real_t mu = real_t(.9), eta = real_t(.999), learningRate = real_t(.001), numStab = real_t(1e-8);
 	const real_t gamma = real_t(.1);
 
@@ -2055,7 +2060,7 @@ void test_Radam_corr(const size_t epochs, const vec_len_t maxRowsCnt, const vec_
 			real_t mu_t_mt = real_t(1.), eta_t_mt = real_t(1.);
 			real_t mu_t_ = real_t(1.), eta_t_ = real_t(1.);
 
-			for (size_t e = 0; e < epochs; ++e) {
+			for (numel_cnt_t e = 0; e < epochs; ++e) {
 				rg.gen_matrix(dW_ET, real_t(3.0));
 				ASSERT_TRUE(dW_ET.clone_to(dW_st)); ASSERT_TRUE(dW_ET.clone_to(dW_mt)); ASSERT_TRUE(dW_ET.clone_to(dW_));
 
@@ -2095,7 +2100,7 @@ TEST(TestMathN, Radam) {
 //////////////////////////////////////////////////////////////////////////
 
 void test_make_dropout_corr(vec_len_t rowsCnt, vec_len_t colsCnt = 10, const real_t dpa = real_t(.5)) {
-	constexpr unsigned testCorrRepCnt = TEST_CORRECTN_REPEATS_COUNT;
+	constexpr vec_len_t testCorrRepCnt = TEST_CORRECTN_REPEATS_COUNT;
 
 	realmtx_t act(rowsCnt, colsCnt, true), dm(rowsCnt, colsCnt);
 	ASSERT_TRUE(!act.isAllocationFailed() && !dm.isAllocationFailed());
@@ -2105,7 +2110,7 @@ void test_make_dropout_corr(vec_len_t rowsCnt, vec_len_t colsCnt = 10, const rea
 
 	realmtx_t act2(rowsCnt, colsCnt, true), dm2(rowsCnt, colsCnt), act3(rowsCnt, colsCnt, true), dm3(rowsCnt, colsCnt);
 	ASSERT_TRUE(!act2.isAllocationFailed() && !dm2.isAllocationFailed() && !act3.isAllocationFailed() && !dm3.isAllocationFailed());
-	for (unsigned r = 0; r < testCorrRepCnt; ++r) {
+	for (vec_len_t r = 0; r < testCorrRepCnt; ++r) {
 		rg.gen_matrix_no_bias(act, 5);
 		ASSERT_TRUE(act.test_biases_strict());
 		act.clone_to(act2);
@@ -2142,7 +2147,7 @@ TEST(TestMathN, make_dropout) {
 		}
 	}
 
-	constexpr unsigned rowsCnt = _baseRowsCnt;
+	constexpr vec_len_t rowsCnt = _baseRowsCnt;
 	const vec_len_t maxCols = g_MinDataSizeDelta, maxRows = rowsCnt + g_MinDataSizeDelta;
 	for (vec_len_t r = rowsCnt; r < maxRows; ++r) {
 		for (vec_len_t c = 1; c < maxCols; ++c) {
@@ -2157,9 +2162,9 @@ TEST(TestMathN, vCountSameNaive) {
 // 	typedef nntl::d_interfaces::iThreads_t def_threads_t;
 // 	typedef math::MathN<real_t, def_threads_t> iMB;
 
-	constexpr unsigned dataCnt = 9;
-	const ::std::array<unsigned, dataCnt> src1 = { 3,55,32, 35,63,5, 2,400,6 };
-	const ::std::array<unsigned, dataCnt> src2 = { 3,55,33, 35,63,5, 4,400,6 };
+	constexpr vec_len_t dataCnt = 9;
+	const ::std::array<vec_len_t, dataCnt> src1 = { 3,55,32, 35,63,5, 2,400,6 };
+	const ::std::array<vec_len_t, dataCnt> src2 = { 3,55,33, 35,63,5, 4,400,6 };
 
 	//iMB iM;
 	ASSERT_EQ(iM.vCountSame_st_naive(src1, src2), dataCnt-2);
@@ -2168,12 +2173,12 @@ TEST(TestMathN, vCountSameNaive) {
 TEST(TestMathN, vCountSameMtCorrectness) {
 	typedef nntl::d_interfaces::iThreads_t def_threads_t;
 	typedef math::MathN<real_t, def_threads_t> iMB;
-	typedef ::std::vector<realmtx_t::vec_len_t> vec_t;
+	typedef ::std::vector<vec_len_t> vec_t;
 
 #ifdef NNTL_DEBUG
-	constexpr unsigned rowsCnt = 100;
+	constexpr vec_len_t rowsCnt = 100;
 #else
-	constexpr unsigned rowsCnt = 100000;
+	constexpr vec_len_t rowsCnt = 100000;
 #endif
 
 	vec_t v1(rowsCnt), v2(rowsCnt);
@@ -2190,14 +2195,14 @@ TEST(TestMathN, vCountSameMtCorrectness) {
 
 template<typename iMath>
 void test_vCountSame_perf(iMath& iM, vec_len_t rowsCnt) {
-	typedef ::std::vector<realmtx_t::vec_len_t> vec_t;
+	typedef ::std::vector<vec_len_t> vec_t;
 	STDCOUTL("******* testing vCountSame() over " << rowsCnt << " elements) **************");
 
 	double tstNaive, tmtNaive, tBest;
 	steady_clock::time_point bt;
 	nanoseconds diff;
-	constexpr unsigned maxReps = TEST_PERF_REPEATS_COUNT;
-	size_t vv;
+	constexpr vec_len_t maxReps = TEST_PERF_REPEATS_COUNT;
+	numel_cnt_t vv;
 
 	vec_t v1(rowsCnt), v2(rowsCnt);
 	d_interfaces::iRng_t rg;
@@ -2212,7 +2217,7 @@ void test_vCountSame_perf(iMath& iM, vec_len_t rowsCnt) {
 	iM.vCountSame_st_naive(v1, v2);
 	vv = 0;
 	bt = steady_clock::now();
-	for (unsigned r = 0; r < maxReps; ++r) {
+	for (vec_len_t r = 0; r < maxReps; ++r) {
 		vv += iM.vCountSame_st_naive(v1, v2);
 	}
 	diff = steady_clock::now() - bt;
@@ -2221,7 +2226,7 @@ void test_vCountSame_perf(iMath& iM, vec_len_t rowsCnt) {
 	iM.vCountSame_mt_naive(v1, v2);;
 	vv = 0;
 	bt = steady_clock::now();
-	for (unsigned r = 0; r < maxReps; ++r) {
+	for (vec_len_t r = 0; r < maxReps; ++r) {
 		vv += iM.vCountSame_mt_naive(v1, v2);
 	}
 	diff = steady_clock::now() - bt;
@@ -2230,7 +2235,7 @@ void test_vCountSame_perf(iMath& iM, vec_len_t rowsCnt) {
 	iM.vCountSame(v1, v2);
 	vv = 0;
 	bt = steady_clock::now();
-	for (unsigned r = 0; r < maxReps; ++r) {
+	for (vec_len_t r = 0; r < maxReps; ++r) {
 		vv += iM.vCountSame(v1, v2);
 	}
 	diff = steady_clock::now() - bt;
@@ -2248,7 +2253,7 @@ TEST(TestMathN, vCountSamePerf) {
 //////////////////////////////////////////////////////////////////////////
 template<typename iMath>
 void test_evClamp_perf(iMath& iM, vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
-	typedef ::std::vector<realmtx_t::vec_len_t> vec_t;
+	typedef ::std::vector<vec_len_t> vec_t;
 
 	const auto dataSize = realmtx_t::sNumel(rowsCnt, colsCnt);
 	STDCOUTL("******* testing evClamp() over " << rowsCnt << "x" << colsCnt << " matrix (" << dataSize << " elements) **************");
@@ -2256,7 +2261,7 @@ void test_evClamp_perf(iMath& iM, vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 	double tstNaive, tmtNaive, tBest;
 	steady_clock::time_point bt;
 	nanoseconds diff;
-	constexpr unsigned maxReps = TEST_PERF_REPEATS_COUNT;
+	constexpr vec_len_t maxReps = TEST_PERF_REPEATS_COUNT;
 
 	real_t lo = -50, hi = 50;
 
@@ -2273,7 +2278,7 @@ void test_evClamp_perf(iMath& iM, vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 
 	iM.evClamp_st(m, lo,hi);
 	bt = steady_clock::now();
-	for (unsigned r = 0; r < maxReps; ++r) {
+	for (vec_len_t r = 0; r < maxReps; ++r) {
 		iM.evClamp_st(m, lo, hi);
 	}
 	diff = steady_clock::now() - bt;
@@ -2281,7 +2286,7 @@ void test_evClamp_perf(iMath& iM, vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 
 	iM.evClamp_mt(m, lo, hi);
 	bt = steady_clock::now();
-	for (unsigned r = 0; r < maxReps; ++r) {
+	for (vec_len_t r = 0; r < maxReps; ++r) {
 		iM.evClamp_mt(m, lo, hi);
 	}
 	diff = steady_clock::now() - bt;
@@ -2289,7 +2294,7 @@ void test_evClamp_perf(iMath& iM, vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 
 	iM.evClamp(m, lo, hi);
 	bt = steady_clock::now();
-	for (unsigned r = 0; r < maxReps; ++r) {
+	for (vec_len_t r = 0; r < maxReps; ++r) {
 		iM.evClamp(m, lo, hi);
 	}
 	diff = steady_clock::now() - bt;
@@ -2432,12 +2437,12 @@ TEST(TestMathN, mMulABt_Cnb_biased) {
 
 //////////////////////////////////////////////////////////////////////////
 void test_evMul_ip(vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
-	constexpr unsigned maxReps = TEST_PERF_REPEATS_COUNT;
+	constexpr vec_len_t maxReps = TEST_PERF_REPEATS_COUNT;
 	realmtx_t M(rowsCnt, colsCnt), etM(rowsCnt, colsCnt), testM(rowsCnt, colsCnt), etB(rowsCnt, colsCnt), B(rowsCnt, colsCnt);
 	
 	d_interfaces::iRng_t rg;
 	rg.init_ithreads(iM.ithreads());
-	for (unsigned r = 0; r < maxReps; ++r) {
+	for (vec_len_t r = 0; r < maxReps; ++r) {
 		rg.gen_matrix(M, real_t(5));
 		rg.gen_matrix(B, real_t(5));
 		ASSERT_TRUE(M.clone_to(etM));
@@ -2481,7 +2486,7 @@ void test_evMulC_ip(iMath& iM, vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 	double tmtNaive, tstNaive, tBest; //tstVect, tmtVect
 	steady_clock::time_point bt;
 	nanoseconds diff;
-	constexpr unsigned maxReps = TEST_PERF_REPEATS_COUNT;
+	constexpr vec_len_t maxReps = TEST_PERF_REPEATS_COUNT;
 
 	const real_t mulC = real_t(0.01);
 	realmtx_t m, etM(rowsCnt, colsCnt), etDest(rowsCnt, colsCnt);
@@ -2492,7 +2497,7 @@ void test_evMulC_ip(iMath& iM, vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 	rg.init_ithreads(iM.ithreads());
 	rg.gen_matrix(etM, 5);
 	auto ptrEtM = etM.data(), ptrDest=etDest.data();
-	for (unsigned i = 0; i < dataSize; ++i) ptrDest[i] = mulC*ptrEtM[i];
+	for (vec_len_t i = 0; i < dataSize; ++i) ptrDest[i] = mulC*ptrEtM[i];
 	
 	//testing performance
 	threads::prioritize_workers<threads::PriorityClass::PerfTesting, iMath::iThreads_t> pw(iM.ithreads());
@@ -2500,7 +2505,7 @@ void test_evMulC_ip(iMath& iM, vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 	//////////////////////////////////////////////////////////////////////////
 	//single threaded naive
 	diff = nanoseconds(0);
-	for (unsigned r = 0; r < maxReps; ++r) {
+	for (vec_len_t r = 0; r < maxReps; ++r) {
 		ASSERT_TRUE(etM.clone_to(m));
 		bt = steady_clock::now();
 		iM.evMulC_ip_st(m,mulC);
@@ -2512,7 +2517,7 @@ void test_evMulC_ip(iMath& iM, vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 	//////////////////////////////////////////////////////////////////////////
 	//multi threaded naive
 	diff = nanoseconds(0);
-	for (unsigned r = 0; r < maxReps; ++r) {
+	for (vec_len_t r = 0; r < maxReps; ++r) {
 		ASSERT_TRUE(etM.clone_to(m));
 		bt = steady_clock::now();
 		iM.evMulC_ip_mt(m, mulC);
@@ -2524,7 +2529,7 @@ void test_evMulC_ip(iMath& iM, vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 	/*//////////////////////////////////////////////////////////////////////////
 	//single threaded vectorized
 	diff = nanoseconds(0);
-	for (unsigned r = 0; r < maxReps; ++r) {
+	for (vec_len_t r = 0; r < maxReps; ++r) {
 		ASSERT_TRUE(etM.clone_to(m));
 		bt = steady_clock::now();
 		iM.evMulC_ip_st_vec(m, mulC);
@@ -2536,7 +2541,7 @@ void test_evMulC_ip(iMath& iM, vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 	//////////////////////////////////////////////////////////////////////////
 	//multi threaded vectorized
 	diff = nanoseconds(0);
-	for (unsigned r = 0; r < maxReps; ++r) {
+	for (vec_len_t r = 0; r < maxReps; ++r) {
 		ASSERT_TRUE(etM.clone_to(m));
 		bt = steady_clock::now();
 		iM.evMulC_ip_mt_vec(m, mulC);
@@ -2548,7 +2553,7 @@ void test_evMulC_ip(iMath& iM, vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 	//////////////////////////////////////////////////////////////////////////
 	//best guess
 	diff = nanoseconds(0);
-	for (unsigned r = 0; r < maxReps; ++r) {
+	for (vec_len_t r = 0; r < maxReps; ++r) {
 		ASSERT_TRUE(etM.clone_to(m));
 		bt = steady_clock::now();
 		iM.evMulC_ip(m, mulC);
@@ -2580,7 +2585,7 @@ TEST(TestMathN, Sigm) {
 
 	for (vec_len_t r = 1; r < g_MinDataSizeDelta; ++r) {
 		for (vec_len_t c = 1; c < g_MinDataSizeDelta; ++c) {
-			ASSERT_NO_FATAL_FAILURE(test_f_x_corr<true>(sigm_ET, fst, fmt, fb, "sigm", r, c));
+			ASSERT_NO_FATAL_FAILURE(test_f_x_corr<true>(sigm_ET<real_t>, fst, fmt, fb, "sigm", r, c));
 		}
 	}
 }
@@ -2592,7 +2597,7 @@ TEST(TestMathN, DSigm) {
 
 	for (vec_len_t r = 1; r < g_MinDataSizeDelta; ++r) {
 		for (vec_len_t c = 1; c < g_MinDataSizeDelta; ++c) {
-			ASSERT_NO_FATAL_FAILURE( (test_f_x_corr<false, true>(dsigm_ET, fst, fmt, fb, "dsigm", r, c)) );
+			ASSERT_NO_FATAL_FAILURE( (test_f_x_corr<false, true>(dsigm_ET<real_t>, fst, fmt, fb, "dsigm", r, c)) );
 		}
 	}
 }
@@ -2603,7 +2608,7 @@ TEST(TestMathN, Relu) {
 	const auto fb = [](realmtx_t& X) { iM.relu(X); };
 	for (vec_len_t r = 1; r < g_MinDataSizeDelta; ++r) {
 		for (vec_len_t c = 1; c < g_MinDataSizeDelta; ++c) {
-			ASSERT_NO_FATAL_FAILURE(test_f_x_corr<true>(relu_ET, fst, fmt, fb, "relu", r, c));
+			ASSERT_NO_FATAL_FAILURE(test_f_x_corr<true>(relu_ET<real_t>, fst, fmt, fb, "relu", r, c));
 		}
 	}
 }
@@ -2614,7 +2619,7 @@ TEST(TestMathN, DRelu) {
 	const auto fb = [](realmtx_t& X) { iM.drelu(X); };
 	for (vec_len_t r = 1; r < g_MinDataSizeDelta; ++r) {
 		for (vec_len_t c = 1; c < g_MinDataSizeDelta; ++c) {
-			ASSERT_NO_FATAL_FAILURE((test_f_x_corr<false>(drelu_ET, fst, fmt, fb, "drelu", r, c)));
+			ASSERT_NO_FATAL_FAILURE((test_f_x_corr<false>(drelu_ET<real_t>, fst, fmt, fb, "drelu", r, c)));
 		}
 	}
 }
@@ -2686,7 +2691,7 @@ template<> struct elu_EPS   <double> { static constexpr double eps = 1e-12; };
 template<> struct elu_EPS  <float> { static constexpr float eps = 1e-6f; };
 void test_elu_corr(vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 	MTXSIZE_SCOPED_TRACE(rowsCnt, colsCnt, "test_elu_corr");
-	constexpr unsigned testCorrRepCnt = 10;
+	constexpr vec_len_t testCorrRepCnt = 10;
 	realmtx_t src(rowsCnt, colsCnt, true), F(rowsCnt, colsCnt, true), F_ET(rowsCnt, colsCnt, true), FU_ET(rowsCnt, colsCnt, true);
 	ASSERT_TRUE(!src.isAllocationFailed() && !F.isAllocationFailed() && !F_ET.isAllocationFailed() && !FU_ET.isAllocationFailed());
 
@@ -2694,7 +2699,7 @@ void test_elu_corr(vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 
 	d_interfaces::iRng_t rg;
 	rg.init_ithreads(iM.ithreads());
-	for (unsigned r = 0; r < testCorrRepCnt; ++r) {
+	for (vec_len_t r = 0; r < testCorrRepCnt; ++r) {
 		rg.gen_matrix_no_bias(src, 2);
 		ASSERT_TRUE(src.test_biases_strict());
 
@@ -2737,7 +2742,7 @@ TEST(TestMathN, ELU) {
 }
 void test_delu_corr(vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 	MTXSIZE_SCOPED_TRACE(rowsCnt, colsCnt, "test_delu_corr");
-	constexpr unsigned testCorrRepCnt = 10;
+	constexpr vec_len_t testCorrRepCnt = 10;
 	realmtx_t df_ET(rowsCnt, colsCnt), F(rowsCnt, colsCnt), f_df(rowsCnt, colsCnt), dfU_ET(rowsCnt, colsCnt);
 	ASSERT_TRUE(!df_ET.isAllocationFailed() && !F.isAllocationFailed() && !f_df.isAllocationFailed() && !dfU_ET.isAllocationFailed());
 	
@@ -2745,7 +2750,7 @@ void test_delu_corr(vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 
 	d_interfaces::iRng_t rg;
 	rg.init_ithreads(iM.ithreads());
-	for (unsigned r = 0; r < testCorrRepCnt; ++r) {
+	for (vec_len_t r = 0; r < testCorrRepCnt; ++r) {
 		rg.gen_matrix(F, 2);
 		
 		F.clone_to(df_ET);
@@ -2791,7 +2796,7 @@ template<> struct elogu_EPS <double> { static constexpr double eps = 1e-12; };
 template<> struct elogu_EPS <float> { static constexpr float eps = 1e-6f; };
 void test_elogu_corr(vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 	MTXSIZE_SCOPED_TRACE(rowsCnt, colsCnt, "test_elogu_corr");
-	constexpr unsigned testCorrRepCnt = 10;
+	constexpr vec_len_t testCorrRepCnt = 10;
 	realmtx_t X(rowsCnt, colsCnt, true), F(rowsCnt, colsCnt, true)
 		, F_ET(rowsCnt, colsCnt, true)
 		, FUA_ET(rowsCnt, colsCnt, true)
@@ -2805,7 +2810,7 @@ void test_elogu_corr(vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 
 	d_interfaces::iRng_t rg;
 	rg.init_ithreads(iM.ithreads());
-	for (unsigned r = 0; r < testCorrRepCnt; ++r) {
+	for (vec_len_t r = 0; r < testCorrRepCnt; ++r) {
 		rg.gen_matrix_no_bias(X, 5);
 		ASSERT_TRUE(X.test_biases_strict());
 
@@ -2873,7 +2878,7 @@ template<> struct delogu_EPS <double> { static constexpr double eps = 1e-12; };
 template<> struct delogu_EPS <float> { static constexpr float eps = 1e-6f; };
 void test_delogu_corr(vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 	MTXSIZE_SCOPED_TRACE(rowsCnt, colsCnt, "test_delogu_corr");
-	constexpr unsigned testCorrRepCnt = 10;
+	constexpr vec_len_t testCorrRepCnt = 10;
 	realmtx_t X(rowsCnt, colsCnt, true), F(rowsCnt, colsCnt, true), DF(rowsCnt, colsCnt, false)
 		, df_ET(rowsCnt, colsCnt, false), dfUA_ET(rowsCnt, colsCnt, false)
 		, dfNB_ET(rowsCnt, colsCnt, false), dfUANB_ET(rowsCnt, colsCnt, false);
@@ -2885,7 +2890,7 @@ void test_delogu_corr(vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 
 	d_interfaces::iRng_t rg;
 	rg.init_ithreads(iM.ithreads());
-	for (unsigned r = 0; r < testCorrRepCnt; ++r) {
+	for (vec_len_t r = 0; r < testCorrRepCnt; ++r) {
 		rg.gen_matrix_no_bias(X, 5);
 		ASSERT_TRUE(X.test_biases_strict());
 
@@ -2968,7 +2973,7 @@ template<> struct loglogu_EPS <double> { static constexpr double eps = 1e-12; };
 template<> struct loglogu_EPS <float> { static constexpr float eps = 1e-6f; };
 void test_loglogu_corr(vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 	MTXSIZE_SCOPED_TRACE(rowsCnt, colsCnt, "test_loglogu_corr");
-	constexpr unsigned testCorrRepCnt = 10;
+	constexpr vec_len_t testCorrRepCnt = 10;
 	realmtx_t X(rowsCnt, colsCnt, true), F(rowsCnt, colsCnt, true)
 		, F_ET(rowsCnt, colsCnt, true)
 		, FUA_ET(rowsCnt, colsCnt, true)
@@ -2982,7 +2987,7 @@ void test_loglogu_corr(vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 
 	d_interfaces::iRng_t rg;
 	rg.init_ithreads(iM.ithreads());
-	for (unsigned r = 0; r < testCorrRepCnt; ++r) {
+	for (vec_len_t r = 0; r < testCorrRepCnt; ++r) {
 		rg.gen_matrix_no_bias(X, 5);
 		ASSERT_TRUE(X.test_biases_strict());
 
@@ -3050,7 +3055,7 @@ template<> struct dloglogu_EPS <double> { static constexpr double eps = 1e-12; }
 template<> struct dloglogu_EPS <float> { static constexpr float eps = 1e-6f; };
 void test_dloglogu_corr(vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 	MTXSIZE_SCOPED_TRACE(rowsCnt, colsCnt, "test_dloglogu_corr");
-	constexpr unsigned testCorrRepCnt = 10;
+	constexpr vec_len_t testCorrRepCnt = 10;
 	realmtx_t X(rowsCnt, colsCnt, true), F(rowsCnt, colsCnt, true), DF(rowsCnt, colsCnt, false)
 		, df_ET(rowsCnt, colsCnt, false), dfUA_ET(rowsCnt, colsCnt, false)
 		, dfNB_ET(rowsCnt, colsCnt, false), dfUANB_ET(rowsCnt, colsCnt, false);
@@ -3062,7 +3067,7 @@ void test_dloglogu_corr(vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 
 	d_interfaces::iRng_t rg;
 	rg.init_ithreads(iM.ithreads());
-	for (unsigned r = 0; r < testCorrRepCnt; ++r) {
+	for (vec_len_t r = 0; r < testCorrRepCnt; ++r) {
 		rg.gen_matrix_no_bias(X, 5);
 		ASSERT_TRUE(X.test_biases_strict());
 
@@ -3147,7 +3152,7 @@ template<> struct softsign_EPS <double> { static constexpr double eps = 1e-12; }
 template<> struct softsign_EPS <float> { static constexpr float eps = 1e-6f; };
 void test_softsign_corr(vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 	MTXSIZE_SCOPED_TRACE(rowsCnt, colsCnt, "test_softsign_corr");
-	constexpr unsigned testCorrRepCnt = 10;
+	constexpr vec_len_t testCorrRepCnt = 10;
 	realmtx_t X(rowsCnt, colsCnt, true), F(rowsCnt, colsCnt, true)
 		, F_ET(rowsCnt, colsCnt, true)
 		, FUC_ET(rowsCnt, colsCnt, true);
@@ -3159,7 +3164,7 @@ void test_softsign_corr(vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 
 	d_interfaces::iRng_t rg;
 	rg.init_ithreads(iM.ithreads());
-	for (unsigned r = 0; r < testCorrRepCnt; ++r) {
+	for (vec_len_t r = 0; r < testCorrRepCnt; ++r) {
 		rg.gen_matrix_no_bias(X, 5);
 		ASSERT_TRUE(X.test_biases_strict());
 
@@ -3205,7 +3210,7 @@ template<> struct dsoftsign_EPS <double> { static constexpr double eps = 1e-12; 
 template<> struct dsoftsign_EPS <float> { static constexpr float eps = 1e-6f; };
 void test_dsoftsign_corr(vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 	MTXSIZE_SCOPED_TRACE(rowsCnt, colsCnt, "test_dsoftsign_corr");
-	constexpr unsigned testCorrRepCnt = 10;
+	constexpr vec_len_t testCorrRepCnt = 10;
 	realmtx_t X(rowsCnt, colsCnt, true), F(rowsCnt, colsCnt, true), DF(rowsCnt, colsCnt, false)
 		, df_ET(rowsCnt, colsCnt, false), dfUAUC_ET(rowsCnt, colsCnt, false);
 	ASSERT_TRUE(!X.isAllocationFailed() && !F.isAllocationFailed() && !DF.isAllocationFailed()
@@ -3215,7 +3220,7 @@ void test_dsoftsign_corr(vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 
 	d_interfaces::iRng_t rg;
 	rg.init_ithreads(iM.ithreads());
-	for (unsigned r = 0; r < testCorrRepCnt; ++r) {
+	for (vec_len_t r = 0; r < testCorrRepCnt; ++r) {
 		rg.gen_matrix_no_bias(X, 5);
 		ASSERT_TRUE(X.test_biases_strict());
 
@@ -3315,7 +3320,7 @@ void test_loss_quadratic(iMath& iM, vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 	iM.preinit(dataSize);
 	ASSERT_TRUE(iM.init());
 
-	constexpr unsigned maxReps = TEST_PERF_REPEATS_COUNT, testCorrRepCnt = TEST_CORRECTN_REPEATS_COUNT;
+	constexpr vec_len_t maxReps = TEST_PERF_REPEATS_COUNT, testCorrRepCnt = TEST_CORRECTN_REPEATS_COUNT;
 
 	realmtx_t A, etA(rowsCnt, colsCnt), etY(rowsCnt, colsCnt), Y;
 	real_t etQuadLoss = 0, quadLoss = 0;
@@ -3326,7 +3331,7 @@ void test_loss_quadratic(iMath& iM, vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 
 	typedef activation::Loss_quadratic<real_t> Loss_t;
 
-	for (unsigned r = 0; r < testCorrRepCnt; ++r) {
+	for (vec_len_t r = 0; r < testCorrRepCnt; ++r) {
 		rg.gen_matrix(etA, 5);
 		rg.gen_matrix(etY, 5);
 		ASSERT_TRUE(etA.clone_to(A));
@@ -3373,7 +3378,7 @@ void test_loss_quadratic(iMath& iM, vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 	threads::prioritize_workers<threads::PriorityClass::PerfTesting, iMath::iThreads_t> pw(iM.ithreads());
 
 	utils::tictoc tS, tM, tB, tSt, tMt, tBt;
-	for (unsigned r = 0; r < maxReps; ++r) {
+	for (vec_len_t r = 0; r < maxReps; ++r) {
 		rg.gen_matrix(A, 2);		rg.gen_matrix(Y, 2);
 		tS.tic();
 		quadLoss += iM.loss_quadratic_st_naive(A, Y);
@@ -3428,7 +3433,7 @@ TEST(TestMathN, dSigmQuadLoss_dZ) {
 
 	for (vec_len_t r = 1; r < g_MinDataSizeDelta; ++r) {
 		for (vec_len_t c = 1; c < g_MinDataSizeDelta; ++c) {
-			ASSERT_NO_FATAL_FAILURE(test_dLdZ_corr<true>(dSigmQuadLoss_dZ_ET, fst, fmt, fb, "dSigmQuadLoss_dZ", r, c));
+			ASSERT_NO_FATAL_FAILURE(test_dLdZ_corr<true>(dSigmQuadLoss_dZ_ET<real_t>, fst, fmt, fb, "dSigmQuadLoss_dZ", r, c));
 		}
 	}
 }
@@ -3442,7 +3447,7 @@ TEST(TestMathN, dLoss_dZ) {
 
 	for (vec_len_t r = 1; r < g_MinDataSizeDelta; ++r) {
 		for (vec_len_t c = 1; c < g_MinDataSizeDelta; ++c) {
-			ASSERT_NO_FATAL_FAILURE(test_dLdZ_corr<false>(dLoss_dZ_ET<WL_FP>, fst, fmt, fb, "dLoss_dZ<WeightedLoss_FP>", r, c));
+			ASSERT_NO_FATAL_FAILURE(test_dLdZ_corr<false>(dLoss_dZ_ET<WL_FP, real_t>, fst, fmt, fb, "dLoss_dZ<WeightedLoss_FP>", r, c));
 		}
 	}
 }
@@ -3561,7 +3566,7 @@ template<> struct mColumnsCov_EPS <double> { static constexpr double eps = 1e-12
 template<> struct mColumnsCov_EPS <float> { static constexpr float eps = 1e-6f; };
 void test_mColumnsCov_corr(vec_len_t rowsCnt, vec_len_t colsCnt) {
 	MTXSIZE_SCOPED_TRACE(rowsCnt, colsCnt, "test_mColumnsCov_corr");
-	constexpr unsigned testCorrRepCnt = 10;
+	constexpr vec_len_t testCorrRepCnt = 10;
 	realmtx_t A(rowsCnt, colsCnt), A2(rowsCnt, colsCnt)
 		, C_ET(colsCnt, colsCnt)
 		, C(colsCnt, colsCnt);
@@ -3570,7 +3575,7 @@ void test_mColumnsCov_corr(vec_len_t rowsCnt, vec_len_t colsCnt) {
 
 	d_interfaces::iRng_t rg;
 	rg.init_ithreads(iM.ithreads());
-	for (unsigned rr = 0; rr < testCorrRepCnt; ++rr) {
+	for (vec_len_t rr = 0; rr < testCorrRepCnt; ++rr) {
 		rg.gen_matrix(A, 5);
 		A.clone_to(A2);
 
@@ -3622,7 +3627,7 @@ template<> struct make_alphaDropout_EPS<float> { static constexpr float eps = 1e
 
 void test_make_alphaDropout(vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 	MTXSIZE_SCOPED_TRACE(rowsCnt, colsCnt, "make_alphaDropout");
-	constexpr unsigned testCorrRepCnt = TEST_CORRECTN_REPEATS_COUNT;
+	constexpr vec_len_t testCorrRepCnt = TEST_CORRECTN_REPEATS_COUNT;
 
 	const real_t dpa = real_t(.6), a = real_t(2), b = real_t(-3), c = real_t(4);
 
@@ -3635,7 +3640,7 @@ void test_make_alphaDropout(vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 	d_interfaces::iRng_t rg;
 	rg.init_ithreads(iM.ithreads());
 
-	for (unsigned r = 0; r < testCorrRepCnt; ++r) {
+	for (vec_len_t r = 0; r < testCorrRepCnt; ++r) {
 		rg.gen_matrix_no_bias(As, real_t(5));
 		rg.gen_matrix_norm(DMs);
 
@@ -3674,7 +3679,7 @@ TEST(TestMathN, make_alphaDropout) {
 		}
 	}
 
-	constexpr unsigned rowsCnt = _baseRowsCnt;
+	constexpr vec_len_t rowsCnt = _baseRowsCnt;
 	const vec_len_t maxCols = g_MinDataSizeDelta, maxRows = rowsCnt + g_MinDataSizeDelta;
 	for (vec_len_t r = rowsCnt; r < maxRows; ++r) {
 		for (vec_len_t c = 1; c < maxCols; ++c) {
@@ -3693,7 +3698,7 @@ template<> struct evSubMtxMulC_ip_nb_EPS<float> { static constexpr float eps = 1
 
 void test_evSubMtxMulC_ip_nb(vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 	MTXSIZE_SCOPED_TRACE(rowsCnt, colsCnt, "evSubMtxMulC_ip_nb");
-	constexpr unsigned testCorrRepCnt = TEST_CORRECTN_REPEATS_COUNT;
+	constexpr vec_len_t testCorrRepCnt = TEST_CORRECTN_REPEATS_COUNT;
 
 	const real_t c = real_t(4);
 
@@ -3706,7 +3711,7 @@ void test_evSubMtxMulC_ip_nb(vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 	d_interfaces::iRng_t rg;
 	rg.init_ithreads(iM.ithreads());
 
-	for (unsigned r = 0; r < testCorrRepCnt; ++r) {
+	for (vec_len_t r = 0; r < testCorrRepCnt; ++r) {
 		rg.gen_matrix_no_bias(As, real_t(5));
 		rg.gen_matrix(mBs, real_t(3));
 
@@ -3743,7 +3748,7 @@ TEST(TestMathN, evSubMtxMulC_ip_nb) {
 		}
 	}
 
-	constexpr unsigned rowsCnt = _baseRowsCnt;
+	constexpr vec_len_t rowsCnt = _baseRowsCnt;
 	const vec_len_t maxCols = g_MinDataSizeDelta, maxRows = rowsCnt + g_MinDataSizeDelta;
 	for (vec_len_t r = rowsCnt; r < maxRows; ++r) {
 		for (vec_len_t c = 1; c < maxCols; ++c) {
@@ -3755,7 +3760,7 @@ TEST(TestMathN, evSubMtxMulC_ip_nb) {
 //////////////////////////////////////////////////////////////////////////
 
 void test_vCountNonZeros_corr(vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
-	constexpr unsigned testCorrRepCnt = TEST_CORRECTN_REPEATS_COUNT;
+	constexpr vec_len_t testCorrRepCnt = TEST_CORRECTN_REPEATS_COUNT;
 
 	realmtx_t dat(rowsCnt, colsCnt);
 	ASSERT_TRUE(!dat.isAllocationFailed());
@@ -3764,7 +3769,7 @@ void test_vCountNonZeros_corr(vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 	d_interfaces::iRng_t rg;
 	rg.init_ithreads(iM.ithreads());
 
-	for (unsigned r = 0; r < testCorrRepCnt; ++r) {
+	for (vec_len_t r = 0; r < testCorrRepCnt; ++r) {
 		rg.gen_matrix(dat, 1);
 		iM.ewBinarize_ip(dat, real_t(0.5), real_t(0), real_t(1));
 
@@ -3795,7 +3800,7 @@ TEST(TestMathN, vCountNonZeros) {
 		}
 	}
 
-	constexpr unsigned rowsCnt = _baseRowsCnt;
+	constexpr vec_len_t rowsCnt = _baseRowsCnt;
 	const vec_len_t maxCols = g_MinDataSizeDelta, maxRows = rowsCnt + g_MinDataSizeDelta;
 	for (vec_len_t r = rowsCnt; r < maxRows; ++r) {
 		for (vec_len_t c = 1; c < maxCols; ++c) {
@@ -3807,14 +3812,14 @@ TEST(TestMathN, vCountNonZeros) {
 //////////////////////////////////////////////////////////////////////////
 
 void test_evOneCompl_corr(vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
-	constexpr unsigned testCorrRepCnt = TEST_CORRECTN_REPEATS_COUNT;
+	constexpr vec_len_t testCorrRepCnt = TEST_CORRECTN_REPEATS_COUNT;
 
 	realmtx_t gate(rowsCnt, colsCnt), gcompl(rowsCnt, colsCnt), gcomplET(rowsCnt, colsCnt);
 
 	d_interfaces::iRng_t rg;
 	rg.init_ithreads(iM.ithreads());
 
-	for (unsigned r = 0; r < testCorrRepCnt; ++r) {
+	for (vec_len_t r = 0; r < testCorrRepCnt; ++r) {
 		rg.gen_matrix_norm(gate);
 		iM.ewBinarize_ip(gate, real_t(0.5), real_t(0), real_t(1));
 
@@ -3841,7 +3846,7 @@ TEST(TestMathN, evOneCompl) {
 		}
 	}
 
-	constexpr unsigned rowsCnt = _baseRowsCnt;
+	constexpr vec_len_t rowsCnt = _baseRowsCnt;
 	const vec_len_t maxCols = g_MinDataSizeDelta, maxRows = rowsCnt + g_MinDataSizeDelta;
 	for (vec_len_t r = rowsCnt; r < maxRows; ++r) {
 		for (vec_len_t c = 1; c < maxCols; ++c) {
@@ -3853,7 +3858,7 @@ TEST(TestMathN, evOneCompl) {
 //////////////////////////////////////////////////////////////////////////
 
 void test_mExtractRowsByMask_corr(vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
-	constexpr unsigned testCorrRepCnt = TEST_CORRECTN_REPEATS_COUNT;
+	constexpr vec_len_t testCorrRepCnt = TEST_CORRECTN_REPEATS_COUNT;
 
 	realmtx_t src(rowsCnt, colsCnt), mask(rowsCnt, 1);
 	realmtxdef_t dest(rowsCnt, colsCnt), destET(rowsCnt, colsCnt);
@@ -3861,7 +3866,7 @@ void test_mExtractRowsByMask_corr(vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 	d_interfaces::iRng_t rg;
 	rg.init_ithreads(iM.ithreads());
 
-	for (unsigned r = 0; r < testCorrRepCnt; ++r) {
+	for (vec_len_t r = 0; r < testCorrRepCnt; ++r) {
 		vec_len_t nzc;
 		do {
 			rg.gen_matrix_norm(mask);
@@ -3897,7 +3902,7 @@ TEST(TestMathN, mExtractRowsByMask) {
 		}
 	}
 
-	constexpr unsigned rowsCnt = _baseRowsCnt;
+	constexpr vec_len_t rowsCnt = _baseRowsCnt;
 	const vec_len_t maxCols = g_MinDataSizeDelta, maxRows = rowsCnt + g_MinDataSizeDelta;
 	for (vec_len_t r = rowsCnt; r < maxRows; ++r) {
 		for (vec_len_t c = 1; c < maxCols; ++c) {
@@ -3909,7 +3914,7 @@ TEST(TestMathN, mExtractRowsByMask) {
 //////////////////////////////////////////////////////////////////////////
 
 void test_mFillRowsByMask_corr(vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
-	constexpr unsigned testCorrRepCnt = TEST_CORRECTN_REPEATS_COUNT;
+	constexpr vec_len_t testCorrRepCnt = TEST_CORRECTN_REPEATS_COUNT;
 
 	realmtx_t dest(rowsCnt, colsCnt), mask(rowsCnt, 1), destET(rowsCnt, colsCnt);
 	realmtxdef_t src(rowsCnt, colsCnt);
@@ -3917,8 +3922,8 @@ void test_mFillRowsByMask_corr(vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 	d_interfaces::iRng_t rg;
 	rg.init_ithreads(iM.ithreads());
 
-	for (unsigned r = 0; r < testCorrRepCnt; ++r) {
-		size_t nzc;
+	for (vec_len_t r = 0; r < testCorrRepCnt; ++r) {
+		numel_cnt_t nzc;
 		do {
 			rg.gen_matrix_norm(mask);
 			iM.ewBinarize_ip(mask, real_t(0.3), real_t(0), real_t(1));
@@ -3951,7 +3956,7 @@ TEST(TestMathN, mFillRowsByMask) {
 		}
 	}
 
-	constexpr unsigned rowsCnt = _baseRowsCnt;
+	constexpr vec_len_t rowsCnt = _baseRowsCnt;
 	const vec_len_t maxCols = g_MinDataSizeDelta, maxRows = rowsCnt + g_MinDataSizeDelta;
 	for (vec_len_t r = rowsCnt; r < maxRows; ++r) {
 		for (vec_len_t c = 1; c < maxCols; ++c) {

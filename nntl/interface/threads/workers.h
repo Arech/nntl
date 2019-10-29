@@ -210,7 +210,7 @@ namespace threads {
 			auto* rc = &m_reduceCache[0];
 
 			const range_t workersOnReduce = m_workingCnt + 1;
-			NNTL_ASSERT(workersOnReduce <= m_reduceCache.size());
+			NNTL_ASSERT(workersOnReduce <= conform_sign(m_reduceCache.size()));
 
 			m_waitingOrders.notify_all();
 			m_mutex.unlock();

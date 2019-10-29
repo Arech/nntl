@@ -49,8 +49,8 @@ template<typename real_t>
 void _maskStat(const math::smatrix<real_t> &m) {
 	auto pD = m.data();
 	size_t c = 0;
-	const size_t ne = m.numel();
-	for (size_t i = 0; i < ne; ++i) {
+	const auto ne = m.numel();
+	for (numel_cnt_t i = 0; i < ne; ++i) {
 		if (pD[i] > 0) ++c;
 	}
 	STDCOUTL("Gating mask opens on average " << real_t(c) / m.cols() << " samples for each gate. Total gates count=" << m.cols());
@@ -213,23 +213,23 @@ struct TLPHO_simple_prms {
 	static constexpr unsigned int nGatesCnt = 3;
 
 #ifdef TESTS_SKIP_NNET_LONGRUNNING
-	static constexpr size_t simple_l1nc = 40;
-	static constexpr size_t simple_l2nc = 20;
+	static constexpr neurons_count_t simple_l1nc = 40;
+	static constexpr neurons_count_t simple_l2nc = 20;
 
-	static constexpr size_t simple_lFd1nc = 15;
+	static constexpr neurons_count_t simple_lFd1nc = 15;
 	
-	static constexpr size_t epochs = 5;
+	static constexpr numel_cnt_t epochs = 5;
 #else
-	static constexpr size_t simple_l1nc = 50;
-	static constexpr size_t simple_l2nc = 30;
+	static constexpr neurons_count_t simple_l1nc = 50;
+	static constexpr neurons_count_t simple_l2nc = 30;
 
-	static constexpr size_t simple_lFd1nc = 20;
+	static constexpr neurons_count_t simple_lFd1nc = 20;
 	
-	static constexpr size_t epochs = 7;
+	static constexpr numel_cnt_t epochs = 7;
 #endif
 
 	static constexpr real_t learningRate = real_t(.001);
-	static constexpr size_t batchSize = 100;
+	static constexpr vec_len_t batchSize = 100;
 
 	static constexpr real_t nesterovMomentum = real_t(.9);
 };
@@ -401,16 +401,20 @@ public:
 
 	static constexpr bool bAddFeatureNotPresent = bAddFeatureNotPres;
 	static constexpr vec_len_t nGatesCnt = 2;
-	static constexpr real_t gateZeroProb = real_t(0.3);
-
-	static constexpr int gateZeroProb1e6 = 0;
+	
+	//static constexpr int gateZeroProb1e6 = 0;
+	//static constexpr int gateZeroProb1e6 = -500000;// only about 1/4 of gate activations should be disabled
+	static constexpr int gateZeroProb1e6 = -5000000; //there must be no disabled gate activations, else we'll get a lot of
+	// grad checks due to gate discontinuity
 	static constexpr bool bBinarizeGate = true;
 
-	static constexpr size_t simple_l1nc = 30;
-	static constexpr size_t simple_l2nc = 20;
+	static constexpr neurons_count_t simple_l1nc = 17;
+	static constexpr neurons_count_t simple_l2nc = 13;
 
 	~GC_LPHO_ArchPrms()noexcept {}
-	GC_LPHO_ArchPrms(const nntl::train_data<real_t>& td)noexcept : _base_class_t(td) {}
+	GC_LPHO_ArchPrms(const nntl::train_data<real_t>& td)noexcept : _base_class_t(td) {
+		lUnderlay_nc = 29;
+	}
 };
 
 template<typename RealT, bool bAddFeatureNotPres>
@@ -426,7 +430,11 @@ void run_gc4lpho(const train_data<RealT>& td)noexcept {
 		"throwing away some lUnderlay activations). The second possible cause of failure is when it tests activation values "
 		"that serves as a gate later. So if doubt - execute the test several times.");
 
-	STDCOUTL("***** Checking with bAddFeatureNotPresent=" << bAddFeatureNotPres);
+	//note that due to nondifferentiability of the gate in fact it's more strange that sometimes test passes...
+	//changed the gating parameter to always open the gate
+	//#TODO grad check routine must know how to check the whole nnet when at least a single LPHO present.
+
+	STDCOUTL(::std::endl << "***** Checking with bAddFeatureNotPresent=" << bAddFeatureNotPres << ::std::endl);
 
 	/*nntl::train_data<real_t> td;
 	{
@@ -447,7 +455,7 @@ void run_gc4lpho(const train_data<RealT>& td)noexcept {
 
 	gradcheck_settings<real_t> ngcSetts(true, false);
 	ngcSetts.evalSetts.bIgnoreZerodLdWInUndelyingLayer = true;
-	ngcSetts.onlineBatchSize = 25;//batch must be big enough to minimize probability of the whole gate==0
+	ngcSetts.onlineBatchSize = 50;//batch must be big enough to minimize probability of the whole gate==0
 	ngcSetts.evalSetts.dLdW_setts.relErrFailThrsh = real_t(5e-4);
 	ngcSetts.evalSetts.dLdW_setts.percOfZeros = 10;
 	ngcSetts.evalSetts.dLdA_setts.percOfZeros = 90;
@@ -458,7 +466,7 @@ void run_gc4lpho(const train_data<RealT>& td)noexcept {
 	ngcSetts.layerCanSkipExecIds.push_back(nnArch.ArchObj.lInner1.get_layer_idx());
 	ngcSetts.layerCanSkipExecIds.push_back(nnArch.ArchObj.lInner2.get_layer_idx());
 
-	ASSERT_TRUE(nnArch.NN.gradcheck(td.train_x(), td.train_y(), 25, ngcSetts));
+	ASSERT_TRUE(nnArch.NN.gradcheck(td.train_x(), td.train_y(), 50, ngcSetts));
 }
 
 TEST(TestLayerPackHorizontalOptional, GradCheck) {

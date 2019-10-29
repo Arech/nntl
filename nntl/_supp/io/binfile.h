@@ -130,6 +130,9 @@ namespace nntl_supp {
 // 		typedef realmtx_t::value_type mtx_value_t;
 // 		typedef realmtx_t::vec_len_t vec_len_t;
 
+		typedef ::nntl::vec_len_t vec_len_t;
+		typedef ::nntl::numel_cnt_t numel_cnt_t;
+
 		template<typename T_> using smatrix = nntl::math::smatrix<T_>;
 		template<typename T_> using train_data = nntl::train_data<T_>;
 

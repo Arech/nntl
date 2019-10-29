@@ -53,7 +53,7 @@ TEST(TestJsonreader, ReadingAndParsingMatrix) {
 	typedef train_data<real_t> train_data_t;
 	typedef train_data_t::mtx_t realmtx_t;
 	using mtx_size_t = realmtx_t::mtx_size_t;
-	using vec_len_t = realmtx_t::vec_len_t;
+	//using vec_len_t = realmtx_t::vec_len_t;
 
 	realmtx_t m;
 	jsonreader reader;
@@ -80,7 +80,7 @@ TEST(TestJsonreader, ReadingAndParsingTrainData) {
 	typedef train_data_t::mtx_t realmtx_t;
 	using mtx_size_t = realmtx_t::mtx_size_t;
 	using real_t = realmtx_t::value_type;
-	using vec_len_t = realmtx_t::vec_len_t;
+	//using vec_len_t = realmtx_t::vec_len_t;
 
 	train_data_t td;
 	jsonreader reader;

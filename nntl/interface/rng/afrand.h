@@ -67,7 +67,7 @@ namespace rng {
 
 		//////////////////////////////////////////////////////////////////////////
 		// matrix/vector generation (sequence from begin to end of numbers drawn from uniform distribution in [-a,a])
-		void gen_vector(real_t* ptr, const size_t n, const real_t a)noexcept {
+		void gen_vector(real_t* ptr, const numel_cnt_t n, const real_t a)noexcept {
 			const ext_real_t scale = 2 * a;
 			const auto pE = ptr + n;
 			while (ptr != pE) {
@@ -76,7 +76,7 @@ namespace rng {
 		}
 
 		// matrix/vector generation (sequence of numbers drawn from uniform distribution in [neg,pos])
-		void gen_vector(real_t* ptr, const size_t n, const real_t neg, const real_t pos)noexcept {
+		void gen_vector(real_t* ptr, const numel_cnt_t n, const real_t neg, const real_t pos)noexcept {
 			const auto span = static_cast<ext_real_t>(pos - neg);
 			const auto rNeg = static_cast<ext_real_t>(neg);
 			const auto pE = ptr + n;
@@ -87,7 +87,7 @@ namespace rng {
 
 		//////////////////////////////////////////////////////////////////////////
 		//generate vector with values in range [0,1]
-		void gen_vector_norm(real_t* ptr, const size_t n)noexcept {
+		void gen_vector_norm(real_t* ptr, const numel_cnt_t n)noexcept {
 			const auto pE = ptr + n;
 			while (ptr != pE) {
 				*ptr++ = gen_f_norm();
@@ -97,7 +97,7 @@ namespace rng {
 		//////////////////////////////////////////////////////////////////////////
 		//generate vector with values in range [0,a]
 		template<typename BaseType>
-		void gen_vector_gtz(BaseType* ptr, const size_t n, const BaseType a)noexcept {
+		void gen_vector_gtz(BaseType* ptr, const numel_cnt_t n, const BaseType a)noexcept {
 			const auto pE = ptr + n;
 			while (ptr != pE) {
 				*ptr++ = static_cast<BaseType>(m_rng.Random()*a);

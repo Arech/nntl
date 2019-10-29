@@ -49,6 +49,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 using namespace nntl;
 
 TEST(TestActivations, Linear) {
+	typedef d_interfaces::real_t real_t;
 	typedef math::smatrix<real_t> realmtx_t;
 	typedef nntl_supp::binfile reader_t;
 

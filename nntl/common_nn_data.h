@@ -261,8 +261,8 @@ namespace _impl {
 		using _base_class::iInspect_t;
 		using _base_class::real_t;
 
-		using _base_class::vec_len_t;
-		using _base_class::numel_cnt_t;
+		//using _base_class::vec_len_t;
+		//using _base_class::numel_cnt_t;
 		using _base_class::mtx_size_t;
 		using _base_class::mtx_coords_t;
 

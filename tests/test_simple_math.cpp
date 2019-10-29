@@ -45,6 +45,11 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "common_routines.h"
 
 using namespace nntl;
+using namespace nntl::math_etalons;
+
+typedef d_interfaces::real_t real_t;
+typedef math::smatrix<real_t> realmtx_t;
+typedef math::smatrix_deform<real_t> realmtxdef_t;
 
 typedef d_interfaces::iThreads_t iThreads_t;
 typedef math::SMath < real_t, iThreads_t> SMath_t;
@@ -741,7 +746,7 @@ TEST(TestSMath, mrwMulByVec) {
 //////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////
 void test_mrwIdxsOfMaxCorrectness(vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
-	typedef ::std::vector<realmtx_t::vec_len_t> vec_t;
+	typedef ::std::vector<vec_len_t> vec_t;
 	MTXSIZE_SCOPED_TRACE(rowsCnt, colsCnt, "mrwIdxsOfMax");
 	constexpr unsigned testCorrRepCnt = TEST_CORRECTN_REPEATS_COUNT;
 	realmtx_t A(rowsCnt, colsCnt);
@@ -755,7 +760,7 @@ void test_mrwIdxsOfMaxCorrectness(vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 
 	for (unsigned tr = 0; tr < testCorrRepCnt; ++tr) {
 		rg.gen_matrix(A, 1);
-		mrwMax_ET(A, nullptr, &vec_et[0]);
+		mrwMax_ET(A, (real_t*)nullptr, &vec_et[0]);
 
 		::std::fill(vec_test.begin(), vec_test.end(), vec_t::value_type(-1));
 		iM.mrwIdxsOfMax_st_cw(A, &vec_test[0]);
