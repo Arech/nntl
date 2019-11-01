@@ -1896,6 +1896,7 @@ namespace math {
 		//		returns true if SVD was successful
 		//		Restrictions: MUST NOT use the math object's local storage (the function is intended to be used during
 		//			the weight initialization phase when the local storage is generally not initialized yet)
+		//	https://github.com/Lasagne/Lasagne/blob/master/lasagne/init.py
 		bool mSVD_Orthogonalize_ss(realmtx_t& A)noexcept {
 			const auto m = A.rows(), n = A.cols();
 			const bool bGetU = m >= n;

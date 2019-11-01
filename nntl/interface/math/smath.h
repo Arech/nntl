@@ -62,11 +62,11 @@ namespace math {
 		NNTL_METHODS_SELF_CHECKED( (::std::is_base_of<_SMath<RealT, iThreadsT, ThresholdsT, FinalPolymorphChild>, FinalPolymorphChild>::value)
 			, "FinalPolymorphChild must derive from _SMath<RealT, iThreadsT, FinalPolymorphChild>" );
 
+		//OBSOLETE! Note that actually any math function should not depend on RealT/real_t type and dependent types,
+		// but must be parametrized with it so we'd be able to call it with any suitable data type.
+		// Don't use it in new code
 		typedef RealT real_t;
 		typedef smatrix<real_t> realmtx_t;
-		//typedef typename realmtx_t::vec_len_t vec_len_t;
-		//typedef typename realmtx_t::numel_cnt_t numel_cnt_t;
-
 		typedef smatrix_deform<real_t> realmtxdef_t;
 
 		typedef s_rowcol_range rowcol_range;

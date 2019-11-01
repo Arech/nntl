@@ -118,6 +118,6 @@ Desktop.ini
 *.bin
 !*/test_data/*.bin
 *.mat
-nntl.VC.db
+*.VC.db
 *.xlsx
 *.vspx

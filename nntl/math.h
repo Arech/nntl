@@ -55,9 +55,39 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 //::std::exp() with large negative argument may produce -nan(ind) when compiler vectorizes and it into intinsic.
 //To prevent this behaviour while maintaining the same code performance helps setting floating point roundind towards zero
-#if !defined(NNTL_FP_ROUND_TO_ZERO) || NNTL_FP_ROUND_TO_ZERO!=0
+#if !defined(NNTL_FP_ROUND_TO_ZERO)
+#define NNTL_FP_ROUND_TO_ZERO 1
+#else
+#if NNTL_FP_ROUND_TO_ZERO!=0
+#undef NNTL_FP_ROUND_TO_ZERO
 #define NNTL_FP_ROUND_TO_ZERO 1
 #endif
+#endif
+
+//////////////////////////////////////////////////////////////////////////
+#if NNTL_FP_ROUND_TO_ZERO
+#define NNTL_FPU_SET_ROUND_TO_ZERO unsigned int current_word = 0; _controlfp_s(&current_word, _RC_CHOP, _MCW_RC);
+//_controlfp_s(&current_word, _RC_NEAR, _MCW_RC);//--default mode breaks intrinsic of ::std::exp
+#define NNTL_FPU_RESTORE_ROUND_TO_ZERO unsigned int current_word = 0; _controlfp_s(&current_word, _CW_DEFAULT, _MCW_RC);
+#else
+#define NNTL_FPU_SET_ROUND_TO_ZERO
+#define NNTL_FPU_RESTORE_ROUND_TO_ZERO
+#endif
+namespace nntl {
+	namespace utils {
+		//helper class to restore FPU config to conventional before calling external code and then revert back
+		struct _scoped_restore_FPU {
+			~_scoped_restore_FPU()noexcept {
+				NNTL_FPU_SET_ROUND_TO_ZERO
+			}
+			_scoped_restore_FPU()noexcept {
+				NNTL_FPU_RESTORE_ROUND_TO_ZERO
+			}
+		};
+	}
+}
+
+//////////////////////////////////////////////////////////////////////////
 
 #if NNTL_DENORMALS2ZERO
 //#pragma message("NNTL_DENORMALS2ZERO: denormalized floats WILL BE flushed to zero in global_denormalized_floats_mode()" )

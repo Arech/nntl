@@ -75,7 +75,9 @@ namespace math {
 	// NB: Leading dimension is the number of elements in major dimension. We're using Col-Major ordering,
 	// therefore it is the number of ROWs of a matrix
 	struct b_OpenBLAS {
-
+	private:
+		typedef utils::_scoped_restore_FPU _restoreFPU;
+	public:
 		//TODO: beware that sz_t type used as substitution of blasint can overflow blasint and silencing conversion warnings here can make it difficult to debug!
 		//TODO: May be there should be some preliminary check for this condition.
 
@@ -86,13 +88,15 @@ namespace math {
 		template<typename sz_t, typename fl_t>
 		static typename ::std::enable_if_t< ::std::is_same< ::std::remove_pointer_t<fl_t>, double>::value > axpy(
 			const sz_t n, const fl_t alpha, const fl_t *x, const sz_t incx, fl_t *y, const sz_t incy)
-		{	
+		{
+			_restoreFPU r;
 			cblas_daxpy(static_cast<blasint>(n), alpha, x, static_cast<blasint>(incx), y, static_cast<blasint>(incy));
 		}
 		template<typename sz_t, typename fl_t>
 		static typename ::std::enable_if_t< ::std::is_same< ::std::remove_pointer_t<fl_t>, float>::value > axpy(
 			const sz_t n, const fl_t alpha, const fl_t *x, const sz_t incx, fl_t *y, const sz_t incy)
 		{
+			_restoreFPU r;
 			cblas_saxpy(static_cast<blasint>(n), alpha, x, static_cast<blasint>(incx), y, static_cast<blasint>(incy));
 		}
 
@@ -111,12 +115,14 @@ namespace math {
 		static typename ::std::enable_if_t< ::std::is_same< ::std::remove_pointer_t<fl_t>, double>::value, double >
 			dot(const sz_t n, const fl_t *x, const sz_t incx, const fl_t *y, const sz_t incy)
 		{
+			_restoreFPU r;
 			return cblas_ddot(static_cast<blasint>(n), x, static_cast<blasint>(incx), y, static_cast<blasint>(incy));
 		}
 		template<typename sz_t, typename fl_t>
 		static typename ::std::enable_if_t< ::std::is_same< ::std::remove_pointer_t<fl_t>, float>::value, float >
 			dot(const sz_t n, const fl_t *x, const sz_t incx, const fl_t *y, const sz_t incy)
 		{
+			_restoreFPU r;
 			return cblas_sdot(static_cast<blasint>(n), x, static_cast<blasint>(incx), y, static_cast<blasint>(incy));
 		}
 
@@ -162,9 +168,10 @@ namespace math {
 		static typename ::std::enable_if_t< ::std::is_same< ::std::remove_pointer_t<fl_t>, double>::value >
 			gemm( //const enum CBLAS_TRANSPOSE TransA, const enum CBLAS_TRANSPOSE TransB,
 			const bool bTransposeA, const bool bTransposeB,
-			const sz_t& M, const sz_t& N, const sz_t& K, const fl_t& alpha, const fl_t *A, const sz_t& lda,
-			const fl_t *B, const sz_t& ldb, const fl_t& beta, fl_t *C, const sz_t& ldc)
+			const sz_t M, const sz_t N, const sz_t K, const fl_t alpha, const fl_t *A, const sz_t lda,
+			const fl_t *B, const sz_t ldb, const fl_t beta, fl_t *C, const sz_t ldc)
 		{
+			_restoreFPU r;
 			cblas_dgemm(CblasColMajor, bTransposeA ? CblasTrans : CblasNoTrans, bTransposeB ? CblasTrans : CblasNoTrans,
 				static_cast<blasint>(M), static_cast<blasint>(N), static_cast<blasint>(K),
 				alpha, A, static_cast<blasint>(lda), B, static_cast<blasint>(ldb), beta, C, static_cast<blasint>(ldc));
@@ -174,9 +181,10 @@ namespace math {
 		static typename ::std::enable_if_t< ::std::is_same< ::std::remove_pointer_t<fl_t>, float>::value >
 			gemm( //const enum CBLAS_TRANSPOSE TransA, const enum CBLAS_TRANSPOSE TransB,
 			const bool bTransposeA, const bool bTransposeB,
-			const sz_t& M, const sz_t& N, const sz_t& K, const fl_t& alpha, const fl_t *A, const sz_t& lda,
-			const fl_t *B, const sz_t& ldb, const fl_t& beta, fl_t *C, const sz_t& ldc)
+			const sz_t M, const sz_t N, const sz_t K, const fl_t alpha, const fl_t *A, const sz_t lda,
+			const fl_t *B, const sz_t ldb, const fl_t beta, fl_t *C, const sz_t ldc)
 		{
+			_restoreFPU r;
 			cblas_sgemm(CblasColMajor, bTransposeA ? CblasTrans: CblasNoTrans, bTransposeB ? CblasTrans : CblasNoTrans,
 				static_cast<blasint>(M), static_cast<blasint>(N), static_cast<blasint>(K),
 				alpha, A, static_cast<blasint>(lda), B, static_cast<blasint>(ldb), beta, C, static_cast<blasint>(ldc));
@@ -197,18 +205,20 @@ namespace math {
 		//		A is an n-by-k matrix in the first case and a k-by-n matrix in the second case.
 		template<typename sz_t, typename fl_t>
 		static typename ::std::enable_if_t< ::std::is_same< ::std::remove_pointer_t<fl_t>, double>::value >
-			syrk( const bool bCLowerTriangl, const bool bFirstATransposed, const sz_t& N, const sz_t& K, const fl_t& alpha
-				, const fl_t *A, const sz_t& lda, const fl_t& beta, fl_t *C, const sz_t& ldc)
+			syrk( const bool bCLowerTriangl, const bool bFirstATransposed, const sz_t N, const sz_t K, const fl_t alpha
+				, const fl_t *A, const sz_t lda, const fl_t beta, fl_t *C, const sz_t ldc)
 		{
+			_restoreFPU r;
 			cblas_dsyrk(CblasColMajor, bCLowerTriangl ? CblasLower : CblasUpper, bFirstATransposed ? CblasTrans : CblasNoTrans
 				, static_cast<blasint>(N), static_cast<blasint>(K), alpha, A, static_cast<blasint>(lda), beta, C, static_cast<blasint>(ldc));
 			//global_denormalized_floats_mode();
 		}
 		template<typename sz_t, typename fl_t>
 		static typename ::std::enable_if_t< ::std::is_same< ::std::remove_pointer_t<fl_t>, float>::value >
-			syrk(const bool bCLowerTriangl, const bool bFirstATransposed, const sz_t& N, const sz_t& K, const fl_t& alpha
-				, const fl_t *A, const sz_t& lda, const fl_t& beta, fl_t *C, const sz_t& ldc)
+			syrk(const bool bCLowerTriangl, const bool bFirstATransposed, const sz_t N, const sz_t K, const fl_t alpha
+				, const fl_t *A, const sz_t lda, const fl_t beta, fl_t *C, const sz_t ldc)
 		{
+			_restoreFPU r;
 			cblas_ssyrk(CblasColMajor, bCLowerTriangl ? CblasLower : CblasUpper, bFirstATransposed ? CblasTrans : CblasNoTrans
 				, static_cast<blasint>(N), static_cast<blasint>(K), alpha, A, static_cast<blasint>(lda), beta, C, static_cast<blasint>(ldc));
 			//global_denormalized_floats_mode();
@@ -228,9 +238,10 @@ namespace math {
 		//		B and C are m - by - n matrices.
 		template<typename sz_t, typename fl_t>
 		static typename ::std::enable_if_t< ::std::is_same< ::std::remove_pointer_t<fl_t>, double>::value >
-			symm(const bool bSymmAatLeft, const bool bALowerTriangl, const sz_t& M, const sz_t& N, const fl_t& alpha
-				, const fl_t *A, const sz_t& lda, const fl_t *B, const sz_t& ldb, const fl_t& beta, fl_t *C, const sz_t& ldc)
+			symm(const bool bSymmAatLeft, const bool bALowerTriangl, const sz_t M, const sz_t N, const fl_t alpha
+				, const fl_t *A, const sz_t lda, const fl_t *B, const sz_t ldb, const fl_t beta, fl_t *C, const sz_t ldc)
 		{
+			_restoreFPU r;
 			cblas_dsymm(CblasColMajor, bSymmAatLeft ? CblasLeft : CblasRight, bALowerTriangl ? CblasLower : CblasUpper
 				, static_cast<blasint>(M), static_cast<blasint>(N), alpha, A, static_cast<blasint>(lda)
 				, B, static_cast<blasint>(ldb), beta, C, static_cast<blasint>(ldc));
@@ -238,9 +249,10 @@ namespace math {
 		}
 		template<typename sz_t, typename fl_t>
 		static typename ::std::enable_if_t< ::std::is_same< ::std::remove_pointer_t<fl_t>, float>::value >
-			symm(const bool bSymmAatLeft, const bool bALowerTriangl, const sz_t& M, const sz_t& N, const fl_t& alpha
-				, const fl_t *A, const sz_t& lda, const fl_t *B, const sz_t& ldb, const fl_t& beta, fl_t *C, const sz_t& ldc)
+			symm(const bool bSymmAatLeft, const bool bALowerTriangl, const sz_t M, const sz_t N, const fl_t alpha
+				, const fl_t *A, const sz_t lda, const fl_t *B, const sz_t ldb, const fl_t beta, fl_t *C, const sz_t ldc)
 		{
+			_restoreFPU r;
 			cblas_ssymm(CblasColMajor, bSymmAatLeft ? CblasLeft : CblasRight, bALowerTriangl ? CblasLower : CblasUpper
 				, static_cast<blasint>(M), static_cast<blasint>(N), alpha, A, static_cast<blasint>(lda)
 				, B, static_cast<blasint>(ldb), beta, C, static_cast<blasint>(ldc));
@@ -257,20 +269,22 @@ namespace math {
 		template<typename sz_t, typename fl_t>
 		static typename ::std::enable_if_t< ::std::is_same< ::std::remove_pointer_t<fl_t>, double>::value, int>
 			gesvd(/*int matrix_layout,*/ const char jobu, const char jobvt,
-				const sz_t& m, const sz_t& n, fl_t* A,
-				const sz_t& lda, fl_t* S, fl_t* U, const sz_t& ldu,
-				fl_t* Vt, const sz_t& ldvt, fl_t* superb)
+				const sz_t m, const sz_t n, fl_t* A,
+				const sz_t lda, fl_t* S, fl_t* U, const sz_t ldu,
+				fl_t* Vt, const sz_t ldvt, fl_t* superb)
 		{
+			_restoreFPU r;
 			return static_cast<int>(LAPACKE_dgesvd(LAPACK_COL_MAJOR, jobu, jobvt, static_cast<lapack_int>(m), static_cast<lapack_int>(n)
 				, A, static_cast<lapack_int>(lda), S, U, static_cast<lapack_int>(ldu), Vt, static_cast<lapack_int>(ldvt), superb));
 		}
 		template<typename sz_t, typename fl_t>
 		static typename ::std::enable_if_t< ::std::is_same< ::std::remove_pointer_t<fl_t>, float>::value, int>
 			gesvd(/*int matrix_layout,*/ const char jobu, const char jobvt,
-				const sz_t& m, const sz_t& n, fl_t* A,
-				const sz_t& lda, fl_t* S, fl_t* U, const sz_t& ldu,
-				fl_t* Vt, const sz_t& ldvt, fl_t* superb)
+				const sz_t m, const sz_t n, fl_t* A,
+				const sz_t lda, fl_t* S, fl_t* U, const sz_t ldu,
+				fl_t* Vt, const sz_t ldvt, fl_t* superb)
 		{
+			_restoreFPU r;
 			return static_cast<int>(LAPACKE_sgesvd(LAPACK_COL_MAJOR, jobu, jobvt, static_cast<lapack_int>(m), static_cast<lapack_int>(n)
 				, A, static_cast<lapack_int>(lda), S, U, static_cast<lapack_int>(ldu), Vt, static_cast<lapack_int>(ldvt), superb));
 		}
@@ -308,6 +322,7 @@ namespace math {
 			omatcopy(const bool bTranspose, const sz_t rows, const sz_t cols, const fl_t alpha,
 				const fl_t* pA, const sz_t lda, fl_t* pB, const sz_t ldb)
 		{
+			_restoreFPU r;
 			cblas_domatcopy(CblasColMajor, bTranspose ? CblasTrans : CblasNoTrans,
 				static_cast<blasint>(rows), static_cast<blasint>(cols), alpha,
 				pA, static_cast<blasint>(lda), pB, static_cast<blasint>(ldb));
@@ -317,6 +332,7 @@ namespace math {
 			omatcopy(const bool bTranspose, const sz_t rows, const sz_t cols, const fl_t alpha,
 				const fl_t* pA, const sz_t lda, fl_t* pB, const sz_t ldb)
 		{
+			_restoreFPU r;
 			cblas_somatcopy(CblasColMajor, bTranspose ? CblasTrans : CblasNoTrans,
 				static_cast<blasint>(rows), static_cast<blasint>(cols), alpha,
 				pA, static_cast<blasint>(lda), pB, static_cast<blasint>(ldb));

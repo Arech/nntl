@@ -135,9 +135,6 @@
     <ClInclude Include="..\nntl\interface\math\bindings\b_open_blas.h">
       <Filter>nntl\interface\math\bindings</Filter>
     </ClInclude>
-    <ClInclude Include="..\nntl\interface\math\bindings\b_yeppp.h">
-      <Filter>nntl\interface\math\bindings</Filter>
-    </ClInclude>
     <ClInclude Include="..\nntl\utils\chrono.h">
       <Filter>nntl\utils</Filter>
     </ClInclude>

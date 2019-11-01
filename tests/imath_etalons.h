@@ -1002,21 +1002,5 @@ namespace math_etalons {
 		}
 	}
 
-	//////////////////////////////////////////////////////////////////////////
-	// perform scalar multiplication (bias column excluded if any) of each row of matrix A to corresponding row of matrix B into vector dest
-	template<typename T>
-	void dot_product_rows_ET(::std::vector<T>& dest, const ::nntl::math::smatrix<T>& A, const ::nntl::math::smatrix<T>& B)noexcept {
-		NNTL_ASSERT(dest.size() == A.rows() && dest.size() == B.rows());
-
-		const auto mr = A.rows();
-		const auto mc = A.cols_no_bias();
-		for (vec_len_t r = 0; r < mr; ++r) {
-			T v = 0;
-			for (vec_len_t c = 0; c < mc; ++c) {
-				v += A.get(r, c)*B.get(r, c);
-			}
-			dest[r] = v;
-		}
-	}
 }
 }

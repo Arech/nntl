@@ -45,6 +45,12 @@ namespace rng {
 	public:
 		typedef AgnerFogRNG base_rng_t;
 
+	protected:
+		//AFog::CRandomMersenne m_rng;
+		base_rng_t m_rng;
+
+	public:
+
 		AFRand()noexcept : m_rng(static_cast<int>(s64to32(::std::time(0)))) {}
 		AFRand(seed_t s)noexcept : m_rng(static_cast<int>(s)) {}
 
@@ -103,10 +109,6 @@ namespace rng {
 				*ptr++ = static_cast<BaseType>(m_rng.Random()*a);
 			}
 		}
-
-	protected:
-		//AFog::CRandomMersenne m_rng;
-		base_rng_t m_rng;
 	};
 
 }

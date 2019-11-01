@@ -32,18 +32,14 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #pragma once
 
 namespace nntl {
-
-	//math_types should be defined elsewhere
-	//using math_types = math::_basic_types;
-	// OBSOLETTE
-
+	
 	//typename for referring layer numbers, indexes, counts and so on. *640k* 256 layers should enough for everyone :-D
 	//Damn, I've never thought, it'll not be enought so soon!)
 	// must be unsigned
 	typedef ::std::uint16_t layer_index_t;
 
 	// must be unsigned -- What the hell? Why "must"?
-	// It's unlikely we ever get stuck into the signed int32 limit, but signed integers allows to perform loop vectorization much better
+	// It's unlikely we ever get stuck into the signed int32 limit, but signed integers allows to perform loop vectorization better
 	// If we'd ever stuck int INT_MAX, just set to int64
 	typedef ::std::int32_t neurons_count_t;
 	typedef neurons_count_t vec_len_t;

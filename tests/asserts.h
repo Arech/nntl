@@ -47,6 +47,9 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //typedef ::nntl::vec_len_t vec_len_t;
 //typedef ::nntl::numel_cnt_t numel_cnt_t;
 
+#define ASSERT_SUPPORTED_REAL_T(T) static_assert(::std::is_same<T,float>::value || ::std::is_same<T,double>::value, \
+"Only float or double supported for type=" #T);
+
 #define MTXSIZE_SCOPED_TRACE(_r,_c,_descr) constexpr unsigned _scopeMsgLen = 128; \
 char _scopeMsg[_scopeMsgLen]; \
 sprintf_s(_scopeMsg, "%s: data size is %dx%d (%lld elements)", (_descr), (_r), (_c), ::nntl::math::smatrix_td::sNumel((_r), (_c))); \
@@ -56,6 +59,24 @@ SCOPED_TRACE(_scopeMsg);
 char _scopeMsg[_scopeMsgLen]; \
 sprintf_s(_scopeMsg, "%s%f: data size is %dx%d (%lld elements)", (_descr), (fparam),(_r), (_c), ::nntl::math::smatrix_td::sNumel((_r), (_c))); \
 SCOPED_TRACE(_scopeMsg);
+
+//////////////////////////////////////////////////////////////////////////
+
+#define MTXSIZE_SCOPED_TRACE_TYPED(_r,_c,_descr) constexpr unsigned _scopeMsgLen = 256; \
+char _scopeMsg[_scopeMsgLen]; \
+ASSERT_SUPPORTED_REAL_T(real_t) \
+sprintf_s(_scopeMsg, "%s: real_t=%s, data size is %dx%d (%lld elements)", (_descr) \
+, ::std::is_same<real_t,float>::value ? "float" : "double" , (_r), (_c), ::nntl::math::smatrix_td::sNumel((_r), (_c))); \
+SCOPED_TRACE(_scopeMsg);
+
+#define MTXSIZE_SCOPED_TRACE_TYPED_1d(_r,_c,_descr, _d) constexpr unsigned _scopeMsgLen = 256; \
+char _scopeMsg[_scopeMsgLen]; \
+ASSERT_SUPPORTED_REAL_T(real_t) \
+sprintf_s(_scopeMsg, "%s%d: real_t=%s, data size is %dx%d (%lld elements)", (_descr), (_d) \
+, ::std::is_same<real_t,float>::value ? "float" : "double" , (_r), (_c), ::nntl::math::smatrix_td::sNumel((_r), (_c))); \
+SCOPED_TRACE(_scopeMsg);
+
+//////////////////////////////////////////////////////////////////////////
 
 template<typename _T>
 inline void _ASSERT_REALMTX_NEAR(const nntl::math::smatrix<_T>& c1, const nntl::math::smatrix<_T>& c2, const char* descr, const double eps) noexcept {
