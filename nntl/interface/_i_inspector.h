@@ -118,6 +118,9 @@ namespace inspector {
 		nntl_interface void fprop_preNesterovMomentum(const realmtx_t& vW, const real_t momentum, const realmtx_t& W)const noexcept;
 		nntl_interface void fprop_postNesterovMomentum(const realmtx_t& vW, const realmtx_t& W)const noexcept;
 
+		nntl_interface void fprop_preLRDropout4NesterovMomentum(const realmtx_t& vW, const real_t dpa, const realmtx_t& dropoutMask)const noexcept;
+		nntl_interface void fprop_postLRDropout4NesterovMomentum(const realmtx_t& vW)const noexcept;
+
 		//fprop_makePreActivations() has two forms - for layer that has params to learn
 		nntl_interface void fprop_makePreActivations(const realmtx_t& W, const realmtx_t& prevAct)const noexcept;
 		//and for layers without params to learn
@@ -227,6 +230,13 @@ namespace inspector {
 			}
 			void fprop_postNesterovMomentum(const realmtx_t& vW, const realmtx_t& W)const noexcept {
 				NNTL_UNREF(vW);				NNTL_UNREF(W);
+			}
+
+			void fprop_preLRDropout4NesterovMomentum(const realmtx_t& vW, const real_t dpa, const realmtx_t& dropoutMask)const noexcept {
+				NNTL_UNREF(vW); NNTL_UNREF(dpa); NNTL_UNREF(dropoutMask);
+			}
+			void fprop_postLRDropout4NesterovMomentum(const realmtx_t& vW)const noexcept {
+				NNTL_UNREF(vW);
 			}
 
 			void fprop_makePreActivations(const realmtx_t& W, const realmtx_t& prevAct)const noexcept {

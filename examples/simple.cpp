@@ -232,9 +232,12 @@ TEST(Simple, NotSoPlainFFN_LRDO) {
 	//auto optimizerType = decltype(fcl)::grad_works_t::Adam;
 	//auto optimizerType = decltype(fcl)::grad_works_t::AdaMax;
 
-	fcl.m_gradientWorks.set_type(optimizerType).nesterov_momentum(momntm).numeric_stabilizer(numStab).LRDropoutPercentActive(LRDropoutAct);
-	fcl2.m_gradientWorks.set_type(optimizerType).nesterov_momentum(momntm).numeric_stabilizer(numStab).LRDropoutPercentActive(LRDropoutAct);
-	outp.m_gradientWorks.set_type(optimizerType).nesterov_momentum(momntm).numeric_stabilizer(numStab).LRDropoutPercentActive(LRDropoutAct);
+	fcl.m_gradientWorks.set_type(optimizerType).nesterov_momentum(momntm).numeric_stabilizer(numStab)
+		.LRDropoutPercentActive(LRDropoutAct).setApplyLRDropoutToNesterovMomentum(true);
+	fcl2.m_gradientWorks.set_type(optimizerType).nesterov_momentum(momntm).numeric_stabilizer(numStab)
+		.LRDropoutPercentActive(LRDropoutAct).setApplyLRDropoutToNesterovMomentum(true);
+	outp.m_gradientWorks.set_type(optimizerType).nesterov_momentum(momntm).numeric_stabilizer(numStab)
+		.LRDropoutPercentActive(LRDropoutAct).setApplyLRDropoutToNesterovMomentum(true);
 
 	//3. assemble layer references (!! - not layer objects, but references to them) into a single object - layer_pack. 
 	auto lp = make_layers(inp, fcl, fcl2, outp);
@@ -246,7 +249,7 @@ TEST(Simple, NotSoPlainFFN_LRDO) {
 
 	//5. make instance of NN 
 	auto nn = make_nnet(lp);
-	//nn.get_iRng().seed64(0x01ed59);
+	nn.get_iRng().seed64(0x01ed59);
 
 	//5.5 define callback
 	auto onEpochEndCB = [learningRateDecayCoeff](auto& nn, auto& opts, const numel_cnt_t epochIdx)->bool {

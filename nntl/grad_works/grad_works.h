@@ -127,7 +127,12 @@ namespace nntl {
 			// (4)  W(t+1)  = W(t) - vW(t+1) 
 			//				= W(t) - vW`(t+1) - scaling*grad_Loss( W`(t+1) )
 			//				= W`(t+1) - scaling * grad_Loss( W`(t+1) )
-			// Steps (1)-(2) done during pre_training_fprop(), steps (3)-(4) - during apply_grad()
+			// Steps (1)-(2) is done during pre_training_fprop(), steps (3)-(4) - during apply_grad()
+
+			//if there's LRDropout and Nesterov Momentum to be applied, should we apply LRDropout to weight update during 
+			//application of momentum velocity to the weights (steps (1)-(2) during fprop).
+			// true by default
+			f_apply_LRDropout_to_nesterov_momentum,
 
 			f_UseMaxNorm,
 			f_NormIncludesBias,//if true, the max-norm parameter describes full norm of weight vector
@@ -249,7 +254,9 @@ namespace nntl {
 
 	protected:
 		void _flags_default()noexcept {
-			set_opt(f_FirstRun, true).set_opt(f_UseNesterovMomentum, true); // .reset(f_ApplyILRToMomentum);
+			set_opt(f_FirstRun, true)
+				.set_opt(f_UseNesterovMomentum, true)
+				.set_opt(f_apply_LRDropout_to_nesterov_momentum, true); // .reset(f_ApplyILRToMomentum);
 		}
 
 		~_grad_works()noexcept {}
@@ -293,7 +300,11 @@ namespace nntl {
 			if (!ILR_init(weightsSize))return false;
 
 			set_common_data(cd);
-			get_iMath().preinit(math::smatrix_td::sNumel(weightsSize));
+
+			//we would need twice weightsNumel to make LRDropout for NesterovMomentum if necessary
+			get_iMath().preinit(math::smatrix_td::sNumel(weightsSize)*(1 + (
+				use_nesterov_momentum() && bApplyLRDropoutToNesterovMomentum() && bLRDropout()
+				)));
 
 			if (!_la_init(weightsSize))return false;
 
@@ -324,7 +335,37 @@ namespace nntl {
 				auto& iM = get_iMath();
 				auto& iI = get_iInspect();
 				iI.fprop_preNesterovMomentum(m_Vw, m_momentum, weights);
-				iM.evMulC_ip_Sub_ip(m_Vw, m_momentum, weights);
+
+				if (bLRDropout() && bApplyLRDropoutToNesterovMomentum()) {
+					//we can't make everything here in a single step, so doing in a long way
+					//step (1)
+					iM.evMulC_ip(m_Vw, m_momentum);
+
+					//storing m_Vw in temporary matrix to apply dropout further
+					NNTL_ASSERT(!weights.emulatesBiases());
+					const auto weightsNumel = weights.numel();
+					auto pVwTmp = iM._istor_alloc(weightsNumel);
+					auto pDoMask = iM._istor_alloc(weightsNumel);
+					realmtx_t tmpVw(pVwTmp, weights), doMask(pDoMask, weights);
+					m_Vw.copy_to(tmpVw);
+
+					//creating and applying do mask
+					get_iRng().gen_matrix_norm(doMask);
+
+					iI.fprop_preLRDropout4NesterovMomentum(tmpVw, m_LRDropoutPercActive, doMask);
+					iM.apply_dropout_mask(tmpVw, m_LRDropoutPercActive, doMask);
+					iI.fprop_postLRDropout4NesterovMomentum(tmpVw);
+
+					//applying weight updates
+					iM.evSub_ip(weights, tmpVw);
+
+					tmpVw.clear();
+					doMask.clear();
+					iM._istor_free(pDoMask, weightsNumel);
+					iM._istor_free(pVwTmp, weightsNumel);
+				} else {
+					iM.evMulC_ip_Sub_ip(m_Vw, m_momentum, weights);
+				}
 				iI.fprop_postNesterovMomentum(m_Vw, weights);
 
 				//this might seems unnecessary, because weights will be normalized during apply_grad(), however note this:
@@ -556,6 +597,13 @@ namespace nntl {
 			return get_self();
 		}
 
+		bool bApplyLRDropoutToNesterovMomentum()const noexcept {
+			return get_opt(f_apply_LRDropout_to_nesterov_momentum);
+		}
+		self_ref_t setApplyLRDropoutToNesterovMomentum(const bool v)noexcept {
+			set_opt(f_apply_LRDropout_to_nesterov_momentum, v);
+			return get_self();
+		}
 
 		self_ref_t momentum(const real_t m)noexcept {
 			NNTL_ASSERT(m >= 0 && m < 1);
