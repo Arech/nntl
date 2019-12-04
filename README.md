@@ -80,6 +80,7 @@ but it was broken by design).
 * Classical **momentum** (a.k.a. Polyak's momentum) and **Nesterov momentum** (a.k.a. Nesterov Accelerated Gradient or NAG for short)
 * Regularizers (applicable on per-layer/set of layers basis):
   * **Dropout** (actually, it's so called "inverted dropout" where activations is scaled only at a training time; during a testing activations/weights with and without dropout remains the same) and **Alpha Dropout** (ArXiv:1706.02515 "Self-Normalizing Neural Networks", by Günter Klambauer et al.)
+  * **Learning Rate Dropout** (ArXiv:1912.00144 by Huangxing Lin er al.)
   * **L1** and **L2** regularizers is applicable to weights and activation values. Custom regularizers are easy to add by implementing loss_addendum::_i_loss_addendum interface.
   * **DeCov** activations values regularizer is implemented almost as described by Michael Cogswell et.al in the paper "Reducing Overfitting in Deep Neural Networks by Decorrelating Representations", 2015, arXiv:1511.06068. The only difference is in that the NNTL uses a correct derivative of the loss function (which is twice bigger than the published derivative).
   * Constraint for a total length of a neuron's incoming weight vector - so called **max-norm** regularization. Once a neuron weights grow too much, they are getting scaled so their norm will fit into a some predefined value (Srivastava, Hinton, et.al "Dropout: A Simple Way to Prevent Neural Networks from Overfitting" 2014)

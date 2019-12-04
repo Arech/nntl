@@ -1,15 +1,23 @@
 function [ gr ] = VPxml2graph( fname, bMoveDropoutToLph, bDropoutDefaultOn, dropoutDefaultType )
-%VPXML2GRAPH Summary of this function goes here
-% bDropoutDefaultOn - determines how to treat a class when no dropout-related property specifed for
-% non-compound layers.
-% bDropoutDefaultType - set's default type suffix for a dropout when it is absent
+%VPXML2GRAPH Reads xml file with VisualParadigm's exported class diagram and converts it to neural network
+%	architecture graph.
+% Params:
+%	- bMoveDropoutToLph - removes dropout from every uppermost children layer of LPH and sets dropout
+%		for the whole LPH (optimal when every top-level children should have a dropout)
+%	- bDropoutDefaultOn - determines how to treat a class when no dropout-related property specifed for
+%		non-compound layers.
+%	- bDropoutDefaultType - set's default type suffix for a dropout when it is absent
+%
+% note that LPT layers are not supported yet. Need to make a support for storing various parameters in NOTE
+% shapes. Then it would be easy to specify any parameter for any layer (such as tiling count, loss addendums,
+% layer's repeats and etc) via linked NOTE with parsable text. That's a TODO for future
 
-if ~exist('bMoveDropoutToLph','var') || ~isscalar(bMoveDropoutToLph) || ~islogical(bMoveDropoutToLph) || ~isnumeric(bMoveDropoutToLph)
+if ~exist('bMoveDropoutToLph','var') || ~isscalar(bMoveDropoutToLph) || ~(islogical(bMoveDropoutToLph) || isnumeric(bMoveDropoutToLph))
 	bMoveDropoutToLph=true;
 end
 bMoveDropoutToLph=logical(bMoveDropoutToLph);
 
-if ~exist('bDropoutDefaultOn','var') || ~isscalar(bDropoutDefaultOn) || ~islogical(bDropoutDefaultOn) || ~isnumeric(bDropoutDefaultOn)
+if ~exist('bDropoutDefaultOn','var') || ~isscalar(bDropoutDefaultOn) || ~(islogical(bDropoutDefaultOn) || isnumeric(bDropoutDefaultOn))
 	bDropoutDefaultOn=true;
 end
 bDropoutDefaultOn=logical(bDropoutDefaultOn);
@@ -80,8 +88,9 @@ if bIsPackage
 	end
 	
 	constr = [];
+	repeat = [];
 else
-	[nc,type,custType, constr, lossAdds, dout] = readClassModelProps(xtree,iid);
+	[nc,type,custType, constr, lossAdds, dout, repeat] = readClassModelProps(xtree,iid, name);
 end
 
 if isempty(dout) && ~ischar(dout)
@@ -103,12 +112,13 @@ end
 
 cs = struct('iid',iid,'sid',sid,'name',name,'y',y, 'x',x, 'nc', nc...
 	, 'parentIid',[],'childList',0,'type', type, 'customType', custType ...
-	, 'constr', constr, 'lossAdds', lossAdds, 'dropout', dout);
+	, 'constr', constr, 'lossAdds', lossAdds, 'dropout', dout, 'repeat', repeat);
 cs.childList={};
 %parentIid and childList should be filled by a caller
 end
-%% 
-function [nc, type, custType, constr, lossAdds, dout]=readClassModelProps(xtree,modelId)
+
+%%
+function [nc, type, custType, constr, lossAdds, dout, repeat]=readClassModelProps(xtree,modelId, name)
 import javax.xml.xpath.*
 XP = XPathFactory.newInstance().newXPath();
 LT=static_layer_types();
@@ -119,10 +129,11 @@ custType=[];
 constr=[];
 lossAdds=[];
 dout=[];
+repeat=[];
 
 XP_expr = XP.compile( ['/Project/Models//Model[@modelType="Class" and @id="' modelId '"]']);
 modelNode = XP_expr.evaluate(xtree, XPathConstants.NODESET);
-assert(~isempty(modelNode) && modelNode.getLength()==1, ['None or multiple class modelId="' modelId '" found']);
+assert(~isempty(modelNode) && modelNode.getLength()==1, ['None or multiple class modelId="' modelId '" found. Name=' name]);
 modelNode = modelNode.item(0);
 
 %read a nc attribute
@@ -131,10 +142,10 @@ v = XP_expr.evaluate(modelNode, XPathConstants.STRING);
 if ~isempty(v)
 	nc=str2double(v);
 	if isnan(nc)
-		fprintf(1, '**Beware, using string value `%s` for .nc value of model %s. You take care for correctness!\n', v, modelId);
+		fprintf(1, '**Beware, using string value `%s` for .nc value of model %s name %s. You take care for correctness!\n', v, modelId, name);
 		nc = v;
 	else
-		assert(nc>0, ['Invalid neurons count value nc="' nc '" read from class modelId="' modelId '"'] );
+		assert(nc>0, ['Invalid neurons count value nc="' nc '" read from class modelId="' modelId '", Name=' name] );
 	end
 end
 
@@ -154,7 +165,7 @@ end
 XP_expr = XP.compile('ChildModels/Model[@modelType="Attribute" and @name="dropout"]');
 atrNode = XP_expr.evaluate(modelNode, XPathConstants.NODESET);
 if ~isempty(atrNode) && atrNode.getLength()>0
-	assert(atrNode.getLength()==1,'Unexpected count of `dropout` attribute nodes!');
+	assert(atrNode.getLength()==1, ['Unexpected count of `dropout` attribute nodes! Name=' name]);
 	dout=true;%it exists (empty value ([]) means it doesn't exist at all and default value should be used)
 
 	XP_expr = XP.compile('ModelProperties/TextModelProperty[@name="initialValue"]/StringValue[@value]/@value');
@@ -178,11 +189,16 @@ if ~isempty(atrNode) && atrNode.getLength()>0
 end
 
 %read a type attribute
-XP_expr = XP.compile('ChildModels/Model[@modelType="Attribute" and @name="type"]/ModelProperties/TextModelProperty[@name="type"]/StringValue[@value]/@value');
+
+%note that the following XPath is slightly wrong (due to my old mistake). It queries TYPE of attribute, that is
+%designated by a colon in attribute description, while actually we need (should use) a VALUE, that is written
+%after equality sign
+%XP_expr = XP.compile('ChildModels/Model[@modelType="Attribute" and @name="type"]/ModelProperties/TextModelProperty[@name="type"]/StringValue[@value]/@value');
+XP_expr = XP.compile('ChildModels/Model[@modelType="Attribute" and @name="type"]/ModelProperties/TextModelProperty[@name="initialValue"]/StringValue[@value]/@value');
 v = XP_expr.evaluate(modelNode, XPathConstants.STRING);
 if ~isempty(v)
 	type = string2layer_type(v);
-	assert(~isLayerTypeCompound(type), ['Invalid(compound) layer type type="' v '" read from class modelId="' modelId '"'] );
+	assert(~isLayerTypeCompound(type), ['Invalid(compound) layer type type="' v '" read from class modelId="' modelId '", Name=' name] );
 	if type==LT.custom
 		custType=v;
 		
@@ -192,16 +208,30 @@ if ~isempty(v)
 		if ~isempty(atrNode) && atrNode.getLength()>0
 			assert(atrNode.getLength()==1,'Unexpected count of `constr` attribute nodes!');
 			constr=0;%at least, it exists (empty value ([]) means it doesn't exist at all)
-			nc=[];%cleaning .nc value - we don't need it. It'll be read from customType
 			
-			%% TODO: should automatically set .nc of a single incoming shape to `custType`_base::RFLen
-			
+			% .nc for custom constructed layers are taken from the layer type::nc_Final
+			assert(isempty(nc), ['No .nc must be defined for custom constructed layer such as name=' name])
+			%nc=[];%cleaning .nc value - we don't need it. It'll be read from customType
+						
 			XP_expr = XP.compile('ModelProperties/TextModelProperty[@name="initialValue"]/StringValue[@value]/@value');
 			v = XP_expr.evaluate(atrNode.item(0), XPathConstants.STRING);
 			if ~isempty(v)
 				constr = v;
 			end
 		end
+	end
+end
+
+%read a repeat attribute
+XP_expr = XP.compile('ChildModels/Model[@modelType="Attribute" and @name="repeat"]/ModelProperties/TextModelProperty[@name="initialValue"]/StringValue[@value]/@value');
+v = XP_expr.evaluate(modelNode, XPathConstants.STRING);
+if ~isempty(v)
+	repeat=str2double(v);
+	if isnan(repeat)
+		fprintf(1, '**Beware, using string value `%s` for .repeat value of model %s name %s. You take care for correctness!\n', v, modelId, name);
+		repeat = v;
+	else
+		assert(repeat>0, ['Invalid repeat value ="' repeat '" read from class modelId="' modelId '", Name=' name] );
 	end
 end
 
@@ -297,6 +327,7 @@ shapes = def_shapeStruct();
 shapes(1)=readShape(xtree, packageNode, true,bDropoutDefaultOn);
 shapesCnt=1;
 if bIsSrc
+	%setting/checking the source package to have LPT type
 	if shapes(shapesCnt).type==0, shapes(shapesCnt).type=LT.lph; end
 	assert(shapes(shapesCnt).type == LT.lph, 'Source Data package type could be a LPH only');
 end
@@ -320,7 +351,6 @@ for ii=1:chlList.getLength()
 	
 	switch(childType)
 		case 'Class'
-			
 			shp = readShape(xtree, child, false,bDropoutDefaultOn);
 			shp.parentIid = packageIid;
 			shapes(1).childList = [shapes(1).childList shp.iid];
@@ -403,11 +433,21 @@ for ii=1:topShapes.getLength()
 			shList = readWholePackage(xtree, child, bIsSrc,bDropoutDefaultOn);
 			shListCnt=length(shList);
 			if bIsSrc
-				assert(strcmp('Data',shList(1).name) && shListCnt>1);				
-				shapes(1) = shList(1);
+				assert(strcmp('Data',shList(1).name) && shListCnt>1);
+								
+				if shListCnt==2
+					%dropping toplevel package and leaving only a single data source
+					shapes(1) = shList(2);
+					shapes(1).parentIid=[];
+					shListCnt=0;
+				else
+					%saving package as a container for a set of data sources
+					shapes(1) = shList(1);
+					
+					shListCnt=shListCnt-1;
+					shapes(shapesCnt+1:shapesCnt+shListCnt) = shList(2:end);
+				end
 				
-				shListCnt=shListCnt-1;
-				shapes(shapesCnt+1:shapesCnt+shListCnt) = shList(2:end);				
 			else
 				shapes(shapesCnt+1:shapesCnt+shListCnt) = shList;
 			end
@@ -533,7 +573,7 @@ end
 
 assert(all( cellfun(@(cv)isnumeric(cv), {conns(:).sid1}) ) ...
 	|| ~all( cellfun(@(cv)isnumeric(cv), {conns(:).sid2}) ),...
-	'There are connections are between unknown shapes!');
+	'There are connections between unknown shapes!');
 
 shapes = make_connections(rmfield(shapes,'sid'),conns);
 
@@ -541,6 +581,9 @@ end
 
 %%
 function shapes = make_connections(shapes,conns)
+LT = static_layer_types();
+CD = static_codegen_defs();
+
 connCnt = length(conns);
 %направленный граф будем описывать двум€ матрицами - исход€щих и вход€щих св€зей. Ќаправление у нас
 %определ€етс€ значением координаты Y - св€зь всегда от большей Y к меньшей.
@@ -555,14 +598,23 @@ shapes(1).out=[];
 			if ~isempty(shapes(fromI).nc)
 				if ischar(shapes(fromI).nc)
 					error(['Shape `' shapes(fromI).name '` already have a .nc property specified as a string (`'...
-						shapes(fromI).nc '`), while a connection from it has a numeric .nc(=' ...
-						num2str(nc,'%d') '). Drop .nc from the connection!']);
+						shapes(fromI).nc '`), while its outgoing connection has a numeric .nc(=' ...
+						num2str(nc,'%d') ')!']);
 				end
 				assert(shapes(fromI).nc ==nc, ['Inconsistent neurons count for "' shapes(fromI).name ...
 					'": it already has nc=' num2str(shapes(fromI).nc,'%d') ...
 					' while a connection specifies nc=' num2str(nc,'%d')] );
 			else
 				shapes(fromI).nc=nc;
+			end
+		else
+			% connection has no .nc specified. Checking if shape's attribute is also not specifed and if so
+			% setting to a default value
+			typ = shapes(fromI).type;
+			if isempty(shapes(fromI).nc) && (typ == LT.lfc || typ == LT.src || (typ == LT.custom && isempty(shapes(fromI).constr)))
+				assert(~isempty(shapes(fromI).name) && ischar(shapes(fromI).name));
+				shapes(fromI).nc = [ CD.fullNcPfx shapes(fromI).name];
+				disp(['* note: no suitable .nc value found for ' shapes(fromI).name ', using default ' shapes(fromI).nc]);
 			end
 		end
 		assert(isempty(find(shapes(toI).in == fromI,1)), 'Hey! How did you managed to make two edges for the same two shapes?');
@@ -681,9 +733,15 @@ end
 function dShpList = def_shapeStruct()
 vl=cell(1,1);
 dShpList = struct('iid',vl,'sid',vl,'name',vl,'y',vl, 'x',vl, 'nc',vl,...
-	'parentIid',vl,'childList',vl,'type',vl,'customType',vl,'constr',vl,'lossAdds',vl, 'dropout',vl);
+	'parentIid',vl,'childList',vl,'type',vl,'customType',vl,'constr',vl,'lossAdds',vl, 'dropout',vl, ...
+	'repeat', vl);
 %when layer is of custom type, and there is a 'constr' attribute set, it implies two things:
 % 1. customType (type attribute) specifies a struct data type similar to obtained from our xslt-transform.
-% 2. nc_ and .lFinal member values are obtained from this type
+% 2. nc_ and .lFinal member values are obtained from this type. nc MUST NOT be specified in diagram
+% 3. .constr attribute value if set must be a string with actual object construction arguments
+%
+% .repeat propery is allowed only for direct child of LPH. It's designed to pass all incoming neurons
+%	to .repeat instances of the layer simultaneously
+% Note that it seems that whole idea of .repeat propery is just a glitch, so it will probably be removed
 
 end

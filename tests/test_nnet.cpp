@@ -225,7 +225,7 @@ void test_LSUVExt(train_data<RealT>& td, bool bCentNorm, bool bScaleNorm, bool b
 
 	auto lp = make_layers(inp, fcl, fcl2, fcl3, fcl4, fcl5, fcl6, fcl7, fcl8, fcl9, outp);
 
-	nnet_train_opts<training_observer_stdcout<eval_classification_one_hot<real_t>>> opts(epochs);
+	nnet_train_opts<training_observer_stdcout<eval_classification_one_hot_cached<real_t>>> opts(epochs);
 	opts.batchSize(200);
 
 	auto nn = make_nnet(lp);

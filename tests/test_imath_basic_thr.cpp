@@ -1767,6 +1767,58 @@ TEST(TestMathNThr, make_dropout) {
 }
 
 //////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////// 
+void test_apply_dropout_mask_perf(vec_len_t rowsCnt, vec_len_t colsCnt = 10, const real_t dpa = real_t(.5)) {
+	const auto dataSize = realmtx_t::sNumel(rowsCnt, colsCnt);
+	STDCOUTL("******* testing apply_dropout_mask() over " << rowsCnt << "x" << colsCnt << " matrix (" << dataSize << " elements), dpa = "
+		<< dpa << " **************");
+
+	constexpr unsigned maxReps = TEST_PERF_REPEATS_COUNT;
+
+	realmtx_t act(rowsCnt, colsCnt, true), dm(rowsCnt, colsCnt);
+	ASSERT_TRUE(!act.isAllocationFailed() && !dm.isAllocationFailed());
+
+	d_interfaces::iRng_t rg;
+	rg.init_ithreads(iM.ithreads());
+
+	threads::prioritize_workers<threads::PriorityClass::PerfTesting, imath_basic_t::iThreads_t> pw(iM.ithreads());
+
+	utils::tictoc tS, tM, tB;
+
+	real_t v = real_t(0);
+	for (unsigned r = 0; r < maxReps; ++r) {
+		rg.gen_matrix_no_bias(act, 5);		rg.gen_matrix_norm(dm);
+		tS.tic();
+		iM.apply_dropout_mask_st(act, dpa, dm);
+		tS.toc();
+		for (const auto e : act) v += e;		for (const auto e : dm) v += e;
+		v = ::std::log10(::std::abs(v));
+
+		rg.gen_matrix_no_bias(act, 5);		rg.gen_matrix_norm(dm);
+		tM.tic();
+		iM.apply_dropout_mask_mt(act, dpa, dm);
+		tM.toc();
+		for (const auto e : act) v += e;		for (const auto e : dm) v += e;
+		v = ::std::log10(::std::abs(v));
+
+		rg.gen_matrix_no_bias(act, 5);		rg.gen_matrix_norm(dm);
+		tB.tic();
+		iM.apply_dropout_mask(act, dpa, dm);
+		tB.toc();
+		for (const auto e : act) v += e;		for (const auto e : dm) v += e;
+		v = ::std::log10(::std::abs(v));
+	}
+	tS.say("_st");
+	tM.say("_mt");
+	tB.say("()");
+	STDCOUTL(v);
+}
+
+TEST(TestMathNThr, apply_dropout_mask) {
+	NNTL_RUN_TEST2(imath_basic_t::Thresholds_t::apply_dropout_mask, 10) test_apply_dropout_mask_perf(i, 10);
+}
+
+//////////////////////////////////////////////////////////////////////////
 
 void test_evOneCompl_perf(vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 	const auto dataSize = realmtx_t::sNumel(rowsCnt, colsCnt);

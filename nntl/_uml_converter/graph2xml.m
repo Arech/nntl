@@ -1,6 +1,6 @@
 function [docNode] = graph2xml( gr,fname )
-%GRAPH2XML Summary of this function goes here
-%   Detailed explanation goes here
+%GRAPH2XML writes neural net graph gr to xml file fname to be processed with layers2cpp.xsl later.
+% Note that matlab uses saxon6.5.5 xsl processor, see http://saxon.sourceforge.net/saxon6.5.5/
 
 tli = find([gr(2:end).parentIid]==0);
 assert(~isempty(tli));
@@ -158,22 +158,27 @@ end
 %%
 function add_sourceNodes(docNode, gr)
 LT=static_layer_types();
-assert(strcmp(gr(1).name,'Data'));
+
+assert((LT.lph == gr(1).type && strcmp(gr(1).name,'Data')) || LT.src==gr(1).type);
 
 rootNode = docNode.createElement('data');
 
 if LT.src==gr(1).type
+	assert(isempty(gr(1).childList));
 	add_element(docNode, rootNode, gr,1);
 else
+	assert(LT.lph == gr(1).type);
 	chList = gr(1).childList;
 	assert( all( arrayfun(@(c)~isempty(gr(c).nc),chList) ) );
 	if all( arrayfun(@(c)isnumeric(gr(c).nc), chList ))
+		%setting marker that permits more elaborate receptive field description
 		rootNode.setAttribute('nc_num_only','');
 	end
 	
 	for ii=1:length(chList)
-		assert(isempty( gr(chList(ii)).childList ));
-		add_element(docNode, rootNode, gr, chList(ii));
+		chNum = chList(ii);
+		assert(LT.src==gr(chNum).type && isempty( gr(chNum).childList ));
+		add_element(docNode, rootNode, gr, chNum);
 	end	
 end
 
@@ -186,10 +191,22 @@ function add_element(docNode, rootNode, gr, iid)
 LT=static_layer_types();
 ltype = gr(iid).type;
 
+% During LPH definition/construction it is quite a lot of work to marry common layers PHL's with
+% those layers, that are defined with .repeat attribute. And at this moment it's not clear, if it has any
+% use at all, so lets just limit possible use-cases for LPH children with .repeat attribute to
+% the only one case when .repeat attribute could be defined in the only one single PHL child.
+% So, making a check for it
+assert(isempty(gr(iid).repeat) ...
+	|| (gr(iid).parentIid > 0 && gr(gr(iid).parentIid).type==LT.lph ...
+	&& length(gr(gr(iid).parentIid).childList)==1 && iid==gr(gr(iid).parentIid).childList)...
+	, ['.repeat property can be defined for the only child of LPH, but that is wrong for ' gr(iid).name]);
+
+%proceeding
+
 bIsLPH = ltype == LT.lph;
 bIsCompound = isLayerTypeCompound(ltype);
 
-elmNode = docNode.createElement(layer_type2string(ltype));%'layer');
+elmNode = docNode.createElement(layer_type2string(ltype));
 assert(~isempty(elmNode));
 
 assert(~isempty(gr(iid).name));
@@ -202,6 +219,16 @@ end
 
 if ~isempty(gr(iid).customType)
 	elmNode.setAttribute('type', gr(iid).customType);
+end
+
+if ~isempty(gr(iid).repeat)
+	v = gr(iid).repeat;
+	if ischar(v)
+		elmNode.setAttribute('repeat', v);
+	else
+		assert(isnumeric(v) && v>0 && round(v)==v);
+		elmNode.setAttribute('repeat', num2str(v,'%d'));
+	end
 end
 
 if ~bIsCompound

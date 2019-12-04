@@ -292,12 +292,12 @@ void test_same_layers(train_data<real_t>& td, uint64_t rngSeed) {
 	// doing and checking forward pass
 	CD.set_mode_and_batch_size(true, trainSamplesCnt);
 
-	tuple_utils::for_each_up(AlayersTuple, [](auto& lyr)noexcept { lyr.on_batch_size_change(real_t(1.)); });
+	tuple_utils::for_each_up(AlayersTuple, [](auto& lyr)noexcept { lyr.on_batch_size_change(/*real_t(1.)*/); });
 	Ainp.fprop(trainX);
 	Aund.fprop(Ainp);
 	Aint.fprop(Aund);
 
-	tuple_utils::for_each_up(BlayersTuple, [](auto& lyr)noexcept { lyr.on_batch_size_change(real_t(1.)); });
+	tuple_utils::for_each_up(BlayersTuple, [](auto& lyr)noexcept { lyr.on_batch_size_change(/*real_t(1.)*/); });
 	Binp.fprop(trainX);
 	Bund.fprop(Binp);
 	lpHor.fprop(Bund);

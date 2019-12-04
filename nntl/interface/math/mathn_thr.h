@@ -63,6 +63,7 @@ namespace _impl {
 		static constexpr numel_cnt_t mCheck_normalize_rows = 124000;
 		static constexpr numel_cnt_t evClamp = 9000;
 		static constexpr numel_cnt_t make_dropout = 7000;
+		static constexpr numel_cnt_t apply_dropout_mask = 3500;
 		static constexpr numel_cnt_t make_alphaDropout = 5000;
 
 		static constexpr numel_cnt_t apply_ILR_st_vec = 2620/2;
@@ -194,6 +195,7 @@ namespace _impl {
 		static constexpr numel_cnt_t mCheck_normalize_rows = 250000;
 		static constexpr numel_cnt_t evClamp = 14000;
 		static constexpr numel_cnt_t make_dropout = 7500;//* for 0.5
+		static constexpr numel_cnt_t apply_dropout_mask = 4000;
 		static constexpr numel_cnt_t make_alphaDropout = 7500;//* for 0.9
 
 		static constexpr numel_cnt_t apply_ILR_st_vec = 2620; //*

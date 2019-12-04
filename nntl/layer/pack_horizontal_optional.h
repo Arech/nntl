@@ -76,16 +76,16 @@ namespace nntl {
 		//storage for matrices of m_aPrevActs
 		::std::unique_ptr<real_t[]> m_prevActsStor;
 
-		real_t m_upperLayerLRScale{real_t(1.)};
+		//real_t m_upperLayerLRScale{real_t(1.)};
 
 		//////////////////////////////////////////////////////////////////////////
 	public:
 		~_LPHO()noexcept {}
 		_LPHO(const char* pCustomName, const PHLsTuple& phls)noexcept : _base_class_t(pCustomName, phls
-			, static_cast<neurons_count_t>(bAddDataNotPresentFeature*gated_layers_count)), m_upperLayerLRScale(real_t(1.))
+			, static_cast<neurons_count_t>(bAddDataNotPresentFeature*gated_layers_count))//, m_upperLayerLRScale(real_t(1.))
 		{}
 		_LPHO(const char* pCustomName, PHLsTuple&& phls)noexcept : _base_class_t(pCustomName, ::std::move(phls)
-			, static_cast<neurons_count_t>(bAddDataNotPresentFeature*gated_layers_count)), m_upperLayerLRScale(real_t(1.))
+			, static_cast<neurons_count_t>(bAddDataNotPresentFeature*gated_layers_count))//, m_upperLayerLRScale(real_t(1.))
 		{}
 		
 		static constexpr const char _defName[] = "lpho";
@@ -187,13 +187,13 @@ namespace nntl {
 		}
 
 
-		void on_batch_size_change(const real_t learningRateScale, real_t*const pNewActivationStorage = nullptr)noexcept {
+		void on_batch_size_change(/*const real_t learningRateScale,*/ real_t*const pNewActivationStorage = nullptr)noexcept {
 			//passing the on_batch_size_change to the pre-base class
-			_pre_LPH_base_class_t::on_batch_size_change(learningRateScale, pNewActivationStorage);
-			m_upperLayerLRScale = learningRateScale;
+			_pre_LPH_base_class_t::on_batch_size_change(/*learningRateScale,*/ pNewActivationStorage);
+			//m_upperLayerLRScale = learningRateScale;
 			//we don't need to call on_batch_size_change() on every inner layer except for the gate now, because the batch size for them
 			//depends on a gating neuron column content
-			gating_layer().on_batch_size_change(learningRateScale, m_activations.data());
+			gating_layer().on_batch_size_change(/*learningRateScale,*/ m_activations.data());
 		}
 
 	protected:
@@ -201,7 +201,7 @@ namespace nntl {
 		template<bool c = bAddDataNotPresentFeature>
 		::std::enable_if_t<c> _fprop_add_no_present_feature()noexcept {
 			const auto& gate = gating_layer().get_activations();
-			NNTL_ASSERT(gate.isBinaryStrictNoBias());
+			NNTL_ASSERT(gate._isBinaryStrictNoBias());
 			NNTL_ASSERT(gate.cols_no_bias() == static_cast<vec_len_t>(gated_layers_count) && m_activations.rows() == gate.rows());
 			
 			realmtx_t gateCompl(m_activations.colDataAsVec(static_cast<vec_len_t>(gated_layers_count)), m_activations.rows()
@@ -213,7 +213,7 @@ namespace nntl {
 		template<bool c = bAddDataNotPresentFeature>
 		::std::enable_if_t<!c> _fprop_add_no_present_feature()noexcept {
 			//just common asserts only
-			NNTL_ASSERT(gating_layer().get_activations().isBinaryStrictNoBias());
+			NNTL_ASSERT(gating_layer().get_activations()._isBinaryStrictNoBias());
 			NNTL_ASSERT(gating_layer().get_activations().cols_no_bias() == static_cast<vec_len_t>(gated_layers_count)
 				&& m_activations.rows() == gating_layer().get_activations().rows());
 		}
@@ -241,7 +241,7 @@ namespace nntl {
 			const auto curBS = CD.get_cur_batch_size();
 
 			neurons_count_t ofs = gate_neurons_count, lIdx=0;
-			tuple_utils::for_each_exc_first_up(m_phl_tuple, [&prevAct, &CD, ulLRScale = m_upperLayerLRScale
+			tuple_utils::for_each_exc_first_up(m_phl_tuple, [&prevAct, &CD //, ulLRScale = m_upperLayerLRScale
 				, &act = m_activations, &iM = get_iMath(), &ofs, &lIdx, &aPA = m_aPrevActs
 				, &gate = gating_layer().get_activations()](const auto& phl)noexcept
 			{
@@ -260,8 +260,7 @@ namespace nntl {
 				if (nzc) {
 					//changing the batch size and notifying the layer about it
 					CD.change_cur_batch_size(nzc);
-					//phl.l.on_batch_size_change(static_cast<real_t>(ext_real_t(ulLRScale) *(ext_real_t(nzc) / ext_real_t(act.rows()))), nullptr);
-					phl.l.on_batch_size_change(static_cast<real_t>(real_t(ulLRScale) *(real_t(nzc) / real_t(act.rows()))), nullptr);
+					phl.l.on_batch_size_change(/*static_cast<real_t>(real_t(ulLRScale) *(real_t(nzc) / real_t(act.rows()))),*/ nullptr);
 
 					//constructing alias to relevant columns of prevAct
 					NNTL_ASSERT(phl.coord.m_offset + phl.coord.m_count <= prevAct.cols_no_bias());
@@ -429,6 +428,7 @@ namespace nntl {
 		template <typename LowerLayer>
 		unsigned bprop(realmtxdef_t& dLdA, const LowerLayer& lowerLayer, realmtxdef_t& dLdAPrev)noexcept {
 			static_assert(::std::is_base_of<_i_layer_trainable, LowerLayer>::value, "Template parameter LowerLayer must implement _i_layer_trainable");
+			//NNTL_ASSERT(get_self().bDoBProp());
 			return get_self()._lpho_bprop<_impl::wrap_part_trainable_layer<LowerLayer>>(dLdA, dLdAPrev, lowerLayer.get_activations());
 		}
 	};

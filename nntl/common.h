@@ -38,6 +38,8 @@ namespace nntl {
 	// must be unsigned
 	typedef ::std::uint16_t layer_index_t;
 
+	static constexpr layer_index_t invalid_layer_index = ::std::numeric_limits<layer_index_t>::max();
+
 	// must be unsigned -- What the hell? Why "must"?
 	// It's unlikely we ever get stuck into the signed int32 limit, but signed integers allows to perform loop vectorization better
 	// If we'd ever stuck int INT_MAX, just set to int64

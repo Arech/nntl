@@ -2157,6 +2157,59 @@ TEST(TestMathN, make_dropout) {
 }
 
 //////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////
+
+void test_apply_dropout_mask_corr(vec_len_t rowsCnt, vec_len_t colsCnt = 10, const real_t dpa = real_t(.5)) {
+	constexpr vec_len_t testCorrRepCnt = TEST_CORRECTN_REPEATS_COUNT;
+
+	realmtx_t act(rowsCnt, colsCnt, true), dm(rowsCnt, colsCnt);
+	ASSERT_TRUE(!act.isAllocationFailed() && !dm.isAllocationFailed());
+
+	d_interfaces::iRng_t rg;
+	rg.init_ithreads(iM.ithreads());
+
+	realmtx_t actET(rowsCnt, colsCnt, true), act3(rowsCnt, colsCnt, true);
+	ASSERT_TRUE(!actET.isAllocationFailed() && !act3.isAllocationFailed());
+	for (vec_len_t r = 0; r < testCorrRepCnt; ++r) {
+		rg.gen_matrix_no_bias(act, 5);
+		ASSERT_TRUE(act.test_biases_strict());
+		act.clone_to(actET);
+		act.clone_to(act3);
+		rg.gen_matrix_norm(dm);
+
+		apply_dropout_mask_ET(actET, dpa, dm);
+		ASSERT_TRUE(actET.test_biases_strict());
+
+		iM.apply_dropout_mask_st(act, dpa, dm);
+		ASSERT_MTX_EQ(actET, act, "apply_dropout_mask_st: wrong act");
+
+		act3.clone_to(act);
+		iM.apply_dropout_mask_mt(act, dpa, dm);
+		ASSERT_MTX_EQ(actET, act, "apply_dropout_mask_mt: wrong act");
+
+		act3.clone_to(act);
+		iM.apply_dropout_mask(act, dpa, dm);
+		ASSERT_MTX_EQ(actET, act, "apply_dropout_mask: wrong act");
+	}
+}
+
+TEST(TestMathN, apply_dropout_mask) {
+	for (vec_len_t r = 1; r < g_MinDataSizeDelta; ++r) {
+		for (vec_len_t c = 1; c < g_MinDataSizeDelta; ++c) {
+			ASSERT_NO_FATAL_FAILURE((test_apply_dropout_mask_corr(r, c)));
+		}
+	}
+
+	constexpr vec_len_t rowsCnt = _baseRowsCnt;
+	const vec_len_t maxCols = g_MinDataSizeDelta, maxRows = rowsCnt + g_MinDataSizeDelta;
+	for (vec_len_t r = rowsCnt; r < maxRows; ++r) {
+		for (vec_len_t c = 1; c < maxCols; ++c) {
+			ASSERT_NO_FATAL_FAILURE((test_apply_dropout_mask_corr(r, c)));
+		}
+	}
+}
+
+//////////////////////////////////////////////////////////////////////////
 
 TEST(TestMathN, vCountSameNaive) {
 // 	typedef nntl::d_interfaces::iThreads_t def_threads_t;
@@ -2352,8 +2405,7 @@ TEST(TestMathN, mMulABt_Cnb) {
 	typedef math::MathN<real_t, def_threads_t> iMB;
 	
 	using ErrCode = jsonreader::ErrorCode;
-	typedef train_data<real_t> train_data_t;
-	typedef train_data_t::mtx_t realmtx_t;
+	typedef math::smatrix<real_t> realmtx_t;
 	using mtx_size_t = realmtx_t::mtx_size_t;
 
 	realmtx_t A,B,C, etA, etB, etC;
@@ -2392,8 +2444,7 @@ TEST(TestMathN, mMulABt_Cnb_biased) {
 
 	using ErrCode = jsonreader::ErrorCode;
 
-	typedef train_data<real_t> train_data_t;
-	typedef train_data_t::mtx_t realmtx_t;
+	typedef math::smatrix<real_t> realmtx_t;
 	using mtx_size_t = realmtx_t::mtx_size_t;
 
 	realmtx_t A, B, C, etA, etB, etC;

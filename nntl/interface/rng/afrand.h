@@ -69,25 +69,38 @@ namespace rng {
 
 		//////////////////////////////////////////////////////////////////////////
 		//generate FP value in range [0,1]
-		real_t gen_f_norm()noexcept { return static_cast<real_t>(m_rng.Random()); }
+		//real_t gen_f_norm()noexcept { return static_cast<real_t>(m_rng.Random()); }
+
+		static constexpr bool AFRng_has_FRandom = AFog::has_FRandom<base_rng_t>::value;
+		
+		template<typename T> using type_of_gen_f_norm = decltype(::std::declval<base_rng_t>().FPRandom<T>());
+
+		template<typename T> auto gen_f_norm()noexcept { return m_rng.FPRandom<T>(); }
 
 		//////////////////////////////////////////////////////////////////////////
 		// matrix/vector generation (sequence from begin to end of numbers drawn from uniform distribution in [-a,a])
 		void gen_vector(real_t* ptr, const numel_cnt_t n, const real_t a)noexcept {
-			const ext_real_t scale = 2 * a;
+			//const ext_real_t scale = 2 * a;
+			const real_t scale = 2 * a;
 			const auto pE = ptr + n;
+
+			typedef type_of_gen_f_norm<real_t> gen_f_norm_t;
+
 			while (ptr != pE) {
-				*ptr++ = static_cast<real_t>(scale*(m_rng.Random() - 0.5));
+				//*ptr++ = static_cast<real_t>(scale*(m_rng.Random() - 0.5));
+				*ptr++ = scale*static_cast<real_t>(gen_f_norm<real_t>() - gen_f_norm_t(0.5));
 			}
 		}
 
 		// matrix/vector generation (sequence of numbers drawn from uniform distribution in [neg,pos])
 		void gen_vector(real_t* ptr, const numel_cnt_t n, const real_t neg, const real_t pos)noexcept {
-			const auto span = static_cast<ext_real_t>(pos - neg);
-			const auto rNeg = static_cast<ext_real_t>(neg);
+			typedef type_of_gen_f_norm<real_t> gen_f_norm_t;
+
+			const auto span = static_cast<gen_f_norm_t>(pos - neg);
+			const auto rNeg = static_cast<gen_f_norm_t>(neg);
 			const auto pE = ptr + n;
 			while (ptr != pE) {
-				*ptr++ = static_cast<real_t>(m_rng.Random()*span + rNeg);
+				*ptr++ = static_cast<real_t>(gen_f_norm<real_t>()*span + rNeg);
 			}
 		}
 
@@ -96,17 +109,20 @@ namespace rng {
 		void gen_vector_norm(real_t* ptr, const numel_cnt_t n)noexcept {
 			const auto pE = ptr + n;
 			while (ptr != pE) {
-				*ptr++ = gen_f_norm();
+				*ptr++ = static_cast<real_t>(gen_f_norm<real_t>());
 			}
 		}
 
 		//////////////////////////////////////////////////////////////////////////
 		//generate vector with values in range [0,a]
-		template<typename BaseType>
+		//specialization for float, as almost any other 32+bit types require more randomness than float provides
+		template<typename BaseType, typename RandomT = ::std::conditional_t<
+			::std::is_same<float, BaseType>::value && AFRng_has_FRandom, float ,double
+		>>
 		void gen_vector_gtz(BaseType* ptr, const numel_cnt_t n, const BaseType a)noexcept {
 			const auto pE = ptr + n;
 			while (ptr != pE) {
-				*ptr++ = static_cast<BaseType>(m_rng.Random()*a);
+				*ptr++ = static_cast<BaseType>(m_rng.FPRandom<RandomT>()*a);
 			}
 		}
 	};

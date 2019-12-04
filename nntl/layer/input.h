@@ -104,8 +104,8 @@ namespace nntl {
 
 
 		void initMem(real_t* ptr, numel_cnt_t cnt)noexcept { NNTL_UNREF(ptr); NNTL_UNREF(cnt); }
-		void on_batch_size_change(const real_t learningRateScale)noexcept {
-			NNTL_UNREF(learningRateScale);
+		void on_batch_size_change(/*const real_t learningRateScale*/)noexcept {
+			//NNTL_UNREF(learningRateScale);
 			m_bActivationsValid = false;
 		}
 
@@ -124,6 +124,7 @@ namespace nntl {
 		template <typename LowerLayer>
 		unsigned bprop(realmtx_t& dLdA, const LowerLayer& lowerLayer, realmtx_t& dLdAPrev)noexcept {
 			NNTL_ASSERT(!"shouldn't be in input_layer::bprop");
+			//NNTL_ASSERT(get_self().bDoBProp());
 			NNTL_ASSERT(m_bActivationsValid);
 			m_bActivationsValid = false;
 			//auto& iI = get_iInspect();

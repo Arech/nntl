@@ -317,6 +317,9 @@ namespace math {
 		//		If ordering = 'R' or 'r', then
 		//			If trans = 'T' or 't' or 'C' or 'c', this parameter must be at least max(1, rows)
 		//			If trans = 'N' or 'n' or 'R' or 'r', this parameter must be at least max(1, cols)
+		//
+		// #warning current OpenBLAS implementation is slower, than it can be. See TEST(TestPerfDecisions, mTranspose) in test_perf_decisions.cpp
+		//and https://github.com/xianyi/OpenBLAS/issues/1243
 		template<typename sz_t, typename fl_t>
 		static typename ::std::enable_if_t< ::std::is_same< ::std::remove_pointer_t<fl_t>, double>::value >
 			omatcopy(const bool bTranspose, const sz_t rows, const sz_t cols, const fl_t alpha,

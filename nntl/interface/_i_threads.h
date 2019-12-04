@@ -48,7 +48,8 @@ namespace threads {
 		typedef parallel_range<range_t> par_range_t;
 		//typedef typename par_range_t::thread_id_t thread_id_t;
 
-		nntl_interface thread_id_t workers_count()noexcept;
+		nntl_interface static thread_id_t workers_count()noexcept;
+		nntl_interface thread_id_t cur_workers_count()const noexcept; //non static faster version of workers_count()
 
 		//returns a head of container with thread objects (count threadsCnt)
 		nntl_interface auto get_worker_threads(thread_id_t& threadsCnt)noexcept;

@@ -41,7 +41,7 @@ namespace nntl {
 	class train_data {
 	public:
 		typedef BaseT value_type;
-		typedef math::smatrix<value_type> mtx_t;
+		//typedef math::smatrix<value_type> mtx_t;
 		typedef math::smatrix_deform<value_type> mtxdef_t;
 
 		//////////////////////////////////////////////////////////////////////////
@@ -109,7 +109,7 @@ namespace nntl {
 			return m_train_x.empty() || m_train_y.empty() || m_test_x.empty() || m_test_y.empty();
 		}
 
-		bool absorb(mtx_t&& _train_x, mtx_t&& _train_y, mtx_t&& _test_x, mtx_t&& _test_y)noexcept{
+		bool absorb(mtxdef_t&& _train_x, mtxdef_t&& _train_y, mtxdef_t&& _test_x, mtxdef_t&& _test_y)noexcept{
 			//, const bool noBiasEmulationNecessary=false)noexcept {
 			
 			if (!absorbsion_will_succeed(_train_x, _train_y,_test_x,_test_y))  return false;
@@ -123,8 +123,8 @@ namespace nntl {
 			return true;
 		}
 
-		static bool absorbsion_will_succeed(const mtx_t& _train_x, const mtx_t& _train_y
-			, const mtx_t& _test_x, const mtx_t& _test_y)noexcept //, const bool noBiasEmulationNecessary) noexcept
+		static bool absorbsion_will_succeed(const mtxdef_t& _train_x, const mtxdef_t& _train_y
+			, const mtxdef_t& _test_x, const mtxdef_t& _test_y)noexcept //, const bool noBiasEmulationNecessary) noexcept
 		{
 			return !_train_x.empty() && !_train_y.empty() && _train_x.rows() == _train_y.rows()
 				&& !_test_x.empty() && !_test_y.empty() && _test_x.rows() == _test_y.rows()
@@ -138,7 +138,7 @@ namespace nntl {
 				//&& (noBiasEmulationNecessary ^ _train_x.emulatesBiases()) && (noBiasEmulationNecessary ^ _test_x.emulatesBiases());
 		}
 
-		bool replace_Y_will_succeed(const mtx_t& _train_y, const mtx_t& _test_y)noexcept
+		bool replace_Y_will_succeed(const mtxdef_t& _train_y, const mtxdef_t& _test_y)noexcept
 		{
 			return !_train_y.empty() && _train_y.rows() == m_train_y.rows()
 				&& !_test_y.empty() && _test_y.rows() == m_test_y.rows()
@@ -148,12 +148,24 @@ namespace nntl {
 				;
 		}
 
-		bool replace_Y(mtx_t&& _train_y, mtx_t&& _test_y)noexcept {
+		bool replace_Y(mtxdef_t&& _train_y, mtxdef_t&& _test_y)noexcept {
 			if (!replace_Y_will_succeed(_train_y, _test_y)) return false;
 
 			m_train_y = ::std::move(_train_y);
 			m_test_y = ::std::move(_test_y);
 			return true;
+		}
+
+		//opposite of absorb()
+		void extract(mtxdef_t& _train_x, mtxdef_t& _train_y, mtxdef_t& _test_x, mtxdef_t& _test_y)noexcept {
+			NNTL_ASSERT(!empty());
+
+			_train_x = ::std::move(m_train_x);
+			_train_y = ::std::move(m_train_y);
+			_test_x = ::std::move(m_test_x);
+			_test_y = ::std::move(m_test_y);
+
+			NNTL_ASSERT(empty());
 		}
 	};
 }

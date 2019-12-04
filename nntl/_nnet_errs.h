@@ -38,7 +38,7 @@ namespace nntl {
 		enum ErrorCode {
 			Success = 0,
 			InvalidTD,
-			BatchSizeMustBeMultipleOfTrainDataLength,
+			//BatchSizeMustBeMultipleOfTrainDataLength,//obsolete
 			InvalidInputLayerNeuronsCount,
 			InvalidOutputLayerNeuronsCount,
 			CantAllocateMemoryForActivations,
@@ -65,7 +65,7 @@ namespace nntl {
 			switch (ec) {
 			case Success: return NNTL_STRING("No error / success.");
 			case InvalidTD: return NNTL_STRING("Invalid training data passed.");
-			case BatchSizeMustBeMultipleOfTrainDataLength: return NNTL_STRING("Batch size must be multiple of training data length.");
+			//case BatchSizeMustBeMultipleOfTrainDataLength: return NNTL_STRING("Batch size must be multiple of training data length.");
 			case InvalidInputLayerNeuronsCount: return NNTL_STRING("Input layer neurons count mismatches train_x width.");
 			case InvalidOutputLayerNeuronsCount: return NNTL_STRING("Output layer neurons count mismatches train_y width.");
 			case CantAllocateMemoryForActivations: return NNTL_STRING("Cant allocate memory for neuron activations");

@@ -121,6 +121,7 @@ namespace nntl_supp {
 // 		typedef realmtx_t::vec_len_t vec_len_t;
 
 		template<typename T_> using smatrix = nntl::math::smatrix<T_>;
+		template<typename T_> using smatrix_deform = nntl::math::smatrix_deform<T_>;
 		template<typename T_> using train_data = nntl::train_data<T_>;
 
 		//////////////////////////////////////////////////////////////////////////
@@ -143,7 +144,10 @@ namespace nntl_supp {
 		template <typename readInto_t>
 		const ErrorCode read(const char* fname, readInto_t& dest, const bool bMakeMtxBiased=false) {
 			static_assert(::std::is_same<train_data<typename readInto_t::value_type>, readInto_t>::value
-				|| ::std::is_same<smatrix<typename readInto_t::value_type>, readInto_t>::value,
+				|| ::std::is_same<smatrix<typename readInto_t::value_type>, readInto_t>::value
+				//|| ::std::is_same<smatrix_deform<typename readInto_t::value_type>, readInto_t>::value
+				//need to add some support to internals to properly use smatrix_deform, but actually jsonreader has no use, so don't care
+				,
 				"Only nntl::train_data or nntl::train_data::mtx_t is supported as readInto_t template parameter");
 			//bMakeMtxBiased is ignored for nntl::train_data and should be set as false by default
 			NNTL_ASSERT( (!::std::is_same<train_data<typename readInto_t::value_type>, readInto_t>::value || !bMakeMtxBiased));
@@ -292,7 +296,7 @@ namespace nntl_supp {
 		const ErrorCode _parse_json_doc(const rapidjson::Document& d, train_data<T_>& dest, const bool )noexcept {
 			if (!d.IsObject()) { return _set_last_error(ErrorCode::RootIsNotAnObject); }
 
-			smatrix<T_> tr_x,tr_y,t_x,t_y;
+			smatrix_deform<T_> tr_x,tr_y,t_x,t_y;
 			//if (bMakeXDataBiased) {
 				tr_x.will_emulate_biases();
 				t_x.will_emulate_biases();
@@ -303,6 +307,11 @@ namespace nntl_supp {
 			if (ErrorCode::Success != _parse_mtx(d, test_x, t_x)) { return get_last_error(); }
 			if (ErrorCode::Success != _parse_mtx(d, test_y, t_y)) { return get_last_error(); }
 			
+			tr_x.update_on_hidden_resize();
+			tr_y.update_on_hidden_resize();
+			t_x.update_on_hidden_resize();
+			t_y.update_on_hidden_resize();
+
 			if (!dest.absorb(::std::move(tr_x), ::std::move(tr_y), ::std::move(t_x), ::std::move(t_y))) { //, !bMakeXDataBiased)) {
 				return _set_last_error(ErrorCode::MismatchingDataLength);
 			}

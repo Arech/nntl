@@ -64,8 +64,9 @@ namespace nntl {
 			nntl_interface real_t learning_rate()const noexcept;
 
 			//DON'T use these 2 functions for learning rate decay! They're intended to be used internally only!
-			nntl_interface auto _learning_rate_scale(const real_t lrScale)noexcept;
-			nntl_interface real_t _learning_rate_scale()const noexcept;
+			/* it seems that the whole idea was a mistake; pending for removal
+			 *nntl_interface auto _learning_rate_scale(const real_t lrScale)noexcept;
+			nntl_interface real_t _learning_rate_scale()const noexcept;*/
 
 			nntl_interface void pre_training_fprop(realmtx_t& weights)noexcept;
 
@@ -185,7 +186,7 @@ namespace nntl {
 		utils::mixins::binary_options_storage<mixin_opts_ofs, TotalOpts> m_opts;//never use it directly! Only via get_opt()/set_opt()
 
 	protected:		
-		real_t m_learningRate, m_lrScale{real_t(1.)};
+		real_t m_learningRate, m_LRDropoutPercActive{real_t(1.)}; // , m_lrScale{ real_t(1.) };
 
 		real_t m_momentum;
 		real_t m_optBeta1, m_optBeta2, m_optGamma;
@@ -219,7 +220,8 @@ namespace nntl {
 
 			if (utils::binary_option<true>(ar, serialization::serialize_training_parameters)) {
 				ar & NNTL_SERIALIZATION_NVP(m_learningRate);
-				ar & NNTL_SERIALIZATION_NVP(m_lrScale);
+				ar & NNTL_SERIALIZATION_NVP(m_LRDropoutPercActive);
+				//ar & NNTL_SERIALIZATION_NVP(m_lrScale);
 				ar & NNTL_SERIALIZATION_NVP(m_momentum);
 				ar & NNTL_SERIALIZATION_NVP(m_optBeta1);
 				ar & NNTL_SERIALIZATION_NVP(m_optBeta2);
@@ -257,11 +259,11 @@ namespace nntl {
 		//!!assignment is not needed
 		_grad_works& operator=(const _grad_works& rhs) noexcept = delete;
 
-		_grad_works(const real_t& lr) noexcept : m_momentum(real_t(0.0))
+		_grad_works(const real_t lr) noexcept : m_momentum(real_t(0.0))
 			, m_optBeta1(real_t(0.9)), m_optBeta2(real_t(0.999)), m_optGamma(real_t(0.05))
 			, m_numericStabilizerEps(_impl::NUM_STAB_EPS<real_t>::value), m_WeightVecNormSqared(real_t(0.0))
 			, m_optBeta1t(real_t(1.)), m_optBeta2t(real_t(1.))
-			, m_type(ClassicalConstant), m_lrScale(real_t(1.))
+			, m_type(ClassicalConstant) //, m_lrScale(real_t(1.))
 		{
 			learning_rate(lr);
 			_flags_default();
@@ -291,6 +293,7 @@ namespace nntl {
 			if (!ILR_init(weightsSize))return false;
 
 			set_common_data(cd);
+			get_iMath().preinit(math::smatrix_td::sNumel(weightsSize));
 
 			if (!_la_init(weightsSize))return false;
 
@@ -314,7 +317,7 @@ namespace nntl {
 		}
 
 		void pre_training_fprop(realmtxdef_t& weights) noexcept {
-			if (use_nesterov_momentum() && !isLearningBlocked()) {
+			if (!isLearningBlocked() && use_nesterov_momentum()) {
 				// (1)  vW`(t+1)= momentum*vW(t)
 				// (2)  W`(t+1) = W(t) - momentum*vW(t)
 				//				= W(t) - vW`(t+1)
@@ -378,8 +381,7 @@ namespace nntl {
 				//				= W`(t+1) - scaling * grad_Loss( W`(t+1) )
 			}*/
 
-			//const real_t curLr = static_cast<real_t>(ext_real_t(m_learningRate)*ext_real_t(m_lrScale));
-			const real_t curLr = m_learningRate*m_lrScale;
+			const real_t curLr = m_learningRate;// *m_lrScale;
 
 
 			switch (m_type) {
@@ -480,13 +482,37 @@ namespace nntl {
 				} else {
 					//Vw = momentum.*Vw + dW
 					iM.apply_momentum(m_Vw, m_momentum, dLdW);
-					iI.apply_grad_update(weights, m_Vw);
-					iM.evSub_ip(weights, m_Vw);
-					bApplydLdW2Weights = false;
+					//note that we're going to apply m_Vw to the weights and we don't need dLdW anymore
+
+					if (bLRDropout()) {
+						//to apply lrdropout just store weight updates back to dLdW and proceed further
+						m_Vw.copy_to(dLdW);
+						//note that we cannot use m_Vw directly, because dropout will make useless some elements of it
+					} else {
+						//applying weight updates now
+						iI.apply_grad_update(weights, m_Vw);
+						iM.evSub_ip(weights, m_Vw);
+						bApplydLdW2Weights = false;
+					}
 				}
 			}
 
 			if (bApplydLdW2Weights) {
+				if (bLRDropout()) { //applying LR dropout, arxiv:1912.00144
+					const auto storAllocSize = dLdW.numel();
+					auto pStor = iM._istor_alloc(storAllocSize);
+
+					realmtx_t doMask(pStor, dLdW);
+					get_iRng().gen_matrix_norm(doMask);
+					
+					iI.apply_grad_preLRDropout(dLdW, m_LRDropoutPercActive, doMask);
+					iM.apply_dropout_mask(dLdW, m_LRDropoutPercActive, doMask);
+					iI.apply_grad_postLRDropout(dLdW);
+
+					doMask.clear();
+					iM._istor_free(pStor, storAllocSize);
+				}
+
 				iI.apply_grad_update(weights, dLdW);
 				iM.evSub_ip(weights, dLdW);
 			}
@@ -511,11 +537,24 @@ namespace nntl {
 		real_t learning_rate()const noexcept { return m_learningRate; }
 
 		//DON'T use these 2 functions for learning rate decay! They're intended to be used internally only!
-		self_ref_t _learning_rate_scale(const real_t lrScale)noexcept {
+		/*it seems that the whole idea was a mistake; pending for removal
+		 *self_ref_t _learning_rate_scale(const real_t lrScale)noexcept {
 			m_lrScale = lrScale;
 			return get_self();
 		}
-		real_t _learning_rate_scale()const noexcept { return m_lrScale; }
+		real_t _learning_rate_scale()const noexcept { return m_lrScale; }*/
+
+
+		//Learning rate dropout, arxiv:1912.00144
+		bool bLRDropout()const noexcept { return m_LRDropoutPercActive < real_t(1.); }
+
+		real_t LRDropoutPercentActive()const noexcept { return m_LRDropoutPercActive; }
+
+		self_ref_t LRDropoutPercentActive(const real_t dpa)noexcept {
+			NNTL_ASSERT(real_t(0.) <= dpa && dpa <= real_t(1.));
+			m_LRDropoutPercActive = (dpa <= real_t(+0.) || dpa > real_t(1.)) ? real_t(1.) : dpa;
+			return get_self();
+		}
 
 
 		self_ref_t momentum(const real_t m)noexcept {

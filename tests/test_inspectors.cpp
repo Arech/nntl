@@ -49,8 +49,8 @@ typedef d_interfaces::real_t real_t;
 typedef math::smatrix<real_t> realmtx_t;
 typedef math::smatrix_deform<real_t> realmtxdef_t;
 
-#define MNIST_FILE_DEBUG "../data/mnist200_100.bin"
-#define MNIST_FILE_RELEASE  "../data/mnist60000.bin"
+//#define MNIST_FILE_DEBUG "../data/mnist200_100.bin"
+//#define MNIST_FILE_RELEASE  "../data/mnist60000.bin"
 
 #if defined(TESTS_SKIP_NNET_LONGRUNNING)
 //ALWAYS run debug build with similar relations of data sizes:

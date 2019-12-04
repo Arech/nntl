@@ -752,7 +752,7 @@ void test_mrwIdxsOfMaxCorrectness(vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 	realmtx_t A(rowsCnt, colsCnt);
 	ASSERT_TRUE(!A.isAllocationFailed());
 
-	iM.preinit(A.numel());
+	iM.preinit(iM.mrwIdxsOfMax_needTempMem(A));
 	ASSERT_TRUE(iM.init());
 	d_interfaces::iRng_t rg;
 	rg.init_ithreads(iM.ithreads());
@@ -1022,7 +1022,7 @@ void test_mrwOr_corr(vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 	for (unsigned rr = 0; rr < testCorrRepCnt; ++rr) {
 		rg.gen_matrix_norm(A);
 		ewBinarize_ip_ET(A, binFrac);
-		ASSERT_TRUE(A.isBinary());
+		ASSERT_TRUE(A._isBinary());
 
 		mrwBinaryOR_ET(A, &vec_et[0]);
 

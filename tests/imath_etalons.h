@@ -315,6 +315,17 @@ namespace math_etalons {
 		}
 	}
 
+	//simple direct dropout, doesn't change the mask
+	template<typename T>
+	void apply_dropout_mask_ET(smtx<T>& act, const T dropPercAct, const smtx<T>& dropoutMask)noexcept {
+		const auto dataCnt = act.numel_no_bias();
+		auto pDM = dropoutMask.data();
+		const auto pA = act.data();
+		for (numel_cnt_t i = 0; i < dataCnt; ++i) {
+			if (pDM[i] >= dropPercAct) pA[i] = T(0);
+		}
+	}
+
 	template<typename T>
 	void ModProp_ET(smtx<T>& dW, smtx<T>& rmsF, const T learningRate, const T emaDecay, const T numericStabilizer)noexcept {
 		ASSERT_EQ(dW.size(), rmsF.size());

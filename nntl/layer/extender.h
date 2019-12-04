@@ -199,14 +199,14 @@ namespace nntl {
 		//////////////////////////////////////////////////////////////////////////
 
 		template<bool c = bDropoutAvailable>
-		::std::enable_if_t<c> on_batch_size_change(const real_t learningRateScale, real_t*const pNewActivationStorage = nullptr)noexcept {
-			_base_class_t::on_batch_size_change(learningRateScale, pNewActivationStorage);
+		::std::enable_if_t<c> on_batch_size_change(/*const real_t learningRateScale,*/ real_t*const pNewActivationStorage = nullptr)noexcept {
+			_base_class_t::on_batch_size_change(/*learningRateScale,*/ pNewActivationStorage);
 			_dropout_on_batch_size_change(get_common_data());
 		}
 
 		template<bool c = bDropoutAvailable>
-		::std::enable_if_t<!c> on_batch_size_change(const real_t learningRateScale, real_t*const pNewActivationStorage = nullptr)noexcept {
-			_base_class_t::on_batch_size_change(learningRateScale, pNewActivationStorage);
+		::std::enable_if_t<!c> on_batch_size_change(/*const real_t learningRateScale,*/ real_t*const pNewActivationStorage = nullptr)noexcept {
+			_base_class_t::on_batch_size_change(/*learningRateScale,*/ pNewActivationStorage);
 		}
 
 	protected:
@@ -316,6 +316,7 @@ namespace nntl {
 		template <typename LowerLayerT>
 		unsigned bprop(realmtxdef_t& dLdA, const LowerLayerT& lowerLayer, realmtxdef_t& dLdAPrev)noexcept {
 			static_assert(::std::is_base_of<_i_layer_trainable, LowerLayerT>::value, "Template parameter LowerLayer must implement _i_layer_trainable");
+			//NNTL_ASSERT(get_self().bDoBProp());
 
 			auto& iI = get_iInspect();
 			iI.bprop_begin(get_layer_idx(), dLdA);

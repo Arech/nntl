@@ -126,6 +126,8 @@ namespace threads {
 		static thread_id_t workers_count()noexcept {
 			return ::std::thread::hardware_concurrency();
 		}
+		//non static cached version of workers_count(), use it when possible instead of workers_count()
+		thread_id_t cur_workers_count()const noexcept { return m_workersCnt + 1; }
 		auto get_worker_threads(thread_id_t& threadsCnt)noexcept ->ThreadObjIterator_t {
 			threadsCnt = m_workersCnt;
 			return m_threads.begin();

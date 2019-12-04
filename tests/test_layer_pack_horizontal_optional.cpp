@@ -72,7 +72,7 @@ void _allowMask(const realmtx_t& srcMask, realmtx_t& mask, const realmtx_t& data
 
 template<typename iMathT, typename iRngT>
 void makeDataXForGatedSetup(iMathT& iM, iRngT& iR
-	, const math::smatrix<typename iMathT::real_t>& data_x, math::smatrix<typename iMathT::real_t>& new_x
+	, const math::smatrix<typename iMathT::real_t>& data_x, math::smatrix_deform<typename iMathT::real_t>& new_x
 	, const vec_len_t gatesCnt, typename iMathT::real_t gateZeroProb)
 {
 	typedef typename iMathT::real_t real_t;
@@ -103,11 +103,11 @@ void makeTdForGatedSetup(iMathT& iM, iRngT& iR
 	, const vec_len_t gatesCnt, typename iMathT::real_t gateZeroProb)
 {
 	typedef typename iMathT::real_t real_t;
-	typedef math::smatrix<real_t> realmtx_t;
+	typedef math::smatrix_deform<real_t> realmtxdef_t;
 
 	SCOPED_TRACE("makeTdForGatedSetup");
 
-	realmtx_t ntr, nt, ntry, nty;
+	realmtxdef_t ntr, nt, ntry, nty;
 	makeDataXForGatedSetup(iM, iR, td.train_x(), ntr, gatesCnt, gateZeroProb);
 	makeDataXForGatedSetup(iM, iR, td.test_x(), nt, gatesCnt, gateZeroProb);
 
@@ -255,7 +255,7 @@ void run_testLPHO_simple(const train_data<typename ParamsT::real_t>& baseTd, con
 	}
 
 	Arch_t Arch(td);
-	nnet_train_opts<training_observer_stdcout<eval_classification_one_hot<real_t>>> opts(ParamsT::epochs);
+	nnet_train_opts<training_observer_stdcout<eval_classification_one_hot_cached<real_t>>> opts(ParamsT::epochs);
 	opts.batchSize(ParamsT::batchSize);
 
 	auto nn = make_nnet(Arch.lp);
@@ -343,7 +343,7 @@ TEST(TestLayerPackHorizontalOptional, MakeDump) {
 	}
 
 	Arch_t Arch(td);
-	nnet_train_opts<training_observer_stdcout<eval_classification_one_hot<real_t>>> opts(ParamsT::epochs);
+	nnet_train_opts<training_observer_stdcout<eval_classification_one_hot_cached<real_t>>> opts(ParamsT::epochs);
 	opts.batchSize(ParamsT::batchSize);
 
 	my_interfaces::iInspect_t Insp("./test_data");

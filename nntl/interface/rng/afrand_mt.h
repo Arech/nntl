@@ -135,7 +135,17 @@ namespace nntl {
 
 			//////////////////////////////////////////////////////////////////////////
 			//generate FP value in range [0,1]
-			real_t gen_f_norm()noexcept { return static_cast<real_t>(m_Rngs[0].Random()); }
+			//real_t gen_f_norm()noexcept { return static_cast<real_t>(m_Rngs[0].Random()); }
+
+			static constexpr bool AFRng_has_FRandom = AFog::has_FRandom<base_rng_t>::value;
+			
+			template<typename T> using type_of_gen_f_norm = decltype(::std::declval<base_rng_t>().FPRandom<T>());
+
+			template<typename T> auto gen_f_norm()noexcept { return m_Rngs[0].FPRandom<T>(); }			
+		protected:
+			template<typename T> auto _gen_f_norm(const thread_id_t N)noexcept { return m_Rngs[N].FPRandom<T>(); }
+
+		public:
 
 			//////////////////////////////////////////////////////////////////////////
 			// matrix/vector generation (sequence from begin to end of numbers drawn from uniform distribution in [-a,a])
@@ -149,16 +159,6 @@ namespace nntl {
 				NNTL_ASSERT(ptr);
 				get_self()._igen_vector_st(ptr, a*real_t(2), -a, elms_range(0, n), 0);
 			}
-			/*void _igen_vector_st(real_t* ptr, const real_t a, const elms_range& er, const thread_id_t tId)noexcept {
-				NNTL_ASSERT(ptr);
-				const auto scale = real_t(2) * a;
-				const auto pE = ptr + er.elmEnd;
-				ptr += er.elmBegin;
-				auto& rg = m_Rngs[tId];
-				while (ptr != pE) {
-					*ptr++ = scale * (static_cast<real_t>(rg.Random()) - real_t(.5));
-				}
-			}*/
 			void gen_vector_mt(real_t* ptr, const numel_cnt_t n, const real_t a)noexcept {
 				NNTL_ASSERT(m_pThreads);
 				m_pThreads->run([ptr, span = a*real_t(2), ofs = -a, this](const par_range_t&r) {
@@ -182,10 +182,12 @@ namespace nntl {
 				const auto pE = ptr + er.elmEnd;
 				ptr += er.elmBegin;
 				auto& rg = m_Rngs[tId];
-				typedef decltype(rg.Random()) rgRandom_t;
-				const rgRandom_t rSpan = static_cast<rgRandom_t>(span);
+				
+				typedef type_of_gen_f_norm<real_t> gen_f_norm_t;
+
+				const gen_f_norm_t rSpan = static_cast<gen_f_norm_t>(span);
 				while (ptr != pE) {
-					*ptr++ = static_cast<real_t>(rg.Random()*rSpan) + ofs;
+					*ptr++ = static_cast<real_t>(rg.FPRandom<real_t>()*rSpan) + ofs;
 				}
 			}
 			void gen_vector_mt(real_t* ptr, const numel_cnt_t n, const real_t neg, const real_t pos)noexcept {
@@ -214,7 +216,7 @@ namespace nntl {
 				const auto pE = ptr + er.elmEnd;
 				ptr += er.elmBegin;
 				while (ptr != pE) {
-					*ptr++ = static_cast<real_t>(rg.Random());
+					*ptr++ = static_cast<real_t>(rg.FPRandom<real_t>());
 				}
 			}
 			void gen_vector_norm_mt(real_t* ptr, const numel_cnt_t n)noexcept {
@@ -246,13 +248,18 @@ namespace nntl {
 				const auto pE = ptr + er.elmEnd;
 				ptr += er.elmBegin;
 				auto& rg = m_Rngs[tId];
-				typedef decltype(rg.Random()) rgRandom_t;
-				const rgRandom_t a2 = static_cast<rgRandom_t>(a);
+				
+				typedef type_of_gen_f_norm<real_t> gen_f_norm_t;
+				const gen_f_norm_t a2 = static_cast<gen_f_norm_t>(a);
 				while (ptr != pE) {
-					*ptr++ = static_cast<BaseType>(rg.Random()*a2);
+					//note that when rounding to is_integral<BaseType>, the result has always fractional part discarded, i.e. it's always less than a
+					//#TODO make sure no generated float are equal to a ? if it's necessary though, because this function
+					//  is for is_integral<BaseType> mostly (really?)
+					*ptr++ = static_cast<BaseType>(rg.FPRandom<real_t>()*a2);
 				}
 			}
 
+		public:
 			template<typename BaseType>
 			void gen_vector_gtz_mt(BaseType* ptr, const numel_cnt_t n, const BaseType a)noexcept {
 				NNTL_ASSERT(m_pThreads && ptr);
@@ -287,39 +294,14 @@ namespace nntl {
 				NNTL_ASSERT(ptr);
 				NNTL_ASSERT(p > real_t(0) && p < real_t(1));
 				auto& rg = m_Rngs[tId];
-				typedef decltype(rg.Random()) rgRandom_t;
-				const rgRandom_t rP = static_cast<rgRandom_t>(p);
+				typedef type_of_gen_f_norm<real_t> gen_f_norm_t;
+				const gen_f_norm_t rP = static_cast<gen_f_norm_t>(p);
 				const auto pE = ptr + er.elmEnd;
 				ptr += er.elmBegin;
 				while (ptr != pE) {
-					*ptr++ = rg.Random() < rP ? posVal : negVal;
+					*ptr++ = rg.FPRandom<real_t>() < rP ? posVal : negVal;
 				}
 			}
-
-			/*void _ibernoulli_vector_st(real_t*const ptr, const real_t p, const real_t posVal, const real_t negVal
-				, const elms_range& er, const thread_id_t tId)noexcept
-			{
-				NNTL_ASSERT(ptr);
-				NNTL_ASSERT(p > real_t(0) && p < real_t(1));
-				auto& __restrict rg = m_Rngs[tId];
-				typedef decltype(rg.Random()) rgRandom_t;
-				const rgRandom_t rP = static_cast<rgRandom_t>(p);
-
-				const bool bOdd = er.totalElements() & 1;
-				if (bOdd) {
-					ptr[er.elmBegin] = rg.Random() < rP ? posVal : negVal;
-				}
-				for (auto i = er.elmBegin + bOdd; i < er.elmEnd; i+=2) {
-					/ *const auto b1 = rg.Random() < rP;
-					const auto b2 = rg.Random() < rP;
-					ptr[i] = b1 ? posVal : negVal;
-					ptr[i+1] = b2 ? posVal : negVal;* /
-					const auto v1 = rg.Random();
-					const auto v2 = rg.Random();
-					ptr[i] = v1 < rP ? posVal : negVal;
-					ptr[i + 1] = v2 < rP ? posVal : negVal;
-				}
-			}*/
 
 			///////////////////////////////////////////////////////////////////////////
 			//////////////////////////////////////////////////////////////////////////

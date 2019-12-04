@@ -764,7 +764,7 @@ namespace nntl_supp {
 	//////////////////////////////////////////////////////////////////////////
 	//////////////////////////////////////////////////////////////////////////
 
-	template<typename SerializationOptionsEnumT = serialization::CommonOptions>
+	template<typename SerializationOptionsEnumT = ::nntl::serialization::CommonOptions>
 	class omatfile final 
 		: public _matfile<omatfile<SerializationOptionsEnumT>, true, _matfile_errs>
 		, public nntl::utils::binary_options<SerializationOptionsEnumT>
@@ -776,7 +776,7 @@ namespace nntl_supp {
 		}
 	};
 
-	template<typename SerializationOptionsEnumT = serialization::CommonOptions>
+	template<typename SerializationOptionsEnumT = ::nntl::serialization::CommonOptions>
 	class omatfileEx final
 		: public _matfile_savingEx<omatfileEx<SerializationOptionsEnumT>, _matfile_errs>
 		, public nntl::utils::binary_options<SerializationOptionsEnumT>
@@ -788,7 +788,7 @@ namespace nntl_supp {
 		}
 	};
 
-	template<typename SerializationOptionsEnumT = serialization::CommonOptions>
+	template<typename SerializationOptionsEnumT = ::nntl::serialization::CommonOptions>
 	class imatfile final 
 		: public _matfile<imatfile<SerializationOptionsEnumT>, false, _matfile_errs>
 		, public nntl::utils::binary_options<SerializationOptionsEnumT>

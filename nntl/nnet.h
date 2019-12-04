@@ -33,6 +33,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include <type_traits>
 #include <algorithm>
+#include <filesystem>//for weights persistence
 
 #include "common.h"
 
@@ -43,9 +44,11 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include "nnet_train_opts.h"
 #include "common_nn_data.h"
-//#include "utils\lambdas.h"
 
 #include "interface/inspectors/gradcheck.h"
+
+//we're using .mat files as a storage for weight saving/loading
+#include "../../nntl/nntl/_supp/io/matfile.h"
 
 namespace nntl {
 
@@ -71,10 +74,19 @@ namespace nntl {
 	public:
 		typedef LayersPack layers_pack_t;
 
-		typedef typename iMath_t::realmtx_t realmtx_t;
-		typedef typename iMath_t::realmtxdef_t realmtxdef_t;
-		
+ 		typedef typename iMath_t::realmtx_t realmtx_t;
+ 		typedef typename iMath_t::realmtxdef_t realmtxdef_t;
+
 		typedef train_data<real_t> train_data_t;
+
+		//defining archive types for dumping/restoring weights
+	#if NNTL_MATLAB_AVAILABLE
+		typedef nntl_supp::imatfile<> weights_load_archive_t;
+		typedef nntl_supp::omatfile<> weights_save_archive_t;
+	#else //NNTL_MATLAB_AVAILABLE
+		typedef void weights_load_archive_t;
+		typedef void weights_save_archive_t;
+	#endif //NNTL_MATLAB_AVAILABLE
 
 		//////////////////////////////////////////////////////////////////////////
 		// members
@@ -133,7 +145,76 @@ namespace nntl {
 		//call this to force nnet and its dependents to reinitialize 
 		void require_reinit()noexcept { m_bRequireReinit = true; }
 
+		//////////////////////////////////////////////////////////////////////////
+		// weights persistence (depends on Matlab archive types this moment)
+		
+		template<bool C=::std::is_same<void, weights_load_archive_t>::value>
+		::std::enable_if_t<C, bool> read_weights(const char*const)noexcept {
+			STDCOUTL("## Failing nnet::read_weights() because Matlab support is not configured.");
+			return false;
+		}
+		template<bool C = ::std::is_same<void, weights_save_archive_t>::value>
+		::std::enable_if_t<C, bool> write_weights(const char*const)noexcept {
+			STDCOUTL("## Failing nnet::write_weights() because Matlab support is not configured.");
+			return false;
+		}
+
+		template<bool C = ::std::is_same<void, weights_load_archive_t>::value>
+		::std::enable_if_t<!C, bool> read_weights(const char*const pFile)noexcept {
+			const char*const pfx = "nnet::read_weights() ";
+			if (::std::experimental::filesystem::exists(pFile)) {
+				STDCOUTL(pfx << "Found file '" << pFile << "'. Trying to read it...");
+
+				weights_load_archive_t mf;
+				mf.turn_off_all_options();
+				mf.m_binary_options.set(serialization::CommonOptions::serialize_weights, true);
+
+				auto ec = mf.open(pFile);
+				if (decltype(mf)::ErrorCode::Success == ec) {
+					mf >> *this;
+					ec = mf.get_last_error();
+					if (decltype(mf)::ErrorCode::Success == ec) {
+						STDCOUTL(pfx << "Success!");
+						return true;
+					} else {
+						STDCOUTL(pfx << "Failed to read weights, code = " << ec << "=" << mf.get_error_str(ec) << ".");
+					}
+				} else {
+					STDCOUTL(pfx << "Failed to open file with code = " << ec << "=" << mf.get_error_str(ec) << ".");
+				}
+			} else {
+				STDCOUTL(pfx << "Weights file '" << pFile << "' not found.");
+			}
+			return false;
+		}
+		template<bool C = ::std::is_same<void, weights_save_archive_t>::value>
+		::std::enable_if_t<!C, bool> write_weights(const char*const pFile)noexcept {
+			const char*const pfx = "nnet::write_weights() ";
+			STDCOUTL(pfx << "Going to write weights to file '" << pFile << "'");
+
+			weights_save_archive_t mf;
+			mf.turn_off_all_options();
+			mf.m_binary_options.set(serialization::CommonOptions::serialize_weights, true);
+
+			auto ec = mf.open(pFile);
+			if (decltype(mf)::ErrorCode::Success == ec) {
+				mf << *this;
+				ec = mf.get_last_error();
+				if (decltype(mf)::ErrorCode::Success == ec) {
+					STDCOUTL(pfx << "Success!");
+					return true;
+				} else {
+					STDCOUTL(pfx << "Failed to write weights, code = " << ec << "=" << mf.get_error_str(ec) << ".");
+				}
+			} else {
+				STDCOUTL(pfx << "Failed to open file with code = " << ec << "=" << mf.get_error_str(ec) << ".");
+			}
+			return false;
+		}
+		
 	protected:
+		//////////////////////////////////////////////////////////////////////////
+		// the following functions are used mostly in training process
 
 		//#todo get rid of pTestEvalRes
 		//returns test loss
@@ -168,11 +249,13 @@ namespace nntl {
 			return testLoss;
 		}
 
-		bool _batchSizeOk(const train_data_t& td, vec_len_t batchSize)const noexcept {
+		/* 
+		 * obsolete
+		 *bool _batchSizeOk(const train_data_t& td, vec_len_t batchSize)const noexcept {
 			//TODO: соответствие оптимизатора и размера батча (RProp только фулбатчевый)
 			double d = double(td.train_x().rows()) / double(batchSize);
 			return  d == floor(d);
-		}
+		}*/
 
 		void _fprop(const realmtx_t& data_x)noexcept {
 			//preparing for evaluation
@@ -367,7 +450,10 @@ namespace nntl {
 			const vec_len_t batchSize = bMiniBatch ? opts.batchSize() : samplesCount;
 			const vec_len_t numBatches = samplesCount / batchSize;
 
-			if (!_batchSizeOk(td, batchSize)) return _set_last_error(ErrorCode::BatchSizeMustBeMultipleOfTrainDataLength);
+			if (0 != samplesCount % batchSize) {
+				STDCOUTL("* note that used batchSize=" << batchSize << " is not multiple of training set size=" << samplesCount
+					<< ". " << (samplesCount % batchSize) << " random samples will be omitted each training epoch.");
+			}
 
 			m_bCalcFullLossValue = opts.calcFullLossValue();
 			//////////////////////////////////////////////////////////////////////////
@@ -385,14 +471,13 @@ namespace nntl {
 			if (m_bCalcFullLossValue) m_bCalcFullLossValue = m_LMR.bHasLossAddendum;
 
 			//dropping the const just for convenience. We mustn't modify any of the TD element
-			realmtx_t& batch_x = bMiniBatch ? m_batch_x : const_cast<realmtxdef_t&>(td.train_x());
-			realmtx_t& batch_y = bMiniBatch ? m_batch_y : const_cast<realmtxdef_t&>(td.train_y());
+			realmtx_t& batch_x = bMiniBatch ? m_batch_x : const_cast<realmtxdef_t&>(train_x);
+			realmtx_t& batch_y = bMiniBatch ? m_batch_y : const_cast<realmtxdef_t&>(train_y);
 			NNTL_ASSERT(batch_x.emulatesBiases() && !batch_y.emulatesBiases());
 
 			::std::vector<vec_len_t> vRowIdxs(bMiniBatch ? samplesCount : 0);
 			if (bMiniBatch) {
 				::std::iota(vRowIdxs.begin(), vRowIdxs.end(), 0);
-				//for (size_t i = 0; i < samplesCount; ++i) vRowIdxs[i] = static_cast<decltype(vRowIdxs)::value_type>(i);
 			}
 
 			//////////////////////////////////////////////////////////////////////////
@@ -576,7 +661,7 @@ namespace nntl {
 			return _set_last_error(ec);
 		}
 
-		ErrorCode td_eval(train_data_t& td, nnet_td_eval_results<real_t>& res)noexcept {
+		ErrorCode td_eval(const train_data_t& td, nnet_td_eval_results<real_t>& res)noexcept {
 			auto ec = eval(td.train_x(), td.train_y(), res.trainSet);
 			if (ec != ErrorCode::Success) return ec;
 			
@@ -663,7 +748,7 @@ namespace nntl {
 			}
 
 			layer_index_t getFailedLayerIdx()const noexcept { return m_failedLayerIdx; }
-			
+
 			template<typename LayerT> void operator()(LayerT& lyr) noexcept {
 				if (m_failedLayerIdx) return;//do nothing, check has already been failed.
 
@@ -672,12 +757,7 @@ namespace nntl {
 
 				if (m_failedLayerIdx) return;//do nothing, check has already been failed.
 
-				if (::std::any_of(m_ngcSetts.ignoreLayerIds.cbegin(), m_ngcSetts.ignoreLayerIds.cend()
-					, [lidx = lyr.get_layer_idx()](const auto v)
-				{
-					return lidx == v;
-				}))
-				{
+				if (_isLayerIdInList(m_ngcSetts.ignoreLayerIds, lyr.get_layer_idx())) {
 					if (m_ngcSetts.bVerbose) STDCOUTL("*** Skipping layer " << lyr.get_layer_name_str() << " by request.");
 					return;
 				}
@@ -697,7 +777,8 @@ namespace nntl {
 						if (m_ngcSetts.bVerbose) STDCOUT(lyr.get_layer_name_str() << ": ");
 						//_doCheckdLdA(lyr);
 						_checkdLdA(lyr.get_layer_idx(), lyr.get_neurons_cnt());
-					}					
+					} else if (m_ngcSetts.bVerbose) STDCOUTL("*** NB: output layer dL/dA check is skipped by design. Assuming "
+						"it's bugs (if any) will be caught by lower layers dL/dA check");
 					break;
 
 				default:
@@ -707,6 +788,9 @@ namespace nntl {
 			}
 
 		protected:
+			static bool _isLayerIdInList(const ::std::vector<layer_index_t>& vec, const layer_index_t lidx)noexcept {
+				return ::std::any_of(vec.cbegin(), vec.cend(), [lidx](const auto v)noexcept { return lidx == v; });
+			}
 
 			template<typename LayerT>
 			::std::enable_if_t<is_layer_learnable<LayerT>::value> _doCheckdLdW(LayerT& lyr) noexcept {
@@ -745,7 +829,7 @@ namespace nntl {
 			template<typename LayerT>
 			::std::enable_if_t<!is_layer_pack<LayerT>::value> _checkInnerLayers(LayerT&)const noexcept {}
 			
-			void _checkdLdA(const layer_index_t& lIdx, const neurons_count_t neuronsCnt
+			void _checkdLdA(const layer_index_t lIdx, const neurons_count_t neuronsCnt
 			//	, const realmtx_t* pDropoutMask, const real_t dropoutScaleInv = real_t(1.)
 			)noexcept
 			{
@@ -776,9 +860,8 @@ namespace nntl {
 					m_data.nextBatch(m_nn.get_iRng(), m_nn.get_iMath());
 
 					const mtx_coords_t coords(0, neurIdx);
-					const bool bLayerMayBeExcluded = ::std::any_of(m_ngcSetts.layerCanSkipExecIds.cbegin(), m_ngcSetts.layerCanSkipExecIds.cend(), [lIdx](const auto i) {
-						return i == lIdx;
-					});
+					const bool bLayerMayBeExcluded = _isLayerIdInList(m_ngcSetts.layerCanSkipExecIds, lIdx);
+
 					const size_t s = m_ngcSetts.bForceSeed ? ::std::time(0) : 0;
 					iI.gc_prep_check_layer(lIdx, _impl::gradcheck_paramsGroup::dLdA, coords, bLayerMayBeExcluded);
 
@@ -815,7 +898,7 @@ namespace nntl {
 				}
 			}
 
-			void _checkWeight(const layer_index_t& lIdx, const mtx_coords_t& coords
+			void _checkWeight(const layer_index_t lIdx, const mtx_coords_t& coords
 				, const neurons_count_t& maxZerodLdW, neurons_count_t& zerodLdW) noexcept
 			{
 				const auto doubleSs = m_ngcSetts.stepSize * 2;
@@ -823,9 +906,7 @@ namespace nntl {
 
 				m_data.nextBatch(m_nn.get_iRng(), m_nn.get_iMath());
 
-				const bool bLayerMayBeExcluded = ::std::any_of(m_ngcSetts.layerCanSkipExecIds.cbegin(), m_ngcSetts.layerCanSkipExecIds.cend(), [lIdx](const auto i) {
-					return i == lIdx;
-				});
+				const bool bLayerMayBeExcluded = _isLayerIdInList(m_ngcSetts.layerCanSkipExecIds, lIdx);
 				const size_t s = m_ngcSetts.bForceSeed ? ::std::time(0) : 0;
 
 				iI.gc_prep_check_layer(lIdx, _impl::gradcheck_paramsGroup::dLdW, coords, bLayerMayBeExcluded);
@@ -852,7 +933,7 @@ namespace nntl {
 				_checkErr(lIdx, dLan, dLnum, coords, maxZerodLdW, zerodLdW);
 			}
 
-			void _checkdLdW(const layer_index_t& lIdx, const neurons_count_t neuronsCnt, const neurons_count_t incNeuronsCnt)noexcept
+			void _checkdLdW(const layer_index_t lIdx, const neurons_count_t neuronsCnt, const neurons_count_t incNeuronsCnt)noexcept
 			{
 				const auto checkNeuronsCnt = m_ngcSetts.groupSetts.countToCheck(neuronsCnt);
 				const auto checkIncWeightsCnt = m_ngcSetts.subgroupSetts.countToCheck(incNeuronsCnt);
@@ -882,11 +963,14 @@ namespace nntl {
 						if (m_failedLayerIdx) break;
 						_checkWeight(lIdx, mtx_coords_t(neurIdx, m_subgrpIdxs[j]), maxZerodLdW, zerodLdW);
 					}
+// 					if (m_ngcSetts.bVerbose && zerodLdW > 0) STDCOUTL("Note, that there was " << zerodLdW << "/" << maxZerodLdW
+// 						<< " zeroed dL/dW's out of total " << checkIncWeightsCnt << " tested.");
 				}
 				if (!m_failedLayerIdx){
 					if (m_ngcSetts.bVerbose) STDCOUTL("Bias weights in dL/dW: " << checkNeuronsCnt 
 						<< " biases (out of total " << neuronsCnt << ")...");
 
+					//const auto curZeroed = zerodLdW;
 					//bias weights
 					//m_nn.get_iRng().gen_vector_gtz(&m_grpIdx[0], checkNeuronsCnt, neuronsCnt - 1);
 					::std::random_shuffle(m_grpIdx.begin(), m_grpIdx.end(), m_nn.get_iRng());
@@ -894,6 +978,9 @@ namespace nntl {
 						if (m_failedLayerIdx) break;
 						_checkWeight(lIdx, mtx_coords_t(m_grpIdx[i], incNeuronsCnt), maxZerodLdW, zerodLdW);
 					}
+// 					const auto zDiff = curZeroed - zerodLdW;
+// 					if (m_ngcSetts.bVerbose && zDiff > 0) STDCOUTL("Note, that there was " << zDiff
+// 						<< " zeroed bias's dL/dW's out of total " << checkNeuronsCnt << " tested.");
 				}				
 
 				if (!m_failedLayerIdx){
@@ -908,7 +995,7 @@ namespace nntl {
 				}
 			}
 
-			void _checkErr(const layer_index_t& lIdx, const real_t& dLan, const real_t& dLnum, const mtx_coords_t& coords
+			void _checkErr(const layer_index_t lIdx, const real_t& dLan, const real_t& dLnum, const mtx_coords_t& coords
 				, const neurons_count_t& maxZerodL, neurons_count_t& zerodL)noexcept
 			{
 				const char* checkName;
@@ -934,8 +1021,9 @@ namespace nntl {
 				}
 
 				if (0 == dLan && 0 == dLnum) {
+					++zerodL;
 					if (!(grp == _impl::gradcheck_paramsGroup::dLdW && lIdx == 1 && m_ngcSetts.evalSetts.bIgnoreZerodLdWInUndelyingLayer)) {
-						if (++zerodL > maxZerodL) {
+						if (zerodL > maxZerodL) {
 							char _s[128+32];
 							sprintf_s(_s, "Too many (%d of max %d) of %s equal to zero. If it is acceptable, adjust corresponding gradcheck_settings::evalSetts.percOfZerodLd*", zerodL, maxZerodL, checkName);
 							_fail(lIdx, _s, coords);
@@ -1060,38 +1148,6 @@ namespace nntl {
 		common_data_t& ___get_common_data()noexcept { return get_common_data(); }
 	
 	};
-
-	/*template <typename LayersPack>
-	inline constexpr nnet<LayersPack> make_nnet(LayersPack& lp)noexcept { return nnet<LayersPack>(lp); }
-
-	template <typename LayersPack>
-	inline constexpr nnet<LayersPack> make_nnet(LayersPack& lp, typename LayersPack::iRng_t& iR)noexcept {
-		return nnet<LayersPack>(lp, nullptr, nullptr, &iR);
-	}
-	template <typename LayersPack>
-	inline constexpr nnet<LayersPack> make_nnet(LayersPack& lp, typename LayersPack::iMath_t& iM)noexcept {
-		return nnet<LayersPack>(lp, nullptr, &iM);
-	}
-	template <typename LayersPack>
-	inline constexpr nnet<LayersPack> make_nnet(LayersPack& lp, typename LayersPack::iMath_t& iM, typename LayersPack::iRng_t& iR)noexcept {
-		return nnet<LayersPack>(lp, nullptr, &iM, &iR);
-	}
-
-	template <typename LayersPack>
-	inline constexpr nnet<LayersPack> make_nnet(LayersPack& lp, typename LayersPack::iInspect_t& iI)noexcept { return nnet<LayersPack>(lp, &iI); }
-
-	template <typename LayersPack>
-	inline constexpr nnet<LayersPack> make_nnet(LayersPack& lp, typename LayersPack::iInspect_t& iI, typename LayersPack::iRng_t& iR)noexcept {
-		return nnet<LayersPack>(lp, &iI, nullptr, &iR);
-	}
-	template <typename LayersPack>
-	inline constexpr nnet<LayersPack> make_nnet(LayersPack& lp, typename LayersPack::iInspect_t& iI, typename LayersPack::iMath_t& iM)noexcept {
-		return nnet<LayersPack>(lp, &iI, &iM);
-	}
-	template <typename LayersPack>
-	inline constexpr nnet<LayersPack> make_nnet(LayersPack& lp, typename LayersPack::iInspect_t& iI, typename LayersPack::iMath_t& iM, typename LayersPack::iRng_t& iR)noexcept {
-		return nnet<LayersPack>(lp, &iI, &iM, &iR);
-	}*/
 
 	template <template<typename> class NnT = nnet, typename LayersPack = void>
 	inline constexpr NnT<LayersPack> make_nnet(LayersPack& lp)noexcept { return NnT<LayersPack>(lp); }

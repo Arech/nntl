@@ -101,7 +101,7 @@ namespace nntl {
 				realmtx_t M;
 				ar & serialization::make_nvp("m_weights", M);
 				if (ar.success()) {
-					if (!set_weights(::std::move(M))) {
+					if (! set_weights(::std::move(M))) {
 						STDCOUTL("*** Failed to absorb read weights for layer " << get_layer_name_str());
 						ar.mark_invalid_var();
 					}
@@ -127,6 +127,7 @@ namespace nntl {
 			, m_bWeightsInitialized(false), m_gradientWorks(learningRate)
 			, m_nTiledTimes(0.)
 		{
+			NNTL_ASSERT(_neurons_cnt > 0);//LFC should have valid neuron count from the very start
 			m_activations.will_emulate_biases();
 		};
 
@@ -135,6 +136,7 @@ namespace nntl {
 			, m_bWeightsInitialized(false), m_gradientWorks(learningRate)
 			, m_nTiledTimes(0.)
 		{
+			NNTL_ASSERT(_neurons_cnt > 0);//LFC should have valid neuron count from the very start
 			m_activations.will_emulate_biases();
 		};
 		
@@ -144,6 +146,8 @@ namespace nntl {
 		realmtx_t& get_weights() noexcept { NNTL_ASSERT(m_bWeightsInitialized); return m_weights; }
 
 		bool set_weights(realmtx_t&& W)noexcept {
+			drop_weights();
+
 			if (W.empty() || W.emulatesBiases()
 				|| (W.cols() != get_incoming_neurons_cnt() + 1)
 				|| W.rows() != get_neurons_cnt())
@@ -151,7 +155,6 @@ namespace nntl {
 				NNTL_ASSERT(!"Wrong weight matrix passed!");
 				return false;
 			}
-
 			NNTL_ASSERT(W.test_noNaNs());
 
 			m_weights = ::std::move(W);
@@ -160,7 +163,15 @@ namespace nntl {
 		}
 
 		bool reinit_weights()noexcept {
+			NNTL_ASSERT(m_bWeightsInitialized || !"reinit_weights() can only be called after init()!");
+			NNTL_ASSERT(!m_weights.empty() && mtx_size_t(get_neurons_cnt(), get_incoming_neurons_cnt() + 1) == m_weights.size()
+				|| !"WTF?! Wrong state of weight matrix");
 			return _activation_init_weights(m_weights);
+		}
+
+		void drop_weights()noexcept {
+			m_weights.clear();
+			m_bWeightsInitialized = false;
 		}
 
 		ErrorCode init(_layer_init_data_t& lid, real_t* pNewActivationStorage = nullptr)noexcept {
@@ -188,12 +199,16 @@ namespace nntl {
 				// initializing
 				if (!m_weights.resize(neurons_cnt, get_incoming_neurons_cnt() + 1)) return ErrorCode::CantAllocateMemoryForWeights;
 
-				if (!reinit_weights()) return ErrorCode::CantInitializeWeights;
-
-				m_bWeightsInitialized = true;
+				m_bWeightsInitialized = true;//MUST be set prior call to reinit_weights()
+				if (!reinit_weights()) {
+					m_weights.clear();
+					m_bWeightsInitialized = false;
+					return ErrorCode::CantInitializeWeights;
+				}				
 			}
 
-			lid.nParamsToLearn = m_weights.numel();
+			const numel_cnt_t prmsNumel = get_self().bUpdateWeights() /*&& get_self().bDoBProp()*/ ? m_weights.numel() : 0;
+			lid.nParamsToLearn = prmsNumel;
 
 			const auto training_batch_size = get_common_data().training_batch_size();
 
@@ -202,19 +217,15 @@ namespace nntl {
 			// m_activations - (biggestBatchSize, m_neurons_cnt+1) and unbiased matrices derived from m_activations - such as m_dAdZ
 			// prevActivations - size (m_training_batch_size, get_incoming_neurons_cnt() + 1)
 			get_iMath().preinit(::std::max({
-				m_weights.numel()
-				, _activation_tmp_mem_reqs()
+				m_weights.numel()//weights are used during fprop(), so conditioned prmsNumel is irrelevant here
+				//, _activation_tmp_mem_reqs() //base class is doing it!
 				,realmtx_t::sNumel(training_batch_size, get_incoming_neurons_cnt() + 1)
 			}));
 
-			if (get_common_data().is_training_possible()) {
+			if (get_common_data().is_training_possible() /*&& get_self().bDoBProp()*/) {
 				//it'll be training session, therefore must allocate necessary supplementary matrices and form temporary memory reqs.
 				// because we're free to reuse the dLdA space as it's no longer need, we'll also be using dLdA matrix to compute dLdW into it
-				lid.max_dLdA_numel = ::std::max({ realmtx_t::sNumel(training_batch_size, neurons_cnt)
-					, m_weights.numel() });
-
-				//obsolete: we'll need 1 temporarily matrix for bprop(): it is a dL/dW [m_neurons_cnt x get_incoming_neurons_cnt()+1]
-				//lid.maxMemTrainingRequire = m_weights.numel();
+				lid.max_dLdA_numel = ::std::max({ realmtx_t::sNumel(training_batch_size, neurons_cnt), prmsNumel });
 			}
 
 			if (!m_gradientWorks.init(get_common_data(), m_weights.size()))return ErrorCode::CantInitializeGradWorks;
@@ -233,20 +244,10 @@ namespace nntl {
 			m_nTiledTimes = real_t(0.);
 			_base_class_t::deinit();
 		}
-
-		//no longer used
-		/*void initMem(real_t* ptr, numel_cnt_t cnt)noexcept {
-			NNTL_UNREF(cnt);
-			if (get_common_data().is_training_possible()) {
-				NNTL_ASSERT(ptr && cnt >= m_weights.numel());
-				m_dLdW.useExternalStorage(ptr, m_weights);
-				NNTL_ASSERT(!m_dLdW.emulatesBiases());
-			}
-		}*/
-
-		void on_batch_size_change(const real_t learningRateScale, real_t*const pNewActivationStorage = nullptr)noexcept {
-			_base_class_t::on_batch_size_change(learningRateScale, pNewActivationStorage);
-			m_gradientWorks._learning_rate_scale(learningRateScale);
+		
+		void on_batch_size_change(/*const real_t learningRateScale,*/ real_t*const pNewActivationStorage = nullptr)noexcept {
+			_base_class_t::on_batch_size_change(/*learningRateScale,*/ pNewActivationStorage);
+			//m_gradientWorks._learning_rate_scale(learningRateScale);//it seems that the whole idea was a mistake; pending for removal
 			NNTL_ASSERT(m_activations.rows() && m_activations.rows() == get_common_data().get_cur_batch_size());
 		}
 
@@ -336,42 +337,45 @@ namespace nntl {
 
 			get_self()._cust_inspect(dLdZ);
 
-			//compute dL/dW = 1/batchsize * (dL/dZ)` * Aprev
-			// BTW: even if some of neurons of this layer could have been "disabled" by a dropout (therefore their
-			// corresponding dL/dZ element is set to zero), because we're working with batches, but not a single samples,
-			// due to averaging the dL/dW over the whole batch 
-			// (dLdW(i's neuron,j's lower layer neuron) = Sum_over_batch( dLdZ(i)*Aprev(j) ) ), it's almost impossible
-			// to get some element of dLdW equals to zero, because it'll require that dLdZ entries for some neuron over the
-			// whole batch were set to zero.
-			
-			realmtxdef_t& dLdW = dLdA;//we'll be using dLdA to compute dLdW and now creating a corresponding alias to it for readability
-			dLdW.deform_like(m_weights); //ok to do that, because the storage (dLdA) was allocated using layer_init_data::max_dLdA_numel
-			//member variable, that we've set to fit m_weights during init()
-
-			NNTL_ASSERT(m_nTiledTimes > 0);
-			//#hack to make gradient check of LPT happy, we would ignore the tiling count here entirely (because numerical error is
-			// implicitly normalized to batch size, however, analytical - doesn't and it's normalized to the current batch size. Inner
-			// layers of LPT have different batch sizes, so we just going to ignore that here. Probably we should:
-			//#todo update grad checking algo to take tiling count into account.
-			//However, the tiled layer in a real life would have a m_nTiledTimes bigger batch size, than the modeled layer should have,
-			// therefore we'll upscale the gradient m_nTiledTimes times.
-			iM.mScaledMulAtB_C((inspector::is_gradcheck_inspector<iInspect_t>::value ? real_t(1) : m_nTiledTimes) / real_t(m_activations.rows())
-				, dLdZ, prevAct, dLdW);
-
-			_iI.bprop_dLdW(dLdZ, prevAct, dLdW);
-			
+			//computing dL/dAPrev
 			if (!bPrevLayerIsInput) {
 				NNTL_ASSERT(!m_weights.emulatesBiases());
-				//finally compute dL/dAprev to use in lower layer. Before that make m_weights looks like there is no bias weights
+				//compute dL/dAprev to use in lower layer. Before that make m_weights looks like there is no bias weights
 				m_weights.hide_last_col();
 				iM.mMulAB_C(dLdZ, m_weights, dLdAPrev);
 				m_weights.restore_last_col();//restore weights back
 			}
 
-			//now we can apply gradient to the weights
-			m_gradientWorks.apply_grad(m_weights, dLdW);
-			//and restoring dLdA==dLdW size back (probably we can even skip this step, however, it's cheap and it's better to make it)
-			dLdW.deform_like_no_bias(m_activations);
+			if (get_self().bUpdateWeights()) {
+				//compute dL/dW = 1/batchsize * (dL/dZ)` * Aprev
+				// BTW: even if some of neurons of this layer could have been "disabled" by a dropout (therefore their
+				// corresponding dL/dZ element is set to zero), because we're working with batches, but not a single samples,
+				// due to averaging the dL/dW over the whole batch 
+				// (dLdW(i's neuron,j's lower layer neuron) = Sum_over_batch( dLdZ(i)*Aprev(j) ) ), it's almost impossible
+				// to get some element of dLdW equals to zero, because it'll require that dLdZ entries for some neuron over the
+				// whole batch were set to zero.
+
+				realmtxdef_t& dLdW = dLdA;//we'll be using dLdA to compute dLdW and now creating a corresponding alias to it for readability
+				dLdW.deform_like(m_weights); //ok to do that, because the storage (dLdA) was allocated using layer_init_data::max_dLdA_numel
+											 //member variable, that we've set to fit m_weights during init()
+
+				NNTL_ASSERT(m_nTiledTimes > 0);
+				//#hack to make gradient check of LPT happy, we would ignore the tiling count here entirely (because numerical error is
+				// implicitly normalized to batch size, however, analytical - doesn't and it's normalized to the current batch size. Inner
+				// layers of LPT have different batch sizes, so we just going to ignore that here. Probably we should:
+				//#todo update grad checking algo to take tiling count into account.
+				//However, the tiled layer in a real life would have a m_nTiledTimes bigger batch size, than the modeled layer should have,
+				// therefore we'll upscale the gradient m_nTiledTimes times.
+				iM.mScaledMulAtB_C((inspector::is_gradcheck_inspector<iInspect_t>::value ? real_t(1) : m_nTiledTimes) / real_t(m_activations.rows())
+					, dLdZ, prevAct, dLdW);
+
+				_iI.bprop_dLdW(dLdZ, prevAct, dLdW);
+
+				//now we can apply gradient to the weights
+				m_gradientWorks.apply_grad(m_weights, dLdW);
+				//and restoring dLdA==dLdW size back (probably we can even skip this step, however, it's cheap and it's better to make it)
+				dLdW.deform_like_no_bias(m_activations);
+			}
 
 			NNTL_ASSERT(prevAct.test_biases_strict());//just to make sure we didn't spoil anything
 
@@ -389,6 +393,7 @@ namespace nntl {
 		template <typename LowerLayer>
 		unsigned bprop(realmtxdef_t& dLdA, const LowerLayer& lowerLayer, realmtx_t& dLdAPrev)noexcept {
 			static_assert(::std::is_base_of<_i_layer_trainable, LowerLayer>::value, "Template parameter LowerLayer must implement _i_layer_trainable");
+			//NNTL_ASSERT(get_self().bDoBProp());
 			return get_self()._lfc_bprop(dLdA, lowerLayer.get_activations(), is_layer_input<LowerLayer>::value, dLdAPrev);
 		}
 

@@ -118,7 +118,10 @@ namespace inspector {
 		nntl_interface void fprop_preNesterovMomentum(const realmtx_t& vW, const real_t momentum, const realmtx_t& W)const noexcept;
 		nntl_interface void fprop_postNesterovMomentum(const realmtx_t& vW, const realmtx_t& W)const noexcept;
 
+		//fprop_makePreActivations() has two forms - for layer that has params to learn
 		nntl_interface void fprop_makePreActivations(const realmtx_t& W, const realmtx_t& prevAct)const noexcept;
+		//and for layers without params to learn
+		nntl_interface void fprop_makePreActivations(const realmtx_t& prevAct)const noexcept;
 		nntl_interface void fprop_preactivations(const realmtx_t& Z)const noexcept;
 		nntl_interface void fprop_activations(const realmtx_t& Act)const noexcept;
 
@@ -158,6 +161,9 @@ namespace inspector {
 
 		nntl_interface void apply_grad_preILR(const realmtx_t& dLdW, const realmtx_t& prevdLdW, const realmtx_t& Gain) const noexcept;
 		nntl_interface void apply_grad_postILR(const realmtx_t& dLdW, const realmtx_t& Gain) const noexcept;
+
+		nntl_interface void apply_grad_preLRDropout(const realmtx_t& dLdW, const real_t dpa, const realmtx_t& dropoutMask)const noexcept;
+		nntl_interface void apply_grad_postLRDropout(const realmtx_t& dLdW)const noexcept;
 
 		//to monitor dLdA addendums
 		nntl_interface void dLossAddendumScaled(const realmtx_t& dLoss, const realmtx_t& dLossAdd, const real_t& scale, const char*const pLossName)const noexcept;
@@ -226,6 +232,7 @@ namespace inspector {
 			void fprop_makePreActivations(const realmtx_t& W, const realmtx_t& prevAct)const noexcept {
 				NNTL_UNREF(W);				NNTL_UNREF(prevAct);
 			}
+			void fprop_makePreActivations(const realmtx_t& prevAct)const noexcept { NNTL_UNREF(prevAct); }
 			void fprop_preactivations(const realmtx_t& Z)const noexcept { NNTL_UNREF(Z); }
 			void fprop_activations(const realmtx_t& Act)const noexcept { NNTL_UNREF(Act); }
 
@@ -290,6 +297,13 @@ namespace inspector {
 			}
 			void apply_grad_postILR(const realmtx_t& dLdW, const realmtx_t& Gain) const noexcept{
 				NNTL_UNREF(dLdW); NNTL_UNREF(Gain);
+			}
+
+			void apply_grad_preLRDropout(const realmtx_t& dLdW, const real_t dpa, const realmtx_t& dropoutMask)const noexcept {
+				NNTL_UNREF(dLdW); NNTL_UNREF(dpa); NNTL_UNREF(dropoutMask);
+			}
+			void apply_grad_postLRDropout(const realmtx_t& dLdW)const noexcept {
+				NNTL_UNREF(dLdW);
 			}
 
 			void dLossAddendumScaled(const realmtx_t& dLoss, const realmtx_t& dLossAdd, const real_t& scale, const char*const pLossName)const noexcept{

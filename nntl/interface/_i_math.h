@@ -154,8 +154,10 @@ namespace math {
 		//Function binarizes dropoutMask according to dropoutFraction value and applies dropoutMask to activations
 		// act must be used in "no_bias" mode.
 		// dropPercAct - probability of keeping unit active
-		// Actually, the function must implement so called "Inverse Dropout", see http://cs231n.github.io/neural-networks-2/
+		// Actually, the function implements so called "Inverse Dropout", see http://cs231n.github.io/neural-networks-2/
 		nntl_interface void make_dropout(realmtx_t& act, const real_t dropPercAct, realmtx_t& dropoutMask)noexcept;
+		//same as make_dropout(), but direct dropout used and dropoutMask must not be changed
+		nntl_interface void apply_dropout_mask(realmtx_t& act, const real_t dropPercAct, const realmtx_t& dropoutMask)noexcept;
 
 		//apply individual learning rate to dLdW
 		nntl_interface void apply_ILR(realmtx_t& dLdW, const realmtx_t& prevdLdW, realmtx_t& ILRGain,

@@ -255,7 +255,7 @@ namespace math_etalons {
 	// Performs binary OR operation over rows of matrix A and return result to pVec
 	template<typename T>
 	void mrwBinaryOR_ET(const smtx<T>& A, T* pVec)noexcept {
-		NNTL_ASSERT(!A.empty() && A.numel() > 0 && !A.emulatesBiases() && A.isBinary());
+		NNTL_ASSERT(!A.empty() && A.numel() > 0 && !A.emulatesBiases() && A._isBinary());
 		NNTL_ASSERT(pVec);
 
 		const auto cm = A.cols(), rm = A.rows();

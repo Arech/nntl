@@ -261,7 +261,7 @@ namespace nntl {
 					// that will be substituted by biases for fprop() of one inner layer
 					lid.maxMemFPropRequire += biggestBatchSize;
 
-					if (get_common_data().is_training_possible()) {
+					if (get_common_data().is_training_possible()/* && get_self().bDoBProp()*/) {
 						const auto _training_batch_size = get_common_data().training_batch_size();
 						//adding backprop requirements
 						// saving lid.max_dLdA_numel, gathered from inner layers and substituting it for this layer's max_dLdA_numel
@@ -304,7 +304,7 @@ namespace nntl {
 				ptr += _biggest_batch_size;
 				cnt -= _biggest_batch_size;
 
-				if (get_common_data().is_training_possible()) {
+				if (get_common_data().is_training_possible()/* && get_self().bDoBProp()*/) {
 					NNTL_ASSERT(cnt >= 2 * m_layers_max_dLdA_numel);
 					m_innerdLdA.useExternalStorage(ptr, m_layers_max_dLdA_numel, false);
 					ptr += m_layers_max_dLdA_numel;
@@ -316,15 +316,15 @@ namespace nntl {
 				for_each_packed_layer([=](auto& l) {l.initMem(ptr, cnt); });
 			}
 
-			void on_batch_size_change(const real_t learningRateScale, real_t*const pNewActivationStorage = nullptr)noexcept {
-				_base_class_t::on_batch_size_change(learningRateScale, pNewActivationStorage);
+			void on_batch_size_change(/*const real_t learningRateScale,*/ real_t*const pNewActivationStorage = nullptr)noexcept {
+				_base_class_t::on_batch_size_change(/*learningRateScale,*/ pNewActivationStorage);
 				const vec_len_t batchSize = get_common_data().get_cur_batch_size();
 
 				neurons_count_t firstNeuronOfs = 0;
-				for_each_packed_layer([&act = m_activations, &firstNeuronOfs, learningRateScale](auto& lyr)noexcept {
+				for_each_packed_layer([&act = m_activations, &firstNeuronOfs/*, learningRateScale*/](auto& lyr)noexcept {
 					//we're just setting memory to store activation values of inner layers here.
 					//there's no need to play with biases here.
-					lyr.on_batch_size_change(learningRateScale, act.colDataAsVec(firstNeuronOfs));
+					lyr.on_batch_size_change(/*learningRateScale,*/ act.colDataAsVec(firstNeuronOfs));
 					firstNeuronOfs += lyr.get_neurons_cnt();
 				});
 				NNTL_ASSERT(firstNeuronOfs + 1 == m_activations.cols());

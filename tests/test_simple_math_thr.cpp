@@ -381,7 +381,7 @@ void test_mrwIdxsOfMax_perf(vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 	ASSERT_TRUE(!A.isAllocationFailed());
 	::std::vector<vec_len_t> idxs(rowsCnt);
 
-	iM.preinit(A.numel());
+	iM.preinit(iM.mrwIdxsOfMax_needTempMem(A));
 	ASSERT_TRUE(iM.init());
 	d_interfaces::iRng_t rg;
 	rg.init_ithreads(iM.ithreads());

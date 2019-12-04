@@ -31,9 +31,6 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 #pragma once
 
-//this file might be absent on non-windows OSes. It is used only for DWORD/WORD/BYTE typedefs, remove it and define them accordingly
-//#include <minwindef.h>
-
 #include "../../errors.h"
 #include "../../train_data.h"
 #include "../../utils/scope_exit.h"
@@ -134,19 +131,21 @@ namespace nntl_supp {
 		typedef ::nntl::numel_cnt_t numel_cnt_t;
 
 		template<typename T_> using smatrix = nntl::math::smatrix<T_>;
+		template<typename T_> using smatrix_deform = nntl::math::smatrix_deform<T_>;
 		template<typename T_> using train_data = nntl::train_data<T_>;
 
 	public:
 		~binfile()noexcept {}
 		binfile()noexcept{}
 
-		// read fname, parses it as jsonized struct TD into dest var, which can be either nntl::train_data or nntl::train_data::mtx_t
+		// read fname, parses it as jsonized struct TD into dest var, which can be either nntl::train_data or nntl::train_data::mtx_t or mtxdef_t
 		// If readInto_t == nntl::train_data, then all X data will be created with emulateBiases() feature and bMakeMtxBiased param will be ignored
 		template <typename readInto_t>
 		const ErrorCode read(const char* fname, readInto_t& dest) {
 			static_assert(::std::is_same<train_data<typename readInto_t::value_type>, readInto_t>::value
-				|| ::std::is_same<smatrix<typename readInto_t::value_type>, readInto_t>::value,
-				"Only nntl::train_data or nntl::train_data::mtx_t is supported as readInto_t template parameter");
+				|| ::std::is_same<smatrix<typename readInto_t::value_type>, readInto_t>::value
+				|| ::std::is_same<smatrix_deform<typename readInto_t::value_type>, readInto_t>::value,
+				"Only nntl::train_data or nntl::math::smatrix or nntl::math::smatrix_deform is supported as readInto_t template parameter");
 
 			FILE* fp=nullptr;
 			if (fopen_s(&fp, fname, NNTL_STRING("rbS")) || nullptr == fp) return _set_last_error(ErrorCode::FailedToOpenFile);
@@ -194,12 +193,12 @@ namespace nntl_supp {
 		}*/
 
 		template<typename T_>
-		const ErrorCode _read_into(FILE* fp, train_data<T_>& dest)noexcept {
-			typedef smatrix<T_> mtx_t;
-			mtx_t mtxs[total_members];
+		ErrorCode _read_into(FILE* fp, train_data<T_>& dest)noexcept {
+			typedef smatrix_deform<T_> mtxdef_t;
+			mtxdef_t mtxs[total_members];
 
 			for (unsigned nel = 0; nel < _root_members::total_members; ++nel) {
-				mtx_t m;
+				mtxdef_t m;
 				_root_members fieldId;
 				const auto err = _read_field_entry(fp, m, fieldId, true);
 				if (ErrorCode::Success != err) return err;
@@ -216,7 +215,7 @@ namespace nntl_supp {
 			return ErrorCode::Success;
 		}
 		template<typename T_>
-		const ErrorCode _read_into(FILE* fp, smatrix<T_>& dest)noexcept {
+		ErrorCode _read_into(FILE* fp, smatrix<T_>& dest)noexcept {
 			NNTL_ASSERT(!dest.bDontManageStorage());
 			NNTL_ASSERT(dest.empty());
 
@@ -225,7 +224,28 @@ namespace nntl_supp {
 		}
 
 		template<typename T_>
-		const ErrorCode _read_field_entry(FILE* fp, smatrix<T_>& m, _root_members& fieldId, const bool bReadTD=true)noexcept{
+		ErrorCode _read_into(FILE* fp, smatrix_deform<T_>& dest)noexcept {
+			NNTL_ASSERT(!dest.bDontManageStorage());
+			NNTL_ASSERT(dest.empty());
+
+			_root_members f;
+			return _read_field_entry(fp, dest, f, false);
+		}
+
+		template<typename T_>
+		ErrorCode _read_field_entry(FILE* fp, smatrix<T_>& m, _root_members& fieldId, const bool bReadTD = true)noexcept {
+			return _impl_read_field_entry(fp, m, fieldId, bReadTD);
+		}
+		template<typename T_>
+		ErrorCode _read_field_entry(FILE* fp, smatrix_deform<T_>& m, _root_members& fieldId, const bool bReadTD = true)noexcept {
+			const auto ec = _impl_read_field_entry(fp, m, fieldId, bReadTD);
+			m.update_on_hidden_resize();
+			return ec;
+		}
+
+		//////////////////////////////////////////////////////////////////////////
+		template<typename T_>
+		ErrorCode _impl_read_field_entry(FILE* fp, smatrix<T_>& m, _root_members& fieldId, const bool bReadTD=true)noexcept{
 			if (!m.empty()) return _set_last_error(ErrorCode::FieldHasBeenRead);
 #pragma warning(disable : 4815)
 			bin_file::FIELD_ENTRY fe;

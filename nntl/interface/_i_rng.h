@@ -40,6 +40,7 @@ namespace rng {
 	struct _i_rng : public math::smatrix_td {
 		typedef RealT real_t;
 		typedef math::smatrix<real_t> realmtx_t;
+		typedef math::smatrix_deform<real_t> realmtxdef_t;
 
 		//all typedefs below should be changed in derived classes to suit needs
 		
@@ -101,31 +102,39 @@ namespace rng {
 		//floating point generation
 
 		//////////////////////////////////////////////////////////////////////////
-		//generate FP value in range [0,1]
-		nntl_interface real_t gen_f_norm()noexcept;
+		//generate FP value in range [0,1]. RNG precision of the result is NO WORSE than T.
+		// That means that for T==double it must return double or even wider data type, and
+		// for T==float it may return float as well as double (depending on RNG implementation)
+		template<typename T>
+		nntl_interface auto gen_f_norm()noexcept;
 
 		//generate a vector using Bernoulli distribution with probability of success p and success value sVal.
-		nntl_interface void bernoulli_vector(real_t* ptr, const size_t n, const real_t p, const real_t sVal = real_t(1.), const real_t negVal = real_t(0.))noexcept;
+		nntl_interface void bernoulli_vector(real_t* ptr, const numel_cnt_t n, const real_t p, const real_t sVal = real_t(1.), const real_t negVal = real_t(0.))noexcept;
 		nntl_interface void bernoulli_matrix(realmtx_t& A, const real_t p, const real_t sVal = real_t(1.), const real_t negVal = real_t(0.))noexcept;
 
-		nntl_interface void normal_vector(real_t* ptr, const size_t n, const real_t m = real_t(0.), const real_t st = real_t(1.))noexcept;
+		//generate a binary vector/matrix (i.e. may contain only 0 or 1), with probability of 1 equal to p
+		nntl_interface void binary_vector(real_t* ptr, const numel_cnt_t n, const real_t p)noexcept;
+		nntl_interface void binary_matrix(realmtx_t& A, const real_t p)noexcept;
+
+		// generates using normal distribution N(m,st)
+		nntl_interface void normal_vector(real_t* ptr, const numel_cnt_t n, const real_t m = real_t(0.), const real_t st = real_t(1.))noexcept;
 		nntl_interface void normal_matrix(realmtx_t& A, const real_t m = real_t(0.), const real_t st = real_t(1.))noexcept;
 
 
 		//////////////////////////////////////////////////////////////////////////
 		// matrix/vector generation (sequence of numbers drawn from uniform distribution in [-a,a])
-		nntl_interface void gen_vector(real_t* ptr, const size_t n, const real_t a)noexcept;
+		nntl_interface void gen_vector(real_t* ptr, const numel_cnt_t n, const real_t a)noexcept;
 		// matrix/vector generation (sequence of numbers drawn from uniform distribution in [neg,pos])
-		nntl_interface void gen_vector(real_t* ptr, const size_t n, const real_t neg, const real_t pos)noexcept;
+		nntl_interface void gen_vector(real_t* ptr, const numel_cnt_t n, const real_t neg, const real_t pos)noexcept;
 
 		//////////////////////////////////////////////////////////////////////////
 		//generate vector with values in range [0,1]
-		nntl_interface void gen_vector_norm(real_t* ptr, const size_t n)noexcept;
+		nntl_interface void gen_vector_norm(real_t* ptr, const numel_cnt_t n)noexcept;
 
 		//////////////////////////////////////////////////////////////////////////
 		//generate vector with values in range [0,a]
 		template<typename BaseType>
-		nntl_interface void gen_vector_gtz(BaseType* ptr, const size_t n, const BaseType a)noexcept;
+		nntl_interface void gen_vector_gtz(BaseType* ptr, const numel_cnt_t n, const BaseType a)noexcept;
 
 
 		//generate FP value in range [0,a]
@@ -184,27 +193,41 @@ namespace rng {
 
 		//////////////////////////////////////////////////////////////////////////
 		//generate FP value in range [0,a]
-		real_t gen_f(const real_t a)noexcept { return a*get_self().gen_f_norm(); }
+		real_t gen_f(const real_t a)noexcept { return static_cast<real_t>(a*get_self().gen_f_norm<real_t>()); }
 
 		//////////////////////////////////////////////////////////////////////////
 		//////////////////////////////////////////////////////////////////////////
-		void bernoulli_vector(real_t* ptr, const size_t n, const real_t p, const real_t posVal = real_t(1.), const real_t negVal = real_t(0.))noexcept {
+		//note that derived class may override any function, so this implementation actually might be multithreaded
+		void bernoulli_vector(real_t* ptr, const numel_cnt_t n, const real_t p, const real_t posVal = real_t(1.), const real_t negVal = real_t(0.))noexcept {
 			NNTL_ASSERT(ptr);
 			NNTL_ASSERT(p > real_t(0) && p < real_t(1));
 			const auto pE = ptr + n;
+			typedef decltype(get_self().gen_f_norm<real_t>()) gen_f_norm_t;
+			gen_f_norm_t cmpr = static_cast<gen_f_norm_t>(p);
 			while (ptr != pE) {
-				*ptr++ = get_self().gen_f_norm() < p ? posVal : negVal;
+				*ptr++ = get_self().gen_f_norm<real_t>() < cmpr ? posVal : negVal;
 			}
 		}
 		void bernoulli_matrix(realmtx_t& A, const real_t p, const real_t posVal = real_t(1.), const real_t negVal = real_t(0.))noexcept {
+			NNTL_ASSERT(!A.emulatesBiases());
 			get_self().bernoulli_vector(A.data(), A.numel(), p, posVal, negVal);
 		}
 
 		//////////////////////////////////////////////////////////////////////////
 		//////////////////////////////////////////////////////////////////////////
-		void normal_vector(real_t*const ptr, const size_t n, const real_t m = real_t(0.), const real_t st = real_t(1.))noexcept {
+		//generate a binary vector/matrix (i.e. may contain only 0 or 1), with probability of 1 equal to p
+		void binary_vector(real_t* ptr, const numel_cnt_t n, const real_t p = real_t(.5))noexcept {
+			return get_self().bernoulli_vector(ptr, n, p, real_t(1.), real_t(0.));
+		}
+		void binary_matrix(realmtx_t& A, const real_t p = real_t(.5))noexcept {
+			return get_self().bernoulli_matrix(A, p, real_t(1.), real_t(0.));
+		}
+
+		//////////////////////////////////////////////////////////////////////////
+		//////////////////////////////////////////////////////////////////////////
+		void normal_vector(real_t*const ptr, const numel_cnt_t n, const real_t m = real_t(0.), const real_t st = real_t(1.))noexcept {
 			::std::normal_distribution<real_t> distr(m,n);
-			for (size_t i = 0; i < n; ++i) {
+			for (numel_cnt_t i = 0; i < n; ++i) {
 				ptr[i] = distr(*this);
 			}
 		}

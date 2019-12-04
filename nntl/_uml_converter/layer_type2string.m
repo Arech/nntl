@@ -1,6 +1,5 @@
 function [ s ] = layer_type2string( t )
-%LAYER_TYPE2STRING Summary of this function goes here
-%   Detailed explanation goes here
+%LAYER_TYPE2STRING This strings generally used to name corresponding nodes in xml graph file
 
 LT=static_layer_types();
 switch(t)	

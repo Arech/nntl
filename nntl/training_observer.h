@@ -129,13 +129,13 @@ namespace nntl {
 	};
 
 	//////////////////////////////////////////////////////////////////////////
-	//training_observer, that output results to ::std::cout
-	template<typename Evaluator = eval_classification_one_hot<d_interfaces::real_t>>
+	//training_observer, that output results (including number of correct/incorrect classifications) to ::std::cout
+	template<typename Evaluator = eval_classification_one_hot_cached<d_interfaces::real_t>>
 	class training_observer_stdcout : public i_training_observer<typename Evaluator::real_t> {
 	protected:
 		struct CLASSIFICATION_RESULTS {
 			numel_cnt_t totalElements;
-			numel_cnt_t correctlyClassified;//in fact, it's kind of a metric... Will refactor in future
+			numel_cnt_t correctlyClassif;//in fact, it's kind of a metric... Will refactor in future
 		};
 
 		typedef ::std::array<CLASSIFICATION_RESULTS, 2> classif_results_t;
@@ -152,6 +152,7 @@ namespace nntl {
 		numel_cnt_t m_epochs;
 
 	public:
+		//these vars are used to query latest loss value from outside
 		real_t m_lastTrainErr, m_lastTestErr;
 
 	public:
@@ -180,10 +181,11 @@ namespace nntl {
 			NNTL_UNREF(epochEnded);
 
 			const auto& activations = nn.get_layer_pack().output_layer().get_activations();
+			NNTL_ASSERT(!data_y.emulatesBiases() && !activations.emulatesBiases());
 			NNTL_ASSERT(data_y.size() == activations.size());
 			
-			m_classifRes[bOnTestData].totalElements = data_y.rows();
-			m_classifRes[bOnTestData].correctlyClassified = m_evaluator.correctlyClassified(data_y, activations, bOnTestData, nn.get_iMath());
+			m_classifRes[bOnTestData].totalElements = m_evaluator.totalSamples(data_y);
+			m_classifRes[bOnTestData].correctlyClassif = m_evaluator.correctlyClassified(data_y, activations, bOnTestData, nn.get_iMath());
 		}
 
 		void on_training_fragment_end(const numel_cnt_t epochEnded, const real_t trainLoss, const real_t testLoss, const nanoseconds& elapsedSincePrevFragment)noexcept {
@@ -196,10 +198,10 @@ namespace nntl {
 			strchar_t szRep[uBufSize];
 			const real_t secs = real_t(elapsedSincePrevFragment.count()) / real_t(1e9);
 
-			const auto trainTE = m_classifRes[0].totalElements, trainW = trainTE - m_classifRes[0].correctlyClassified;
+			const auto trainTE = m_classifRes[0].totalElements, trainW = trainTE - m_classifRes[0].correctlyClassif;
 			const real_t trErr = real_t(trainW * 100) / trainTE;
 			
-			const auto testTE = m_classifRes[1].totalElements, testW = testTE - m_classifRes[1].correctlyClassified;
+			const auto testTE = m_classifRes[1].totalElements, testW = testTE - m_classifRes[1].correctlyClassif;
 			const real_t tErr = real_t(testW * 100) / testTE;
 			
 			sprintf_s(szRep, uBufSize, szReportFmt, epochEnded+1, m_epochs, secs, trainLoss, 

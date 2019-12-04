@@ -162,10 +162,29 @@ namespace nntl {
 				call_F_for_each_layer(func, l);//mustn't forward because lambda is called multiple times
 			});
 		}
+		template<typename _Func>
+		void for_each_layer(_Func&& f)const noexcept {
+			tuple_utils::for_each_up(m_layers, [&func{ f }](const auto& l) {
+				call_F_for_each_layer(func, l);
+			});
+		}
 		//This will apply f to every layer, packed in tuple no matter whether it is a _pack_* kind of layer or no
 		template<typename _Func>
 		void for_each_packed_layer(_Func&& f)noexcept {
 			tuple_utils::for_each_up(m_layers, ::std::forward<_Func>(f));//OK to forward here. Using only once
+		}
+		template<typename _Func>
+		void for_each_packed_layer(_Func&& f)const noexcept {
+			tuple_utils::for_each_up(m_layers, ::std::forward<_Func>(f));//OK to forward here. Using only once
+		}
+
+		template<typename _Func>
+		void for_each_packed_layer_down(_Func&& f) noexcept {
+			tuple_utils::for_each_down(m_layers, ::std::forward<_Func>(f));//OK to forward here. Using only once
+		}
+		template<typename _Func>
+		void for_each_packed_layer_down(_Func&& f)const noexcept {
+			tuple_utils::for_each_down(m_layers, ::std::forward<_Func>(f));//OK to forward here. Using only once
 		}
 
 		//and apply function _Func(auto& layer) to each underlying (non-pack) layer here excluding the first
@@ -236,7 +255,8 @@ namespace nntl {
 		real_t calcLossAddendum()noexcept {
 			if (m_lossAddendum==real_t(0.0)) {
 				real_t ret(0.0);
-				tuple_utils::for_each_up(m_layers, [&](auto& lyr)noexcept {
+				tuple_utils::for_each_up(m_layers, [&](const auto& lyr)noexcept {
+					NNTL_UNREF(lyr);
 					const auto v = lyr.lossAddendum();
 					//may assert here when learningRate<0. Should find a better way to test loss addendum correctness
 					NNTL_ASSERT(v >= real_t(0.0));
@@ -249,7 +269,7 @@ namespace nntl {
 		}
 
 		void on_batch_size_change()noexcept {
-			tuple_utils::for_each_up(m_layers, [](auto& lyr)noexcept { lyr.on_batch_size_change(real_t(1.)); });
+			tuple_utils::for_each_up(m_layers, [](auto& lyr)noexcept { lyr.on_batch_size_change(/*real_t(1.)*/); });
 		}
 
 		void fprop(const realmtx_t& data_x) noexcept {
@@ -369,4 +389,35 @@ namespace nntl {
 		}
 		template<typename _L, typename F> ::std::enable_if_t<!nntl::layer_has_gradworks<_L>::value> operator()(_L& , F&& )noexcept {}
 	};
+
+	//helper to disable bprop in layers with specified and below layer_id. Generally layers with lesser layer_id lie directly
+	// under the specified layer_id, however it's not a general rule. Care must be taken when specifying inner layers of layer packs
+	// - always double check the log to ensure correct rule application
+	/*
+	 * to be implemented later
+	 struct hlpr_setDoBProp_for_layerId_range {
+		const layer_index_t m_biggestLid, m_smallestLid;
+		const bool m_bDoBPropVal;
+		const bool m_bVerbose;
+
+		hlpr_setDoBProp_for_layerId_range(layer_index_t lidBiggest, bool doBProp, layer_index_t lidSmallest = 0, bool bv = true)noexcept
+			:m_biggestLid(lidBiggest), m_smallestLid(lidSmallest), m_bDoBPropVal(doBProp), m_bVerbose(bv)
+		{
+			NNTL_ASSERT(lidBiggest >= lidSmallest && lidBiggest != invalid_layer_index && lidSmallest != invalid_layer_index);
+		}
+
+		template<typename L> void operator()(L& l)const noexcept {
+			const auto lid = l.get_layer_idx();
+			if (m_smallestLid <= lid && lid <= m_biggestLid) {
+				if (m_bVerbose) {
+					constexpr size_t ml = L::layerNameMaxChars;
+					char n[ml];
+					l.get_layer_name(n, ml);
+
+					STDCOUTL("!" << (m_bDoBPropVal ? "ENABLING" : "DISABLING") << "! bprop() entirely for layer name=" << n);
+				}
+				l._setDoBProp(m_bDoBPropVal);
+			}
+		}
+	};*/
 };

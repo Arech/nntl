@@ -13,10 +13,10 @@ assert(nodesCnt>1);
 assert(nodesCnt == length(unique([gr(:).iid])));
 assert(nodesCnt == length(unique({gr(:).name})));
 assert(all(LT.unk ~= [gr(:).type] ));
-assert(strcmp(gr(1).name,'Data'),'First item must be a Data source!');
+assert(strcmp(gr(1).name,'Data') || (gr(1).type==LT.src && isempty(gr(1).childList)),'First item must be a Data source!');
 assert(0==gr(1).parentIid);
 
-gr = sortFields(gr);
+gr = sortFieldsAndUpdUpperNc(gr);
 
 gr(1).out_map=[];
 %gr(1).lph_phl=[];
@@ -30,7 +30,7 @@ tli = find([gr(2:end).parentIid]==0);
 assert(~isempty(tli));
 assert(length(tli)==1,'Only one non-source data top level element permitted!');
 tli = tli+1;
-gr=run_fprop(gr,tli, bMoveDropoutToLph, false, dropoutDefaultType);
+gr=run_fprop(gr, tli, bMoveDropoutToLph, false, dropoutDefaultType);
 
 assert(all( arrayfun(@(v)~isempty(gr(v).visited), 1:nodesCnt ) ), 'There is a least one node in the graph, that was not visited during fprop walkarong. Wrong graph connections probably');
 assert(all([gr( [gr(:).type]==LT.lfc ).nc] > 0));
@@ -198,7 +198,7 @@ end
 end
 
 %%
-function gr=run_fprop(gr,nodeId, bMoveDropoutToLph, bUpperLphHasDropout, dropoutDefaultType)
+function gr=run_fprop(gr, nodeId, bMoveDropoutToLph, bUpperLphHasDropout, dropoutDefaultType)
 LT=static_layer_types();
 
 assert(isempty(gr(nodeId).visited), 'Too bad, tried to fprop the layer twice!');
@@ -233,7 +233,9 @@ end
 
 if isLayerTypeCompound(gr(nodeId).type)
 	assert( isempty(gr(nodeId).nc), 'Compound layer cant have .nc property set here');
-	assert(length(gr(nodeId).childList) > 1);
+	chList = gr(nodeId).childList;
+	assert(length(chList) > 1 || (length(chList)==1 && gr(nodeId).type==LT.lph && ~isempty(gr(chList).repeat)),...
+		['Expecting at least 2 children for compound layer ' gr(nodeId).name]);
 	assert(inListLen<=1 || (inListLen>1 && isLayerAtLPHBottom(gr,nodeId)),...
 	['Compound node may have zero or one in link. It may have more than 1 incoming link only if it lives at the bottom of a LPH. Check ' gr(nodeId).name]);
 else
@@ -520,16 +522,25 @@ end
 
 
 %%
-function gr = sortFields(gr)
-%sorts childList according to children position and a corresponding parent layer type; sorts in/out
+function gr = sortFieldsAndUpdUpperNc(gr)
+% sorts every childList according to children position and a corresponding parent layer type; sorts in/out
+% Also for every uppermost layer checks if .nc is not defined for it and sets it to the default value.
+CD = static_codegen_defs();
+LT = static_layer_types();
 
-LT=static_layer_types();
 for ii=1:length(gr)
 	isComp = isLayerTypeCompound(gr(ii).type);
 	childList = gr(ii).childList;
 	assert( xor(isComp, isempty(childList)), ['Incorrect layer type for the childList for ' gr(ii).name]);
-	assert( ~isComp || (length(childList)>1 && length(childList)==length(unique(childList))),...
-		['Compond layers must have more than 1 children without repetitions. See ' gr(ii).name] );
+	assert( ~isComp ...
+		|| (length(childList)>1 && length(childList)==length(unique(childList)))...
+		|| (length(childList)==1 && ~isempty(gr(childList).repeat)),...
+		['Compound layers must have more than 1 children without repetitions. See ' gr(ii).name] );
+	
+	parent = gr(ii).parentIid;
+	assert(isempty(gr(ii).repeat) || (~isempty(parent) && parent>0 && gr(parent).type == LT.lph), ...
+		['.repeat property only allowed for direct childlen of LPH. See ' gr(ii).name]);
+	
 	if ~isempty(childList)
 		switch(gr(ii).type)
 			case LT.lpv
@@ -551,6 +562,13 @@ for ii=1:length(gr)
 	if length(gr(ii).out)>1
 		[~,idxs]=sort([ gr(gr(ii).out).x ]);
 		gr(ii).out = gr(ii).out(idxs);
+	else
+		% checking if there .nc defined
+		if isempty(gr(ii).nc) && (gr(ii).type == LT.lfc || (gr(ii).type == LT.custom && isempty(gr(ii).constr)))
+			assert(~isempty(gr(ii).name) && ischar(gr(ii).name));
+			gr(ii).nc = [ CD.fullNcPfx gr(ii).name];
+			disp(['* note: no suitable .nc value found for (topmost?) ' gr(ii).name ', using default ' gr(ii).nc]);
+		end		
 	end
 end
 

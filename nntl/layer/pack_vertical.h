@@ -99,10 +99,7 @@ namespace nntl {
 
 	protected:
 		_layers m_layers;
-
-	private:
-		layer_index_t m_layerIdx;
-
+		
 	protected:
 		
 		//////////////////////////////////////////////////////////////////////////
@@ -114,10 +111,8 @@ namespace nntl {
 		void _preinit_layer(_impl::init_layer_index& ili, const neurons_count_t inc_neurons_cnt)noexcept {
 			//there should better be an exception, but we don't want exceptions at all.
 			//anyway, there is nothing to help to those who'll try to abuse this API...
-			NNTL_ASSERT(!m_layerIdx && inc_neurons_cnt > 0);
-
-			if (m_layerIdx) abort();
-			m_layerIdx = ili.newIndex();
+			NNTL_ASSERT(inc_neurons_cnt > 0);
+			_base_class_t::_preinit_layer(ili);
 
 			_impl::_preinit_layers initializer(ili, inc_neurons_cnt);
 			tuple_utils::for_eachwp_up(m_layers, initializer);
@@ -134,10 +129,10 @@ namespace nntl {
 
 		~_LPV()noexcept {}
 		_LPV(const char* pCustomName, const LayrsRefTuple& layrs)noexcept
-			: _base_class_t(pCustomName), m_layers(layrs), m_layerIdx(0)
+			: _base_class_t(pCustomName), m_layers(layrs)
 		{}
 		_LPV(const char* pCustomName, LayrsRefTuple&& layrs)noexcept
-			: _base_class_t(pCustomName), m_layers(::std::move(layrs)), m_layerIdx(0)
+			: _base_class_t(pCustomName), m_layers(::std::move(layrs))
 		{}
 
 		static constexpr const char _defName[] = "lpv";
@@ -166,8 +161,6 @@ namespace nntl {
 		void for_each_packed_layer_down(_Func&& f)const noexcept {
 			tuple_utils::for_each_down(m_layers, ::std::forward<_Func>(f));
 		}
-
-		const layer_index_t& get_layer_idx() const noexcept { return m_layerIdx; }
 
 		//overriding _layer_base_forwarder<> implementation.
 		const neurons_count_t get_incoming_neurons_cnt()const noexcept { return  lowmost_layer().get_incoming_neurons_cnt(); }
@@ -218,6 +211,14 @@ namespace nntl {
 				ec = topmost_layer().init(initD, pNewActivationStorage);
 				if (ErrorCode::Success == ec) {
 					lid.update(initD);
+
+					//finally checking if topmost layer has bprop disabled, we should also disable it
+					/*if (!topmost_layer().bDoBProp() && get_self().bDoBProp()) {
+						STDCOUTL("## LPV::init '"<< get_self().get_layer_name_str()
+							<< "': note that topmost layer has bprop() turned off, but ours is turned on! Disabling it.");
+						get_self()._setDoBProp(false);
+					}*/
+
 				} else failedLayerIdx = topmost_layer().get_layer_idx();
 			}
 
@@ -239,11 +240,11 @@ namespace nntl {
 			for_each_packed_layer([=](auto& l) {l.initMem(ptr, cnt); });
 		}
 
-		void on_batch_size_change(const real_t learningRateScale, real_t*const pNewActivationStorage = nullptr)noexcept {
-			tuple_utils::for_each_exc_last_up(m_layers, [learningRateScale](auto& lyr)noexcept {
-				lyr.on_batch_size_change(learningRateScale);
+		void on_batch_size_change(/*const real_t learningRateScale,*/ real_t*const pNewActivationStorage = nullptr)noexcept {
+			tuple_utils::for_each_exc_last_up(m_layers, [/*learningRateScale*/](auto& lyr)noexcept {
+				lyr.on_batch_size_change(/*learningRateScale*/);
 			});
-			topmost_layer().on_batch_size_change(learningRateScale, pNewActivationStorage);
+			topmost_layer().on_batch_size_change(/*learningRateScale,*/ pNewActivationStorage);
 		}
 
 	protected:
@@ -276,27 +277,32 @@ namespace nntl {
 
 			realmtxdefptr_array_t a_dLdA = { &dLdA, &dLdAPrev };
 			unsigned mtxIdx = 0;
+			//bool bContBprop = true;
 
-			tuple_utils::for_eachwn_downfullbp(m_layers, [&mtxIdx, &a_dLdA](auto& lcur, auto& lprev, const bool)noexcept {
-				const unsigned nextMtxIdx = mtxIdx ^ 1;
-				a_dLdA[nextMtxIdx]->deform_like_no_bias(lprev.get_activations());
-				NNTL_ASSERT(lprev.get_activations().test_biases_strict());
-				NNTL_ASSERT(a_dLdA[mtxIdx]->size() == lcur.get_activations().size_no_bias());
+			tuple_utils::for_eachwn_downfullbp(m_layers, [&mtxIdx, &a_dLdA/*, &bContBprop*/](auto& lcur, auto& lprev, const bool)noexcept {
+				//if (bContBprop && lcur.bDoBProp()) {
+					const unsigned nextMtxIdx = mtxIdx ^ 1;
+					a_dLdA[nextMtxIdx]->deform_like_no_bias(lprev.get_activations());
+					NNTL_ASSERT(lprev.get_activations().test_biases_strict());
+					NNTL_ASSERT(a_dLdA[mtxIdx]->size() == lcur.get_activations().size_no_bias());
 
-				const unsigned bAlternate = lcur.bprop(*a_dLdA[mtxIdx], lprev, *a_dLdA[nextMtxIdx]);
+					const unsigned bAlternate = lcur.bprop(*a_dLdA[mtxIdx], lprev, *a_dLdA[nextMtxIdx]);
 
-				NNTL_ASSERT(1 == bAlternate || 0 == bAlternate);
-				NNTL_ASSERT(lprev.get_activations().test_biases_strict());
-				mtxIdx ^= bAlternate;
+					NNTL_ASSERT(1 == bAlternate || 0 == bAlternate);
+					NNTL_ASSERT(lprev.get_activations().test_biases_strict());
+					mtxIdx ^= bAlternate;
+				//} else bContBprop = false;
 			});
 
-			const unsigned nextMtxIdx = mtxIdx ^ 1;
-			if (bLowerLayerIsInput) {
-				a_dLdA[nextMtxIdx]->deform(0, 0);
-			} else a_dLdA[nextMtxIdx]->deform_like_no_bias(prevAct);
-			const unsigned bAlternate = lowmost_layer().bprop(*a_dLdA[mtxIdx], LLWrapT(prevAct), *a_dLdA[nextMtxIdx]);
-			NNTL_ASSERT(1 == bAlternate || 0 == bAlternate);
-			mtxIdx ^= bAlternate;
+			//if (bContBprop && lowmost_layer().bDoBProp()) {
+				const unsigned nextMtxIdx = mtxIdx ^ 1;
+				if (bLowerLayerIsInput) {
+					a_dLdA[nextMtxIdx]->deform(0, 0);
+				} else a_dLdA[nextMtxIdx]->deform_like_no_bias(prevAct);
+				const unsigned bAlternate = lowmost_layer().bprop(*a_dLdA[mtxIdx], LLWrapT(prevAct), *a_dLdA[nextMtxIdx]);
+				NNTL_ASSERT(1 == bAlternate || 0 == bAlternate);
+				mtxIdx ^= bAlternate;
+			//}
 
 			NNTL_ASSERT(prevAct.test_biases_strict());
 
@@ -316,6 +322,7 @@ namespace nntl {
 		template <typename LowerLayer>
 		unsigned bprop(realmtxdef_t& dLdA, const LowerLayer& lowerLayer, realmtxdef_t& dLdAPrev)noexcept {
 			static_assert(::std::is_base_of<_i_layer_trainable, LowerLayer>::value, "Template parameter LowerLayer must implement _i_layer_trainable");
+			//NNTL_ASSERT(get_self().bDoBProp());
 			return get_self()._lpv_bprop<_impl::wrap_trainable_layer<LowerLayer>>(dLdA, dLdAPrev, lowerLayer.get_activations());
 		}
 

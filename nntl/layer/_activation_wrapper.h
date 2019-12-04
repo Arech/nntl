@@ -88,6 +88,8 @@ namespace nntl {
 
 				if (!Activation_t::act_init()) return ErrorCode::CantInitializeActFunc;
 
+				get_iMath().preinit(_activation_tmp_mem_reqs());
+
 				return ErrorCode::Success;
 			}
 
@@ -117,7 +119,7 @@ namespace nntl {
 				NNTL_ASSERT(m_activations.test_noNaNs());
 #endif // NNTL_AGGRESSIVE_NANS_DBG_CHECK
 
-				if (!bLayerIsLinear()) {
+				if (!bIgnoreActivation()) {
 					Activation_t::f(m_activations, iM);
 
 #ifdef NNTL_AGGRESSIVE_NANS_DBG_CHECK
@@ -131,7 +133,7 @@ namespace nntl {
 				NNTL_ASSERT(m_activations.emulatesBiases() && !act2dAdZ_nb.emulatesBiases());
 				NNTL_ASSERT(m_activations.data() == act2dAdZ_nb.data() && m_activations.size_no_bias() == act2dAdZ_nb.size());
 				NNTL_ASSERT(act2dAdZ_nb.test_noNaNs());
-				if (bLayerIsLinear()) {
+				if (bIgnoreActivation()) {
 					Activation_t::dIdentity(act2dAdZ_nb, iM);
 				} else {
 					Activation_t::df(act2dAdZ_nb, iM);
@@ -142,7 +144,7 @@ namespace nntl {
 			template<typename iMathT, bool _b = bActivationForOutput>
 			::std::enable_if_t<_b> _activation_bprop_output(const realmtx_t& data_y, iMathT& iM)noexcept {
 				NNTL_ASSERT(!m_activations.emulatesBiases() && !data_y.emulatesBiases());
-				if (bLayerIsLinear()) {
+				if (bIgnoreActivation()) {
 					Activation_t::dLdZIdentity(data_y, m_activations, iM);
 				} else {
 					Activation_t::dLdZ(data_y, m_activations, iM);

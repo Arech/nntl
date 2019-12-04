@@ -79,17 +79,32 @@ SCOPED_TRACE(_scopeMsg);
 //////////////////////////////////////////////////////////////////////////
 
 template<typename _T>
-inline void _ASSERT_REALMTX_NEAR(const nntl::math::smatrix<_T>& c1, const nntl::math::smatrix<_T>& c2, const char* descr, const double eps) noexcept {
-	ASSERT_EQ(c1.size(), c2.size()) << descr;
-	ASSERT_EQ(c1.emulatesBiases(), c2.emulatesBiases()) << descr;
+inline void _ASSERT_REALMTX_NEAR(const nntl::math::smatrix<_T>& c1, const nntl::math::smatrix<_T>& c2, const char* descr
+	, const double eps, const ::nntl::thread_id_t ti = -1) noexcept
+{
+	if (ti >= 0) {
+		ASSERT_EQ(c1.size(), c2.size()) << "(threads cnt " << ti << ")" << descr;
+		ASSERT_EQ(c1.emulatesBiases(), c2.emulatesBiases()) << "(threads cnt " << ti << ")" << descr;
+	} else {
+		ASSERT_EQ(c1.size(), c2.size()) << descr;
+		ASSERT_EQ(c1.emulatesBiases(), c2.emulatesBiases()) << descr;
+	}
 	const auto p1 = c1.data(), p2 = c2.data();
 	const auto im = c1.numel();
-	for (::nntl::numel_cnt_t i = 0; i < im; ++i) {
-		ASSERT_NEAR(p1[i], p2[i], eps) << "Mismatches element #" << i << "(" << (i%c1.rows()) << "," << (i / c1.rows())
-			<< ") of [" << c1.rows() << "," << c1.cols() << "] @ " << descr;
+	if (ti >= 0) {
+		for (::nntl::numel_cnt_t i = 0; i < im; ++i) {
+			ASSERT_NEAR(p1[i], p2[i], eps) << "Mismatches element #" << i << "(" << (i%c1.rows()) << "," << (i / c1.rows())
+				<< ") of [" << c1.rows() << "," << c1.cols() << "] @ " << "(threads cnt " << ti << ")" << descr;
+		}
+	} else {
+		for (::nntl::numel_cnt_t i = 0; i < im; ++i) {
+			ASSERT_NEAR(p1[i], p2[i], eps) << "Mismatches element #" << i << "(" << (i%c1.rows()) << "," << (i / c1.rows())
+				<< ") of [" << c1.rows() << "," << c1.cols() << "] @ " << descr;
+		}
 	}
 }
 #define ASSERT_REALMTX_NEAR(c1,c2,descr,eps) ASSERT_NO_FATAL_FAILURE(_ASSERT_REALMTX_NEAR(c1,c2,descr,eps));
+#define ASSERT_REALMTX_NEAR_THRD(c1, c2, descr, eps, nTrd) ASSERT_NO_FATAL_FAILURE(_ASSERT_REALMTX_NEAR(c1, c2, descr, eps, nTrd));
 
 template<typename BaseT>
 //void _ASSERT_MTX_EQ(const nntl::math::smatrix<BaseT>& c1, const nntl::math::smatrix<BaseT>& c2, const char* descr = "") noexcept {

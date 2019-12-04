@@ -67,9 +67,7 @@ TEST(TestBinFile, ReadMatrix) {
 
 TEST(TestBinFile, ReadTrainData) {
 	typedef train_data<real_t> train_data_t;
-	typedef train_data_t::mtx_t realmtx_t;
-	//typedef realmtx_t::vec_len_t vec_len_t;
-	using mtx_size_t = realmtx_t::mtx_size_t;
+	using mtx_size_t = math::smatrix_td::mtx_size_t;
 
 	typedef nntl_supp::binfile binfile;
 	typedef binfile::ErrorCode ErrorCode;

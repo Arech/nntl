@@ -164,6 +164,9 @@ namespace nntl {
 		gradcheck_evalSetts_group<real_t> dLdA_setts;
 		gradcheck_evalSetts_group<real_t> dLdW_setts;
 
+		//zeros in input data may produce zeros in dLdW of the first learnable layer.
+		//We perform tests mostly on MNIST that do indeed have a lot of zeroes in input data.
+		// This switch helps to get rid of GC failure due to this reason.
 		bool bIgnoreZerodLdWInUndelyingLayer;
 
 		gradcheck_evalSetts()noexcept
@@ -195,7 +198,7 @@ namespace nntl {
 
 		::std::vector<layer_index_t> ignoreLayerIds;
 		::std::vector<layer_index_t> layerCanSkipExecIds;
-
+		
 		const real_t stepSize;
 		const bool bVerbose;
 		const bool bForceSeed;

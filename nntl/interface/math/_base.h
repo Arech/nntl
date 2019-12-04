@@ -36,10 +36,10 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 namespace nntl {
 
 	template< class, class = ::std::void_t<> >
-	struct has_real_t : ::std::false_type { };
+	struct has_real_t : public ::std::false_type { };
 	// specialization recognizes types that do have a nested ::real_t member:
 	template< class T >
-	struct has_real_t<T, ::std::void_t<typename T::real_t>> : ::std::true_type {};
+	struct has_real_t<T, ::std::void_t<typename T::real_t>> : public ::std::true_type {};
 
 	namespace math {
 

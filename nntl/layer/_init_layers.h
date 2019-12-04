@@ -45,7 +45,8 @@ namespace nntl {
 	struct m_layer_gate {};
 	//struct m_layer_tolerates_no_biases {};//marks that a layer doesn't require a bias column to perform fprop/bprop correctly. (LI)
 
-	//this class marks a layer as learnable. It must provide get_weights/set_weights/reinit_weights(), bLayerIsLinear()/setLayerLinear()
+	//this class marks a layer as learnable. It must provide get_weights/set_weights/reinit_weights/drop_weights()
+	// , bIgnoreActivation()/setIgnoreActivation()
 	// and get_gradWorks() functions,
 	// as well as compute dL/dW during bprop()
 	struct m_layer_learnable {};
@@ -138,6 +139,7 @@ namespace nntl {
 			init_layer_index(init_layer_index& other)noexcept : _idx(other._idx){}
 
 			layer_index_t newIndex()noexcept {
+				NNTL_ASSERT(_idx != invalid_layer_index || !"WTF?! Too huge nnet having >65k layers?");
 				return _idx++;
 			}
 		};
@@ -253,7 +255,7 @@ namespace nntl {
 			//
 			// We'll discuss next how 2.b type of memory is organized.
 			// 
-			// fprop and bprop could use different batch sizes during a single training session. For example, during
+			// fprop() and bprop() can use different batch sizes during a single training session. For example, during
 			// the learning process fprop()/bprop() could use a small batch size, however a whole data_x.rows() of a source dataset 
 			// could be necessary for fprop() for a loss function value computation. Therefore to reduce memory consumption
 			// during nnet evaluating and learning, it makes sense to distinguish how much memory is required to evaluate nnet, from how much

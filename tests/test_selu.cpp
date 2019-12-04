@@ -195,14 +195,14 @@ template<typename iRngT>
 void _test_selu_make_td(train_data< typename iRngT::real_t >& td, const vec_len_t tr_cnt, const neurons_count_t xwidth, iRngT& iR)noexcept
 {
 	typedef typename iRngT::real_t real_t;
-	typedef typename iRngT::realmtx_t realmtx_t;
+	typedef typename iRngT::realmtxdef_t realmtxdef_t;
 
-	realmtx_t trX(tr_cnt, xwidth, true), trY(tr_cnt, 1), tX(1, xwidth, true), tY(1, 1);
+	realmtxdef_t trX(tr_cnt, xwidth, true), trY(tr_cnt, 1), tX(1, xwidth, true), tY(1, 1);
 
 	rng::distr_normal_naive<iRngT> rg(iR, real_t(0), real_t(1));
 	rg.gen_matrix_no_bias(trX); rg.gen_matrix_no_bias(tX);
 
-	iR.gen_matrix_norm(trY), iR.gen_matrix_norm(tY);
+	iR.binary_matrix(trY), iR.binary_matrix(tY);
 
 	ASSERT_TRUE(td.absorb(::std::move(trX), ::std::move(trY), ::std::move(tX), ::std::move(tY)));
 }
@@ -253,7 +253,7 @@ void test_selu_distr(const size_t seedVal, const RealT dpa, const neurons_count_
 	auto lp = make_layers(inp, fcl, fcl2, fcl3, fcl4, outp);
 #endif
 
-	nnet_train_opts<training_observer_stdcout<eval_classification_binary<real_t>>> opts(1);
+	nnet_train_opts<training_observer_stdcout<eval_classification_binary_cached<real_t>>> opts(1);
 	opts.batchSize(batchSize);
 
 	auto nn = make_nnet(lp);

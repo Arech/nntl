@@ -114,6 +114,7 @@ namespace nntl {
 		template <typename LowerLayerT>
 		unsigned bprop(realmtx_t& dLdA, const LowerLayerT& lowerLayer, realmtx_t& dLdAPrev)noexcept {
 			NNTL_UNREF(dLdAPrev); NNTL_UNREF(lowerLayer);
+			//NNTL_ASSERT(get_self().bDoBProp());
 			get_self()._li_bprop(dLdA);
 			return 0;//indicating that dL/dA for a previous layer is actually in the dLdA parameter (not in the dLdAPrev)
 		}
@@ -239,14 +240,14 @@ namespace nntl {
 		// version without binarization
 		template<bool bg = sbBinarizeGate>
 		::std::enable_if_t<!bg> _make_gate()noexcept {
-			NNTL_ASSERT(m_activations.isBinaryStrictNoBias());
+			NNTL_ASSERT(m_activations._isBinaryStrictNoBias());
 		}
 		// version with binarization
 		template<bool bg = sbBinarizeGate>
 		::std::enable_if_t<bg> _make_gate()noexcept {
 			//NNTL_ASSERT(_bAllocateGate());			
 			get_iMath().ewBinarize_ip(m_activations, sBinarizeFrac, real_t(0.), real_t(1.));
-			NNTL_ASSERT(m_activations.isBinaryStrictNoBias());
+			NNTL_ASSERT(m_activations._isBinaryStrictNoBias());
 		}
 
 	public:

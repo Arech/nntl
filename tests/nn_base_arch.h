@@ -178,7 +178,7 @@ namespace nntl_tests {
 			STDCOUTL("Going to perform warmup for "<<epochs<<" epochs...");
 
 			nntl::nnet_train_opts<
-				nntl::training_observer_stdcout<nntl::eval_classification_one_hot<real_t>>//need this to pass correct real_t
+				nntl::training_observer_stdcout<nntl::eval_classification_one_hot_cached<real_t>>//need this to pass correct real_t
 			> opts(epochs, false);
 
 			opts.batchSize(batch_size).ImmediatelyDeinit(false).calcFullLossValue(bCalcFullLoss);

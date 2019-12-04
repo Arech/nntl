@@ -81,8 +81,9 @@ namespace rng {
 		//generate FP value in range [0,a]
 		//static real_t gen_f(const real_t a)noexcept { return a*gen_f_norm(); }
 		//generate FP value in range [0,1]
-		static real_t gen_f_norm()noexcept {
-			return static_cast<real_t>(_rand()) / static_cast<real_t>(_rand_max());
+		template<typename T>
+		static T gen_f_norm()noexcept {
+			return static_cast<T>(_rand()) / static_cast<T>(_rand_max());
 		}
 
 		//////////////////////////////////////////////////////////////////////////

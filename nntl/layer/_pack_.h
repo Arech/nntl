@@ -89,6 +89,8 @@ namespace nntl {
 		// trainable_layer_wrapper wraps all activation matrix of a layer
 		// PIMLT is the type you get by specializing m_prop_input_marker<> with a corresponding layer type, m_prop_input_marker<WrappedLayerT>
 		// Don't use directly if you can, use the wrap_trainable_layer<> template below.
+		// The reason for this whole burdensome machinery to get the same pseudo-layer type for different layer types and
+		// prevent template code bloating
 		template<typename PIMLT>
 		class _trainable_layer_wrapper : public _i_layer_trainable<typename PIMLT::real_t>, public PIMLT {
 			static_assert(_impl::is_m_prop_input_marker<PIMLT>::value, "Wrong PIMLT, did you use wrap_trainable_layer<>?");
@@ -116,6 +118,8 @@ namespace nntl {
 			const mtx_size_t get_activations_size()const noexcept { return m_act.size(); }
 		};
 
+		// The reason for this whole burdensome machinery to get the same pseudo-layer type for different layer types and
+		// prevent template code bloating
 		template<typename LayerT>
 		using wrap_trainable_layer = _trainable_layer_wrapper< m_prop_input_marker<LayerT> >;
 

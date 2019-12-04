@@ -263,9 +263,10 @@ namespace nntl {
 		// Resetting of biases is not required at this case, however.
 		// Layers, that should never be a part of other compound layers, should totally omit this parameter
 		// from function signature (not recommended use-case, however)
-		// learningRateScale - is a scaling coefficient that must be applied to a learningRate value to account for some
-		//	specific layer usage (inside LPT or LPHO, for example).
-		nntl_interface void on_batch_size_change(const real_t learningRateScale, real_t*const pNewActivationStorage /*= nullptr*/)noexcept;
+		// 
+		// #deprecated learningRateScale - is a scaling coefficient that must be applied to a learningRate value to account for some
+		//	specific layer usage (inside LPT or LPHO, for example). //it seems that the whole idea was a mistake; pending for removal
+		nntl_interface void on_batch_size_change(/*const real_t learningRateScale,*/ real_t*const pNewActivationStorage /*= nullptr*/)noexcept;
 		//If the layer was given a pNewActivationStorage (during the init() or on_batch_size_change()), then it MUST NOT touch a bit
 		// in the bias column of the activation storage during fprop() and everywhere else.
 		// For more information about how memory storage is organized, see discussion in _init_layers.h::_layer_init_data{}
@@ -311,6 +312,7 @@ namespace nntl {
 		// in DEBUG builds!).
 		// Same for the dLdAPrev, - layer is free to use it as it wants during bprop(), - but on exit from the bprop()
 		// it must have a proper size and expected content.
+		// Note: if a layer has bDoBProp()==false, its bprop() function MUST NOT be called. --- not available at this moment
 		template <typename LowerLayer>
 		nntl_interface unsigned bprop(realmtxdef_t& dLdA, const LowerLayer& lowerLayer, realmtxdef_t& dLdAPrev)noexcept;
 		// Layer MUST NOT touch a bit in the bias column of the activation storage during fprop()/bprop()
@@ -345,6 +347,11 @@ namespace nntl {
 		//should return true, if the layer has a value to add to Loss function value (there's some regularizer attached)
 		nntl_interface bool hasLossAddendum()const noexcept;
 
+		// apply() function is used to pass real layer object to a parameter-function.
+		// Useful for unwrapping possible wrappers around layer objects (see hlpr_array_of_layers_same_phl) wrapper
+		template<typename F> nntl_interface void apply(F&& f)noexcept;
+		template<typename F> nntl_interface void apply(F&& f)const noexcept;
+
 	private:
 		//support for ::boost::serialization
 		friend class ::boost::serialization::access;
@@ -352,11 +359,88 @@ namespace nntl {
 	};
 
 	//////////////////////////////////////////////////////////////////////////
+	// the outermost common base layer type for (almost) every layer
+	template<typename RealT>
+	class _layer_core : public _i_layer<RealT> {
+	protected:		
+		layer_index_t m_layerIdx = invalid_layer_index;//must be reachable from derived classes, because it's set not here
+
+		//////////////////////////////////////////////////////////////////////////
+		//for a data packing reasons we have a plenty of space here to fit some flags
+		// 
+		//run-time flags (reset during init/deinit())
+		bool m_bActivationsValid = false;
+
+		//////////////////////////////////////////////////////////////////////////
+		// persistent flags (generally unaffected by init/deinit(), but actually depends on derived class intent)
+
+		//#todo this flag is probably worst possible solution, however we may need some flag to switch off nonlinearity in a run-time.
+		//Is there a better (non-branching when it's not necessary) solution available?
+		// Might be unused in some derived class (until conditional member variables are allowed). Lives here for packing reasons.
+		bool m_bIgnoreActivation = false;
+
+	private:
+		// if true layer still MUST calculate correct dL/dAprev but MUST NOT update own weights
+		// NEVER change after init()!
+		bool m_bDoNotUpdateWeights = false;
+		
+		//if true layer MUST skip backpropagation phase completely. Note that every layer located below current MUST also have
+		//this flag turned on or it will process invalid dLdA.
+		// NEVER change after init()!
+		//bool m_bDropBProp = false;//too much burden with proper implementation. Will do sometime in future
+
+		NNTL_DEBUG_DECLARE(bool dbgm_bInitialized = false);
+
+	protected:
+		~_layer_core()noexcept{}
+		_layer_core()noexcept{}
+
+		void init()noexcept {
+			m_bActivationsValid = false;
+			NNTL_DEBUG_DECLARE(dbgm_bInitialized = true);
+			//persistent flags are left untouched
+		}
+		void deinit()noexcept {
+			m_bActivationsValid = false;
+			NNTL_DEBUG_DECLARE(dbgm_bInitialized = false);
+			//persistent flags are left untouched
+		}
+
+	public:
+		//in most cases will be overriden in derived class to check whether 0 is a valid value
+		layer_index_t get_layer_idx() const noexcept {
+			NNTL_ASSERT(m_layerIdx != invalid_layer_index || !"Layer was not initialized!");
+			return m_layerIdx;
+		}
+
+		bool bUpdateWeights()const noexcept { return !m_bDoNotUpdateWeights; }
+		//bool bDoBProp()const noexcept { return !m_bDropBProp; }
+
+		//Note, that meddling with _setUpdateWeights/_setDoBProp after init() phase may lead to memory corruption
+		//because these variables define how much memory should be allocated
+		void _setUpdateWeights(const bool b)noexcept {
+			NNTL_ASSERT(!dbgm_bInitialized || !"Hey! Don't call that function after init() was run!");
+			m_bDoNotUpdateWeights = !b;
+		}
+		//Note, that meddling with _setUpdateWeights/_setDoBProp after init() phase may lead to memory corruption
+		//because these variables define how much memory should be allocated
+		// use hlpr_setDoBProp_for_layerId_range
+		//Also note that disabling bprop is actually a kind of a hack and there's no check of correct usage. So it's yours
+		// responsibility to make sure that every layer under the layer with disabled bprop also have it disabled!
+		/*void _setDoBProp(const bool b)noexcept {
+			NNTL_ASSERT(!dbgm_bInitialized || !"Hey! Don't call that function after init() was run!");
+			m_bDropBProp = !b;
+		}*/
+	};
+
+
+	//////////////////////////////////////////////////////////////////////////
 	// poly base class, Implements compile time polymorphism (to get rid of virtual functions)
 	// and default _layer_name_ machinery
 	// Every derived class MUST have typename FinalPolymorphChild as the first template parameter!
 	template<typename FinalPolymorphChild, typename RealT>
-	class _cpolym_layer_base : public _i_layer<RealT> {
+	class _cpolym_layer_base : public _layer_core<RealT> {
+		typedef _layer_core<RealT> _base_class_t;
 	public:
 		//////////////////////////////////////////////////////////////////////////
 		//typedefs
@@ -383,15 +467,14 @@ namespace nntl {
 		const char* m_customName;
 
 	protected:
-		void init()noexcept {}
-		void deinit()noexcept {}
-
-	public:
-		//////////////////////////////////////////////////////////////////////////
 		~_cpolym_layer_base()noexcept {}
-		_cpolym_layer_base(const char* pCustName = nullptr)noexcept {
+		_cpolym_layer_base(const char* pCustName = nullptr)noexcept : _base_class_t(){
 			set_custom_name(pCustName);
 		}
+
+	public:
+		template<typename F> void apply(F&& f) noexcept { f(get_self()); }
+		template<typename F> void apply(F&& f)const noexcept { f(get_self()); }
 
 		static constexpr const char* get_default_name()noexcept { return self_t::_defName; }
 		self_ref_t set_custom_name(const char* pCustName)noexcept {
@@ -447,22 +530,13 @@ namespace nntl {
 
 		using _base_class_t::real_t;
 
-		//////////////////////////////////////////////////////////////////////////
-		//members section (in "biggest first" order)
 
 	private:
 		neurons_count_t m_neurons_cnt, m_incoming_neurons_cnt;
-		layer_index_t m_layerIdx;
 
-	protected:
-		bool m_bActivationsValid;
-
-	private: //shouldn't be updated from derived classes. Getter methods are provided
-
-		//#todo this flag is probably worst possible solution, however we may need some flag to switch off nonlinearity in a run-time.
-		//Is there a better (non-branching when it's not necessary) solution available?
-		// Might be unused in some derived class (until conditional member variables are allowed). Lives here for packing reasons.
-		bool m_bLayerIsLinear;
+		//hiding from derived classes completely. Available methods to meddle are provided
+		using _base_class_t::m_layerIdx;
+		using _base_class_t::m_bIgnoreActivation;
 		
 	private:
 		static constexpr const char _defName[] = "_base";
@@ -473,9 +547,10 @@ namespace nntl {
 		~_layer_base()noexcept {};
 		_layer_base(const neurons_count_t _neurons_cnt, const char* pCustomName=nullptr) noexcept 
 			: _base_class_t(pCustomName)
-			, m_layerIdx(0), m_neurons_cnt(_neurons_cnt), m_incoming_neurons_cnt(0), m_bActivationsValid(false)
-			, m_bLayerIsLinear(false)
+			, m_neurons_cnt(_neurons_cnt), m_incoming_neurons_cnt(0)
 		{
+			//we can't dismiss a case when m_neurons_cnt == 0 here, because some layers can get valid neuron count a bit later.
+			//So check it in constructor of derived class where applicable
 			NNTL_ASSERT(m_neurons_cnt >= 0);
 		};
 	
@@ -486,15 +561,13 @@ namespace nntl {
 			NNTL_UNREF(pNewActivationStorage);
 			_base_class_t::init();
 
-			m_bActivationsValid = false;
 			set_common_data(lid.commonData);
 
 			get_iInspect().init_layer(get_layer_idx(), get_self().get_layer_name_str(), get_self().get_layer_type_id());
 
 			return ErrorCode::Success;
 		}
-		void deinit() noexcept { 
-			m_bActivationsValid = false;
+		void deinit() noexcept {
 			clean_common_data();
 			_base_class_t::deinit();
 		}
@@ -504,7 +577,7 @@ namespace nntl {
 	public:
 		layer_index_t get_layer_idx() const noexcept { 
 			NNTL_ASSERT(is_layer_input<self_t>::value || m_layerIdx);
-			return m_layerIdx;
+			return _base_class_t::get_layer_idx();
 		}
 		neurons_count_t get_neurons_cnt() const noexcept { 
 			NNTL_ASSERT(m_neurons_cnt > 0);
@@ -518,7 +591,9 @@ namespace nntl {
 		}
 
 		neurons_count_t get_incoming_neurons_cnt()const noexcept { 
-			NNTL_ASSERT(!m_layerIdx || m_incoming_neurons_cnt);//m_incoming_neurons_cnt will be zero in input layer (it has m_layerIdx==0)
+			NNTL_ASSERT((0 == _base_class_t::get_layer_idx() && is_layer_input<self_t>::value)
+				|| m_incoming_neurons_cnt);//m_incoming_neurons_cnt will be zero in input layer (it has m_layerIdx==0)
+
 			return m_incoming_neurons_cnt;
 		}		
 
@@ -529,10 +604,14 @@ namespace nntl {
 		//////////////////////////////////////////////////////////////////////////
 
 		template<bool c = is_layer_learnable<self_t>::value >
-		::std::enable_if_t<c, bool> bLayerIsLinear()const noexcept { return m_bLayerIsLinear; }
+		::std::enable_if_t<c, bool> bIgnoreActivation()const noexcept { return m_bIgnoreActivation; }
+
+		//for a layer that is not learnable we should return false to make activation function work
+		template<bool c = is_layer_learnable<self_t>::value >
+		::std::enable_if_t<!c, bool> constexpr bIgnoreActivation()const noexcept { return false; }
 
 		template<bool c = is_layer_learnable<self_t>::value >
-		::std::enable_if_t<c> setLayerLinear(const bool b)noexcept { m_bLayerIsLinear = b; }
+		::std::enable_if_t<c> setIgnoreActivation(const bool b)noexcept { m_bIgnoreActivation = b; }
 
 		//////////////////////////////////////////////////////////////////////////
 		// other funcs
@@ -542,10 +621,10 @@ namespace nntl {
 		void _preinit_layer(_impl::init_layer_index& ili, const neurons_count_t inc_neurons_cnt)noexcept{
 			//there should better be an exception, but we don't want exceptions at all.
 			//anyway, there is nothing to help to those who'll try to abuse this API...
-			NNTL_ASSERT(!m_layerIdx);
+			NNTL_ASSERT(m_layerIdx == invalid_layer_index);
 			NNTL_ASSERT(!m_incoming_neurons_cnt);
 
-			if (m_layerIdx || m_incoming_neurons_cnt) ::abort();
+			if (m_layerIdx != invalid_layer_index || m_incoming_neurons_cnt) ::abort();
 			m_layerIdx = ili.newIndex();
 			if (m_layerIdx) {//special check for the first (input) layer that doesn't have any incoming neurons
 				NNTL_ASSERT(inc_neurons_cnt);
@@ -570,16 +649,35 @@ namespace nntl {
 		: public _cpolym_layer_base<FinalPolymorphChild, typename InterfacesT::real_t>
 		, public interfaces_td<InterfacesT> 
 	{
+		typedef _cpolym_layer_base<FinalPolymorphChild, typename InterfacesT::real_t> _base_class_t;
 	public:
 		typedef typename InterfacesT::real_t real_t;
 
 		static constexpr bool bAllowToBlockLearning = inspector::is_gradcheck_inspector<iInspect_t>::value;
 
-	public:
+	private:
+		using _base_class_t::m_layerIdx;//hiding from derived classes completely
+
+	protected:
 		~_layer_base_forwarder()noexcept{}
 		_layer_base_forwarder(const char* pCustName = nullptr)noexcept 
 			: _cpolym_layer_base<FinalPolymorphChild, typename InterfacesT::real_t>(pCustName)
 		{}
+
+		//specialized _preinit_layer() to be called by derived class only
+		void _preinit_layer(_impl::init_layer_index& ili)noexcept {
+			//there should better be an exception, but we don't want exceptions at all.
+			//anyway, there is nothing to help to those who'll try to abuse this API...
+			NNTL_ASSERT(m_layerIdx == invalid_layer_index);
+			if (m_layerIdx != invalid_layer_index) ::abort();
+			m_layerIdx = ili.newIndex();
+		}
+
+	public:
+		layer_index_t get_layer_idx() const noexcept {
+			NNTL_ASSERT(is_layer_input<self_t>::value || m_layerIdx);
+			return _base_class_t::get_layer_idx();
+		}
 
 		//////////////////////////////////////////////////////////////////////////
 		// helpers to access common data 

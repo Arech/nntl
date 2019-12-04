@@ -198,7 +198,7 @@ namespace weights_init {
 
 				if (lSetts.bVerbose) STDCOUTL(lyr.get_layer_name_str() << ":");
 
-				lyr.setLayerLinear(lSetts.bOverPreActivations);
+				lyr.setIgnoreActivation(lSetts.bOverPreActivations);
 
 				const real_t actScaling = lSetts.bOverPreActivations ? real_t(1.) : lyr.act_scaling_coeff();
 				
@@ -226,7 +226,7 @@ namespace weights_init {
 					STDCOUTL("******* layer " << lyr.get_layer_name_str() << " failed to converge! *********");
 				}
 
-				lyr.setLayerLinear(false);
+				lyr.setIgnoreActivation(false);
 			}
 
 			void prepareToBatchSize(const vec_len_t _bs)noexcept {
@@ -499,6 +499,38 @@ namespace weights_init {
 			}
 		};
 
+		template<typename LSUVExtT, template<class>typename ShouldApplyToLayer>
+		struct LSUVExt_customInit {
+			typedef typename LSUVExtT::LayerSetts_t LayerSetts_t;
+
+			LSUVExtT& obj;
+			LayerSetts_t setts; //set it externally
+			::std::vector<layer_index_t> excludeIdList; //set it externally
+			const char* pszSettingsName = nullptr;
+			
+
+			~LSUVExt_customInit()noexcept {}
+			LSUVExt_customInit(LSUVExtT& o, const char* n = nullptr) noexcept : obj(o), pszSettingsName(n) {}
+			
+			template<typename LayerT>
+			::std::enable_if_t<ShouldApplyToLayer<LayerT>::value> operator()(const LayerT& lyr)noexcept {
+				const auto lyrIdx = lyr.get_layer_idx();
+				if (::std::none_of(excludeIdList.cbegin(), excludeIdList.cend(), [lyrIdx](const auto e)noexcept {return e == lyrIdx; })) {
+					if (pszSettingsName) {
+						STDCOUTL("Will use custom '" << pszSettingsName << "' LSUVExt settings for layer '" << lyr.get_layer_name_str());
+					}
+
+					obj.setts().add(lyr.get_layer_idx(), setts);
+				} else {
+					if (pszSettingsName) {
+						STDCOUTL("Custom '" << pszSettingsName << "' LSUVExt settings was explicitly forbidden for layer '" << lyr.get_layer_name_str());
+					}
+				}
+			}
+
+			template<typename LayerT>
+			::std::enable_if_t<!ShouldApplyToLayer<LayerT>::value> operator()(const LayerT&)noexcept {}
+		};
 	}
 }
 }

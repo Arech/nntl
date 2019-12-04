@@ -48,10 +48,10 @@ namespace math {
 	// _st versions of functions MUST NOT call generic and/or multithreaded function implementations (ONLY _st).
 	//		(They may be used in future in some parallel algorithms)
 	// _mt and generic function versions may use any suitable implementations.
-	// generic, _st and _mt versions MUST accept any datasizes. However, their specializations,
+	// generic and _st versions MUST accept any datasizes. However, _mt as well as specializations,
 	//		such as _mt_cw MAY put restrictions on acceptable data sizes.
 	//
-	// #todo drop <typename RealT> template parameter!
+	// #todo drop <typename RealT> class template parameter in favor of corresponding function template parameter!
 
 	template<typename RealT, typename iThreadsT, typename ThresholdsT, typename FinalPolymorphChild>
 	class _SMath {
@@ -71,6 +71,7 @@ namespace math {
 
 		typedef s_rowcol_range rowcol_range;
 		typedef s_elems_range elms_range;
+		//#WARNING use proxy variables instead of members of a structure, received by reference in performance sensitive code
 
 		// here's small guide for using rowcol_range/elms_range :
 		// Every function that should be multithreaded should have 3 (!!!) functions:
@@ -80,6 +81,7 @@ namespace math {
 		//	.3 func_mt() spawns multithreaded processing by means of calls to _ifunc_st()
 		// _ifunc_st() must receive const rowcol_range/elms_range & rcr/er as a last parameter. This parameter
 		//		describes a range of data to process.
+		//		#WARNING use proxy variables instead of members of a structure, received by reference in performance sensitive code!
 		// func_st() SHOULD receive const rowcol_range/elms_range *const pRCR/pER as a last parameter. It should help other
 		// _st functions (called from _mt()) functions to call func_st() without knowing it's implementation details.
 
@@ -137,21 +139,28 @@ namespace math {
 
 		//math preinitialization, should be called from each NN layer. n - maximum data length (in real_t), that this layer will use in calls
 		//to math interface. Used to calculate max necessary temporary storage length.
+		// #TODO some functions have weird or non-trivial memory requirements (see for example softmax_needTempMem()), so
+		// it's better to employ some mechanism to specify which functions with which biggest datasizes code is going to use
+		// and let the internals to do all the necessary tmp mem requrements calculations. Before that, make at least
+		// a special function similar to noted softmax_needTempMem() for every implementation and call it to get correct
+		// preinit() argument.
 		void preinit(const numel_cnt_t n)noexcept {
 			if (n > m_minTempStorageSize) m_minTempStorageSize = n;
 		}
 
 		//real math initialization, used to allocate necessary temporary storage of size max(preinit::n)
+		// #note that init() as well as preinit() MUST allow subsequent calls without doing deinit() first.
 		bool init()noexcept {
 			if (conform_sign(m_threadTempRawStorage.size()) < m_minTempStorageSize) {
 				//TODO: memory allocation exception handling here!
 				m_threadTempRawStorage.resize(m_minTempStorageSize);
 			}
+			NNTL_ASSERT(m_curStorElementsAllocated == 0 || !"WTF?! Internal storage MUST NOT be in use at this moment!");
 			m_curStorElementsAllocated = 0;
-			//return m_tmpMtx.resize(maxMem);
 			return true;
 		}
 		void deinit()noexcept {
+			NNTL_ASSERT(m_curStorElementsAllocated == 0 || !"WTF?! Internal storage MUST NOT be in use at this moment!");
 			m_threadTempRawStorage.clear();
 			m_minTempStorageSize = 0;
 			m_curStorElementsAllocated = 0;
@@ -395,21 +404,20 @@ namespace math {
 
 		struct _mrw_MUL_mtx_by_vec : public _mrwHlpr_rw_InitVecElmByVec, public _mrwHlpr_rw_Dont_UpdVecElm, public _mrwHlpr_simpleLoops {
 			template<_OperationType OpType, typename BaseT>
-			static void op(BaseT& mtxElm, const BaseT& vecElm, const numel_cnt_t r, const numel_cnt_t c, const numel_cnt_t mtxRows)noexcept {
+			static void op(BaseT& mtxElm, const BaseT vecElm, const numel_cnt_t r, const numel_cnt_t c, const numel_cnt_t mtxRows)noexcept {
 				mtxElm *= vecElm;
 			}
 		};
 		struct _mrw_DIV_mtx_by_vec : public _mrwHlpr_rw_InitVecElmByVec, public _mrwHlpr_rw_Dont_UpdVecElm, public _mrwHlpr_simpleLoops {
 			template<_OperationType OpType, typename BaseT>
-			static void op(BaseT& mtxElm, const BaseT& vecElm, const numel_cnt_t r, const numel_cnt_t c, const numel_cnt_t mtxRows)noexcept {
+			static void op(BaseT& mtxElm, const BaseT vecElm, const numel_cnt_t r, const numel_cnt_t c, const numel_cnt_t mtxRows)noexcept {
 				mtxElm /= vecElm;
 			}
 		};
 		struct _mrwFind_MAX : public _mrwHlpr_rw_InitVecElmByMtxElm, public _mrwHlpr_rw_UpdVecElm, public _mrwHlpr_simpleLoops {
 			template<_OperationType OpType, typename BaseT>
-			static void op(const BaseT& mtxElm, BaseT& vecElm, const numel_cnt_t r, const numel_cnt_t c, const numel_cnt_t mtxRows)noexcept {
-				const auto cv = mtxElm;
-				if (cv > vecElm) vecElm = cv;
+			static void op(const BaseT mtxElm, BaseT& vecElm, const numel_cnt_t r, const numel_cnt_t c, const numel_cnt_t mtxRows)noexcept {
+				if (mtxElm > vecElm) vecElm = mtxElm;
 			}
 		};
 		template<bool bSaveMaxOnUpdate>
@@ -419,18 +427,16 @@ namespace math {
 			_mrwFindIdxsOf_MAX(vec_len_t* pd)noexcept : pDest(pd) {}
 
 			template<_OperationType OpType, typename BaseT>
-			::std::enable_if_t<OpType == mrw_cw> op(const BaseT& mtxElm, BaseT& vecElm, const numel_cnt_t r, const numel_cnt_t c, const numel_cnt_t mtxRows)noexcept {
-				const auto cv = mtxElm;
-				if (cv > vecElm) {
-					vecElm = cv;
+			::std::enable_if_t<OpType == mrw_cw> op(const BaseT mtxElm, BaseT& vecElm, const numel_cnt_t r, const numel_cnt_t c, const numel_cnt_t mtxRows)noexcept {
+				if (mtxElm > vecElm) {
+					vecElm = mtxElm;
 					pDest[r] = static_cast<vec_len_t>(c);
 				}
 			}
 			template<_OperationType OpType, typename BaseT>
-			::std::enable_if_t<OpType == mrw_rw> op(const BaseT& mtxElm, BaseT& vecElm, const numel_cnt_t r, const numel_cnt_t c, const numel_cnt_t mtxRows)noexcept {
-				const auto cv = mtxElm;
-				if (cv > vecElm) {
-					vecElm = cv;
+			::std::enable_if_t<OpType == mrw_rw> op(const BaseT mtxElm, BaseT& vecElm, const numel_cnt_t r, const numel_cnt_t c, const numel_cnt_t mtxRows)noexcept {
+				if (mtxElm > vecElm) {
+					vecElm = mtxElm;
 					_maxColumnIdx = c;
 				}
 			}
@@ -459,7 +465,7 @@ namespace math {
 		};
 		struct _mrw_SUM : public _mrwHlpr_rw_InitVecElmByMtxElm, public _mrwHlpr_rw_UpdVecElm, public _mrwHlpr_simpleLoops {
 			template<_OperationType OpType, typename BaseT>
-			static void op(const BaseT& mtxElm, BaseT& vecElm, const numel_cnt_t r, const numel_cnt_t c, const numel_cnt_t mtxRows)noexcept {
+			static void op(const BaseT mtxElm, BaseT& vecElm, const numel_cnt_t r, const numel_cnt_t c, const numel_cnt_t mtxRows)noexcept {
 				vecElm += mtxElm;
 			}
 		};
@@ -467,7 +473,7 @@ namespace math {
 		//Binary/bitwise OR
 		struct _mrw_BinaryOR : public _mrwHlpr_rw_InitVecElmByMtxElm, public _mrwHlpr_rw_UpdVecElm, public _mrwHlpr_simpleLoops {
 			template<_OperationType OpType, typename BaseT>
-			static void op(const BaseT& mtxElm, BaseT& vecElm, const numel_cnt_t r, const numel_cnt_t c, const numel_cnt_t mtxRows)noexcept {
+			static void op(const BaseT mtxElm, BaseT& vecElm, const numel_cnt_t r, const numel_cnt_t c, const numel_cnt_t mtxRows)noexcept {
 				vecElm |= mtxElm;
 			}
 		};
@@ -568,7 +574,7 @@ namespace math {
 		//functor to perform colwise vector element subtraction A = A - vec, where size(vec)==A.cols()
 		struct _mcwSUB_ip {
 			template<typename _T>
-			static void op(_T& mtxElm, const _T& vecElm)noexcept {
+			static void op(_T& mtxElm, const _T vecElm)noexcept {
 				mtxElm -= vecElm;
 			}
 		};
@@ -603,7 +609,7 @@ namespace math {
 			NNTL_ASSERT(columns > minColumnsPerThread);
 			const auto minThreadsReq = static_cast<thread_id_t>(ceil(real_t(columns) / minColumnsPerThread));
 			NNTL_ASSERT(minThreadsReq > 1);
-			auto workersCnt = m_threads.workers_count();
+			auto workersCnt = m_threads.cur_workers_count();
 			if (minThreadsReq < workersCnt) workersCnt = minThreadsReq;
 			return workersCnt;
 		}
@@ -756,7 +762,8 @@ namespace math {
 			NNTL_ASSERT(!A.empty() && !B.empty() && B.size() == A.size());
 			const auto pA = A.data(), pB = B.data();
 			real_t ret(0.0);
-			for (numel_cnt_t i = er.elmBegin; i < er.elmEnd; ++i)  ret += pA[i]*pB[i];
+			const auto ee = er.elmEnd;
+			for (numel_cnt_t i = er.elmBegin; i < ee; ++i)  ret += pA[i]*pB[i];
 			return ret;
 		}
 		real_t ewSumProd_mt(const realmtx_t& A, const realmtx_t& B)noexcept {
@@ -795,16 +802,16 @@ namespace math {
 			}, _vec_sum<false, real_t>, A.numel());
 		}
 		//////////////////////////////////////////////////////////////////////////
-		real_t ewSumSquares(const real_t* pA, const numel_cnt_t& n)noexcept {
+		real_t ewSumSquares(const real_t* pA, const numel_cnt_t n)noexcept {
 			if (n < Thresholds_t::ewSumSquares) {
 				return get_self().ewSumSquares_st(pA, n);
 			} else return get_self().ewSumSquares_mt(pA, n);
 		}
-		real_t ewSumSquares_st(const real_t* pA, const numel_cnt_t& n, const elms_range*const pER = nullptr)noexcept {
+		real_t ewSumSquares_st(const real_t* pA, const numel_cnt_t n, const elms_range*const pER = nullptr)noexcept {
 			NNTL_ASSERT(!pER || pER->elmEnd <= n);
 			return get_self()._iewSumSquares_st(pA, pER ? *pER : elms_range(0, n));
 		}
-		real_t ewSumSquares_mt(const real_t* pA, const numel_cnt_t& n)noexcept {
+		real_t ewSumSquares_mt(const real_t* pA, const numel_cnt_t n)noexcept {
 			return m_threads.reduce([pA, this](const par_range_t& pr)->real_t {
 				return get_self()._iewSumSquares_st(pA, elms_range(pr));
 			}, _vec_sum<false, real_t>, n);
@@ -826,16 +833,16 @@ namespace math {
 			}, _vec_sum<true, real_t>, A.numel());
 		}
 		//////////////////////////////////////////////////////////////////////////
-		real_t ewSumSquares_ns(const real_t* pA, const numel_cnt_t& n)noexcept {
+		real_t ewSumSquares_ns(const real_t* pA, const numel_cnt_t n)noexcept {
 			if (n < Thresholds_t::ewSumSquares_ns) {
 				return get_self().ewSumSquares_st_ns(pA, n);
 			} else return get_self().ewSumSquares_mt_ns(pA, n);
 		}
-		real_t ewSumSquares_st_ns(const real_t* pA, const numel_cnt_t& n, const elms_range*const pER = nullptr)noexcept {
+		real_t ewSumSquares_st_ns(const real_t* pA, const numel_cnt_t n, const elms_range*const pER = nullptr)noexcept {
 			NNTL_ASSERT(!pER || pER->elmEnd <= n);
 			return get_self()._iewSumSquares_st_ns(pA, pER ? *pER : elms_range(0, n));
 		}
-		real_t ewSumSquares_mt_ns(const real_t* pA, const numel_cnt_t& n)noexcept {
+		real_t ewSumSquares_mt_ns(const real_t* pA, const numel_cnt_t n)noexcept {
 			return m_threads.reduce([pA, this](const par_range_t& pr)->real_t {
 				return get_self()._iewSumSquares_st_ns(pA, elms_range(pr));
 			}, _vec_sum<true, real_t>, n);
@@ -1000,6 +1007,13 @@ namespace math {
 
 		//////////////////////////////////////////////////////////////////////////
 		//////////////////////////////////////////////////////////////////////////
+		numel_cnt_t mrwIdxsOfMax_needTempMem(const realmtx_t& A)const noexcept {
+			// max memory is required by mrwIdxsOfMax_mt_cw_small(), and it is:
+			// rm*workersCnt of real_t's to store temp maxs for each column-set
+			// and rm*workersCnt of vec_len_t's to store indexes.
+			const auto _elmsCnt = smatrix_td::sNumel(A.rows(), m_threads.cur_workers_count());
+			return _elmsCnt + static_cast<numel_cnt_t>(ceil((real_t(sizeof(vec_len_t)) / sizeof(real_t))*_elmsCnt));
+		}
 		//fills array pDest of size m.rows() with column indexes of greatest element in each row of m
 		// TODO: must meet func.requirements
 		void mrwIdxsOfMax(const realmtx_t& A, vec_len_t*const pDest)noexcept {
@@ -1130,6 +1144,7 @@ namespace math {
 				memcpy(pDest, pIdxsStor, sizeof(vec_len_t)*rm);
 			});
 		}
+
 		void mrwIdxsOfMax_mt_cw_small(const realmtx_t& A, vec_len_t*const pDest)noexcept {
 			NNTL_ASSERT(!A.empty() && A.numel() > 0 && pDest);
 			NNTL_ASSERT(Thresholds_t::mrwIdxsOfMax_ColsPerThread >= 3);//DON'T make it less than 3 or you'll run in troubles with size of temp mem!!!
@@ -1139,7 +1154,7 @@ namespace math {
 			//will calculate max and indexes of each column-set independently and then merge them together
 			const auto minThreadsReq = static_cast<thread_id_t>(ceil(real_t(cm) / Thresholds_t::mrwIdxsOfMax_ColsPerThread));
 			NNTL_ASSERT(minThreadsReq > 1);
-			auto workersCnt = m_threads.workers_count();
+			auto workersCnt = m_threads.cur_workers_count();
 			if (minThreadsReq < workersCnt) workersCnt = minThreadsReq;
 
 			// now we'll need rm*workersCnt of real_t's to store temp maxs for each column-set
@@ -1295,7 +1310,7 @@ namespace math {
 		void mrwSum_ip_mt(realmtx_t& A)noexcept {
 			const auto cm = A.cols();
 			if (cm <= 1) return;
-			if (cm <= ::std::max(Thresholds_t::mrwSum_mt_cw_colsPerThread, m_threads.workers_count())) {
+			if (cm <= ::std::max(Thresholds_t::mrwSum_mt_cw_colsPerThread, m_threads.cur_workers_count())) {
 				get_self().mrwSum_ip_mt_rw(A);
 			} else get_self().mrwSum_ip_mt_cw(A);
 		}
@@ -1361,7 +1376,7 @@ namespace math {
 			if (cm == 1) {
 				memcpy(pVec, A.data(), A.byte_size());
 			} else {
-				if (cm <= ::std::max(Thresholds_t::mrwSum_mt_cw_colsPerThread, m_threads.workers_count())) {
+				if (cm <= ::std::max(Thresholds_t::mrwSum_mt_cw_colsPerThread, m_threads.cur_workers_count())) {
 					get_self().mrwSum_mt_rw(A, pVec);
 				}else get_self().mrwSum_mt_cw(A, pVec);				
 			}
@@ -1400,43 +1415,43 @@ namespace math {
 		// and zero otherwise.
 		// Heavily based on mrwBinaryOR
 		void mrwOr(const realmtx_t& A, real_t*const pVec)noexcept {
-			NNTL_ASSERT(A.isBinary());
+			NNTL_ASSERT(A._isBinary());
 			typedef real_t_limits<real_t>::similar_FWI_t similar_FWI_t;
 			//#todo for C++17 must change to ::std::launder(reinterpret_cast< ... 
 			mrwBinaryOR(reinterpret_cast<const smatrix<similar_FWI_t>&>(A), reinterpret_cast<similar_FWI_t*const>(pVec));
 		}
 		void mrwOr_st(const realmtx_t& A, real_t*const pVec)noexcept {
-			NNTL_ASSERT(A.isBinary());
+			NNTL_ASSERT(A._isBinary());
 			typedef real_t_limits<real_t>::similar_FWI_t similar_FWI_t;
 			//#todo for C++17 must change to ::std::launder(reinterpret_cast< ... 
 			mrwBinaryOR_st(reinterpret_cast<const smatrix<similar_FWI_t>&>(A), reinterpret_cast<similar_FWI_t*const>(pVec));
 		}
 		void mrwOr_st_cw(const realmtx_t& A, real_t*const pVec)noexcept {
-			NNTL_ASSERT(A.isBinary());
+			NNTL_ASSERT(A._isBinary());
 			typedef real_t_limits<real_t>::similar_FWI_t similar_FWI_t;
 			//#todo for C++17 must change to ::std::launder(reinterpret_cast< ... 
 			mrwBinaryOR_st_cw(reinterpret_cast<const smatrix<similar_FWI_t>&>(A), reinterpret_cast<similar_FWI_t*const>(pVec));
 		}
 		void mrwOr_st_rw(const realmtx_t& A, real_t*const pVec)noexcept {
-			NNTL_ASSERT(A.isBinary());
+			NNTL_ASSERT(A._isBinary());
 			typedef real_t_limits<real_t>::similar_FWI_t similar_FWI_t;
 			//#todo for C++17 must change to ::std::launder(reinterpret_cast< ... 
 			mrwBinaryOR_st_rw(reinterpret_cast<const smatrix<similar_FWI_t>&>(A), reinterpret_cast<similar_FWI_t*const>(pVec));
 		}
 		void mrwOr_mt(const realmtx_t& A, real_t*const pVec)noexcept {
-			NNTL_ASSERT(A.isBinary());
+			NNTL_ASSERT(A._isBinary());
 			typedef real_t_limits<real_t>::similar_FWI_t similar_FWI_t;
 			//#todo for C++17 must change to ::std::launder(reinterpret_cast< ... 
 			mrwBinaryOR_mt(reinterpret_cast<const smatrix<similar_FWI_t>&>(A), reinterpret_cast<similar_FWI_t*const>(pVec));
 		}
 		void mrwOr_mt_cw(const realmtx_t& A, real_t*const pVec)noexcept {
-			NNTL_ASSERT(A.isBinary());
+			NNTL_ASSERT(A._isBinary());
 			typedef real_t_limits<real_t>::similar_FWI_t similar_FWI_t;
 			//#todo for C++17 must change to ::std::launder(reinterpret_cast< ... 
 			mrwBinaryOR_mt_cw(reinterpret_cast<const smatrix<similar_FWI_t>&>(A), reinterpret_cast<similar_FWI_t*const>(pVec));
 		}
 		void mrwOr_mt_rw(const realmtx_t& A, real_t*const pVec)noexcept {
-			NNTL_ASSERT(A.isBinary());
+			NNTL_ASSERT(A._isBinary());
 			typedef real_t_limits<real_t>::similar_FWI_t similar_FWI_t;
 			//#todo for C++17 must change to ::std::launder(reinterpret_cast< ... 
 			mrwBinaryOR_mt_rw(reinterpret_cast<const smatrix<similar_FWI_t>&>(A), reinterpret_cast<similar_FWI_t*const>(pVec));
@@ -1472,7 +1487,7 @@ namespace math {
 			if (cm == 1) {
 				memcpy(pVec, A.data(), A.byte_size());
 			} else {
-				if (cm <= ::std::max(Thresholds_t::mrwBinaryOR_mt_cw_colsPerThread, m_threads.workers_count())) {
+				if (cm <= ::std::max(Thresholds_t::mrwBinaryOR_mt_cw_colsPerThread, m_threads.cur_workers_count())) {
 					get_self().mrwBinaryOR_mt_rw(A, pVec);
 				} else get_self().mrwBinaryOR_mt_cw(A, pVec);
 			}

@@ -88,7 +88,7 @@ namespace inspector {
 			m_pChangedEl = nullptr;
 		}
 
-		void gc_init(const real_t& ss)noexcept {
+		void gc_init(const real_t ss)noexcept {
 			m_stepSize = ss;
 			m_pChangedEl = nullptr;
 		}
@@ -144,6 +144,8 @@ namespace inspector {
 			}
 			_base_class_t::fprop_makePreActivations(W, prevAct);
 		}
+
+		void fprop_makePreActivations(const realmtx_t& prevAct)noexcept { _base_class_t::fprop_makePreActivations(prevAct); }
 
 		void fprop_preactivations(const realmtx_t& Z) noexcept {
 			if (m_layerIdxToCheck) {

@@ -35,6 +35,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //this grad_works mixin introduces a wrapper over loss functions addendums such as L1 or L2 regularizers
 // #include compatible addendums from the ./loss_addendum folder before this file 
 
+#include "../utils/tuple_utils.h"
 #include "../utils/mixins.h"
 
 #include "../loss_addendum/L1.h"
@@ -62,7 +63,7 @@ namespace GW { //GW namespace is for grad_works mixins and other stuff, that hel
 
 		static constexpr bool hasLossAddendum() noexcept { return false; }
 		static constexpr real_t lossAddendum(const realmtx_t&) noexcept { return real_t(0.); }
-
+		
 	protected:
 		static constexpr void _applyLossAddendums(realmtxdef_t& weights, realmtxdef_t& dLdW) noexcept {}
 		static constexpr void _la_construct()noexcept {}
@@ -282,12 +283,37 @@ namespace GW { //GW namespace is for grad_works mixins and other stuff, that hel
 
 	};
 
+	//////////////////////////////////////////////////////////////////////////
 	// primary template handles types that have no nested ::addendums_tuple_t member:
 	template< class, class = ::std::void_t<> >
-	struct has_loss_addendums : ::std::false_type { };
+	struct has_loss_addendums : public ::std::false_type { };
 	// specialization recognizes types that do have a nested ::addendums_tuple_t member:
 	template< class T >
-	struct has_loss_addendums<T, ::std::void_t<typename T::addendums_tuple_t>> : ::std::true_type {};
+	struct has_loss_addendums<T, ::std::void_t<typename T::addendums_tuple_t>> : public ::std::true_type {};
+
+	//////////////////////////////////////////////////////////////////////////
+	// returns loss addendum type index in existing T::addendums_tuple_t. If there's no such type, numel(T::addendums_tuple_t) is returned!
+	template<class T, class LossAddT>
+	using loss_addendum_index = tuple_utils::tuple_element_idx_safe<LossAddT, typename T::addendums_tuple_t>;
+
+	//////////////////////////////////////////////////////////////////////////
+	// checks if specified addendum type is present in optional ::addendums_tuple_t member
+	namespace _impl {
+		template<class T, class LossAddT>
+		struct loss_addendum_present 
+			: public ::std::bool_constant< (
+				::std::tuple_size<typename T::addendums_tuple_t>::value > loss_addendum_index<T, LossAddT>::value
+				) >
+		{};
+	}
+	template<class T, class LossAddT>
+	struct is_loss_addendum_present : public ::std::conditional_t<has_loss_addendums<T>::value
+		, _impl::loss_addendum_present<T, LossAddT>
+		, ::std::false_type
+	> {};
+
+	template<class T> using is_L1_present = is_loss_addendum_present<T, loss_addendum::L1<typename T::real_t>>;
+	template<class T> using is_L2_present = is_loss_addendum_present<T, loss_addendum::L2<typename T::real_t>>;
 
 
 	//Don't use two loss addendums of the same type!!!

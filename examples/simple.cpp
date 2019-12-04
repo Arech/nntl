@@ -193,8 +193,83 @@ TEST(Simple, NotSoPlainFFN) {
 	ASSERT_EQ(decltype(nn)::ErrorCode::Success, ec) << "Error code description: " << nn.get_last_error_string();
 }
 
-//This setup is slightly simplier than previous one - just Nesterov Momentum, RMSProp and just a better weight initialization algorithm.
-// It beats the previous reaching less than 1.6% in less than 20 epochs.
+//same as NotSoPlainFFN but using learning rate dropout (arxiv:1912.00144) instead of common dropout
+TEST(Simple, NotSoPlainFFN_LRDO) {
+	train_data<real_t> td;
+	reader_t reader;
+
+	//1. reading training data from file into train_data td storage
+	STDCOUTL("Reading datafile '" << MNIST_FILE << "'...");
+	reader_t::ErrorCode rec = reader.read(NNTL_STRING(MNIST_FILE), td);
+	ASSERT_EQ(reader_t::ErrorCode::Success, rec) << "Error code description: " << reader.get_last_error_str();
+
+	//2. define NN layers and their properties
+	int epochs = 30;
+	const real_t learningRate(real_t(.001))
+		, LRDropoutAct(real_t(.5))
+		, momntm(real_t(.9))
+		, learningRateDecayCoeff(real_t(.97)), numStab(real_t(1e-8));// _impl::NUM_STAB_EPS<real_t>::value);//real_t(1e-8));
+
+																	 // a. input layer
+	layer_input<> inp(td.train_x().cols_no_bias());
+
+	//preparing alias for weights initialization scheme type
+	typedef weights_init::XavierFour w_init_scheme;
+	typedef activation::sigm<real_t, w_init_scheme> activ_func;
+
+	//b. hidden layers
+	LFC<activ_func> fcl(500, learningRate);
+	LFC<activ_func> fcl2(300, learningRate);
+
+	//c. output layer
+	layer_output<activation::sigm_quad_loss<real_t, w_init_scheme>> outp(td.train_y().cols(), learningRate);
+
+	//d. setting layers properties
+	auto optimizerType = decltype(fcl)::grad_works_t::RMSProp_Hinton;
+
+	//you may want to try other optimizers, however it'll require hyperparams tuning.
+	//auto optimizerType = decltype(fcl)::grad_works_t::RMSProp_Graves;
+	//auto optimizerType = decltype(fcl)::grad_works_t::Adam;
+	//auto optimizerType = decltype(fcl)::grad_works_t::AdaMax;
+
+	fcl.m_gradientWorks.set_type(optimizerType).nesterov_momentum(momntm).numeric_stabilizer(numStab).LRDropoutPercentActive(LRDropoutAct);
+	fcl2.m_gradientWorks.set_type(optimizerType).nesterov_momentum(momntm).numeric_stabilizer(numStab).LRDropoutPercentActive(LRDropoutAct);
+	outp.m_gradientWorks.set_type(optimizerType).nesterov_momentum(momntm).numeric_stabilizer(numStab).LRDropoutPercentActive(LRDropoutAct);
+
+	//3. assemble layer references (!! - not layer objects, but references to them) into a single object - layer_pack. 
+	auto lp = make_layers(inp, fcl, fcl2, outp);
+
+	//4. define NN training options (epochs count, conditions when to evaluate NN performance, etc)
+	nnet_train_opts<> opts(epochs);
+
+	opts.batchSize(100);
+
+	//5. make instance of NN 
+	auto nn = make_nnet(lp);
+	//nn.get_iRng().seed64(0x01ed59);
+
+	//5.5 define callback
+	auto onEpochEndCB = [learningRateDecayCoeff](auto& nn, auto& opts, const numel_cnt_t epochIdx)->bool {
+		NNTL_UNREF(epochIdx); NNTL_UNREF(opts);
+		// well, we can capture references to layer objects in lambda capture clause and use them directly here,
+		// but lets get an access to them through nn object, passed as function parameter.
+		nn.get_layer_pack().for_each_layer_exc_input([learningRateDecayCoeff](auto& l) {
+			l.m_gradientWorks.learning_rate(l.m_gradientWorks.learning_rate()*learningRateDecayCoeff);
+		});
+		//return false to stop learning
+		return true;
+	};
+
+	//6. launch training on td data with opts options.
+	auto ec = nn.train(td, opts, onEpochEndCB);
+
+	//7. test there were no errors
+	ASSERT_EQ(decltype(nn)::ErrorCode::Success, ec) << "Error code description: " << nn.get_last_error_string();
+}
+
+
+//This setup is slightly simplier than NotSoPlainFFN - just Nesterov Momentum, RMSProp and just a better weight initialization algorithm.
+// It beats NotSoPlainFFN and on par with NotSoPlainFFN_LRDO reaching less than 1.6% in less than 20 epochs.
 TEST(Simple, NesterovMomentumAndRMSPropOnly) {
 	train_data<real_t> td;
 	reader_t reader;

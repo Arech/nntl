@@ -180,7 +180,7 @@ namespace nntl {
 		protected:
 			
 
-			template<bool b=bVerbose>
+			template<bool b = bVerbose>
 			::std::enable_if_t<!b> _verbalize(const char*)const noexcept {}
 			template<bool b = bVerbose>
 			::std::enable_if_t<b> _verbalize(const char* s)const noexcept {

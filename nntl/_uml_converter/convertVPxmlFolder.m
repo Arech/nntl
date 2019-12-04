@@ -1,4 +1,4 @@
-function convertVPxmlFolder( fldr, xsltfile )
+function convertVPxmlFolder( fldr, xsltfile, bMoveDropoutToLph, bDropoutDefaultOn, dropoutDefaultType )
 %CONVERTVPXMLFOLDER Summary of this function goes here
 %   Detailed explanation goes here
 
@@ -6,7 +6,19 @@ function convertVPxmlFolder( fldr, xsltfile )
 grFileSfx = reverse(grFileSfx);
 grFileSfxLen = length(grFileSfx);
 
-if nargin<2
+if nargin<5
+	dropoutDefaultType='DO';
+	if nargin<4
+		bDropoutDefaultOn=true;
+		if nargin<3
+			bMoveDropoutToLph = true;
+			if nargin<2
+				xsltfile = defaultXsltFile;
+			end
+		end
+	end
+end		
+if isempty(xsltfile)
 	xsltfile = defaultXsltFile;
 end
 
@@ -24,7 +36,8 @@ for ii=1:length(dlist)
 	end
 	
 	fprintf(1,'\t%s :\n', dlist(ii).name);
-	[ ~, ~, ~, ~, processedStyle ] = convertVPxml( fullfile(dlist(ii).folder, dlist(ii).name), processedStyle );	
+	[ ~, ~, ~, ~, processedStyle ] = convertVPxml( fullfile(dlist(ii).folder, dlist(ii).name)...
+		, processedStyle, bMoveDropoutToLph, bDropoutDefaultOn, dropoutDefaultType);	
 end
 
 end

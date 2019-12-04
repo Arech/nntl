@@ -218,7 +218,7 @@ namespace nntl {
 		// James L. McClelland, Surya Ganguli, 2013, arxiv:1312.6120
 		// Based on https://github.com/Lasagne/Lasagne/blob/master/lasagne/init.py
 		// I'm not sure though their implementation is correct, however I'm not sure I can improve it either
-		// Gain1e3 is a scaling factor for the weights. Set this to
+		// Gain1e6 is a scaling factor for the weights. Set this to
 		// - 1000000*1.0 for linear and sigmoid units, and to 
 		// - 1000000*sqrt(2) for rectified linear units, and 
 		// - 1000000*sqrt(2 / (1 + alpha**2)) for leaky rectified linear units with leakiness ``alpha``.
