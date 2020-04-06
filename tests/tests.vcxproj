@@ -513,7 +513,7 @@
     <ClCompile Include="test_util.cpp" />
   </ItemGroup>
   <ItemGroup>
-    <None Include="..\nntl\ChangeLog.md" />
+    <None Include="..\ChangeLog.md" />
     <None Include="..\nntl\_supp\matlab\export_2bin.m" />
     <None Include="..\nntl\_supp\matlab\mnist2bin.m" />
     <None Include="..\nntl\_supp\matlab\mnist2json.m" />

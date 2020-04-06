@@ -42,11 +42,6 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 namespace nntl {
 
-	//#TODO 
-	// עוסעû  vCountSameBatch && vCountSame in batch mode
-
-	// לע-ןמנמד הכÿ mExtractRows, mExtractRowsSeq, ewBinarizeBatch, vCountSameBatch && vCountSame in batch mode
-
 	namespace _impl {
 
 		// in addition to some not implemented in class _train_data_simple functions of _i_train_data interface,

@@ -595,7 +595,7 @@
     <None Include="..\README.md">
       <Filter>nntl</Filter>
     </None>
-    <None Include="..\nntl\ChangeLog.md">
+    <None Include="..\ChangeLog.md">
       <Filter>nntl</Filter>
     </None>
   </ItemGroup>
