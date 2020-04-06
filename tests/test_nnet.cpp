@@ -66,7 +66,7 @@ template<typename real_t>
 struct testWeightsL1L2_res {
 	::std::array<real_t, 3> w;
 };
-void testL2L1(const bool bL2, train_data<real_t>& td, const real_t coeff, uint64_t rngSeed, testWeightsL1L2_res<real_t>& res, const size_t maxEpochs=3, const real_t LR=.02, const char* pDumpFileName=nullptr) noexcept {
+void testL2L1(const bool bL2, inmem_train_data<real_t>& td, const real_t coeff, uint64_t rngSeed, testWeightsL1L2_res<real_t>& res, const size_t maxEpochs=3, const real_t LR=.02, const char* pDumpFileName=nullptr) noexcept {
 	if (bL2) {
 		STDCOUTL("Using l2coeff = " << coeff);
 	} else STDCOUTL("Using l1coeff = " << coeff);
@@ -97,7 +97,7 @@ void testL2L1(const bool bL2, train_data<real_t>& td, const real_t coeff, uint64
 
 	auto lp = make_layers(inp, fcl, fcl2, outp);
 
-	nnet_train_opts<> opts(epochs);
+	nnet_train_opts<real_t> opts(epochs);
 	opts.calcFullLossValue(true).batchSize(100);
 
 	auto nn = make_nnet(lp);
@@ -124,7 +124,7 @@ void testL2L1(const bool bL2, train_data<real_t>& td, const real_t coeff, uint64
 }
 
 TEST(TestNnet, WeightsConstraintsL2L1) {
-	train_data<real_t> td;
+	inmem_train_data<real_t> td;
 	reader_t reader;
 
 	const auto srcFile = MNIST_FILE_DEBUG;//intended to use small (debug) variation here
@@ -167,7 +167,7 @@ TEST(TestNnet, WeightsConstraintsL2L1) {
 
 /*
 TEST(TestNnet, L2Weights) {
-	train_data<real_t> td;
+	inmem_train_data<real_t> td;
 	reader_t reader;
 
 	const auto srcFile = MNIST_FILE_DEBUG;//intended to use small (debug) variation here
@@ -187,7 +187,7 @@ TEST(TestNnet, L2Weights) {
 //////////////////////////////////////////////////////////////////////////
 
 template<typename RealT>
-void test_LSUVExt(train_data<RealT>& td, bool bCentNorm, bool bScaleNorm, bool bIndNeurons,const size_t rngSeed)noexcept {
+void test_LSUVExt(inmem_train_data<RealT>& td, bool bCentNorm, bool bScaleNorm, bool bIndNeurons,const size_t rngSeed)noexcept {
 #pragma warning(disable:4459)
 	typedef RealT real_t;
 #pragma warning(default:4459)
@@ -225,7 +225,7 @@ void test_LSUVExt(train_data<RealT>& td, bool bCentNorm, bool bScaleNorm, bool b
 
 	auto lp = make_layers(inp, fcl, fcl2, fcl3, fcl4, fcl5, fcl6, fcl7, fcl8, fcl9, outp);
 
-	nnet_train_opts<training_observer_stdcout<eval_classification_one_hot_cached<real_t>>> opts(epochs);
+	nnet_train_opts<real_t, training_observer_stdcout<real_t, eval_classification_one_hot_cached<real_t>>> opts(epochs);
 	opts.batchSize(200);
 
 	auto nn = make_nnet(lp);
@@ -281,7 +281,7 @@ TEST(TestNnet, LSUVExt) {
 	typedef double real_t;
 #pragma warning(default:4459)
 
-	train_data<real_t> td;
+	inmem_train_data<real_t> td;
 	readTd(td);
 
 	const size_t s = ::std::time(0);
@@ -322,7 +322,7 @@ TEST(TestNnet, GradCheck_dropout) {
 	typedef nntl_tests::NN_base_params<real_t, nntl::inspector::GradCheck<real_t>> ArchPrms_t;
 #pragma warning(default:4459)
 
-	nntl::train_data<real_t> td;
+	nntl::inmem_train_data<real_t> td;
 	readTd(td);
 
 	ArchPrms_t Prms(td);

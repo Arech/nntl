@@ -435,11 +435,11 @@ void test_ewBinarize_corr(vec_len_t rowsCnt, vec_len_t colsCnt = 10, const real_
 }
 
 TEST(TestMathN, ewBinarize) {
-	const numel_cnt_t elmsMax = g_MinDataSizeDelta;
-	for (numel_cnt_t e = 1; e < elmsMax; ++e) {
-		ASSERT_NO_FATAL_FAILURE(test_ewBinarize_corr(static_cast<vec_len_t>(e), 1, real_t(.5)));
-		ASSERT_NO_FATAL_FAILURE(test_ewBinarize_corr(static_cast<vec_len_t>(e), 1, real_t(.1)));
-		ASSERT_NO_FATAL_FAILURE(test_ewBinarize_corr(static_cast<vec_len_t>(e), 1, real_t(.9)));
+	const vec_len_t elmsMax = g_MinDataSizeDelta;
+	for (vec_len_t e = 1; e < elmsMax; ++e) {
+		ASSERT_NO_FATAL_FAILURE(test_ewBinarize_corr(e, 1, real_t(.5)));
+		ASSERT_NO_FATAL_FAILURE(test_ewBinarize_corr(e, 1, real_t(.1)));
+		ASSERT_NO_FATAL_FAILURE(test_ewBinarize_corr(e, 1, real_t(.9)));
 	}
 
 	constexpr vec_len_t rowsCnt = _baseRowsCnt;
@@ -449,6 +449,137 @@ TEST(TestMathN, ewBinarize) {
 	}
 }
 
+//////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////
+
+
+
+
+template<typename T, typename TD, typename RngT = dt_interfaces<T>::iRng_t>
+void test_ewBinarizeBatch_corr2(const T frac, ::nntl::math::smatrix_deform<T>& src, ::nntl::math::smatrix_deform<T>& src_ETHlpr
+	, ::nntl::math::smatrix_deform<TD>& dest, ::nntl::math::smatrix_deform<TD>& destET, RngT& rg, const ::std::vector<vec_len_t>& idxs_ETHlpr)
+{
+	ASSERT_SUPPORTED_REAL_T(T);
+	//in fact, there's no reason to restrict to floating point, it's just a bit easier to make test with it.
+	//but if it works with any fp - it works with anything
+
+	if (src.emulatesBiases()) {
+		ASSERT_TRUE(src_ETHlpr.emulatesBiases() && dest.emulatesBiases() && destET.emulatesBiases());
+		ASSERT_TRUE(src.test_biases_strict() && src_ETHlpr.test_biases_strict() && dest.test_biases_strict() && destET.test_biases_strict());
+	} else {
+		ASSERT_TRUE(!src_ETHlpr.emulatesBiases() && !dest.emulatesBiases() && !destET.emulatesBiases());
+	}
+	ASSERT_TRUE(dest.size() == destET.size());
+	ASSERT_TRUE(dest.cols() == src.cols() && src.rows() <= dest.rows());
+	ASSERT_TRUE(src_ETHlpr.size() == dest.size());
+
+	const auto maxSrcRows = src.rows();
+	constexpr vec_len_t testCorrRepCnt = TEST_CORRECTN_REPEATS_COUNT;
+	vec_len_t dr;
+	for (vec_len_t r = 0; r < testCorrRepCnt; ++r) {
+		rg.gen_matrix_no_bias_norm(src_ETHlpr);
+		
+		//computing destET
+		ewBinarize_ET(destET, src_ETHlpr, frac);
+
+		//computing dest with _st()
+		dest.nans_no_bias();
+		dr = 0;
+		while (dr < dest.rows()) {
+			//preparing src matrix
+			const vec_len_t rtp = ::std::min(maxSrcRows, dest.rows() - dr);
+			src.deform_rows(rtp);
+
+			//extracting current src from src_ETHlpr
+			mExtractRows_ET(src_ETHlpr, &idxs_ETHlpr[dr], src);
+
+			//executing function to test
+			iM.ewBinarizeBatch_st(dest, dr, src, frac);
+
+			//updating dr
+			dr += rtp;
+		}
+		ASSERT_MTX_EQt(TD, destET, dest, "ewBinarizeBatch_st failed!");
+
+		dest.nans_no_bias();
+		dr = 0;
+		while (dr < dest.rows()) {
+			const vec_len_t rtp = ::std::min(maxSrcRows, dest.rows() - dr);
+			src.deform_rows(rtp);
+			mExtractRows_ET(src_ETHlpr, &idxs_ETHlpr[dr], src);
+			iM.ewBinarizeBatch_mt(dest, dr, src, frac);
+			dr += rtp;
+		}
+		ASSERT_MTX_EQt(TD, destET, dest, "ewBinarizeBatch_mt failed!");
+
+		dest.nans_no_bias();
+		dr = 0;
+		while (dr < dest.rows()) {
+			const vec_len_t rtp = ::std::min(maxSrcRows, dest.rows() - dr);
+			src.deform_rows(rtp);
+			mExtractRows_ET(src_ETHlpr, &idxs_ETHlpr[dr], src);
+			iM.ewBinarizeBatch(dest, dr, src, frac);
+			dr += rtp;
+		}
+		ASSERT_MTX_EQt(TD, destET, dest, "ewBinarizeBatch failed!");
+	}
+}
+
+template<typename T, typename TD = char>
+void test_ewBinarizeBatch_corr(vec_len_t destRows, vec_len_t srcRows, vec_len_t colsCnt, const T frac) {
+	//MTXSIZE_SCOPED_TRACE1d2f(srcRows, colsCnt, "ewBinarizeBatch, (destRows,frac)", destRows, frac);
+	ASSERT_TRUE(srcRows <= destRows) << "Invalid params for test_ewBinarizeBatch_corr";
+
+	dt_interfaces<T>::iRng_t rg;
+	rg.init_ithreads(iM.ithreads());
+
+	::nntl::math::smatrix_deform<T> src(srcRows, colsCnt), src_ETHlpr(destRows, colsCnt);
+	::nntl::math::smatrix_deform<TD> dest(destRows, colsCnt), destET(destRows, colsCnt);
+	ASSERT_TRUE(!src.isAllocationFailed() && !src_ETHlpr.isAllocationFailed() && !dest.isAllocationFailed() && !destET.isAllocationFailed());
+
+	::std::vector<vec_len_t> idxs_ETHlpr(destRows);
+	::std::iota(idxs_ETHlpr.begin(), idxs_ETHlpr.end(), vec_len_t(0));
+
+	//no biases mode
+	ASSERT_TRUE(!src.emulatesBiases() && !src_ETHlpr.emulatesBiases() && !dest.emulatesBiases() && !destET.emulatesBiases());
+	
+	{
+		MTXSIZE_SCOPED_TRACE_TYPED_1d(src.rows(), src.cols_no_bias(), "test_ewBinarizeBatch_corr no bias, dest rows=", dest.rows());
+		ASSERT_NO_FATAL_FAILURE(test_ewBinarizeBatch_corr2(frac, src, src_ETHlpr, dest, destET, rg, idxs_ETHlpr));
+	}
+
+	if (colsCnt > 1) {
+		//biases mode
+		src._enforce_biases(); src.set_biases();
+		src_ETHlpr._enforce_biases(); src_ETHlpr.set_biases();
+		dest._enforce_biases(); dest.set_biases();
+		destET._enforce_biases(); destET.set_biases();
+
+		MTXSIZE_SCOPED_TRACE_TYPED_1d(src.rows(), src.cols_no_bias(), "test_ewBinarizeBatch_corr, with bias, dest rows=", dest.rows());
+		ASSERT_NO_FATAL_FAILURE(test_ewBinarizeBatch_corr2(frac, src, src_ETHlpr, dest, destET, rg, idxs_ETHlpr));
+	}
+}
+
+TEST(TestMathN, ewBinarizeBatch) {
+	const vec_len_t maxCols = g_MinDataSizeDelta, maxSrcRows = g_MinDataSizeDelta;
+
+	const auto fCheck = [maxCols,maxSrcRows](const vec_len_t destRows) {
+		for (vec_len_t sr = 1; sr < maxSrcRows; ++sr) {
+			if (sr <= destRows) {
+				for (vec_len_t c = 1; c < maxCols; ++c) {
+					ASSERT_NO_FATAL_FAILURE(test_ewBinarizeBatch_corr(destRows, sr, c, real_t(.5)));
+					ASSERT_NO_FATAL_FAILURE(test_ewBinarizeBatch_corr(destRows, sr, c, real_t(.1)));
+					ASSERT_NO_FATAL_FAILURE(test_ewBinarizeBatch_corr(destRows, sr, c, real_t(.9)));
+				}
+			}
+		}
+	};
+
+	for (vec_len_t r = 1; r < 5 * g_MinDataSizeDelta; r += g_MinDataSizeDelta - 1) ASSERT_NO_FATAL_FAILURE(fCheck(r));
+
+	const vec_len_t maxRows = _baseRowsCnt + g_MinDataSizeDelta;
+	for (vec_len_t r = _baseRowsCnt; r < maxRows; ++r) ASSERT_NO_FATAL_FAILURE(fCheck(r));
+}
 
 //////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////
@@ -3907,6 +4038,175 @@ TEST(TestMathN, evOneCompl) {
 }
 
 //////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////
+
+template<typename T, typename RngT = dt_interfaces<T>::iRng_t>
+void test_mExtractRows_corr2(::nntl::math::smatrix<T>& src, ::nntl::math::smatrix<T>& dest, ::nntl::math::smatrix<T>& destET
+	, RngT& rg, ::std::vector<vec_len_t>& idxs)
+{
+	ASSERT_SUPPORTED_REAL_T(T);
+	//in fact, there's no reason to restrict to floating point, it's just a bit easier to make test with it.
+	//but if it works with any fp - it works with anything
+
+	if (src.emulatesBiases()) {
+		ASSERT_TRUE(dest.emulatesBiases() && destET.emulatesBiases());
+		ASSERT_TRUE(src.test_biases_strict() && dest.test_biases_strict() && destET.test_biases_strict());
+	} else {
+		ASSERT_TRUE(!dest.emulatesBiases() && !destET.emulatesBiases());
+	}
+	ASSERT_TRUE(dest.size() == destET.size());
+	ASSERT_TRUE(dest.cols() == src.cols() && src.rows() >= dest.rows());
+	ASSERT_TRUE(src.rows() == ::nntl::math::Numel(idxs));
+
+	constexpr vec_len_t testCorrRepCnt = TEST_CORRECTN_REPEATS_COUNT;
+	for (vec_len_t r = 0; r < testCorrRepCnt; ++r) {
+		::std::random_shuffle(idxs.begin(), idxs.end(), rg);
+
+		rg.gen_matrix_no_bias_norm(src);
+
+		const auto pIdxs = idxs.cbegin();
+		destET.zeros();
+		mExtractRows_ET(src, pIdxs, destET);
+
+		dest.nans_no_bias();
+		iM.mExtractRows_seqWrite_st(src, pIdxs, dest);
+		ASSERT_MTX_EQ(destET, dest, "mExtractRows_seqWrite_st failed!");
+
+		dest.nans_no_bias();
+		iM.mExtractRows_seqWrite_mt(src, pIdxs, dest);
+		ASSERT_MTX_EQ(destET, dest, "mExtractRows_seqWrite_mt failed!");
+
+		dest.nans_no_bias();
+		iM.mExtractRows(src, pIdxs, dest);
+		ASSERT_MTX_EQ(destET, dest, "mExtractRows failed!");
+	}
+}
+
+template<typename T>
+void test_mExtractRows_corr(const vec_len_t srcRows, const vec_len_t destRows, const vec_len_t colsCnt) {
+	ASSERT_TRUE(srcRows <= destRows) << "Invalid params for test_mExtractRows_corr";
+
+	dt_interfaces<T>::iRng_t rg;
+	rg.init_ithreads(iM.ithreads());
+	
+	::nntl::math::smatrix_deform<T> src(srcRows, colsCnt), dest(destRows, colsCnt), destET(destRows, colsCnt);
+	ASSERT_TRUE(!src.isAllocationFailed() && !dest.isAllocationFailed() && !destET.isAllocationFailed());
+
+	::std::vector<vec_len_t> idxs(srcRows);
+	::std::iota(idxs.begin(), idxs.end(), vec_len_t(0));
+
+	//no biases mode
+	ASSERT_TRUE(!src.emulatesBiases() && !dest.emulatesBiases() && !destET.emulatesBiases());
+	ASSERT_NO_FATAL_FAILURE(test_mExtractRows_corr2<T>(src, dest, destET, rg, idxs));
+
+	if (colsCnt > 1) {
+		//biases mode
+		src._enforce_biases(); src.set_biases();
+		dest._enforce_biases(); dest.set_biases();
+		destET._enforce_biases(); destET.set_biases();
+		ASSERT_NO_FATAL_FAILURE(test_mExtractRows_corr2<T>(src, dest, destET, rg, idxs));
+	}
+}
+
+TEST(TestMathN, mExtractRows) {
+	for (vec_len_t dr = 1; dr < g_MinDataSizeDelta; ++dr) {
+		for (vec_len_t sr = dr; sr < 4 * g_MinDataSizeDelta; sr += g_MinDataSizeDelta-1) {
+			if (dr >= sr) {
+				for (vec_len_t c = 1; c < g_MinDataSizeDelta; ++c) {
+					ASSERT_NO_FATAL_FAILURE(test_mExtractRows_corr<real_t>(sr, dr, c));
+				}
+			}
+		}
+	}
+}
+
+//////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////
+
+template<typename T, typename RngT = dt_interfaces<T>::iRng_t>
+void test_mExtractRowsSeq_corr2(::nntl::math::smatrix<T>& src, ::nntl::math::smatrix<T>& dest, ::nntl::math::smatrix<T>& destET
+	, RngT& rg, const ::std::vector<vec_len_t>& idxs)
+{
+	ASSERT_SUPPORTED_REAL_T(T);
+	//in fact, there's no reason to restrict to floating point, it's just a bit easier to make test with it.
+	//but if it works with any fp - it works with anything
+
+	if (src.emulatesBiases()) {
+		ASSERT_TRUE(dest.emulatesBiases() && destET.emulatesBiases());
+		ASSERT_TRUE(src.test_biases_strict() && dest.test_biases_strict() && destET.test_biases_strict());
+	} else {
+		ASSERT_TRUE(!dest.emulatesBiases() && !destET.emulatesBiases());
+	}
+	ASSERT_TRUE(dest.size() == destET.size());
+	ASSERT_TRUE(dest.cols() == src.cols() && src.rows() >= dest.rows());
+	ASSERT_TRUE(src.rows() == ::nntl::math::Numel(idxs));
+
+	constexpr vec_len_t testCorrRepCnt = TEST_CORRECTN_REPEATS_COUNT;
+	for (vec_len_t r = 0; r < testCorrRepCnt; ++r) {
+		rg.gen_matrix_no_bias_norm(src);
+
+		auto rdif = src.rows() - dest.rows();
+		if (0 != rdif) rdif = rg(rdif);
+		const vec_len_t rowOfs = rdif;
+		ASSERT_TRUE(rowOfs >= 0 && rowOfs <= (src.rows() - dest.rows())) << "Invalid row index generated";
+
+		destET.zeros();
+		mExtractRows_ET(src, &idxs[rowOfs], destET);
+
+		dest.nans_no_bias();
+		iM.mExtractRowsSeq_st(src, rowOfs, dest);
+		ASSERT_MTX_EQ(destET, dest, "mExtractRowsSeq_st failed!");
+
+		dest.nans_no_bias();
+		iM.mExtractRowsSeq_mt(src, rowOfs, dest);
+		ASSERT_MTX_EQ(destET, dest, "mExtractRowsSeq_mt failed!");
+
+		dest.nans_no_bias();
+		iM.mExtractRowsSeq(src, rowOfs, dest);
+		ASSERT_MTX_EQ(destET, dest, "mExtractRowsSeq failed!");
+	}
+}
+
+template<typename T>
+void test_mExtractRowsSeq_corr(const vec_len_t srcRows, const vec_len_t destRows, const vec_len_t colsCnt) {
+	ASSERT_TRUE(srcRows >= destRows) << "Invalid params for test_mExtractRowsSeq_corr";
+
+	dt_interfaces<T>::iRng_t rg;
+	rg.init_ithreads(iM.ithreads());
+
+	::nntl::math::smatrix_deform<T> src(srcRows, colsCnt), dest(destRows, colsCnt), destET(destRows, colsCnt);
+	ASSERT_TRUE(!src.isAllocationFailed() && !dest.isAllocationFailed() && !destET.isAllocationFailed());
+
+	::std::vector<vec_len_t> idxs(srcRows);
+	::std::iota(idxs.begin(), idxs.end(), vec_len_t(0));
+
+	//no biases mode
+	ASSERT_TRUE(!src.emulatesBiases() && !dest.emulatesBiases() && !destET.emulatesBiases());
+	ASSERT_NO_FATAL_FAILURE(test_mExtractRowsSeq_corr2<T>(src, dest, destET, rg, idxs));
+
+	if (colsCnt > 1) {
+		//biases mode
+		src._enforce_biases(); src.set_biases();
+		dest._enforce_biases(); dest.set_biases();
+		destET._enforce_biases(); destET.set_biases();
+		ASSERT_NO_FATAL_FAILURE(test_mExtractRowsSeq_corr2<T>(src, dest, destET, rg, idxs));
+	}
+}
+
+TEST(TestMathN, mExtractRowsSeq) {
+	for (vec_len_t dr = 1; dr < g_MinDataSizeDelta; ++dr) {
+		for (vec_len_t sr = dr; sr < 4 * g_MinDataSizeDelta; sr += g_MinDataSizeDelta - 1) {
+			if (sr >= dr) {
+				for (vec_len_t c = 1; c < g_MinDataSizeDelta; ++c) {
+					ASSERT_NO_FATAL_FAILURE(test_mExtractRowsSeq_corr<real_t>(sr, dr, c));
+				}
+			}
+		}
+	}
+}
+
+//////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////
 
 void test_mExtractRowsByMask_corr(vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 	constexpr vec_len_t testCorrRepCnt = TEST_CORRECTN_REPEATS_COUNT;
@@ -3962,6 +4262,7 @@ TEST(TestMathN, mExtractRowsByMask) {
 	}
 }
 
+//////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////
 
 void test_mFillRowsByMask_corr(vec_len_t rowsCnt, vec_len_t colsCnt = 10) {

@@ -1,18 +1,28 @@
-function export_2bin( S, fname, bDropUnknown)
+function export_2bin( S, fname, seqDescr, bDropUnknown)
 %EXPORT_STRUCT_2BIN Export 2D matrix or struct to NNTL binary file
 % (see nntl/_supp/io/binfile.h for specifications)
 
 MAX_FIELD_NAME_LENGTH=15;
 
-bDropUnknown = ~exist('bDropUnknown','var') || logical(bDropUnknown);
+bSeqMode = exist('seqDescr','var') && ~isempty(seqDescr);
+if bSeqMode
+	assert(isvector(seqDescr));
+	bDropUnknown=false;
+else
+	seqDescr=[];
+	bDropUnknown = ~exist('bDropUnknown','var') || logical(bDropUnknown);
+end
+nClassesCnt = numel(seqDescr);
 
 if ~isstruct(S) && ismatrix(S)
 	S=struct('mtx',S);
+	bDropUnknown = false;
 end
 if ~isstruct(S)
 	error('S must be a 2D matrix or struct');
 end
 
+%%
 [fid,err]=fopen(fname,'w','l');
 if -1==fid
 	error('Failed to open file %s: %s\n',fname,err);
@@ -23,14 +33,26 @@ fc = length(fn);
 
 %bin_file::HEADER
 fwrite(fid,'nntl','char');
-% TODO: bad code here
-if bDropUnknown
-	fwrite(fid,4,'uint16');
-else	
-	fwrite(fid,fc,'uint16');
+
+% format version number
+fwrite(fid, 0,'uint16');
+
+%WORD wFieldsCount;//total count of all fields besides HEADER
+fwrite(fid,fc + bSeqMode*nClassesCnt,'uint16');
+
+%WORD wSeqClassCount;//if non zero, then expecting file to contain a set of sequences belonging to this amount of classes
+%//there must be this count of CLASS_ENTRY structures immediately after HEADER
+if bSeqMode
+	assert(nClassesCnt>0 && nClassesCnt< 2^16);
+	fwrite(fid, nClassesCnt,'uint16');
+	
+	%writing bin_file::CLASS_ENTRY
+	fwrite(fid, seqDescr, 'uint16');
+else
+	fwrite(fid, 0, 'uint16');
 end
 
-%bin_file::FIELD_ENTRY
+%% bin_file::FIELD_ENTRY
 for fidx=1:fc
 	fld = S.(fn{fidx});
 	
@@ -68,6 +90,8 @@ for fidx=1:fc
 end
 
 fclose(fid);
+
+fprintf(1,'Done with %s !\n', fname);
 
 end
 

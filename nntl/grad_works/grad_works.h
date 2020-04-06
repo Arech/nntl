@@ -356,7 +356,7 @@ namespace nntl {
 					iM.apply_dropout_mask(tmpVw, m_LRDropoutPercActive, doMask);
 					iI.fprop_postLRDropout4NesterovMomentum(tmpVw);
 
-					//applying weight updates
+					//applying weight updates, step (2)
 					iM.evSub_ip(weights, tmpVw);
 
 					tmpVw.clear();

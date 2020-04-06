@@ -60,6 +60,10 @@ char _scopeMsg[_scopeMsgLen]; \
 sprintf_s(_scopeMsg, "%s%f: data size is %dx%d (%lld elements)", (_descr), (fparam),(_r), (_c), ::nntl::math::smatrix_td::sNumel((_r), (_c))); \
 SCOPED_TRACE(_scopeMsg);
 
+#define MTXSIZE_SCOPED_TRACE1d2f(_r,_c,_descr, decParam, fparam) char _scopeMsg[256]; \
+sprintf_s(_scopeMsg, "%s=(%d,%f): data size is %dx%d (%lld elements)", (_descr), (fparam),(_r), (_c), ::nntl::math::smatrix_td::sNumel((_r), (_c))); \
+SCOPED_TRACE(_scopeMsg);
+
 //////////////////////////////////////////////////////////////////////////
 
 #define MTXSIZE_SCOPED_TRACE_TYPED(_r,_c,_descr) constexpr unsigned _scopeMsgLen = 256; \
@@ -147,6 +151,7 @@ inline void _ASSERT_MTX_EQ(const nntl::math::smatrix<double>& c1, const nntl::ma
 
 
 #define ASSERT_MTX_EQ(c1,c2,descr) ASSERT_NO_FATAL_FAILURE(_ASSERT_MTX_EQ(c1,c2,descr));
+#define ASSERT_MTX_EQt(T, c1,c2,descr) ASSERT_NO_FATAL_FAILURE(_ASSERT_MTX_EQ<T>(c1,c2,descr));
 
 //////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////

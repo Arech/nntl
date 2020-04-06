@@ -126,17 +126,28 @@ namespace _impl {
 		void set_training_mode(bool bTraining)noexcept { m_bInTraining = bTraining; }
 		bool is_training_mode()const noexcept { return m_bInTraining; }
 
-		void set_mode_and_batch_size(const bool bTraining, const vec_len_t BatchSize)noexcept {
+		//returns false if the same mode&batch has already been set
+		bool set_mode_and_batch_size(const bool bTraining, const vec_len_t BatchSize)noexcept {
 			NNTL_ASSERT(m_pMath && m_pRng && m_pInspect);//must be preinitialized!
-			NNTL_ASSERT(m_max_fprop_batch_size > 0 && BatchSize > 0 && BatchSize <= m_max_fprop_batch_size);
-			NNTL_ASSERT(!bTraining || BatchSize <= m_training_batch_size);
+			NNTL_ASSERT(m_max_fprop_batch_size > 0 && BatchSize > 0);
+			NNTL_ASSERT((bTraining && m_training_batch_size > 0 && BatchSize <= m_training_batch_size)
+				|| (!bTraining && BatchSize <= m_max_fprop_batch_size));
+			
+			if (bTraining == m_bInTraining && BatchSize == m_cur_batch_size) return false;
+
 			m_bInTraining = bTraining;
 			m_cur_batch_size = BatchSize;
+			return true;
 		}
 
 		vec_len_t get_cur_batch_size()const noexcept { return m_cur_batch_size; }
 
 		vec_len_t change_cur_batch_size(const vec_len_t bs)const noexcept {
+			NNTL_ASSERT(m_pMath && m_pRng && m_pInspect);//must be preinitialized!
+			NNTL_ASSERT(m_max_fprop_batch_size > 0 && bs > 0);
+			NNTL_ASSERT((m_bInTraining && m_training_batch_size > 0 && bs <= m_training_batch_size)
+				|| (!m_bInTraining && bs <= m_max_fprop_batch_size));
+
 			const auto r = m_cur_batch_size;
 			m_cur_batch_size = bs;
 			return r;
@@ -261,8 +272,6 @@ namespace _impl {
 		using _base_class::iInspect_t;
 		using _base_class::real_t;
 
-		//using _base_class::vec_len_t;
-		//using _base_class::numel_cnt_t;
 		using _base_class::mtx_size_t;
 		using _base_class::mtx_coords_t;
 
@@ -329,6 +338,8 @@ namespace _impl {
 
 	public:
 		const common_data_t& get_common_data()const noexcept { return *this; }
+		const common_data_t& get_const_common_data()const noexcept { return *this; }
+
 		iMath_t& get_iMath()const noexcept { NNTL_ASSERT(m_pMath); return *m_pMath; }
 		iRng_t& get_iRng()const noexcept { NNTL_ASSERT(m_pRng); return *m_pRng; }
 		iInspect_t& get_iInspect()const noexcept { NNTL_ASSERT(m_pInspect); return *m_pInspect; }

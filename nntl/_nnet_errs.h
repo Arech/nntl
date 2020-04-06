@@ -38,9 +38,17 @@ namespace nntl {
 		enum ErrorCode {
 			Success = 0,
 			InvalidTD,
-			//BatchSizeMustBeMultipleOfTrainDataLength,//obsolete
+
 			InvalidInputLayerNeuronsCount,
 			InvalidOutputLayerNeuronsCount,
+
+			TooBigTrainTestSet,
+			TooBigTrainSet,
+			InvalidBatchSize2MaxFPropSizeRelation,
+
+			TdInitNoMemory,
+			OtherTdInitError,
+
 			CantAllocateMemoryForActivations,
 			CantAllocateMemoryForInnerActivations,
 			CantAllocateMemoryForInnerLLActivations,
@@ -65,9 +73,17 @@ namespace nntl {
 			switch (ec) {
 			case Success: return NNTL_STRING("No error / success.");
 			case InvalidTD: return NNTL_STRING("Invalid training data passed.");
-			//case BatchSizeMustBeMultipleOfTrainDataLength: return NNTL_STRING("Batch size must be multiple of training data length.");
+
 			case InvalidInputLayerNeuronsCount: return NNTL_STRING("Input layer neurons count mismatches train_x width.");
 			case InvalidOutputLayerNeuronsCount: return NNTL_STRING("Output layer neurons count mismatches train_y width.");
+
+			case TooBigTrainTestSet: return NNTL_STRING("Too big train or test set size, set proper opts.maxFpropSize()");
+			case TooBigTrainSet: return NNTL_STRING("Too big train set size, set proper opts.batchSize()");
+			case InvalidBatchSize2MaxFPropSizeRelation: return NNTL_STRING("opts.batchSize() MUST be less or equal to opts.maxFpropSize()");
+
+			case TdInitNoMemory: return NNTL_STRING("Failed to initialize _i_train_data object, not enough memory");
+			case OtherTdInitError: return NNTL_STRING("There was an error initializing _i_train_data object. Query its state.");
+
 			case CantAllocateMemoryForActivations: return NNTL_STRING("Cant allocate memory for neuron activations");
 			case CantAllocateMemoryForInnerActivations: return NNTL_STRING("Cant allocate memory for inner neurons activations");
 			case CantAllocateMemoryForInnerLLActivations: return NNTL_STRING("Cant allocate memory for inner activations of a lower layer");

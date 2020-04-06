@@ -56,7 +56,7 @@ namespace threads {
 
 	protected:
 		typedef typename CallH_t::template call_tpl<void(const par_range_t& r)> func_run_t;
-		typedef typename CallH_t::template call_tpl<real_t(const par_range_t& r)> func_reduce_t;
+		typedef typename CallH_t::template call_tpl<reduce_data_t(const par_range_t& r)> func_reduce_t;
 
 		enum class JobType { Run, Reduce };
 
@@ -82,7 +82,8 @@ namespace threads {
 		::std::vector<par_range_t> m_ranges;
 
 		func_run_t m_fnRun;
-		::std::vector<real_t> m_reduceCache;
+
+		::std::vector<reduce_data_t> m_reduceCache;
 		func_reduce_t m_fnReduce;
 
 		const thread_id_t m_workersCnt;
@@ -134,22 +135,30 @@ namespace threads {
 		}
 
 		bool denormalsOnInAnyThread()noexcept {
-			for (auto&e : m_reduceCache) e = real_t(-9999);
+			const thread_id_t thrCnt = m_workersCnt + 1;
+			NNTL_ASSERT(conform_sign(m_reduceCache.size()) == thrCnt);
+			real_t*const pCache = reinterpret_cast<real_t*>(&m_reduceCache[0]);
+			for (thread_id_t i = 0; i < thrCnt; ++i) {
+				pCache[i] = real_t(1.);
+			}
 
 			thread_id_t thdUsed = 0;
-			const auto thrCnt = m_workersCnt + 1;
-			run([&rc = m_reduceCache](const par_range_t& r) {
-				rc[r.tid()] = isDenormalsOn() ? real_t(1.) : real_t(0.);
+			
+			run([pCache](const par_range_t& r) {
+				pCache[r.tid()] = isDenormalsOn() ? real_t(1.) : real_t(0.);
 			}, thrCnt, thrCnt, &thdUsed);
 
 			if (thdUsed == thrCnt) {
 				real_t s(real_t(0.));
-				for (const auto& e : m_reduceCache) s += e;
+				for (thread_id_t i = 0; i < thrCnt; ++i) {
+					s += pCache[i];
+				}
 				return real_t(0.) != s;
 			}
 			return true;
 		}
 
+	public:
 		//never call recursively or from non-main thread
 		template<typename Func>
 		void run(Func&& F, const range_t cnt, const thread_id_t useNThreads = 0, thread_id_t* pThreadsUsed = nullptr) noexcept {
@@ -188,19 +197,41 @@ namespace threads {
 		}
 
 	public:
-		//never call recursively or from non-main thread
+		//////////////////////////////////////////////////////////////////////////
+		// Reduce()
+		// Never call it recursively or from non-main thread
+		// 
+		// The main idea of reduce() is to perform multithreaded processing of some data and return a single value as a result.
+		// To make it possible we need use some temporarily cache to store results of processing data segment by each thread and...
+		// to solve an issue with different return types could be used. The issue is absolutely trivial in C (just cast a pointer to 
+		// data type needed and you're done), but this C-approach taken in C++ would lead to undefined behavior by the language standard.
+		// So, my current best-guess to solve it without C++20 ::std::bit_cast feature would stick to ugly but standard blessed memcpy()
+		// with some same-size underlying standard datatype.
+
 		template<typename Func, typename FinalReduceFunc>
-		real_t reduce(Func&& FRed, FinalReduceFunc&& FRF, const range_t cnt, const thread_id_t useNThreads = 0) noexcept {
-			return cnt <= 1
-				? ::std::forward<Func>(FRed)(par_range_t(cnt))
-				: _reduce(CallH_t::wrap<Func>(::std::forward<Func>(FRed)), ::std::forward<FinalReduceFunc>(FRF), cnt, useNThreads);
+		auto reduce(Func&& FRed, FinalReduceFunc&& FRF, const range_t cnt, const thread_id_t useNThreads = 0) noexcept
+			-> decltype(::std::forward<FinalReduceFunc>(FRF)(static_cast<const reduce_data_t*>(nullptr), range_t(0)))
+		{
+			static_assert(::std::is_same<reduce_data_t, decltype(::std::forward<Func>(FRed)(par_range_t(cnt)))>::value, "");
+
+			typedef decltype(::std::forward<FinalReduceFunc>(FRF)(static_cast<const reduce_data_t*>(nullptr), range_t(0))) type_t;
+			typedef converter_reduce_data_t<type_t> converter_t;
+
+			type_t ret;
+			if (cnt <= 1 || 1 == useNThreads) {
+				ret = converter_t::from(::std::forward<Func>(FRed)(par_range_t(cnt)));
+			} else {
+				ret = (::std::forward<FinalReduceFunc>(FRF))(
+					&m_reduceCache[0]
+					, _reduce(CallH_t::wrap<Func>(::std::forward<Func>(FRed)), cnt, useNThreads)
+					);
+			}
+			return ret;
 		}
 
-
 	protected:
-
-		template<typename Func, typename FinalReduceFunc>
-		real_t _reduce(Func&& FRed, FinalReduceFunc&& FRF, const range_t cnt, const thread_id_t useNThreads = 0) noexcept {
+		template<typename Func>
+		range_t _reduce(Func&& FRed, const range_t cnt, const thread_id_t useNThreads = 0) noexcept {
 			NNTL_ASSERT(cnt > 1);
 			m_mutex.lock();
 
@@ -223,7 +254,8 @@ namespace threads {
 			if (m_workingCnt > 0) {
 				Sync_t::lock_wait_unlock(m_mutex, m_orderDone, [&wc = m_workingCnt]() {return wc <= 0; });
 			}
-			return (::std::forward<FinalReduceFunc>(FRF))(rc, workersOnReduce);//OK to forward as we don't care if rvalue-qualified operator spoils it
+			//return (::std::forward<FinalReduceFunc>(FRF))(rc, workersOnReduce);//OK to forward as we don't care if rvalue-qualified operator spoils it
+			return workersOnReduce;
 		}
 
 	protected:

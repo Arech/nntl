@@ -485,7 +485,7 @@ namespace nntl {
 		const char* get_custom_name()const noexcept { return m_customName ? m_customName : get_self().get_default_name(); }
 
 		void get_layer_name(char* pName, const size_t cnt)const noexcept {
-			sprintf_s(pName, cnt, "%s_%d", get_self().get_custom_name(),static_cast<unsigned>(get_self().get_layer_idx()));
+			::sprintf_s(pName, cnt, "%s_%d", get_self().get_custom_name(),static_cast<unsigned>(get_self().get_layer_idx()));
 		}
 		::std::string get_layer_name_str()const noexcept {
 			constexpr size_t ml = layerNameMaxChars;

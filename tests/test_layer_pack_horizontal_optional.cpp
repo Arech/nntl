@@ -99,7 +99,7 @@ void makeDataXForGatedSetup(iMathT& iM, iRngT& iR
 
 template<typename iMathT, typename iRngT>
 void makeTdForGatedSetup(iMathT& iM, iRngT& iR
-	, const train_data<typename iMathT::real_t>& td, train_data<typename iMathT::real_t>& tdGated
+	, const inmem_train_data<typename iMathT::real_t>& td, inmem_train_data<typename iMathT::real_t>& tdGated
 	, const vec_len_t gatesCnt, typename iMathT::real_t gateZeroProb)
 {
 	typedef typename iMathT::real_t real_t;
@@ -168,7 +168,7 @@ struct TLPHO_simple_arch {
 
 
 	//////////////////////////////////////////////////////////////////////////
-	TLPHO_simple_arch(const train_data<real_t>& td) noexcept
+	TLPHO_simple_arch(const inmem_train_data<real_t>& td) noexcept
 		: lInp(td.train_x().cols_no_bias())
 		, lLpho(::std::make_tuple(
 			make_PHL(lGate, 0, P::nGatesCnt)
@@ -235,7 +235,7 @@ struct TLPHO_simple_prms {
 };
 
 template<typename ParamsT>
-void run_testLPHO_simple(const train_data<typename ParamsT::real_t>& baseTd, const size_t seedV
+void run_testLPHO_simple(const inmem_train_data<typename ParamsT::real_t>& baseTd, const size_t seedV
 	, typename ParamsT::real_t& finErr)noexcept
 {
 	typedef typename ParamsT::real_t real_t;
@@ -244,7 +244,7 @@ void run_testLPHO_simple(const train_data<typename ParamsT::real_t>& baseTd, con
 	STDCOUTL("gateZeroProb = " << (ParamsT::bBinarizeGate ? ParamsT::gateZeroProb1e6 / real_t(1e6) : ParamsT::gateZeroProb)
 		<< ", bBinarizeGate = " << ParamsT::bBinarizeGate << ", bAddFeatureNotPresent = " << ParamsT::bAddFeatureNotPresent);
 
-	train_data<real_t> td;
+	inmem_train_data<real_t> td;
 	{
 		typedef typename Arch_t::myIntf::iMath_t iMath_t;
 		typedef typename Arch_t::myIntf::iRng_t iRng_t;
@@ -255,7 +255,7 @@ void run_testLPHO_simple(const train_data<typename ParamsT::real_t>& baseTd, con
 	}
 
 	Arch_t Arch(td);
-	nnet_train_opts<training_observer_stdcout<eval_classification_one_hot_cached<real_t>>> opts(ParamsT::epochs);
+	nnet_train_opts<real_t, training_observer_stdcout<real_t, eval_classification_one_hot_cached<real_t>>> opts(ParamsT::epochs);
 	opts.batchSize(ParamsT::batchSize);
 
 	auto nn = make_nnet(Arch.lp);
@@ -277,7 +277,7 @@ TEST(TestLayerPackHorizontalOptional, Simple) {
 // 	template<int iGateZeroProb1e6, bool bBinGate, bool bAddFeatureNotPres>
 // 	using Prms_t = TLPHO_simple_prms<real_t, iGateZeroProb1e6, bBinGate, bAddFeatureNotPres>;
 
-	train_data<real_t> baseTd;
+	inmem_train_data<real_t> baseTd;
 	readTd(baseTd);
 
 	size_t seedV = ::std::time(0);
@@ -329,7 +329,7 @@ TEST(TestLayerPackHorizontalOptional, MakeDump) {
 	typedef TLPHO_simple_prms<real_t, g1, false, true, my_interfaces> ParamsT;
 	typedef TLPHO_simple_arch<ParamsT> Arch_t;
 
-	train_data<real_t> baseTd, td;
+	inmem_train_data<real_t> baseTd, td;
 	readTd(baseTd);
 	size_t seedV = ::std::time(0);
 
@@ -343,11 +343,11 @@ TEST(TestLayerPackHorizontalOptional, MakeDump) {
 	}
 
 	Arch_t Arch(td);
-	nnet_train_opts<training_observer_stdcout<eval_classification_one_hot_cached<real_t>>> opts(ParamsT::epochs);
+	nnet_train_opts<real_t, training_observer_stdcout<real_t, eval_classification_one_hot_cached<real_t>>> opts(ParamsT::epochs);
 	opts.batchSize(ParamsT::batchSize);
 
 	my_interfaces::iInspect_t Insp("./test_data");
-	Insp.getCondDump().m_epochsToDump = { 9999999999999999999 };//the first batch of the last epoch
+	Insp.getCondDump().m_epochsToDump = { ::std::numeric_limits<numel_cnt_t>::max() };//the first batch of the last epoch
 
 	auto nn = make_nnet(Arch.lp, Insp);
 	nn.get_iRng().seed64(seedV + 1);
@@ -412,13 +412,13 @@ public:
 	static constexpr neurons_count_t simple_l2nc = 13;
 
 	~GC_LPHO_ArchPrms()noexcept {}
-	GC_LPHO_ArchPrms(const nntl::train_data<real_t>& td)noexcept : _base_class_t(td) {
+	GC_LPHO_ArchPrms(const nntl::inmem_train_data<real_t>& td)noexcept : _base_class_t(td) {
 		lUnderlay_nc = 29;
 	}
 };
 
 template<typename RealT, bool bAddFeatureNotPres>
-void run_gc4lpho(const train_data<RealT>& td)noexcept {
+void run_gc4lpho(inmem_train_data<RealT>& td)noexcept {
 #pragma warning(disable:4459)
 	typedef RealT real_t;
 	//typedef nntl_tests::NN_base_params<real_t, nntl::inspector::GradCheck<real_t>> ArchPrms_t;
@@ -436,7 +436,7 @@ void run_gc4lpho(const train_data<RealT>& td)noexcept {
 
 	STDCOUTL(::std::endl << "***** Checking with bAddFeatureNotPresent=" << bAddFeatureNotPres << ::std::endl);
 
-	/*nntl::train_data<real_t> td;
+	/*nntl::inmem_train_data<real_t> td;
 	{
 	typedef typename ArchPrms_t::DefInterfaceNoInsp_t::iMath_t iMath_t;
 	typedef typename ArchPrms_t::DefInterfaceNoInsp_t::iRng_t iRng_t;
@@ -456,7 +456,7 @@ void run_gc4lpho(const train_data<RealT>& td)noexcept {
 	gradcheck_settings<real_t> ngcSetts(true, false);
 	ngcSetts.evalSetts.bIgnoreZerodLdWInUndelyingLayer = true;
 	ngcSetts.onlineBatchSize = 50;//batch must be big enough to minimize probability of the whole gate==0
-	ngcSetts.evalSetts.dLdW_setts.relErrFailThrsh = real_t(5e-4);
+	ngcSetts.evalSetts.dLdW_setts.relErrFailThrsh = real_t(6e-4);
 	ngcSetts.evalSetts.dLdW_setts.percOfZeros = 10;
 	ngcSetts.evalSetts.dLdA_setts.percOfZeros = 90;
 
@@ -474,7 +474,7 @@ TEST(TestLayerPackHorizontalOptional, GradCheck) {
 	typedef double real_t;
 #pragma warning(default:4459)
 
-	nntl::train_data<real_t> td;
+	nntl::inmem_train_data<real_t> td;
 	readTd(td);
 
 	run_gc4lpho<real_t, false>(td);

@@ -76,9 +76,9 @@ namespace _impl {
 
 		mtx_size_t get_activations_size()const noexcept { return m_activations.size(); }
 
-		bool is_activations_shared()const noexcept {
-			return m_activations.bDontManageStorage();
-		}
+		bool is_activations_valid()const noexcept { return m_bActivationsValid; }
+
+		bool is_activations_shared()const noexcept { return m_activations.bDontManageStorage(); }
 
 		//////////////////////////////////////////////////////////////////////////
 		ErrorCode init(_layer_init_data_t& lid, real_t* pNewActivationStorage)noexcept {

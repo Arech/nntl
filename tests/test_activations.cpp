@@ -53,7 +53,7 @@ TEST(TestActivations, Linear) {
 	typedef math::smatrix<real_t> realmtx_t;
 	typedef nntl_supp::binfile reader_t;
 
-	train_data<real_t> td;
+	inmem_train_data<real_t> td;
 	reader_t reader;
 
 	STDCOUTL("Reading datafile '" << MNIST_FILE << "'...");
@@ -73,7 +73,7 @@ TEST(TestActivations, Linear) {
 
 	auto lp = make_layers(inp, fcl, fcl2, outp);
 
-	nnet_train_opts<> opts(epochs);
+	nnet_train_opts<real_t> opts(epochs);
 	opts.batchSize(100);
 	auto nn = make_nnet(lp);
 	auto ec = nn.train(td, opts);
@@ -95,7 +95,7 @@ struct GC_Activ_Linear_base_params : public nntl_tests::NN_base_params<RealT, nn
 	typedef outputActivT myOutputActivation;
 
 	~GC_Activ_Linear_base_params()noexcept {}
-	GC_Activ_Linear_base_params(const nntl::train_data<real_t>& td)noexcept
+	GC_Activ_Linear_base_params(const nntl::inmem_train_data<real_t>& td)noexcept
 		: nntl_tests::NN_base_params<RealT, nntl::inspector::GradCheck<RealT>>(td) {}
 };
 
@@ -105,7 +105,7 @@ TEST(TestActivations, GradCheck_Linear_quadratic) {
 	typedef GC_Activ_Linear_base_params<real_t, nntl::activation::linear_quad_loss<real_t, weights_init::SNNInit, true>> ArchPrms_t;
 #pragma warning(default:4459)
 
-	nntl::train_data<real_t> td;
+	nntl::inmem_train_data<real_t> td;
 	readTd(td);
 
 	ArchPrms_t Prms(td);
@@ -127,7 +127,7 @@ TEST(TestActivations, GradCheck_Linear_quadWeighted) {
 		, nntl::activation::linear_output<nntl::activation::Linear_Loss_quadWeighted_FP<real_t>>> ArchPrms_t;
 #pragma warning(default:4459)
 
-	nntl::train_data<real_t> td;
+	nntl::inmem_train_data<real_t> td;
 	readTd(td);
 
 	ArchPrms_t Prms(td);

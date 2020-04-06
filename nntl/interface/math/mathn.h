@@ -313,6 +313,7 @@ namespace math {
 		//binarize elements of real-valued matrix according to their relaion to frac into other matrix
 		template<typename DestContainerT>
 		void ewBinarize(DestContainerT& Dest, const realmtx_t& A, const real_t frac)noexcept {
+			NNTL_ASSERT(Numel(Dest) == A.numel_no_bias());
 			if (A.numel_no_bias() < Thresholds_t::ewBinarize) {
 				get_self().ewBinarize_st(Dest, A, frac);
 			} else get_self().ewBinarize_mt(Dest, A, frac);
@@ -321,6 +322,7 @@ namespace math {
 		static void _iewBinarize_st(BaseDestT*const pD, const realmtx_t& A, const real_t frac, const elms_range& er)noexcept {
 			const auto pA = A.data();
 			const auto ee = er.elmEnd;
+			//#strictAliasingViolation here if BaseDestT is char?
 			for (numel_cnt_t i = er.elmBegin; i < ee; ++i)  pD[i] = pA[i] > frac ? BaseDestT(1.0) : BaseDestT(0.0);
 			/*auto pA = A.data();
 			const auto pAE = pA + er.elmEnd;
@@ -333,23 +335,117 @@ namespace math {
 		}
 		template<typename DestContainerT>
 		static void ewBinarize_st(DestContainerT& Dest, const realmtx_t& A, const real_t frac, const elms_range*const pER = nullptr)noexcept {
-			NNTL_ASSERT(IsSameSizeNumel(A, Dest));
+			//NNTL_ASSERT(IsSameSizeNumel(A, Dest));
+			NNTL_ASSERT(Numel(Dest) == A.numel_no_bias());
 			_iewBinarize_st(Dest.data(), A, frac, pER ? *pER : elms_range(0, A.numel_no_bias()));
 		}
 		template<typename DestContainerT>
 		void ewBinarize_mt(DestContainerT& Dest, const realmtx_t& A, const real_t frac)noexcept {
-			NNTL_ASSERT(IsSameSizeNumel(A, Dest));
+			//NNTL_ASSERT(IsSameSizeNumel(A, Dest));
+			NNTL_ASSERT(Numel(Dest) == A.numel_no_bias());
 			m_threads.run([pD = Dest.data(), &A, frac, this](const par_range_t& pr) {
 				get_self()._iewBinarize_st(pD, A, frac, elms_range(pr));
 			}, A.numel_no_bias());
 		}
 
 		//////////////////////////////////////////////////////////////////////////
+		// same as ewBinarize() but designed to fill big destination matrix using small source batch matrices.
+		// i.e. it does ewBinarize() for src into a part of dest matrix, starting from row startingDestRow to startingDestRow + src.rows()
+		// Biases, if any, are ignored
+		template<typename destVT, typename srcVT>
+		void ewBinarizeBatch(smatrix<destVT>& dest, const vec_len_t startingDestRow, const smatrix<srcVT>& src, const real_t frac)noexcept {
+			if (src.numel_no_bias() < Thresholds_t::ewBinarizeBatch) {
+				get_self().ewBinarizeBatch_st(dest, startingDestRow, src, frac);
+			} else get_self().ewBinarizeBatch_mt(dest, startingDestRow, src, frac);
+		}
+		template<typename destVT, typename srcVT>
+		static void ewBinarizeBatch_st(smatrix<destVT>& dest, const vec_len_t startingDestRow, const smatrix<srcVT>& src, const real_t frac
+			, const elms_range*const pER = nullptr)noexcept
+		{
+			NNTL_ASSERT(dest.cols_no_bias() == src.cols_no_bias());
+			NNTL_ASSERT(startingDestRow >= 0);
+			NNTL_ASSERT(dest.rows() >= startingDestRow + src.rows());
+			_iewBinarizeBatch_st(dest, startingDestRow, src, frac, pER ? *pER : elms_range(0, src.numel_no_bias()));
+		}
+		template<typename destVT, typename srcVT>
+		void ewBinarizeBatch_mt(smatrix<destVT>& dest, const vec_len_t startingDestRow, const smatrix<srcVT>& src, const real_t frac)noexcept {
+			NNTL_ASSERT(dest.cols_no_bias() == src.cols_no_bias());
+			NNTL_ASSERT(startingDestRow >= 0);
+			NNTL_ASSERT(dest.rows() >= startingDestRow + src.rows());
+			m_threads.run([&dest, &src, startingDestRow, frac, this](const par_range_t& pr) {
+				get_self()._iewBinarizeBatch_st(dest, startingDestRow, src, frac, elms_range(pr));
+			}, src.numel_no_bias());
+		}
+		template<typename destVT, typename srcVT>
+		static void _iewBinarizeBatch_st(smatrix<destVT>& dest, const vec_len_t startingDestRow, const smatrix<srcVT>& src
+			, const real_t frac, const elms_range& srcEr)noexcept
+		{
+			NNTL_ASSERT(dest.cols_no_bias() == src.cols_no_bias());
+			NNTL_ASSERT(startingDestRow >= 0);
+			NNTL_ASSERT(dest.rows() >= startingDestRow + src.rows());
+
+			const numel_cnt_t destNextColOfs = dest.rows() - src.rows();
+			const numel_cnt_t srcRows = src.rows();
+
+			//calculating <row,col> coordinates of srcEr
+			auto _dr = ::std::div(srcEr.elmBegin, srcRows);
+			const vec_len_t srcBegCol = static_cast<vec_len_t>(_dr.quot), srcBegRow = static_cast<vec_len_t>(_dr.rem);
+			NNTL_ASSERT(srcBegCol < src.cols_no_bias() && srcBegRow < srcRows);
+			_dr = ::std::div(srcEr.elmEnd, srcRows);
+			const vec_len_t srcEndCol = static_cast<vec_len_t>(_dr.quot);
+			const numel_cnt_t srcEndRow = _dr.rem;
+			NNTL_ASSERT(srcEndCol <= src.cols_no_bias() && srcEndRow < srcRows);
+
+			NNTL_ASSERT(startingDestRow + srcBegRow <= dest.rows());
+			auto* pD = dest.colDataAsVec(srcBegCol) + startingDestRow + srcBegRow;
+			const auto* pS = src.colDataAsVec(srcBegCol) + srcBegRow;
+
+			{
+				//first col srcBegCol from srcBegRow till end
+				const numel_cnt_t _totR1 = (srcBegCol == srcEndCol ? srcEndRow : srcRows) - srcBegRow;
+				NNTL_ASSERT(_totR1 >= 0);
+				//#strictAliasingViolation here if destVT is char?
+				const auto _pD = pD;
+				const auto _pS = pS;
+				NNTL_ASSERT(_pD + _totR1 <= dest.end_no_bias());
+				NNTL_ASSERT(_pS + _totR1 <= src.end_no_bias());
+				for (numel_cnt_t r = 0; r < _totR1; ++r) {
+					_pD[r] = _pS[r] > frac ? destVT(1.0) : destVT(0.0);
+				}
+				pD += _totR1 + destNextColOfs; pS += _totR1;
+			}
+
+			//intermediate columns
+			for (numel_cnt_t c = srcBegCol + 1; c < srcEndCol; ++c) {
+				const auto _pD = pD;
+				const auto _pS = pS;
+				NNTL_ASSERT(_pD + srcRows <= dest.end_no_bias());
+				NNTL_ASSERT(_pS + srcRows <= src.end_no_bias());
+				for (numel_cnt_t r = 0; r < srcRows; ++r) {
+					_pD[r] = _pS[r] > frac ? destVT(1.0) : destVT(0.0);
+				}
+				pD += srcRows + destNextColOfs; pS += srcRows;
+			}
+
+			//last col
+			if (srcBegCol != srcEndCol) {
+				const auto _pD = pD;
+				const auto _pS = pS;
+				NNTL_ASSERT(0 == srcEndRow || _pD + srcEndRow <= dest.end_no_bias());
+				NNTL_ASSERT(0 == srcEndRow || _pS + srcEndRow <= src.end_no_bias());
+				for (numel_cnt_t r = 0; r < srcEndRow; ++r) {
+					_pD[r] = _pS[r] > frac ? destVT(1.0) : destVT(0.0);
+				}
+			}			
+		}
+
+
+		//////////////////////////////////////////////////////////////////////////
 		//////////////////////////////////////////////////////////////////////////
 		//extract rows with indexes specified by Contnr ridxs into dest.
 		template<typename SeqIt>
 		void mExtractRows(const realmtx_t& src, const SeqIt& ridxsItBegin, realmtx_t& dest)noexcept {
-			if (dest.cols()<2 || dest.numel(src.hasHoleyBiases()) < Thresholds_t::mExtractRows) {
+			if (dest.cols_no_bias() < 2 || dest.numel_no_bias() < Thresholds_t::mExtractRows) {
 				get_self().mExtractRows_seqWrite_st(src, ridxsItBegin, dest);
 			} else get_self().mExtractRows_seqWrite_mt(src, ridxsItBegin, dest);
 		}
@@ -371,13 +467,13 @@ namespace math {
 			// It don't. I've just tried. No significant change on big datasets.
 			// Probably a better idea is to transpose the source data to read rows sequentially. Need to implement and test.
 
-			if (src.emulatesBiases()) {
+			/*if (src.emulatesBiases()) {
 				dest.holey_biases(src.isHoleyBiases());
-			}
+			}*/
 
 			auto pSrc = src.data();
 			auto pDest = dest.data() + er.elmBegin;
-			const auto pDestEnd = pDest + dest.numel(src.hasHoleyBiases());//we're leaving bias column intact if it's a normal biases
+			const auto pDestEnd = pDest + dest.numel_no_bias();//we're leaving bias column intact
 			SeqIt pThreadRI = ridxsItBegin + er.elmBegin;
 
 			while (pDest != pDestEnd) {
@@ -546,6 +642,76 @@ namespace math {
 					get_self()._imFillRowsByMask_st(src, pMask, dest, elms_range(r));
 				}, dest.cols_no_bias());
 			}
+		}
+
+		//////////////////////////////////////////////////////////////////////////
+		//////////////////////////////////////////////////////////////////////////
+		// Extract whole submatrix dest from source matrix src starting at rowOfs.
+		template<typename T>
+		void mExtractRowsSeq(const smatrix<T>& src, const vec_len_t rowOfs, smatrix<T>& dest)noexcept {
+			NNTL_ASSERT(!(src.emulatesBiases() ^ dest.emulatesBiases()));
+			if (dest.cols_no_bias() < 2 || dest.numel_no_bias() < Thresholds_t::mExtractRowsSeq) {
+				get_self().mExtractRowsSeq_st(src, rowOfs, dest);
+			} else get_self().mExtractRowsSeq_mt(src, rowOfs, dest);
+		}
+		
+		template<typename T>
+		void mExtractRowsSeq_st(const smatrix<T>& src, const vec_len_t rowOfs, smatrix<T>& dest, const elms_range*const pCR = nullptr)noexcept {
+			NNTL_ASSERT(!(src.emulatesBiases() ^ dest.emulatesBiases()));
+			NNTL_ASSERT(!src.emulatesBiases() || src.test_biases_strict());//if there're biases, they can't be holey
+			NNTL_ASSERT(!dest.emulatesBiases() || dest.test_biases_strict());
+			/*if (src.emulatesBiases()) {
+				dest.holey_biases(src.isHoleyBiases());
+			}*/
+			get_self()._imExtractRowsSeq_st(src, rowOfs, dest, pCR ? *pCR : elms_range(0, dest.cols_no_bias()));
+
+			NNTL_ASSERT(!src.emulatesBiases() || src.test_biases_strict());//if there're biases, they can't be holey
+			NNTL_ASSERT(!dest.emulatesBiases() || dest.test_biases_strict());
+		}
+
+		template<typename T>
+		static void _imExtractRowsSeq_st(const smatrix<T>& src, const vec_len_t rowOfs, smatrix<T>& dest, const elms_range& CR)noexcept {
+			NNTL_ASSERT(!dest.empty() && !src.empty());
+			src.assert_storage_does_not_intersect(dest);
+
+			NNTL_ASSERT(!(src.emulatesBiases() ^ dest.emulatesBiases()));
+			NNTL_ASSERT(src.cols() == dest.cols());
+			NNTL_ASSERT(dest.rows() + rowOfs <= src.rows());
+			NNTL_ASSERT(CR.elmBegin >= 0 && CR.elmEnd <= dest.cols_no_bias());
+
+			const vec_len_t colBeg = static_cast<vec_len_t>(CR.elmBegin);
+			auto* pD = dest.colDataAsVec(colBeg);
+			auto* pS = src.colDataAsVec(colBeg) + rowOfs;
+			const numel_cnt_t destRows = dest.rows(), srcRows = src.rows(), totCols = CR.totalElements();
+			const size_t bytesToCopy = static_cast<size_t>(destRows) * sizeof(T);
+
+			for (numel_cnt_t c = 0; c < totCols; ++c) {
+				NNTL_ASSERT(pD <= dest.end_no_bias());
+				NNTL_ASSERT(pS <= src.end_no_bias() + rowOfs);
+
+				::std::memcpy(pD, pS, bytesToCopy);
+				pD += destRows;
+				pS += srcRows;
+			}
+		}
+		template<typename T>
+		void mExtractRowsSeq_mt(const smatrix<T>& src, const vec_len_t rowOfs, smatrix<T>& dest)noexcept {
+			NNTL_ASSERT(!(src.emulatesBiases() ^ dest.emulatesBiases()));
+			NNTL_ASSERT(src.cols() == dest.cols());
+			NNTL_ASSERT(dest.rows() + rowOfs <= src.rows());
+			NNTL_ASSERT(!src.emulatesBiases() || src.test_biases_strict());//if there're biases, they can't be holey
+			NNTL_ASSERT(!dest.emulatesBiases() || dest.test_biases_strict());
+
+			/*if (src.emulatesBiases()) {
+				dest.holey_biases(src.isHoleyBiases());
+			}*/
+
+			m_threads.run([&src, rowOfs, &dest, this](const par_range_t& r) {
+				get_self()._imExtractRowsSeq_st(src, rowOfs, dest, elms_range(r));
+			}, dest.cols_no_bias());
+
+			NNTL_ASSERT(!src.emulatesBiases() || src.test_biases_strict());//if there're biases, they can't be holey
+			NNTL_ASSERT(!dest.emulatesBiases() || dest.test_biases_strict());
 		}
 
 		//////////////////////////////////////////////////////////////////////////
@@ -738,21 +904,23 @@ namespace math {
 
 		//////////////////////////////////////////////////////////////////////////
 		//returns how many elements in two vectors has exactly the same value. Vectors must have the same length
+		// Note that ADataOfs should only be used if Contnr is a 1D container (::std::vector, for example, or a matrix with only 1 column)
 		template<typename Contnr>
-		numel_cnt_t vCountSame(const Contnr& A, const Contnr& B)noexcept {
-			return get_self().vCountSame_st_naive(A, B);
+		numel_cnt_t vCountSame(const Contnr& A, const Contnr& B, const vec_len_t ADataOfs = 0)noexcept {
+			return get_self().vCountSame_st_naive(A, B, ADataOfs);
 			// 			if (A.size()<=50000) {
 			// 				return vCountSame_st_naive(A, B);
 			// 			}else return vCountSame_mt_naive(A, B);
 		}
 		template<typename Contnr>
-		static numel_cnt_t vCountSame_st_naive(const Contnr& A, const Contnr& B)noexcept {
-			NNTL_ASSERT(A.size() == B.size());
+		static numel_cnt_t vCountSame_st_naive(const Contnr& A, const Contnr& B, const vec_len_t ADataOfs = 0)noexcept {
+			NNTL_ASSERT(ADataOfs >= 0);
+			NNTL_ASSERT(Numel(A) - ADataOfs >= Numel(B));
 
-			const auto pA = A.data();
+			const auto pA = A.data() + ADataOfs;
 			const auto pB = B.data();
 			numel_cnt_t ret = 0;
-			const auto dataCnt = Numel(A);
+			const auto dataCnt = Numel(B);
 			for (numel_cnt_t i = 0; i < dataCnt; ++i) {
 				//if (A[i] == B[i]) ret++;
 				//ret += A[i] == B[i] ? 1 : 0;
@@ -761,12 +929,13 @@ namespace math {
 			return ret;
 		}
 		template<typename Contnr>
-		numel_cnt_t vCountSame_mt_naive(const Contnr& A, const Contnr& B)noexcept {
-			NNTL_ASSERT(A.size() == B.size());
+		numel_cnt_t vCountSame_mt_naive(const Contnr& A, const Contnr& B, const vec_len_t ADataOfs = 0)noexcept {
+			NNTL_ASSERT(ADataOfs >= 0);
+			NNTL_ASSERT(Numel(A) - ADataOfs >= Numel(B));
 
-			auto pAc = A.data();
+			auto pAc = A.data() + ADataOfs;
 			auto pBc = B.data();
-			real_t ret = m_threads.reduce([pAc, pBc](const par_range_t& r)->real_t {
+			numel_cnt_t ret = m_threads.reduce([pAc, pBc](const par_range_t& r)->reduce_data_t {
 				const auto ofs = r.offset();
 				numel_cnt_t ret = 0;
 				const auto pA = &pAc[ofs];
@@ -776,11 +945,45 @@ namespace math {
 					//if (pA[i] == pB[i]) ret++;
 					ret += numel_cnt_t(pA[i] == pB[i]);
 				}
-				return static_cast<real_t>(ret);
-			}, _vec_sum<false, real_t>, Numel(A));
-
-			return static_cast<numel_cnt_t>(ret);
+				return converter_reduce_data_tpl<numel_cnt_t>::to(ret);
+			}, _reduce_vec_sum<numel_cnt_t>, Numel(B));
+			return ret;
 		}
+		//////////////////////////////////////////////////////////////////////////
+		//vCountSame() that compares only a part of bigger matrix with a smaller matrix
+		template<typename TA, typename TB>
+		numel_cnt_t vCountSameBatch(const smatrix<TA>& A, const vec_len_t rOfsA, const smatrix<TB>& B)noexcept {
+			return get_self().vCountSameBatch_st_naive(A, rOfsA, B);
+			// 			if (A.size()<=50000) {
+			// 				return vCountSame_st_naive(A, B);
+			// 			}else return vCountSame_mt_naive(A, B);
+		}
+		template<typename TA, typename TB>
+		static numel_cnt_t vCountSameBatch_st_naive(const smatrix<TA>& A, const vec_len_t rOfsA, const smatrix<TB>& B)noexcept {
+			NNTL_ASSERT(A.cols() == B.cols() && B.rows() + rOfsA <= A.rows());
+
+			const TA* pA = A.data() + rOfsA;
+			const TB* pB = B.data();
+			const numel_cnt_t aRows = A.rows();
+			const numel_cnt_t bRows = B.rows();
+			numel_cnt_t ret = 0;
+
+			const auto cls = B.cols();
+			for (vec_len_t c = 0; c < cls; ++c) {
+				const auto _pA = pA;
+				NNTL_ASSERT(_pA + aRows <= A.end() + rOfsA);
+				const auto _pB = pB;
+				NNTL_ASSERT(_pB + bRows <= B.end());
+				for (numel_cnt_t r = 0; r < bRows; ++r) {
+					ret += numel_cnt_t(_pA[r] == _pB[r]);
+				}
+				pA += aRows;
+				pB += bRows;
+			}
+			return ret;
+		}
+		//#TODO: probably should implement multithreaded version (same as ewBinarizeBatch()) 
+
 
 		//////////////////////////////////////////////////////////////////////////
 		//clamps vector values into range
@@ -1814,13 +2017,13 @@ namespace math {
 			NNTL_ASSERT(!A.empty());
 
 			const auto pA = A.data();
-			return m_threads.reduce([pA](const par_range_t& r)->real_t {
+			return m_threads.reduce([pA](const par_range_t& r)->reduce_data_t {
 				real_t ret(0.0);
 				auto p = pA + r.offset();
 				const auto pE = p + r.cnt();
 				while (p != pE) ret += ::std::abs(*p++);
-				return ret;
-			}, _vec_sum<false, real_t>, A.numel());
+				return converter_reduce_data_tpl<real_t>::to(ret);
+			}, _reduce_vec_sum<real_t>, A.numel());
 		}
 
 		//////////////////////////////////////////////////////////////////////////
@@ -2092,9 +2295,11 @@ namespace math {
 		template<typename WlT>
 		real_t compute_loss_mt(const smatrix<typename WlT::real_t>& activations, const smatrix<typename WlT::real_t>& data_y)noexcept {
 			typedef typename WlT::real_t real_t;
-			const real_t ql = m_threads.reduce([&activations, &data_y](const par_range_t& r)->real_t {
-				return _icompute_loss_st<WlT>(activations, data_y, elms_range(r));
-			}, _vec_sum<false, real_t>, activations.numel());
+			const real_t ql = m_threads.reduce([&activations, &data_y](const par_range_t& r)->reduce_data_t {
+				return converter_reduce_data_tpl<real_t>::to(
+					_icompute_loss_st<WlT>(activations, data_y, elms_range(r))
+				);
+			}, _reduce_vec_sum<real_t>, activations.numel());
 			return WlT::normalize(ql, activations.rows());
 		}
 
@@ -3398,9 +3603,11 @@ namespace math {
 			return _iloss_quadratic_st_naive(activations, data_y, pER ? *pER : elms_range(activations)) / (2 /** activations.rows()*/);
 		}
 		real_t loss_quadratic_mt_naive(const realmtx_t& activations, const realmtx_t& data_y)noexcept {
-			const real_t ql = m_threads.reduce([&activations, &data_y](const par_range_t& r)->real_t {
-				return _iloss_quadratic_st_naive(activations, data_y, elms_range(r));
-			}, _vec_sum<false, real_t>, activations.numel());
+			const real_t ql = m_threads.reduce([&activations, &data_y](const par_range_t& r)->reduce_data_t {
+				return converter_reduce_data_tpl<real_t>::to(
+					_iloss_quadratic_st_naive(activations, data_y, elms_range(r))
+				);
+			}, _reduce_vec_sum<real_t>, activations.numel());
 			return ql / (2 /** activations.rows()*/);
 		}
 
@@ -3434,9 +3641,11 @@ namespace math {
 			return _iloss_quadratic_st_naive_ns(activations, data_y, pER ? *pER : elms_range(activations)) / (2 /** activations.rows()*/);
 		}
 		real_t loss_quadratic_mt_naive_ns(const realmtx_t& activations, const realmtx_t& data_y)noexcept {
-			real_t ql = m_threads.reduce([&activations, &data_y](const par_range_t& r)->real_t {
-				return _iloss_quadratic_st_naive_ns(activations, data_y, elms_range(r));
-			}, _vec_sum<true, real_t>, activations.numel());
+			const real_t ql = m_threads.reduce([&activations, &data_y](const par_range_t& r)->reduce_data_t {
+				return converter_reduce_data_tpl<real_t>::to(
+					_iloss_quadratic_st_naive_ns(activations, data_y, elms_range(r))
+				);
+			}, _reduce_vec_sum<real_t, true>, activations.numel());
 			return ql / (2 /** activations.rows()*/);
 		}
 
@@ -3478,9 +3687,11 @@ namespace math {
 			return ql;
 		}
 		real_t loss_xentropy_mt(const realmtx_t& activations, const realmtx_t& data_y)noexcept {
-			return -m_threads.reduce([&activations, &data_y, this](const par_range_t& pr)->real_t {
-				return get_self()._iloss_xentropy_st(activations, data_y, elms_range(pr));
-			}, _vec_sum<false, real_t>, activations.numel()) /*/ activations.rows()*/;
+			return -m_threads.reduce([&activations, &data_y, this](const par_range_t& pr)->reduce_data_t {
+				return converter_reduce_data_tpl<real_t>::to(
+					get_self()._iloss_xentropy_st(activations, data_y, elms_range(pr))
+				);
+			}, _reduce_vec_sum<real_t>, activations.numel()) /*/ activations.rows()*/;
 		}
 		//////////////////////////////////////////////////////////////////////////
 		real_t loss_xentropy_ns(const realmtx_t& activations, const realmtx_t& data_y)noexcept {
@@ -3522,9 +3733,11 @@ namespace math {
 			return sum;
 		}
 		real_t loss_xentropy_ns_mt(const realmtx_t& activations, const realmtx_t& data_y)noexcept {
-			return -m_threads.reduce([&activations, &data_y, this](const par_range_t& pr)->real_t {
-				return get_self()._iloss_xentropy_ns_st(activations, data_y, elms_range(pr));
-			}, _vec_sum<true, real_t>, activations.numel()) /*/ activations.rows()*/;
+			return -m_threads.reduce([&activations, &data_y, this](const par_range_t& pr)->reduce_data_t {
+				return converter_reduce_data_tpl<real_t>::to(
+					get_self()._iloss_xentropy_ns_st(activations, data_y, elms_range(pr))
+				);
+			}, _reduce_vec_sum<real_t, true>, activations.numel()) /*/ activations.rows()*/;
 		}
 
 
@@ -3558,9 +3771,11 @@ namespace math {
 		real_t loss_softmax_xentropy_mt(const realmtx_t& activations, const realmtx_t& data_y)noexcept {
 			NNTL_ASSERT(!activations.empty() && !data_y.empty() && data_y.size() == activations.size());
 			const auto pA = activations.data(), pY = data_y.data();
-			return m_threads.reduce([pA, pY](const par_range_t& pr)->real_t {
-				return _iloss_softmax_xentropy_sum_st(pA, pY, elms_range(pr));
-			}, _vec_sum<false, real_t>, activations.numel()) /*/ activations.rows()*/;
+			return m_threads.reduce([pA, pY](const par_range_t& pr)->reduce_data_t {
+				return converter_reduce_data_tpl<real_t>::to(
+					_iloss_softmax_xentropy_sum_st(pA, pY, elms_range(pr))
+				);
+			}, _reduce_vec_sum<real_t>, activations.numel()) /*/ activations.rows()*/;
 		}
 
 

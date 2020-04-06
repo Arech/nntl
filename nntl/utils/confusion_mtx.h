@@ -56,7 +56,7 @@ namespace nntl {
 			::std::array<vec_len_t, _iCntTotal> m_asArray;
 
 		public:
-			void update(const bool& bGroundTrue, const bool& bModelPredictsTrue)noexcept {
+			void update(const bool bGroundTrue, const bool bModelPredictsTrue)noexcept {
 				++m_asArray[bModelPredictsTrue * 2 + bGroundTrue];
 			}
 
@@ -122,7 +122,7 @@ namespace nntl {
 			}
 			//beta>1 weighs recall higher than precision
 			//beta<1 weighs recall lower than precision
-			real_t FBetaScore(const real_t& beta)const noexcept {
+			real_t FBetaScore(const real_t beta)const noexcept {
 				const auto b2 = beta*beta;
 				const auto tp2 = (real_t(1.) + b2) * TP();
 				return static_cast<real_t>(tp2) / (tp2 + FP() + b2*FN());

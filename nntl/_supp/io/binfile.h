@@ -51,11 +51,21 @@ namespace nntl_supp {
 #pragma pack(push, 1)
 		struct HEADER {
 			DWORD dwSignature;
-			WORD wFieldsCount;
+			WORD wVersionNum; //format version number
+			WORD wFieldsCount;//total count of all fields besides HEADER
+
+			WORD wSeqClassCount;//if non zero, then expecting file to contain a set of sequences belonging to this amount of classes
+			//there must be this count of CLASS_ENTRY structures immediately after HEADER
 
 			static constexpr DWORD sSignature = 'ltnn';
+			static constexpr WORD sLatestVersion = 0;
 		};
-		static_assert(6 == sizeof(HEADER), "WTF??");
+		static_assert(10 == sizeof(HEADER), "WTF??");
+
+		struct CLASS_ENTRY {
+			WORD wTotalCountOfDifferentSequences;
+		};
+		static_assert(2 == sizeof(CLASS_ENTRY), "WTF??");
 
 		struct FIELD_ENTRY{
 			static constexpr unsigned sFieldNameTotalLength = 15;
@@ -81,8 +91,12 @@ namespace nntl_supp {
 			Success = 0,
 			FailedToOpenFile,
 			FailedToReadHeader,
+			FailedToReadSeqClassHeader,
 			WrongHeaderSignature,
+			UnsupportedFormatVersion,
 			WrongElementsCount,
+			InvalidSeqClassCount,
+			InvalidSeqClassElement,
 			FailedToReadFieldEntry,
 			UnsupportedIncorrectDataType,
 			FailedToAllocateMemoryForDataConvertion,
@@ -93,6 +107,12 @@ namespace nntl_supp {
 			FieldHasBeenRead,
 			FailedToMakeTDOutOfReadData,
 			
+			FailedToPreallocateSeqData,
+			FailedToChangeFilePtr,
+			FailedToParseClassId,
+			IncoherentSeqClassCount,
+			IncoherentMetaAndContent,
+
 			MemoryAllocationFailed
 		};
 
@@ -102,8 +122,12 @@ namespace nntl_supp {
 			case Success: return NNTL_STRING("No error / success.");
 			case FailedToOpenFile: return NNTL_STRING("Failed to open file.");
 			case FailedToReadHeader: return NNTL_STRING("Failed to read header.");
+			case FailedToReadSeqClassHeader: return NNTL_STRING("Failed to read CLASS_ENTRY.");
 			case WrongHeaderSignature: return NNTL_STRING("Wrong header signature.");
+			case UnsupportedFormatVersion: return NNTL_STRING("Unknown or unsupported format version.");
 			case WrongElementsCount: return NNTL_STRING("File contains unsupported elements count");
+			case InvalidSeqClassCount: return NNTL_STRING("Invalid sequence class count");
+			case InvalidSeqClassElement: return NNTL_STRING("Invalid sequence class element entry");
 			case FailedToReadFieldEntry: return NNTL_STRING("Failed to read field entry");
 			case UnsupportedIncorrectDataType:  return NNTL_STRING("Unsupported or incorrect data type");
 			case FailedToAllocateMemoryForDataConvertion: return NNTL_STRING("Failed to allocate memory necessary for data type convertion");
@@ -113,6 +137,12 @@ namespace nntl_supp {
 			case FieldHasBeenRead: return NNTL_STRING("Two fields with the same name found!");
 			case FailedToMakeTDOutOfReadData: return NNTL_STRING("Failed to assemble train_data out of read data. Probably not all necessary data have been read!");
 			
+			case FailedToPreallocateSeqData: return NNTL_STRING("Failed to preallocate sequence data");
+			case FailedToChangeFilePtr: return NNTL_STRING("Failed to change file pointer");
+			case FailedToParseClassId: return NNTL_STRING("Failed to parse class id");
+			case IncoherentSeqClassCount: return NNTL_STRING("Incoherent sequence class count");
+			case IncoherentMetaAndContent:return NNTL_STRING("Incoherent file header description and content");
+
 			case MemoryAllocationFailed: return NNTL_STRING("Not Enough Memory");
 
 			default: NNTL_ASSERT(!"WTF?"); return NNTL_STRING("Unknown code.");
@@ -123,16 +153,13 @@ namespace nntl_supp {
 
 	class binfile : public nntl::_has_last_error<_binfile_errs>, protected nntl::math::smatrix_td {
  	protected:
-// 		typedef nntl::train_data::realmtx_t realmtx_t;
-// 		typedef realmtx_t::value_type mtx_value_t;
-// 		typedef realmtx_t::vec_len_t vec_len_t;
-
 		typedef ::nntl::vec_len_t vec_len_t;
 		typedef ::nntl::numel_cnt_t numel_cnt_t;
 
-		template<typename T_> using smatrix = nntl::math::smatrix<T_>;
-		template<typename T_> using smatrix_deform = nntl::math::smatrix_deform<T_>;
-		template<typename T_> using train_data = nntl::train_data<T_>;
+		template<typename T_> using smatrix = ::nntl::math::smatrix<T_>;
+		template<typename T_> using smatrix_deform = ::nntl::math::smatrix_deform<T_>;
+		template<typename T_> using train_data = ::nntl::simple_train_data_stor<T_>;
+		template<typename T_> using seq_data = ::nntl::seq_data<T_>;
 
 	public:
 		~binfile()noexcept {}
@@ -142,10 +169,12 @@ namespace nntl_supp {
 		// If readInto_t == nntl::train_data, then all X data will be created with emulateBiases() feature and bMakeMtxBiased param will be ignored
 		template <typename readInto_t>
 		const ErrorCode read(const char* fname, readInto_t& dest) {
-			static_assert(::std::is_same<train_data<typename readInto_t::value_type>, readInto_t>::value
+			static_assert(
+				::std::is_base_of<train_data<typename readInto_t::value_type>, readInto_t>::value
+				|| ::std::is_same<seq_data<typename readInto_t::value_type>, readInto_t>::value
 				|| ::std::is_same<smatrix<typename readInto_t::value_type>, readInto_t>::value
 				|| ::std::is_same<smatrix_deform<typename readInto_t::value_type>, readInto_t>::value,
-				"Only nntl::train_data or nntl::math::smatrix or nntl::math::smatrix_deform is supported as readInto_t template parameter");
+				"Only ::nntl::_impl::simple_train_data_stor derived, or seq_data, math::smatrix or math::smatrix_deform is supported as readInto_t template parameter");
 
 			FILE* fp=nullptr;
 			if (fopen_s(&fp, fname, NNTL_STRING("rbS")) || nullptr == fp) return _set_last_error(ErrorCode::FailedToOpenFile);
@@ -156,18 +185,16 @@ namespace nntl_supp {
 				}
 			});
 
-			{
-				bin_file::HEADER hdr;
+			bin_file::HEADER hdr;
 
 #pragma warning(disable:28020)
-				//MSVC SAL goes "slightly" mad here
-				if (1 != fread_s(&hdr, sizeof(hdr), sizeof(hdr), 1, fp)) return _set_last_error(ErrorCode::FailedToReadHeader);
+			//MSVC SAL goes "slightly" mad here
+			if (1 != fread_s(&hdr, sizeof(hdr), sizeof(hdr), 1, fp)) return _set_last_error(ErrorCode::FailedToReadHeader);
 #pragma warning(default:28020)
-				if (hdr.sSignature != hdr.dwSignature) return _set_last_error(ErrorCode::WrongHeaderSignature);
-				if (!elements_count_correct<readInto_t>(hdr.wFieldsCount)) return _set_last_error(ErrorCode::WrongElementsCount);
-			}
+			if (hdr.sSignature != hdr.dwSignature) return _set_last_error(ErrorCode::WrongHeaderSignature);
+			if (hdr.sLatestVersion != hdr.wVersionNum) return _set_last_error(ErrorCode::UnsupportedFormatVersion);
 
-			return _read_into(fp, dest);
+			return _read_into(fp, dest, static_cast<int>(hdr.wFieldsCount), static_cast<int>(hdr.wSeqClassCount));
 		}
 
 	protected:
@@ -186,21 +213,75 @@ namespace nntl_supp {
 			if (0 == strcmp("test_y", sz)) return _root_members::test_y;
 			return _root_members::total_members;
 		}
+		//////////////////////////////////////////////////////////////////////////
+		template<typename T_>
+		ErrorCode _read_into(FILE* fp, seq_data<T_>& dest, const int totalFieldsCount, const int totalClassCount)noexcept {
+			if (totalFieldsCount <= totalClassCount) return _set_last_error(ErrorCode::WrongElementsCount);
 
-		/*template <typename readInto_t, typename T_= typename readInto_t::value_type>
-		const ErrorCode _read_into(FILE* fp, readInto_t& dest)noexcept {
-			static_assert(!"No function specialization for type readInto_t");
-		}*/
+			//reading count of sequences for each class (CLASS_ENTRY)
+			::std::vector<vec_len_t> clsSeqCnt(totalClassCount);
+			int totalElsToExpect = 0;
+			for (int i = 0; i < totalClassCount; ++i) {
+				bin_file::CLASS_ENTRY clsEntry;
+
+			#pragma warning(disable:28020)
+				//MSVC SAL goes "slightly" mad here
+				if (1 != fread_s(&clsEntry, sizeof(clsEntry), sizeof(clsEntry), 1, fp)) return _set_last_error(ErrorCode::FailedToReadSeqClassHeader);
+			#pragma warning(default:28020)
+				const auto sc = static_cast<vec_len_t>(clsEntry.wTotalCountOfDifferentSequences);
+				if (sc<=0) return _set_last_error(ErrorCode::InvalidSeqClassElement);
+				clsSeqCnt[i] = sc;
+				totalElsToExpect += static_cast<int>(sc);
+			}
+			if (totalElsToExpect + totalClassCount != totalFieldsCount)return _set_last_error(ErrorCode::WrongElementsCount);
+
+			if (! dest._prealloc_classes(::std::move(clsSeqCnt))) return _set_last_error(ErrorCode::FailedToPreallocateSeqData);
+
+			//reading FIELD_ENTRY and deciding a class of a sequence by parsing field name (to let store data in the file in any order)
+			for (int i = 0; i < totalElsToExpect; ++i) {
+				//reading entry name first (actually it's easier to read whole entry)
+				const auto fBeg = _ftelli64(fp);
+
+			#pragma warning(disable : 4815)
+				bin_file::FIELD_ENTRY fe;
+			#pragma warning(default : 4815)
+
+			#pragma warning(disable:28020)
+				//MSVC SAL goes "slightly" mad here
+				if (1 != fread_s(&fe, sizeof(fe), sizeof(fe), 1, fp)) return _set_last_error(ErrorCode::FailedToReadFieldEntry);
+			#pragma warning(default:28020)
+				fe.bDataType = 0;
+				
+				int classId;
+				if (1 != sscanf_s(fe.szName, "c%d", &classId) || classId < 1) return _set_last_error(ErrorCode::FailedToParseClassId);
+
+				auto pMtx4Seq = dest._next_mtx_for_class(static_cast<size_t>(classId - 1));
+				if (!pMtx4Seq) return _set_last_error(ErrorCode::IncoherentSeqClassCount);
+
+				//reading whole entry
+				if (0 != _fseeki64(fp, fBeg, SEEK_SET)) return _set_last_error(ErrorCode::FailedToChangeFilePtr);
+				
+				const auto ec = _read_field_entry(fp, *pMtx4Seq);
+				if (ErrorCode::Success != ec) return ec;
+			}
+
+			if (dest.empty()) return _set_last_error(ErrorCode::IncoherentMetaAndContent);
+
+			return ErrorCode::Success;
+		}
 
 		template<typename T_>
-		ErrorCode _read_into(FILE* fp, train_data<T_>& dest)noexcept {
+		ErrorCode _read_into(FILE* fp, train_data<T_>& dest, const int totalFieldsCount, const int totalClassCount)noexcept {
+			if (totalFieldsCount != total_members) return _set_last_error(ErrorCode::WrongElementsCount);
+			if (0 != totalClassCount) return _set_last_error(ErrorCode::InvalidSeqClassCount);
+
 			typedef smatrix_deform<T_> mtxdef_t;
 			mtxdef_t mtxs[total_members];
 
 			for (unsigned nel = 0; nel < _root_members::total_members; ++nel) {
 				mtxdef_t m;
 				_root_members fieldId;
-				const auto err = _read_field_entry(fp, m, fieldId, true);
+				const auto err = _read_field_entry(fp, m, &fieldId);
 				if (ErrorCode::Success != err) return err;
 				if (!mtxs[fieldId].empty())  return _set_last_error(ErrorCode::FieldHasBeenRead);
 				mtxs[fieldId] = ::std::move(m);
@@ -215,37 +296,38 @@ namespace nntl_supp {
 			return ErrorCode::Success;
 		}
 		template<typename T_>
-		ErrorCode _read_into(FILE* fp, smatrix<T_>& dest)noexcept {
+		ErrorCode _read_into(FILE* fp, smatrix<T_>& dest, const int totalFieldsCount, const int totalClassCount)noexcept {
 			NNTL_ASSERT(!dest.bDontManageStorage());
 			NNTL_ASSERT(dest.empty());
-
-			_root_members f;
-			return _read_field_entry(fp, dest, f, false);
+			if (totalFieldsCount != 1) return _set_last_error(ErrorCode::WrongElementsCount);
+			if (0 != totalClassCount) return _set_last_error(ErrorCode::InvalidSeqClassCount);
+			return _read_field_entry(fp, dest);
 		}
 
 		template<typename T_>
-		ErrorCode _read_into(FILE* fp, smatrix_deform<T_>& dest)noexcept {
+		ErrorCode _read_into(FILE* fp, smatrix_deform<T_>& dest, const int totalFieldsCount, const int totalClassCount)noexcept {
 			NNTL_ASSERT(!dest.bDontManageStorage());
 			NNTL_ASSERT(dest.empty());
-
-			_root_members f;
-			return _read_field_entry(fp, dest, f, false);
+			if (totalFieldsCount != 1) return _set_last_error(ErrorCode::WrongElementsCount);
+			if (0 != totalClassCount) return _set_last_error(ErrorCode::InvalidSeqClassCount);
+			return _read_field_entry(fp, dest);
 		}
 
 		template<typename T_>
-		ErrorCode _read_field_entry(FILE* fp, smatrix<T_>& m, _root_members& fieldId, const bool bReadTD = true)noexcept {
-			return _impl_read_field_entry(fp, m, fieldId, bReadTD);
+		ErrorCode _read_field_entry(FILE* fp, smatrix<T_>& m, _root_members* pTdFieldId = nullptr)noexcept {
+			return _impl_read_field_entry(fp, m, pTdFieldId);
 		}
 		template<typename T_>
-		ErrorCode _read_field_entry(FILE* fp, smatrix_deform<T_>& m, _root_members& fieldId, const bool bReadTD = true)noexcept {
-			const auto ec = _impl_read_field_entry(fp, m, fieldId, bReadTD);
+		ErrorCode _read_field_entry(FILE* fp, smatrix_deform<T_>& m, _root_members* pTdFieldId = nullptr)noexcept {
+			NNTL_ASSERT(m.empty());//must be empty or we will spoil it with update_on_hidden_resize()
+			const auto ec = _impl_read_field_entry(fp, m, pTdFieldId);
 			m.update_on_hidden_resize();
 			return ec;
 		}
 
 		//////////////////////////////////////////////////////////////////////////
 		template<typename T_>
-		ErrorCode _impl_read_field_entry(FILE* fp, smatrix<T_>& m, _root_members& fieldId, const bool bReadTD=true)noexcept{
+		ErrorCode _impl_read_field_entry(FILE* fp, smatrix<T_>& m, _root_members* pTdFieldId = nullptr)noexcept {
 			if (!m.empty()) return _set_last_error(ErrorCode::FieldHasBeenRead);
 #pragma warning(disable : 4815)
 			bin_file::FIELD_ENTRY fe;
@@ -262,15 +344,17 @@ namespace nntl_supp {
 			if (fe.dwRows <= 0 || fe.dwCols <= 0) return _set_last_error(ErrorCode::InvalidDataSize);
 
 			fe.bDataType = 0;
-			if (bReadTD) {
-				fieldId = _name2id(fe.szName);
+			if (pTdFieldId) {
+				const auto fieldId = _name2id(fe.szName);
+				*pTdFieldId = fieldId;
 				if(_root_members::total_members == fieldId) return _set_last_error(ErrorCode::UnknownFieldName);
 				if (_root_members::train_x == fieldId || _root_members::test_x == fieldId) {
 					m.will_emulate_biases();
 				} else m.dont_emulate_biases();
 			}
 
-			if (!m.resize(static_cast<vec_len_t>(fe.dwRows), static_cast<vec_len_t>(fe.dwCols))) return _set_last_error(ErrorCode::MemoryAllocationFailed);
+			if (!m.resize(static_cast<vec_len_t>(fe.dwRows), static_cast<vec_len_t>(fe.dwCols)))
+				return _set_last_error(ErrorCode::MemoryAllocationFailed);
 
 			void* pReadTo = m.data();
 			size_t readSize = m.byte_size_no_bias();
@@ -323,20 +407,6 @@ namespace nntl_supp {
 			auto pD = dest.data();
 			while (pSrc != pSrcE) *pD++ = static_cast<dest_value_type>(*pSrc++);
 		}*/
-
-		template <typename readInto_t>
-		typename ::std::enable_if_t< ::std::is_same<smatrix<typename readInto_t::value_type>, readInto_t>::value, bool> elements_count_correct(decltype(bin_file::HEADER::wFieldsCount) cnt)const noexcept {
-			return 1 == cnt;
-		}
-		template <typename readInto_t>
-		typename ::std::enable_if_t< ::std::is_same<train_data<typename readInto_t::value_type>, readInto_t>::value, bool> elements_count_correct(decltype(bin_file::HEADER::wFieldsCount) cnt)const noexcept {
-			return 4 == cnt;
-		}
-
-		//////////////////////////////////////////////////////////////////////////
-		//members
-	protected:
-
 
 	};
 

@@ -70,7 +70,7 @@ TEST(TestSelu, GradCheck_alphaDropout) {
 	typedef nntl_tests::NN_base_params<real_t, nntl::inspector::GradCheck<real_t>> ArchPrms_t;
 #pragma warning(default:4459)
 
-	nntl::train_data<real_t> td;
+	nntl::inmem_train_data<real_t> td;
 	readTd(td);
 
 	ArchPrms_t Prms(td);
@@ -142,8 +142,8 @@ protected:
 	}
 
 public:
-	void init_nnet(const size_t totalLayers, const size_t totalEpochs, const vec_len_t totalBatches)noexcept {
-		NNTL_UNREF(totalBatches); NNTL_UNREF(totalEpochs);
+	void init_nnet(const size_t totalLayers, const numel_cnt_t totalEpochs)noexcept {
+		NNTL_UNREF(totalEpochs);
 		m_lastLayerIdxToCheck = static_cast<layer_index_t>(totalLayers - 2);
 		m_layersStats.resize(totalLayers - 1);
 	}
@@ -192,7 +192,7 @@ public:
 };
 
 template<typename iRngT>
-void _test_selu_make_td(train_data< typename iRngT::real_t >& td, const vec_len_t tr_cnt, const neurons_count_t xwidth, iRngT& iR)noexcept
+void _test_selu_make_td(inmem_train_data< typename iRngT::real_t >& td, const vec_len_t tr_cnt, const neurons_count_t xwidth, iRngT& iR)noexcept
 {
 	typedef typename iRngT::real_t real_t;
 	typedef typename iRngT::realmtxdef_t realmtxdef_t;
@@ -253,14 +253,14 @@ void test_selu_distr(const size_t seedVal, const RealT dpa, const neurons_count_
 	auto lp = make_layers(inp, fcl, fcl2, fcl3, fcl4, outp);
 #endif
 
-	nnet_train_opts<training_observer_stdcout<eval_classification_binary_cached<real_t>>> opts(1);
+	nnet_train_opts<real_t, training_observer_stdcout<real_t, eval_classification_binary_cached<real_t>>> opts(1);
 	opts.batchSize(batchSize);
 
 	auto nn = make_nnet(lp);
 
 	nn.get_iRng().seed64(seedVal);
 
-	train_data<real_t> td;
+	inmem_train_data<real_t> td;
 	_test_selu_make_td(td, batchesCnt*batchSize, xwidth, nn.get_iRng());
 
 

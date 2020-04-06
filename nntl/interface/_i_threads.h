@@ -48,6 +48,35 @@ namespace threads {
 		typedef parallel_range<range_t> par_range_t;
 		//typedef typename par_range_t::thread_id_t thread_id_t;
 
+		// some ugly reduce() staff necessary to get rid of C++ UB that comes from pointer casting.
+		// See reduce() implementation for details
+		typedef ::std::uint64_t reduce_data_t;
+		static_assert(sizeof(real_t) <= sizeof(reduce_data_t), "");
+		static_assert(::std::alignment_of<real_t>::value <= ::std::alignment_of<reduce_data_t>::value, "");
+		
+		template<typename T>
+		struct converter_reduce_data_t {
+			typedef T type;
+
+			static_assert(::std::is_integral<T>::value || ::std::is_floating_point<T>::value, "");
+			static_assert(!::std::is_const<T>::value, "");
+			static_assert(sizeof(T) <= sizeof(reduce_data_t), "");
+			static_assert(::std::alignment_of<T>::value <= ::std::alignment_of<reduce_data_t>::value, "");
+
+			static reduce_data_t to(const type v)noexcept {
+				reduce_data_t r=0;
+				::std::memcpy(&r, &v, sizeof(type));
+				return r;
+			}
+			static type from(const reduce_data_t v)noexcept {
+				type r;
+				::std::memcpy(&r, &v, sizeof(type));
+				return r;
+			}
+		};
+
+		//////////////////////////////////////////////////////////////////////////
+
 		nntl_interface static thread_id_t workers_count()noexcept;
 		nntl_interface thread_id_t cur_workers_count()const noexcept; //non static faster version of workers_count()
 
@@ -63,8 +92,10 @@ namespace threads {
 		nntl_interface void run(Func&& F, const range_t cnt, const thread_id_t useNThreads = 0, thread_id_t* pThreadsUsed = nullptr) noexcept;
 
 		// useNThreads (if greater than 1 and less or equal to workers_count() specifies the number of threads to serve request.
+		// see workers::reduce() implementation for details
 		template<typename Func, typename FinalReduceFunc>
-		nntl_interface real_t reduce(Func&& FRed, FinalReduceFunc&& FRF, const range_t cnt, const thread_id_t useNThreads = 0) noexcept;
+		nntl_interface auto reduce(Func&& FRed, FinalReduceFunc&& FRF, const range_t cnt, const thread_id_t useNThreads = 0) noexcept
+			-> decltype(::std::forward<FinalReduceFunc>(FRF)(static_cast<const reduce_data_t*>(nullptr), range_t(0)));
 
 		/*moved to _threads_td
 		 *nntl_interface thread_id_t workers_count()noexcept;
@@ -76,6 +107,5 @@ namespace threads {
 
 		nntl_interface static constexpr char* name="_i_threads";
 	};
-
 }
 }

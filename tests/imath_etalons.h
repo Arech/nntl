@@ -50,21 +50,26 @@ namespace math_etalons {
 	}
 
 	template<typename T>
-	void ewBinarize_ip_ET(smtx<T>& A, const T frac)noexcept {
-		auto pA = A.data();
-		const auto pAE = pA + A.numel();
+	void ewBinarize_ip_ET(T* pA, const numel_cnt_t n, const T frac)noexcept {
+		const auto pAE = pA + n;
 		while (pA != pAE) {
 			const auto v = *pA;
 			*pA++ = v > frac ? T(1.0) : T(0.0);
 		}
 	}
 
+	template<typename T>
+	void ewBinarize_ip_ET(smtx<T>& A, const T frac)noexcept {
+		ewBinarize_ip_ET(A.data(), A.numel(), frac);
+	}
+
 
 	template<typename BaseDestT, typename T>
-	void ewBinarize_ET(nntl::math::smatrix<BaseDestT>& Dest, const smtx<T>& A, const T frac)noexcept {
+	void ewBinarize_ET(smtx<BaseDestT>& Dest, const smtx<T>& A, const T frac)noexcept {
+		NNTL_ASSERT(Dest.size_no_bias() == A.size_no_bias());
 		auto pA = A.data();
 		auto pD = Dest.data();
-		const auto pAE = pA + A.numel();
+		const auto pAE = pA + A.numel_no_bias();
 		while (pA != pAE) {
 			*pD++ = *pA++ > frac ? BaseDestT(1.0) : BaseDestT(0.0);
 		}
@@ -964,6 +969,34 @@ namespace math_etalons {
 			NNTL_ASSERT(g == T(1.) || g == T(0.));
 			const auto gc = T(1.) - g;
 			pGc[i] = gc;
+		}
+	}
+
+	template<typename T, typename SeqIt>
+	void mExtractRows_ET(const ::nntl::math::smatrix<T>& src, const SeqIt& ridxsItBegin, ::nntl::math::smatrix<T>& dest)noexcept {
+		NNTL_ASSERT(!dest.empty() && !src.empty());
+		src.assert_storage_does_not_intersect(dest);
+		const numel_cnt_t destRows = dest.rows(), srcRows = src.rows();
+		NNTL_ASSERT(dest.cols() == src.cols() && destRows <= srcRows && !(src.emulatesBiases() ^ dest.emulatesBiases()));
+
+		if (src.emulatesBiases()) {
+			dest.holey_biases(src.isHoleyBiases());
+		}
+
+		const auto nCols = src.cols();
+
+		for (numel_cnt_t dr = 0; dr < destRows; ++dr) {
+			const auto curSrcRow = static_cast<numel_cnt_t>(ridxsItBegin[dr]);
+			NNTL_ASSERT(curSrcRow < srcRows);
+			auto pS = src.data() + curSrcRow;
+			auto pD = dest.data() + dr;
+			for (vec_len_t c = 0; c < nCols; ++c) {
+				NNTL_ASSERT(pS <= src.end());
+				NNTL_ASSERT(pD <= dest.end());
+				*pD = *pS;
+				pD += destRows;
+				pS += srcRows;
+			}
 		}
 	}
 

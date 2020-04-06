@@ -78,6 +78,8 @@ namespace nntl {
 
 			template<bool _b = bActivationForOutput>
 			::std::enable_if_t<_b, real_t> calc_loss(const realmtx_t& data_y)const noexcept {
+				NNTL_ASSERT(data_y.rows() == m_activations.rows());//note that we don't check cols() property to be able to pass
+				// some additional data to Activation_t::loss()
 				return Activation_t::loss(m_activations, data_y, get_iMath());
 			}
 

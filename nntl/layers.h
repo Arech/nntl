@@ -246,16 +246,17 @@ namespace nntl {
 
 		// loss addendum value (at least at this moment with current loss functions) doesn't depend on data_x or data_y. It's purely
 		// a function of weights. Therefore to prevent it double calculation during training/testing phases, we'll cache it upon first evaluation
-		// and return cached value until prepToCalcLossAddendum() is called.
+		// and return cached value until resetCalcLossAddendum() is called.
 		// #TODO Should'n we introduce some flag to allow or disallow this kind of optimization? There's a risk to forget about it once
 		// the loss function calculation will change.
-		void prepToCalcLossAddendum()noexcept {
+		// #todo should resetCalcLossAddendum() be less cheap, nnet code should be updated to eliminate unnecessary resetCalcLossAddendum() calls
+		void resetCalcLossAddendum()noexcept {
 			m_lossAddendum = real_t(0.);
 		}
 		real_t calcLossAddendum()noexcept {
 			if (m_lossAddendum==real_t(0.0)) {
 				real_t ret(0.0);
-				tuple_utils::for_each_up(m_layers, [&](const auto& lyr)noexcept {
+				tuple_utils::for_each_up(m_layers, [&ret](const auto& lyr)noexcept {
 					NNTL_UNREF(lyr);
 					const auto v = lyr.lossAddendum();
 					//may assert here when learningRate<0. Should find a better way to test loss addendum correctness

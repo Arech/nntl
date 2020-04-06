@@ -152,7 +152,7 @@ namespace utils {
 			}
 			NNTL_ASSERT(m_pBatchX->test_biases_strict());
 		}
-		const vec_len_t curBatchSize()const noexcept { return m_pBatchX->rows(); }
+		vec_len_t curBatchSize()const noexcept { return m_pBatchX->rows(); }
 
 		template<typename iRngT, typename iMathT>
 		void nextBatch(iRngT& iR, iMathT& iM)noexcept {

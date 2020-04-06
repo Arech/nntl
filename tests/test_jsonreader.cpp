@@ -50,7 +50,7 @@ typedef d_interfaces::real_t real_t;
 TEST(TestJsonreader, ReadingAndParsingMatrix) {
 	using namespace nntl_supp;
 	using ErrCode = jsonreader::ErrorCode;
-	typedef train_data<real_t> train_data_t;
+	typedef inmem_train_data<real_t> train_data_t;
 	typedef math::smatrix<real_t> realmtx_t;
 	using mtx_size_t = realmtx_t::mtx_size_t;
 	//using vec_len_t = realmtx_t::vec_len_t;
@@ -76,7 +76,7 @@ TEST(TestJsonreader, ReadingAndParsingMatrix) {
 TEST(TestJsonreader, ReadingAndParsingTrainData) {
 	using namespace nntl_supp;
 	using ErrCode = jsonreader::ErrorCode;
-	typedef train_data<real_t> train_data_t;
+	typedef inmem_train_data<real_t> train_data_t;
 	typedef math::smatrix<real_t> realmtx_t;
 	using mtx_size_t = realmtx_t::mtx_size_t;
 	using real_t = realmtx_t::value_type;

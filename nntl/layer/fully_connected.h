@@ -233,7 +233,7 @@ namespace nntl {
 			//#BUGBUG current implementation of GW::hasLossAddendum could return false because LAs are currently disabled,
 			//however they could be enabled later. Seems like not a major bug, so I'll leave it to fix later.
 			//#SeeAlso layer_output
-			lid.bHasLossAddendum = hasLossAddendum();
+			lid.bLossAddendumDependsOnWeights = m_gradientWorks.hasLossAddendum();
 
 			bSuccessfullyInitialized = true;
 			return ec;

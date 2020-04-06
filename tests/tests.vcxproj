@@ -418,11 +418,16 @@
     <ClInclude Include="..\nntl\layer\output.h" />
     <ClInclude Include="..\nntl\nnet_evaluator.h" />
     <ClInclude Include="..\nntl\loss_addendum\_i_loss_addendum.h" />
+    <ClInclude Include="..\nntl\train_data\seq_data.h" />
     <ClInclude Include="..\nntl\serialization\options.h" />
     <ClInclude Include="..\nntl\training_observer.h" />
     <ClInclude Include="..\nntl\interfaces.h" />
     <ClInclude Include="..\nntl\nnet_train_opts.h" />
     <ClInclude Include="..\nntl\train_data.h" />
+    <ClInclude Include="..\nntl\train_data\inmem_train_data.h" />
+    <ClInclude Include="..\nntl\train_data\simple_train_data_stor.h" />
+    <ClInclude Include="..\nntl\train_data\_i_train_data.h" />
+    <ClInclude Include="..\nntl\train_data\_train_data_simple.h" />
     <ClInclude Include="..\nntl\utils\bwlist.h" />
     <ClInclude Include="..\nntl\utils\call_wrappers.h" />
     <ClInclude Include="..\nntl\utils\confusion_mtx.h" />
@@ -508,6 +513,7 @@
     <ClCompile Include="test_util.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <None Include="..\nntl\ChangeLog.md" />
     <None Include="..\nntl\_supp\matlab\export_2bin.m" />
     <None Include="..\nntl\_supp\matlab\mnist2bin.m" />
     <None Include="..\nntl\_supp\matlab\mnist2json.m" />

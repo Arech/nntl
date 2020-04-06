@@ -66,14 +66,13 @@ TEST(TestBinFile, ReadMatrix) {
 }
 
 TEST(TestBinFile, ReadTrainData) {
-	typedef train_data<real_t> train_data_t;
+	typedef inmem_train_data<real_t> train_data_t;
 	using mtx_size_t = math::smatrix_td::mtx_size_t;
 
 	typedef nntl_supp::binfile binfile;
 	typedef binfile::ErrorCode ErrorCode;
 
 	const strchar_t* mtx_fname = "./test_data/td.bin";
-	const double mtx_content[4]{ 1,4,3,2 };
 
 	train_data_t td;
 	binfile r;

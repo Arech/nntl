@@ -153,6 +153,9 @@ namespace math {
 
 	//////////////////////////////////////////////////////////////////////////
 	// wrapper class to store vectors/matrices in column-major ordering
+	// #TODO note that using char as T_ template parameter may lead to strict aliasing related performance penalties
+	// in many cases where accessing data via char* will be used. Probably should make here some type substituting voodoo to get
+	// rid of char if char is used ?
 	template <typename T_>
 	class smatrix : public smatrix_td {
 		static_assert(::std::is_pod<T_>::value, "Matrix type must be POD type for proper mem allocation");
@@ -184,7 +187,7 @@ namespace math {
 
 		bool m_bDontManageStorage;// off by default. Flag to support external memory management and useExternalStorage() functionality
 
-		bool m_bHoleyBiases; //off by default. This flag is for the test_biases_ok() function use only. When it is on,
+		bool m_bHoleyBiases; //off by default. This flag is for the test_biases_ok() function and some optimizations use only. When it is on,
 		//it is ok for a bias to also have a value of zero. We need this flag to support gating layers, that should completely
 		// blackout data samples including biases. If we are to remove it, test_biases_ok() would fail assestions on gated layers.
 		// This flag doesn't require m_bEmulateBiases flag, because matrix could have biases without this flag set in some cases
@@ -655,8 +658,11 @@ namespace math {
 		//not a real iterators, just pointers
 		value_ptr_t begin()noexcept { return data(); }
 		cvalue_ptr_t begin()const noexcept { return data(); }
+
 		value_ptr_t end()noexcept { return data()+numel(); }
 		cvalue_ptr_t end()const noexcept { return data()+numel(); }
+		value_ptr_t end(const bool bNoBias)noexcept { return data() + numel(bNoBias); }
+		cvalue_ptr_t end(const bool bNoBias)const noexcept { return data() + numel(bNoBias); }
 
 		value_ptr_t end_no_bias()noexcept { return data() + numel_no_bias(); }
 		cvalue_ptr_t end_no_bias()const noexcept { return data() + numel_no_bias(); }
@@ -738,7 +744,7 @@ namespace math {
 
 		void zeros()noexcept {
 			NNTL_ASSERT(!empty());
-			memset(m_pData, 0, byte_size_no_bias());
+			::std::memset(m_pData, 0, byte_size_no_bias());
 		}
 		void ones()noexcept {
 			NNTL_ASSERT(!empty());
@@ -1091,6 +1097,15 @@ namespace math {
 			}
 		}
 
+
+		//no asserts, just flag value. Better use for testing purposes only
+		bool holeyBiases_flag()const noexcept { return m_bHoleyBiases; }
+		//////////////////////////////////////////////////////////////////////////
+		//note that the following functions change flags ONLY; they does NOT affect stored data
+		void _drop_biases()noexcept { m_bEmulateBiases = false; }
+		void _enforce_biases()noexcept { m_bEmulateBiases = true; }
+		
+		//////////////////////////////////////////////////////////////////////////
 		// use deform_rows() with extreme care on col-major (default!!!) data!!!
 		vec_len_t deform_rows(vec_len_t r)noexcept {
 			NNTL_ASSERT(m_maxSize >= sNumel(r, m_cols));
@@ -1106,8 +1121,10 @@ namespace math {
 			m_cols = c;
 		}
 
-		void deform_like(const smatrix& m)noexcept { deform(m.rows(), m.cols()); }
-		void deform_like_no_bias(const smatrix& m)noexcept { deform(m.rows(), m.cols_no_bias()); }
+		template<typename _T>
+		void deform_like(const smatrix<_T>& m)noexcept { deform(m.rows(), m.cols()); }
+		template<typename _T>
+		void deform_like_no_bias(const smatrix<_T>& m)noexcept { deform(m.rows(), m.cols_no_bias()); }
 	};
 
 	//////////////////////////////////////////////////////////////////////////

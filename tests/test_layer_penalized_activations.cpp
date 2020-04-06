@@ -90,7 +90,7 @@ struct testActivationsL2L1_td {
 };
 
 template<typename LossAddT>
-void testActivationsL2L1(train_data<real_t>& td, const real_t coeff, uint64_t rngSeed, testActL1L2_res<real_t>& res
+void testActivationsL2L1(inmem_train_data<real_t>& td, const real_t coeff, uint64_t rngSeed, testActL1L2_res<real_t>& res
 	, const size_t maxEpochs = 3, const real_t LR = .02, const char* pDumpFileName = nullptr) noexcept
 {
 	NNTL_UNREF(pDumpFileName);
@@ -110,7 +110,7 @@ void testActivationsL2L1(train_data<real_t>& td, const real_t coeff, uint64_t rn
 	_testActivationsL2L1_setupAddendum<my_td::bRegularize>(coeff, fcl);
 	_testActivationsL2L1_setupAddendum<my_td::bRegularize>(coeff, fcl2);
 
-	nnet_train_opts<> opts(epochs);
+	nnet_train_opts<real_t> opts(epochs);
 	opts.calcFullLossValue(true).batchSize(100);
 
 	auto nn = make_nnet(lp);
@@ -140,7 +140,7 @@ void testActivationsL2L1(train_data<real_t>& td, const real_t coeff, uint64_t rn
 }
 
 TEST(TestLPA, ActivationsConstraintsL2L1) {
-	train_data<real_t> td;
+	inmem_train_data<real_t> td;
 	
 	readTd(td);// , MNIST_FILE_DEBUG);//intended to use small (debug) variation here
 	ASSERT_TRUE(td.train_x().emulatesBiases());
@@ -200,7 +200,7 @@ public:
 	//typedef nntl::activation::debug_softsigm_zeros <real_t, 1000, nntl::weights_init::He_Zhang<>> myOutputActivation;
 
 	~GC_LPA_deCov_ArchPrms()noexcept{}
-	GC_LPA_deCov_ArchPrms(const nntl::train_data<real_t>& td)noexcept : _base_class_t(td) {}
+	GC_LPA_deCov_ArchPrms(const nntl::inmem_train_data<real_t>& td)noexcept : _base_class_t(td) {}
 };
 
 TEST(TestLPA, deCovGradCheck) {
@@ -210,7 +210,7 @@ TEST(TestLPA, deCovGradCheck) {
 	typedef GC_LPA_deCov_ArchPrms<real_t> ArchPrms_t;
 #pragma warning(default:4459)
 
-	nntl::train_data<real_t> td;
+	nntl::inmem_train_data<real_t> td;
 	readTd(td);
 
 	ArchPrms_t Prms(td);

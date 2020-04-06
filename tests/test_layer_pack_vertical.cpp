@@ -57,7 +57,7 @@ typedef math::smatrix_deform<real_t> realmtxdef_t;
 //////////////////////////////////////////////////////////////////////////
 
 
-void test_LayerPackVertical1(train_data<real_t>& td, uint64_t rngSeed)noexcept {
+void test_LayerPackVertical1(inmem_train_data<real_t>& td, uint64_t rngSeed)noexcept {
 	SCOPED_TRACE("test_LayerPackVertical1");
 	size_t epochs = 5;
 	const real_t learningRate = real_t(.01);
@@ -71,7 +71,7 @@ void test_LayerPackVertical1(train_data<real_t>& td, uint64_t rngSeed)noexcept {
 
 	auto Alp = make_layers(Ainp, Aifcl1, Aifcl2, Aoutp);
 
-	nnet_train_opts<> Aopts(epochs);
+	nnet_train_opts<real_t> Aopts(epochs);
 	Aopts.calcFullLossValue(true).batchSize(100).ImmediatelyDeinit(false);
 
 	auto Ann = make_nnet(Alp);
@@ -90,7 +90,7 @@ void test_LayerPackVertical1(train_data<real_t>& td, uint64_t rngSeed)noexcept {
 
 	auto Blp = make_layers(Binp, BlpVert, Boutp);
 
-	nnet_train_opts<> Bopts(epochs);
+	nnet_train_opts<real_t> Bopts(epochs);
 	Bopts.calcFullLossValue(true).batchSize(100).ImmediatelyDeinit(false);
 
 	auto Bnn = make_nnet(Blp);
@@ -102,7 +102,7 @@ void test_LayerPackVertical1(train_data<real_t>& td, uint64_t rngSeed)noexcept {
 	ASSERT_MTX_EQ(Aifcl2.get_weights(), Bifcl2.get_weights(), "Second layer weights differ");
 	ASSERT_MTX_EQ(Aoutp.get_weights(), Boutp.get_weights(), "Output layer weights differ");
 }
-void test_LayerPackVertical2(train_data<real_t>& td, uint64_t rngSeed)noexcept {
+void test_LayerPackVertical2(inmem_train_data<real_t>& td, uint64_t rngSeed)noexcept {
 	SCOPED_TRACE("test_LayerPackVertical2");
 	size_t epochs = 5;
 	const real_t learningRate = real_t(.01);
@@ -117,7 +117,7 @@ void test_LayerPackVertical2(train_data<real_t>& td, uint64_t rngSeed)noexcept {
 
 	auto Alp = make_layers(Ainp, Aifcl1, Aifcl2, Aifcl3, Aoutp);
 
-	nnet_train_opts<> Aopts(epochs);
+	nnet_train_opts<real_t> Aopts(epochs);
 	Aopts.calcFullLossValue(true).batchSize(100).ImmediatelyDeinit(false);
 
 	auto Ann = make_nnet(Alp);
@@ -137,7 +137,7 @@ void test_LayerPackVertical2(train_data<real_t>& td, uint64_t rngSeed)noexcept {
 
 	auto Blp = make_layers(Binp, BlpVert, Boutp);
 
-	nnet_train_opts<> Bopts(epochs);
+	nnet_train_opts<real_t> Bopts(epochs);
 	Bopts.calcFullLossValue(true).batchSize(100).ImmediatelyDeinit(false);
 
 	auto Bnn = make_nnet(Blp);
@@ -150,7 +150,7 @@ void test_LayerPackVertical2(train_data<real_t>& td, uint64_t rngSeed)noexcept {
 	ASSERT_MTX_EQ(Aifcl3.get_weights(), Bifcl3.get_weights(), "Third layer weights differs");
 	ASSERT_MTX_EQ(Aoutp.get_weights(), Boutp.get_weights(), "Output layer weights differs");
 }
-void test_LayerPackVertical3(train_data<real_t>& td, uint64_t rngSeed)noexcept {
+void test_LayerPackVertical3(inmem_train_data<real_t>& td, uint64_t rngSeed)noexcept {
 	SCOPED_TRACE("test_LayerPackVertical3");
 	size_t epochs = 5;
 	const real_t learningRate = real_t(.01);
@@ -165,7 +165,7 @@ void test_LayerPackVertical3(train_data<real_t>& td, uint64_t rngSeed)noexcept {
 
 	auto Alp = make_layers(Ainp, Afcl1, Aifcl2, Aifcl3, Aoutp);
 
-	nnet_train_opts<> Aopts(epochs);
+	nnet_train_opts<real_t> Aopts(epochs);
 	Aopts.calcFullLossValue(true).batchSize(100).ImmediatelyDeinit(false);
 
 	auto Ann = make_nnet(Alp);
@@ -185,7 +185,7 @@ void test_LayerPackVertical3(train_data<real_t>& td, uint64_t rngSeed)noexcept {
 
 	auto Blp = make_layers(Binp, Bfcl1, BlpVert, Boutp);
 
-	nnet_train_opts<> Bopts(epochs);
+	nnet_train_opts<real_t> Bopts(epochs);
 	Bopts.calcFullLossValue(true).batchSize(100).ImmediatelyDeinit(false);
 
 	auto Bnn = make_nnet(Blp);
@@ -198,7 +198,7 @@ void test_LayerPackVertical3(train_data<real_t>& td, uint64_t rngSeed)noexcept {
 	ASSERT_MTX_EQ(Aifcl3.get_weights(), Bifcl3.get_weights(), "Third layer weights differ");
 	ASSERT_MTX_EQ(Aoutp.get_weights(), Boutp.get_weights(), "Output layer weights differ");
 }
-void test_LayerPackVertical4(train_data<real_t>& td, uint64_t rngSeed)noexcept {
+void test_LayerPackVertical4(inmem_train_data<real_t>& td, uint64_t rngSeed)noexcept {
 	SCOPED_TRACE("test_LayerPackVertical4");
 	size_t epochs = 5;
 	const real_t learningRate = real_t(.01);
@@ -214,7 +214,7 @@ void test_LayerPackVertical4(train_data<real_t>& td, uint64_t rngSeed)noexcept {
 
 	auto Alp = make_layers(Ainp, Afcl1, Aifcl2, Aifcl3, Aifcl4, Aoutp);
 
-	nnet_train_opts<> Aopts(epochs);
+	nnet_train_opts<real_t> Aopts(epochs);
 	Aopts.calcFullLossValue(true).batchSize(100).ImmediatelyDeinit(false);
 
 	auto Ann = make_nnet(Alp);
@@ -235,7 +235,7 @@ void test_LayerPackVertical4(train_data<real_t>& td, uint64_t rngSeed)noexcept {
 
 	auto Blp = make_layers(Binp, Bfcl1, BlpVert, Boutp);
 
-	nnet_train_opts<> Bopts(epochs);
+	nnet_train_opts<real_t> Bopts(epochs);
 	Bopts.calcFullLossValue(true).batchSize(100).ImmediatelyDeinit(false);
 
 	auto Bnn = make_nnet(Blp);
@@ -251,7 +251,7 @@ void test_LayerPackVertical4(train_data<real_t>& td, uint64_t rngSeed)noexcept {
 }
 
 TEST(TestLPV, LayerPackVertical) {
-	train_data<real_t> td;
+	inmem_train_data<real_t> td;
 	reader_t reader;
 
 	STDCOUTL("Reading datafile '" << MNIST_FILE << "'...");
@@ -288,7 +288,7 @@ TEST(TestLPV, GradCheck) {
 	typedef nntl_tests::NN_base_params<real_t, nntl::inspector::GradCheck<real_t>> ArchPrms_t;
 #pragma warning(default:4459)
 
-	nntl::train_data<real_t> td;
+	nntl::inmem_train_data<real_t> td;
 	readTd(td);
 
 	ArchPrms_t Prms(td);

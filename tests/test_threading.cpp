@@ -70,6 +70,9 @@ void threads_basics_test(TT& t) {
 	typedef TT::par_range_t par_range_t;
 	//typedef math::smatrix_td::vec_len_t vec_len_t;
 
+	typedef TT::converter_reduce_data_t<real_t> reduce_converter_t;
+	typedef TT::reduce_data_t reduce_data_t;
+
 	const auto workersCnt = t.workers_count();
 
 	const vec_len_t maxCnt = 2 * workersCnt;
@@ -99,19 +102,19 @@ void threads_basics_test(TT& t) {
 		for (range_t i = 0; i < mnumel; ++i) ptr[i] = 1;
 
 		//compute sum of squares
-		auto lRed = [maxCntPerWorker,ptr](const par_range_t& r)->real_t
+		auto lRed = [maxCntPerWorker,ptr](const par_range_t& r)->reduce_data_t
 		{
 			const auto cnt = r.cnt();
 			EXPECT_TRUE(cnt <= maxCntPerWorker) << "cnt=="<<cnt<<" maxCntPerWorker=="<< maxCntPerWorker;
 			real_t ret = 0;
 			for (range_t i = 0; i < cnt; ++i) ret += ptr[i] * ptr[i];
-			return ret;
+			return reduce_converter_t::to(ret);
 		};
-		auto lRedF = [workersCnt](const real_t* p, const range_t cnt)->real_t
+		auto lRedF = [workersCnt](const reduce_data_t*const p, const range_t cnt)->real_t
 		{
 			EXPECT_TRUE(cnt <= workersCnt) << "cnt=="<<cnt<<" workersCnt=="<< workersCnt;
 			real_t ret = 0;
-			for (range_t i = 0; i < cnt; ++i) ret += p[i];
+			for (range_t i = 0; i < cnt; ++i) ret += reduce_converter_t::from(p[i]);
 			return ret;
 		};
 		real_t redRes = t.reduce(lRed, lRedF, mnumel);

@@ -122,7 +122,7 @@ namespace nntl_supp {
 
 		template<typename T_> using smatrix = nntl::math::smatrix<T_>;
 		template<typename T_> using smatrix_deform = nntl::math::smatrix_deform<T_>;
-		template<typename T_> using train_data = nntl::train_data<T_>;
+		template<typename T_> using train_data = nntl::simple_train_data_stor<T_>;
 
 		//////////////////////////////////////////////////////////////////////////
 		//members
@@ -143,7 +143,7 @@ namespace nntl_supp {
 		// If readInto_t == nntl::train_data, then all X data will be created with emulateBiases() feature and bMakeMtxBiased param will be ignored
 		template <typename readInto_t>
 		const ErrorCode read(const char* fname, readInto_t& dest, const bool bMakeMtxBiased=false) {
-			static_assert(::std::is_same<train_data<typename readInto_t::value_type>, readInto_t>::value
+			static_assert(::std::is_base_of<train_data<typename readInto_t::value_type>, readInto_t>::value
 				|| ::std::is_same<smatrix<typename readInto_t::value_type>, readInto_t>::value
 				//|| ::std::is_same<smatrix_deform<typename readInto_t::value_type>, readInto_t>::value
 				//need to add some support to internals to properly use smatrix_deform, but actually jsonreader has no use, so don't care

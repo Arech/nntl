@@ -1646,7 +1646,6 @@ TEST(TestMathNThr, evMul_ip) {
 //////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////
 
-//template<bool bWsort>
 void test_mExtractRows_perf(vec_len_t rowsCnt, vec_len_t colsCnt, vec_len_t extrCnt) {
 	typedef ::std::vector<vec_len_t> vec_t;
 
@@ -1673,9 +1672,6 @@ void test_mExtractRows_perf(vec_len_t rowsCnt, vec_len_t colsCnt, vec_len_t extr
 		rg.gen_matrix(src, real_t(100));
 		::std::random_shuffle(vec.begin(), vec.end(), rg);
 		tS.tic();
-// 		if (bWsort) {
-// 			::std::sort(vec.begin(), vec.end());
-// 		}
 		iM.mExtractRows_seqWrite_st(src, vec.begin(), dest);
 		tS.toc();
 		for (const auto& e : dest) v += e;
@@ -1684,9 +1680,6 @@ void test_mExtractRows_perf(vec_len_t rowsCnt, vec_len_t colsCnt, vec_len_t extr
 		rg.gen_matrix(src, real_t(100));
 		::std::random_shuffle(vec.begin(), vec.end(), rg);
 		tM.tic();
-// 		if (bWsort) {
-// 			::std::sort(vec.begin(), vec.end());
-// 		}
 		iM.mExtractRows_seqWrite_mt(src, vec.begin(), dest);
 		tM.toc();
 		for (const auto& e : dest) v += e;
@@ -1695,9 +1688,6 @@ void test_mExtractRows_perf(vec_len_t rowsCnt, vec_len_t colsCnt, vec_len_t extr
 		rg.gen_matrix(src, real_t(100));
 		::std::random_shuffle(vec.begin(), vec.end(), rg);
 		tB.tic();
-// 		if (bWsort) {
-// 			::std::sort(vec.begin(), vec.end());
-// 		}
 		iM.mExtractRows(src, vec.begin(), dest);
 		tB.toc();
 		for (const auto& e : dest) v += e;
@@ -1712,6 +1702,65 @@ void test_mExtractRows_perf(vec_len_t rowsCnt, vec_len_t colsCnt, vec_len_t extr
 TEST(TestMathNThr, mExtractRowsPerf) {
 	NNTL_RUN_TEST2(imath_basic_t::Thresholds_t::mExtractRows, 100) test_mExtractRows_perf(i, 100, 100);
 	NNTL_RUN_TEST2(imath_basic_t::Thresholds_t::mExtractRows, 20) test_mExtractRows_perf(i, 20, 100);
+}
+
+//////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////
+
+void test_mExtractRowsSeq_perf(vec_len_t rowsCnt, vec_len_t colsCnt, vec_len_t extrCnt) {
+	if (rowsCnt < extrCnt) extrCnt = rowsCnt;
+
+	realmtx_t src(rowsCnt, colsCnt), dest(extrCnt, colsCnt);
+	ASSERT_TRUE(!src.isAllocationFailed() && !dest.isAllocationFailed());
+	
+	STDCOUTL("******* testing mExtractRowsSeq() over " << rowsCnt << "x" << colsCnt << " matrix (" << src.numel()
+		<< " elems) ExtractRows=" << extrCnt << " -> " << dest.numel() << " elems *********");
+
+	constexpr unsigned maxReps = TEST_PERF_REPEATS_COUNT;
+
+	d_interfaces::iRng_t rg;
+	rg.init_ithreads(iM.ithreads());
+
+	tictoc tS, tM, tB;
+	//testing performance
+	threads::prioritize_workers<threads::PriorityClass::PerfTesting, typename imath_basic_t::iThreads_t> pw(iM.ithreads());
+	real_t v = real_t(0);
+	vec_len_t rowOfs;
+	const auto maxOfs = rowsCnt - extrCnt;
+	for (unsigned r = 0; r < maxReps; ++r) {
+		rg.gen_matrix(src, real_t(100));
+		rowOfs = static_cast<vec_len_t>( rg(maxOfs) );
+		tS.tic();
+		iM.mExtractRowsSeq_st(src, rowOfs, dest);
+		tS.toc();
+		for (const auto& e : dest) v += e;
+		v = ::std::log(::std::abs(v));
+
+		rg.gen_matrix(src, real_t(100));
+		rowOfs = static_cast<vec_len_t>(rg(maxOfs));
+		tM.tic();
+		iM.mExtractRowsSeq_mt(src, rowOfs, dest);
+		tM.toc();
+		for (const auto& e : dest) v += e;
+		v = ::std::log(::std::abs(v));
+
+		rg.gen_matrix(src, real_t(100));
+		rowOfs = static_cast<vec_len_t>(rg(maxOfs));
+		tB.tic();
+		iM.mExtractRowsSeq(src, rowOfs, dest);
+		tB.toc();
+		for (const auto& e : dest) v += e;
+		v = ::std::log(::std::abs(v));
+	}
+	tS.say("st");
+	tM.say("mt");
+	tB.say("()");
+	STDCOUTL(v);
+}
+
+TEST(TestMathNThr, mExtractRowsSeqPerf) {
+	NNTL_RUN_TEST2(imath_basic_t::Thresholds_t::mExtractRowsSeq, 100) test_mExtractRowsSeq_perf(i, 100, 100);
+	NNTL_RUN_TEST2(imath_basic_t::Thresholds_t::mExtractRowsSeq, 20) test_mExtractRowsSeq_perf(i, 20, 100);
 }
 
 //////////////////////////////////////////////////////////////////////////

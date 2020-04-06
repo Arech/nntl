@@ -183,7 +183,7 @@ namespace nntl {
 				return ErrorCode::CantInitializePAB;
 
 			if (bActivationPenalizationAvailable) {
-				lid.bHasLossAddendum = true;
+				//lid.bHasLossAddendum = true;
 				lid.bLossAddendumDependsOnActivations = true;
 			}
 

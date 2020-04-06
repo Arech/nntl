@@ -79,6 +79,9 @@
     <Filter Include="nntl\dropout">
       <UniqueIdentifier>{b05e69e7-3b17-48c4-85ff-ac84b58651a1}</UniqueIdentifier>
     </Filter>
+    <Filter Include="nntl\train_data">
+      <UniqueIdentifier>{7d6a244b-39d8-428a-a404-68613034d25d}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <Text Include="ReadMe.txt" />
@@ -483,6 +486,21 @@
     <ClInclude Include="..\nntl\layer\_lph_base.h">
       <Filter>nntl\layer</Filter>
     </ClInclude>
+    <ClInclude Include="..\nntl\train_data\_i_train_data.h">
+      <Filter>nntl\train_data</Filter>
+    </ClInclude>
+    <ClInclude Include="..\nntl\train_data\simple_train_data_stor.h">
+      <Filter>nntl\train_data</Filter>
+    </ClInclude>
+    <ClInclude Include="..\nntl\train_data\inmem_train_data.h">
+      <Filter>nntl\train_data</Filter>
+    </ClInclude>
+    <ClInclude Include="..\nntl\train_data\_train_data_simple.h">
+      <Filter>nntl\train_data</Filter>
+    </ClInclude>
+    <ClInclude Include="..\nntl\train_data\seq_data.h">
+      <Filter>nntl\train_data</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="stdafx.cpp">
@@ -575,6 +593,9 @@
       <Filter>nntl\_supp\matlab</Filter>
     </None>
     <None Include="..\README.md">
+      <Filter>nntl</Filter>
+    </None>
+    <None Include="..\nntl\ChangeLog.md">
       <Filter>nntl</Filter>
     </None>
   </ItemGroup>

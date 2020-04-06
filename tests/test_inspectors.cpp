@@ -66,7 +66,7 @@ typedef math::smatrix_deform<real_t> realmtxdef_t;
 
 
 TEST(TestInspectors, StdcoutI) {
-	train_data<real_t> td;
+	inmem_train_data<real_t> td;
 	readTd(td, MNIST_FILE_DEBUG);
 
 	size_t epochs = 2, seedVal = 0;
@@ -91,7 +91,7 @@ TEST(TestInspectors, StdcoutI) {
 
 	auto lp = make_layers(inp, ifcl1, ifcl2, outp);
 
-	nnet_train_opts<> opts(epochs);
+	nnet_train_opts<real_t> opts(epochs);
 	opts.calcFullLossValue(false).batchSize(100);
 
 	//instantiating inspector (though, could let nnet to spawn it by itself)
@@ -107,7 +107,7 @@ TEST(TestInspectors, StdcoutI) {
 
 TEST(TestInspectors, DumperMat) {
 #if NNTL_MATLAB_AVAILABLE
-	train_data<real_t> td;
+	inmem_train_data<real_t> td;
 	readTd(td, MNIST_FILE_DEBUG);
 
 	size_t epochs = 5, seedVal = 0;
@@ -131,7 +131,7 @@ TEST(TestInspectors, DumperMat) {
 
 	auto lp = make_layers(inp, ifcl1, ifcl2, outp);
 
-	nnet_train_opts<> opts(epochs);
+	nnet_train_opts<real_t> opts(epochs);
 	opts.calcFullLossValue(false).batchSize(100);
 
 	myInspector Insp("./test_data");

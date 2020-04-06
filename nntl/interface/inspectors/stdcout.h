@@ -47,8 +47,10 @@ namespace inspector {
 
 	protected:
 		layer_names_t m_layerNames;
-		size_t m_epochCount, m_layersCount, m_epochIdx;
-		vec_len_t m_batchIdx, m_batchCount;
+		size_t m_layersCount;
+		numel_cnt_t m_epochIdx;
+		//size_t m_epochCount;
+		numel_cnt_t m_batchIdx/*, m_batchCount*/;
 
 		//layer_index_t m_curLayer;
 		keeper_t m_curLayer;
@@ -65,7 +67,10 @@ namespace inspector {
 		~stdcout()noexcept {}
 		stdcout()noexcept : m_epochIdx(::std::numeric_limits<decltype(m_epochIdx)>::max()),
 			m_batchIdx(::std::numeric_limits<decltype(m_batchIdx)>::max())
-			, m_epochCount(0), m_layersCount(0), m_batchCount(0) {}
+			//, m_epochCount(0)
+			, m_layersCount(0)
+			//, m_batchCount(0)
+		{}
 
 		//////////////////////////////////////////////////////////////////////////
 		//
@@ -85,10 +90,11 @@ namespace inspector {
 		//////////////////////////////////////////////////////////////////////////
 
 		//to notify about total layer, epoch and batches count
-		void init_nnet(const size_t totalLayers, const size_t totalEpochs, const vec_len_t totalBatches)noexcept {
+		void init_nnet(const size_t totalLayers, const numel_cnt_t totalEpochs)noexcept {
 			m_layersCount = totalLayers;
-			m_epochCount = totalEpochs;
-			m_batchCount = totalBatches;
+			//m_epochCount = totalEpochs;
+			//m_batchCount = batchesPerEpoch;
+			NNTL_UNREF(totalEpochs);
 
 			//#exceptions STL
 			m_layerNames.resize(m_layersCount);
@@ -103,10 +109,10 @@ namespace inspector {
 			STDCOUTL("Layer " << m_layerNames[lIdx] << " of type 0x" << ::std::hex << layerTypeId << ::std::dec << " is being initialized");
 		};
 
-		void train_epochBegin(const size_t epochIdx)noexcept {
+		void train_epochBegin(const numel_cnt_t epochIdx)noexcept {
 			m_epochIdx = epochIdx;
 		}
-		void train_batchBegin(const vec_len_t batchIdx) noexcept {
+		void train_batchBegin(const numel_cnt_t batchIdx) noexcept {
 			m_batchIdx = batchIdx;
 		}
 

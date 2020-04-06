@@ -41,20 +41,20 @@ namespace nntl {
 	//Attention: regarding the evaluator classes naming - always use '_cached' suffix when evaluator caches train_y or test_y!
 
 	template<typename RealT>
-	struct i_nnet_evaluator {
+	struct i_nnet_evaluator : public virtual DataSetsId {
 		typedef RealT real_t;
 		typedef math::smatrix<real_t> realmtx_t;
-		//typedef math::smatrix_td::vec_len_t vec_len_t;
-		//typedef math::smatrix_td::numel_cnt_t numel_cnt_t;
 
-		//may preprocess train_y/test_y here
-		template<typename iMath>
-		nntl_interface bool init(const realmtx_t& train_y, const realmtx_t& test_y, iMath& iM)noexcept;
+		template<typename TrainDataT, typename CommonDataT>
+		nntl_interface bool init(TrainDataT& td, const CommonDataT& cd)noexcept;
 		nntl_interface void deinit()noexcept;
 
-		//define correct returning type
+		nntl_interface void prepare_to_dataset(const data_set_id_t dataSetId, const numel_cnt_t totalBatches)noexcept;
+
+		//Note that correctlyClassified() is expected to be called sequentially for each data batch in a set.
 		template<typename iMath>
-		nntl_interface numel_cnt_t correctlyClassified(const realmtx_t& data_y, const realmtx_t& activations, const bool bOnTestData, iMath& iM)noexcept;
+		nntl_interface numel_cnt_t correctlyClassified(const data_set_id_t dataSetId, const realmtx_t& data_y
+			, const realmtx_t& activations, iMath& iM)noexcept;
 
 		nntl_interface numel_cnt_t totalSamples(const realmtx_t& data_y)noexcept;
 	};
@@ -67,7 +67,7 @@ namespace nntl {
 	template<typename RealT>
 	struct eval_classification_binary_cached : public i_nnet_evaluator<RealT> {
 	protected:
-		typedef math::smatrix<char> binmtx_t;
+		typedef math::smatrix_deform<char> binmtx_t;
 		//typedef ::std::vector<char> binvec_t;//char instead of bool should be a bit faster (not tested though)
 		
 		//note that we're preprocessing data_y to reserve less memory for storing postprocessed activations and to compare
@@ -75,12 +75,22 @@ namespace nntl {
 
 		//for each element of Y data (training/testing) contains binary flag if it's turned on or off
 		typedef ::std::array<binmtx_t, 2> y_data_class_idx_t;
+		//note that we're caching only two main datasets (train & test), other datasets will be processed without caching
 
 	protected:
-		y_data_class_idx_t m_ydataPP;//preprocessed ground truth
-		y_data_class_idx_t m_predictionsPP;//storage for NN predictions
+		//storage for
+		y_data_class_idx_t m_ydataPP;//preprocessed ground truth labels
+		y_data_class_idx_t m_predictionsPP_orYData;//NN predictions and not preprocessed ground truth
+		
+		//data sets id used as indexes in m_ydataPP
+		static_assert(0 <= train_set_id && train_set_id <= 1, "");
+		static_assert(0 <= test_set_id && test_set_id <= 1, "");
+		static_assert(train_set_id != test_set_id, "");
 
 		real_t m_binarizeThreshold;
+		vec_len_t m_curYOfs;
+
+		NNTL_DEBUG_DECLARE(vec_len_t m_maxFPropBatch);
 
 	public:
 		~eval_classification_binary_cached()noexcept {}
@@ -89,41 +99,93 @@ namespace nntl {
 		void set_threshold(real_t t)noexcept { m_binarizeThreshold = t; }
 		real_t threshold()const noexcept { return m_binarizeThreshold; }
 
-		template<typename iMath>
-		bool init(const realmtx_t& train_y, const realmtx_t& test_y, iMath& iM)noexcept {
-			NNTL_ASSERT(train_y.cols() == test_y.cols() && !train_y.emulatesBiases() && !test_y.emulatesBiases());
-			//_isBinaryStrict() is not necessary
-			/*NNTL_ASSERT(train_y._isBinaryStrict());
-			NNTL_ASSERT(test_y._isBinaryStrict());*/
+		template<typename TrainDataT, typename CommonDataT>
+		bool init(TrainDataT& td, const CommonDataT& cd)noexcept {
+			static_assert(::std::is_base_of<_i_train_data<real_t>, TrainDataT>::value, "td object MUST be derived from _i_train_data interface");
+			static_assert(TrainDataT::allowExternalCachingOfSets, "This evaluator needs to cache Y-data, but TrainDataT prohibits that");
 
-			if (!m_ydataPP[0].resize(train_y) || !m_ydataPP[1].resize(test_y)
-				|| !m_predictionsPP[0].resize(train_y) || !m_predictionsPP[1].resize(test_y) ) return false;
-			/*m_ydataPP[0].resize(train_y.rows());
-			m_ydataPP[1].resize(test_y.rows());
-			m_predictionsPP[0].resize(train_y.rows());
-			m_predictionsPP[1].resize(test_y.rows());*/
+			//we may rely on dataset_samples_count() to return true size of dataset, because TrainDataT::allowExternalCachingOfSets==true
+			NNTL_ASSERT(!td.empty());
+
+			const auto trainSamples = td.trainset_samples_count();
+			const auto testSamples = td.testset_samples_count();
+
+			if (::std::max(trainSamples, testSamples) > ::std::numeric_limits<vec_len_t>::max()) {
+				NNTL_ASSERT(!"Too big dataset to work with _cached nnet_evaluator!");
+				return false;
+			}
 			
-			iM.ewBinarize(m_ydataPP[0], train_y, m_binarizeThreshold);
-			iM.ewBinarize(m_ydataPP[1], test_y, m_binarizeThreshold);			
+			const auto maxFprop = cd.max_fprop_batch_size();
+			const auto ySize = td.yWidth();
+			
+			if (!m_ydataPP[train_set_id].resize(static_cast<vec_len_t>(trainSamples), ySize)//will contain preprocessed Y for training set
+				|| !m_ydataPP[test_set_id].resize(static_cast<vec_len_t>(testSamples), ySize)//and for test set
+				|| !m_predictionsPP_orYData[0].resize(maxFprop, ySize)//will binarize activations in here
+				|| (td.datasets_count() > 2 && !m_predictionsPP_orYData[1].resize(maxFprop, ySize)))//will binarize dataY for supplementary datasets in here
+			{
+				deinit();
+				return false;
+			}
+
+			NNTL_DEBUG_DECLARE(m_maxFPropBatch = maxFprop);//just to make sure it won't change since init()
+			
+			binarizeYOfDataset(train_set_id, td, m_ydataPP[train_set_id], cd);
+			binarizeYOfDataset(test_set_id, td, m_ydataPP[test_set_id], cd);
 			return true;
+		}
+
+		template<typename TrainDataT, typename CommonDataT>
+		void binarizeYOfDataset(const data_set_id_t dataSetId, TrainDataT& td, binmtx_t& dest, const CommonDataT& cd)const noexcept {
+			NNTL_ASSERT(dest.rows() == td.dataset_samples_count(dataSetId));
+
+			auto& iM = cd.iMath();
+			const auto maxBatches = td.walk_over_set(dataSetId, cd);
+			vec_len_t rOfs = 0;
+			for (numel_cnt_t bi = 0; bi < maxBatches; ++bi) {
+				td.next_subset(bi, cd);
+
+				iM.ewBinarizeBatch(dest, rOfs, td.batchY(), m_binarizeThreshold);
+				rOfs += td.batchY().rows();
+			}
+			NNTL_ASSERT(rOfs == td.dataset_samples_count(dataSetId));
+			NNTL_ASSERT(dest._isBinaryStrictNoBias());
 		}
 
 		void deinit()noexcept {
 			for (int i = 0; i <= 1; ++i) {
 				m_ydataPP[i].clear();
-				m_predictionsPP[i].clear();
+				m_predictionsPP_orYData[i].clear();
 			}
 		}
 
-		//returns a count of correct predictions, i.e. (True Positive + True Negative)'s
-		template<typename iMath>
-		numel_cnt_t correctlyClassified(const realmtx_t& data_y, const realmtx_t& activations, const bool bOnTestData, iMath& iM)noexcept {
-			NNTL_UNREF(data_y);
-			NNTL_ASSERT(data_y.size() == activations.size());
-			NNTL_ASSERT(data_y.size() == m_ydataPP[bOnTestData].size());
+		void prepare_to_dataset(const data_set_id_t dataSetId, const numel_cnt_t totalBatches)noexcept {
+			NNTL_UNREF(dataSetId); NNTL_UNREF(totalBatches);
+			m_curYOfs = 0;
+		}
 
-			iM.ewBinarize(m_predictionsPP[bOnTestData], activations, m_binarizeThreshold);
-			return iM.vCountSame(m_ydataPP[bOnTestData], m_predictionsPP[bOnTestData]);
+		//returns a count of correct predictions, i.e. (True Positive + True Negative)'s
+		//note that no matrix may have more rows, than were defined by cd.max_fprop_batch_size() during init()
+		template<typename iMath>
+		numel_cnt_t correctlyClassified(const data_set_id_t dataSetId, const realmtx_t& data_y, const realmtx_t& activations, iMath& iM)noexcept {
+			NNTL_ASSERT(data_y.size() == activations.size());
+			NNTL_ASSERT(data_y.rows() <= m_maxFPropBatch);
+			NNTL_ASSERT(dataSetId > 1 || data_y.cols() == m_ydataPP[dataSetId].cols());
+
+			m_predictionsPP_orYData[0].deform_like(activations);
+			iM.ewBinarize(m_predictionsPP_orYData[0], activations, m_binarizeThreshold);
+
+			numel_cnt_t ret;
+			if (dataSetId <= 1) {
+				ret = iM.vCountSameBatch(m_ydataPP[dataSetId], m_curYOfs, m_predictionsPP_orYData[0]);
+				m_curYOfs += activations.rows();
+				NNTL_ASSERT(m_curYOfs <= m_ydataPP[dataSetId].rows());
+			} else {
+				//processing data_y into m_predictionsPP_orYData[1]
+				m_predictionsPP_orYData[1].deform_like(data_y);
+				iM.ewBinarize(m_predictionsPP_orYData[1], data_y, m_binarizeThreshold);
+				ret = iM.vCountSame(m_predictionsPP_orYData[1], m_predictionsPP_orYData[0]);
+			}			
+			return ret;
 		}
 
 		static numel_cnt_t totalSamples(const realmtx_t& data_y)noexcept {
@@ -142,54 +204,120 @@ namespace nntl {
 	struct eval_classification_one_hot_cached : public i_nnet_evaluator<RealT> {
 	protected:
 		//for each element of Y data (training/testing) contains index of true element class (column number of biggest element in a row)
-		typedef ::std::array<::std::vector<vec_len_t>, 2> y_data_class_idx_t;
+		typedef ::std::vector<vec_len_t> idxVec_t;
+		//typedef math::smatrix_deform<vec_len_t> idxVec_t;
+		typedef ::std::array<idxVec_t, 2> y_data_class_idx_t;
+
+		//data sets id used as indexes in y_data_class_idx_t
+		static_assert(0 <= train_set_id && train_set_id <= 1, "");
+		static_assert(0 <= test_set_id && test_set_id <= 1, "");
+		static_assert(train_set_id != test_set_id, "");
 
 	protected:
-		y_data_class_idx_t m_ydataClassIdxs;//preprocessed ground truth
-		y_data_class_idx_t m_predictionClassIdxs;//storage for NN predictions
+		y_data_class_idx_t m_ydataClassIdxs;//preprocessed ground truth for train&test sets
+		y_data_class_idx_t m_predictionClassOrYDataIdxs;//storage for NN predictions and GT of other sets
+
+		vec_len_t m_curYOfs;
+
+		NNTL_DEBUG_DECLARE(vec_len_t m_maxFPropBatch);
 
 	public:
 		~eval_classification_one_hot_cached()noexcept {}
 		eval_classification_one_hot_cached()noexcept {}
 
-		template<typename iMath>
-		bool init(const realmtx_t& train_y, const realmtx_t& test_y, iMath& iM)noexcept {
-			NNTL_ASSERT(train_y.cols() == test_y.cols());
+		template<typename TrainDataT, typename CommonDataT>
+		bool init(TrainDataT& td, const CommonDataT& cd)noexcept {
+			static_assert(::std::is_base_of<_i_train_data<real_t>, TrainDataT>::value, "td object MUST be derived from _i_train_data interface");
+			static_assert(TrainDataT::allowExternalCachingOfSets, "This evaluator needs to cache Y-data, but TrainDataT prohibits that");
+			
+			//we may rely on dataset_samples_count() to return true size of dataset, because TrainDataT::allowExternalCachingOfSets==true
+			NNTL_ASSERT(!td.empty());
 
-			iM.preinit(::std::max(
-				iM.mrwIdxsOfMax_needTempMem(train_y), iM.mrwIdxsOfMax_needTempMem(test_y)
-			));
+			const auto trainSamples = td.trainset_samples_count();
+			const auto testSamples = td.testset_samples_count();
+
+			if (::std::max(trainSamples, testSamples) > ::std::numeric_limits<vec_len_t>::max()) {
+				NNTL_ASSERT(!"Too big dataset to work with _cached nnet_evaluator!");
+				return false;
+			}
+
+			const auto maxFprop = cd.max_fprop_batch_size();
+			NNTL_DEBUG_DECLARE(m_maxFPropBatch = maxFprop);
+
+			auto& iM = cd.iMath();
+			iM.preinit(iM.mrwIdxsOfMax_needTempMem<real_t>(maxFprop));
 			iM.init();
 
-			//#TODO:exception handling!
-			m_ydataClassIdxs[0].resize(train_y.rows());
-			m_predictionClassIdxs[0].resize(train_y.rows());
-			iM.mrwIdxsOfMax(train_y, &m_ydataClassIdxs[0][0]);
-
-			m_ydataClassIdxs[1].resize(test_y.rows());
-			m_predictionClassIdxs[1].resize(test_y.rows());
-			iM.mrwIdxsOfMax(test_y, &m_ydataClassIdxs[1][0]);
+			try {
+				m_ydataClassIdxs[train_set_id].resize(trainSamples);
+				m_ydataClassIdxs[test_set_id].resize(testSamples);
+				m_predictionClassOrYDataIdxs[0].resize(maxFprop);
+				if (td.datasets_count() > 2) m_predictionClassOrYDataIdxs[1].resize(maxFprop);
+			}catch(const ::std::exception&){
+				NNTL_ASSERT(!"Exception caught while resizing vectors in eval_classification_one_hot_cached::init");
+				deinit();
+				return false;
+			}
+			
+			maxYOfDataset(train_set_id, td, m_ydataClassIdxs[train_set_id], cd);
+			maxYOfDataset(test_set_id, td, m_ydataClassIdxs[test_set_id], cd);
 			return true;
+		}
+
+		template<typename TrainDataT, typename CommonDataT>
+		void maxYOfDataset(const data_set_id_t dataSetId, TrainDataT& td, idxVec_t& dest, const CommonDataT& cd)const noexcept {
+			NNTL_ASSERT(conform_sign(dest.size()) == td.dataset_samples_count(dataSetId));
+
+			auto& iM = cd.iMath();
+			const auto maxBatches = td.walk_over_set(dataSetId, cd);
+			vec_len_t rOfs = 0;
+			for (numel_cnt_t bi = 0; bi < maxBatches; ++bi) {
+				td.next_subset(bi, cd);
+
+				iM.mrwIdxsOfMax(td.batchY(), &dest[rOfs]);
+				rOfs += td.batchY().rows();
+			}
+			NNTL_ASSERT(rOfs == td.dataset_samples_count(dataSetId));
 		}
 
 		void deinit()noexcept {
 			for (int i = 0; i <= 1; ++i) {
 				m_ydataClassIdxs[i].clear();
-				m_predictionClassIdxs[i].clear();
+				m_ydataClassIdxs[i].shrink_to_fit();
+				m_predictionClassOrYDataIdxs[i].clear();
+				m_predictionClassOrYDataIdxs[i].shrink_to_fit();
 			}
 		}
 
-		//returns a count of correct predictions, i.e. (True Positive + True Negative)'s
-		template<typename iMath>
-		numel_cnt_t correctlyClassified(const realmtx_t& data_y, const realmtx_t& activations, const bool bOnTestData, iMath& iM)noexcept {
-			NNTL_UNREF(data_y);
-			NNTL_ASSERT(data_y.size() == activations.size());
-			NNTL_ASSERT(data_y.rows() == m_ydataClassIdxs[bOnTestData].size());
-
-			iM.mrwIdxsOfMax(activations, &m_predictionClassIdxs[bOnTestData][0]);
-			return iM.vCountSame(m_ydataClassIdxs[bOnTestData], m_predictionClassIdxs[bOnTestData]);
+		void prepare_to_dataset(const data_set_id_t dataSetId, const numel_cnt_t totalBatches)noexcept {
+			NNTL_UNREF(dataSetId); NNTL_UNREF(totalBatches);
+			m_curYOfs = 0;
 		}
 
+		template<typename iMath>
+		numel_cnt_t correctlyClassified(const data_set_id_t dataSetId, const realmtx_t& data_y, const realmtx_t& activations, iMath& iM)noexcept {
+			NNTL_ASSERT(data_y.size() == activations.size());
+			NNTL_ASSERT(data_y.rows() <= m_maxFPropBatch);
+
+			NNTL_ASSERT(conform_sign(m_predictionClassOrYDataIdxs[0].capacity()) >= activations.rows());
+			m_predictionClassOrYDataIdxs[0].resize(activations.rows());
+			iM.mrwIdxsOfMax(activations, &m_predictionClassOrYDataIdxs[0][0]);
+
+			numel_cnt_t ret;
+			if (dataSetId <= 1) {
+				ret = iM.vCountSame(m_ydataClassIdxs[dataSetId], m_predictionClassOrYDataIdxs[0], m_curYOfs);
+				m_curYOfs += activations.rows();
+				NNTL_ASSERT(m_curYOfs <= m_ydataClassIdxs[dataSetId].size());
+			} else {
+				//processing data_y into m_predictionsPP_orYData[1]
+				NNTL_ASSERT(conform_sign(m_predictionClassOrYDataIdxs[1].capacity()) >= data_y.rows());
+				m_predictionClassOrYDataIdxs[1].resize(data_y.rows());
+				iM.mrwIdxsOfMax(data_y, &m_predictionClassOrYDataIdxs[1][0]);
+				ret = iM.vCountSame(m_predictionClassOrYDataIdxs[1], m_predictionClassOrYDataIdxs[0]);
+			}
+			return ret;
+		}
+		
 		static numel_cnt_t totalSamples(const realmtx_t& data_y)noexcept {
 			NNTL_ASSERT(!data_y.emulatesBiases());
 			return data_y.rows();

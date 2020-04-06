@@ -39,16 +39,19 @@ namespace nntl {
 
 		namespace conds {
 
+			static constexpr numel_cnt_t idx_before_start = -1;
+
+			struct _i_condDump_base : public virtual DataSetsId {};
+
 			//dumps first batch of an epoch
-			struct EpochNum : public math::smatrix_td {
-				typedef ::std::vector<size_t> epochs_to_dump_t;
+			struct EpochNum : public _i_condDump_base {
+				typedef ::std::vector<numel_cnt_t> epochs_to_dump_t;
 				//static constexpr bool bNewBatch2NewFile = true;
 
 				vector_conditions m_dumpEpochCond;
 				epochs_to_dump_t m_epochsToDump;
 
-				void on_init_nnet(const size_t totalEpochs, const vec_len_t totalBatches)noexcept {
-					NNTL_UNREF(totalBatches);
+				void on_init_nnet(const numel_cnt_t totalEpochs)noexcept {
 					const auto lastEpochIdx = totalEpochs - 1;
 					if (!m_epochsToDump.size()) m_epochsToDump.push_back(lastEpochIdx);
 
@@ -60,14 +63,14 @@ namespace nntl {
 					}
 				}
 
-				const bool on_train_epochBegin(const size_t epochIdx)const noexcept {
+				const bool on_train_epochBegin(const numel_cnt_t epochIdx)const noexcept {
 					return m_dumpEpochCond(epochIdx);
 				}
 #pragma warning(disable : 4100)
-				static constexpr bool on_train_batchBegin(const bool _bDoDump, const vec_len_t batchIdx, const size_t epochIdx) noexcept {
+				static constexpr bool on_train_batchBegin(const bool _bDoDump, const numel_cnt_t batchIdx, const numel_cnt_t epochIdx) noexcept {
 					return _bDoDump && 0 == batchIdx;
 				}
-				static constexpr bool on_train_calcErr(const size_t epochIdx, const bool bOnTrainSet) noexcept {return false;};
+				static constexpr bool on_calcErr(const numel_cnt_t epochIdx, const data_set_id_t dataSetId) noexcept {return false;};
 #pragma warning(default : 4100)
 			};
 
@@ -76,23 +79,23 @@ namespace nntl {
 				typedef EpochNum parent_t;
 				bool bDumpInitialErr;
 
-				void on_init_nnet(const size_t totalEpochs, const vec_len_t totalBatches)noexcept {
-					parent_t::on_init_nnet(totalEpochs, totalBatches);
-					bDumpInitialErr = ::std::any_of(m_epochsToDump.begin(), m_epochsToDump.end(), [](const auto& V)->bool {
-						return V == static_cast<size_t>(-1);
+				void on_init_nnet(const numel_cnt_t totalEpochs)noexcept {
+					parent_t::on_init_nnet(totalEpochs);
+					bDumpInitialErr = ::std::any_of(m_epochsToDump.begin(), m_epochsToDump.end(), [](const auto V)->bool {
+						return V == idx_before_start;
 					});
 				}
 
-				const bool on_train_calcErr(const size_t epochIdx, const bool bOnTrainSet)const noexcept {
-					return bOnTrainSet && (epochIdx == static_cast<size_t>(-1) ? bDumpInitialErr : m_dumpEpochCond(epochIdx));
+				const bool on_calcErr(const numel_cnt_t epochIdx, const data_set_id_t dataSetId)const noexcept {
+					return (dataSetId == train_set_id) && (epochIdx == idx_before_start ? bDumpInitialErr : m_dumpEpochCond(epochIdx));
 				}
 			};
 
 			//This function will dump only the training error calculation for a specified epoch
 			struct CalcErrOnlyByEpochNum : public CalcErrByEpochNum {
 #pragma warning(disable : 4100)
-				static constexpr bool on_train_epochBegin(const size_t epochIdx) noexcept { return false; }
-				static constexpr bool on_train_batchBegin(const bool _bDoDump, const vec_len_t batchIdx, const size_t epochIdx) noexcept {
+				static constexpr bool on_train_epochBegin(const numel_cnt_t epochIdx) noexcept { return false; }
+				static constexpr bool on_train_batchBegin(const bool _bDoDump, const numel_cnt_t batchIdx, const numel_cnt_t epochIdx) noexcept {
 					return false;
 				}
 #pragma warning(default : 4100)
@@ -106,26 +109,29 @@ namespace nntl {
 			};*/
 
 			//useful to debug initial training steps
-			struct FirstBatches : public math::smatrix_td {
-				//static constexpr bool bNewBatch2NewFile = true;
-
-				size_t batchesRun, maxBatches, stride;
-				
+			struct FirstBatches : public _i_condDump_base {
+				numel_cnt_t batchesRun, maxBatches, stride;				
 
 				FirstBatches()noexcept:batchesRun(0), maxBatches(0), stride(0){}
 
-				void on_init_nnet(const size_t totalEpochs, const vec_len_t totalBatches)noexcept {
+				void on_init_nnet(const numel_cnt_t /*totalEpochs*/)noexcept {
 					batchesRun = 0;
-					if (!maxBatches) maxBatches = totalEpochs*totalBatches;
+					if (!maxBatches) {
+						NNTL_ASSERT(!"FirstBatches::maxBatches must be set!");
+						//OK to die right now with noexcept
+					#pragma warning(disable:4297)//function assumed not to throw
+						throw ::std::logic_error("FirstBatches::maxBatches must be set!");
+					#pragma warning(default:4297)
+					}
 					if (!stride) stride = 1;
 				}
 
 #pragma warning(disable : 4100)
-				static constexpr bool on_train_epochBegin(const size_t epochIdx)noexcept { return true; }
-				const bool on_train_batchBegin(const bool _bDoDump, const vec_len_t batchIdx, const size_t epochIdx) noexcept {
+				static constexpr bool on_train_epochBegin(const numel_cnt_t epochIdx)noexcept { return true; }
+				const bool on_train_batchBegin(const bool _bDoDump, const numel_cnt_t batchIdx, const numel_cnt_t epochIdx) noexcept {
 					return batchesRun < maxBatches && !(batchesRun++ % stride);
 				}
-				static constexpr bool on_train_calcErr(const size_t epochIdx, const bool bOnTrainSet) noexcept { return false; };
+				static constexpr bool on_calcErr(const numel_cnt_t epochIdx, const data_set_id_t dataSetId) noexcept { return false; };
 #pragma warning(default : 4100)
 			};
 		}
@@ -150,6 +156,8 @@ namespace nntl {
 		protected:
 			typedef utils::layer_idx_keeper<layer_index_t, _NoLayerIdxSpecified, maxNnetDepth> keeper_t;
 
+			static constexpr auto idx_before_start = conds::idx_before_start;
+
 			//#todo: this settings should be given be a special ParamsT class passed here as a template parameter
 			static constexpr bool bVerbose = false;
 			//dumps significantly (x10+) times faster when set to true
@@ -161,8 +169,8 @@ namespace nntl {
 			cond_dump_t m_condDump;
 			
 			layer_names_t m_layerNames;
-			size_t m_layersCount, m_epochIdx;
-			vec_len_t m_batchIdx;
+			size_t m_layersCount;
+			numel_cnt_t m_epochIdx, m_batchIdx;
 
 			keeper_t m_curLayer;
 
@@ -199,8 +207,8 @@ namespace nntl {
 			}
 
 			void _ctor()noexcept {
-				m_epochIdx = ::std::numeric_limits<decltype(m_epochIdx)>::max();
-				m_batchIdx = ::std::numeric_limits<decltype(m_batchIdx)>::max();
+				m_epochIdx = idx_before_start;
+				m_batchIdx = idx_before_start;
 				m_layersCount = 0;
 				m_bDoDump = false;
 			}
@@ -257,46 +265,47 @@ namespace nntl {
 			enum class _ToDump {
 				FProp=0,
 				BProp,
-				CalcErrTrainset,
-				CalcErrTestset
+				CalcErrOnSet
 			};
 
 			template<bool b = bSplitFiles>
-			::std::enable_if_t<b> _make_file_name(char* n, const size_t ml, const _ToDump omode)const noexcept {
+			::std::enable_if_t<b> _make_file_name(char* n, const size_t ml, const _ToDump omode, const data_set_id_t dataSetId)const noexcept {
 				NNTL_ASSERT(!m_DirToDump.empty());
 				if (m_DirToDump.empty()) _epic_fail("m_DirToDump is not set!");
 				if (omode == _ToDump::FProp || omode == _ToDump::BProp) {
+					NNTL_ASSERT(dataSetId == invalid_set_id);
 					//if (cond_dump_t::bNewBatch2NewFile) {
-						sprintf_s(n, ml, omode == _ToDump::FProp ? "%s/ep%03zd_%df.mat" : "%s/ep%03zd_%db.mat"
+						sprintf_s(n, ml, omode == _ToDump::FProp ? "%s/ep%03zd_%zdf.mat" : "%s/ep%03zd_%zdb.mat"
 							, m_DirToDump.c_str(), m_epochIdx + 1, m_batchIdx);
 // 					} else {
 // 						sprintf_s(n, ml, omode == _ToDump::FProp ? "%s/epoch%zdf.mat" : "%s/epoch%zdb.mat"
 // 							, m_pDirToDump, m_epochIdx + 1);
 // 					}
 				} else {
-					sprintf_s(n, ml, omode == _ToDump::CalcErrTrainset ? "%s/ep%03zd_train.mat" : "%s/ep%03zd_test.mat"
-						, m_DirToDump.c_str(), m_epochIdx + 1);
+					NNTL_ASSERT(omode == _ToDump::CalcErrOnSet && dataSetId >= 0);
+					sprintf_s(n, ml, "%s/ep%03zd_err%d.mat", m_DirToDump.c_str(), m_epochIdx + 1, dataSetId);
 				}
 			}
 			template<bool b = bSplitFiles>
-			::std::enable_if_t<!b> _make_file_name(char* n, const size_t ml, const _ToDump omode)const noexcept {
+			::std::enable_if_t<!b> _make_file_name(char* n, const size_t ml, const _ToDump omode, const data_set_id_t dataSetId)const noexcept {
 				NNTL_ASSERT(!m_DirToDump.empty());
 				if (m_DirToDump.empty()) _epic_fail("m_DirToDump is not set!");
 				if (omode == _ToDump::FProp || omode == _ToDump::BProp) {
+					NNTL_ASSERT(dataSetId == invalid_set_id);
 					//if (cond_dump_t::bNewBatch2NewFile) {
-						sprintf_s(n, ml, "%s/ep%03zd_%d.mat", m_DirToDump.c_str(), m_epochIdx + 1, m_batchIdx);
+						sprintf_s(n, ml, "%s/ep%03zd_%zd.mat", m_DirToDump.c_str(), m_epochIdx + 1, m_batchIdx);
 // 					} else {
 // 						sprintf_s(n, ml, "%s/epoch%zd.mat", m_pDirToDump, m_epochIdx + 1);
 // 					}
 				} else {
-					sprintf_s(n, ml, omode == _ToDump::CalcErrTrainset ? "%s/ep%03zd_train.mat" : "%s/ep%03zd_test.mat"
-						, m_DirToDump.c_str(), m_epochIdx + 1);
+					NNTL_ASSERT(omode == _ToDump::CalcErrOnSet && dataSetId >= 0);
+					sprintf_s(n, ml, "%s/ep%03zd_err%d.mat", m_DirToDump.c_str(), m_epochIdx + 1, dataSetId);
 				}
 			}
 
-			self_ref_t _open_archive(const _ToDump omode)noexcept {
+			self_ref_t _open_archive(const _ToDump omode, const data_set_id_t dataSetId)noexcept {
 				char n[maxFileNameLength];
-				_make_file_name(n, maxFileNameLength, omode);
+				_make_file_name(n, maxFileNameLength, omode, dataSetId);
 				_check_err(get_self().getArchive().open(n, archive_t::FileOpenMode::UpdateDelete), "Opening file for updating");				
 				return get_self();
 			}
@@ -306,9 +315,9 @@ namespace nntl {
 			}
 			//default implementations
 #pragma warning(disable:4100)
-			void on_train_batchBegin(const vec_len_t batchIdx) const noexcept {}
+			void on_train_batchBegin(const numel_cnt_t batchIdx) const noexcept {}
 			void on_train_batchEnd()const noexcept {}
-			void on_train_preCalcError(const bool bOnTrainSet)const noexcept {}
+			void on_train_preCalcError(const data_set_id_t dataSetId)const noexcept {}
 			void on_train_postCalcError()const noexcept {}
 			void on_train_preFprop(const realmtx_t& data_x)const noexcept {}
 			void on_train_preBprop(const realmtx_t& data_y)const noexcept {}
@@ -348,14 +357,14 @@ namespace nntl {
 			
 			//////////////////////////////////////////////////////////////////////////
 
-			//to notify about total layer, epoch and batches count
-			void init_nnet(const size_t totalLayers, const size_t totalEpochs, const vec_len_t totalBatches)noexcept {
+			//to notify about total layers and epochs count
+			void init_nnet(const size_t totalLayers, const numel_cnt_t totalEpochs)noexcept {
 				NNTL_ASSERT(!m_DirToDump.empty());
-				NNTL_ASSERT(totalLayers && totalEpochs && totalBatches);
+				NNTL_ASSERT(totalLayers && totalEpochs);
 				m_layersCount = totalLayers;
 				m_bDoDump = false;
-				m_epochIdx = ::std::numeric_limits<decltype(m_epochIdx)>::max();
-				m_batchIdx = ::std::numeric_limits<decltype(m_batchIdx)>::max();
+				m_epochIdx = idx_before_start;
+				m_batchIdx = idx_before_start;
 
 				//#exceptions STL
 				m_layerNames.clear();
@@ -364,7 +373,7 @@ namespace nntl {
 
 				_bwlist_init(totalLayers);
 
-				m_condDump.on_init_nnet(totalEpochs, totalBatches);
+				m_condDump.on_init_nnet(totalEpochs);
 				//if (!m_pDirToDump) STDCOUTL("*beware, dumping has been disabled due to unset directory to dump");
 			}
 
@@ -376,16 +385,16 @@ namespace nntl {
 				_bwlist_updateLayer(lIdx, layerTypeId);
 			};
 
-			void train_epochBegin(const size_t epochIdx)noexcept {
+			void train_epochBegin(const numel_cnt_t epochIdx)noexcept {
 				m_epochIdx = epochIdx;
 				m_bDoDump = m_condDump.on_train_epochBegin(epochIdx);
 			}
-			void train_batchBegin(const vec_len_t batchIdx) noexcept {
+			void train_batchBegin(const numel_cnt_t batchIdx) noexcept {
 				m_bDoDump = m_condDump.on_train_batchBegin(m_bDoDump, batchIdx, m_epochIdx);
 				if (m_bDoDump) {
 					m_batchIdx = batchIdx;
 					STDCOUTL("Going to dump the training dataflow...");
-					get_self()._open_archive(_ToDump::FProp)
+					get_self()._open_archive(_ToDump::FProp, invalid_set_id)
 						.on_train_batchBegin(batchIdx);
 				}
 			}
@@ -393,7 +402,7 @@ namespace nntl {
 			void train_preBprop(const realmtx_t& data_y) noexcept {
 				if (m_bDoDump) {
 					if (bSplitFiles) get_self()._close_archive()
-						._open_archive(_ToDump::BProp);
+						._open_archive(_ToDump::BProp, invalid_set_id);
 
 					get_self().on_train_preBprop(data_y);
 				}
@@ -407,12 +416,12 @@ namespace nntl {
 				}
 			}
 
-			void train_preCalcError(const bool bOnTrainSet) noexcept {
-				m_bDoDump = m_condDump.on_train_calcErr(m_epochIdx, bOnTrainSet);
+			void train_preCalcError(const data_set_id_t dataSetId) noexcept {
+				m_bDoDump = m_condDump.on_calcErr(m_epochIdx, dataSetId);
 				if (m_bDoDump) {
 					STDCOUTL("Going to dump the calc error dataflow...");
-					get_self()._open_archive(bOnTrainSet ? _ToDump::CalcErrTrainset : _ToDump::CalcErrTestset);
-					get_self().on_train_preCalcError(bOnTrainSet);
+					get_self()._open_archive(_ToDump::CalcErrOnSet, dataSetId);
+					get_self().on_train_preCalcError(dataSetId);
 				}
 			};
 			void train_postCalcError()noexcept {

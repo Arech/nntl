@@ -52,10 +52,11 @@ namespace inspector {
 		typedef GradCheck gradcheck_inspector_t;
 
 		//we have to bring this types to the scope or MSVC will emit errors.
-		using mtx_coords_t = typename _base_class_t::mtx_coords_t;
+		//using mtx_coords_t = typename _base_class_t::mtx_coords_t;
 		using real_t = typename _base_class_t::real_t;
 		using realmtx_t = typename _base_class_t::realmtx_t;
 		using realmtxdef_t = typename _base_class_t::realmtxdef_t;
+		using mtx_coords_t = typename realmtx_t::mtx_coords_t;
 		//using vec_len_t = typename _base_class_t::vec_len_t;
 
 	protected:

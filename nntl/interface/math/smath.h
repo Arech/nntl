@@ -51,8 +51,18 @@ namespace math {
 	// generic and _st versions MUST accept any datasizes. However, _mt as well as specializations,
 	//		such as _mt_cw MAY put restrictions on acceptable data sizes.
 	//
-	// #todo drop <typename RealT> class template parameter in favor of corresponding function template parameter!
+	//////////////////////////////////////////////////////////////////////////
+	// Notes on correctness testing:
+	// - each public function (generic, _st, _mt and so on) MUST be tested for correctness using some easy to read etalon implementation
+	// - test function must be parametrized by types used. At least every type used in computations must be tested
+	// - matrices with&without bias column should be tested where appropriate
+	// 
+	// Notes on performance testing:
+	// - yes, we need run-time profiling instead of hand-tuning thresholds. no time for it now. TBD
+	// - char data type should specifically be tested due to possible strict aliasing issues
+	// 
 
+	// #todo drop <typename RealT> class template parameter in favor of corresponding function template parameter!
 	template<typename RealT, typename iThreadsT, typename ThresholdsT, typename FinalPolymorphChild>
 	class _SMath {
 		static_assert(::std::is_base_of<threads::_i_threads<RealT, typename iThreadsT::range_t>, iThreadsT>::value, "iThreads must implement threads::_i_threads");
@@ -89,7 +99,10 @@ namespace math {
 		typedef iThreadsT iThreads_t;
 		typedef typename iThreads_t::range_t range_t;
 		typedef typename iThreads_t::par_range_t par_range_t;
-		//typedef typename iThreads_t::thread_id_t thread_id_t;
+		typedef typename iThreads_t::reduce_data_t reduce_data_t;
+
+		template<typename T>
+		using converter_reduce_data_tpl = typename iThreads_t::template converter_reduce_data_t<T>;
 
 		//static_assert(::std::is_same<typename realmtx_t::numel_cnt_t, typename iThreadsT::range_t>::value, "iThreads::range_t should be the same as realmtx_t::numel_cnt_t");
 		static_assert(::std::is_same<numel_cnt_t, typename iThreadsT::range_t>::value, "iThreads::range_t should be the same as realmtx_t::numel_cnt_t");
@@ -243,6 +256,30 @@ namespace math {
 		template <bool bNumStab, typename _T>
 		static _T _vec_sum_squares(const _T* _ptr, const numel_cnt_t _cnt)noexcept {
 			return _vec_apply_func_get_result<func_SUM_squares<_T, bNumStab>>(_ptr, _cnt);
+		}
+		//////////////////////////////////////////////////////////////////////////
+
+		template <typename T, bool bNumStab = false>
+		static ::std::enable_if_t<!bNumStab, T> _reduce_vec_sum(const reduce_data_t*const _ptr, const numel_cnt_t _cnt)noexcept {
+			typedef converter_reduce_data_tpl<T> converter_t;
+			T r{ T(0) };
+			for (numel_cnt_t i = 0; i < _cnt; ++i) {
+				r += converter_t::from(_ptr[i]);
+			}
+			return r;
+		}
+
+		template <typename T, bool bNumStab = false>
+		static ::std::enable_if_t<bNumStab, T> _reduce_vec_sum(const reduce_data_t*const _ptr, const numel_cnt_t _cnt)noexcept {
+			typedef converter_reduce_data_tpl<T> converter_t;
+			T r{ T(0) }, C{ T(0) }, Y, Tt;
+			for (numel_cnt_t i = 0; i < _cnt; ++i) {
+				Y = converter_t::from(_ptr[i]) - C;
+				Tt = r + Y;
+				C = Tt - r - Y;
+				r = Tt;
+			}
+			return r;
 		}
 
 		//////////////////////////////////////////////////////////////////////////
@@ -698,7 +735,7 @@ namespace math {
 
 			static_assert(sizeof(VT) == sizeof(real_t), "Mismatching type sizes will lead to wrong malloc");
 			const auto elemsCnt = smatrix<VT>::sNumel(rm, threadsToUse);
-			const auto tmemSize = elemsCnt + static_cast<numel_cnt_t>(ceil((real_t(sizeof(ScndVecType)) / sizeof(real_t))*elemsCnt));
+			const auto tmemSize = elemsCnt + static_cast<numel_cnt_t>(ceil((ext_real_t(sizeof(ScndVecType)) / sizeof(real_t))*elemsCnt));
 			const auto pTmpMem = get_self()._istor_alloc(tmemSize);
 
 			const auto pMainVec = pTmpMem;
@@ -768,9 +805,11 @@ namespace math {
 		}
 		real_t ewSumProd_mt(const realmtx_t& A, const realmtx_t& B)noexcept {
 			NNTL_ASSERT(!A.empty() && !B.empty() && B.size() == A.size());
-			return m_threads.reduce([&A, &B, this](const par_range_t& pr)->real_t {
-				return get_self()._iewSumProd_st(A, B, elms_range(pr));
-			}, _vec_sum<true, real_t>, A.numel());
+			return m_threads.reduce([&A, &B, this](const par_range_t& pr)->reduce_data_t {
+				return converter_reduce_data_tpl<real_t>::to(
+					get_self()._iewSumProd_st(A, B, elms_range(pr))
+				);
+			}, _reduce_vec_sum<real_t, true>, A.numel());
 		}
 
 		//////////////////////////////////////////////////////////////////////////
@@ -797,9 +836,11 @@ namespace math {
 		}
 		real_t ewSumSquares_mt(const realmtx_t& A)noexcept {
 			NNTL_ASSERT(!A.empty());
-			return m_threads.reduce([pA=A.data(), this](const par_range_t& pr)->real_t {
-				return get_self()._iewSumSquares_st(pA, elms_range(pr));
-			}, _vec_sum<false, real_t>, A.numel());
+			return m_threads.reduce([pA = A.data(), this](const par_range_t& pr)->reduce_data_t {
+				return converter_reduce_data_tpl<real_t>::to(
+					get_self()._iewSumSquares_st(pA, elms_range(pr))
+				);
+			}, _reduce_vec_sum<real_t>, A.numel());
 		}
 		//////////////////////////////////////////////////////////////////////////
 		real_t ewSumSquares(const real_t* pA, const numel_cnt_t n)noexcept {
@@ -812,9 +853,11 @@ namespace math {
 			return get_self()._iewSumSquares_st(pA, pER ? *pER : elms_range(0, n));
 		}
 		real_t ewSumSquares_mt(const real_t* pA, const numel_cnt_t n)noexcept {
-			return m_threads.reduce([pA, this](const par_range_t& pr)->real_t {
-				return get_self()._iewSumSquares_st(pA, elms_range(pr));
-			}, _vec_sum<false, real_t>, n);
+			return m_threads.reduce([pA, this](const par_range_t& pr)->reduce_data_t {
+				return converter_reduce_data_tpl<real_t>::to(
+					get_self()._iewSumSquares_st(pA, elms_range(pr))
+				);
+			}, _reduce_vec_sum<real_t>, n);
 		}
 		//////////////////////////////////////////////////////////////////////////
 		real_t ewSumSquares_ns(const realmtx_t& A)noexcept {
@@ -828,9 +871,11 @@ namespace math {
 		}
 		real_t ewSumSquares_mt_ns(const realmtx_t& A)noexcept {
 			NNTL_ASSERT(!A.empty());
-			return m_threads.reduce([pA = A.data(), this](const par_range_t& pr)->real_t {
-				return get_self()._iewSumSquares_st_ns(pA, elms_range(pr));
-			}, _vec_sum<true, real_t>, A.numel());
+			return m_threads.reduce([pA = A.data(), this](const par_range_t& pr)->reduce_data_t {
+				return converter_reduce_data_tpl<real_t>::to(
+					get_self()._iewSumSquares_st_ns(pA, elms_range(pr))
+				);
+			}, _reduce_vec_sum<real_t, true>, A.numel());
 		}
 		//////////////////////////////////////////////////////////////////////////
 		real_t ewSumSquares_ns(const real_t* pA, const numel_cnt_t n)noexcept {
@@ -843,9 +888,11 @@ namespace math {
 			return get_self()._iewSumSquares_st_ns(pA, pER ? *pER : elms_range(0, n));
 		}
 		real_t ewSumSquares_mt_ns(const real_t* pA, const numel_cnt_t n)noexcept {
-			return m_threads.reduce([pA, this](const par_range_t& pr)->real_t {
-				return get_self()._iewSumSquares_st_ns(pA, elms_range(pr));
-			}, _vec_sum<true, real_t>, n);
+			return m_threads.reduce([pA, this](const par_range_t& pr)->reduce_data_t {
+				return converter_reduce_data_tpl<real_t>::to(
+					get_self()._iewSumSquares_st_ns(pA, elms_range(pr))
+				);
+			}, _reduce_vec_sum<real_t, true>, n);
 		}
 
 		//////////////////////////////////////////////////////////////////////////
@@ -867,9 +914,11 @@ namespace math {
 
 		template<bool bLowerTriangl, bool bNumStab, typename _T>
 		_T ewSumSquaresTriang_mt(const smatrix<_T>& A)noexcept {
-			return m_threads.reduce([&A, this](const par_range_t& pr)->real_t {
-				return get_self()._iewSumSquaresTriang_st<bLowerTriangl, bNumStab>(A, elms_range(pr));
-			}, _vec_sum<bNumStab, real_t>, A.numel_triangl());
+			return m_threads.reduce([&A, this](const par_range_t& pr)->reduce_data_t {
+				return converter_reduce_data_tpl<real_t>::to(
+					get_self()._iewSumSquaresTriang_st<bLowerTriangl, bNumStab>(A, elms_range(pr))
+				);
+			}, _reduce_vec_sum<real_t, bNumStab>, A.numel_triangl());
 		}
 
 		//contrary to a common matrix elements numeration, `er` var describes elements indexes in TRIANGULAR matrix (not a square matrix as usual)
@@ -1007,15 +1056,22 @@ namespace math {
 
 		//////////////////////////////////////////////////////////////////////////
 		//////////////////////////////////////////////////////////////////////////
-		numel_cnt_t mrwIdxsOfMax_needTempMem(const realmtx_t& A)const noexcept {
-			// max memory is required by mrwIdxsOfMax_mt_cw_small(), and it is:
+		template<typename T>
+		numel_cnt_t mrwIdxsOfMax_needTempMem(const smatrix<T>& A)const noexcept {
+			return mrwIdxsOfMax_needTempMem<T>(A.rows());
+		}
+		template<typename T>
+		numel_cnt_t mrwIdxsOfMax_needTempMem(const vec_len_t maxRows)const noexcept {
+			static_assert(::std::is_pod<T>::value, "");
+			// max memory is required by mrwIdxsOfMax_mt_cw_small() or the same as _processMtx_cw() from mrwIdxsOfMax_mt_cw(), and it is:
 			// rm*workersCnt of real_t's to store temp maxs for each column-set
 			// and rm*workersCnt of vec_len_t's to store indexes.
-			const auto _elmsCnt = smatrix_td::sNumel(A.rows(), m_threads.cur_workers_count());
-			return _elmsCnt + static_cast<numel_cnt_t>(ceil((real_t(sizeof(vec_len_t)) / sizeof(real_t))*_elmsCnt));
+			const auto _elmsCnt = smatrix_td::sNumel(maxRows, m_threads.cur_workers_count());
+			return _elmsCnt + static_cast<numel_cnt_t>(ceil((ext_real_t(sizeof(vec_len_t)) / sizeof(T))*_elmsCnt));
 		}
 		//fills array pDest of size m.rows() with column indexes of greatest element in each row of m
-		// TODO: must meet func.requirements
+		// #TODO: must meet func.requirements
+		// #TODO: must be parametrized by typename T
 		void mrwIdxsOfMax(const realmtx_t& A, vec_len_t*const pDest)noexcept {
 			if (A.numel() < Thresholds_t::mrwIdxsOfMax) {
 				get_self().mrwIdxsOfMax_st(A, pDest);
@@ -1034,6 +1090,7 @@ namespace math {
 				get_self().mrwIdxsOfMax_mt_cw(A, pDest);
 			} else get_self().mrwIdxsOfMax_mt_rw(A, pDest);
 		}
+		// not used (was slower than alternatives, but worked. May be good for some other architectures)
 		void mrwIdxsOfMax_st_cw(const realmtx_t& A, vec_len_t*const pDest, real_t* pMax = nullptr, const rowcol_range*const pRCR = nullptr)noexcept {
 			NNTL_ASSERT(!(!pMax ^ !pRCR));
 			NNTL_ASSERT(!A.empty() && pDest && A.numel() > 0);
@@ -1144,7 +1201,7 @@ namespace math {
 				memcpy(pDest, pIdxsStor, sizeof(vec_len_t)*rm);
 			});
 		}
-
+		// not used (was slower than alternatives, but worked. May be good for some other architectures)
 		void mrwIdxsOfMax_mt_cw_small(const realmtx_t& A, vec_len_t*const pDest)noexcept {
 			NNTL_ASSERT(!A.empty() && A.numel() > 0 && pDest);
 			NNTL_ASSERT(Thresholds_t::mrwIdxsOfMax_ColsPerThread >= 3);//DON'T make it less than 3 or you'll run in troubles with size of temp mem!!!
@@ -1229,7 +1286,6 @@ namespace math {
 			});
 			get_self()._istor_free(pMax, A.rows());
 		}
-		
 
 		//////////////////////////////////////////////////////////////////////////
 		//////////////////////////////////////////////////////////////////////////

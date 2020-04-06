@@ -26,7 +26,7 @@ One may switch computations to use a float data type instead of a double to run 
 
 I wouldn't state the NNTL is the fastest CPU implementation of feedforward neural networks, but nonetheless it's indeed fast due to proper architecture, vectorizable math code and memory use optimization, and it is BSD-licensed (except for [random number generators](https://github.com/Arech/AF_randomc_h), which is GPL licensed, - but it's easy to substitute RNG (as well as almost any other part of the library) for another implementation if needed).
 
-## Currently Implemented NN Features
+## Implemented Features
 * A full-batch or a mini-batch SGD
 * Individually tunable feedforward layers (i.e. almost all layer properties such as an activation function, a learning rate, a dropout, etc and so on are defined on a per layer basis).
 * The following feedforward layer types has been implemented allowing one to create many different types of feedforward neuron connectivity that helps to encapsulate some important prior knowledge of a data into a neural network architecture:
@@ -161,7 +161,7 @@ The main rule - don't hesitate to ask for help, if you are interested.
 
 ### How to Build the `tests` Project
 1. You'll also need to download the [Google Test](https://github.com/google/googletest) (preferably version 1.7) to the `%NNTL_ROOT%/_extern/gtest-1.7.0/` folder and to build the `/msvc/gtest.vcxproj` project. Also download the [RapidJson](http://rapidjson.org/) and unpack it to the `%NNTL_ROOT%/_extern/rapidjson/`
-2. [Download](https://yadi.sk/d/xr4BJKV4vRjh6) or (provided you have a Matlab/Octave installed) convert the MNIST data with the `%NNTL_ROOT%/nntl/_supp/matlab/mnist2bin.m` script from the [mnist_uint8.mat](https://github.com/rasmusbergpalm/DeepLearnToolbox/blob/master/data/mnist_uint8.mat) file (supplied with the DeepLearnToolbox) to a corresponding small and a full file. Put the `mnist60000.bin` and the `mnist200_100.bin` (the last file is the MNIST dataset cropped to the 200 train and the 100 test samples for use in debug builds) to the `%NNTL_ROOT%/data/` folder.
+2. [Download](https://yadi.sk/d/DpvoqtGGUqh5JQ) or (provided you have a Matlab/Octave installed) convert the MNIST data with the `%NNTL_ROOT%/nntl/_supp/matlab/mnist2bin.m` script from the [mnist_uint8.mat](https://github.com/rasmusbergpalm/DeepLearnToolbox/blob/master/data/mnist_uint8.mat) file (supplied with the DeepLearnToolbox) to a corresponding small and a full file. Put the `mnist60000.bin` and the `mnist200_100.bin` (the last file is the MNIST dataset cropped to the 200 train and the 100 test samples for use in debug builds) to the `%NNTL_ROOT%/data/` folder.
 3. I guess, that's enough to build and run the `tests` project. It should pass all tests in a debug and release modes. To run an individual test case use the [--gtest_filter](https://github.com/google/googletest/blob/master/googletest/docs/V1_7_AdvancedGuide.md#running-a-subset-of-the-tests) command line option.
 
 ## The Status of the NNTL

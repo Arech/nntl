@@ -43,7 +43,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 // over the learning process including pausing/inspecting/modifying and so on. But that's a story for a future.
 
 #include "math/smatrix.h"
-
+#include "../train_data/_i_train_data.h"
 #include "../utils/layer_idx_keeper.h"
 
 namespace nntl {
@@ -54,10 +54,12 @@ namespace inspector {
 	template< class T >
 	struct is_gradcheck_inspector<T, ::std::void_t<typename T::gradcheck_inspector_t>> : ::std::true_type {};
 
-
+	//template-less base class
+	struct _i_inspector_base : public virtual DataSetsId {};
+	
 	// interface is nowhere near a stable state, so expect changes.
 	template<typename RealT>
-	class _i_inspector : public math::smatrix_td {
+	class _i_inspector : public _i_inspector_base { //public math::smatrix_td {
 		//!! copy constructor not needed
 		_i_inspector(const _i_inspector& other)noexcept = delete;
 		//!!assignment is not needed
@@ -86,19 +88,19 @@ namespace inspector {
 		// specialized functions naming convention:
 		// <phase>_<prefix><A/actionCamelCased><Suffix>()
 
-		//to notify about total layer, epoch and batches count
-		nntl_interface void init_nnet(const size_t totalLayers, const size_t totalEpochs, const vec_len_t totalBatches)const noexcept;
+		//to notify about total layers and epochs count
+		nntl_interface void init_nnet(const size_t totalLayers, const numel_cnt_t totalEpochs)const noexcept;
 
 		//to notify about layer and it's name (for example, inspector can use this info to filter out calls from non-relevant layers later)
 		//this call can cost something, but we don't care because it happens only during init phase
 		template<typename StrT>
 		nntl_interface void init_layer(const layer_index_t lIdx, StrT&& LayerName, const layer_type_id_t layerTypeId)const noexcept;
 
-		nntl_interface void train_epochBegin(const size_t epochIdx)const noexcept;
+		nntl_interface void train_epochBegin(const numel_cnt_t epochIdx)const noexcept;
 		nntl_interface void train_epochEnd()const noexcept;
 
 		//train_batch* functions are called during learning process only
-		nntl_interface void train_batchBegin(const vec_len_t batchIdx)const noexcept;
+		nntl_interface void train_batchBegin(const numel_cnt_t batchIdx)const noexcept;
 		nntl_interface void train_batchEnd()const noexcept;
 
 		//the following two functions are called during learning process only
@@ -106,7 +108,7 @@ namespace inspector {
 		nntl_interface void train_preBprop(const realmtx_t& data_y)const noexcept;
 
 		//the following 2 functions are called during learning process only
-		nntl_interface void train_preCalcError(const bool bOnTrainSet)const noexcept;
+		nntl_interface void train_preCalcError(const data_set_id_t dataSetId)const noexcept;
 		nntl_interface void train_postCalcError()const noexcept;
 
 		//////////////////////////////////////////////////////////////////////////
@@ -192,9 +194,9 @@ namespace inspector {
 			// specialized functions naming convention:
 			// <phase>_<prefix><A/actionCamelCased><Suffix>()
 
-			//to notify about total layer, epoch and batches count
-			void init_nnet(const size_t totalLayers, const size_t totalEpochs, const vec_len_t totalBatches)const noexcept {
-				NNTL_UNREF(totalLayers);				NNTL_UNREF(totalEpochs);				NNTL_UNREF(totalBatches);
+			//to notify about total layers and epochs count
+			void init_nnet(const size_t totalLayers, const numel_cnt_t totalEpochs)const noexcept {
+				NNTL_UNREF(totalLayers);				NNTL_UNREF(totalEpochs);
 			}
 
 			//to notify about layer and it's name (for example, inspector can use this info to filter out calls from non-relevant layers later)
@@ -204,10 +206,10 @@ namespace inspector {
 				NNTL_UNREF(lIdx);				NNTL_UNREF(LayerName);				NNTL_UNREF(layerTypeId);
 			};
 
-			void train_epochBegin(const size_t epochIdx)const noexcept { NNTL_UNREF(epochIdx); }
+			void train_epochBegin(const numel_cnt_t epochIdx)const noexcept { NNTL_UNREF(epochIdx); }
 			void train_epochEnd()const noexcept {}
 
-			void train_batchBegin(const vec_len_t batchIdx)const noexcept { NNTL_UNREF(batchIdx); }
+			void train_batchBegin(const numel_cnt_t batchIdx)const noexcept { NNTL_UNREF(batchIdx); }
 			void train_batchEnd()const noexcept {}
 
 			//the following two functions are called during learning process only
@@ -215,7 +217,7 @@ namespace inspector {
 			void train_preBprop(const realmtx_t& data_y)const noexcept { NNTL_UNREF(data_y); }
 
 			//the following 2 functions are called during learning process only
-			void train_preCalcError(const bool bOnTrainSet)const noexcept { NNTL_UNREF(bOnTrainSet); };
+			void train_preCalcError(const data_set_id_t dataSetId)const noexcept { NNTL_UNREF(dataSetId); };
 			void train_postCalcError()const noexcept {};
 
 			//////////////////////////////////////////////////////////////////////////

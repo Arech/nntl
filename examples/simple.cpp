@@ -40,6 +40,7 @@ typedef nntl_supp::binfile reader_t;
 using real_t = d_interfaces::real_t;
 
 #define MNIST_FILE_DEBUG "../data/mnist200_100.bin"
+//#define MNIST_FILE_DEBUG  "../data/mnist60000.bin"
 #define MNIST_FILE_RELEASE  "../data/mnist60000.bin"
 
 #if defined(TESTS_SKIP_NNET_LONGRUNNING)
@@ -65,7 +66,7 @@ using real_t = d_interfaces::real_t;
 
 // make a simple NN without any fancy things, just simple 768->500->300->10 net without momentum and dropout
 TEST(Simple, PlainFFN) {
-	train_data<real_t> td; //storage for MNIST train and test(validation) data
+	inmem_train_data<real_t> td; //storage for MNIST train and test(validation) data
 	reader_t reader; //.bin file reader object
 
 	//1. reading training data from file into train_data td storage
@@ -97,7 +98,7 @@ TEST(Simple, PlainFFN) {
 	auto lp = make_layers(inp, fcl, fcl2, outp);
 
 	//4. define NN training options (epochs count, conditions when to evaluate NN performance, etc)
-	nnet_train_opts<> opts(epochs);
+	nnet_train_opts<real_t> opts(epochs);
 
 	opts.batchSize(100);
 
@@ -119,7 +120,7 @@ TEST(Simple, PlainFFN) {
 // lead to even better results.
 // btw, dropout is in fact make things worse here. Try disabling it by setting dropoutRate to 0 or 1.
 TEST(Simple, NotSoPlainFFN) {
-	train_data<real_t> td;
+	inmem_train_data<real_t> td;
 	reader_t reader;
 
 	//1. reading training data from file into train_data td storage
@@ -166,7 +167,7 @@ TEST(Simple, NotSoPlainFFN) {
 	auto lp = make_layers(inp, fcl, fcl2, outp);
 
 	//4. define NN training options (epochs count, conditions when to evaluate NN performance, etc)
-	nnet_train_opts<> opts(epochs);
+	nnet_train_opts<real_t> opts(epochs);
 
 	opts.batchSize(100);
 
@@ -175,8 +176,8 @@ TEST(Simple, NotSoPlainFFN) {
 	//nn.get_iRng().seed64(0x01ed59);
 
 	//5.5 define callback
-	auto onEpochEndCB = [learningRateDecayCoeff](auto& nn, auto& opts, const numel_cnt_t epochIdx)->bool {
-		NNTL_UNREF(epochIdx); NNTL_UNREF(opts);
+	auto onEpochEndCB = [learningRateDecayCoeff, &nn](const numel_cnt_t epochIdx)->bool {
+		NNTL_UNREF(epochIdx);
 		// well, we can capture references to layer objects in lambda capture clause and use them directly here,
 		// but lets get an access to them through nn object, passed as function parameter.
 		nn.get_layer_pack().for_each_layer_exc_input([learningRateDecayCoeff](auto& l) {
@@ -195,7 +196,7 @@ TEST(Simple, NotSoPlainFFN) {
 
 //same as NotSoPlainFFN but using learning rate dropout (arxiv:1912.00144) instead of common dropout
 TEST(Simple, NotSoPlainFFN_LRDO) {
-	train_data<real_t> td;
+	inmem_train_data<real_t> td;
 	reader_t reader;
 
 	//1. reading training data from file into train_data td storage
@@ -243,7 +244,7 @@ TEST(Simple, NotSoPlainFFN_LRDO) {
 	auto lp = make_layers(inp, fcl, fcl2, outp);
 
 	//4. define NN training options (epochs count, conditions when to evaluate NN performance, etc)
-	nnet_train_opts<> opts(epochs);
+	nnet_train_opts<real_t> opts(epochs);
 
 	opts.batchSize(100);
 
@@ -252,8 +253,8 @@ TEST(Simple, NotSoPlainFFN_LRDO) {
 	nn.get_iRng().seed64(0x01ed59);
 
 	//5.5 define callback
-	auto onEpochEndCB = [learningRateDecayCoeff](auto& nn, auto& opts, const numel_cnt_t epochIdx)->bool {
-		NNTL_UNREF(epochIdx); NNTL_UNREF(opts);
+	auto onEpochEndCB = [learningRateDecayCoeff, &nn](const numel_cnt_t epochIdx)->bool {
+		NNTL_UNREF(epochIdx);
 		// well, we can capture references to layer objects in lambda capture clause and use them directly here,
 		// but lets get an access to them through nn object, passed as function parameter.
 		nn.get_layer_pack().for_each_layer_exc_input([learningRateDecayCoeff](auto& l) {
@@ -273,15 +274,21 @@ TEST(Simple, NotSoPlainFFN_LRDO) {
 
 //This setup is slightly simplier than NotSoPlainFFN - just Nesterov Momentum, RMSProp and just a better weight initialization algorithm.
 // It beats NotSoPlainFFN and on par with NotSoPlainFFN_LRDO reaching less than 1.6% in less than 20 epochs.
+static time_t commonTime = 0;
+static vec_len_t commonBatchSize = 99; //shouldn't make a big difference with prev.tests, however will help to test uneven batchsizes
+#if defined(TESTS_SKIP_NNET_LONGRUNNING)
+static int commonEpochs = 1;
+#else
+static int commonEpochs = 20;
+#endif
 TEST(Simple, NesterovMomentumAndRMSPropOnly) {
-	train_data<real_t> td;
+	inmem_train_data<real_t> td;
 	reader_t reader;
 
 	STDCOUTL("Reading datafile '" << MNIST_FILE << "'...");
 	reader_t::ErrorCode rec = reader.read(NNTL_STRING(MNIST_FILE), td);
 	ASSERT_EQ(reader_t::ErrorCode::Success, rec) << "Error code description: " << reader.get_last_error_str();
 
-	int epochs = 20;
 	const real_t learningRate (real_t(0.0005));
 	const real_t momntm (real_t(0.9));
 
@@ -302,11 +309,57 @@ TEST(Simple, NesterovMomentumAndRMSPropOnly) {
 
 	auto lp = make_layers(inp, fcl, fcl2, outp);
 
-	nnet_train_opts<> opts(epochs);
+	nnet_train_opts<real_t> opts(commonEpochs);
 
-	opts.batchSize(100);
+	opts.batchSize(commonBatchSize);
 
 	auto nn = make_nnet(lp);
+
+	commonTime = ::std::time(nullptr);
+	STDCOUTL("Seeding RNG with value " << commonTime);
+	nn.get_iRng().seed64(commonTime);
+
+	auto ec = nn.train(td, opts);
+	ASSERT_EQ(decltype(nn)::ErrorCode::Success, ec) << "Error code description: " << nn.get_last_error_string();
+}
+
+//just like NesterovMomentumAndRMSPropOnly, but doing inference in batches of 1000 samples
+TEST(Simple, NesterovMomentumAndRMSPropOnlyFPBatch1000) {
+	inmem_train_data<real_t> td;
+	reader_t reader;
+
+	STDCOUTL("Reading datafile '" << MNIST_FILE << "'...");
+	reader_t::ErrorCode rec = reader.read(NNTL_STRING(MNIST_FILE), td);
+	ASSERT_EQ(reader_t::ErrorCode::Success, rec) << "Error code description: " << reader.get_last_error_str();
+
+	const real_t learningRate(real_t(0.0005));
+	const real_t momntm(real_t(0.9));
+
+	layer_input<> inp(td.train_x().cols_no_bias());
+
+	typedef weights_init::Martens_SI_sigm<> w_init_scheme;
+	typedef activation::sigm<real_t, w_init_scheme> activ_func;
+
+	layer_fully_connected<activ_func> fcl(500, learningRate);
+	layer_fully_connected<activ_func> fcl2(300, learningRate);
+
+	auto optType = decltype(fcl)::grad_works_t::RMSProp_Hinton;
+	fcl.m_gradientWorks.nesterov_momentum(momntm).set_type(optType);
+	fcl2.m_gradientWorks.nesterov_momentum(momntm).set_type(optType);
+
+	layer_output<activation::sigm_quad_loss<real_t, w_init_scheme>> outp(td.train_y().cols(), learningRate);
+	outp.m_gradientWorks.nesterov_momentum(momntm).set_type(optType);
+
+	auto lp = make_layers(inp, fcl, fcl2, outp);
+
+	nnet_train_opts<real_t> opts(commonEpochs);
+
+	opts.batchSize(commonBatchSize).maxFpropSize(1023);
+
+	auto nn = make_nnet(lp);
+
+	STDCOUTL("Seeding RNG with value " << commonTime);
+	nn.get_iRng().seed64(commonTime);
 
 	auto ec = nn.train(td, opts);
 

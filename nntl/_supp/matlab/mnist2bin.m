@@ -17,7 +17,7 @@ else
 end
 train_y = double(train_y(1:cnt,:));
 
-if 0<=cntt || cntt>size(test_x,1), cntt = size(test_x,1); end
+if 0>=cntt || cntt>size(test_x,1), cntt = size(test_x,1); end
 test_x  = double(test_x(1:cntt,:))  / 255;
 test_y  = double(test_y(1:cntt,:));
 

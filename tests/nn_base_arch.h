@@ -66,7 +66,7 @@ namespace nntl_tests {
 		bool bNormIncludesBias;
 
 		~NN_base_params()noexcept {}
-		NN_base_params(const nntl::train_data<real_t>& td)noexcept
+		NN_base_params(const nntl::simple_train_data_stor<real_t>& td)noexcept
 			: xCols(td.train_x().cols_no_bias()), yCols(td.train_y().cols())
 			, lUnderlay_nc(37)//any sufficiently big number suits
 			, learningRate(real_t(.001)), outputLearningRate(learningRate)
@@ -172,13 +172,13 @@ namespace nntl_tests {
 			});
 		}
 
-		ErrorCode_t warmup(const nntl::train_data<real_t>& td, const numel_cnt_t epochs, const vec_len_t batch_size
+		ErrorCode_t warmup(nntl::inmem_train_data<real_t>& td, const numel_cnt_t epochs, const vec_len_t batch_size
 			, const bool bCalcFullLoss=true)noexcept
 		{
 			STDCOUTL("Going to perform warmup for "<<epochs<<" epochs...");
 
-			nntl::nnet_train_opts<
-				nntl::training_observer_stdcout<nntl::eval_classification_one_hot_cached<real_t>>//need this to pass correct real_t
+			nntl::nnet_train_opts<real_t,
+				nntl::training_observer_stdcout<real_t, nntl::eval_classification_one_hot_cached<real_t>>//need this to pass correct real_t
 			> opts(epochs, false);
 
 			opts.batchSize(batch_size).ImmediatelyDeinit(false).calcFullLossValue(bCalcFullLoss);

@@ -53,7 +53,7 @@ typedef d_interfaces::real_t real_t;
 
 
 template<typename T_>
-bool get_td(train_data<T_>& td)noexcept {
+bool get_td(inmem_train_data<T_>& td)noexcept {
 	binfile reader;
 	auto rec = reader.read("./test_data/td.bin", td);
 	EXPECT_EQ(binfile::ErrorCode::Success, rec) << "Error code description: " << reader.get_last_error_str();
@@ -69,7 +69,7 @@ TEST(TestMatfile, ReadWriteMat) {
 	const double dET = 3.9;
 	const float fET = 2.6f;
 
-	train_data<real_t> td_ET,td;
+	inmem_train_data<real_t> td_ET,td;
 	ASSERT_TRUE(get_td(td_ET));
 
 	const char *const pFileName = "./test_data/test.mat";
@@ -122,7 +122,7 @@ TEST(TestMatfile, ReadWriteMat) {
 
 		mf & NNTL_SERIALIZATION_STRUCT(td);
 		ASSERT_EQ(mf.ErrorCode::Success, mf.get_last_error()) << mf.get_last_error_str();
-		ASSERT_EQ(td_ET, td) << "train_data comparison failed";
+		ASSERT_EQ(td_ET, td) << "inmem_train_data comparison failed";
 	}
 }
 
@@ -314,7 +314,7 @@ TEST(TestMatfile, ManualStructsWriting) {
 
 
 TEST(TestMatfile, DumpNnet) {
-	train_data<real_t> td;
+	inmem_train_data<real_t> td;
 	binfile reader;
 
 	binfile::ErrorCode rec = reader.read(NNTL_STRING(MNIST_SMALL_FILE), td);
@@ -332,7 +332,7 @@ TEST(TestMatfile, DumpNnet) {
 
 	auto lp = make_layers(inp, fcl, fcl2, outp);
 
-	nnet_train_opts<> opts(epochs);
+	nnet_train_opts<real_t> opts(epochs);
 
 	opts.batchSize(100).ImmediatelyDeinit(false);
 	auto nn = make_nnet(lp);

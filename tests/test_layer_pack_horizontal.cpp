@@ -53,7 +53,7 @@ typedef math::smatrix_deform<real_t> realmtxdef_t;
 
 //this is just to make sure it'll compile within nnet object
 TEST(TestLayerPackHorizontal, Simple) {
-	train_data<real_t> td;
+	inmem_train_data<real_t> td;
 	reader_t reader;
 
 	STDCOUTL("Reading datafile '" << MNIST_FILE << "'...");
@@ -78,7 +78,7 @@ TEST(TestLayerPackHorizontal, Simple) {
 
 	auto Blp = make_layers(Binp, lpHor, Boutp);
 
-	nnet_train_opts<> Bopts(epochs);
+	nnet_train_opts<real_t> Bopts(epochs);
 	Bopts.calcFullLossValue(true).batchSize(100).ImmediatelyDeinit(false);
 
 
@@ -90,7 +90,7 @@ TEST(TestLayerPackHorizontal, Simple) {
 
 
 /*
-void __test_same_layers(train_data<real_t>& td, uint64_t rngSeed) {
+void __test_same_layers(inmem_train_data<real_t>& td, uint64_t rngSeed) {
 	size_t epochs = 5;
 	const real_t learningRate = .01;
 	const auto train_x_dim = td.train_x().cols_no_bias();
@@ -146,7 +146,7 @@ void __test_same_layers(train_data<real_t>& td, uint64_t rngSeed) {
 	ASSERT_MTX_EQ(Aout.get_weights(), Bout.get_weights(), "outpout layer weights differs");
 }*/
 
-void test_same_layers(train_data<real_t>& td, uint64_t rngSeed) {
+void test_same_layers(inmem_train_data<real_t>& td, uint64_t rngSeed) {
 	const real_t learningRate = 1;
 	const auto train_x_dim = td.train_x().cols_no_bias();
 	const bool bTrainIsBigger = td.train_x().rows() > td.test_x().rows();
@@ -343,7 +343,7 @@ void test_same_layers(train_data<real_t>& td, uint64_t rngSeed) {
 
 
 TEST(TestLayerPackHorizontal, SameLayers) {
-	train_data<real_t> td;
+	inmem_train_data<real_t> td;
 	reader_t reader;
 
 	STDCOUTL("Reading datafile '" << MNIST_FILE << "'...");
@@ -412,7 +412,7 @@ TEST(TestLayerPackHorizontal, GradCheck_nonoverlapping) {
 	typedef nntl_tests::NN_base_params<real_t, nntl::inspector::GradCheck<real_t>> ArchPrms_t;
 #pragma warning(default:4459)
 
-	nntl::train_data<real_t> td;
+	nntl::inmem_train_data<real_t> td;
 	readTd(td);
 
 	ArchPrms_t Prms(td);
@@ -452,7 +452,7 @@ TEST(TestLayerPackHorizontal, GradCheck_overlapping) {
 	typedef nntl_tests::NN_base_params<real_t, nntl::inspector::GradCheck<real_t>> ArchPrms_t;
 #pragma warning(default:4459)
 
-	nntl::train_data<real_t> td;
+	nntl::inmem_train_data<real_t> td;
 	readTd(td);
 
 	ArchPrms_t Prms(td);
@@ -476,14 +476,14 @@ private:
 	typedef nntl_tests::NN_base_params<real_t, nntl::inspector::GradCheck<real_t>> _base_class_t;
 public:
 	typedef nntl::activation::softsigm_quad_loss<real_t, 1000, weights_init::He_Zhang<>, bNumStab> myOutputActivation;
-	GC_LPH_params_ovr_ns(const nntl::train_data<real_t>& td) noexcept : _base_class_t(td) {}
+	GC_LPH_params_ovr_ns(const nntl::inmem_train_data<real_t>& td) noexcept : _base_class_t(td) {}
 };
 
 TEST(TestLayerPackHorizontal, GradCheck_overlapping_ns) {
 	typedef double real_t;
 	const size_t rngSeed = ::std::time(0);
 
-	nntl::train_data<real_t> td;
+	nntl::inmem_train_data<real_t> td;
 	readTd(td);
 
 	gradcheck_settings<real_t> ngcSetts;
