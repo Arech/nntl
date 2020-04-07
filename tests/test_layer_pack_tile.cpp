@@ -52,12 +52,12 @@ typedef math::smatrix_deform<real_t> realmtxdef_t;
 template<typename ArchPrmsT>
 struct GC_LPT : public nntl_tests::NN_base_arch_td<ArchPrmsT> {
 	myLFC lBase;
-	LPT<decltype(lBase), 3, false> lFinal;
+	LPT<decltype(lBase)> lFinal;
 
 	~GC_LPT()noexcept {}
 	GC_LPT(const ArchPrms_t& Prms)noexcept
 		: lBase(50, Prms.learningRate, "lBase")
-		, lFinal(lBase, "lFinal")
+		, lFinal(lBase, 3, "lFinal")
 	{}
 };
 TEST(TestLayerPackTile, GradCheck) {
@@ -87,14 +87,14 @@ struct GC_LPT_LPV : public nntl_tests::NN_base_arch_td<ArchPrmsT> {
 	myLFC l1;
 	myLFC l2;
 	LPV<decltype(l1), decltype(l2)> lBase;
-	LPT<decltype(lBase), 3, false> lFinal;
+	LPT<decltype(lBase)> lFinal;
 
 	~GC_LPT_LPV()noexcept {}
 	GC_LPT_LPV(const ArchPrms_t& Prms)noexcept
 		: l1(50, Prms.learningRate, "l1")
 		, l2(70, Prms.learningRate, "l2")
 		, lBase("lBase", l1, l2)
-		, lFinal(lBase, "lFinal")
+		, lFinal(lBase, 3, "lFinal")
 	{}
 };
 TEST(TestLayerPackTile, GradCheck_LPV) {
@@ -145,7 +145,7 @@ TEST(TestLayerPackTile, ComparativeNonSpecialX) {
 	FCL Aund(tiledLayerIncomingNeurons * K, lr);//underlying layer to test dLdA correctness
 
 	FCL Atlfc(tiledLayerNeurons, lr);//layer to tile
-	LPT<decltype(Atlfc),K,false> Alpt(Atlfc);
+	LPT<decltype(Atlfc)> Alpt(Atlfc, K);
 
 	LO Aoutp(_train_y.cols(), lr);
 

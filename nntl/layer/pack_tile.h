@@ -77,7 +77,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 // 
 // Notice how the bias handling issue arises: source data_x.numel()==m*k*n+m, however transformed data_x would require more
 // storage. It's numel()==m*k*n+m*k. The same applies to activation matrix. However, the dLdA/dLdAPrev transformation is
-// free of this, there're no bias columns in these matrices and both versions of matrices occupy the same amount of bytes.
+// free of this, there are no bias columns in these matrices and both versions of matrices occupy the same amount of bytes.
 // Here's how we could deal with source data_x and activation matrix:
 // data_x:
 // 1. The most efficient way is to require data_x to have necessary (transformed to [k*m, n+1]) structure before
@@ -117,13 +117,13 @@ namespace nntl {
 	//		If bExpectSpecialDataX is set to false, then incoming data is expected to be in a usual form of [m, k*n+1]
 	//		matrix that must be transformed by the layer into separate matrix of [k*m,n+1], usable by the underlying layer.
 	// note, that by this time bExpectSpecialDataX is buggy and can not be used, so always pass false for this parameter
-
-	//#todo: there's no need to pass K_tiles as a template parameter. Same probably for bExpectSpecialDataX
+	// moreover, deprecated bExpectSpecialDataX until clarification
 	
-	template<typename FinalPolymorphChild, typename LayerT, neurons_count_t K_tiles, bool bExpectSpecialDataX>
+	template<typename FinalPolymorphChild, typename LayerT /*, bool bExpectSpecialDataX*/>
 	class _LPT : public _impl::_act_stor<FinalPolymorphChild, typename LayerT::interfaces_t>
 	{
-		static_assert(!bExpectSpecialDataX, "Sorry, bExpectSpecialDataX==true is buggy, set it to false");
+		static constexpr bool bExpectSpecialDataX = false;//but leave it here to be able to leave it's mentions in the code
+		//static_assert(!bExpectSpecialDataX, "Sorry, bExpectSpecialDataX==true is buggy, set it to false");
 		// Besides buggy implementation here in LPT, we have to solve the issue of passing (possibly) wrongly sized activation
 		// matrix of previous (input) layer here in a way that only this layer could safely use it and also no
 		// properly placed asserts in other layers (including compound layers that may contain this LPT) will be triggered.
@@ -145,9 +145,6 @@ namespace nntl {
 		typedef self_t LayerPack_t;
 		typedef typename LayerT tiled_layer_t;
 		
-		static constexpr neurons_count_t tiles_count = K_tiles;
-		static_assert(tiles_count > 1, "Tiles count must be greater than one!");
-
 	protected:
 		tiled_layer_t& m_tiledLayer;
 
@@ -158,6 +155,9 @@ namespace nntl {
 		//It must be instantiated separately with the duration of m_tiledLayer because it'll contain DIFFERENT
 		// values for maxInnerFPropRowsCount/maxInnerBPropRowsCount
 		
+		//can't be const, or serialization will not work
+		/*const*/ neurons_count_t m_tiles_count{ 0 };
+
 		//////////////////////////////////////////////////////////////////////////
 		//
 	protected:
@@ -171,22 +171,24 @@ namespace nntl {
 			//for bExpectSpecialDataX inc_neurons_cnt must correspond to a number of columns of a matrix size [m, k*(n+1)],
 			//		i.e. it is (k*(n+1)-1) - excluding added by the engine bias column
 			//for !bExpectSpecialDataX, it must correspond to a matrix size [m, k*n+1], i.e. (k*n)
-			NNTL_ASSERT((bExpectSpecialDataX && (inc_neurons_cnt % tiles_count == tiles_count-1))
-				|| (!bExpectSpecialDataX && (inc_neurons_cnt % tiles_count == 0)));
+			NNTL_ASSERT((bExpectSpecialDataX && (inc_neurons_cnt % m_tiles_count == m_tiles_count-1))
+				|| (!bExpectSpecialDataX && (inc_neurons_cnt % m_tiles_count == 0)));
 
 			_base_class_t::_preinit_layer(ili, inc_neurons_cnt);
 
 			//by c++ design, integer division is rounded towards zero, i.e. floor()ed
-			_impl::_preinit_layers initializer(ili, inc_neurons_cnt / tiles_count);
+			_impl::_preinit_layers initializer(ili, inc_neurons_cnt / m_tiles_count);
 			initializer(m_tiledLayer);
 		}
 		
 	public:
 		~_LPT()noexcept {}
-		_LPT(const char* pCustomName, tiled_layer_t& tl)noexcept
-			: _base_class_t(tiles_count*tl.get_neurons_cnt(), pCustomName)
+		_LPT(const char* pCustomName, tiled_layer_t& tl, neurons_count_t KTiles)noexcept
+			: _base_class_t(KTiles*tl.get_neurons_cnt(), pCustomName)
 			, m_tiledLayer(tl), m_innerCD()//initialize m_innerCD by default
+			, m_tiles_count(KTiles)
 		{
+			NNTL_ASSERT(KTiles > 0 || !"Hey, KTiles MUST be positive!");
 			m_innerLowerLayerActivations.will_emulate_biases();
 		}
 		static constexpr const char _defName[] = "lpt";
@@ -225,8 +227,8 @@ namespace nntl {
 				if (!bSuccessfullyInitialized) get_self().deinit();
 			});
 			
-			const auto maxInnerFPropRowsCount = get_common_data().max_fprop_batch_size()*tiles_count;
-			const auto maxInnerBPropRowsCount = get_common_data().training_batch_size()*tiles_count;
+			const auto maxInnerFPropRowsCount = get_common_data().max_fprop_batch_size()*m_tiles_count;
+			const auto maxInnerBPropRowsCount = get_common_data().training_batch_size()*m_tiles_count;
 			//not conditioned on bDoBProp() because the var is used to setup fprop also
 
 			const auto biggestInnerRowsCount = ::std::max(maxInnerFPropRowsCount, maxInnerBPropRowsCount);
@@ -262,7 +264,7 @@ namespace nntl {
 			_layer_init_data_t initD(m_innerCD);
 			initD.clean_using(lid);
 			NNTL_ASSERT(initD.nTiledTimes > 0);
-			initD.nTiledTimes *= tiles_count;
+			initD.nTiledTimes *= m_tiles_count;
 
 			ec = m_tiledLayer.init(initD, nullptr);
 			if (ErrorCode::Success != ec)return ec;
@@ -289,10 +291,10 @@ namespace nntl {
 			_base_class_t::on_batch_size_change(/*learningRateScale,*/ pNewActivationStorage);
 
 			//updating supplemental matrices
-			const auto tiledRowsCnt = get_common_data().get_cur_batch_size()*tiles_count;
+			const auto tiledRowsCnt = get_common_data().get_cur_batch_size()*m_tiles_count;
 			
 			if (!bExpectSpecialDataX) {
-				const auto tiled_biggest_batch_size = get_common_data().biggest_batch_size()*tiles_count;
+				const auto tiled_biggest_batch_size = get_common_data().biggest_batch_size()*m_tiles_count;
 				m_innerLowerLayerActivations.deform_rows(tiledRowsCnt);
 				if (tiledRowsCnt != tiled_biggest_batch_size) m_innerLowerLayerActivations.set_biases();
 				NNTL_ASSERT(m_innerLowerLayerActivations.test_biases_strict());
@@ -312,23 +314,23 @@ namespace nntl {
 			//and moreover, it must produce specially prepared data!
 			
 			NNTL_ASSERT(prevAct.size()
-				== realmtx_t::mtx_size_t(m_activations.rows(), tiles_count*(m_tiledLayer.get_incoming_neurons_cnt() + 1)));
+				== realmtx_t::mtx_size_t(m_activations.rows(), m_tiles_count*(m_tiledLayer.get_incoming_neurons_cnt() + 1)));
 			NNTL_ASSERT(prevAct.test_biases_strict());
 
 			// m_innerLowerLayerActivations are NOT expected to be changed anywhere later, therefore
 			// the trick with the const_cast<> should do no harm.
 			m_innerLowerLayerActivations.useExternalStorage(const_cast<real_t*>(prevAct.data())
-				, tiles_count*m_activations.rows(), m_tiledLayer.get_incoming_neurons_cnt() + 1, true);
+				, m_tiles_count*m_activations.rows(), m_tiledLayer.get_incoming_neurons_cnt() + 1, true);
 		}
 
 		template<typename LLWrapT, bool _C = bExpectSpecialDataX>
 		::std::enable_if_t<!_C> _lpt_fprop_prepareInnerLLAct(const realmtx_t& prevAct)noexcept {			
 			NNTL_ASSERT(prevAct.size()
-				== realmtx_t::mtx_size_t(m_activations.rows(), tiles_count*m_tiledLayer.get_incoming_neurons_cnt() + 1));
+				== realmtx_t::mtx_size_t(m_activations.rows(), m_tiles_count*m_tiledLayer.get_incoming_neurons_cnt() + 1));
 			NNTL_ASSERT(prevAct.test_biases_strict());
 			NNTL_ASSERT(m_innerLowerLayerActivations.emulatesBiases());
 			NNTL_ASSERT(m_innerLowerLayerActivations.size()
-				== realmtx_t::mtx_size_t(tiles_count*m_activations.rows(), m_tiledLayer.get_incoming_neurons_cnt() + 1));
+				== realmtx_t::mtx_size_t(m_tiles_count*m_activations.rows(), m_tiledLayer.get_incoming_neurons_cnt() + 1));
 			NNTL_ASSERT(m_innerLowerLayerActivations.test_biases_strict());
 
 			get_iMath().mTilingRoll(prevAct, m_innerLowerLayerActivations);
@@ -443,7 +445,7 @@ namespace nntl {
 			if (utils::binary_option<true>(ar, serialization::serialize_activations)) ar & NNTL_SERIALIZATION_NVP(m_activations);
 			if (utils::binary_option<true>(ar, serialization::serialize_data_x)) ar & NNTL_SERIALIZATION_NVP(m_innerLowerLayerActivations);
 			
-			//ar & NNTL_SERIALIZATION_NVP(tiles_count);
+			ar & NNTL_SERIALIZATION_NVP(m_tiles_count);
 
 			ar & serialization::make_named_struct(m_tiledLayer.get_layer_name_str().c_str(), m_tiledLayer);
 		}
@@ -455,28 +457,20 @@ namespace nntl {
 	// If you need to derive a new class, derive it from _LPT (to make static polymorphism work)
 
 	//to shorten class name to get rid of C4503
-	template <typename LayerT, neurons_count_t K_tiles, bool bExpectSpecialDataX>
-	class LPT final
-		: public _LPT<LPT<LayerT, K_tiles, bExpectSpecialDataX>, LayerT, K_tiles, bExpectSpecialDataX>
-	{
+	template <typename LayerT>
+	class LPT final : public _LPT<LPT<LayerT>, LayerT> {
 	public:
 		~LPT() noexcept {};
-		LPT(LayerT& tl, const char* pCustomName=nullptr) noexcept
-			: _LPT<LPT<LayerT, K_tiles, bExpectSpecialDataX>, LayerT, K_tiles, bExpectSpecialDataX>(pCustomName, tl)
+		LPT(LayerT& tl, neurons_count_t KTiles, const char* pCustomName=nullptr) noexcept
+			: _LPT<LPT<LayerT>, LayerT>(pCustomName, tl, KTiles)
 		{};
 
-		LPT(const char* pCustomName, LayerT& tl) noexcept
-			: _LPT<LPT<LayerT, K_tiles, bExpectSpecialDataX>, LayerT, K_tiles, bExpectSpecialDataX>(pCustomName, tl)
+		LPT(const char* pCustomName, LayerT& tl, neurons_count_t KTiles) noexcept
+			: _LPT<LPT<LayerT>, LayerT>(pCustomName, tl, KTiles)
 		{};
 	};
 
-	template <typename LayerT, neurons_count_t K_tiles, bool bExpectSpecialDataX>
-	using layer_pack_tile = typename LPT<LayerT, K_tiles, bExpectSpecialDataX>;
+	template <typename LayerT>
+	using layer_pack_tile = typename LPT<LayerT>;
 
-/*
-	template <neurons_count_t K_tiles, bool bExpectSpecialDataX, typename LayerT> inline
-	LPT <LayerT, K_tiles, bExpectSpecialDataX> make_layer_pack_tile(LayerT& tl, const char* pCustomName = nullptr) noexcept
-	{
-		return LPT<LayerT, K_tiles, bExpectSpecialDataX>(tl, pCustomName);
-	}*/
 }

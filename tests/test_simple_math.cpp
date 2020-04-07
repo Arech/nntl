@@ -411,8 +411,12 @@ void test_mTilingEtalons(const vec_len_t maxSrcRows, const vec_len_t maxSrcCols,
 	}
 }
 
+TEST(TestSMath, mTilingETEquvalence) {
+	//no need more, b/c ET() functions by definition are simple and may not contain sophisticated branching
+	ASSERT_NO_FATAL_FAILURE(test_mTilingEtalons(10, 10, 10));
+}
+
 TEST(TestSMath, mTilingUnroll) {
-	ASSERT_NO_FATAL_FAILURE(test_mTilingEtalons(4, 4, 4));
 	ASSERT_NO_FATAL_FAILURE(test_mTilingUnroll_corr(2 * g_MinDataSizeDelta, 2 * g_MinDataSizeDelta, g_MinDataSizeDelta));
 }
 

@@ -1,6 +1,10 @@
 # Changelog
 I should probably have started doing it long ago, but better late than never. So here it is (for older entries see commit history)
 
+## 2020 Apr 07
+- Refactored `LPT` class: removed deprecated template parameter `bExpectSpecialDataX` and moved `neurons_count K_tiles` from class' template to constructor parameters.
+- minor updates & improvements
+
 ## 2020 Apr 05
 
 Huge and important update of the whole framework.
