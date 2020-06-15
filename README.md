@@ -1,7 +1,6 @@
 # nntl
 
-Neural Network Templates Library is a set of C++14 template classes
-that helps to implement fast vectorized feedforward neural networks.
+Neural Network Templates Library is a set of C++14 template classes to implement fast vectorized feedforward neural networks.
 It is multithreaded, memory optimized and uses OpenBLAS only as a back-end
 to multiply matrices. NNTL is a header only library and requires no
 other dependencies, except for OpenBLAS and Boost (in header-only mode). It is
