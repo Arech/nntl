@@ -30,12 +30,11 @@ I wouldn't state the NNTL is the fastest CPU implementation of feedforward neura
 * Individually tunable feedforward layers (i.e. almost all layer properties such as an activation function, a learning rate, a dropout, etc and so on are defined on a per layer basis).
 * The following feedforward layer types has been implemented allowing one to create many different types of feedforward neuron connectivity that helps to encapsulate some important prior knowledge of a data into a neural network architecture:
   * ordinary layers:
-    * layer_**fully_connected**, **LFC** is a basic layer type where all the magic happens
-    * layer_**output** is a variation of fully connected layer specialized to be an output of a neural network
-    * layer_**input** provides a common interface to a training data for hidden layers
+    * layer_**fully_connected**, **LFC** is a base layer type that performs information processing. layer_**output** is a variation of **LFC** specialized to be an output of a neural network.
     * layer_**identity**, **LI** allows one to pass an incoming data to upper layers unmodified
     * layer_**identity_gate**, **LIG** passes incoming neurons up to a layer stack while allowing LPHO layer to use them as a gating source. Optionally, LIG is capable to binarize the gating neurons.
-  * compound layers (these layer types allows to encapsulate other layers in some way to produce more sophisticated architectures):
+    * layer_**input** provides a common interface to a training data for hidden layers
+  * compound layers (these layer types encapsulates other layers to produce sophisticated architectures):
     * layer_**pack_horizontal**, **LPH** is designed to feed different sequential (and possibly overlapping) ranges of underlying neurons to a corresponding different layers. For example, this allows one to build a set of feature detectors each of which is specialized on a specific subset of data features.
     * layer_**pack_horizontal_optional**, **LPHO** helps to deal with optional
 source datasets and allows to train feature detectors that are
