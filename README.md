@@ -164,7 +164,7 @@ The main rule - don't hesitate to ask for help, if you are interested.
 
 ## The Status of the NNTL
 
-The code in general is pretty stable and could be used for tasks it was made for in production and as a basis for extension.
+The code is stable, contains no known bugs, and could effectively be used for tasks it was made for in production and as a basis for extension.
 
 Feel free to contact me if you need some assistance.
 
