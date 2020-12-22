@@ -81,6 +81,7 @@ namespace math {
 
 		typedef s_rowcol_range rowcol_range;
 		typedef s_elems_range elms_range;
+		typedef s_vec_range vec_range;
 		//#WARNING use proxy variables instead of members of a structure, received by reference in performance sensitive code
 
 		// here's small guide for using rowcol_range/elms_range :
@@ -134,6 +135,9 @@ namespace math {
 		// should expose it into public (for some testing purposes only at this moment)
 		// Always perform corresponding call to _istor_free() in LIFO (stack) order!
 		// THREAD UNSAFE BY DESIGN! NEVER call from inside of _st() which is called from _mt()
+		////////
+		// NOTE THAT THIS INTERNAL MEMORY BUFFER IS AS AS WRONG AS IT COULD BE, BECAUSE here we're asking in real_t[count]
+		// but almost elsewhere we're computing requirements as typename T[count]. #TODO
 		real_t* _istor_alloc(const numel_cnt_t maxDataSize)noexcept {
 			NNTL_ASSERT(m_minTempStorageSize >= maxDataSize + m_curStorElementsAllocated);
 			NNTL_ASSERT(conform_sign(m_threadTempRawStorage.size()) >= m_minTempStorageSize);
@@ -175,6 +179,7 @@ namespace math {
 		void deinit()noexcept {
 			NNTL_ASSERT(m_curStorElementsAllocated == 0 || !"WTF?! Internal storage MUST NOT be in use at this moment!");
 			m_threadTempRawStorage.clear();
+			m_threadTempRawStorage.shrink_to_fit();
 			m_minTempStorageSize = 0;
 			m_curStorElementsAllocated = 0;
 		}
@@ -184,9 +189,11 @@ namespace math {
 		// Math Methods
 	//protected:
 		template<typename FuncT>
-		static void _vec_apply_func(const typename ::std::remove_reference_t<FuncT>::value_type * _ptr, const numel_cnt_t _cnt, FuncT&& F)noexcept {
+		static void _vec_apply_func(const typename ::std::remove_reference_t<FuncT>::value_type *const _ptr
+			, const numel_cnt_t _cnt, FuncT&& F)noexcept
+		{
 			NNTL_ASSERT(_ptr && _cnt > 0);
-			for (numel_cnt_t i = 0; i < _cnt; ++i) {//seems to vectorize better than while{}
+			for (numel_cnt_t i = 0; i < _cnt; ++i) {
 				//(::std::forward<FuncT>(F)).op(_ptr[i]);
 				F.op(_ptr[i]);
 				// There's no move happening here! ::std::forward<FuncT> is just a type cast that restores original variable type.
@@ -229,6 +236,7 @@ namespace math {
 			value_type ret, C;
 
 			func_SUM()noexcept:ret(value_type(0.)), C(value_type(0.)) {}
+			//#TODO: #pragma float_control(precise, on) wouldn't work here, but need some way to impose strict math here and elsewhere
 			void op(const value_type v)noexcept {
 				const auto Y = v - C;
 				const auto T = ret + Y;
@@ -247,6 +255,93 @@ namespace math {
 				_base_class_t::op(v*v);
 			}
 		};
+		
+		template<typename _T, bool bNumStab>
+		struct func_SUMNZ {};
+
+		template<typename _T>
+		struct func_SUMNZ<_T, false> {
+			typedef _T value_type;
+
+			value_type ret;
+			const value_type _centerVal;
+			numel_cnt_t _cnt;
+			
+			func_SUMNZ(const value_type cv)noexcept: ret(value_type(0.)), _centerVal(cv), _cnt(0) {}
+			void op(const value_type v)noexcept {
+				const auto cv = _centerVal;
+				const auto b = (v != cv);
+				_cnt += b;
+				ret += b*v;
+			}
+			value_type result()const noexcept { return ret; }
+			numel_cnt_t count()const noexcept { return _cnt; }
+		};
+
+		template<typename _T>
+		struct func_SUMNZ<_T, true> {
+			typedef _T value_type;
+
+			value_type ret, C;
+			const value_type _centerVal;
+			numel_cnt_t _cnt;
+
+			func_SUMNZ(const value_type cv)noexcept: ret(value_type(0.)), C(value_type(0.)), _centerVal(cv), _cnt(0) {}
+			//#TODO: #pragma float_control(precise, on) wouldn't work here, but need some way to impose strict math here and elsewhere
+			void op(const value_type v)noexcept {
+				const auto b = (v == _centerVal);
+				_cnt += !b;
+
+				const auto r = ret;
+				const auto _C = C;
+
+				const auto Y = v - _C;
+				const auto T = r + Y;
+				C = b ? _C :  T - r - Y;
+				ret = b ? r : T;
+			}
+			value_type result()const noexcept { return ret; }
+			numel_cnt_t count()const noexcept { return _cnt; }
+		};
+		
+		/*template<typename _T, bool bNumStab>
+		struct func_SUMNZ {};
+
+		template<typename _T>
+		struct func_SUMNZ<_T, false> {
+			typedef _T value_type;
+
+			numel_cnt_t _cnt;
+			value_type ret;
+
+			func_SUMNZ()noexcept: _cnt(0), ret(value_type(0.)) {}
+			void op(const value_type v)noexcept {
+				_cnt += !!v;
+				ret += v;
+			}
+			value_type result()const noexcept { return ret; }
+			numel_cnt_t count()const noexcept { return _cnt; }
+		};
+
+		template<typename _T>
+		struct func_SUMNZ<_T, true> {
+			typedef _T value_type;
+
+			numel_cnt_t _cnt;
+			value_type ret, C;
+
+			func_SUMNZ()noexcept: _cnt(0), ret(value_type(0.)), C(value_type(0.)) {}
+			void op(const value_type v)noexcept {
+				_cnt += !!v;
+				_base_class_t::updCounter(v);
+				const auto Y = v - C;
+				const auto T = ret + Y;
+				C = T - ret - Y;
+				ret = T;
+			}
+			value_type result()const noexcept { return ret; }
+			numel_cnt_t count()const noexcept { return _cnt; }
+		};*/
 
 		//////////////////////////////////////////////////////////////////////////
 		template <bool bNumStab, typename _T>
@@ -269,6 +364,7 @@ namespace math {
 			return r;
 		}
 
+		//#TODO: #pragma float_control(precise, on) wouldn't work here, but need some way to impose strict math here and elsewhere
 		template <typename T, bool bNumStab = false>
 		static ::std::enable_if_t<bNumStab, T> _reduce_vec_sum(const reduce_data_t*const _ptr, const numel_cnt_t _cnt)noexcept {
 			typedef converter_reduce_data_tpl<T> converter_t;
@@ -627,7 +723,7 @@ namespace math {
 			auto*const pAE = A.colDataAsVec(RCR.colEnd);
 			pVec += RCR.colBegin;
 			const numel_cnt_t rc = A.rows();
-			while (pA != pAE) {
+			while (pA != pAE) {//#DIDNT_VECTORIZE
 				const auto pC = pA;
 				pA += rc;
 				const auto v = *pVec++;
@@ -678,6 +774,18 @@ namespace math {
 			_do_processMtx_cw(A, ::std::forward<LambdaF>(Func), A.cols_no_bias());
 		}
 
+		//max mem required for _processMtx_cw() with 4+ args to process matrix A
+		template<typename ScndVecType, typename VT>
+		nntl_probably_force_inline numel_cnt_t _processMtx_cw_needTempMem(const smatrix<VT>& A)const noexcept {
+			return _processMtx_cw_needTempMem<ScndVecType>(A.rows());
+		}
+		template<typename ScndVecType>
+		nntl_probably_force_inline numel_cnt_t _processMtx_cw_needTempMem(const vec_len_t aRows)const noexcept {
+			static_assert(::std::is_pod<ScndVecType>::value, "");
+			const auto elemsCnt = smatrix_td::sNumel(aRows, m_threads.cur_workers_count());
+			return elemsCnt + static_cast<numel_cnt_t>(ceil((ext_real_t(sizeof(ScndVecType)) / sizeof(real_t))*elemsCnt));
+		}
+
 		//Variation to make a vector out of const A
 		//LambdaF is void(*Func)(const rowcol_range& RCR, real_t*const pVec), where pVec is temporary vector of length A.rows() to serve 
 		// as F destination
@@ -695,7 +803,7 @@ namespace math {
 
 			numel_cnt_t elmsToAlloc(0);
 			//#todo for C++17 must change to ::std::launder(reinterpret_cast< ... 
-			const auto pTmpMem = pTVec ? pTVec : reinterpret_cast<VT*>(get_self()._istor_alloc(elmsToAlloc = smatrix<VT>::sNumel(rm, threadsToUse)));
+			const auto pTmpMem = pTVec ? pTVec : reinterpret_cast<VT*>(get_self()._istor_alloc(elmsToAlloc = smatrix_td::sNumel(rm, threadsToUse)));
 			thread_id_t threadsUsed = 0;
 			//TODO: for some algorithms and datasizes it may be highly beneficial to make smart partitioning, that takes into account
 			//CPU cache size (will probably require more than workers_count() calls to worker function, but each call will run significanly
@@ -734,7 +842,7 @@ namespace math {
 			const auto threadsToUse = _howMuchThreadsNeededForCols(mt_cw_ColsPerThread, cm);
 
 			static_assert(sizeof(VT) == sizeof(real_t), "Mismatching type sizes will lead to wrong malloc");
-			const auto elemsCnt = smatrix<VT>::sNumel(rm, threadsToUse);
+			const auto elemsCnt = smatrix_td::sNumel(rm, threadsToUse);
 			const auto tmemSize = elemsCnt + static_cast<numel_cnt_t>(ceil((ext_real_t(sizeof(ScndVecType)) / sizeof(real_t))*elemsCnt));
 			const auto pTmpMem = get_self()._istor_alloc(tmemSize);
 
@@ -1058,16 +1166,15 @@ namespace math {
 		//////////////////////////////////////////////////////////////////////////
 		template<typename T>
 		numel_cnt_t mrwIdxsOfMax_needTempMem(const smatrix<T>& A)const noexcept {
-			return mrwIdxsOfMax_needTempMem<T>(A.rows());
+			return get_self().mrwIdxsOfMax_needTempMem<T>(A.rows());
 		}
 		template<typename T>
 		numel_cnt_t mrwIdxsOfMax_needTempMem(const vec_len_t maxRows)const noexcept {
 			static_assert(::std::is_pod<T>::value, "");
-			// max memory is required by mrwIdxsOfMax_mt_cw_small() or the same as _processMtx_cw() from mrwIdxsOfMax_mt_cw(), and it is:
-			// rm*workersCnt of real_t's to store temp maxs for each column-set
-			// and rm*workersCnt of vec_len_t's to store indexes.
-			const auto _elmsCnt = smatrix_td::sNumel(maxRows, m_threads.cur_workers_count());
-			return _elmsCnt + static_cast<numel_cnt_t>(ceil((ext_real_t(sizeof(vec_len_t)) / sizeof(T))*_elmsCnt));
+			// max memory is required by _processMtx_cw() from mrwIdxsOfMax_mt_cw()
+			// also see mrwIdxsOfMax_mt_rw
+			//note that mrwIdxsOfMax_mt_cw_small() requirements are different from this and are not accounted here!
+			return ::std::max(_processMtx_cw_needTempMem<T>(maxRows),numel_cnt_t(maxRows));
 		}
 		//fills array pDest of size m.rows() with column indexes of greatest element in each row of m
 		// #TODO: must meet func.requirements
@@ -1202,6 +1309,8 @@ namespace math {
 			});
 		}
 		// not used (was slower than alternatives, but worked. May be good for some other architectures)
+		//Note that is has differenet mem requirements than of _mt_cw and they are not taken into account in _needTempMem()
+		/*
 		void mrwIdxsOfMax_mt_cw_small(const realmtx_t& A, vec_len_t*const pDest)noexcept {
 			NNTL_ASSERT(!A.empty() && A.numel() > 0 && pDest);
 			NNTL_ASSERT(Thresholds_t::mrwIdxsOfMax_ColsPerThread >= 3);//DON'T make it less than 3 or you'll run in troubles with size of temp mem!!!
@@ -1277,6 +1386,7 @@ namespace math {
 			memcpy(pDest, pIdxsStor, sizeof(vec_len_t)*rm);
 			get_self()._istor_free(pTmp, tmemSize);
 		}
+		}*/
 		void mrwIdxsOfMax_mt_rw(const realmtx_t& A, vec_len_t*const pDest)noexcept {
 			NNTL_ASSERT(!A.empty() && A.numel() > 0 && pDest);
 			const auto pMax = get_self()._istor_alloc(A.rows());
@@ -1339,17 +1449,23 @@ namespace math {
 				get_self().mrwMax_st(A, pMax, &RCR);
 			});
 		}
-		void mrwMax_mt_cw(const realmtx_t& A, real_t*const pMax)noexcept {
+
+		//code is ok, just is not used. Note, that it requires _processMtx_cw_needTempMem() preallocated!
+		/*void mrwMax_mt_cw(const realmtx_t& A, real_t*const pMax)noexcept {
 			NNTL_ASSERT(!A.empty() && A.numel() > 0 && pMax);
 			_processMtx_cw(A, Thresholds_t::mrwMax_mt_cw_ColsPerThread, [&A, this](const rowcol_range& RCR, real_t*const pVec) {
 				get_self().mrwMax_st(A, pVec, &RCR);
 			}, [pMax, this](const realmtx_t& fin) {
 				get_self().mrwMax_st(fin, pMax);
 			});
-		}
+		}*/
 
 		//////////////////////////////////////////////////////////////////////////
 		//////////////////////////////////////////////////////////////////////////
+		template<typename T>
+		nntl_probably_force_inline numel_cnt_t mrwSum_ip_needTempMem(const smatrix<T>& A)const noexcept {
+			return get_self().mrwSum_needTempMem(A);
+		}		
 		// Calculates into the first row of A a sum of columns for each row.
 		void mrwSum_ip(realmtx_t& A)noexcept {
 			const auto cm = A.cols();
@@ -1409,6 +1525,10 @@ namespace math {
 
 		//////////////////////////////////////////////////////////////////////////
 		//////////////////////////////////////////////////////////////////////////
+		template<typename T>
+		nntl_probably_force_inline numel_cnt_t mrwSum_needTempMem(const smatrix<T>& A)const noexcept {
+			return _processMtx_cw_needTempMem<T>(A);
+		}
 		// Calculate rowwise sum into vec
 		void mrwSum(const realmtx_t& A, real_t*const pVec)noexcept {
 			if (A.numel() < Thresholds_t::mrwSum) {
@@ -1470,6 +1590,11 @@ namespace math {
 		// If A contains only zeros and ones, the resulting column vector pVec contains 1 if corresponding row has at least single 1
 		// and zero otherwise.
 		// Heavily based on mrwBinaryOR
+		template<typename T>
+		nntl_probably_force_inline numel_cnt_t mrwOr_needTempMem(const smatrix<T>& A)const noexcept {
+			return get_self().mrwBinaryOR_needTempMem(A);
+		}
+
 		void mrwOr(const realmtx_t& A, real_t*const pVec)noexcept {
 			NNTL_ASSERT(A._isBinary());
 			typedef real_t_limits<real_t>::similar_FWI_t similar_FWI_t;
@@ -1513,6 +1638,11 @@ namespace math {
 			mrwBinaryOR_mt_rw(reinterpret_cast<const smatrix<similar_FWI_t>&>(A), reinterpret_cast<similar_FWI_t*const>(pVec));
 		}
 
+
+		template<typename T>
+		nntl_probably_force_inline numel_cnt_t mrwBinaryOR_needTempMem(const smatrix<T>& A)const noexcept {
+			return _processMtx_cw_needTempMem<T>(A);
+		}
 		template<typename BaseT>
 		void mrwBinaryOR(const smatrix<BaseT>& A, BaseT*const pVec)noexcept {
 			NNTL_ASSERT(!A.emulatesBiases());
@@ -1578,7 +1708,7 @@ namespace math {
 					get_self().mrwBinaryOR_st(A, pVec, &RCR);
 				});
 			}
-		}
+		}		
 		template<typename BaseT>
 		void mrwBinaryOR_mt_cw(const smatrix<BaseT>& A, BaseT*const pVec)noexcept {
 			NNTL_ASSERT(!A.empty() && A.numel() > 0 && A.cols() > Thresholds_t::mrwBinaryOR_mt_cw_colsPerThread && pVec);
@@ -1626,16 +1756,117 @@ namespace math {
 			const auto* pA = A.colDataAsVec(rcr.colBegin);
 			const auto*const pAE = A.colDataAsVec(rcr.colEnd);
 			const ptrdiff_t rc = A.rows();
-			const _T N = static_cast<_T>(rc);
+			const ext_real_t N = static_cast<ext_real_t>(rc);
 			pVec += rcr.colBegin;
 
 			while (pA != pAE) {
 				const auto pCur = pA;
 				pA += rc;
 				//*pVec++ = ::std::accumulate(pCur, pA, _T(0.)) / rc;
-				*pVec++ = _vec_sum<bNumStab>(pCur, rc) / N;
+				*pVec++ = static_cast<_T>(static_cast<ext_real_t>(_vec_sum<bNumStab>(pCur, rc)) / N);
 			}
 		}
+
+		//////////////////////////////////////////////////////////////////////////
+		// subtract column mean, i.e. m = m-mean(m) colwise.
+		template<bool bNumStab, typename _T>
+		void mcwDeMean(smatrix<_T>& A)noexcept {
+			if (A.numel() < Thresholds_t::mcwDeMean<bNumStab>::v) {
+				get_self().mcwDeMean_st<bNumStab>(A);
+			} else get_self().mcwDeMean_mt<bNumStab>(A);
+		}
+
+		template<bool bNumStab, typename _T>
+		void mcwDeMean_st(smatrix<_T>& A, const rowcol_range*const pRCR = nullptr)noexcept {
+			get_self()._imcwDeMean_st<bNumStab>(A, pRCR ? *pRCR : rowcol_range(A));
+		}
+
+		template<bool bNumStab, typename _T>
+		void mcwDeMean_mt(smatrix<_T>& A)noexcept {
+			_processMtx_cw(A, [&A, this](const rowcol_range& rcr) noexcept {
+				get_self()._imcwDeMean_st<bNumStab>(A, rcr);
+			});
+		}
+
+		template<bool bNumStab, typename _T>
+		static void _imcwDeMean_st(smatrix<_T>& A, const rowcol_range& rcr)noexcept {
+			NNTL_ASSERT(!A.empty());
+			NNTL_ASSERT(rcr.rowBegin == 0 && rcr.rowEnd == A.rows());
+			NNTL_ASSERT(!A.emulatesBiases());//we're not expecting matrices with biases here
+			auto* pA = A.colDataAsVec(rcr.colBegin);
+			auto*const pAE = A.colDataAsVec(rcr.colEnd);
+			const ptrdiff_t rc = A.rows();
+			const ext_real_t N = static_cast<ext_real_t>(rc);
+			
+			while (pA != pAE) {
+				const auto pCur = pA;
+				pA += rc;
+				const auto _mean = static_cast<_T>(static_cast<ext_real_t>(_vec_sum<bNumStab>(pCur, rc)) / N);
+				for (ptrdiff_t i = 0; i < rc; ++i) {
+					pCur[i] -= _mean;
+				}
+			}
+		}
+
+		//////////////////////////////////////////////////////////////////////////
+		// calc and subtract column mean only for nonzero elements, i.e. m(m~=0) = m(m~=0) - mean(m(m~=0)) colwise.
+		template<bool bNumStab, typename _T>
+		void mcwDeMeanNZ(smatrix<_T>& A, const _T centralPoint = _T(0.))noexcept {
+			if (A.numel() < Thresholds_t::mcwDeMeanNZ<bNumStab>::v) {
+				get_self().mcwDeMeanNZ_st<bNumStab>(A, centralPoint);
+			} else get_self().mcwDeMeanNZ_mt<bNumStab>(A, centralPoint);
+		}
+
+		template<bool bNumStab, typename _T>
+		void mcwDeMeanNZ_st(smatrix<_T>& A, const _T centralPoint = _T(0.), const rowcol_range*const pRCR = nullptr)noexcept {
+			get_self()._imcwDeMeanNZ_st<bNumStab>(A, centralPoint, pRCR ? *pRCR : rowcol_range(A));
+		}
+
+		template<bool bNumStab, typename _T>
+		void mcwDeMeanNZ_mt(smatrix<_T>& A, const _T centralPoint = _T(0.))noexcept {
+			_processMtx_cw(A, [&A, centralPoint, this](const rowcol_range& rcr) noexcept {
+				get_self()._imcwDeMeanNZ_st<bNumStab>(A, centralPoint, rcr);
+			});
+		}
+
+		//#TODO implement tests for that subroutine
+		template<bool bNumStab, typename _T>
+		static void _imcwDeMeanNZ_st(smatrix<_T>& A, const _T centralPoint, const rowcol_range& rcr)noexcept {
+			NNTL_ASSERT(!A.empty());
+			NNTL_ASSERT(rcr.rowBegin == 0 && rcr.rowEnd == A.rows());
+			NNTL_ASSERT(!A.emulatesBiases());//we're not expecting matrices with biases here
+			auto* pA = A.colDataAsVec(rcr.colBegin);
+			auto*const pAE = A.colDataAsVec(rcr.colEnd);
+			const ptrdiff_t rc = A.rows();
+			const ext_real_t N = static_cast<ext_real_t>(rc);
+
+			while (pA != pAE) {
+				_T* __restrict pCur = pA;
+				pA += rc;
+
+				func_SUMNZ<_T, bNumStab> fsum(centralPoint);
+				_vec_apply_func(pCur, rc, fsum);
+				const auto _mean = static_cast<_T>(static_cast<ext_real_t>(fsum.result()) / fsum.count() - centralPoint);
+
+				/*numel_cnt_t _cnt = 0;
+				_T ret = _T(0.);
+				for (ptrdiff_t i = 0; i < rc; ++i) {//nothing helps to vectorize it...
+					const auto v = pCur[i];
+					const auto b = (v != centralPoint);
+					const numel_cnt_t inc = b ? 1 : 0;
+					const _T upd = b ? v : _T(0.);
+					_cnt += inc;
+					ret += upd;
+				}
+				const auto _mean = static_cast<_T>(static_cast<ext_real_t>(ret) / _cnt - centralPoint);*/
+
+
+				for (ptrdiff_t i = 0; i < rc; ++i) {//vectorized
+					pCur[i] = (pCur[i] == centralPoint) ? centralPoint : pCur[i] - _mean;
+				}
+			}
+		}
+
 
 		//////////////////////////////////////////////////////////////////////////
 		// subtract from each matrix column a corresponding vector element: A(:,j) = A(:,j) - pVec(j)

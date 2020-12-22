@@ -208,6 +208,10 @@ namespace nntl {
 		//SOME LAYERS may NOT implement this function!
 		nntl_interface realmtxdef_t& _get_activations_mutable()const noexcept;
 
+		//to support and access state-full activation functions
+		nntl_interface auto& get_activation_obj()noexcept;
+		nntl_interface const auto& get_activation_obj()const noexcept;
+
 		//////////////////////////////////////////////////////////////////////////
 		// Almost every call to layer's own functions should go through get_self() to make redefined in derived classes functions work.
 		nntl_interface auto get_self() const noexcept;

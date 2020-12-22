@@ -63,6 +63,8 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #define STDCOUT(args) ::std::cout << args
 #define STDCOUTL(args) STDCOUT(args) << ::std::endl
 
+//#define NNTL_RELEASE_WITH_DEBUG
+
 //////////////////////////////////////////////////////////////////////////
 // special externals, necessary only for tests, but not nntl
 

@@ -246,21 +246,26 @@ void test_LSUVExt(inmem_train_data<RealT>& td, bool bCentNorm, bool bScaleNorm, 
 		winit_t::LayerSetts_t def, outpS;
 		
 		//individual neuron stats requires a lot of data to be correctly evaluated
-		const auto batchSize = ::std::min(vec_len_t(bIndNeurons ? td.train_x().rows() : 2000), td.train_x().rows());
+		const auto batchSize = ::std::min(vec_len_t(bIndNeurons ? td.train_x().rows()/6 : 2000), td.train_x().rows());
+		const unsigned maxTries = 3;
 
 		//just to illustrate separate settings for a layer (most commonly it'll be an output_layer)
 		outpS.bOverPreActivations = true;
 		outpS.bCentralNormalize = bCentNorm;
 		outpS.bScaleNormalize = bScaleNorm;
-		outpS.bNormalizeIndividualNeurons = bIndNeurons;
+		outpS.bOnInvidualNeurons = bIndNeurons;
 		outpS.batchSize = batchSize;
+		outpS.maxReinitTries = maxTries;
 
 		def.bOverPreActivations = true;
 		def.bCentralNormalize = bCentNorm;
 		def.bScaleNormalize = bScaleNorm;
-		def.bNormalizeIndividualNeurons = bIndNeurons;
+		def.bOnInvidualNeurons = bIndNeurons;
 		def.batchSize = batchSize;
+		def.maxReinitTries = maxTries;
 		
+		def.bOnBadStatsBreak = false;
+
 		winit_t obj(nn,def);
 		obj.setts().add(outp.get_layer_idx(), outpS);
 
@@ -285,6 +290,8 @@ TEST(TestNnet, LSUVExt) {
 	readTd(td);
 
 	const size_t s = ::std::time(0);
+	//size_t s = 1608149696;
+	
 	STDCOUTL("Seed = " << s);
 
 	test_LSUVExt<real_t>(td, false, false, false, s);
@@ -294,7 +301,7 @@ TEST(TestNnet, LSUVExt) {
 	
 	test_LSUVExt<real_t>(td, false, true, false, s);
 	test_LSUVExt<real_t>(td, false, true, true, s);
-
+	
 	test_LSUVExt<real_t>(td, true, true, false, s);
 	test_LSUVExt<real_t>(td, true, true, true, s);
 

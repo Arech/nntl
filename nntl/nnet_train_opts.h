@@ -172,9 +172,10 @@ namespace nntl {
 			if (val < 0 || (m_maxFpropSize != 0 && val > m_maxFpropSize)) {
 				NNTL_ASSERT(!"WTF?! Trying to set invalid batch size!");
 				//OK to die right now with noexcept
+			#pragma warning(push)
 			#pragma warning(disable:4297)//function assumed not to throw
 				throw ::std::logic_error("WTF?! Trying to set invalid batch size!");
-			#pragma warning(default:4297)
+			#pragma warning(pop)
 			}
 			m_BatchSize = val;
 			return *this;
@@ -196,9 +197,10 @@ namespace nntl {
 			if (val < 0 || (val > 0 && 0 == m_BatchSize) || (val > 0 && val < m_BatchSize)) {
 				NNTL_ASSERT(!"WTF?! Trying to set invalid maxFpropSize!");
 				//OK to die right now with noexcept
+			#pragma warning(push)
 			#pragma warning(disable:4297)//function assumed not to throw
 				throw ::std::logic_error("WTF?! Trying to set invalid maxFpropSize!");
-			#pragma warning(default:4297)
+			#pragma warning(pop)
 			}
 			m_maxFpropSize = val;
 			return *this;

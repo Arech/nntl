@@ -343,7 +343,7 @@
     <ClInclude Include="..\nntl\activation.h" />
     <ClInclude Include="..\nntl\activations\elogu.h" />
     <ClInclude Include="..\nntl\activations\elu.h" />
-    <ClInclude Include="..\nntl\activations\linear.h" />
+    <ClInclude Include="..\nntl\activations\identity.h" />
     <ClInclude Include="..\nntl\activations\loglogu.h" />
     <ClInclude Include="..\nntl\activations\relu_family.h" />
     <ClInclude Include="..\nntl\activations\selu.h" />
@@ -425,7 +425,7 @@
     <ClInclude Include="..\nntl\nnet_train_opts.h" />
     <ClInclude Include="..\nntl\train_data.h" />
     <ClInclude Include="..\nntl\train_data\inmem_train_data.h" />
-    <ClInclude Include="..\nntl\train_data\simple_train_data_stor.h" />
+    <ClInclude Include="..\nntl\train_data\inmem_train_data_stor.h" />
     <ClInclude Include="..\nntl\train_data\_i_train_data.h" />
     <ClInclude Include="..\nntl\train_data\_train_data_simple.h" />
     <ClInclude Include="..\nntl\utils\bwlist.h" />
@@ -440,6 +440,7 @@
     <ClInclude Include="..\nntl\utils\layers_settings.h" />
     <ClInclude Include="..\nntl\utils\layer_idx_keeper.h" />
     <ClInclude Include="..\nntl\utils\mixins.h" />
+    <ClInclude Include="..\nntl\utils\mtx2Normal.h" />
     <ClInclude Include="..\nntl\utils\vector_conditions.h" />
     <ClInclude Include="..\nntl\utils\chrono.h" />
     <ClInclude Include="..\nntl\utils\matlab.h" />

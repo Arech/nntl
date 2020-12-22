@@ -66,7 +66,7 @@ namespace nntl_tests {
 		bool bNormIncludesBias;
 
 		~NN_base_params()noexcept {}
-		NN_base_params(const nntl::simple_train_data_stor<real_t>& td)noexcept
+		NN_base_params(const nntl::inmem_train_data_stor<real_t>& td)noexcept
 			: xCols(td.train_x().cols_no_bias()), yCols(td.train_y().cols())
 			, lUnderlay_nc(37)//any sufficiently big number suits
 			, learningRate(real_t(.001)), outputLearningRate(learningRate)

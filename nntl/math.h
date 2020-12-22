@@ -41,9 +41,13 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //#define NNTL_CFG_DEFAULT_TYPE double
 #endif
 
-#ifndef NNTL_CFG_DEFAULT_PTR_ALIGN
-#define NNTL_CFG_DEFAULT_PTR_ALIGN 32
+//SSE require at least 16. 32 is probably safer for AVX enabled procs. Or even 64 for AVX2
+#ifndef NNTL_CFG_DEFAULT_FP_PTR_ALIGN
+#define NNTL_CFG_DEFAULT_FP_PTR_ALIGN 32
 #endif
+//and BTW, due to extensive use of smatrix.useExternalStorage() through the lib, we may occasionally fail to obey
+//some strict alignment requirements... This shouldn't happen frequently, but still.. I didn't thought about
+// it when designed everything... Will deal with it when it bites (if it will bite actually... may be not)
 
 //////////////////////////////////////////////////////////////////////////
 //most of the time you would not want to have denormals, but they may occur during even a
@@ -75,6 +79,18 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #endif
 namespace nntl {
 	namespace utils {
+		template<typename T>
+		inline constexpr size_t mem_align_for() noexcept {
+			return ::std::is_floating_point<T>::value ? NNTL_CFG_DEFAULT_FP_PTR_ALIGN : alignof(T);
+		}
+
+		template<typename T>
+		inline bool is_ptr_aligned(const T*const p) noexcept {
+			auto i = reinterpret_cast<::std::uintptr_t>(p);
+			return !(i % static_cast<::std::uintptr_t>(mem_align_for<T>()));
+		}
+
+
 		//helper class to restore FPU config to conventional before calling external code and then revert back
 		struct _scoped_restore_FPU {
 			~_scoped_restore_FPU()noexcept {

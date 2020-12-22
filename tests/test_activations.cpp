@@ -67,9 +67,9 @@ TEST(TestActivations, Linear) {
 
 	layer_fully_connected<activation::selu<real_t>> fcl(500, learningRate);
 	//layer_fully_connected<activation::selu<real_t>> fcl2(300, learningRate);
-	layer_fully_connected<activation::linear<real_t>> fcl2(300, learningRate);
+	layer_fully_connected<activation::identity<real_t>> fcl2(300, learningRate);
 
-	layer_output<activation::linear_quad_loss<real_t>> outp(td.train_y().cols(), learningRate);
+	layer_output<activation::identity_quad_loss<real_t>> outp(td.train_y().cols(), learningRate);
 
 	auto lp = make_layers(inp, fcl, fcl2, outp);
 
@@ -102,7 +102,7 @@ struct GC_Activ_Linear_base_params : public nntl_tests::NN_base_params<RealT, nn
 TEST(TestActivations, GradCheck_Linear_quadratic) {
 #pragma warning(disable:4459)
 	typedef double real_t;
-	typedef GC_Activ_Linear_base_params<real_t, nntl::activation::linear_quad_loss<real_t, weights_init::SNNInit, true>> ArchPrms_t;
+	typedef GC_Activ_Linear_base_params<real_t, nntl::activation::identity_quad_loss<real_t, weights_init::SNNInit, true>> ArchPrms_t;
 #pragma warning(default:4459)
 
 	nntl::inmem_train_data<real_t> td;
@@ -124,7 +124,7 @@ TEST(TestActivations, GradCheck_Linear_quadWeighted) {
 #pragma warning(disable:4459)
 	typedef double real_t;
 	typedef GC_Activ_Linear_base_params<real_t
-		, nntl::activation::linear_output<nntl::activation::Linear_Loss_quadWeighted_FP<real_t>>> ArchPrms_t;
+		, nntl::activation::identity_custom_loss<nntl::activation::Linear_Loss_quadWeighted_FP<real_t>>> ArchPrms_t;
 #pragma warning(default:4459)
 
 	nntl::inmem_train_data<real_t> td;

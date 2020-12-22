@@ -186,9 +186,16 @@ namespace nntl {
 			//m_nTiledTimes = real_t(lid.nTiledTimes);
 			
 			NNTL_ASSERT(!m_weights.emulatesBiases());
-			if (m_bWeightsInitialized  && mtx_size_t(get_neurons_cnt(), get_incoming_neurons_cnt() + 1) == m_weights.size()) {
+			if (m_bWeightsInitialized) {
 				//just double check everything is fine
 				NNTL_ASSERT(!m_weights.empty());
+				//prior weight initialization implies you don't want them to be reinitialized silently
+				if (mtx_size_t(get_neurons_cnt(), get_incoming_neurons_cnt() + 1) != m_weights.size()) {
+					NNTL_ASSERT(!"WTF? Wrong weight matrix!");
+					STDCOUTL("WTF? Wrong weight matrix for layer " << get_layer_idx() << " " << get_layer_name_str());
+					abort();
+				}
+				
 			} else {
 				NNTL_ASSERT(!m_bWeightsInitialized);//if this assert has fired, then you've tried to use incorrectly sized
 				//weight matrix. It'll be handled here, so you may safely skip the assert, but you have to know, it was a bad idea.
@@ -228,7 +235,7 @@ namespace nntl {
 				lid.maxMemTrainingRequire = prmsNumel;
 			}
 
-			if (!m_gradientWorks.init(get_common_data(), m_weights.size()))return ErrorCode::CantInitializeGradWorks;
+			if (!m_gradientWorks.init(get_common_data(), m_weights))return ErrorCode::CantInitializeGradWorks;
 
 			//#BUGBUG current implementation of GW::hasLossAddendum could return false because LAs are currently disabled,
 			//however they could be enabled later. Seems like not a major bug, so I'll leave it to fix later.
@@ -287,7 +294,8 @@ namespace nntl {
 
 		void _cust_inspect(const realmtx_t&)const noexcept { }
 
-		unsigned _outp_bprop(const realmtx_t& data_y, const realmtx_t& prevActivations, const bool bPrevLayerIsInput, realmtx_t& dLdAPrev)noexcept {
+		template<typename YT>
+		unsigned _outp_bprop(const math::smatrix<YT>& data_y, const realmtx_t& prevActivations, const bool bPrevLayerIsInput, realmtx_t& dLdAPrev)noexcept {
 			NNTL_ASSERT(prevActivations.test_biases_strict());
 			//NNTL_ASSERT(real_t(1.) == m_gradientWorks._learning_rate_scale());//output layer mustn't have lr scaled.
 			// Don't implement lrdecay using the _learning_rate_scale(), it's for internal use only!
@@ -305,7 +313,8 @@ namespace nntl {
 
 			data_y.assert_storage_does_not_intersect(dLdAPrev);
 			NNTL_ASSERT(get_common_data().is_training_mode());
-			NNTL_ASSERT(m_activations.size() == data_y.size());
+			//NNTL_ASSERT(m_activations.size() == data_y.size()); //too strong. We need special loss functions that may require different columns count
+			NNTL_ASSERT(m_activations.rows() == data_y.rows());
 			NNTL_ASSERT(m_activations.rows() == get_common_data().get_cur_batch_size());
 			NNTL_ASSERT(mtx_size_t(get_common_data().get_cur_batch_size(), get_incoming_neurons_cnt() + 1) == prevActivations.size());
 			NNTL_ASSERT(bPrevLayerIsInput || dLdAPrev.size() == prevActivations.size_no_bias());
@@ -349,7 +358,7 @@ namespace nntl {
 				// therefore we'll upscale the gradient m_nTiledTimes times.
 				//compute dL/dW = 1/batchsize * (dL/dZ)` * Aprev
 				//iM.mScaledMulAtB_C((inspector::is_gradcheck_inspector<iInspect_t>::value ? real_t(1) : m_nTiledTimes) / real_t(dLdZ.rows())
-				iM.mScaledMulAtB_C(real_t(1) / real_t(dLdZ.rows())
+				iM.mScaledMulAtB_C(real_t(1.) / real_t(dLdZ.rows())
 					, dLdZ, prevActivations, m_dLdW);
 				_iI.bprop_dLdW(dLdZ, prevActivations, m_dLdW);
 
@@ -366,8 +375,8 @@ namespace nntl {
 			static_assert(::std::is_base_of<_i_layer_fprop, LowerLayer>::value, "Template parameter LowerLayer must implement _i_layer");
 			get_self()._outp_fprop(lowerLayer.get_activations());
 		}		
-		template <typename LowerLayer>
-		unsigned bprop(const realmtx_t& data_y, const LowerLayer& lowerLayer, realmtx_t& dLdAPrev)noexcept {
+		template <typename YT, typename LowerLayer>
+		unsigned bprop(const math::smatrix<YT>& data_y, const LowerLayer& lowerLayer, realmtx_t& dLdAPrev)noexcept {
 			static_assert(::std::is_base_of<_i_layer_trainable, LowerLayer>::value, "Template parameter LowerLayer must implement _i_layer_trainable");
 			//NNTL_ASSERT(get_self().bDoBProp());
 			return get_self()._outp_bprop(data_y, lowerLayer.get_activations(), is_layer_input<LowerLayer>::value, dLdAPrev);

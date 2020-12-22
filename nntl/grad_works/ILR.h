@@ -139,6 +139,7 @@ namespace GW { //GW namespace is for grad_works mixins and other stuff, that hel
 				if (!m_ILRGain.resize(weightsSize))return false;
 				if (!_ILR_use_momentum() && !m_prevdLdW.resize(weightsSize))return false;
 				m_ILRGain.ones();
+				get_self().get_iMath().preinit(get_self().get_iMath().apply_ILR_needTempMem<real_t>(weightsSize));
 			}
 			return true;
 		}

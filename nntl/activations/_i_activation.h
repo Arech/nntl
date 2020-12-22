@@ -67,14 +67,24 @@ namespace activation {
 		// #todo we should probably split output to fprop() only and fprop()+bprop() versions like we're doing in _i_layer::init()
 		// #todo probably should adopt a _i_loss_addendum initialization scheme here
 		template <typename iMath>
-		static numel_cnt_t needTempMem(const realmtx_t& act, iMath& ) noexcept {
-			return act.numel();
+		static numel_cnt_t needTempMem(const realmtx_t& /*act*/, iMath& ) noexcept {
+			//return act.numel();//WTF? What for?!
+			return 0;
 		}
 
 		//////////////////////////////////////////////////////////////////////////
-		//to support state full activations this functions must be overridden
-		static constexpr bool act_init()noexcept{ return true; }
+		//to support state-full activations override the following functions in derived class
+		template<typename CommonDataT>
+		static constexpr bool act_init(const CommonDataT& /*cd*/, neurons_count_t /*neuronsCnt*/)noexcept{ return true; }
 		static constexpr void act_deinit()noexcept {}
+		//pointer to CommonDataT passed could be stored and used until act_deinit() is called.
+		// To use it parametrize your activation class with <typename InterfacesT> used all over your nnet and then just
+		// typedef _impl::common_nn_data<InterfacesT> common_data_t;
+		// common_data_t will be the same as CommonDataT passed to act_init (and to make sure that should there be an
+		// unexpected change of original common_data_t definition, override act_init() with
+		// exact parameter type common_data_t, not the template typename CommonDataT
+		
+		static constexpr void on_batch_size_change()noexcept{}
 	};
 
 	//class defines interface for activation functions. It's intended to be used as a parent class only
@@ -97,6 +107,8 @@ namespace activation {
 			f_df.ones();
 		}
 
+		//Activation scaling coefficient currently used only to settle LSUV algorithm faster. It reflects the (general) slope
+		// of activation function (SELU units use lambda parameter, for example to scale the output)
 		static constexpr real_t act_scaling_coeff()noexcept {
 			return real_t(1.);
 		}

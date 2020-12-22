@@ -77,8 +77,11 @@ namespace _impl {
 
 		static constexpr numel_cnt_t apply_momentum = 21300;
 
+		static constexpr numel_cnt_t evMulCAddC_ip_nb = 120000 / 2;
+		static constexpr numel_cnt_t evAddC_ip_nb = 135000/2;
+
 		static constexpr numel_cnt_t evMulC_ip = 64000;
-		static constexpr numel_cnt_t evMulC_ip_Anb = 64000;
+		static constexpr numel_cnt_t evMulC_ip_nb = 64000;
 		static constexpr numel_cnt_t evMul_ip = 36700;
 		//static constexpr numel_cnt_t evMul_ip_Anb = 36700;
 		static constexpr numel_cnt_t evAdd_ip = 21000;
@@ -212,8 +215,11 @@ namespace _impl {
 
 		static constexpr numel_cnt_t apply_momentum = 49000;
 
-		static constexpr numel_cnt_t evMulC_ip = 131000;
-		static constexpr numel_cnt_t evMulC_ip_Anb = 131000;
+		static constexpr numel_cnt_t evMulCAddC_ip_nb = 120000;
+		static constexpr numel_cnt_t evAddC_ip_nb = 135000;///*
+
+		static constexpr numel_cnt_t evMulC_ip = 127000;
+		static constexpr numel_cnt_t evMulC_ip_nb = 127000;
 		static constexpr numel_cnt_t evMul_ip = 9000;
 		//static constexpr numel_cnt_t evMul_ip_Anb = 73400;
 		static constexpr numel_cnt_t evAdd_ip = 12000;

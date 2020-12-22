@@ -154,6 +154,13 @@ namespace utils {
 		}
 		vec_len_t curBatchSize()const noexcept { return m_pBatchX->rows(); }
 
+		//not yet ready for proper _i_train_data...
+		numel_cnt_t samplesCount()const noexcept { return m_pDataX->rows(); }
+
+		numel_cnt_t batchesCount()const noexcept {
+			return static_cast<numel_cnt_t>( round(ext_real_t(samplesCount())/curBatchSize()) );
+		}
+
 		template<typename iRngT, typename iMathT>
 		void nextBatch(iRngT& iR, iMathT& iM)noexcept {
 			if (isFullBatch()) {

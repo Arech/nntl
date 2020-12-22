@@ -33,19 +33,20 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 namespace nntl {
 
-	enum class ADCorr {
+	/*enum class ADCorr {
 		no,
 		correctDoVal,
 		correctVar,
 		correctDoAndVar, 
 
 		_last
-	};
+	};*/
 
 	namespace _impl {
 
 		template<typename RealT, int64_t Alpha1e9 = 0, int64_t Lambda1e9 = 0
-			, int fpMean1e6 = 0, int fpVar1e6 = 1000000, ADCorr corrType = ADCorr::no>
+			, int fpMean1e6 = 0, int fpVar1e6 = 1000000 //, ADCorr corrType = ADCorr::no
+		>
 		struct SNN_td {
 			typedef RealT real_t;
 
@@ -53,7 +54,7 @@ namespace nntl {
 			static constexpr auto _TP_lambda = Lambda1e9;
 			static constexpr auto _TP_fpMean = fpMean1e6;
 			static constexpr auto _TP_fpVar = fpVar1e6;
-			static constexpr auto _TP_corrType = corrType;
+			//static constexpr auto _TP_corrType = corrType;
 
 			static constexpr ext_real_t AlphaExt = Alpha1e9 ? ext_real_t(Alpha1e9) / ext_real_t(1e9) : ext_real_t(1.6732632423543772848170429916717);
 			static constexpr ext_real_t LambdaExt = Lambda1e9 ? ext_real_t(Lambda1e9) / ext_real_t(1e9) : ext_real_t(1.0507009873554804934193349852946);
@@ -94,7 +95,7 @@ namespace nntl {
 			}
 
 			template<typename ExtT = ext_real_t>
-			static void calc_coeffs(const real_t dpa, const neurons_count_t nc, real_t &a, real_t& b, real_t& mbDoVal)noexcept {
+			static void calc_coeffs(const real_t dpa, /*const neurons_count_t nc,*/ real_t &a, real_t& b, real_t& mbDoVal)noexcept {
 				//calculating a and b vars
 				const ExtT dropProb = ExtT(1) - dpa;
 				static constexpr ExtT amfpm = static_cast<ExtT>(Neg_AlphaExt_t_LambdaExt - FixedPointMeanExt);
@@ -103,7 +104,8 @@ namespace nntl {
 					::std::sqrt(FixedPointVarianceExt / (dpa*(dropProb*(amfpm*amfpm) + FixedPointVarianceExt)))
 					);
 				NNTL_ASSERT(aExt && !isnan(aExt) && isfinite(aExt));
-				a = static_cast<real_t>(aExt*_Variance_coeff<ExtT>(nc));
+				//a = static_cast<real_t>(aExt*_Variance_coeff<ExtT>(nc));
+				a = static_cast<real_t>(aExt);
 				NNTL_ASSERT(isfinite(a));
 
 				const ExtT bExt = static_cast<ExtT>(FixedPointMeanExt - aExt*(dpa*FixedPointMeanExt + dropProb*Neg_AlphaExt_t_LambdaExt));
@@ -111,10 +113,11 @@ namespace nntl {
 				b = static_cast<real_t>(bExt);
 				NNTL_ASSERT(isfinite(b));
 
-				mbDoVal = static_cast<real_t>(_DroppedVal_coeff<ExtT>(nc) * aExt * Neg_AlphaExt_t_LambdaExt + bExt);
+				//mbDoVal = static_cast<real_t>(_DroppedVal_coeff<ExtT>(nc) * aExt * Neg_AlphaExt_t_LambdaExt + bExt);
+				mbDoVal = static_cast<real_t>(aExt * Neg_AlphaExt_t_LambdaExt + bExt);
 			}
 
-		private:
+		/*private:
 			template<typename ExtT, ADCorr c = corrType>
 			static constexpr ::std::enable_if_t<!(c == ADCorr::correctDoAndVar || c == ADCorr::correctDoVal), ExtT>
 			_DroppedVal_coeff(const neurons_count_t )noexcept {
@@ -137,7 +140,7 @@ namespace nntl {
 			static constexpr ::std::enable_if_t<(c == ADCorr::correctDoAndVar || c == ADCorr::correctVar), ExtT>
 			_Variance_coeff(const neurons_count_t nc) noexcept {
 				return ::std::sqrt(static_cast<ExtT>(nc) / static_cast<ExtT>(nc - 1));
-			}
+			}*/
 		};
 
 			

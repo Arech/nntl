@@ -34,35 +34,33 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //#include "../serialization/serialization.h"
 
 #include "_train_data_simple.h"
-#include "simple_train_data_stor.h"
+#include "inmem_train_data_stor.h"
 
 namespace nntl {
 	//inmem_train_data is the simpliest implementation of _i_train_data interface that stores train/test sets directly in
 	//memory and doesn't provide any augmentation facilities
 
-	template<typename T>
-	class inmem_train_data final
-		: public _impl::_train_data_simple<inmem_train_data<T>, T>
-		, public simple_train_data_stor<T>
+	template<typename XT, typename YT = XT>
+	class inmem_train_data
+		: public _impl::_train_data_simple<inmem_train_data<XT, YT>, XT, YT>
+		, public inmem_train_data_stor<XT, YT>
 	{
-		typedef _impl::_train_data_simple<inmem_train_data<T>, T> base_class_t;
-		typedef simple_train_data_stor<T> base_stor_t;
+		typedef _impl::_train_data_simple<inmem_train_data<XT, YT>, XT, YT> base_class_t;
+		typedef inmem_train_data_stor<XT, YT> base_stor_t;
 
 	public:
 		//resolving definitions clash
-		using base_class_t::value_type;
-		using base_class_t::real_t;
-		using base_class_t::realmtx_t;
-		using base_class_t::realmtxdef_t;
-		/*
-		using base_class_t::data_set_id_t;
-		using base_class_t::DatasetNamingFunc_t;
+// 		using base_class_t::value_type;
+// 		using base_class_t::real_t;
+// 		using base_class_t::realmtx_t;
+// 		using base_class_t::realmtxdef_t;
+		using base_class_t::x_t;
+		using base_class_t::y_t;
+		using base_class_t::x_mtx_t;
+		using base_class_t::y_mtx_t;
+		using base_class_t::x_mtxdef_t;
+		using base_class_t::y_mtxdef_t;
 
-		using base_class_t::invalid_set_id;
-		using base_class_t::train_set_id;
-		using base_class_t::test_set_id;
-		using base_class_t::LongestDatasetNameWNull;
-		*/
 
 	public:
 		//////////////////////////////////////////////////////////////////////////

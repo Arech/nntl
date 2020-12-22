@@ -60,6 +60,10 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 // something else (like  __declspec(align(#)) ) if needed
 #define nntl_align(n) alignas(n)
 
+#ifndef nntl_pragma_macro
+#define nntl_pragma_macro __pragma
+#endif // !nntl_pragma_macro
+
 //can be used to wrap strings
 #define NNTL_STRING(s) s
 
@@ -82,16 +86,18 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #define NNTL_DEBUG_DECLARE(v) v
 #define NNTL_DEBUG_ARG(p) ,p
 
-#else
+#else //defined(_DEBUG) || defined(DEBUG)
 
 #ifdef NNTL_RELEASE_WITH_DEBUG
+//if you encounter crashes with NNTL_RELEASE_WITH_DEBUG, make sure it is defined _before_ including any other nntl file
+// (put it on the top of stdafx.h)
 
 #define NNTL_DEBUG
-#define NNTL_ASSERT(a) if(!(a)) __debugbreak()
+#define NNTL_ASSERT(a) nntl_pragma_macro(warning(push)) nntl_pragma_macro(warning(disable:4127)) if(!(a)) __debugbreak(); nntl_pragma_macro(warning(pop))
 #define NNTL_DEBUG_DECLARE(v) v
 #define NNTL_DEBUG_ARG(p) ,p
 
-#else
+#else //NNTL_RELEASE_WITH_DEBUG
 
 #define NNTL_ASSERT(a) ((void)(0))
 #define NNTL_DEBUG_ARG(p)

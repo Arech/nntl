@@ -44,8 +44,10 @@ namespace utils {
 		typedef ::std::chrono::high_resolution_clock clock_t;
 		static_assert(clock_t::is_steady, "Only a steady clock should be used. Change clock_t definition above to steady_clock");
 
+		typedef clock_t::time_point time_point_t;
+
 	public:
-		clock_t::time_point m_tStart;
+		time_point_t m_tStart;
 		duration_t m_dFirstRun, m_dBestRun, m_dAllRun;
 		uint64_t m_repeats;
 
@@ -60,7 +62,7 @@ namespace utils {
 			m_dAllRun = duration_t(0);
 		}
 
-		static clock_t::time_point now()noexcept {
+		static time_point_t now()noexcept {
 			return clock_t::now();
 		}
 

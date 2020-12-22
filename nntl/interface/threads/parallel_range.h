@@ -63,6 +63,7 @@ namespace threads {
 
 		range_t offset()const noexcept { return m_offset; }
 		range_t cnt()const noexcept { return m_cnt; }
+		range_t end()const noexcept { return m_offset + m_cnt; }
 		thread_id_t tid()const noexcept { return m_tid; }
 	};
 

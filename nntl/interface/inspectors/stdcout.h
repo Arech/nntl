@@ -74,13 +74,13 @@ namespace inspector {
 
 		//////////////////////////////////////////////////////////////////////////
 		//
-		template<typename VarT> ::std::enable_if_t<!::std::is_base_of<realmtx_t, VarT>::value>
+		template<typename VarT> ::std::enable_if_t<!math::is_smatrix<VarT>::value>
 		inspect(const VarT& v, const char*const pVarName = nullptr, const layer_index_t lIdx = _NoLayerIdxSpecified)const noexcept
 		{
 			STDCOUT(_layer_name(lIdx));
 			STDCOUTL("@" << m_epochIdx << "#" << m_batchIdx << " var \'" << (pVarName ? pVarName : "unk") << "\' = " << v);
 		}
-		template<typename VarT> ::std::enable_if_t<::std::is_base_of<realmtx_t, VarT>::value>
+		template<typename VarT> ::std::enable_if_t<math::is_smatrix<VarT>::value>
 		inspect(const VarT& v, const char*const pVarName = nullptr, const layer_index_t lIdx = _NoLayerIdxSpecified)const noexcept
 		{
 			STDCOUT(_layer_name(lIdx));
@@ -109,7 +109,8 @@ namespace inspector {
 			STDCOUTL("Layer " << m_layerNames[lIdx] << " of type 0x" << ::std::hex << layerTypeId << ::std::dec << " is being initialized");
 		};
 
-		void train_epochBegin(const numel_cnt_t epochIdx)noexcept {
+		void train_epochBegin(const numel_cnt_t epochIdx, const numel_cnt_t batchesInEpoch)noexcept {
+			NNTL_UNREF(batchesInEpoch);
 			m_epochIdx = epochIdx;
 		}
 		void train_batchBegin(const numel_cnt_t batchIdx) noexcept {
@@ -127,7 +128,8 @@ namespace inspector {
 			inspect(act, "current activations");
 			m_curLayer.pop();
 		}
-		void bprop_begin(const layer_index_t lIdx, const realmtx_t& dLdA) noexcept {
+		template<typename T>
+		void bprop_begin(const layer_index_t lIdx, const math::smatrix<T>& dLdA) noexcept {
 			m_curLayer.push(lIdx);
 			STDCOUT("bp: ");
 			inspect(dLdA, "dL/dA");

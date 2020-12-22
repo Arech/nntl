@@ -57,7 +57,7 @@ namespace nntl {
 			typedef math::smatrix_deform<real_t> realmtxdef_t;
 
 			template<typename common_data_t>//actually common_data_t is well defined and templated here only for convenience
-			nntl_interface bool init(const common_data_t& cd, const mtx_size_t& weightsSize)noexcept;
+			nntl_interface bool init(const common_data_t& cd, const realmtx_t& weights)noexcept;
 			nntl_interface void deinit()noexcept;
 
 			nntl_interface auto learning_rate(const real_t learningRate)noexcept;
@@ -134,7 +134,8 @@ namespace nntl {
 			// true by default
 			f_apply_LRDropout_to_nesterov_momentum,
 
-			f_UseMaxNorm,
+			f_UseMaxNorm,//governs weights normalization to max possible norm.
+
 			f_NormIncludesBias,//if true, the max-norm parameter describes full norm of weight vector
 			
 			opts_total
@@ -280,7 +281,9 @@ namespace nntl {
 		
 	public:
 		//template<typename grad_init_t>
-		bool init(const common_data_t& cd, const mtx_size_t& weightsSize)noexcept {
+		//bool init(const common_data_t& cd, const mtx_size_t& weightsSize)noexcept {
+		bool init(const common_data_t& cd, const realmtx_t& weights)noexcept {
+			const auto weightsSize = weights.size();
 			//TODO: there must be some flag that prevents resetting of the data state between distinct calls to nnet.train()
 			//(which causes init/deinit cycle)
 
@@ -302,9 +305,15 @@ namespace nntl {
 			set_common_data(cd);
 
 			//we would need twice weightsNumel to make LRDropout for NesterovMomentum if necessary
-			get_iMath().preinit(math::smatrix_td::sNumel(weightsSize)*(1 + (
-				use_nesterov_momentum() && bApplyLRDropoutToNesterovMomentum() && bLRDropout()
-				)));
+			//Currently also see implementation of max_norm enforcer mCheck_normalize_rows()
+			get_iMath().preinit(
+				//1 for LRDropout & +1 if NM is also used (could be turned on/off @runtime safely)
+				::std::max({math::smatrix_td::sNumel(weightsSize)*(1 + (
+					use_nesterov_momentum() && bApplyLRDropoutToNesterovMomentum() && bLRDropout()
+					))
+					, get_iMath().mCheck_normalize_rows_needTempMem(weights)//for mCheck_normalize_rows_mt
+			})
+				);
 
 			if (!_la_init(weightsSize))return false;
 
@@ -672,6 +681,8 @@ namespace nntl {
 		// (though not always) that bias weights will have the same magnitude as activation weights. However, for other activation
 		// functions, especically for ReLU-style functions, this assumption is clearly very fragile and unsounded. Therefore,
 		// generally it is better NOT to include bias weight in max-norm constraint and set bNormIncludesBias parameter to false.
+		// Also note, that depending on dataset, it may be beneficial for _some_ neurons to have huge norms while the others to have small norms.
+		// If that is your case - max_norm won't help you (normalize your data first)
 		self_ref_t max_norm(const real_t L2normSquared, const bool bNormIncludesBias = defNormIncludesBias)noexcept {
 			NNTL_ASSERT(L2normSquared >= real_t(0.0));
 			m_WeightVecNormSqared = L2normSquared;
@@ -680,13 +691,15 @@ namespace nntl {
 			return get_self();
 		}
 		real_t max_norm()const noexcept { return use_max_norm() ? m_WeightVecNormSqared : real_t(.0); }
+		bool use_max_norm()const noexcept { return get_opt(f_UseMaxNorm); }
+
 
 		bool use_momentums()const noexcept { return get_opt(f_UseMomentum); } // m_momentum > real_t(0.0);
 		bool nesterov_momentum()const noexcept { return get_opt(f_UseNesterovMomentum); }
 		bool use_nesterov_momentum()const noexcept { return get_opt(f_UseMomentum) & get_opt(f_UseNesterovMomentum); }
 		bool use_classical_momentum()const noexcept { return get_opt(f_UseMomentum) & (!get_opt(f_UseNesterovMomentum)); }
 
-		bool use_max_norm()const noexcept { return get_opt(f_UseMaxNorm); }
+		
 		bool isFirstRun()const noexcept { return get_opt(f_FirstRun); }
 	};
 
@@ -708,5 +721,18 @@ namespace nntl {
 		    , loss_addendum::L2<typename InterfacesT::real_t>
 		>>::template type
 	>;
+
+	template<typename InterfacesT>
+	using grad_works_noILR = grad_works_f<
+		InterfacesT
+		, GW::ILR_dummy
+		, GW::Loss_Addendums_builder< ::std::tuple<
+		    loss_addendum::L1<typename InterfacesT::real_t>
+		    , loss_addendum::L2<typename InterfacesT::real_t>
+		>>::template type
+	>;
+
+	template<typename InterfacesT>
+	using grad_works_noILR_LA = grad_works_f<InterfacesT, GW::ILR_dummy, GW::Loss_Addendums_builder<void>::template type>;
 
 }

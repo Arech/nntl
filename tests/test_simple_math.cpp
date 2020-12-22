@@ -51,7 +51,9 @@ typedef d_interfaces::real_t real_t;
 typedef math::smatrix<real_t> realmtx_t;
 typedef math::smatrix_deform<real_t> realmtxdef_t;
 
-typedef d_interfaces::iThreads_t iThreads_t;
+typedef dt_interfaces<real_t> myInterfaces_t;
+typedef typename myInterfaces_t::iThreads_t iThreads_t;
+typedef typename myInterfaces_t::iRng_t iRng_t;
 typedef math::SMath < real_t, iThreads_t> SMath_t;
 
 static SMath_t iM;
@@ -221,6 +223,136 @@ TEST(TestSMath, mcwMean) {
 	}
 }
 
+//////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////
+
+template<typename base_t> struct mcwDeMean_EPS {};
+template<> struct mcwDeMean_EPS<double> { static constexpr double eps = 1e-10; };
+template<> struct mcwDeMean_EPS<float> { static constexpr float eps = 1e-5f; };
+
+template<bool bNumStab>
+void test_mcwDeMean_corr(iRng_t& iR, vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
+	MTXSIZE_SCOPED_TRACE1(rowsCnt, colsCnt, "mcwDeMean", static_cast<real_t>(bNumStab));
+	constexpr unsigned testCorrRepCnt = TEST_CORRECTN_REPEATS_COUNT;
+	realmtx_t A(rowsCnt, colsCnt), A2(rowsCnt, colsCnt), AET(rowsCnt, colsCnt);
+	ASSERT_TRUE(!A.isAllocationFailed() && !A2.isAllocationFailed() && !AET.isAllocationFailed());
+	::std::vector<real_t> vMeanET(colsCnt);
+
+	iR.seedTime(utils::tictoc::now());
+	for (unsigned rr = 0; rr < testCorrRepCnt; ++rr) {
+		iR.gen_matrix(A, 10);
+		A.copy_to(A2);
+		A.copy_to(AET);
+
+		mcwMean_ET(A, &vMeanET[0]);
+		ASSERT_MTX_EQ(A, A2, "_ET has changed const source mtx A!");		
+		mcwSub_ip_ET(AET, &vMeanET[0]);
+		
+		A2.copy_to(A);
+		iM.mcwDeMean_st<bNumStab>(A);
+		ASSERT_REALMTX_NEAR(AET, A, "_st failed!", mcwDeMean_EPS<real_t>::eps);
+
+		A2.copy_to(A);
+		iM.mcwDeMean_mt<bNumStab>(A);
+		ASSERT_REALMTX_NEAR(AET, A, "_mt failed!", mcwDeMean_EPS<real_t>::eps);
+
+		A2.copy_to(A);
+		iM.mcwDeMean<bNumStab>(A);
+		ASSERT_REALMTX_NEAR(AET, A, "_st failed!", mcwDeMean_EPS<real_t>::eps);
+	}
+}
+TEST(TestSMath, mcwDeMean) {
+	iRng_t iR;
+	iR.init_ithreads(iM.ithreads());
+
+	for (vec_len_t r = 1; r < g_MinDataSizeDelta; ++r) {
+		for (vec_len_t c = 1; c < g_MinDataSizeDelta; ++c) {
+			ASSERT_NO_FATAL_FAILURE(test_mcwDeMean_corr<false>(iR, r, c));
+			ASSERT_NO_FATAL_FAILURE(test_mcwDeMean_corr<true>(iR, r, c));
+		}
+	}
+
+	constexpr unsigned rowsCnt = _baseRowsCnt;
+	const vec_len_t maxCols = g_MinDataSizeDelta, maxRows = rowsCnt + g_MinDataSizeDelta;
+	for (vec_len_t r = rowsCnt; r < maxRows; ++r) {
+		for (vec_len_t c = 1; c < maxCols; ++c) {
+			ASSERT_NO_FATAL_FAILURE(test_mcwDeMean_corr<false>(iR, r, c));
+			ASSERT_NO_FATAL_FAILURE(test_mcwDeMean_corr<true>(iR, r, c));
+		}
+	}
+}
+
+//////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////
+/*
+
+template<typename base_t> struct mcwDeMeanNZ_EPS {};
+template<> struct mcwDeMeanNZ_EPS<double> { static constexpr double eps = 1e-10; };
+template<> struct mcwDeMeanNZ_EPS<float> { static constexpr float eps = 1e-5f; };
+
+template<bool bNumStab>
+void test_mcwDeMeanNZ_corr(iRng_t& iR, vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
+	MTXSIZE_SCOPED_TRACE1(rowsCnt, colsCnt, "mcwDeMeanNZ", static_cast<real_t>(bNumStab));
+	constexpr unsigned testCorrRepCnt = TEST_CORRECTN_REPEATS_COUNT;
+	realmtx_t A(rowsCnt, colsCnt), A2(rowsCnt, colsCnt), AET(rowsCnt, colsCnt);
+	ASSERT_TRUE(!A.isAllocationFailed() && !A2.isAllocationFailed() && !AET.isAllocationFailed());
+	::std::vector<real_t> vMeanET(colsCnt);
+
+	iR.seedTime(utils::tictoc::now());
+	for (unsigned rr = 0; rr < testCorrRepCnt; ++rr) {
+		iR.gen_matrix(A, 10);
+		iR.gen_matrix(A2, 5);
+		ewBinarize_ip_ET(A2, real_t(1));
+		evMul_ip_ET(A, A2);//now we have A with zeros
+		for (vec_len_t c = 0; c < colsCnt; ++c) {
+			const auto pA = A.colDataAsVec(c);
+
+			for (vec_len_t r = 0; r < rowsCnt; ++r) {
+
+			}
+		}
+
+		A.copy_to(A2);
+		A.copy_to(AET);
+
+		
+		ASSERT_MTX_EQ(A, A2, "_ET has changed const source mtx A!");
+		mcwSub_ip_ET(AET, &vMeanET[0]);
+
+		A2.copy_to(A);
+		iM.mcwDeMeanNZ_st<bNumStab>(A);
+		ASSERT_REALMTX_NEAR(AET, A, "_st failed!", mcwDeMeanNZ_EPS<real_t>::eps);
+
+		A2.copy_to(A);
+		iM.mcwDeMeanNZ_mt<bNumStab>(A);
+		ASSERT_REALMTX_NEAR(AET, A, "_mt failed!", mcwDeMeanNZ_EPS<real_t>::eps);
+
+		A2.copy_to(A);
+		iM.mcwDeMeanNZ<bNumStab>(A);
+		ASSERT_REALMTX_NEAR(AET, A, "_st failed!", mcwDeMeanNZ_EPS<real_t>::eps);
+	}
+}
+TEST(TestSMath, mcwDeMeanNZ) {
+	iRng_t iR;
+	iR.init_ithreads(iM.ithreads());
+
+	for (vec_len_t r = 1; r < g_MinDataSizeDelta; ++r) {
+		for (vec_len_t c = 1; c < g_MinDataSizeDelta; ++c) {
+			ASSERT_NO_FATAL_FAILURE(test_mcwDeMeanNZ_corr<false>(iR, r, c));
+			ASSERT_NO_FATAL_FAILURE(test_mcwDeMeanNZ_corr<true>(iR, r, c));
+		}
+	}
+
+	constexpr unsigned rowsCnt = _baseRowsCnt;
+	const vec_len_t maxCols = g_MinDataSizeDelta, maxRows = rowsCnt + g_MinDataSizeDelta;
+	for (vec_len_t r = rowsCnt; r < maxRows; ++r) {
+		for (vec_len_t c = 1; c < maxCols; ++c) {
+			ASSERT_NO_FATAL_FAILURE(test_mcwDeMeanNZ_corr<false>(iR, r, c));
+			ASSERT_NO_FATAL_FAILURE(test_mcwDeMeanNZ_corr<true>(iR, r, c));
+		}
+	}
+}
+*/
 
 
 //////////////////////////////////////////////////////////////////////////
@@ -787,9 +919,9 @@ void test_mrwIdxsOfMaxCorrectness(vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 			iM.mrwIdxsOfMax_mt_cw(A, &vec_test[0]);
 			if (vec_et != vec_test) ASSERT_TRUE(isMtxRwElmsAreBinEqual(A, vec_et, vec_test)) << "mt_cw";
 
-			::std::fill(vec_test.begin(), vec_test.end(), vec_t::value_type(-1));
-			iM.mrwIdxsOfMax_mt_cw_small(A, &vec_test[0]);
-			if (vec_et != vec_test) ASSERT_TRUE(isMtxRwElmsAreBinEqual(A, vec_et, vec_test)) << "mt_cw_small";
+// 			::std::fill(vec_test.begin(), vec_test.end(), vec_t::value_type(-1));
+// 			iM.mrwIdxsOfMax_mt_cw_small(A, &vec_test[0]);
+// 			if (vec_et != vec_test) ASSERT_TRUE(isMtxRwElmsAreBinEqual(A, vec_et, vec_test)) << "mt_cw_small";
 		}
 
 		::std::fill(vec_test.begin(), vec_test.end(), vec_t::value_type(-1));
@@ -851,11 +983,11 @@ void test_mrwMax_corr(vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 		iM.mrwMax_st(A, &vec_test[0]);
 		ASSERT_EQ(vec_et, vec_test) << "st";
 
-		if (colsCnt > SMath_t::Thresholds_t::mrwMax_mt_cw_ColsPerThread) {
+		/*if (colsCnt > SMath_t::Thresholds_t::mrwMax_mt_cw_ColsPerThread) {
 			::std::fill(vec_test.begin(), vec_test.end(), ::std::numeric_limits<real_t>::lowest());
 			iM.mrwMax_mt_cw(A, &vec_test[0]);
 			ASSERT_EQ(vec_et, vec_test) <<"mt_cw";
-		}
+		}*/
 
 		::std::fill(vec_test.begin(), vec_test.end(), ::std::numeric_limits<real_t>::lowest());
 		iM.mrwMax_mt_rw(A, &vec_test[0]);
@@ -890,7 +1022,7 @@ void test_mrwSumIp_corr(vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 	constexpr unsigned testCorrRepCnt = TEST_CORRECTN_REPEATS_COUNT;
 	realmtx_t A(rowsCnt, colsCnt), A2(rowsCnt, colsCnt), A3(rowsCnt, colsCnt);
 	ASSERT_TRUE(!A.isAllocationFailed() && !A2.isAllocationFailed() && !A3.isAllocationFailed());
-	iM.preinit(A.numel());
+	iM.preinit(iM.mrwSum_ip_needTempMem(A));
 	ASSERT_TRUE(iM.init());
 	d_interfaces::iRng_t rg;
 	rg.init_ithreads(iM.ithreads());
@@ -956,7 +1088,7 @@ void test_mrwSum_corr(vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 	constexpr unsigned testCorrRepCnt = TEST_CORRECTN_REPEATS_COUNT;
 	realmtx_t A(rowsCnt, colsCnt);
 	ASSERT_TRUE(!A.isAllocationFailed());
-	iM.preinit(A.numel());
+	iM.preinit(iM.mrwSum_needTempMem(A));
 	ASSERT_TRUE(iM.init());
 	::std::vector<real_t> vec_et(rowsCnt), vec_test(rowsCnt);
 	d_interfaces::iRng_t rg;
@@ -1017,7 +1149,7 @@ void test_mrwOr_corr(vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 	constexpr unsigned testCorrRepCnt = TEST_CORRECTN_REPEATS_COUNT;
 	realmtx_t A(rowsCnt, colsCnt);
 	ASSERT_TRUE(!A.isAllocationFailed());
-	iM.preinit(A.numel());
+	iM.preinit(iM.mrwOr_needTempMem(A));
 	ASSERT_TRUE(iM.init());
 	::std::vector<real_t> vec_et(rowsCnt), vec_test(rowsCnt);
 	d_interfaces::iRng_t rg;

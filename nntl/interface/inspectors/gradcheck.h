@@ -193,7 +193,8 @@ namespace inspector {
 			_base_class_t::fprop_end(Act);
 		}
 
-		void bprop_begin(const layer_index_t lIdx, const realmtx_t& dLdA) noexcept {
+		template<typename T>
+		void bprop_begin(const layer_index_t lIdx, const math::smatrix<T>& dLdA) noexcept {
 			if (m_layerIdxToCheck) m_curLayer.push(lIdx);
 			_base_class_t::bprop_begin(lIdx, dLdA);
 		}

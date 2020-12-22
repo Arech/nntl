@@ -47,10 +47,11 @@ namespace procedural {
 			typedef typename NnetT::real_t real_t;
 			typedef typename NnetT::realmtx_t realmtx_t;
 			typedef typename NnetT::realmtxdef_t realmtxdef_t;
+			typedef utils::dataHolder<real_t> dataholder_t;
 
 		protected:
 			nnet_t& m_nn;
-			utils::dataHolder<real_t> m_data;
+			dataholder_t m_data;
 
 		public:
 			_base(nnet_t& nn)noexcept : m_nn(nn) {}

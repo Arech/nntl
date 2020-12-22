@@ -54,11 +54,11 @@ namespace nntl {
 	// dL/dA = dL/dA .* dropoutMask
 	template<typename RealT
 		, int64_t Alpha1e9 = 0, int64_t Lambda1e9 = 0, int fpMean1e6 = 0, int fpVar1e6 = 1000000
-		, ADCorr corrType = ADCorr::no
+		//, ADCorr corrType = ADCorr::no
 	>
 	struct AlphaDropout 
 		: public _impl::_dropout_base<RealT>
-		, public _impl::SNN_td<RealT, Alpha1e9, Lambda1e9, fpMean1e6, fpVar1e6, corrType>
+		, public _impl::SNN_td<RealT, Alpha1e9, Lambda1e9, fpMean1e6, fpVar1e6> //, corrType>
 	{
 	private:
 		typedef _impl::_dropout_base<RealT> _base_class_t;
@@ -130,7 +130,7 @@ namespace nntl {
 			_base_class_t::dropoutPercentActive(dpa);
 			if (bDropout()) {
 				NNTL_ASSERT(m_dropoutMask.size() == m_origActivations.size());
-				calc_coeffs<ext_real_t>(dpa, m_origActivations.cols(), m_a, m_b, m_mbDropVal);
+				calc_coeffs<ext_real_t>(dpa, /*m_origActivations.cols(),*/ m_a, m_b, m_mbDropVal);
 			}
 		}
 	};

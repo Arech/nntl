@@ -49,6 +49,14 @@ namespace nntl {
 		// Note that any data_set_id<0 is considered invalid
 		
 		//////////////////////////////////////////////////////////////////////////
+		static constexpr unsigned flag_exclude_nothing = 0;
+		static constexpr unsigned flag_exclude_dataX = 1;
+		static constexpr unsigned flag_exclude_dataY = 2;
+
+		static constexpr bool exclude_dataX(const unsigned f)noexcept { return f == flag_exclude_dataX; }
+		static constexpr bool exclude_dataY(const unsigned f)noexcept { return f == flag_exclude_dataY; }
+
+		//////////////////////////////////////////////////////////////////////////
 		// supplementary datasets (besides train & test) naming stuff
 		// LongestDatasetNameWNull defines a max number of bytes dataset name can occupy including terminating null char
 		static constexpr unsigned LongestDatasetNameWNull = 32;
@@ -65,13 +73,20 @@ namespace nntl {
 	// Note that object with this interface is actually a statefull modifiable resettable wrapper over
 	// some constant data storage. So, it's ok to pass it anywhere without const modifier, because the only
 	// thing that can be changed via the interface is the state of that wrapper, but not the data itself.
-	template<typename BaseT>
+	template<typename XT, typename YT /*= XT*/>
 	class _i_train_data : public _i_train_data_base {
 	public:
-		typedef BaseT value_type;
-		typedef BaseT real_t;
-		typedef math::smatrix<value_type> realmtx_t;
-		typedef math::smatrix_deform<real_t> realmtxdef_t;
+		typedef XT x_t;
+		typedef YT y_t;
+// 		typedef BaseT value_type;
+// 		typedef BaseT real_t;
+// 		typedef math::smatrix<value_type> realmtx_t;
+// 		typedef math::smatrix_deform<real_t> realmtxdef_t;
+
+		typedef math::smatrix<x_t> x_mtx_t;
+		typedef math::smatrix<y_t> y_mtx_t;
+		typedef math::smatrix_deform<x_t> x_mtxdef_t;
+		typedef math::smatrix_deform<y_t> y_mtxdef_t;
 
 		//////////////////////////////////////////////////////////////////////////
 		// the following list contains the only functions and properties, that can be called or referenced
@@ -110,6 +125,10 @@ namespace nntl {
 		
 		nntl_interface vec_len_t xWidth()const noexcept;
 		nntl_interface vec_len_t yWidth()const noexcept;
+		//Note: to make special loss functions that require yWidth() != output_layer::get_neurons_cnt() available, check suitabililty
+		//of TD to train the nnet with the following function and then assume that batches will also have proper size
+		nntl_interface bool isSuitableForOutputOf(neurons_count_t n)const noexcept;
+
 		
 		// Now the important part about training/testing sets and how they should be handled.
 		// We need to make the following possible:
@@ -145,11 +164,13 @@ namespace nntl {
 		// Anyway, it is expected to be less then or equal to maxBatchSize returned by init4train().
 		template<typename CommonDataT>
 		nntl_interface numel_cnt_t on_next_epoch(const numel_cnt_t epochIdx, const CommonDataT& cd, vec_len_t batchSize = 0) noexcept;
-		
+		//on_next_epoch() may but doesn't have to obey epochIdx (depending on implementation)
+
 		// for training (init4train()) only. Always pass batchIdx that correctly corresponds to this function call number
 		// (so, it doesn't allow randomly select batch, it only takes away a burden of counting call numbers from the function)
 		template<typename CommonDataT>
 		nntl_interface void on_next_batch(const numel_cnt_t batchIdx, const CommonDataT& cd)noexcept;
+		//on_next_batch() may but doesn't have to obey batchIdx (depending on implementation)
 
 		//////////////////////////////////////////////////////////////////////////
 		// the following set of functions can be called if init4train() or init4inference() were called before
@@ -159,9 +180,11 @@ namespace nntl {
 		//		Each batch always contain the same amount of rows equal to the one was set to cd.get_cur_batch_size() during on_next_epoch()
 		// - corresponding batches of data if walk_over_set()/next_subset() were called before
 		//		Each batch contain at max maxFPropSize rows (set in init4inference())
-		// Note that once the mode was changed, the caller MUST assume that underlying data, returned by these functions, became a junk
-		nntl_interface const realmtx_t& batchX()const noexcept;
-		nntl_interface const realmtx_t& batchY()const noexcept;
+		// Note 1: once the mode is changed, the caller MUST assume that underlying data, returned earlier by these functions, became a junk
+		// Note 2: if the mode was set to exclude X or Y data (see excludeDataFlag argument of walk_over_set()), then
+		//		corresponding batchX() or batchY() MUST NOT be called.
+		nntl_interface const x_mtx_t& batchX()const noexcept;
+		nntl_interface const y_mtx_t& batchY()const noexcept;
 		// 		
 		// walk_over_set() must be called before calling batchX/batchY functions to select which set (train or test, for example) to use
 		// and to which batch size divide the dataset into.
@@ -175,8 +198,10 @@ namespace nntl {
 		// Also note, that implementation MUST NOT permute the data samples of corresponding datasets and MUST always
 		// return the data in the same order. Recall that if allowExternalCachingOfSets==true, then total amount of data returned
 		// for the corresponding dataset MUST be equal to dataset_samples_count() (not true for allowExternalCachingOfSets==false)
+		// The last argument excludeDataFlag may help to squeeze some performance when corresponding part of dataset is not needed.
 		template<typename CommonDataT>
-		nntl_interface numel_cnt_t walk_over_set(const data_set_id_t dataSetId, const CommonDataT& cd, vec_len_t batchSize = -1)noexcept;
+		nntl_interface numel_cnt_t walk_over_set(const data_set_id_t dataSetId, const CommonDataT& cd
+			, vec_len_t batchSize = -1, const unsigned excludeDataFlag = flag_exclude_nothing)noexcept;
 
 		//convenience wrappers around walk_over_set(). Always uses maxFPropSize returned from init*() as a batch size
 		nntl_interface numel_cnt_t walk_over_train_set()noexcept;
@@ -187,13 +212,22 @@ namespace nntl {
 		// (so, it doesn't allow randomly select batch, it only takes away a burden of counting call numbers from the function)
 		template<typename CommonDataT>
 		nntl_interface void next_subset(const numel_cnt_t batchIdx, const CommonDataT& cd)noexcept;
+		//next_subset() may but doesn't have to obey batchIdx (depending on implementation)
 
-		//nntl_interface const realmtx_t& dataX()const noexcept;
-		//nntl_interface const realmtx_t& dataY()const noexcept;
-		
 	protected:
 		_i_train_data()noexcept{}
 	};
+
+	//////////////////////////////////////////////////////////////////////////
+	namespace _impl {
+		template<class T>
+		struct is_train_data_derived : public ::std::is_base_of<_i_train_data<typename T::x_t, typename T::y_t>, T> {};
+	}
+	template<typename T>
+	using is_train_data_intf = ::std::conditional_t< utils::has_x_t_and_y_t<T>::value
+		, _impl::is_train_data_derived<T>, ::std::false_type>;
+
+	//////////////////////////////////////////////////////////////////////////
 
 }
 

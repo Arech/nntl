@@ -189,3 +189,32 @@ inline void _ASSERT_VECTOR_EQ(const ::std::vector<float>& v1, const ::std::vecto
 	}
 }
 #define ASSERT_VECTOR_EQ(c1,c2,descr) ASSERT_NO_FATAL_FAILURE(_ASSERT_VECTOR_EQ(c1,c2,descr));
+
+//////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////
+
+template<typename T, bool ce = ::std::is_floating_point<T>::value>
+inline ::std::enable_if_t<ce> dbg_show_matrix(const ::nntl::math::smatrix<T>& m, const char* pName=nullptr, int wid=6, int prec=2) {
+	const auto mr = m.rows(), mc = m.cols();
+	STDCOUT((pName ? pName : "matrix") << " = ");
+	for (vec_len_t r = 0; r < mr; ++r) {
+		::std::cout << ::std::endl << "[" << ::std::setw(2) << r << "]";
+		for (vec_len_t c = 0; c < mc; ++c) {
+			STDCOUT(std::setprecision(prec) << ::std::setw(wid) << m.get(r, c));
+		}
+	}
+	::std::cout << ::std::endl;
+}
+
+template<typename T, bool ce = ::std::is_floating_point<T>::value>
+inline ::std::enable_if_t<!ce> dbg_show_matrix(const ::nntl::math::smatrix<T>& m, const char* pName = nullptr, int wid = 6) {
+	const auto mr = m.rows(), mc = m.cols();
+	STDCOUT((pName ? pName : "matrix") << " = ");
+	for (vec_len_t r = 0; r < mr; ++r) {
+		::std::cout << ::std::endl << "[" << ::std::setw(2) << r << "]";
+		for (vec_len_t c = 0; c < mc; ++c) {
+			STDCOUT(::std::setw(wid) << m.get(r, c));
+		}
+	}
+	::std::cout << ::std::endl;
+}

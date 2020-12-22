@@ -43,6 +43,7 @@ namespace nntl {
 
 	namespace math {
 
+		//better DON'T use d_real_t
 		typedef NNTL_CFG_DEFAULT_TYPE d_real_t;
 		//static constexpr char* d_real_t_name = NNTL_STRINGIZE(NNTL_CFG_DEFAULT_TYPE); //obsolete?
 

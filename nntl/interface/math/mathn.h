@@ -151,7 +151,7 @@ namespace math {
 		//helper function to calculate softmax (not a part of _i_math, because it's not expected to be called from elsewhere)
 		//act - is an activation matrix (WITHOUT biases!)
 		// pMax is a vector of size act.rows() with rowwise act maximum values
-		// pDenominator is a vector of size act.rows()*m_threads.workers_count() elements. First act.rows() elements will be filled with rowwise_sum_exp()
+		// pDenominator is a vector of size act.rows()*m_threads.cur_workers_count() elements. First act.rows() elements will be filled with rowwise_sum_exp()
 		// pNumerator is columnmajor matrix(vector) of size act.size() to be filled with exp(Aij - maxj)
 		void softmax_parts(const realmtx_t& act, const real_t*const pMax, real_t*const pDenominator, real_t*const pNumerator)noexcept {
 			if (act.numel()<Thresholds_t::softmax_parts) {
@@ -180,7 +180,7 @@ namespace math {
 				get_self().softmax_parts_st(act, pMax, pDenominator, pNumerator, &RCR);
 			});
 		}
-		//pDenominator must be able to contain at least sNumel(act.rows(), m_threads.workers_count()) elements!
+		//pDenominator must be able to contain at least sNumel(act.rows(), m_threads.cur_workers_count()) elements!
 		//On return first column of pDenominator will contain calculated softmax denominator values
 		void softmax_parts_mt_cw(const realmtx_t& act, const real_t*const pMax, real_t*const pDenominator, real_t*const pNumerator)noexcept {
 			_processMtx_cw(act, Thresholds_t::softmax_parts_mt_cw_ColsPerThread
@@ -195,11 +195,17 @@ namespace math {
 		//////////////////////////////////////////////////////////////////////////
 		// helper function that return the amount of temporary memory (in real_t) needed to process by softmax()
 		// a matrix of size act.size()
-		numel_cnt_t softmax_needTempMem(const realmtx_t& act)const noexcept {
-			// to compute softmax we'll need a row to store rowwise_max(), at max m_threads.workers_count() rows for
+		template<typename T>
+		numel_cnt_t ___softmax_needTempMem(const smatrix<T>& act)const noexcept {
+			// to compute softmax we'll need a row to store rowwise_max(), at max m_threads.cur_workers_count() rows for
 			// rowwise_sum_exp()-denominator of softmax expression, and a
 			// 			// whole matrix of exp(Aij - maxj) (numerator of softmax expression).
-			return realmtx_t::sNumel(act.rows(), act.cols_no_bias() + 1 + m_threads.cur_workers_count());
+			// 	and also mrwSum_ip() requirements may apply
+			return smatrix_td::sNumel(act.rows(), act.cols_no_bias() + 1 + m_threads.cur_workers_count());
+		}
+		template<typename T>
+		numel_cnt_t softmax_needTempMem(const smatrix<T>& act)const noexcept {
+			return get_self().___softmax_needTempMem(act) + get_self().mrwSum_ip_needTempMem(act);
 		}
 		//////////////////////////////////////////////////////////////////////////
 		// MUST ignore biases!
@@ -213,7 +219,7 @@ namespace math {
 			const auto bRestoreBiases = srcdest.hide_biases();
 
 			const auto rm = srcdest.rows();
-			const auto tmemSize = get_self().softmax_needTempMem(srcdest);
+			const auto tmemSize = get_self().___softmax_needTempMem(srcdest);
 			const auto pTmp = get_self()._istor_alloc(tmemSize);
 			const auto pNumer = pTmp;
 			const auto pMax = pTmp + srcdest.numel();
@@ -235,7 +241,7 @@ namespace math {
 			const auto bRestoreBiases = srcdest.hide_biases();
 
 			const auto rm = srcdest.rows();
-			const auto tmemSize = get_self().softmax_needTempMem(srcdest);
+			const auto tmemSize = get_self().___softmax_needTempMem(srcdest);
 			const auto pTmp = get_self()._istor_alloc(tmemSize);
 			const auto pNumer = pTmp;
 			const auto pMax = pTmp + srcdest.numel();
@@ -443,14 +449,14 @@ namespace math {
 		//////////////////////////////////////////////////////////////////////////
 		//////////////////////////////////////////////////////////////////////////
 		//extract rows with indexes specified by Contnr ridxs into dest.
-		template<typename SeqIt>
-		void mExtractRows(const realmtx_t& src, const SeqIt& ridxsItBegin, realmtx_t& dest)noexcept {
+		template<typename VT, typename SeqIt>
+		void mExtractRows(const smatrix<VT>& src, const SeqIt& ridxsItBegin, smatrix<VT>& dest)noexcept {
 			if (dest.cols_no_bias() < 2 || dest.numel_no_bias() < Thresholds_t::mExtractRows) {
 				get_self().mExtractRows_seqWrite_st(src, ridxsItBegin, dest);
 			} else get_self().mExtractRows_seqWrite_mt(src, ridxsItBegin, dest);
 		}
-		template<typename SeqIt>
-		static void _imExtractRows_seqWrite_st(const realmtx_t& src, const SeqIt& ridxsItBegin, realmtx_t& dest, const elms_range& er)noexcept {
+		template<typename VT, typename SeqIt>
+		static void _imExtractRows_seqWrite_st(const smatrix<VT>& src, const SeqIt& ridxsItBegin, smatrix<VT>& dest, const elms_range& er)noexcept {
 			NNTL_ASSERT(!dest.empty() && !src.empty());
 			src.assert_storage_does_not_intersect(dest);
 			//static_assert(::std::is_same<vec_len_t, SeqIt::value_type>::value, "Contnr type should contain vec_len_t data");
@@ -489,16 +495,16 @@ namespace math {
 				pSrc += srcRows;
 			}
 		}
-		template<typename SeqIt>
-		static void mExtractRows_seqWrite_st(const realmtx_t& src, const SeqIt& ridxsItBegin, realmtx_t& dest, const elms_range*const pER = nullptr)noexcept {
+		template<typename VT, typename SeqIt>
+		static void mExtractRows_seqWrite_st(const smatrix<VT>& src, const SeqIt& ridxsItBegin, smatrix<VT>& dest, const elms_range*const pER = nullptr)noexcept {
 			NNTL_ASSERT(!src.emulatesBiases() || src.test_biases_strict());//if there're biases, they can't be holey
 			NNTL_ASSERT(!dest.emulatesBiases() || dest.test_biases_strict());
 			_imExtractRows_seqWrite_st(src, ridxsItBegin, dest, pER ? *pER : elms_range(0, dest.rows()));
 			NNTL_ASSERT(!src.emulatesBiases() || src.test_biases_strict());//if there're biases, they can't be holey
 			NNTL_ASSERT(!dest.emulatesBiases() || dest.test_biases_strict());
 		}
-		template<typename SeqIt>
-		void mExtractRows_seqWrite_mt(const realmtx_t& src, const SeqIt& ridxsItBegin, realmtx_t& dest)noexcept {
+		template<typename VT, typename SeqIt>
+		void mExtractRows_seqWrite_mt(const smatrix<VT>& src, const SeqIt& ridxsItBegin, smatrix<VT>& dest)noexcept {
 			NNTL_ASSERT(!dest.empty() && !src.empty());
 			NNTL_ASSERT(!src.emulatesBiases() || src.test_biases_strict());//if there're biases, they can't be holey
 			NNTL_ASSERT(!dest.emulatesBiases() || dest.test_biases_strict());
@@ -717,8 +723,13 @@ namespace math {
 		//////////////////////////////////////////////////////////////////////////
 		//////////////////////////////////////////////////////////////////////////
 		// compute squared L2norm of each matrix A row into a vector pNormsVec: pNormsVec(i) = norm(A(i,:)) (rowwise sum of squares)
-		// ATTENTION! pNormsVec MUST address at least ( A.rows()*m_threads.workers_count() ) elements!
+		// ATTENTION! pNormsVec MUST address at least ( A.rows()*m_threads.cur_workers_count() ) elements!
 		// 
+		template<typename T>
+		nntl_probably_force_inline numel_cnt_t mrwL2NormSquared_needTempMem(const smatrix<T>& A)const noexcept {
+			static_assert(::std::is_same<T, real_t>::value, "");
+			return get_self().mrwSum_needTempMem(A);
+		}
 		void mrwL2NormSquared(const realmtx_t& A, real_t*const pNormsVec)noexcept {
 			NNTL_ASSERT(pNormsVec);
 			return (A.cols() <= Thresholds_t::mrwL2NormSquared_mt_cw_ColsPerThread || A.numel() < Thresholds_t::mrwL2NormSquared)
@@ -804,6 +815,13 @@ namespace math {
 		// its length/norm is not longer, than predefined value. If it's longer, than rescale vector to this max length
 		// (for use in max-norm weights regularization)
 		// #TODO reimplement as apply_max_norm()
+		template<typename T>
+		nntl_probably_force_inline numel_cnt_t mCheck_normalize_rows_needTempMem(const smatrix<T>& A)const noexcept {
+			static_assert(::std::is_same<T, real_t>::value, "");
+			return smatrix_td::sNumel(A.rows(), m_threads.cur_workers_count()) //mCheck_normalize_rows_mt
+				+ get_self().mrwL2NormSquared_needTempMem(A);
+		}
+
 		void mCheck_normalize_rows(realmtxdef_t& A, const real_t maxL2NormSquared, const bool bNormIncludesBias)noexcept {
 			if (A.numel() < Thresholds_t::mCheck_normalize_rows) {
 				get_self().mCheck_normalize_rows_st(A, maxL2NormSquared, bNormIncludesBias);
@@ -844,13 +862,13 @@ namespace math {
 			NNTL_ASSERT(!A.empty() && maxNormSquared > real_t(0.0));
 						
 			const auto mRows = A.rows();
-			const auto tmemSize = realmtx_t::sNumel(mRows, m_threads.cur_workers_count());
+			const auto tmemSize = smatrix_td::sNumel(mRows, m_threads.cur_workers_count());
 			const auto pTmpStor = get_self()._istor_alloc(tmemSize);
 
 			//A could be (and almost always is) a weight matrix that doesn't have correct emulatesBias() property, therefore
 			//have to use unconditional .hide_last_col() instead of .hide_biases()
 			if (!bNormIncludesBias) A.hide_last_col();
-			get_self().mrwL2NormSquared_mt(A, pTmpStor);
+			get_self().mrwL2NormSquared(A, pTmpStor);
 			if (!bNormIncludesBias) A.restore_last_col();
 
 			// calc scaling coefficients
@@ -875,7 +893,7 @@ namespace math {
 			NNTL_ASSERT(pVec && ne > 0);
 			numel_cnt_t nz = 0;
 			const auto pE = pVec + ne;
-			while (pVec != pE) {//vectorizes!
+			while (pVec != pE) {//#DIDNT_VECTORIZE
 				const auto v = *pVec++;
 				nz += (v > T(+0.)) + (v < T(-0.));
 			}
@@ -1086,7 +1104,7 @@ namespace math {
 			auto pDM = dropoutMask.data() + er.elmBegin;
 			auto pA = mtx.data() + er.elmBegin;
 			const auto pDME = pDM + er.totalElements();
-			while (pDM != pDME) { //vectorized!
+			while (pDM != pDME) { //#DIDNT_VECTORIZE
 				const auto v = *pDM++;
 				NNTL_ASSERT(v >= real_t(0.0) && v <= real_t(1.0));
 				const real_t dv = v < dropPercAct ? real_t(1.) : real_t(0.);
@@ -1175,6 +1193,11 @@ namespace math {
 		////////////////////////////////////////////////////////////////////////// 
 		//////////////////////////////////////////////////////////////////////////
 		//apply individual learning rate to dLdW
+		template<typename T>
+		nntl_probably_force_inline numel_cnt_t apply_ILR_needTempMem(const smatrix_td::mtx_size_t& dLdWMaxSize)const noexcept {
+			static_assert(::std::is_same<T, real_t>::value, "");
+			return smatrix_td::sNumel(dLdWMaxSize);
+		}
 		void apply_ILR(realmtx_t& dLdW, const realmtx_t& prevdLdW, realmtx_t& ILRGain,
 			const real_t decr, const real_t incr, const real_t capLow, const real_t capHigh)noexcept
 		{
@@ -1258,7 +1281,6 @@ namespace math {
 				}
 			}, dLdW.numel());
 		}
-
 		void apply_ILR_st_vec(realmtx_t& dLdW, const realmtx_t& prevdLdW, realmtx_t& ILRGain,
 			const real_t decr, const real_t incr, const real_t capLow, const real_t capHigh)noexcept
 		{
@@ -1379,27 +1401,87 @@ namespace math {
 		}
 
 		//////////////////////////////////////////////////////////////////////////
+		// scale and offset vector, i.e. A = sc*A - ofs
+		template<typename T>
+		static void vMulCAddC_ip_st(T* __restrict pA, T* __restrict const pAE, const T sc, const T ofs)noexcept {
+			NNTL_ASSERT(pA && pAE && pA <= pAE);
+			NNTL_ASSERT(sc != T(0));
+			NNTL_ASSERT(!::std::isnan(sc) && ::std::isfinite(sc) && !::std::isnan(ofs) && ::std::isfinite(ofs));
+			//#TODO should help a compiler with FMA (probably, should code by hand - check it)?
+			while (pA != pAE) {
+				const auto v = *pA;
+				*pA++ = sc*v + ofs;
+			};
+		}
+
+		//////////////////////////////////////////////////////////////////////////
+		// Add constant and rescale every matrix element (excluding biases), A = sc*(A - ofs)
+		// wrapper around vMulCAddC_ip_st
+		template<typename T>
+		void evMulCAddC_ip_nb(smatrix<T>& A, const T sc, const T ofs) noexcept {
+			NNTL_ASSERT(!A.empty() && !::std::isnan(sc) && ::std::isfinite(sc) && !::std::isnan(ofs) && ::std::isfinite(ofs));
+			NNTL_ASSERT(sc != T(0));
+			//#TODO T must be used when branching here
+			if (A.numel_no_bias() < Thresholds_t::evMulCAddC_ip_nb) {
+				get_self().evMulCAddC_ip_nb_st(A, sc, ofs);
+			} else get_self().evMulCAddC_ip_nb_mt(A, sc, ofs);
+		}
+		template<typename T>
+		void evMulCAddC_ip_nb_st(smatrix<T>& A, const T sc, const T ofs, const elms_range*const pER = nullptr)noexcept {
+			NNTL_ASSERT(!A.empty() && !::std::isnan(sc) && ::std::isfinite(sc) && !::std::isnan(ofs) && ::std::isfinite(ofs));
+			NNTL_ASSERT(sc != T(0));
+			auto pA = A.data();
+			T* pAE;
+			if (pER) {
+				pAE = pA + pER->elmEnd;
+				NNTL_ASSERT(pAE <= A.end_no_bias());
+				pA += pER->elmBegin;
+			} else pAE = A.end_no_bias();
+			vMulCAddC_ip_st(pA, pAE, sc, ofs);
+		}
+		template<typename T>
+		void evMulCAddC_ip_nb_mt(smatrix<T>& A, const T sc, const T ofs) noexcept {
+			NNTL_ASSERT(!A.empty() && !::std::isnan(sc) && ::std::isfinite(sc) && !::std::isnan(ofs) && ::std::isfinite(ofs));
+			NNTL_ASSERT(sc != T(0));
+			get_self().ithreads().run([pA = A.data(), sc, ofs](const par_range_t& pr) {
+				vMulCAddC_ip_st(pA + pr.offset(), pA + pr.end(), sc, ofs);
+			}, A.numel_no_bias());
+		}
+
+
+
+		//////////////////////////////////////////////////////////////////////////
 		//inplace elementwise multiplication A = b.*A
-		static void _ievMulC_ip_st(real_t* pA, const real_t b, const elms_range& er)noexcept {
+		/*static void _ievMulC_ip_st(real_t* pA, const real_t b, const elms_range& er)noexcept {
 			NNTL_ASSERT(pA && er.totalElements() > 0);
 			const real_t*const pAE = pA + er.elmEnd;
 			pA += er.elmBegin;
 			while (pA != pAE) *pA++ *= b;
+		}*/
+		template<typename T>
+		static void vMulC_ip_st(T* __restrict pA, T* __restrict const pAE, const T C)noexcept {
+			NNTL_ASSERT(pA && pAE && pA <= pAE);
+			NNTL_ASSERT(C != T(0));
+			while (pA != pAE) {
+				*pA++ *= C;
+			};
 		}
 		void evMulC_ip(realmtx_t& A, const real_t b)noexcept {
 			if (A.numel() < Thresholds_t::evMulC_ip) {
 				get_self().evMulC_ip_st(A, b);
 			} else get_self().evMulC_ip_mt(A, b);
 		}
-		void evMulC_ip_st(realmtx_t& A, const real_t b, const elms_range*const pER = nullptr)noexcept {
+		void evMulC_ip_st(realmtx_t& A, const real_t b)const noexcept{ //, const elms_range*const pER = nullptr)noexcept {
 			NNTL_ASSERT(!A.empty() && A.numel() > 0);
-			NNTL_ASSERT(!pER || pER->elmEnd <= A.numel());
-			get_self()._ievMulC_ip_st(A.data(), b, pER ? *pER : elms_range(A));
+			//NNTL_ASSERT(!pER || pER->elmEnd <= A.numel());
+			//get_self()._ievMulC_ip_st(A.data(), b, pER ? *pER : elms_range(A));
+			get_self().vMulC_ip_st(A.data(), A.end(), b);
 		}
 		void evMulC_ip_mt(realmtx_t& A, const real_t b)noexcept {
 			NNTL_ASSERT(!A.empty() && A.numel() > 0);
 			m_threads.run([pA = A.data(), b, this](const par_range_t& pr) {
-				get_self()._ievMulC_ip_st(pA, b, elms_range(pr));
+				//get_self()._ievMulC_ip_st(pA, b, elms_range(pr));
+				get_self().vMulC_ip_st(pA + pr.offset(), pA + pr.end(), b);
 			}, A.numel());
 		}
 		//////////////////////////////////////////////////////////////////////////
@@ -1408,33 +1490,37 @@ namespace math {
 				get_self().evMulC_ip_st(pA, n, b);
 			} else get_self().evMulC_ip_mt(pA, n, b);
 		}
-		void evMulC_ip_st(real_t* pA, const numel_cnt_t n, const real_t b, const elms_range*const pER = nullptr)noexcept {
+		void evMulC_ip_st(real_t* pA, const numel_cnt_t n, const real_t b)const noexcept { //, const elms_range*const pER = nullptr)noexcept {
 			NNTL_ASSERT(pA && n > 0);
-			NNTL_ASSERT(!pER || pER->elmEnd <= n);
-			get_self()._ievMulC_ip_st(pA, b, pER ? *pER : elms_range(0, n));
+			//NNTL_ASSERT(!pER || pER->elmEnd <= n);
+			//get_self()._ievMulC_ip_st(pA, b, pER ? *pER : elms_range(0, n));
+			get_self().vMulC_ip_st(pA, pA + n, b);
 		}
 		void evMulC_ip_mt(real_t* pA, const numel_cnt_t n, const real_t b)noexcept {
 			NNTL_ASSERT(pA && n > 0);
 			m_threads.run([pA, b, this](const par_range_t& pr) {
-				get_self()._ievMulC_ip_st(pA, b, elms_range(pr));
+				//get_self()._ievMulC_ip_st(pA, b, elms_range(pr));
+				get_self().vMulC_ip_st(pA + pr.offset(), pA + pr.end(), b);
 			}, n);
 		}
 
 		//inplace elementwise multiplication A(no_bias) = b.*A(no_bias)
-		void evMulC_ip_Anb(realmtx_t& A, const real_t b)noexcept {
-			if (A.numel_no_bias() < Thresholds_t::evMulC_ip_Anb) {
+		void evMulC_ip_nb(realmtx_t& A, const real_t b)noexcept {
+			if (A.numel_no_bias() < Thresholds_t::evMulC_ip_nb) {
 				get_self().evMulC_ip_Anb_st(A, b);
 			} else get_self().evMulC_ip_Anb_mt(A, b);
 		}
-		void evMulC_ip_Anb_st(realmtx_t& A, const real_t b, const elms_range*const pER = nullptr)const noexcept {
+		void evMulC_ip_Anb_st(realmtx_t& A, const real_t b) const noexcept{ //, const elms_range*const pER = nullptr)const noexcept {
 			NNTL_ASSERT(!A.empty() && A.numel_no_bias() > 0);
-			NNTL_ASSERT(!pER || pER->elmEnd <= A.numel_no_bias());
-			get_self()._ievMulC_ip_st(A.data(), b, pER ? *pER : elms_range(0, A.numel_no_bias()));
+			//NNTL_ASSERT(!pER || pER->elmEnd <= A.numel_no_bias());
+			//get_self()._ievMulC_ip_st(A.data(), b, pER ? *pER : elms_range(0, A.numel_no_bias()));
+			get_self().vMulC_ip_st(A.data(), A.end_no_bias(), b);
 		}
 		void evMulC_ip_Anb_mt(realmtx_t& A, const real_t b)noexcept {
 			NNTL_ASSERT(!A.empty() && A.numel_no_bias() > 0);
 			m_threads.run([pA = A.data(), b, this](const par_range_t& pr) {
-				get_self()._ievMulC_ip_st(pA, b, elms_range(pr));
+				//get_self()._ievMulC_ip_st(pA, b, elms_range(pr));
+				get_self().vMulC_ip_st(pA + pr.offset(), pA + pr.end(), b);
 			}, A.numel_no_bias());
 		}
 
@@ -1537,6 +1623,47 @@ namespace math {
 			A.assert_storage_does_not_intersect(B);
 			NNTL_ASSERT(A.size_no_bias() == B.size());
 			get_self()._ievMul_ip_mt(A.data(), B.data(), B.numel());
+		}
+
+		//////////////////////////////////////////////////////////////////////////
+		// vector += constant single threaded only
+		template<typename T>
+		static void vAddC_ip_st(T*__restrict pA, T*__restrict const pAE, const T c)noexcept {
+			NNTL_ASSERT(pA && pAE && pA <= pAE);
+			NNTL_ASSERT(!::std::isnan(c) && ::std::isfinite(c));
+			while (pA != pAE) {
+				*pA++ += c;
+			}
+		}
+		//////////////////////////////////////////////////////////////////////////
+		// Add constant to every matrix element (excluding biases), A += c
+		// wrapper around vAddC_ip_st
+		template<typename T>
+		void evAddC_ip_nb(smatrix<T>& A, const T c) noexcept {
+			NNTL_ASSERT(!A.empty() && !::std::isnan(c) && ::std::isfinite(c));
+			//#TODO T must be used when branching here
+			if (A.numel_no_bias() < Thresholds_t::evAddC_ip_nb) {
+				get_self().evAddC_ip_nb_st(A, c);
+			} else get_self().evAddC_ip_nb_mt(A, c);
+		}
+		template<typename T>
+		void evAddC_ip_nb_st(smatrix<T>& A, const T c, const elms_range*const pER = nullptr)noexcept {
+			NNTL_ASSERT(!A.empty() && !::std::isnan(c) && ::std::isfinite(c));
+			auto pA = A.data();
+			T* pAE;
+			if (pER) {
+				pAE = pA + pER->elmEnd;
+				NNTL_ASSERT(pAE <= A.end_no_bias());
+				pA += pER->elmBegin;
+			} else pAE = A.end_no_bias();
+			vAddC_ip_st(pA, pAE, c);
+		}
+		template<typename T>
+		void evAddC_ip_nb_mt(smatrix<T>& A, const T c) noexcept {
+			NNTL_ASSERT(!A.empty() && !::std::isnan(c) && ::std::isfinite(c));
+			get_self().ithreads().run([pA = A.data(), c](const par_range_t& pr) {
+				vAddC_ip_st(pA + pr.offset(), pA + pr.end(), c);
+			}, A.numel_no_bias());
 		}
 
 
@@ -2219,14 +2346,89 @@ namespace math {
 		//////////////////////////////////////////////////////////////////////////
 		// matrix transposition. Bias column (if any in src or dest) is ignored. Destination matrix as always must be
 		// properly sized
-		// #warning current OpenBLAS implementation is slower, than it can be. See TEST(TestPerfDecisions, mTranspose) in test_perf_decisions.cpp
-		// and https://github.com/xianyi/OpenBLAS/issues/1243
+		
 		template<typename T>
-		static void mTranspose_ignore_bias(const smatrix<T>& src, smatrix<T>& dest)noexcept {
-			NNTL_ASSERT(src.cols_no_bias() == dest.rows() && src.rows() == dest.cols_no_bias());
-			const auto sRows = src.rows(), sCols = src.cols_no_bias();
-			b_BLAS_t::omatcopy(true, sRows, sCols, T(1.0), src.data(), sRows, dest.data(), sCols);
+		void mTranspose_ignore_bias(const smatrix<T>& src, smatrix<T>& dest)noexcept {
+			const bool bIsWide = (src.rows() < src.cols_no_bias());
+			//#TODO: that threshold below depends on hw architecture and current use-case (esp. cache cleanliness; and libxsmm could be better)
+			//but it's insanity to try to hardcode them all.
+			//so just leaving here mine threshold until run-time profiler ready. It should not degrade performance very much, thought
+			// testing is required
+			const bool bIsBig = (src.numel_no_bias() >= 90000);
+			if (bIsWide ^ bIsBig) {
+				get_self().mTranspose_seq_write_ignore_bias(src, dest);
+			} else get_self().mTranspose_seq_read_ignore_bias(src,dest);
 		}
+
+		//not really using it now
+// 		template<typename T>
+// 		void mTranspose_ip_ignore_bias(smatrix_deform<T>& src_dest)noexcept {
+// 			//#TODO
+// 		}
+		
+		// #performance #WARNING current OpenBLAS implementation is slower, than it can be. See TEST(TestPerfDecisions, mTranspose) in test_perf_decisions.cpp
+		// and https://github.com/xianyi/OpenBLAS/issues/1243
+		// https://github.com/xianyi/OpenBLAS/issues/2532
+		//just leaving it for the case... Note that LIBXSMM libxsmm_otrans() may be superior in some cases
+		// (see commented out section in test_imath_basic.cpp aroung TEST(TestMathN, mTranspose)
+		// or search for string "LIBXSMM vs. OpenBLAS vs. naive results" there
+		template<typename T, bool ce = ::std::is_floating_point<T>::value>
+		static ::std::enable_if_t<ce> mTranspose_ignore_bias_BLAS(const smatrix<T>& src, smatrix<T>& dest)noexcept {
+			NNTL_ASSERT(src.cols_no_bias() == dest.rows() && src.rows() == dest.cols_no_bias());
+			b_BLAS_t::omatcopy(true, src.rows(), src.cols_no_bias(), T(1.0), src.data(), src.ldim(), dest.data(), dest.ldim());
+		}
+		template<typename T, bool ce = ::std::is_floating_point<T>::value>
+		static ::std::enable_if_t<ce> mTranspose_ip_ignore_bias_BLAS(smatrix_deform<T>& src_dest)noexcept {
+			const auto sRows = src_dest.rows(), sCols = src_dest.cols_no_bias();
+			NNTL_ASSERT(src_dest._isOkToDeform(sCols, sRows, src_dest.emulatesBiases()));
+			b_BLAS_t::imatcopy(true, sRows, sCols, T(1.0), src_dest.data(), src_dest.ldim(), sCols);
+
+			const bool bBias = src_dest.emulatesBiases();
+			src_dest.deform(sCols, sRows + bBias);
+			if (bBias) src_dest.set_biases();
+		}
+
+		template<typename T>
+		static void mTranspose_seq_read_ignore_bias(const smatrix<T>& src, smatrix<T>& dest) noexcept {
+			NNTL_ASSERT(src.rows() == dest.cols_no_bias() && src.cols_no_bias() == dest.rows());
+			const ptrdiff_t sRows = src.rows(), sCols = src.cols_no_bias();
+			const auto dataCnt = src.numel_no_bias();
+			auto pSrc = src.data();
+			const auto pSrcE = pSrc + dataCnt;
+			auto pDest = dest.data();
+
+			while (pSrc != pSrcE) {
+				auto pD = pDest++;
+				auto pS = pSrc;
+				pSrc += sRows;
+				const auto pSE = pSrc;
+				while (pS != pSE) {
+					*pD = *pS++;
+					pD += sCols;
+				}
+			}
+		}
+		template<typename T>
+		static void mTranspose_seq_write_ignore_bias(const smatrix<T>& src, smatrix<T>& dest) noexcept {
+			NNTL_ASSERT(src.rows() == dest.cols_no_bias() && src.cols_no_bias() == dest.rows());
+			const ptrdiff_t sRows = src.rows(), sCols = src.cols_no_bias();
+			const auto dataCnt = src.numel_no_bias();
+			auto pSrc = src.data();
+			auto pDest = dest.data();
+			const auto pDestE = pDest + dataCnt;
+
+			while (pDest != pDestE) {
+				auto pS = pSrc++;
+				auto pD = pDest;
+				pDest += sCols;
+				const auto pDE = pDest;
+				while (pD != pDE) {
+					*pD++ = *pS;
+					pS += sRows;
+				}
+			}
+		}
+
 
 		//////////////////////////////////////////////////////////////////////////
 		//////////////////////////////////////////////////////////////////////////
@@ -3893,6 +4095,7 @@ namespace math {
 			}, dW.numel());
 		}
 		//////////////////////////////////////////////////////////////////////////
+		//RProp or inplace L1 regularization
 		void RProp(realmtx_t& dW, const real_t learningRate)noexcept {
 			if (dW.numel() < Thresholds_t::RProp) {
 				get_self().RProp_st(dW, learningRate);
@@ -4099,7 +4302,8 @@ namespace math {
 				const auto g = *pdW;
 				const auto m = (*pMt)*beta1 + g*ombeta1;
 				*pMt++ = m;
-				const auto u = ::std::max({::std::abs(g),beta2*(*pUt)});
+				//const auto u = ::std::max({::std::abs(g),beta2*(*pUt)});
+				const auto u = ::std::max(::std::abs(g), beta2*(*pUt));
 				*pUt++ = u;
 				*pdW++ = alphat*m / (u + numericStabilizer);
 			}
@@ -4228,7 +4432,7 @@ namespace math {
 		//////////////////////////////////////////////////////////////////////////
 		// deCov
 		// returns how much internal temporarily memory must be available to the to calculate loss_deCov() and dLoss_deCov
-		static numel_cnt_t loss_DeCov_tempMemReqs(const bool bWillDoTraining, const smatrix_td::mtx_size_t biggestMtx)noexcept {
+		static numel_cnt_t loss_DeCov_needTempMem(const bool bWillDoTraining, const smatrix_td::mtx_size_t biggestMtx)noexcept {
 			NNTL_UNREF(bWillDoTraining);
 			// we'll need some temporary memory to compute covariation and derivative correctly.
 			// In general, we'll need memory for:
@@ -4260,12 +4464,13 @@ namespace math {
 			const auto _clone_result = Vals.clone_to_no_bias(DeMeaned);
 			NNTL_ASSERT(_clone_result);
 
-			real_t*const pVecMeans = get_self()._istor_alloc(DeMeaned.cols());
-
-			get_self().mcwMean<bNumStab>(DeMeaned, pVecMeans);
-			get_self().mcwSub_ip(DeMeaned, pVecMeans);
-
-			get_self()._istor_free(pVecMeans, DeMeaned.cols());
+// 			real_t*const pVecMeans = get_self()._istor_alloc(DeMeaned.cols());
+// 
+// 			get_self().mcwMean<bNumStab>(DeMeaned, pVecMeans);
+// 			get_self().mcwSub_ip(DeMeaned, pVecMeans);
+// 
+// 			get_self()._istor_free(pVecMeans, DeMeaned.cols());
+ 			get_self().mcwDeMean<bNumStab>(DeMeaned);
 
 			const auto covMtxNumel = realmtx_t::sNumel(DeMeaned.cols(), DeMeaned.cols());
 			real_t*const pCovMtx = get_self()._istor_alloc(covMtxNumel);
@@ -4285,55 +4490,61 @@ namespace math {
 			return ret;
 		}
 
+		template<bool bLowerTriangl, bool bNumStab>
+		void dLoss_deCov(const realmtx_t& Vals, realmtx_t& dLossdVals, const real_t deCov_scale = real_t(1.0))noexcept {
+			NNTL_ASSERT(Vals.cols_no_bias() == dLossdVals.cols() && Vals.rows() == dLossdVals.rows());
+
+		#ifndef NNTL_DECOV_DONT_CARE_ON_HOLEY_BIASES
+			NNTL_ASSERT(!Vals.emulatesBiases() || !Vals.isHoleyBiases() || !"Current deCov algorithm does not support holey biases!");
+			//to support holey biases algorithm must ignore rows with zeroed biases. Looks like the easiest (and probably the
+			//fastest to run) way to do it is to make a something like a Vals.clone_to_droping_holes(DeMeaned) and then proceed as normal
+		#endif // !NNTL_DECOV_DONT_CARE_ON_HOLEY_BIASES
+
+			NNTL_ASSERT(Vals.cols_no_bias() > 1);
+			NNTL_ASSERT(!dLossdVals.emulatesBiases());
+
+			const auto bCr = Vals.clone_to_no_bias(dLossdVals);
+			NNTL_ASSERT(bCr);
+			get_self().dLoss_deCov_ip<bLowerTriangl, bNumStab>(dLossdVals, deCov_scale);
+		}
+
 		// N=size(A,1);
 		// actCnt = size(A, 2);
 		// DM = A - mean(A);
 		// C = DM'*DM./N;
 		// dL = (DM*C - diag(C)'.*DM).*2./N;
 		template<bool bLowerTriangl, bool bNumStab>
-		void dLoss_deCov(const realmtx_t& Vals, realmtx_t& dLossdVals)noexcept {
-			NNTL_ASSERT(Vals.cols_no_bias() == dLossdVals.cols() && Vals.rows() == dLossdVals.rows());
+		void dLoss_deCov_ip(realmtx_t& Vals_dLossdVals, const real_t deCov_scale = real_t(1.0))noexcept {
+			NNTL_ASSERT(!Vals_dLossdVals.emulatesBiases());
 
-#ifndef NNTL_DECOV_DONT_CARE_ON_HOLEY_BIASES
-			NNTL_ASSERT(!Vals.emulatesBiases() || !Vals.isHoleyBiases() || !"Current deCov algorithm does not support holey biases!");
-			//to support holey biases algorithm must ignore rows with zeroed biases. Looks like the easiest (and probably the
-			//fastest to run) way to do it is to make a something like a Vals.clone_to_droping_holes(DeMeaned) and then proceed as normal
-#endif // !NNTL_DECOV_DONT_CARE_ON_HOLEY_BIASES
+			const auto vRows = Vals_dLossdVals.rows(), vCols = Vals_dLossdVals.cols();
 
-			NNTL_ASSERT(Vals.cols_no_bias() > 1);
-			NNTL_ASSERT(!dLossdVals.emulatesBiases());
-
-			const auto valsNumelNoBias = Vals.numel_no_bias();
+			const auto valsNumelNoBias = Vals_dLossdVals.numel();
 			real_t*const pDeMeaned = get_self()._istor_alloc(valsNumelNoBias);
-			realmtx_t DeMeaned(pDeMeaned, Vals, realmtx_t::tag_noBias());
+			realmtx_t DeMeaned(pDeMeaned, Vals_dLossdVals, realmtx_t::tag_noBias());
 			NNTL_ASSERT(!DeMeaned.emulatesBiases());
-			const auto _clone_result = Vals.clone_to_no_bias(DeMeaned);
+			const auto _clone_result = Vals_dLossdVals.clone_to_no_bias(DeMeaned);
 			NNTL_ASSERT(_clone_result);
 
-			real_t*const pVecMeans = get_self()._istor_alloc(DeMeaned.cols());
+			get_self().mcwDeMean<bNumStab>(DeMeaned);
 
-			get_self().mcwMean<bNumStab>(DeMeaned, pVecMeans);
-			get_self().mcwSub_ip(DeMeaned, pVecMeans);
-
-			get_self()._istor_free(pVecMeans, DeMeaned.cols());
-
-			const auto covMtxNumel = realmtx_t::sNumel(DeMeaned.cols(), DeMeaned.cols());
+			const auto covMtxNumel = realmtx_t::sNumel(vCols, vCols);
 			real_t*const pCovMtx = get_self()._istor_alloc(covMtxNumel);
-			realmtx_t CovMtx(pCovMtx, DeMeaned.cols(), DeMeaned.cols());
+			realmtx_t CovMtx(pCovMtx, vCols, vCols);
 
 			get_self().mColumnsCov<bLowerTriangl>(DeMeaned, CovMtx);
 			
-			DeMeaned.clone_to(dLossdVals);
-			get_self().mcwMulDiag_ip(dLossdVals, CovMtx);
+			DeMeaned.clone_to(Vals_dLossdVals);
+			get_self().mcwMulDiag_ip(Vals_dLossdVals, CovMtx);
 
 			//dL = (DM*C - diag(C)'.*DM).*2./N;
 			
-			const real_t cmnScale = real_t(2.) / static_cast<real_t>(dLossdVals.rows());
+			const real_t cmnScale = (real_t(2.)*deCov_scale) / static_cast<real_t>(vRows);
 			//const real_t cmnScale = real_t(2.) / (valsNumelNoBias * (dLossdVals.cols() - 1));
 
 #if NNTL_DEBUGBREAK_ON_OPENBLAS_DENORMALS
 			enable_denormals();
-			dLossdVals._breakWhenDenormal();
+			Vals_dLossdVals._breakWhenDenormal();
 			CovMtx._breakWhenDenormal();
 			DeMeaned._breakWhenDenormal();
 			if (::std::fpclassify(cmnScale) == FP_SUBNORMAL) {
@@ -4342,15 +4553,14 @@ namespace math {
 			global_denormalized_floats_mode();
 #endif
 
-			b_BLAS_t::symm(false, bLowerTriangl, dLossdVals.rows(), dLossdVals.cols(), cmnScale, CovMtx.data(), CovMtx.cols()
-				, DeMeaned.data(), DeMeaned.rows(), -cmnScale, dLossdVals.data(), dLossdVals.rows());
+			b_BLAS_t::symm(false, bLowerTriangl, vRows, vCols, cmnScale, CovMtx.data(), vCols
+				, DeMeaned.data(), vRows, -cmnScale, Vals_dLossdVals.data(), vRows);
 
 #if NNTL_DEBUGBREAK_ON_OPENBLAS_DENORMALS
-			dLossdVals._breakWhenDenormal();
+			Vals_dLossdVals._breakWhenDenormal();
 #endif
 
 			get_self()._istor_free(pCovMtx, covMtxNumel);
-
 			get_self()._istor_free(pDeMeaned, valsNumelNoBias);
 		}
 

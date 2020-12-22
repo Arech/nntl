@@ -79,7 +79,7 @@ namespace nntl {
  		typedef typename iMath_t::realmtxdef_t realmtxdef_t;
 
 		//typedef train_data<real_t> train_data_t;
-		typedef _i_train_data<real_t> i_train_data_t;
+		//typedef _i_train_data<real_t> i_train_data_t;
 		
 		template<bool bPrioritizeThreads>
 		using threads_prioritizer_tpl = ::std::conditional_t<bPrioritizeThreads
@@ -173,6 +173,7 @@ namespace nntl {
 
 		template<bool C = ::std::is_same<void, weights_load_archive_t>::value>
 		::std::enable_if_t<!C, bool> read_weights(const char*const pFile)noexcept {
+			NNTL_ASSERT(pFile);
 			const char*const pfx = "nnet::read_weights() ";
 			if (::std::experimental::filesystem::exists(pFile)) {
 				STDCOUTL(pfx << "Found file '" << pFile << "'. Trying to read it...");
@@ -201,6 +202,7 @@ namespace nntl {
 		}
 		template<bool C = ::std::is_same<void, weights_save_archive_t>::value>
 		::std::enable_if_t<!C, bool> write_weights(const char*const pFile)noexcept {
+			NNTL_ASSERT(pFile);
 			const char*const pfx = "nnet::write_weights() ";
 			STDCOUTL(pfx << "Going to write weights to file '" << pFile << "'");
 
@@ -258,6 +260,7 @@ namespace nntl {
 		// Intended to be used during/after training
 		template<typename TrainDataT, typename Observer>
 		real_t calcLossAndReport(TrainDataT& td, const data_set_id_t dataSetId, Observer& obs) noexcept {
+			NNTL_UNREF(obs); //observer may have only dummy functions that gets removed by optimizer.
 			NNTL_ASSERT(dataSetId >= 0 && dataSetId < td.datasets_count());
 			NNTL_ASSERT(!td.empty());
 
@@ -298,7 +301,8 @@ namespace nntl {
 	protected:
 		// note that the function only calculate loss that depends on model prediction and data_y.
 		// It does NOT calculates and adds to loss any additional loss values that depends on layers weights and so on (m_Layers.calcLossAddendum())
-		real_t _calcLoss4batch_nonnormalized(const realmtx_t& data_x, const realmtx_t& data_y) noexcept {
+		template<typename YT>
+		real_t _calcLoss4batch_nonnormalized(const realmtx_t& data_x, const math::smatrix<YT>& data_y) noexcept {
 			NNTL_ASSERT(data_x.rows() == data_y.rows());
 			_fprop(data_x);
 
@@ -307,7 +311,8 @@ namespace nntl {
 			//WRONG! Call it after each batch processed!
 			//return lossValue;
 		}		
-		real_t _calcLoss4batch(const realmtx_t& data_x, const realmtx_t& data_y) noexcept {
+		template<typename YT>
+		real_t _calcLoss4batch(const realmtx_t& data_x, const math::smatrix<YT>& data_y) noexcept {
 			return _calcLoss4batch_nonnormalized(data_x, data_y) / data_y.rows();
 		}
 
@@ -334,13 +339,13 @@ namespace nntl {
 			}
 
 			//#TODO we must be sure here that no internal objects settings will be hurt during deinit phase
-			_deinit();
+			deinit();
 			
 			get_iInspect().init_nnet(m_Layers.total_layers(), maxEpoch);
 
 			bool bInitFinished = false;
 			utils::scope_exit _run_deinit([this, &bInitFinished]() {
-				if (!bInitFinished) _deinit();
+				if (!bInitFinished) deinit();
 			});
 
 			get_common_data().init(biggestFprop, batchSize);
@@ -377,8 +382,8 @@ namespace nntl {
 			// 3. In minibatch version, there will be 2 additional matrices sized (batchSize, train_x.cols()) and (batchSize, train_y.cols())
 			//		to handle _batch_x and _batch_y data
 			NNTL_UNREF(bMiniBatch);
-			const vec_len_t train_x_cols = vec_len_t(1) + m_Layers.input_layer().get_neurons_cnt()//1 for bias column
-				, train_y_cols = m_Layers.output_layer().get_neurons_cnt();
+			//const vec_len_t train_x_cols = vec_len_t(1) + m_Layers.input_layer().get_neurons_cnt()//1 for bias column
+			//	, train_y_cols = m_Layers.output_layer().get_neurons_cnt();
 
 			return m_LMR.maxMemLayerTrainingRequire
 				+ (batchSize > 0 
@@ -427,18 +432,6 @@ namespace nntl {
 
 			return spreadTempMemSize;
 		}
-
-		void _deinit()noexcept {
-			m_Layers.deinit();
-			get_iRng().deinit_rng();
-			get_iMath().deinit();
-			get_common_data().deinit();
-			m_bRequireReinit = false;
-			m_LMR.zeros();
-			//m_batch_x.clear();
-			//m_batch_y.clear();
-			m_pTmpStor.clear();
-		}
 		
 		//if bs==0 then "set training mode with batchsize = cd.training_batch_size()", else set inference mode with batchsize==bs
 		void _set_mode_and_batch_size(const vec_len_t bs)noexcept {
@@ -466,19 +459,33 @@ namespace nntl {
 
 	public:
 
+		void deinit()noexcept {
+			m_Layers.deinit();
+			get_iRng().deinit_rng();
+			get_iMath().deinit();
+			get_common_data().deinit();
+			m_bRequireReinit = false;
+			m_LMR.zeros();
+			//m_batch_x.clear();
+			//m_batch_y.clear();
+			m_pTmpStor.clear();
+			m_pTmpStor.shrink_to_fit();
+		}
+
 		// note that TrainDataT& td doesn't have a const modifier. That's because actually it has to be a statefull modifiable
 		// resettable wrapper over some const data storage. So, it's ok to pass it here without const modifier, because the only
 		// thing that is allowed to be changed in it is the wrapper state, but not the data itself.
 		template <bool bPrioritizeThreads = true, typename TrainDataT, typename TrainOptsT, typename OnEpochEndCbT = NNetCB_OnEpochEnd_Dummy>
 		ErrorCode train(TrainDataT& td, TrainOptsT& opts, OnEpochEndCbT&& onEpochEndCB = NNetCB_OnEpochEnd_Dummy())noexcept {
-			static_assert(::std::is_base_of<i_train_data_t, TrainDataT>::value, "td object MUST be derived from _i_train_data interface");
+			static_assert(is_train_data_intf<TrainDataT>::value, "td object MUST be derived from _i_train_data interface");
+			static_assert(::std::is_same<typename TrainDataT::x_t, real_t>::value, "TrainDataT::x_t must be same as real_t");
 
 			//just leave it here
 			global_denormalized_floats_mode();
 
 			if (td.empty()) return _set_last_error(ErrorCode::InvalidTD);
 			if (td.xWidth() != m_Layers.input_layer().get_neurons_cnt()) return _set_last_error(ErrorCode::InvalidInputLayerNeuronsCount);
-			if (td.yWidth() != m_Layers.output_layer().get_neurons_cnt()) return _set_last_error(ErrorCode::InvalidOutputLayerNeuronsCount);
+			if (!td.isSuitableForOutputOf(m_Layers.output_layer().get_neurons_cnt())) return _set_last_error(ErrorCode::InvalidOutputLayerNeuronsCount);
 
 			const numel_cnt_t maxEpoch = opts.maxEpoch();
 
@@ -504,7 +511,7 @@ namespace nntl {
 			//scheduling deinitialization with scope_exit to forget about return statements
 			utils::scope_exit layers_deinit([this, &opts]() {
 				if (opts.ImmediatelyDeinit()) {
-					_deinit();
+					deinit();
 				}
 			});
 
@@ -540,14 +547,13 @@ namespace nntl {
 				auto& iI = get_iInspect();
 
 				for (numel_cnt_t epochIdx = 0; epochIdx < maxEpoch; ++epochIdx) {
-					iI.train_epochBegin(epochIdx);
-
 					const bool bReportEpoch = cee(epochIdx);
 					const bool bCheckForDivergence = epochIdx < divergenceCheckLastEpoch;
 					const bool bCalcLoss = bReportEpoch || bCheckForDivergence;
 					
 					const numel_cnt_t numBatches = td.on_next_epoch(epochIdx, get_const_common_data());
 					NNTL_ASSERT(numBatches > 0);
+					iI.train_epochBegin(epochIdx, numBatches);
 
 					for (numel_cnt_t batchIdx = 0; batchIdx < numBatches; ++batchIdx) {
 						iI.train_batchBegin(batchIdx);
@@ -1070,7 +1076,7 @@ namespace nntl {
 
 				//return m_nn._calcLoss4batch_nonnormalized(m_data.batchX(), m_data.batchY());
 				//we must NOT use nnet's function, because it changes nnet mode from training to inference. But should the mode
-				// be changed, it'll screw the error value for some training-mode dependend algorithms, such as common Dropout
+				// be changed, it'll screw the error value for some training-mode dependent algorithms, such as common Dropout
 				// (it's actually an inverted dropout, it upscales survived activations proportional to 1/p, so
 				// change the mode, and it'll remove the upscaling and probably change the error computed in a numerical way.
 				// But analytical error will stay unchanged!)

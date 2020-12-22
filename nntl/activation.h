@@ -41,4 +41,4 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "./activations/softsigm.h"
 #include "./activations/softsign.h"
 #include "./activations/step.h"
-#include "./activations/linear.h"
+#include "./activations/identity.h"

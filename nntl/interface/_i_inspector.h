@@ -96,7 +96,7 @@ namespace inspector {
 		template<typename StrT>
 		nntl_interface void init_layer(const layer_index_t lIdx, StrT&& LayerName, const layer_type_id_t layerTypeId)const noexcept;
 
-		nntl_interface void train_epochBegin(const numel_cnt_t epochIdx)const noexcept;
+		nntl_interface void train_epochBegin(const numel_cnt_t epochIdx, const numel_cnt_t batchesInEpoch)const noexcept;
 		nntl_interface void train_epochEnd()const noexcept;
 
 		//train_batch* functions are called during learning process only
@@ -105,7 +105,8 @@ namespace inspector {
 
 		//the following two functions are called during learning process only
 		nntl_interface void train_preFprop(const realmtx_t& data_x)const noexcept;
-		nntl_interface void train_preBprop(const realmtx_t& data_y)const noexcept;
+		template<typename YT>
+		nntl_interface void train_preBprop(const math::smatrix<YT>& data_y)const noexcept;
 
 		//the following 2 functions are called during learning process only
 		nntl_interface void train_preCalcError(const data_set_id_t dataSetId)const noexcept;
@@ -137,7 +138,9 @@ namespace inspector {
 		//////////////////////////////////////////////////////////////////////////
 		//BPROP
 		//all calls between the following pair are guaranteed to be initiated be the same layer, however, nested calls are possible
-		nntl_interface void bprop_begin(const layer_index_t lIdx, const realmtx_t& dLdA) const noexcept;
+		// Note that bprop_begin() is templated b/c it receives data_y matrix that may have different base type.
+		template<typename T>
+		nntl_interface void bprop_begin(const layer_index_t lIdx, const math::smatrix<T>& dLdA) const noexcept;
 		nntl_interface void bprop_end(const realmtx_t& dLdAPrev) const noexcept;
 
 		//this function gets a final dL/dA that gets applied to the layer. It may contain added derivatives of auxiliary loss functions
@@ -147,7 +150,8 @@ namespace inspector {
 		nntl_interface void bprop_preCancelDropout(const realmtx_t& dLdA, const realmtx_t& Act, const real_t dpa) const noexcept;
 		nntl_interface void bprop_postCancelDropout(const realmtx_t& dLdA, const realmtx_t& Act) const noexcept;
 		
-		nntl_interface void bprop_predLdZOut(const realmtx_t& Act, const realmtx_t& data_y) const noexcept;
+		template<typename YT>
+		nntl_interface void bprop_predLdZOut(const realmtx_t& Act, const math::smatrix<YT>& data_y) const noexcept;
 		nntl_interface void bprop_predAdZ(const realmtx_t& Act) const noexcept;
 		nntl_interface void bprop_dAdZ(const realmtx_t& dAdZ) const noexcept;
 		nntl_interface void bprop_dLdZ(const realmtx_t& dLdZ) const noexcept;
@@ -206,7 +210,9 @@ namespace inspector {
 				NNTL_UNREF(lIdx);				NNTL_UNREF(LayerName);				NNTL_UNREF(layerTypeId);
 			};
 
-			void train_epochBegin(const numel_cnt_t epochIdx)const noexcept { NNTL_UNREF(epochIdx); }
+			void train_epochBegin(const numel_cnt_t epochIdx, const numel_cnt_t batchesInEpoch)const noexcept {
+				NNTL_UNREF(epochIdx); NNTL_UNREF(batchesInEpoch);
+			}
 			void train_epochEnd()const noexcept {}
 
 			void train_batchBegin(const numel_cnt_t batchIdx)const noexcept { NNTL_UNREF(batchIdx); }
@@ -214,7 +220,8 @@ namespace inspector {
 
 			//the following two functions are called during learning process only
 			void train_preFprop(const realmtx_t& data_x)const noexcept { NNTL_UNREF(data_x); }
-			void train_preBprop(const realmtx_t& data_y)const noexcept { NNTL_UNREF(data_y); }
+			template<typename YT>
+			void train_preBprop(const math::smatrix<YT>& data_y)const noexcept { NNTL_UNREF(data_y); }
 
 			//the following 2 functions are called during learning process only
 			void train_preCalcError(const data_set_id_t dataSetId)const noexcept { NNTL_UNREF(dataSetId); };
@@ -257,7 +264,8 @@ namespace inspector {
 
 			//////////////////////////////////////////////////////////////////////////
 			//BPROP
-			void bprop_begin(const layer_index_t lIdx, const realmtx_t& dLdA) const noexcept {
+			template<typename T>
+			void bprop_begin(const layer_index_t lIdx, const math::smatrix<T>& dLdA) const noexcept {
 				NNTL_UNREF(lIdx);				NNTL_UNREF(dLdA);
 			}
 			void bprop_end(const realmtx_t& dLdAPrev) const noexcept { NNTL_UNREF(dLdAPrev); }
@@ -269,7 +277,8 @@ namespace inspector {
 			}
 			void bprop_postCancelDropout(const realmtx_t& dLdA, const realmtx_t& Act) const noexcept { NNTL_UNREF(dLdA); NNTL_UNREF(Act); }
 
-			void bprop_predLdZOut(const realmtx_t& Act, const realmtx_t& data_y) const noexcept{
+			template<typename YT>
+			void bprop_predLdZOut(const realmtx_t& Act, const math::smatrix<YT>& data_y) const noexcept{
 				NNTL_UNREF(Act);				NNTL_UNREF(data_y);
 			}
 			void bprop_predAdZ(const realmtx_t& Act) const noexcept{ NNTL_UNREF(Act); }

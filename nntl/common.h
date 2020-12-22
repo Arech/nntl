@@ -79,6 +79,26 @@ namespace nntl {
 
 		// 		template <typename T>
 		// 		using is_tuple2 = is_specialization_of<T, ::std::tuple>;
+		
+		template< class, class = ::std::void_t<> >
+		struct has_value_type : ::std::false_type { };
+		// specialization recognizes types that do have a nested ::options_t member:
+		template< class T >
+		struct has_value_type<T, ::std::void_t<typename T::value_type>> : ::std::true_type {};
+
+
+		template< class, class = ::std::void_t<> >
+		struct has_x_t : ::std::false_type { };
+		template< class T >
+		struct has_x_t<T, ::std::void_t<typename T::x_t>> : ::std::true_type {};
+
+		template< class, class = ::std::void_t<> >
+		struct has_y_t : ::std::false_type { };
+		template< class T >
+		struct has_y_t<T, ::std::void_t<typename T::y_t>> : ::std::true_type {};
+
+		template<typename T>
+		using has_x_t_and_y_t = ::std::conjunction<has_x_t<T>, has_y_t<T>>;
 	}
 
 	//////////////////////////////////////////////////////////////////////////

@@ -1,6 +1,17 @@
 # Changelog
 I should probably have started doing it long ago, but better late than never. So here it is (for older entries see commit history)
 
+## 2020 Dec 22
+
+- renamed `activation::linear` -> `activation::identity`, `activation::linear_output` -> `activation::identity_custom_loss` and other related stuff.
+- small performance optimization for identity activation at `LFC::bprop()`
+- now you may use special loss functions that doesn't require exactly the same number of values as there are neurons in output layer. Just remember to override `_i_train_data<>::isSuitableForOutputOf()` with a proper check and supply proper `nnet_evaluator / training_observer`, as well as a custom loss function.
+- Y matrices of training data interface are no longer required to have the same base data type as X matrices. Some non-core general purpose elements of the library that built on this assumption are still rely on it, but the core was upgraded.
+- `LsuvExt` implementation was significantly reworked and improved.
+  - NOTE: `LsuvExt` is still supporting only mean/variance metrics.
+- Data normalization to std/mean algo was extracted from `LsuvExt` and now available as a generic in `utils\mtx2Normal.h`.
+- Dataset normalization algo on basis of `mtx2Normal` was implemented as a part of `_train_data_simple` and available to use as `inmem_train_data<>`.
+
 ## 2020 Apr 07
 - Refactored `LPT` class: removed deprecated template parameter `bExpectSpecialDataX` and moved `neurons_count K_tiles` from class' template to constructor parameters.
 - minor updates & improvements

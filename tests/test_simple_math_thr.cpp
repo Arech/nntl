@@ -51,7 +51,9 @@ typedef d_interfaces::real_t real_t;
 typedef math::smatrix<real_t> realmtx_t;
 typedef math::smatrix_deform<real_t> realmtxdef_t;
 
-typedef d_interfaces::iThreads_t iThreads_t;
+typedef dt_interfaces<real_t> myInterfaces_t;
+typedef myInterfaces_t::iThreads_t iThreads_t;
+typedef myInterfaces_t::iRng_t iRng_t;
 typedef math::SMath < real_t, iThreads_t> SMath_t;
 
 static SMath_t iM;
@@ -417,10 +419,10 @@ void test_mrwIdxsOfMax_perf(vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 			iM.mrwIdxsOfMax_mt_cw(A, &idxs[0]);
 			tMtCw.toc();
 
-			::std::fill(idxs.begin(), idxs.end(), vec_len_t(0));		rg.gen_matrix(A, 10);
-			tMtCwSmall.tic();
-			iM.mrwIdxsOfMax_mt_cw_small(A, &idxs[0]);
-			tMtCwSmall.toc();
+// 			::std::fill(idxs.begin(), idxs.end(), vec_len_t(0));		rg.gen_matrix(A, 10);
+// 			tMtCwSmall.tic();
+// 			iM.mrwIdxsOfMax_mt_cw_small(A, &idxs[0]);
+// 			tMtCwSmall.toc();
 		}
 
 		::std::fill(idxs.begin(), idxs.end(), vec_len_t(0));		rg.gen_matrix(A, 10);
@@ -443,7 +445,7 @@ void test_mrwIdxsOfMax_perf(vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 	tStRw.say("st_rw");
 	tSt.say("st");
 	tMtCw.say("mt_cw");
-	tMtCwSmall.say("mt_cw_small");
+	//tMtCwSmall.say("mt_cw_small");
 	tMtRw.say("mt_rw");
 	tMt.say("mt");
 	tB.say("best");
@@ -504,12 +506,12 @@ void test_mrwMax_perf(vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 		iM.mrwMax_st(m, &vmax[0]);
 		tSt.toc();
 		
-		if (colsCnt > SMath_t::Thresholds_t::mrwMax_mt_cw_ColsPerThread) {
+		/*if (colsCnt > SMath_t::Thresholds_t::mrwMax_mt_cw_ColsPerThread) {
 			::std::fill(vmax.begin(), vmax.end(), ::std::numeric_limits<real_t>::lowest());			rg.gen_matrix(m, 10);
 			tMtCw.tic();
 			iM.mrwMax_mt_cw(m, &vmax[0]);
 			tMtCw.toc();
-		}
+		}*/
 
 		::std::fill(vmax.begin(), vmax.end(), ::std::numeric_limits<real_t>::lowest());		rg.gen_matrix(m, 10);
 		tMtRw.tic();
@@ -531,7 +533,7 @@ void test_mrwMax_perf(vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 	tStRwSmall.say("st_rw_small");
 	tSt.say("st");
 	tMtRw.say("mt_rw");	
-	tMtCw.say("mt_cw");
+	//tMtCw.say("mt_cw");
 	tMt.say("mt");
 	tB.say("best");
 }
@@ -555,7 +557,7 @@ void test_mrwSumIp_perf(vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 	constexpr unsigned maxReps = TEST_PERF_REPEATS_COUNT;
 	realmtx_t A(rowsCnt, colsCnt);
 	ASSERT_TRUE(!A.isAllocationFailed());
-	iM.preinit(A.numel());
+	iM.preinit( iM.mrwSum_ip_needTempMem(A));
 	ASSERT_TRUE(iM.init());
 	d_interfaces::iRng_t rg;
 	rg.init_ithreads(iM.ithreads());
@@ -633,7 +635,7 @@ void test_mrwSum_perf(vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 	realmtx_t A(rowsCnt, colsCnt);
 	::std::vector<real_t> vec_test(rowsCnt);
 	ASSERT_TRUE(!A.isAllocationFailed());
-	iM.preinit(A.numel());
+	iM.preinit(iM.mrwSum_needTempMem(A));
 	ASSERT_TRUE(iM.init());
 	d_interfaces::iRng_t rg;
 	rg.init_ithreads(iM.ithreads());
@@ -724,7 +726,7 @@ void test_mrwOr_perf(vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 
 	::std::vector<real_t> vec_test(rowsCnt);
 	ASSERT_TRUE(!A.isAllocationFailed());
-	iM.preinit(A.numel());
+	iM.preinit( iM.mrwOr_needTempMem(A));
 	ASSERT_TRUE(iM.init());
 	d_interfaces::iRng_t rg;
 	rg.init_ithreads(iM.ithreads());
@@ -967,6 +969,63 @@ TEST(TestSMathThr, mcwMean) {
 #ifndef TESTS_SKIP_LONGRUNNING
 // 	test_mcwMean<false>(3000, 300);
 // 	test_mcwMean<false>(300, 3000);
+#endif
+}
+
+//////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////
+
+template<bool bNumStab>
+void test_mcwDeMean(iRng_t& iR, vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
+	const auto dataSize = realmtx_t::sNumel(rowsCnt, colsCnt);
+	STDCOUTL("**** testing mcwDeMean<" << bNumStab << ">() variations over "
+		<< rowsCnt << "x" << colsCnt << " matrix (" << dataSize << " elements) ****");
+
+	constexpr unsigned maxReps = TEST_PERF_REPEATS_COUNT / 3;
+
+	realmtx_t A(rowsCnt, colsCnt);
+	ASSERT_TRUE(!A.isAllocationFailed());
+	
+	iR.seedTime(tictoc::now());
+
+	tictoc tSt, tMt, tB;
+	threads::prioritize_workers<threads::PriorityClass::PerfTesting, SMath_t::iThreads_t> pw(iM.ithreads());
+	real_t v = real_t(0);
+
+	for (unsigned r = 0; r < maxReps; ++r) {
+		iR.gen_matrix(A, 10);
+		tSt.tic();
+		iM.mcwDeMean_st<bNumStab>(A);
+		tSt.toc();
+		for (const auto e : A) v += e;
+
+		iR.gen_matrix(A, 10);
+		tMt.tic();
+		iM.mcwDeMean_mt<bNumStab>(A);
+		tMt.toc();
+		for (const auto e : A) v += e;
+
+		iR.gen_matrix(A, 10);
+		tB.tic();
+		iM.mcwDeMean<bNumStab>(A);
+		tB.toc();
+		for (const auto e : A) v += e;
+	}
+	tSt.say("st");
+	tMt.say("mt");
+	tB.say("best");
+	STDCOUTL(v);
+}
+TEST(TestSMathThr, mcwDeMean) {
+	iRng_t iR;
+	iR.init_ithreads(iM.ithreads());
+
+	NNTL_RUN_TEST2((SMath_t::Thresholds_t::mcwDeMean<true>::v), 100) test_mcwDeMean<true>(iR, 100, i);
+	NNTL_RUN_TEST2((SMath_t::Thresholds_t::mcwDeMean<false>::v), 100) test_mcwDeMean<false>(iR, 100, i);
+
+#ifndef TESTS_SKIP_LONGRUNNING
+	// 	test_mcwDeMean<false>(3000, 300);
+	// 	test_mcwDeMean<false>(300, 3000);
 #endif
 }
 

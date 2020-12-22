@@ -101,7 +101,7 @@ namespace nntl {
 
 		template<typename TrainDataT, typename CommonDataT>
 		bool init(TrainDataT& td, const CommonDataT& cd)noexcept {
-			static_assert(::std::is_base_of<_i_train_data<real_t>, TrainDataT>::value, "td object MUST be derived from _i_train_data interface");
+			static_assert(is_train_data_intf<TrainDataT>::value, "td object MUST be derived from _i_train_data interface");
 			static_assert(TrainDataT::allowExternalCachingOfSets, "This evaluator needs to cache Y-data, but TrainDataT prohibits that");
 
 			//we may rely on dataset_samples_count() to return true size of dataset, because TrainDataT::allowExternalCachingOfSets==true
@@ -227,7 +227,7 @@ namespace nntl {
 
 		template<typename TrainDataT, typename CommonDataT>
 		bool init(TrainDataT& td, const CommonDataT& cd)noexcept {
-			static_assert(::std::is_base_of<_i_train_data<real_t>, TrainDataT>::value, "td object MUST be derived from _i_train_data interface");
+			static_assert(is_train_data_intf<TrainDataT>::value, "td object MUST be derived from _i_train_data interface");
 			static_assert(TrainDataT::allowExternalCachingOfSets, "This evaluator needs to cache Y-data, but TrainDataT prohibits that");
 			
 			//we may rely on dataset_samples_count() to return true size of dataset, because TrainDataT::allowExternalCachingOfSets==true

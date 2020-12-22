@@ -114,9 +114,16 @@ namespace _impl {
 		}
 
 		//////////////////////////////////////////////////////////////////////////
+		//obsolete, use get_*()
 		iMath_t& iMath()const noexcept { NNTL_ASSERT(m_pMath); return *m_pMath; }
 		iRng_t& iRng()const noexcept { NNTL_ASSERT(m_pRng); return *m_pRng; }
+		iThreads_t& iThreads()const noexcept { return iMath().ithreads(); }
 		iInspect_t& iInspect()const noexcept { NNTL_ASSERT(m_pInspect); return *m_pInspect; }
+
+		iMath_t& get_iMath()const noexcept { NNTL_ASSERT(m_pMath); return *m_pMath; }
+		iRng_t& get_iRng()const noexcept { NNTL_ASSERT(m_pRng); return *m_pRng; }
+		iThreads_t& get_iThreads()const noexcept { return get_iMath().ithreads(); }
+		iInspect_t& get_iInspect()const noexcept { NNTL_ASSERT(m_pInspect); return *m_pInspect; }
 
 		template<bool B = bAllowToBlockLearning>
 		::std::enable_if_t<B, bool> isLearningBlocked()const noexcept { NNTL_ASSERT(m_pbNotLearningNow); return *m_pbNotLearningNow; }
@@ -185,6 +192,8 @@ namespace _impl {
 	class _common_data_consumer : public interfaces_td<InterfacesT> {
 	public:
 		typedef common_nn_data<interfaces_t> common_data_t;
+		// note, that there's a dependency on this very definition of common_data_t in some _i_function/_i_activation - derived
+		// classes. See _i_function::act_init() comment.
 
 		static constexpr bool bAllowToBlockLearning = inspector::is_gradcheck_inspector<iInspect_t>::value;
 
@@ -211,6 +220,7 @@ namespace _impl {
 		iMath_t& get_iMath()const noexcept { NNTL_ASSERT(m_pCommonData); return m_pCommonData->iMath(); }
 		iRng_t& get_iRng()const noexcept { NNTL_ASSERT(m_pCommonData); return m_pCommonData->iRng(); }
 		iInspect_t& get_iInspect()const noexcept { NNTL_ASSERT(m_pCommonData); return m_pCommonData->iInspect(); }
+		iThreads_t& get_iThreads()const noexcept{ NNTL_ASSERT(m_pCommonData); return m_pCommonData->iMath().ithreads(); }
 
 		template<bool B = bAllowToBlockLearning>
 		::std::enable_if_t<B, bool> isLearningBlocked()const noexcept {
@@ -342,6 +352,7 @@ namespace _impl {
 
 		iMath_t& get_iMath()const noexcept { NNTL_ASSERT(m_pMath); return *m_pMath; }
 		iRng_t& get_iRng()const noexcept { NNTL_ASSERT(m_pRng); return *m_pRng; }
+		iThreads_t& get_iThreads()const noexcept { return get_iMath().ithreads(); }
 		iInspect_t& get_iInspect()const noexcept { NNTL_ASSERT(m_pInspect); return *m_pInspect; }
 
 	protected:

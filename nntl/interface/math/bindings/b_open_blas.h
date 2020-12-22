@@ -320,6 +320,8 @@ namespace math {
 		//
 		// #warning current OpenBLAS implementation is slower, than it can be. See TEST(TestPerfDecisions, mTranspose) in test_perf_decisions.cpp
 		//and https://github.com/xianyi/OpenBLAS/issues/1243
+		// https://github.com/xianyi/OpenBLAS/issues/2532
+		// https://stackoverflow.com/questions/16737298/what-is-the-fastest-way-to-transpose-a-matrix-in-c/16743203#16743203
 		template<typename sz_t, typename fl_t>
 		static typename ::std::enable_if_t< ::std::is_same< ::std::remove_pointer_t<fl_t>, double>::value >
 			omatcopy(const bool bTranspose, const sz_t rows, const sz_t cols, const fl_t alpha,
@@ -339,6 +341,27 @@ namespace math {
 			cblas_somatcopy(CblasColMajor, bTranspose ? CblasTrans : CblasNoTrans,
 				static_cast<blasint>(rows), static_cast<blasint>(cols), alpha,
 				pA, static_cast<blasint>(lda), pB, static_cast<blasint>(ldb));
+		}
+
+		template<typename sz_t, typename fl_t>
+		static typename ::std::enable_if_t< ::std::is_same< ::std::remove_pointer_t<fl_t>, double>::value >
+			imatcopy(const bool bTranspose, const sz_t rows, const sz_t cols, const fl_t alpha,
+				fl_t* pA, const sz_t lda, const sz_t ldb)
+		{
+			_restoreFPU r;
+			cblas_dimatcopy(CblasColMajor, bTranspose ? CblasTrans : CblasNoTrans,
+				static_cast<blasint>(rows), static_cast<blasint>(cols), alpha,
+				pA, static_cast<blasint>(lda), static_cast<blasint>(ldb));
+		}
+		template<typename sz_t, typename fl_t>
+		static typename ::std::enable_if_t< ::std::is_same< ::std::remove_pointer_t<fl_t>, float>::value >
+			imatcopy(const bool bTranspose, const sz_t rows, const sz_t cols, const fl_t alpha,
+				fl_t* pA, const sz_t lda, const sz_t ldb)
+		{
+			_restoreFPU r;
+			cblas_simatcopy(CblasColMajor, bTranspose ? CblasTrans : CblasNoTrans,
+				static_cast<blasint>(rows), static_cast<blasint>(cols), alpha,
+				pA, static_cast<blasint>(lda), static_cast<blasint>(ldb));
 		}
 	};
 

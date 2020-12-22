@@ -89,8 +89,16 @@ namespace math {
 			static constexpr vec_len_t mrwBinaryOR_mt_cw_colsPerThread = 3;
 
 			template <bool bNumStab> struct mcwMean {};
-			template<>struct mcwMean<true> { static constexpr numel_cnt_t v = 10000; };
-			template<>struct mcwMean<false> { static constexpr numel_cnt_t v = 10000; };
+			template<>struct mcwMean<true> { static constexpr numel_cnt_t v = 4000; };
+			template<>struct mcwMean<false> { static constexpr numel_cnt_t v = 8000; };
+
+			template <bool bNumStab> struct mcwDeMean {};
+			template<>struct mcwDeMean<true> { static constexpr numel_cnt_t v = 3000; };
+			template<>struct mcwDeMean<false> { static constexpr numel_cnt_t v = 6000; };
+
+			template <bool bNumStab> struct mcwDeMeanNZ {};
+			template<>struct mcwDeMeanNZ<true> { static constexpr numel_cnt_t v = 100; };
+			template<>struct mcwDeMeanNZ<false> { static constexpr numel_cnt_t v = 200; };
 
 			static constexpr numel_cnt_t mcwSub_ip = 30000;
 			static constexpr numel_cnt_t mcwMulDiag_ip = 20000;//*
@@ -146,6 +154,14 @@ namespace math {
 			template <bool bNumStab> struct mcwMean {};
 			template<>struct mcwMean<true> { static constexpr numel_cnt_t v = 5000; };
 			template<>struct mcwMean<false> { static constexpr numel_cnt_t v = 17000; };
+
+			template <bool bNumStab> struct mcwDeMean {};
+			template<>struct mcwDeMean<true> { static constexpr numel_cnt_t v = 1000; };
+			template<>struct mcwDeMean<false> { static constexpr numel_cnt_t v = 5000; };
+
+			template <bool bNumStab> struct mcwDeMeanNZ {};
+			template<>struct mcwDeMeanNZ<true> { static constexpr numel_cnt_t v = 500; };
+			template<>struct mcwDeMeanNZ<false> { static constexpr numel_cnt_t v = 2000; };
 			
 			static constexpr numel_cnt_t mcwSub_ip = 30000;
 

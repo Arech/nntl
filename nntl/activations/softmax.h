@@ -42,9 +42,10 @@ namespace activation {
 
 	//////////////////////////////////////////////////////////////////////////
 	//////////////////////////////////////////////////////////////////////////
-	// SoftMax (for output layer only - it's easier to get dL/dL than dA/dL for SoftMax)
+	// SoftMax (for output layer only - it's easier to get dL/dZ than dA/dZ for SoftMax)
 	// #TODO: which weight initialization scheme is better for SoftMax?
 	// #TODO: may be it's worth to implement SoftMax activation for hidden layers, i.e. make a dA/dZ implementation
+	// see https://eli.thegreenplace.net/2016/the-softmax-function-and-its-derivative/
 	template<typename RealT, typename WeightsInitScheme = weights_init::Martens_SI_sigm<>>
 	class softmax_xentropy_loss
 		: public _i_function<RealT, WeightsInitScheme, false>

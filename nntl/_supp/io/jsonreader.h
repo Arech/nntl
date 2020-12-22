@@ -115,14 +115,24 @@ namespace nntl_supp {
 	};
 
 	class jsonreader : public nntl::_has_last_error<_jsonreader_errs>, protected nntl::math::smatrix_td {
-	protected:
-// 		typedef nntl::train_data::realmtx_t realmtx_t;
-// 		typedef realmtx_t::value_type mtx_value_t;
-// 		typedef realmtx_t::vec_len_t vec_len_t;
-
+	public:
 		template<typename T_> using smatrix = nntl::math::smatrix<T_>;
 		template<typename T_> using smatrix_deform = nntl::math::smatrix_deform<T_>;
-		template<typename T_> using train_data = nntl::simple_train_data_stor<T_>;
+		template<typename TX, typename TY> using train_data = ::nntl::inmem_train_data_stor<TX, TY>;
+
+	protected:
+		template<typename T>
+		struct _impl_is_allowed_w_value_type : public ::std::disjunction<
+			::std::is_same<smatrix<typename T::value_type>, T>
+			//, ::std::is_same<smatrix_deform<typename T::value_type>, T> //need to add some support to internals to properly use smatrix_deform, but actually jsonreader has no use, so don't care
+			//, ::std::is_same<seq_data<typename T::value_type>, T> //not implemented yet
+		> {};
+		template<typename T>
+		struct _is_allowed_w_value_type : public ::std::conditional_t<::nntl::utils::has_value_type<T>::value
+			, _impl_is_allowed_w_value_type<T>, ::std::false_type> {};
+
+		template<typename T>
+		struct _is_train_data_derived : public ::std::is_base_of<train_data<typename T::x_t, typename T::y_t>, T> {};
 
 		//////////////////////////////////////////////////////////////////////////
 		//members
@@ -143,14 +153,13 @@ namespace nntl_supp {
 		// If readInto_t == nntl::train_data, then all X data will be created with emulateBiases() feature and bMakeMtxBiased param will be ignored
 		template <typename readInto_t>
 		const ErrorCode read(const char* fname, readInto_t& dest, const bool bMakeMtxBiased=false) {
-			static_assert(::std::is_base_of<train_data<typename readInto_t::value_type>, readInto_t>::value
-				|| ::std::is_same<smatrix<typename readInto_t::value_type>, readInto_t>::value
-				//|| ::std::is_same<smatrix_deform<typename readInto_t::value_type>, readInto_t>::value
+			static_assert(::std::conditional_t<::nntl::utils::has_x_t_and_y_t<readInto_t>::value
+				, _is_train_data_derived<readInto_t>, _is_allowed_w_value_type<readInto_t>>::value
 				//need to add some support to internals to properly use smatrix_deform, but actually jsonreader has no use, so don't care
 				,
 				"Only nntl::train_data or nntl::train_data::mtx_t is supported as readInto_t template parameter");
 			//bMakeMtxBiased is ignored for nntl::train_data and should be set as false by default
-			NNTL_ASSERT( (!::std::is_same<train_data<typename readInto_t::value_type>, readInto_t>::value || !bMakeMtxBiased));
+			//NNTL_ASSERT( (!::std::is_same<train_data<typename readInto_t::value_type>, readInto_t>::value || !bMakeMtxBiased));
 
 			::std::FILE* fp = nullptr;
 
@@ -292,11 +301,13 @@ namespace nntl_supp {
 		}
 */
 
-		template<typename T_>
-		const ErrorCode _parse_json_doc(const rapidjson::Document& d, train_data<T_>& dest, const bool )noexcept {
+		template<typename TX, typename TY>
+		const ErrorCode _parse_json_doc(const rapidjson::Document& d, train_data<TX,TY>& dest, const bool )noexcept {
 			if (!d.IsObject()) { return _set_last_error(ErrorCode::RootIsNotAnObject); }
 
-			smatrix_deform<T_> tr_x,tr_y,t_x,t_y;
+			smatrix_deform<TX> tr_x, t_x;
+			smatrix_deform<TY> tr_y, t_y;
+
 			//if (bMakeXDataBiased) {
 				tr_x.will_emulate_biases();
 				t_x.will_emulate_biases();

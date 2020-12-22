@@ -32,7 +32,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #pragma once
 
 // This file defines a wrapper around _i_activation-derived class.
-// Using inheritance allows to define a state-full _i_activation classes as well as zero-cost stateless.
+// With inheritance it is possible to define a state-full _i_activation classes as well as zero-cost stateless.
 
 #include "_activation_storage.h"
 #include "../activation.h"
@@ -40,6 +40,9 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 namespace nntl {
 	namespace _impl {
 
+		//////////////////////////////////////////////////////////////////////////
+		// _act_wrap is a class that glues together activation function implementation and all previous layer-related machinery
+		// 
 		template<typename FinalPolymorphChild, typename InterfacesT, typename ActivFuncT>
 		class _act_wrap
 			: public _act_stor<FinalPolymorphChild, InterfacesT>
@@ -76,10 +79,14 @@ namespace nntl {
 
 		public:
 
-			template<bool _b = bActivationForOutput>
-			::std::enable_if_t<_b, real_t> calc_loss(const realmtx_t& data_y)const noexcept {
+			Activation_t& get_activation_obj()noexcept { return *static_cast<Activation_t*>(this); }
+			const Activation_t& get_activation_obj()const noexcept { return *static_cast<const Activation_t*>(this); }
+
+			template<typename YT, bool _b = bActivationForOutput>
+			::std::enable_if_t<_b, real_t> calc_loss(const math::smatrix<YT>& data_y)const noexcept {
 				NNTL_ASSERT(data_y.rows() == m_activations.rows());//note that we don't check cols() property to be able to pass
 				// some additional data to Activation_t::loss()
+				// note that compilation may break here if Activation_t doesn't support YT different from real_t
 				return Activation_t::loss(m_activations, data_y, get_iMath());
 			}
 
@@ -88,7 +95,7 @@ namespace nntl {
 				const auto ec = _base_class_t::init(lid, pNewActivationStorage);
 				if (ErrorCode::Success != ec) return ec;
 
-				if (!Activation_t::act_init()) return ErrorCode::CantInitializeActFunc;
+				if (!Activation_t::act_init(get_common_data(), get_neurons_cnt())) return ErrorCode::CantInitializeActFunc;
 
 				get_iMath().preinit(_activation_tmp_mem_reqs());
 
@@ -102,6 +109,11 @@ namespace nntl {
 
 			real_t act_scaling_coeff() const noexcept {
 				return Activation_t::act_scaling_coeff();
+			}
+
+			void on_batch_size_change(/*const real_t learningRateScale,*/ real_t*const pNewActivationStorage = nullptr)noexcept {
+				_base_class_t::on_batch_size_change(pNewActivationStorage);
+				Activation_t::on_batch_size_change();
 			}
 
 		protected:
@@ -134,7 +146,7 @@ namespace nntl {
 			::std::enable_if_t<_b> _activation_bprop(realmtx_t& act2dAdZ_nb,iMathT& iM)noexcept {
 				NNTL_ASSERT(m_activations.emulatesBiases() && !act2dAdZ_nb.emulatesBiases());
 				NNTL_ASSERT(m_activations.data() == act2dAdZ_nb.data() && m_activations.size_no_bias() == act2dAdZ_nb.size());
-				NNTL_ASSERT(act2dAdZ_nb.test_noNaNs());
+				//NNTL_ASSERT(act2dAdZ_nb.test_noNaNs()); //did it already, not necessary here
 				if (bIgnoreActivation()) {
 					Activation_t::dIdentity(act2dAdZ_nb, iM);
 				} else {
@@ -143,9 +155,10 @@ namespace nntl {
 				NNTL_ASSERT(act2dAdZ_nb.test_noNaNs());
 			}
 
-			template<typename iMathT, bool _b = bActivationForOutput>
-			::std::enable_if_t<_b> _activation_bprop_output(const realmtx_t& data_y, iMathT& iM)noexcept {
+			template<typename YT, typename iMathT, bool _b = bActivationForOutput>
+			::std::enable_if_t<_b> _activation_bprop_output(const math::smatrix<YT>& data_y, iMathT& iM)noexcept {
 				NNTL_ASSERT(!m_activations.emulatesBiases() && !data_y.emulatesBiases());
+				//note: compilation may break here if Activation_t doesn't support YT passed!
 				if (bIgnoreActivation()) {
 					Activation_t::dLdZIdentity(data_y, m_activations, iM);
 				} else {

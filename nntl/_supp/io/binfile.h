@@ -152,14 +152,28 @@ namespace nntl_supp {
 
 
 	class binfile : public nntl::_has_last_error<_binfile_errs>, protected nntl::math::smatrix_td {
- 	protected:
+	public:
 		typedef ::nntl::vec_len_t vec_len_t;
 		typedef ::nntl::numel_cnt_t numel_cnt_t;
 
 		template<typename T_> using smatrix = ::nntl::math::smatrix<T_>;
 		template<typename T_> using smatrix_deform = ::nntl::math::smatrix_deform<T_>;
-		template<typename T_> using train_data = ::nntl::simple_train_data_stor<T_>;
+		template<typename TX, typename TY> using train_data = ::nntl::inmem_train_data_stor<TX, TY>;
 		template<typename T_> using seq_data = ::nntl::seq_data<T_>;
+
+	protected:
+		template<typename T>
+		struct _impl_is_allowed_w_value_type : public ::std::disjunction<
+			::std::is_same<seq_data<typename T::value_type>, T>
+			, ::std::is_same<smatrix<typename T::value_type>, T>
+			, ::std::is_same<smatrix_deform<typename T::value_type>, T>
+		> {};
+		template<typename T>
+		struct _is_allowed_w_value_type : public ::std::conditional_t<::nntl::utils::has_value_type<T>::value
+			, _impl_is_allowed_w_value_type<T>, ::std::false_type> {};
+
+		template<typename T>
+		struct _is_train_data_derived : public ::std::is_base_of<train_data<typename T::x_t, typename T::y_t>, T> {};
 
 	public:
 		~binfile()noexcept {}
@@ -169,12 +183,9 @@ namespace nntl_supp {
 		// If readInto_t == nntl::train_data, then all X data will be created with emulateBiases() feature and bMakeMtxBiased param will be ignored
 		template <typename readInto_t>
 		const ErrorCode read(const char* fname, readInto_t& dest) {
-			static_assert(
-				::std::is_base_of<train_data<typename readInto_t::value_type>, readInto_t>::value
-				|| ::std::is_same<seq_data<typename readInto_t::value_type>, readInto_t>::value
-				|| ::std::is_same<smatrix<typename readInto_t::value_type>, readInto_t>::value
-				|| ::std::is_same<smatrix_deform<typename readInto_t::value_type>, readInto_t>::value,
-				"Only ::nntl::_impl::simple_train_data_stor derived, or seq_data, math::smatrix or math::smatrix_deform is supported as readInto_t template parameter");
+			static_assert(::std::conditional_t<::nntl::utils::has_x_t_and_y_t<readInto_t>::value
+				, _is_train_data_derived<readInto_t>, _is_allowed_w_value_type<readInto_t>>::value,
+				"Only ::nntl::_impl::inmem_train_data_stor derived, or seq_data, math::smatrix or math::smatrix_deform is supported as readInto_t template parameter");
 
 			FILE* fp=nullptr;
 			if (fopen_s(&fp, fname, NNTL_STRING("rbS")) || nullptr == fp) return _set_last_error(ErrorCode::FailedToOpenFile);
@@ -270,12 +281,16 @@ namespace nntl_supp {
 			return ErrorCode::Success;
 		}
 
-		template<typename T_>
-		ErrorCode _read_into(FILE* fp, train_data<T_>& dest, const int totalFieldsCount, const int totalClassCount)noexcept {
+		template<typename TX,typename TY>
+		ErrorCode _read_into(FILE* fp, train_data<TX, TY>& dest, const int totalFieldsCount, const int totalClassCount)noexcept {
 			if (totalFieldsCount != total_members) return _set_last_error(ErrorCode::WrongElementsCount);
 			if (0 != totalClassCount) return _set_last_error(ErrorCode::InvalidSeqClassCount);
 
-			typedef smatrix_deform<T_> mtxdef_t;
+			static_assert(::std::is_same<TX,TY>::value, "Sorry, code branch below is old and should be updated to permit different TX and TY");
+
+			//typedef smatrix_deform<TX> x_mtxdef_t;
+			//typedef smatrix_deform<TY> y_mtxdef_t;
+			typedef smatrix_deform<TX> mtxdef_t;
 			mtxdef_t mtxs[total_members];
 
 			for (unsigned nel = 0; nel < _root_members::total_members; ++nel) {
@@ -400,14 +415,6 @@ namespace nntl_supp {
 
 			return ErrorCode::Success;
 		}
-
-		/*template <typename dest_value_type, typename src_value_type>
-		static void _convert_data(smatrix<dest_value_type>& dest, src_value_type* pSrc) noexcept {
-			const auto pSrcE = pSrc + dest.numel_no_bias();
-			auto pD = dest.data();
-			while (pSrc != pSrcE) *pD++ = static_cast<dest_value_type>(*pSrc++);
-		}*/
-
 	};
 
 }

@@ -695,17 +695,7 @@ TEST(TestPerfDecisions, CMulSub) {
 //////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////
 
-void mTranspose_ET(const realmtx_t& src, realmtx_t& dest) noexcept {
-	NNTL_ASSERT(src.rows() == dest.cols() && src.cols() == dest.rows());
-	const auto sRows = src.rows(), sCols = src.cols();
-	for (vec_len_t r = 0; r < sRows; ++r) {
-		for (vec_len_t c = 0; c < sCols; ++c) {
-			dest.set(c, r, src.get(r, c));
-		}
-	}
-}
-
-
+/*
 void mTranspose_seq_read(const realmtx_t& src, realmtx_t& dest) noexcept {
 	NNTL_ASSERT(src.rows() == dest.cols() && src.cols() == dest.rows());
 	const ptrdiff_t sRows = src.rows(), sCols = src.cols();
@@ -749,6 +739,7 @@ void mTranspose_OpenBLAS(const realmtx_t& src, realmtx_t& dest) noexcept {
 	math::b_OpenBLAS::omatcopy(true, sRows, sCols, real_t(1.0), src.data(), sRows, dest.data(), sCols);
 }
 
+
 template<typename iMath>
 void check_mTranspose(iMath& iM, vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 	const auto dataSize = realmtx_t::sNumel(rowsCnt, colsCnt);
@@ -762,7 +753,7 @@ void check_mTranspose(iMath& iM, vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 	rg.init_ithreads(iM.ithreads());
 	rg.gen_matrix(src, 10);
 
-	mTranspose_ET(src, destEt);
+	mTranspose_ignore_bias_ET(src, destEt);
 
 	dest.zeros();
 	mTranspose_seq_read(src, dest);
@@ -802,7 +793,7 @@ void check_mTranspose(iMath& iM, vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 	STDCOUTL("swrite:\t" << utils::duration_readable(diffSW, maxReps));
 	STDCOUTL("OBLAS:\t" << utils::duration_readable(diffOB, maxReps));
 
-	/* Very funny (and consistent through runs) results
+	/ * Very funny (and consistent through runs) results
 	 ******* checking mTranspose() variations over 100x10 matrix (1000 elements) **************
 sread:   970.602 ns
 swrite:  973.520 ns
@@ -821,7 +812,7 @@ usually not interested in such sizes)
 
 And by the way - it's a way slower (x4-x5), than whole rowwise_renorm operation on colmajor matrix of the same size.
 
-	 **/
+	 * /
 }
 TEST(TestPerfDecisions, mTranspose) {
 	typedef nntl::d_interfaces::iThreads_t def_threads_t;
@@ -851,6 +842,7 @@ TEST(TestPerfDecisions, mTranspose) {
 	//check_mTranspose(iM, 100000);
 #endif
 }
+*/
 
 //////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////

@@ -1226,7 +1226,7 @@ void test_ApplyILR_perf(vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 	realmtx_t dW(rowsCnt, colsCnt), prevdW(rowsCnt, colsCnt), gain(rowsCnt, colsCnt);
 	ASSERT_TRUE(!dW.isAllocationFailed() && !prevdW.isAllocationFailed() && !gain.isAllocationFailed());
 
-	iM.preinit(dataSize);
+	iM.preinit(iM.apply_ILR_needTempMem<real_t>(dW.size()));
 	ASSERT_TRUE(iM.init());
 
 	d_interfaces::iRng_t rg;
@@ -2063,6 +2063,143 @@ TEST(TestMathNThr, mFillRowsByMask) {
 //////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////
 
+template<typename IntfT>
+void mTranspose_perf(typename IntfT::iMath_t& iM, vec_len_t rowsCnt, vec_len_t colsCnt) {
+	typedef typename IntfT::real_t real_t;
+	typedef typename IntfT::iMath_t::realmtx_t realmtx_t;
+	typedef typename IntfT::iMath_t::realmtxdef_t realmtxdef_t;
+
+	const auto dataSize = realmtx_t::sNumel(rowsCnt, colsCnt);
+	STDCOUTL("******* testing mTranspose() over " << rowsCnt << "x" << colsCnt << (rowsCnt > colsCnt ? " TALL" : " wide")
+		<< " matrix (" << dataSize
+		<< " elements). **************");
+
+	constexpr unsigned maxReps = TEST_PERF_REPEATS_COUNT;
+	realmtx_t dest(colsCnt, rowsCnt), src(rowsCnt, colsCnt);
+
+	typename IntfT::iRng_t rg;
+	rg.init_ithreads(iM.ithreads());
+
+	//clogging is removed, it doesn't matter here
+
+	threads::prioritize_workers<threads::PriorityClass::PerfTesting, typename IntfT::iThreads_t> pw(iM.ithreads());
+
+	utils::tictoc tOBlas, tSR, tSW, tB;
+	real_t v = real_t(0.);
+
+	//code warmup
+	iM.mTranspose_ignore_bias_BLAS(src, dest);
+
+	for (unsigned r = 0; r < maxReps; ++r) {
+
+		rg.gen_matrix(src, real_t(5));
+		tOBlas.tic();
+		iM.mTranspose_ignore_bias_BLAS(src, dest);
+		tOBlas.toc();
+		for (const auto e : dest) v += e;
+
+		rg.gen_matrix(src, real_t(5));
+		tSR.tic();
+		iM.mTranspose_seq_read_ignore_bias(src, dest);
+		tSR.toc();
+		for (const auto e : dest) v += e;
+
+		rg.gen_matrix(src, real_t(5));
+		tSW.tic();
+		iM.mTranspose_seq_write_ignore_bias(src, dest);
+		tSW.toc();
+		for (const auto e : dest) v += e;
+
+		rg.gen_matrix(src, real_t(5));
+		tB.tic();
+		iM.mTranspose_ignore_bias(src, dest);
+		tB.toc();
+		for (const auto e : dest) v += e;
+	}
+
+	tOBlas.say(" OBl");
+	tSR.say("SeqR");
+	tSW.say("SeqW");
+	tB.say("best");
+	STDCOUTL(v);
+}
+
+TEST(TestMathNThr, mTransposePerf) {
+	//typedef float real_t;
+	typedef dt_interfaces<real_t> myInterfaces_t;
+
+	//typename myInterfaces_t::iMath_t iM;
+	//const vec_len_t g_MinDataSizeDelta = 2 * iM.ithreads().workers_count() + 2;
+
+	STDCOUTL("sizeof(real_t) = " << sizeof(real_t));
+
+#ifdef TESTS_SKIP_LONGRUNNING
+	ASSERT_NO_FATAL_FAILURE(mTranspose_perf<myInterfaces_t>(iM, 100, 10));
+	ASSERT_NO_FATAL_FAILURE(mTranspose_perf<myInterfaces_t>(iM, 10, 100));
+
+#else TESTS_SKIP_LONGRUNNING
+
+	ASSERT_NO_FATAL_FAILURE(mTranspose_perf<myInterfaces_t>(iM, 128, 16));
+	ASSERT_NO_FATAL_FAILURE(mTranspose_perf<myInterfaces_t>(iM, 16, 128));
+
+	ASSERT_NO_FATAL_FAILURE(mTranspose_perf<myInterfaces_t>(iM, 128, 32));
+	ASSERT_NO_FATAL_FAILURE(mTranspose_perf<myInterfaces_t>(iM, 32, 128));
+
+	ASSERT_NO_FATAL_FAILURE(mTranspose_perf<myInterfaces_t>(iM, 128, 64));
+	ASSERT_NO_FATAL_FAILURE(mTranspose_perf<myInterfaces_t>(iM, 64, 128));
+
+	ASSERT_NO_FATAL_FAILURE(mTranspose_perf<myInterfaces_t>(iM, 128, 128));
+
+	ASSERT_NO_FATAL_FAILURE(mTranspose_perf<myInterfaces_t>(iM, 256, 16));
+	ASSERT_NO_FATAL_FAILURE(mTranspose_perf<myInterfaces_t>(iM, 16, 256));
+
+	ASSERT_NO_FATAL_FAILURE(mTranspose_perf<myInterfaces_t>(iM, 256, 32));
+	ASSERT_NO_FATAL_FAILURE(mTranspose_perf<myInterfaces_t>(iM, 32, 256));
+
+	ASSERT_NO_FATAL_FAILURE(mTranspose_perf<myInterfaces_t>(iM, 256, 64));
+	ASSERT_NO_FATAL_FAILURE(mTranspose_perf<myInterfaces_t>(iM, 64, 256));
+
+	ASSERT_NO_FATAL_FAILURE(mTranspose_perf<myInterfaces_t>(iM, 256, 128));
+	ASSERT_NO_FATAL_FAILURE(mTranspose_perf<myInterfaces_t>(iM, 128, 256));
+
+
+	ASSERT_NO_FATAL_FAILURE(mTranspose_perf<myInterfaces_t>(iM, 512, 16));
+	ASSERT_NO_FATAL_FAILURE(mTranspose_perf<myInterfaces_t>(iM, 16, 512));
+
+	ASSERT_NO_FATAL_FAILURE(mTranspose_perf<myInterfaces_t>(iM, 512, 32));
+	ASSERT_NO_FATAL_FAILURE(mTranspose_perf<myInterfaces_t>(iM, 32, 512));
+
+	ASSERT_NO_FATAL_FAILURE(mTranspose_perf<myInterfaces_t>(iM, 512, 64));
+	ASSERT_NO_FATAL_FAILURE(mTranspose_perf<myInterfaces_t>(iM, 64, 512));
+
+	ASSERT_NO_FATAL_FAILURE(mTranspose_perf<myInterfaces_t>(iM, 512, 128));
+	ASSERT_NO_FATAL_FAILURE(mTranspose_perf<myInterfaces_t>(iM, 128, 512));
+
+
+	ASSERT_NO_FATAL_FAILURE(mTranspose_perf<myInterfaces_t>(iM, 1024, 16));
+	ASSERT_NO_FATAL_FAILURE(mTranspose_perf<myInterfaces_t>(iM, 16, 1024));
+
+	ASSERT_NO_FATAL_FAILURE(mTranspose_perf<myInterfaces_t>(iM, 1024, 32));
+	ASSERT_NO_FATAL_FAILURE(mTranspose_perf<myInterfaces_t>(iM, 32, 1024));
+
+	ASSERT_NO_FATAL_FAILURE(mTranspose_perf<myInterfaces_t>(iM, 1024, 64));
+	ASSERT_NO_FATAL_FAILURE(mTranspose_perf<myInterfaces_t>(iM, 64, 1024));
+
+
+	ASSERT_NO_FATAL_FAILURE(mTranspose_perf<myInterfaces_t>(iM, 1000, 100));
+	ASSERT_NO_FATAL_FAILURE(mTranspose_perf<myInterfaces_t>(iM, 100, 1000));
+
+	ASSERT_NO_FATAL_FAILURE(mTranspose_perf<myInterfaces_t>(iM, 10000, 10));
+	ASSERT_NO_FATAL_FAILURE(mTranspose_perf<myInterfaces_t>(iM, 10, 10000));
+
+	ASSERT_NO_FATAL_FAILURE(mTranspose_perf<myInterfaces_t>(iM, 10000, 100));
+	ASSERT_NO_FATAL_FAILURE(mTranspose_perf<myInterfaces_t>(iM, 100, 10000));
+#endif
+}
+
+
+////////////////////////////////////////////////////////////////////////// 
+////////////////////////////////////////////////////////////////////////// 
 
 
 ////////////////////////////////////////////////////////////////////////// 

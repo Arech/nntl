@@ -60,7 +60,7 @@ but it was broken by design).
   * Logarithmic units (**LogLogU**) is -log(1-x)/log(b_neg) for x<0 and log(x+1)/log(b_pos) for x>0. See the note for the ELogU.
   * **SoftSign** (y=_c_*x/(_a_+|x|), where _a_ and _c_ are constants; _a_ controls the slope, _c_ controls the amplitude) and SoftSigm (version of softsign scaled to a range of (0,1)) units. These units offer a better learning performance in some setups as they saturate much slower than corresponding sigmoids (they approach their limits in a polynomial way instead of exponential).
   * Nondiffirentiable step unit (y = 0|x<0 & 1|x>=0)
-  * Linear (identity) unit.
+  * Linear/Identity unit.
 * Neuron weights initialization schemes:
   * According to **Xavier** et al. "Understanding the difficulty of training deep feedforward neural networks" 2010 (so called "Xavier initialization" - good for sigmoids)
   * According to **He, Zhang** et al. "Delving Deep into Rectifiers: Surpassing Human-Level Performance on ImageNet Classification" 2015 (amazing for ReLU family units)
@@ -164,14 +164,12 @@ The main rule - don't hesitate to ask for help, if you are interested.
 2. [Download](https://yadi.sk/d/DpvoqtGGUqh5JQ) or (provided you have a Matlab/Octave installed) convert the MNIST data with the `%NNTL_ROOT%/nntl/_supp/matlab/mnist2bin.m` script from the [mnist_uint8.mat](https://github.com/rasmusbergpalm/DeepLearnToolbox/blob/master/data/mnist_uint8.mat) file (supplied with the DeepLearnToolbox) to a corresponding small and a full file. Put the `mnist60000.bin` and the `mnist200_100.bin` (the last file is the MNIST dataset cropped to the 200 train and the 100 test samples for use in debug builds) to the `%NNTL_ROOT%/data/` folder.
 3. I guess, that's enough to build and run the `tests` project. It should pass all tests in a debug and release modes. To run an individual test case use the [--gtest_filter](https://github.com/google/googletest/blob/master/googletest/docs/V1_7_AdvancedGuide.md#running-a-subset-of-the-tests) command line option.
 
-## The Status of the NNTL
+## The Status of the code
 
-The code in general is pretty stable and could be used for tasks it was made for in production and as a basis for extension.
+The code in general is pretty stable and could be used for tasks it was made for in production and as a basis for extension. However, please note that it's a personal tool I made for my own research, joy and projects. I'm very limited on resources, so it can be very unperfect in some (or by some standards - all) points.
 
-Feel free to contact me if you need some assistance.
+See for yourself and feel free to contact me if you need some help. And remember to check the [changelog.md](ChangeLog.md)
 
-## Warning and Disclaimer
-The code uses very tight loops of mathematical operations that creates a huge load on a CPU. I've encountered some hardware faults and BSODs on my overclocked system (that I thought to be very stable for a long time), until I relaxed the overclocking significantly.
 
 ## Contact information
 

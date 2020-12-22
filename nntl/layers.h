@@ -228,6 +228,13 @@ namespace nntl {
 				}
 			});
 
+			//handing of special case
+		#pragma warning(disable: 4127) // conditional expression is constant
+			if (2 == layers_count && LMR.maxSingledLdANumel==0) {
+				LMR.maxSingledLdANumel = 1;//just to make asserts happy
+			}
+		#pragma warning(default: 4127)
+
 			return layer_error_t(ec, failedLayerIdx);
 		}
 
@@ -285,7 +292,8 @@ namespace nntl {
 			});
 		}
 
-		void bprop(const realmtx_t& data_y) noexcept {
+		template<typename YT>
+		void bprop(const math::smatrix<YT>& data_y) noexcept {
 			NNTL_ASSERT(m_a_dLdA.size() == 2);
 			
 #pragma warning(disable : 4127)

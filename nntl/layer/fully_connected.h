@@ -188,9 +188,15 @@ namespace nntl {
 			const auto neurons_cnt = get_neurons_cnt();
 
 			NNTL_ASSERT(!m_weights.emulatesBiases());
-			if (m_bWeightsInitialized && mtx_size_t(neurons_cnt, get_incoming_neurons_cnt() + 1) == m_weights.size()) {
+			if (m_bWeightsInitialized) {
 				//just double check everything is fine
 				NNTL_ASSERT(!m_weights.empty());
+				//prior weight initialization implies you don't want them to be reinitialized silently
+				if (mtx_size_t(neurons_cnt, get_incoming_neurons_cnt() + 1) != m_weights.size()) {
+					NNTL_ASSERT(!"WTF? Wrong weight matrix!");
+					STDCOUTL("WTF? Wrong weight matrix for layer " << get_layer_idx() << " " << get_layer_name_str());
+					abort();
+				}
 			} else {
 				NNTL_ASSERT(!m_bWeightsInitialized);//if this assert has fired, then you've tried to use incorrectly sized
 				//weight matrix. It'll be handled here, so you may safely skip the assert, but you have to know, it was a bad idea.
@@ -228,7 +234,7 @@ namespace nntl {
 				lid.max_dLdA_numel = ::std::max({ realmtx_t::sNumel(training_batch_size, neurons_cnt), prmsNumel });
 			}
 
-			if (!m_gradientWorks.init(get_common_data(), m_weights.size()))return ErrorCode::CantInitializeGradWorks;
+			if (!m_gradientWorks.init(get_common_data(), m_weights))return ErrorCode::CantInitializeGradWorks;
 
 			//#BUGBUG current implementation of GW::hasLossAddendum could return false because LAs are currently disabled,
 			//however they could be enabled later. Seems like not a major bug, so I'll leave it to fix later.
@@ -296,6 +302,7 @@ namespace nntl {
 #ifdef NNTL_AGGRESSIVE_NANS_DBG_CHECK
 			NNTL_ASSERT(dLdA.test_noNaNs());
 			NNTL_ASSERT(prevAct.test_noNaNs());
+			NNTL_ASSERT(m_activations.test_noNaNs());
 #endif // NNTL_AGGRESSIVE_NANS_DBG_CHECK
 
 			auto& _iI = get_iInspect();
@@ -317,12 +324,21 @@ namespace nntl {
 			realmtx_t dLdZ(m_activations.data(), m_activations, realmtx_t::tag_noBias());
 
 			auto& iM = get_iMath();
-			//computing dA/dZ using m_activations (aliased to dLdZ variable, which eventually will be a dL/dZ
-			_activation_bprop(dLdZ, iM);
 
-			_iI.bprop_dAdZ(dLdZ);
-			//compute dL/dZ=dL/dA.*dA/dZ into dA/dZ
-			iM.evMul_ip(dLdZ, dLdA);
+			//compile-time shortcut for linear/identity activation to turn matrix fillup and ew-multiplication
+			//into just copying dLdA into dLdZ
+			if (activation::is_activation_identity<Activation_t>::value) {
+				const auto b = dLdA.copy_to(dLdZ);
+				NNTL_ASSERT(b);
+			} else {
+				//computing dA/dZ using m_activations (aliased to dLdZ variable, which eventually will be a dL/dZ
+				_activation_bprop(dLdZ, iM);
+
+				_iI.bprop_dAdZ(dLdZ);
+				//compute dL/dZ=dL/dA.*dA/dZ into dA/dZ
+				iM.evMul_ip(dLdZ, dLdA);
+			}
+			
 			//since that moment, we no longer need the data in dLdA, therefore we're free to reuse that space for any
 			//temporary computations we need provided that we keep the size of dLdA on function exit untouched.
 			// We'll be using dLdA later to compute and apply dL/dW. Note, that we've stated during init() that dLdA

@@ -33,6 +33,8 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include <random>
 
+#include "..\utils\tictoc.h"
+
 namespace nntl {
 namespace rng {
 
@@ -47,6 +49,7 @@ namespace rng {
 		typedef int seed_t;
 		nntl_interface void seed(seed_t s) noexcept;
 		nntl_interface void seed64(uint64_t s) noexcept;
+		nntl_interface void seedTime(const utils::tictoc::time_point_t& tp)noexcept;
 
 		//////////////////////////////////////////////////////////////////////////
 		//Initialization functions
@@ -143,6 +146,8 @@ namespace rng {
 		// matrix/vector generation (sequence from begin to end of numbers drawn from uniform distribution in [-a,a])
 		nntl_interface void gen_matrix(realmtx_t& mtx, const real_t a)noexcept;
 		nntl_interface void gen_matrix_no_bias(realmtx_t& mtx, const real_t a)noexcept;
+		//gen_matrixAny() doesn't expect specific biased/non-biased matrix and doesn't throw assertions if matrix has/doesn't have biases.
+		nntl_interface void gen_matrixAny(realmtx_t& mtx, const real_t a)noexcept;
 
 		//generate matrix with values in range [0,1]
 		nntl_interface void gen_matrix_norm(realmtx_t& mtx)noexcept;
@@ -176,6 +181,10 @@ namespace rng {
 		//////////////////////////////////////////////////////////////////////////
 		void seed64(uint64_t s) noexcept {
 			get_self().seed(static_cast<seed_t>(s64to32(s)));
+		}
+
+		void seedTime(const utils::tictoc::time_point_t& tp)noexcept {
+			get_self().seed64(tp.time_since_epoch().count());
 		}
 
 		//////////////////////////////////////////////////////////////////////////
@@ -246,6 +255,10 @@ namespace rng {
 			NNTL_ASSERT(!mtx.emulatesBiases() || mtx.test_biases_strict());
 			get_self().gen_vector(mtx.data(), mtx.numel_no_bias(), a);
 			NNTL_ASSERT(!mtx.emulatesBiases() || mtx.test_biases_strict());
+		}
+
+		void gen_matrixAny(realmtx_t& mtx, const real_t a)noexcept {
+			get_self().gen_vector(mtx.data(), mtx.numel_no_bias(), a);
 		}
 
 		//generate matrix with values in range [0,1]

@@ -55,9 +55,9 @@ namespace nntl {
 
 		nntl_interface void report_results_begin(const data_set_id_t dataSetId, const numel_cnt_t totalBatches)noexcept;
 
-		template<typename CommonDataT>
+		template<typename YT, typename CommonDataT>
 		nntl_interface void report_results(const numel_cnt_t batchIdx, const realmtx_t& activations
-			, const realmtx_t& data_y, const CommonDataT& cd)noexcept;
+			, const math::smatrix<YT>& data_y, const CommonDataT& cd)noexcept;
 
 		//the main purpose of report_results_end() is to report performance on non-standard data sets.
 		nntl_interface void report_results_end(const real_t lossVal)noexcept;
@@ -80,9 +80,9 @@ namespace nntl {
 
 		static constexpr void report_results_begin(const data_set_id_t dataSetId, const numel_cnt_t totalBatches)noexcept{}
 
-		template<typename CommonDataT>
+		template<typename YT, typename CommonDataT>
 		static constexpr void report_results(const numel_cnt_t batchIdx, const realmtx_t& activations
-			, const realmtx_t& data_y, const CommonDataT& cd)noexcept {}
+			, const math::smatrix<YT>& data_y, const CommonDataT& cd)noexcept {}
 
 		static constexpr void report_results_end(const real_t lossVal)noexcept {}
 
@@ -131,13 +131,13 @@ namespace nntl {
 			return true;
 		}
 		
-		static constexpr void report_results_begin(const data_set_id_t dataSetId, const numel_cnt_t totalBatches)noexcept {}
+		static constexpr void report_results_begin(const data_set_id_t /*dataSetId*/, const numel_cnt_t /*totalBatches*/)noexcept {}
 
-		template<typename CommonDataT>
-		static constexpr void report_results(const numel_cnt_t batchIdx, const realmtx_t& activations
-			, const realmtx_t& data_y, const CommonDataT& cd)noexcept {}
+		template<typename YT, typename CommonDataT>
+		static constexpr void report_results(const numel_cnt_t /*batchIdx*/, const realmtx_t& /*activations*/
+			, const math::smatrix<YT>& /*data_y*/, const CommonDataT& /*cd*/)noexcept {}
 
-		static constexpr void report_results_end(const real_t lossVal)noexcept {}
+		static constexpr void report_results_end(const real_t /*lossVal*/)noexcept {}
 
 		void on_training_fragment_end(const numel_cnt_t epochEnded, const real_t trainLoss, const real_t testLoss, const nanoseconds& elapsedSincePrevFragment)noexcept {
 			static constexpr char* szReportFmt = "% 3zd/%-3zd %3.1fs trL=%8.5f, vL=%8.5f";
@@ -230,8 +230,8 @@ namespace nntl {
 			m_evaluator.prepare_to_dataset(dataSetId, totalBatches);
 		}
 
-		template<typename CommonDataT>
-		void report_results(const numel_cnt_t batchIdx, const realmtx_t& activations, const realmtx_t& data_y, const CommonDataT& cd)noexcept
+		template<typename YT, typename CommonDataT>
+		void report_results(const numel_cnt_t batchIdx, const realmtx_t& activations, const math::smatrix<YT>& data_y, const CommonDataT& cd)noexcept
 		{
 			NNTL_UNREF(batchIdx);
 			NNTL_ASSERT((m_curDataSetId >= 0 && m_curDataSetId < m_classifRes.size()) || !"WTF?! Invalid m_curDataSetId!");

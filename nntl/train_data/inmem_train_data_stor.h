@@ -39,43 +39,46 @@ namespace nntl {
 	//namespace _impl {
 
 		//dummy struct to handle training data
-		template<typename BaseT>
-		class simple_train_data_stor : public virtual DataSetsId {
+		template<typename XT, typename YT = XT>
+		class inmem_train_data_stor : public virtual DataSetsId {
 		public:
-			typedef BaseT value_type;
-			typedef BaseT real_t;
-			typedef math::smatrix<value_type> realmtx_t;
-			typedef math::smatrix_deform<real_t> realmtxdef_t;
+			typedef XT x_t;
+			typedef YT y_t;
+			// 		typedef BaseT value_type;
+			// 		typedef BaseT real_t;
+			// 		typedef math::smatrix<value_type> realmtx_t;
+			// 		typedef math::smatrix_deform<real_t> realmtxdef_t;
+
+			typedef math::smatrix<x_t> x_mtx_t;
+			typedef math::smatrix<y_t> y_mtx_t;
+			typedef math::smatrix_deform<x_t> x_mtxdef_t;
+			typedef math::smatrix_deform<y_t> y_mtxdef_t;
 
 		protected:
-			static_assert(train_set_id < 2 && train_set_id >= 0 && test_set_id < 2 && test_set_id >= 0, "");
-			typedef ::std::array<realmtxdef_t, 2> mtx_array_t;
+			static_assert(train_set_id == 0 && test_set_id == 1, "");
+			typedef ::std::array<x_mtxdef_t, 2> x_mtx_array_t;
+			typedef ::std::array<y_mtxdef_t, 2> y_mtx_array_t;
 
 		protected:
-			//realmtxdef_t m_train_x, m_train_y, m_test_x, m_test_y;
-			mtx_array_t m_x, m_y;
+			x_mtx_array_t m_x;
+			y_mtx_array_t m_y;
 
 		public:
-			const realmtxdef_t& train_x()const noexcept { return m_x[train_set_id]; }
-			const realmtxdef_t& train_y()const noexcept { return m_y[train_set_id]; }
-			const realmtxdef_t& test_x()const noexcept { return m_x[test_set_id]; }
-			const realmtxdef_t& test_y()const noexcept { return m_y[test_set_id]; }
+			const x_mtxdef_t& train_x()const noexcept { return m_x[train_set_id]; }
+			const y_mtxdef_t& train_y()const noexcept { return m_y[train_set_id]; }
+			const x_mtxdef_t& test_x()const noexcept { return m_x[test_set_id]; }
+			const y_mtxdef_t& test_y()const noexcept { return m_y[test_set_id]; }
 
-			const realmtxdef_t& X(data_set_id_t dataSetId)const noexcept { NNTL_ASSERT(dataSetId >= 0 && dataSetId <= 1); return m_x[dataSetId]; }
-			const realmtxdef_t& Y(data_set_id_t dataSetId)const noexcept { NNTL_ASSERT(dataSetId >= 0 && dataSetId <= 1); return m_y[dataSetId]; }
+			const x_mtxdef_t& X(data_set_id_t dataSetId)const noexcept { NNTL_ASSERT(dataSetId >= 0 && dataSetId <= 1); return m_x[dataSetId]; }
+			const y_mtxdef_t& Y(data_set_id_t dataSetId)const noexcept { NNTL_ASSERT(dataSetId >= 0 && dataSetId <= 1); return m_y[dataSetId]; }
 
-			/*realmtxdef_t& train_x()noexcept { return m_train_x; }
-			realmtxdef_t& train_y()noexcept { return m_train_y; }
-			realmtxdef_t& test_x()noexcept { return m_test_x; }
-			realmtxdef_t& test_y()noexcept { return m_test_y; }*/
+			x_mtxdef_t& train_x_mutable() noexcept { return m_x[train_set_id]; }
+			y_mtxdef_t& train_y_mutable() noexcept { return m_y[train_set_id]; }
+			x_mtxdef_t& test_x_mutable() noexcept { return m_x[test_set_id]; }
+			y_mtxdef_t& test_y_mutable() noexcept { return m_y[test_set_id]; }
 
-			realmtxdef_t& train_x_mutable() noexcept { return m_x[train_set_id]; }
-			realmtxdef_t& train_y_mutable() noexcept { return m_y[train_set_id]; }
-			realmtxdef_t& test_x_mutable() noexcept { return m_x[test_set_id]; }
-			realmtxdef_t& test_y_mutable() noexcept { return m_y[test_set_id]; }
-
-			realmtxdef_t& X_mutable(data_set_id_t dataSetId) noexcept { NNTL_ASSERT(dataSetId >= 0 && dataSetId <= 1); return m_x[dataSetId]; }
-			realmtxdef_t& Y_mutable(data_set_id_t dataSetId) noexcept { NNTL_ASSERT(dataSetId >= 0 && dataSetId <= 1); return m_y[dataSetId]; }
+			x_mtxdef_t& X_mutable(data_set_id_t dataSetId) noexcept { NNTL_ASSERT(dataSetId >= 0 && dataSetId <= 1); return m_x[dataSetId]; }
+			y_mtxdef_t& Y_mutable(data_set_id_t dataSetId) noexcept { NNTL_ASSERT(dataSetId >= 0 && dataSetId <= 1); return m_y[dataSetId]; }
 
 			//////////////////////////////////////////////////////////////////////////
 			//Serialization support
@@ -93,18 +96,38 @@ namespace nntl {
 			}
 
 		public:
-			simple_train_data_stor()noexcept {}
+			inmem_train_data_stor()noexcept {}
 
 			//!! copy constructor not needed
-			simple_train_data_stor(const simple_train_data_stor& other)noexcept = delete;
+			inmem_train_data_stor(const inmem_train_data_stor& other)noexcept = delete;
 			//!!assignment is not needed
-			simple_train_data_stor& operator=(const simple_train_data_stor& rhs) noexcept = delete;
+			inmem_train_data_stor& operator=(const inmem_train_data_stor& rhs) noexcept = delete;
+
+			inmem_train_data_stor& operator=(inmem_train_data_stor&& rhs) noexcept {
+				if (this != &rhs) {
+					if (rhs.empty()) {
+						clear();
+					} else {
+						train_x_mutable() = ::std::move(rhs.train_x_mutable());
+						train_y_mutable() = ::std::move(rhs.train_y_mutable());
+						test_x_mutable() = ::std::move(rhs.test_x_mutable());
+						test_y_mutable() = ::std::move(rhs.test_y_mutable());
+					}
+				}
+				return *this;
+			}
+
+			void absorb(inmem_train_data_stor&& rhs)noexcept {
+				*this = ::std::move(rhs);
+			}
 
 			//////////////////////////////////////////////////////////////////////////
 
 			//using designated function instead of operator= to prevent accidental use
-			bool dupe(simple_train_data_stor& td)const noexcept {
-				realmtxdef_t trx, trY, tx, ty;
+			bool dupe(inmem_train_data_stor& td)const noexcept {
+				x_mtxdef_t trx, tx;
+				y_mtxdef_t trY, ty;
+
 				if (!trx.cloneFrom(train_x())) return false;
 				if (!trY.cloneFrom(train_y())) return false;
 				if (!tx.cloneFrom(test_x())) return false;
@@ -114,7 +137,7 @@ namespace nntl {
 			}
 
 			//////////////////////////////////////////////////////////////////////////
-			bool operator==(const simple_train_data_stor& rhs)const noexcept {
+			bool operator==(const inmem_train_data_stor& rhs)const noexcept {
 				return train_x() == rhs.train_x() && train_y() == rhs.train_y() && test_x() == rhs.test_x() && test_y() == rhs.test_y();
 			}
 
@@ -122,9 +145,14 @@ namespace nntl {
 				return train_x().empty() || train_y().empty() || test_x().empty() || test_y().empty();
 			}
 
-			bool absorb(realmtxdef_t&& _train_x, realmtxdef_t&& _train_y, realmtxdef_t&& _test_x, realmtxdef_t&& _test_y)noexcept {
-				//, const bool noBiasEmulationNecessary=false)noexcept {
+			void clear()noexcept {
+				for (data_set_id_t i = 0; i < 2; ++i) {
+					X_mutable(i).clear();
+					Y_mutable(i).clear();
+				}
+			}
 
+			bool absorb(x_mtxdef_t&& _train_x, y_mtxdef_t&& _train_y, x_mtxdef_t&& _test_x, y_mtxdef_t&& _test_y)noexcept {
 				if (!absorbsion_will_succeed(_train_x, _train_y, _test_x, _test_y))  return false;
 				NNTL_ASSERT(_train_x.test_biases_strict());
 				NNTL_ASSERT(_test_x.test_biases_strict());
@@ -136,8 +164,8 @@ namespace nntl {
 				return true;
 			}
 
-			static bool absorbsion_will_succeed(const realmtxdef_t& _train_x, const realmtxdef_t& _train_y
-				, const realmtxdef_t& _test_x, const realmtxdef_t& _test_y)noexcept //, const bool noBiasEmulationNecessary) noexcept
+			static bool absorbsion_will_succeed(const x_mtxdef_t& _train_x, const y_mtxdef_t& _train_y
+				, const x_mtxdef_t& _test_x, const y_mtxdef_t& _test_y)noexcept //, const bool noBiasEmulationNecessary) noexcept
 			{
 				return !_train_x.empty() && !_train_y.empty() && _train_x.rows() == _train_y.rows()
 					&& !_test_x.empty() && !_test_y.empty() && _test_x.rows() == _test_y.rows()
@@ -151,7 +179,7 @@ namespace nntl {
 				//&& (noBiasEmulationNecessary ^ _train_x.emulatesBiases()) && (noBiasEmulationNecessary ^ _test_x.emulatesBiases());
 			}
 
-			bool replace_Y_will_succeed(const realmtxdef_t& _train_y, const realmtxdef_t& _test_y)const noexcept
+			bool replace_Y_will_succeed(const y_mtxdef_t& _train_y, const y_mtxdef_t& _test_y)const noexcept
 			{
 				return !_train_y.empty() && _train_y.rows() == train_y().rows()
 					&& !_test_y.empty() && _test_y.rows() == test_y().rows()
@@ -161,7 +189,7 @@ namespace nntl {
 					;
 			}
 
-			bool replace_Y(realmtxdef_t&& _train_y, realmtxdef_t&& _test_y)noexcept {
+			bool replace_Y(y_mtxdef_t&& _train_y, y_mtxdef_t&& _test_y)noexcept {
 				if (!replace_Y_will_succeed(_train_y, _test_y)) return false;
 
 				train_y_mutable() = ::std::move(_train_y);
@@ -170,7 +198,7 @@ namespace nntl {
 			}
 
 			//opposite of absorb()
-			void extract(realmtxdef_t& _train_x, realmtxdef_t& _train_y, realmtxdef_t& _test_x, realmtxdef_t& _test_y)noexcept {
+			void extract(x_mtxdef_t& _train_x, y_mtxdef_t& _train_y, x_mtxdef_t& _test_x, y_mtxdef_t& _test_y)noexcept {
 				NNTL_ASSERT(!empty());
 
 				_train_x = ::std::move(train_x_mutable());

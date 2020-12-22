@@ -103,7 +103,7 @@ void dump_deCov(const char* pFileName, vec_len_t rowsCnt, vec_len_t colsCnt = 10
 	realmtx_t A(rowsCnt, colsCnt), dL(rowsCnt, colsCnt);
 	ASSERT_TRUE(!A.isAllocationFailed() && !dL.isAllocationFailed());
 
-	iM.preinit(iM.loss_DeCov_tempMemReqs(true, A));
+	iM.preinit(iM.loss_DeCov_needTempMem(true, A));
 	ASSERT_TRUE(iM.init());
 	d_int_nI<real_t>::iRng_t rg;
 	rg.init_ithreads(iM.ithreads());
@@ -159,7 +159,7 @@ void test_dLoss_deCov(vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 	ASSERT_TRUE(!dL_ET.isAllocationFailed() && !dL.isAllocationFailed());
 	::std::vector<real_t> tMean(colsCnt);
 
-	iM.preinit(iM.loss_DeCov_tempMemReqs(true, A.size_no_bias()));
+	iM.preinit(iM.loss_DeCov_needTempMem(true, A.size_no_bias()));
 	ASSERT_TRUE(iM.init());
 	d_int_nI<real_t>::iRng_t rg;
 	rg.init_ithreads(iM.ithreads());
@@ -232,7 +232,7 @@ void test_loss_deCov(vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 	ASSERT_TRUE(!A.isAllocationFailed() && !A2.isAllocationFailed() && !tDM.isAllocationFailed() && !tCov.isAllocationFailed());
 	::std::vector<real_t> tMean(colsCnt);
 
-	iM.preinit(iM.loss_DeCov_tempMemReqs(false, A.size_no_bias()));
+	iM.preinit(iM.loss_DeCov_needTempMem(false, A.size_no_bias()));
 	ASSERT_TRUE(iM.init());
 	d_int_nI<real_t>::iRng_t rg;
 	rg.init_ithreads(iM.ithreads());
@@ -1128,7 +1128,7 @@ void test_mCheck_normalize_rows(vec_len_t rowsCnt, vec_len_t colsCnt, const bool
 	ASSERT_TRUE(!W.isAllocationFailed() && !srcW.isAllocationFailed() && !ones.isAllocationFailed());
 	ones.ones();
 
-	iM.preinit(realmtx_t::sNumel(rowsCnt,iM.ithreads().workers_count()));
+	iM.preinit(iM.mCheck_normalize_rows_needTempMem(W));
 	ASSERT_TRUE(iM.init());
 
 	d_interfaces::iRng_t rg;
@@ -1408,7 +1408,7 @@ void test_ApplyILR_corr(vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 	realmtx_t dW(rowsCnt, colsCnt), prevdW(rowsCnt, colsCnt), gain(rowsCnt, colsCnt);
 	ASSERT_TRUE(!dW.isAllocationFailed() && !prevdW.isAllocationFailed() && !gain.isAllocationFailed());
 
-	iM.preinit(dataSize);
+	iM.preinit(iM.apply_ILR_needTempMem<real_t>(nntl::math::smatrix_td::mtx_size_t(rowsCnt, colsCnt)));
 	ASSERT_TRUE(iM.init());
 
 	d_interfaces::iRng_t rg;
@@ -2681,6 +2681,7 @@ void test_evMulC_ip(iMath& iM, vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 	auto ptrEtM = etM.data(), ptrDest=etDest.data();
 	for (vec_len_t i = 0; i < dataSize; ++i) ptrDest[i] = mulC*ptrEtM[i];
 	
+	real_t v{ real_t(0.) };
 	//testing performance
 	threads::prioritize_workers<threads::PriorityClass::PerfTesting, iMath::iThreads_t> pw(iM.ithreads());
 
@@ -2690,8 +2691,9 @@ void test_evMulC_ip(iMath& iM, vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 	for (vec_len_t r = 0; r < maxReps; ++r) {
 		ASSERT_TRUE(etM.clone_to(m));
 		bt = steady_clock::now();
-		iM.evMulC_ip_st(m,mulC);
+		iM.evMulC_ip_st(m, mulC);
 		diff += steady_clock::now() - bt;
+		for (const auto e : m) v += e;
 	}
 	ASSERT_EQ(m, etDest);
 	STDCOUTL("st_naive:\t" << utils::duration_readable(diff, maxReps, &tstNaive));
@@ -2704,6 +2706,7 @@ void test_evMulC_ip(iMath& iM, vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 		bt = steady_clock::now();
 		iM.evMulC_ip_mt(m, mulC);
 		diff += steady_clock::now() - bt;
+		for (const auto e : m) v += e;
 	}
 	ASSERT_EQ(m, etDest);
 	STDCOUTL("mt_naive:\t" << utils::duration_readable(diff, maxReps, &tmtNaive));
@@ -2740,9 +2743,11 @@ void test_evMulC_ip(iMath& iM, vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 		bt = steady_clock::now();
 		iM.evMulC_ip(m, mulC);
 		diff += steady_clock::now() - bt;
+		for (const auto e : m) v += e;
 	}
 	ASSERT_EQ(m, etDest);
 	STDCOUTL("best:\t\t" << utils::duration_readable(diff, maxReps, &tBest));
+	STDCOUTL(v);
 }
 
 TEST(TestMathN, evMulC_ip) {
@@ -4320,4 +4325,971 @@ TEST(TestMathN, mFillRowsByMask) {
 //////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////
 
+//NOTE: libxsmm code below are fine, but I see no sense in integrating it in the project, b/c
+//it helps (on my hw-architecture) mostly in very narrow case of small matrices (see below a perf check) and unclogged cache
+// Don't want to delete the code here, may be helpful later, so leaving it commented out
+/*
+#pragma warning(disable: 4996) //This function or variable may be unsafe.
+#pragma warning(disable: 4752) //found Intel(R) Advanced Vector Extensions
+#define LIBXSMM_STATIC_TARGET_ARCH LIBXSMM_X86_SSE3
+//#define LIBXSMM_XCOPY_JIT 3
+#include <libxsmm_source.h>
+#pragma warning(default: 4752)
+#pragma warning(default: 4996)
+
+void my_libxsmm_init()noexcept {
+	libxsmm_init();
+	libxsmm_set_verbosity(5);
+
+	int l=0;
+	auto arch = libxsmmf_get_target_arch(&l);
+	STDCOUTL("libxsmm preset arch = " << arch << "; cpuid = "<< libxsmm_cpuid_name(libxsmm_cpuid()));
+	
+// 	libxsmm_set_target_arch("sse3");
+// 	arch = libxsmmf_get_target_arch(&l);
+// 	STDCOUTL("libxsmm new arch = " << arch);
+}
+void my_libxsmm_deinit()noexcept {
+	libxsmm_finalize();
+}
+
+template<typename T>
+void my_libxsmm_transpose_ignore_bias(const math::smatrix<T>& src, math::smatrix<T>& dest)noexcept {
+	NNTL_ASSERT(src.cols_no_bias() == dest.rows() && src.rows() == dest.cols_no_bias());
+	libxsmm_otrans(dest.data(), src.data(), sizeof(T), src.rows(), src.cols_no_bias(), src.ldim(), dest.ldim());
+}
+*/
+
+template<typename IntfT>
+void mTranspose_corr(typename IntfT::iMath_t& iM, vec_len_t rowsCnt, vec_len_t colsCnt, bool bEBias) {
+	typedef typename IntfT::real_t real_t;
+	typedef typename IntfT::iMath_t::realmtx_t realmtx_t;
+	typedef typename IntfT::iMath_t::realmtxdef_t realmtxdef_t;
+
+	MTXSIZE_SCOPED_TRACE(rowsCnt, colsCnt, "mTranspose_corr");
+	constexpr unsigned testCorrRepCnt = TEST_CORRECTN_REPEATS_COUNT;
+
+	realmtx_t srcET(rowsCnt, colsCnt, bEBias), src(rowsCnt, colsCnt, bEBias), destT(colsCnt, rowsCnt, bEBias), destTET(colsCnt, rowsCnt, bEBias);
+	ASSERT_TRUE(!srcET.isAllocationFailed() && !src.isAllocationFailed() && !destT.isAllocationFailed() && !destTET.isAllocationFailed());
+	realmtxdef_t mdef(realmtx_t::sNumel(rowsCnt, colsCnt) + numel_cnt_t(bEBias)*::std::max(rowsCnt, colsCnt), bEBias);
+	ASSERT_TRUE(!mdef.isAllocationFailed());
+
+	realmtx_t destLXS(colsCnt, rowsCnt, bEBias);
+	ASSERT_TRUE(!destLXS.isAllocationFailed());
+
+	typename IntfT::iRng_t rg;
+	rg.init_ithreads(iM.ithreads());
+	for (unsigned rr = 0; rr < testCorrRepCnt; ++rr) {
+		rg.gen_matrixAny(srcET, real_t(5));
+
+		mTranspose_ignore_bias_ET(srcET, destTET);
+
+		iM.mTranspose_seq_write_ignore_bias(srcET, destT);
+		ASSERT_MTX_EQ(destTET, destT, "mTranspose_seq_write_ignore_bias() failed!");
+		iM.mTranspose_seq_write_ignore_bias(destT, src);
+		ASSERT_MTX_EQ(srcET, src, "mTranspose_seq_write_ignore_bias() failed double application!");
+
+		iM.mTranspose_seq_read_ignore_bias(srcET, destT);
+		ASSERT_MTX_EQ(destTET, destT, "mTranspose_seq_read_ignore_bias() failed!");
+		iM.mTranspose_seq_read_ignore_bias(destT, src);
+		ASSERT_MTX_EQ(srcET, src, "mTranspose_seq_read_ignore_bias() failed double application!");
+
+		iM.mTranspose_ignore_bias(srcET, destT);
+		ASSERT_MTX_EQ(destTET, destT, "mTranspose_ignore_bias() failed!");
+		iM.mTranspose_ignore_bias(destT, src);
+		ASSERT_MTX_EQ(srcET, src, "mTranspose_ignore_bias() failed double application!");
+
+		iM.mTranspose_ignore_bias_BLAS(srcET, destT);
+		ASSERT_MTX_EQ(destTET, destT, "mTranspose_ignore_bias_BLAS() failed!");
+		iM.mTranspose_ignore_bias_BLAS(destT, src);
+		ASSERT_MTX_EQ(srcET, src, "mTranspose_ignore_bias_BLAS() failed double application!");
+
+		mdef.deform(rowsCnt, colsCnt + bEBias);
+		srcET.clone_to(mdef);
+		iM.mTranspose_ip_ignore_bias_BLAS(mdef);
+		ASSERT_MTX_EQ(destTET, static_cast<realmtx_t&>(mdef), "mTranspose_ip_ignore_bias_BLAS() failed!");
+
+		//my_libxsmm_transpose_ignore_bias(srcET, destLXS);
+		//ASSERT_MTX_EQ(destTET, destLXS, "my_libxsmm_transpose_ignore_bias() failed!");
+	}
+}
+
+TEST(TestMathN, mTranspose) {
+	//typedef float real_t;
+	typedef dt_interfaces<real_t> myInterfaces_t;
+
+	//typename myInterfaces_t::iMath_t iM;
+	//const vec_len_t g_MinDataSizeDelta = 2 * iM.ithreads().workers_count() + 2;
+
+	STDCOUTL("sizeof(real_t) = " << sizeof(real_t));
+
+	//my_libxsmm_init();
+
+	for (vec_len_t r = 1; r < g_MinDataSizeDelta; ++r) {
+		for (vec_len_t c = 1; c < g_MinDataSizeDelta; ++c) {
+			ASSERT_NO_FATAL_FAILURE(mTranspose_corr<myInterfaces_t>(iM, r, c, false));
+			ASSERT_NO_FATAL_FAILURE(mTranspose_corr<myInterfaces_t>(iM, r, c, true));
+		}
+	}
+
+	constexpr unsigned rowsCnt = _baseRowsCnt;
+	const vec_len_t maxCols = g_MinDataSizeDelta, maxRows = rowsCnt + g_MinDataSizeDelta;
+	for (vec_len_t r = rowsCnt; r < maxRows; ++r) {
+		for (vec_len_t c = 1; c < maxCols; ++c) {
+			ASSERT_NO_FATAL_FAILURE(mTranspose_corr<myInterfaces_t>(iM, r, c, false));
+			ASSERT_NO_FATAL_FAILURE(mTranspose_corr<myInterfaces_t>(iM, r, c, true));
+		}
+	}
+
+#ifndef TESTS_SKIP_LONGRUNNING
+	ASSERT_NO_FATAL_FAILURE(mTranspose_corr<myInterfaces_t>(iM, 17, 1291, false));
+	ASSERT_NO_FATAL_FAILURE(mTranspose_corr<myInterfaces_t>(iM, 17, 1291, true));
+
+	ASSERT_NO_FATAL_FAILURE(mTranspose_corr<myInterfaces_t>(iM, 1291, 17, false));
+	ASSERT_NO_FATAL_FAILURE(mTranspose_corr<myInterfaces_t>(iM, 1291, 17, true));
+#endif
+
+	//my_libxsmm_deinit();
+}
+
+/*
+template<typename IntfT>
+void mTranspose_perf_wLIBXSMM(typename IntfT::iMath_t& iM, vec_len_t rowsCnt, vec_len_t colsCnt) {
+	typedef typename IntfT::real_t real_t;
+	typedef typename IntfT::iMath_t::realmtx_t realmtx_t;
+	typedef typename IntfT::iMath_t::realmtxdef_t realmtxdef_t;
+
+	const auto dataSize = realmtx_t::sNumel(rowsCnt, colsCnt);
+	STDCOUTL("******* testing mTranspose() over " << rowsCnt << "x" << colsCnt << (rowsCnt > colsCnt ? " TALL" : " wide")
+		<< " matrix (" << dataSize
+		<< " elements). **************");
+
+	constexpr unsigned maxReps = TEST_PERF_REPEATS_COUNT;
+	realmtx_t dest(colsCnt, rowsCnt), src(rowsCnt, colsCnt);
+
+	typename IntfT::iRng_t rg;
+	rg.init_ithreads(iM.ithreads());
+	
+	realmtxdef_t cClog;
+	realmtx_t cClogDest;
+	constexpr numel_cnt_t CACHE_SIZE = 6 * 1024 * 1024;
+	auto bClog = false; // dest.byte_size() < CACHE_SIZE;
+	constexpr auto bClogOnlyTheRest = true;
+	
+	if (bClog) {
+		numel_cnt_t clogNumel = CACHE_SIZE / sizeof(real_t);
+		if (bClogOnlyTheRest) clogNumel -= src.numel();
+
+		if (clogNumel > 0) {
+			cClog.resize(clogNumel);
+			cClog.deform(static_cast<vec_len_t>(clogNumel), 1);
+			cClogDest.resize(cClog.size());
+			rg.gen_matrix(cClog, real_t(10));
+		} else bClog = false;
+	}
+
+	threads::prioritize_workers<threads::PriorityClass::PerfTesting, imath_basic_t::iThreads_t> pw(iM.ithreads());
+
+	utils::tictoc tOBlas1, tLXS1, tOBlas2, tLXS2, tSR1, tSR2, tSW1, tSW2;
+	real_t v = real_t(0.);
+
+	//code warmup
+	iM.mTranspose_ignore_bias_BLAS(src, dest);
+	my_libxsmm_transpose_ignore_bias(src, dest);
+
+	for (unsigned r = 0; r < maxReps; ++r) {
+		
+		rg.gen_matrix(src, real_t(5));
+		if (bClog){
+			ASSERT_TRUE(cClog.copy_to(cClogDest));
+			for (const auto e : cClogDest) v += r*e;
+		}
+		tOBlas1.tic();
+		iM.mTranspose_ignore_bias_BLAS(src, dest);
+		tOBlas1.toc();
+		for (const auto e : dest) v += e;
+
+		rg.gen_matrix(src, real_t(5));
+		if (bClog) {
+			ASSERT_TRUE(cClog.copy_to(cClogDest));
+			for (const auto e : cClogDest) v += r*e;
+		}
+		tSR1.tic();
+		iM.mTranspose_seq_read_ignore_bias(src, dest);
+		tSR1.toc();
+		for (const auto e : dest) v += e;
+
+		rg.gen_matrix(src, real_t(5));
+		if (bClog) {
+			ASSERT_TRUE(cClog.copy_to(cClogDest));
+			for (const auto e : cClogDest) v += r*e;
+		}
+		tLXS1.tic();
+		my_libxsmm_transpose_ignore_bias(src, dest);
+		tLXS1.toc();
+		for (const auto e : dest) v += e;
+
+		rg.gen_matrix(src, real_t(5));
+		if (bClog) {
+			ASSERT_TRUE(cClog.copy_to(cClogDest));
+			for (const auto e : cClogDest) v += r*e;
+		}
+		tSW1.tic();
+		iM.mTranspose_seq_write_ignore_bias(src, dest);
+		tSW1.toc();
+		for (const auto e : dest) v += e;
+	}
+
+	tOBlas1.say(" OBl");
+	//tOBlas2.say(" OBl2");
+	tLXS1.say(" LXS");
+	//tLXS2.say(" LXS2");
+
+	tSR1.say("SeqR");
+	//tSR2.say("SeqR2");
+	tSW1.say("SeqW");
+	//tSW2.say("SeqW2");
+	STDCOUTL(v);
+}
+
+TEST(TestMathN, mTransposePerfWLIBXSMM) {
+	//typedef float real_t;
+	typedef dt_interfaces<real_t> myInterfaces_t;
+
+	//typename myInterfaces_t::iMath_t iM;
+	//const vec_len_t g_MinDataSizeDelta = 2 * iM.ithreads().workers_count() + 2;
+
+	STDCOUTL("sizeof(real_t) = " << sizeof(real_t));
+
+	//my_libxsmm_init();
+
+#ifdef TESTS_SKIP_LONGRUNNING
+	ASSERT_NO_FATAL_FAILURE(mTranspose_perf_wLIBXSMM<myInterfaces_t>(iM, 100, 10));
+	ASSERT_NO_FATAL_FAILURE(mTranspose_perf_wLIBXSMM<myInterfaces_t>(iM, 10, 100));
+	
+#else TESTS_SKIP_LONGRUNNING
+	
+	ASSERT_NO_FATAL_FAILURE(mTranspose_perf_wLIBXSMM<myInterfaces_t>(iM, 128, 16));
+	ASSERT_NO_FATAL_FAILURE(mTranspose_perf_wLIBXSMM<myInterfaces_t>(iM, 16, 128));
+
+	ASSERT_NO_FATAL_FAILURE(mTranspose_perf_wLIBXSMM<myInterfaces_t>(iM, 128, 32));
+	ASSERT_NO_FATAL_FAILURE(mTranspose_perf_wLIBXSMM<myInterfaces_t>(iM, 32, 128));
+
+	ASSERT_NO_FATAL_FAILURE(mTranspose_perf_wLIBXSMM<myInterfaces_t>(iM, 128, 64));
+	ASSERT_NO_FATAL_FAILURE(mTranspose_perf_wLIBXSMM<myInterfaces_t>(iM, 64, 128));
+
+	ASSERT_NO_FATAL_FAILURE(mTranspose_perf_wLIBXSMM<myInterfaces_t>(iM, 128, 128));
+
+	ASSERT_NO_FATAL_FAILURE(mTranspose_perf_wLIBXSMM<myInterfaces_t>(iM, 256, 16));
+	ASSERT_NO_FATAL_FAILURE(mTranspose_perf_wLIBXSMM<myInterfaces_t>(iM, 16, 256));
+
+	ASSERT_NO_FATAL_FAILURE(mTranspose_perf_wLIBXSMM<myInterfaces_t>(iM, 256, 32));
+	ASSERT_NO_FATAL_FAILURE(mTranspose_perf_wLIBXSMM<myInterfaces_t>(iM, 32, 256));
+
+	ASSERT_NO_FATAL_FAILURE(mTranspose_perf_wLIBXSMM<myInterfaces_t>(iM, 256, 64));
+	ASSERT_NO_FATAL_FAILURE(mTranspose_perf_wLIBXSMM<myInterfaces_t>(iM, 64, 256));
+
+	ASSERT_NO_FATAL_FAILURE(mTranspose_perf_wLIBXSMM<myInterfaces_t>(iM, 256, 128));
+	ASSERT_NO_FATAL_FAILURE(mTranspose_perf_wLIBXSMM<myInterfaces_t>(iM, 128, 256));
+
+
+	ASSERT_NO_FATAL_FAILURE(mTranspose_perf_wLIBXSMM<myInterfaces_t>(iM, 512, 16));
+	ASSERT_NO_FATAL_FAILURE(mTranspose_perf_wLIBXSMM<myInterfaces_t>(iM, 16, 512));
+
+	ASSERT_NO_FATAL_FAILURE(mTranspose_perf_wLIBXSMM<myInterfaces_t>(iM, 512, 32));
+	ASSERT_NO_FATAL_FAILURE(mTranspose_perf_wLIBXSMM<myInterfaces_t>(iM, 32, 512));
+
+	ASSERT_NO_FATAL_FAILURE(mTranspose_perf_wLIBXSMM<myInterfaces_t>(iM, 512, 64));
+	ASSERT_NO_FATAL_FAILURE(mTranspose_perf_wLIBXSMM<myInterfaces_t>(iM, 64, 512));
+
+	ASSERT_NO_FATAL_FAILURE(mTranspose_perf_wLIBXSMM<myInterfaces_t>(iM, 512, 128));
+	ASSERT_NO_FATAL_FAILURE(mTranspose_perf_wLIBXSMM<myInterfaces_t>(iM, 128, 512));
+
+
+	ASSERT_NO_FATAL_FAILURE(mTranspose_perf_wLIBXSMM<myInterfaces_t>(iM, 1024, 16));
+	ASSERT_NO_FATAL_FAILURE(mTranspose_perf_wLIBXSMM<myInterfaces_t>(iM, 16, 1024));
+
+	ASSERT_NO_FATAL_FAILURE(mTranspose_perf_wLIBXSMM<myInterfaces_t>(iM, 1024, 32));
+	ASSERT_NO_FATAL_FAILURE(mTranspose_perf_wLIBXSMM<myInterfaces_t>(iM, 32, 1024));
+
+	ASSERT_NO_FATAL_FAILURE(mTranspose_perf_wLIBXSMM<myInterfaces_t>(iM, 1024, 64));
+	ASSERT_NO_FATAL_FAILURE(mTranspose_perf_wLIBXSMM<myInterfaces_t>(iM, 64, 1024));
+	
+
+	ASSERT_NO_FATAL_FAILURE(mTranspose_perf_wLIBXSMM<myInterfaces_t>(iM, 1000, 100));
+	ASSERT_NO_FATAL_FAILURE(mTranspose_perf_wLIBXSMM<myInterfaces_t>(iM, 100, 1000));
+
+	ASSERT_NO_FATAL_FAILURE(mTranspose_perf_wLIBXSMM<myInterfaces_t>(iM, 10000, 10));
+	ASSERT_NO_FATAL_FAILURE(mTranspose_perf_wLIBXSMM<myInterfaces_t>(iM, 10, 10000));
+
+	ASSERT_NO_FATAL_FAILURE(mTranspose_perf_wLIBXSMM<myInterfaces_t>(iM, 10000, 100));
+	ASSERT_NO_FATAL_FAILURE(mTranspose_perf_wLIBXSMM<myInterfaces_t>(iM, 100, 10000));
+#endif
+
+	//my_libxsmm_deinit();
+}*/
+
+// LIBXSMM vs. OpenBLAS vs. naive results
+// bClog=true, clogRest = false
+// ******* testing mTranspose() over 128x16 TALL matrix(2048 elements). **************
+// OBl              4.137 us     3.310 us     4.056 us
+// LXS              5.240 us     3.586 us     4.321 us
+// SeqR              3.861 us     3.034 us     3.631 us  <<-------------------
+// SeqW             52.133 us     3.861 us     4.667 us
+// - 5.15281e+08
+// ******* testing mTranspose() over 16x128 wide matrix(2048 elements). **************
+// OBl              4.138 us     4.137 us     4.931 us
+// LXS              4.137 us     3.034 us     4.002 us
+// SeqR              4.413 us     3.861 us     4.531 us
+// SeqW              4.138 us     3.034 us     3.882 us  <<-------------------
+// 2.60802e+09
+// ******* testing mTranspose() over 128x32 TALL matrix(4096 elements). **************
+// OBl              7.723 us     6.620 us     7.673 us
+// LXS              7.723 us     6.895 us     7.970 us
+// SeqR              6.620 us     6.069 us     7.103 us  <<-------------------
+// SeqW             14.895 us     7.447 us     8.269 us
+// 3.38434e+09
+// ******* testing mTranspose() over 32x128 wide matrix(4096 elements). **************
+// OBl              7.999 us     7.723 us     9.222 us
+// LXS              6.896 us     6.068 us     7.437 us
+// SeqR              8.551 us     7.447 us     8.628 us
+// SeqW              7.172 us     6.345 us     7.260 us  <<-------------------
+// - 2.43793e+09
+// ******* testing mTranspose() over 128x64 TALL matrix(8192 elements). **************
+// OBl             15.447 us    13.792 us    15.561 us
+// LXS             14.619 us    12.964 us    14.893 us
+// SeqR             14.068 us    12.964 us    14.116 us  <<-------------------
+// SeqW             15.171 us    14.343 us    15.267 us
+// - 2.47644e+09
+// ******* testing mTranspose() over 64x128 wide matrix(8192 elements). **************
+// OBl             16.275 us    14.895 us    16.726 us
+// LXS             13.516 us    12.413 us    13.803 us  <<-------------------
+// SeqR             52.410 us    13.792 us    15.382 us
+// SeqW             13.792 us    13.516 us    14.732 us  <<-------------------
+// 3.76955e+09
+// ******* testing mTranspose() over 128x128 wide matrix(16384 elements). **************
+// OBl             31.722 us    29.238 us    31.943 us
+// LXS             27.308 us    25.928 us    27.786 us  <<------<<-------------------
+// SeqR             29.791 us    28.135 us    30.410 us
+// SeqW             30.894 us    28.135 us    30.334 us
+// 2.96691e+09
+// ******* testing mTranspose() over 256x16 TALL matrix(4096 elements). **************
+// OBl              6.620 us     6.344 us     7.227 us
+// LXS              7.723 us     6.620 us     7.647 us
+// SeqR              6.068 us     5.792 us     6.545 us  <<-------------------
+// SeqW              8.276 us     7.172 us     8.167 us
+// 7.72818e+09
+// ******* testing mTranspose() over 16x256 wide matrix(4096 elements). **************
+// OBl              8.000 us     7.723 us     8.844 us
+// LXS              6.896 us     5.517 us     6.540 us  <<-------------------
+// SeqR              8.275 us     7.447 us     8.334 us
+// SeqW              6.896 us     6.068 us     6.849 us  <<-------------------
+// - 8.00898e+09
+// ******* testing mTranspose() over 256x32 TALL matrix(8192 elements). **************
+// OBl             14.344 us    13.516 us    15.119 us
+// LXS             16.550 us    13.791 us    15.243 us
+// SeqR             13.792 us    12.137 us    13.738 us  <<-------------------
+// SeqW             15.998 us    15.447 us    16.712 us
+// - 3.4285e+09
+// ******* testing mTranspose() over 32x256 wide matrix(8192 elements). **************
+// OBl             17.653 us    16.274 us    18.120 us
+// LXS             13.516 us    11.861 us    13.214 us  <<-------------------
+// SeqR             16.550 us    14.895 us    16.887 us
+// SeqW             13.792 us    12.964 us    13.876 us  <<-------------------
+// 3.12838e+09
+// ******* testing mTranspose() over 256x64 TALL matrix(16384 elements). **************
+// OBl             29.791 us    27.584 us    30.230 us
+// LXS             30.618 us    28.687 us    31.523 us
+// SeqR             26.756 us    26.480 us    28.277 us  <<-------------------
+// SeqW             32.549 us    30.894 us    33.018 us
+// 2.94909e+08
+// ******* testing mTranspose() over 64x256 wide matrix(16384 elements). **************
+// OBl             33.376 us    31.997 us    34.395 us
+// LXS             26.205 us    25.377 us    27.334 us  <<-------------------
+// SeqR             34.480 us    31.721 us    34.858 us
+// SeqW             28.136 us    27.860 us    29.166 us  <<-------------------
+// 9.51248e+08
+// ******* testing mTranspose() over 256x128 TALL matrix(32768 elements). **************
+// OBl            112.266 us   108.681 us   114.508 us
+// LXS            110.059 us   107.025 us   111.633 us
+// SeqR            112.266 us   109.232 us   114.957 us  <<-------------------
+// SeqW            108.680 us   105.094 us   110.119 us  <<-------------------!!!
+// 9.32529e+08
+// ******* testing mTranspose() over 128x256 wide matrix(32768 elements). **************
+// OBl            121.645 us   119.162 us   124.821 us
+// LXS            130.195 us   103.991 us   108.335 us
+// SeqR            159.711 us   117.783 us   125.703 us
+// SeqW            104.818 us   103.163 us   107.575 us  <<-------------------
+// 9.99285e+08
+// ******* testing mTranspose() over 512x16 TALL matrix(8192 elements). **************
+// OBl             14.344 us    12.964 us    14.213 us
+// LXS             25.929 us    24.549 us    26.206 us
+// SeqR             12.689 us    11.585 us    12.969 us  <<-------------------
+// SeqW             17.377 us    14.619 us    16.320 us
+// - 2.80236e+09
+// ******* testing mTranspose() over 16x512 wide matrix(8192 elements). **************
+// OBl             16.274 us    15.171 us    16.876 us
+// LXS             12.413 us    11.310 us    12.607 us  <<-------------------
+// SeqR             17.377 us    15.171 us    16.731 us
+// SeqW             12.689 us    12.412 us    13.404 us  <<-------------------
+// 2.13746e+09
+// ******* testing mTranspose() over 512x32 TALL matrix(16384 elements). **************
+// OBl             32.273 us    29.515 us    31.613 us
+// LXS             53.237 us    52.133 us    54.473 us
+// SeqR             29.790 us    28.135 us    30.139 us  <<-------------------
+// SeqW             36.962 us    33.652 us    38.264 us
+// 9.03974e+09
+// ******* testing mTranspose() over 32x512 wide matrix(16384 elements). **************
+// OBl             40.549 us    38.618 us    42.325 us
+// LXS             28.687 us    26.480 us    28.672 us  <<-------------------
+// SeqR             43.583 us    41.376 us    44.670 us
+// SeqW             29.514 us    28.411 us    30.515 us  <<-------------------
+// - 8.56488e+08
+// ******* testing mTranspose() over 512x64 TALL matrix(32768 elements). **************
+// OBl            105.922 us   103.715 us   107.816 us
+// LXS            165.227 us   132.678 us   139.325 us
+// SeqR            107.853 us   105.921 us   111.048 us  <<-------------------
+// SeqW            110.059 us   107.853 us   113.166 us
+// 6.21846e+09
+// ******* testing mTranspose() over 64x512 wide matrix(32768 elements). **************
+// OBl            136.540 us   131.299 us   138.383 us
+// LXS            105.646 us   102.888 us   107.104 us  <<-------------------
+// SeqR            128.264 us   125.782 us   131.862 us
+// SeqW            102.887 us   101.508 us   106.007 us  <<-------------------
+// 2.80015e+09
+// ******* testing mTranspose() over 512x128 TALL matrix(65536 elements). **************
+// OBl            223.981 us   220.671 us   230.068 us
+// LXS            277.493 us   263.150 us   282.661 us
+// SeqR            221.498 us   215.154 us   223.548 us  <<-------------------
+// SeqW            213.774 us   211.016 us   218.246 us  <<-------------------!!
+// 2.79574e+09
+// ******* testing mTranspose() over 128x512 wide matrix(65536 elements). **************
+// OBl            402.999 us   384.794 us   399.827 us
+// LXS            206.052 us   204.120 us   212.026 us
+// SeqR            354.177 us   346.177 us   358.622 us
+// SeqW            208.809 us   201.086 us   208.122 us  <<-------------------
+// 1.53352e+09
+// ******* testing mTranspose() over 1024x16 TALL matrix(16384 elements). **************
+// OBl             34.479 us    32.824 us    34.719 us
+// LXS             48.823 us    47.168 us    49.711 us
+// SeqR             37.790 us    31.721 us    33.864 us  <<-------------------
+// SeqW             45.237 us    31.997 us    45.664 us
+// 2.06203e+09
+// ******* testing mTranspose() over 16x1024 wide matrix(16384 elements). **************
+// OBl             43.030 us    39.445 us    43.113 us
+// LXS             28.687 us    26.204 us    28.573 us  <<-------------------
+// SeqR             55.996 us    49.099 us    53.401 us
+// SeqW             30.066 us    28.687 us    30.564 us  <<-------------------
+// - 3.22816e+09
+// ******* testing mTranspose() over 1024x32 TALL matrix(32768 elements). **************
+// OBl            119.438 us   104.267 us   108.697 us  <<-------------------
+// LXS             98.199 us    95.716 us   100.344 us  <<-------------------
+// SeqR            115.300 us   106.473 us   111.793 us
+// SeqW            114.197 us   113.645 us   117.587 us
+// 2.14471e+09
+// ******* testing mTranspose() over 32x1024 wide matrix(32768 elements). **************
+// OBl            304.526 us   270.321 us   284.202 us
+// LXS            104.267 us   102.336 us   107.142 us
+// SeqR            185.639 us   182.329 us   191.350 us
+// SeqW            102.060 us   100.405 us   104.908 us  <<-------------------
+// - 8.24001e+09
+// ******* testing mTranspose() over 1024x64 TALL matrix(65536 elements). **************
+// OBl            231.980 us   206.051 us   213.530 us  <<-------------------
+// LXS            237.773 us   233.635 us   243.740 us
+// SeqR            230.325 us   207.431 us   214.984 us  <<-------------------
+// SeqW            239.979 us   238.876 us   247.670 us
+// - 2.62368e+09
+// ******* testing mTranspose() over 64x1024 wide matrix(65536 elements). **************
+// OBl            913.301 us   882.959 us   903.852 us
+// LXS            204.672 us   203.292 us   210.344 us
+// SeqR            898.681 us   863.650 us   896.595 us
+// SeqW            201.638 us   200.259 us   207.737 us  <<-------------------
+// 6.31126e+09
+// ******* testing mTranspose() over 1000x100 TALL matrix(100000 elements). **************
+// OBl            273.080 us   203.845 us   211.585 us
+// LXS            324.110 us   321.351 us   333.134 us
+// SeqR            201.637 us   197.500 us   206.526 us  <<-------------------
+// SeqW            271.701 us   252.668 us   262.737 us
+// - 3.85931e+09
+// ******* testing mTranspose() over 100x1000 wide matrix(100000 elements). **************
+// OBl            227.291 us   223.153 us   232.394 us
+// LXS            204.672 us   199.431 us   208.029 us  <<-------------------!!!
+// SeqR            247.702 us   225.084 us   233.522 us
+// SeqW            257.081 us   214.878 us   263.197 us >>>>
+// 8.71402e+08
+// ******* testing mTranspose() over 10000x10 TALL matrix(100000 elements). **************
+// OBl            316.663 us   310.870 us   320.837 us
+// LXS            298.181 us   282.458 us   291.837 us
+// SeqR            298.181 us   294.320 us   305.605 us
+// SeqW            140.954 us   138.195 us   145.402 us  <<----<<-------------------
+// 9.62054e+08
+// ******* testing mTranspose() over 10x10000 wide matrix(100000 elements). **************
+// OBl            154.469 us   141.781 us   149.610 us  <<-------------------
+// LXS            233.083 us   229.773 us   237.356 us
+// SeqR            151.435 us   147.022 us   153.741 us  <<---<<-------------------
+// SeqW            256.530 us   229.497 us   238.425 us
+// - 1.04417e+09
+// ******* testing mTranspose() over 10000x100 TALL matrix(1000000 elements). **************
+// OBl              7.669 ms     7.448 ms     7.644 ms
+// LXS              3.297 ms     3.235 ms     3.317 ms
+// SeqR              7.639 ms     7.485 ms     7.658 ms
+// SeqW              2.415 ms     2.356 ms     2.417 ms  <<---<<-------------------
+// - 2.02927e+09
+// ******* testing mTranspose() over 100x10000 wide matrix(1000000 elements). **************
+// OBl              2.314 ms     2.277 ms     2.334 ms
+// LXS              6.780 ms     6.507 ms     6.676 ms
+// SeqR              2.368 ms     2.303 ms     2.364 ms  <<---<<-------------------
+// SeqW              6.969 ms     6.832 ms     6.938 ms
+// - 1.09005e+09
+//basically, before 100000 elements works general pattern wide->write, tall->read. After that it inverts.
+// libxsmm can't do anything with clogged cache-induced delays.
+
+//////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////
+// clogRest=true - differs visibly from false
+// ******* testing mTranspose() over 128x16 TALL matrix(2048 elements). **************
+// OBl              3.862 us     3.034 us     3.691 us
+// LXS              4.414 us     3.310 us     4.022 us
+// SeqR              3.862 us     3.034 us     3.602 us  <<-------------------
+// SeqW              4.138 us     3.310 us     4.064 us
+// 1.78561e+09
+// ******* testing mTranspose() over 16x128 wide matrix(2048 elements). **************
+// OBl              4.138 us     3.310 us     4.165 us
+// LXS              3.586 us     2.758 us     3.440 us  <<-------------------
+// SeqR              3.862 us     3.310 us     4.063 us
+// SeqW              3.310 us     3.034 us     3.507 us  <<-------------------
+// - 5.40063e+09
+// ******* testing mTranspose() over 128x32 TALL matrix(4096 elements). **************
+// OBl              7.172 us     5.793 us     6.983 us
+// LXS              7.723 us     5.516 us     6.883 us  <<-------------------
+// SeqR              6.621 us     5.792 us     6.814 us  <<-------------------
+// SeqW              6.896 us     6.068 us     7.108 us
+// - 2.22991e+09
+// ******* testing mTranspose() over 32x128 wide matrix(4096 elements). **************
+// OBl              8.551 us     6.896 us     8.468 us
+// LXS              6.620 us     5.241 us     6.778 us  <<-------------------
+// SeqR              7.724 us     6.620 us     7.597 us
+// SeqW              6.896 us     5.792 us     6.504 us  <<-------------------
+// 9.68361e+08
+// ******* testing mTranspose() over 128x64 TALL matrix(8192 elements). **************
+// OBl             13.516 us    12.413 us    13.993 us
+// LXS             15.723 us    11.585 us    13.384 us  <<-------------------
+// SeqR             13.792 us    12.688 us    13.737 us  <<-------------------
+// SeqW             13.516 us    12.136 us    14.128 us
+// - 2.97645e+09
+// ******* testing mTranspose() over 64x128 wide matrix(8192 elements). **************
+// OBl             15.171 us    12.689 us    14.949 us
+// LXS             12.137 us    10.757 us    12.535 us  <<-------------------
+// SeqR             14.344 us    12.964 us    14.440 us
+// SeqW             13.516 us    11.585 us    13.399 us  <<-------------------
+// - 6.22572e+09
+// ******* testing mTranspose() over 128x128 wide matrix(16384 elements). **************
+// OBl             30.066 us    26.480 us    29.116 us
+// LXS             28.135 us    22.895 us    26.145 us  <<-------------------
+// SeqR             27.860 us    26.480 us    29.080 us
+// SeqW             27.032 us    24.550 us    26.894 us  <<-------------------
+// - 1.03796e+08
+// ******* testing mTranspose() over 128x128 wide matrix(16384 elements). **************
+// OBl             30.893 us    25.928 us    29.001 us
+// LXS             26.205 us    21.791 us    25.493 us  <<-------------------
+// SeqR             30.343 us    25.929 us    28.536 us
+// SeqW             28.135 us    24.273 us    26.960 us  <<-------------------
+// 2.02847e+09
+// ******* testing mTranspose() over 256x16 TALL matrix(4096 elements). **************
+// OBl              7.448 us     6.068 us     6.777 us
+// LXS              6.621 us     5.792 us     6.879 us  <<-------------------
+// SeqR              6.345 us     5.792 us     6.882 us  <<-------------------
+// SeqW              7.172 us     6.344 us     7.378 us
+// 2.17661e+09
+// ******* testing mTranspose() over 16x256 wide matrix(4096 elements). **************
+// OBl              7.724 us     6.344 us     7.784 us
+// LXS              6.344 us     4.689 us     5.918 us  <<-------------------
+// SeqR              7.999 us     6.620 us     7.834 us
+// SeqW              6.896 us     5.516 us     6.559 us  <<-------------------
+// - 3.94272e+09
+// ******* testing mTranspose() over 256x32 TALL matrix(8192 elements). **************
+// OBl             14.620 us    12.413 us    13.869 us
+// LXS             14.344 us    11.309 us    13.870 us  <<-------------------
+// SeqR             13.792 us    12.412 us    13.568 us  <<-------------------
+// SeqW             15.447 us    12.964 us    14.902 us
+// - 3.54141e+09
+// ******* testing mTranspose() over 32x256 wide matrix(8192 elements). **************
+// OBl             19.309 us    14.067 us    15.738 us
+// LXS             11.861 us    10.206 us    12.525 us  <<-------------------
+// SeqR             15.998 us    13.791 us    15.396 us
+// SeqW             12.964 us    11.861 us    13.021 us  <<-------------------
+// 3.95841e+08
+// ******* testing mTranspose() over 256x64 TALL matrix(16384 elements). **************
+// OBl             34.204 us    25.929 us    28.520 us
+// LXS             30.067 us    24.550 us    28.254 us  <<-------------------
+// SeqR             28.136 us    25.377 us    28.346 us  <<-------------------
+// SeqW             29.515 us    26.205 us    29.078 us
+// 5.70597e+08
+// ******* testing mTranspose() over 64x256 wide matrix(16384 elements). **************
+// OBl             31.722 us    28.136 us    31.336 us
+// LXS             25.102 us    22.619 us    25.678 us  <<-------------------
+// SeqR             31.445 us    28.412 us    31.048 us
+// SeqW             27.584 us    24.550 us    27.302 us  <<-------------------
+// - 5.6073e+09
+// ******* testing mTranspose() over 256x128 TALL matrix(32768 elements). **************
+// OBl            107.852 us   106.198 us   115.031 us
+// LXS            124.127 us    98.198 us   104.240 us  <<-------------------
+// SeqR            110.887 us   101.508 us   114.793 us
+// SeqW            101.509 us    96.819 us   102.743 us  <<---<<-------------------
+// 1.49674e+09
+// ******* testing mTranspose() over 128x256 wide matrix(32768 elements). **************
+// OBl            120.542 us   111.715 us   121.610 us
+// LXS            103.163 us    97.647 us   102.984 us  <<-------------------
+// SeqR            116.128 us   110.335 us   123.771 us
+// SeqW            100.681 us    96.820 us   101.893 us  <<-------------------
+// 4.6203e+09
+// ******* testing mTranspose() over 512x16 TALL matrix(8192 elements). **************
+// OBl             13.792 us    12.412 us    14.009 us
+// LXS             23.446 us    22.343 us    24.040 us
+// SeqR             13.240 us    12.136 us    13.304 us  <<-------------------
+// SeqW             14.895 us    12.413 us    14.499 us
+// - 2.62916e+09
+// ******* testing mTranspose() over 16x512 wide matrix(8192 elements). **************
+// OBl             15.447 us    13.240 us    14.752 us
+// LXS             12.965 us     9.930 us    12.067 us  <<-------------------
+// SeqR             14.895 us    13.241 us    15.114 us
+// SeqW             12.688 us    11.310 us    12.888 us  <<-------------------
+// 1.10801e+09
+// ******* testing mTranspose() over 512x32 TALL matrix(16384 elements). **************
+// OBl             30.066 us    27.032 us    29.729 us
+// LXS             50.479 us    46.065 us    49.217 us
+// SeqR             28.963 us    27.308 us    29.634 us  <<-------------------
+// SeqW             31.997 us    27.308 us    31.842 us
+// 1.50959e+09
+// ******* testing mTranspose() over 32x512 wide matrix(16384 elements). **************
+// OBl             36.687 us    29.791 us    33.140 us
+// LXS             26.205 us    23.997 us    26.460 us  <<-------------------
+// SeqR             53.512 us    33.928 us    36.787 us
+// SeqW             28.687 us    25.929 us    29.109 us  <<-------------------
+// - 3.87571e+09
+// ******* testing mTranspose() over 512x64 TALL matrix(32768 elements). **************
+// OBl            105.646 us   102.888 us   111.725 us
+// LXS            121.921 us   110.060 us   119.820 us
+// SeqR            131.574 us   103.991 us   113.317 us
+// SeqW            128.265 us    99.302 us   104.678 us
+// - 6.09414e+09
+// ******* testing mTranspose() over 64x512 wide matrix(32768 elements). **************
+// OBl            143.160 us   119.714 us   129.543 us
+// LXS             99.302 us    95.440 us   100.611 us  <<-------------------
+// SeqR            126.610 us   116.128 us   129.727 us
+// SeqW             99.854 us    94.337 us    99.664 us  <<-------------------
+// - 1.14001e+09
+// ******* testing mTranspose() over 512x128 TALL matrix(65536 elements). **************
+// OBl            222.050 us   205.500 us   215.448 us
+// LXS            262.598 us   232.256 us   246.497 us
+// SeqR            214.879 us   199.983 us   212.552 us  <<-------------------
+// SeqW            207.706 us   196.948 us   207.266 us  <<----<<-------------------
+// - 4.904e+09
+// ******* testing mTranspose() over 128x512 wide matrix(65536 elements). **************
+// OBl            396.380 us   334.040 us   356.701 us
+// LXS            203.845 us   193.086 us   203.109 us
+// SeqR            308.111 us   274.184 us   293.274 us
+// SeqW            197.500 us   190.880 us   199.746 us  <<-------------------
+// - 6.34919e+09
+// ******* testing mTranspose() over 1024x16 TALL matrix(16384 elements). **************
+// OBl             38.065 us    31.445 us    33.662 us
+// LXS             52.961 us    43.307 us    46.451 us
+// SeqR             32.549 us    31.446 us    33.507 us  <<-------------------
+// SeqW             41.651 us    26.205 us    39.728 us
+// 3.768e+09
+// ******* testing mTranspose() over 16x1024 wide matrix(16384 elements). **************
+// OBl             40.824 us    35.307 us    38.732 us
+// LXS             33.100 us    24.825 us    27.954 us  <<-------------------
+// SeqR             45.238 us    39.445 us    42.911 us
+// SeqW             29.238 us    27.584 us    29.888 us  <<-------------------
+// 3.54753e+09
+// ******* testing mTranspose() over 1024x32 TALL matrix(32768 elements). **************
+// OBl            106.750 us   102.888 us   111.762 us
+// LXS             94.889 us    87.992 us    94.819 us  <<-------<<-------------------
+// SeqR            113.093 us   104.819 us   114.334 us  <<-------------------
+// SeqW            111.439 us   101.784 us   111.432 us  <<------<<-------------------
+// 2.73579e+09
+// ******* testing mTranspose() over 32x1024 wide matrix(32768 elements). **************
+// OBl            234.462 us   212.395 us   226.053 us
+// LXS            102.336 us    96.268 us   100.952 us  <<-------------------
+// SeqR            194.467 us   154.469 us   169.983 us
+// SeqW             99.301 us    95.716 us   100.510 us  <<-------------------
+// - 1.35643e+09
+// ******* testing mTranspose() over 1024x64 TALL matrix(65536 elements). **************
+// OBl            210.189 us   199.155 us   211.512 us
+// LXS            235.015 us   222.325 us   243.460 us
+// SeqR            207.707 us   201.086 us   215.412 us  <<-------------------
+// SeqW            232.807 us   216.809 us   231.749 us
+// 2.10376e+09
+// ******* testing mTranspose() over 64x1024 wide matrix(65536 elements). **************
+// OBl            857.306 us   735.385 us   780.678 us
+// LXS            204.673 us   191.156 us   201.258 us
+// SeqR            825.308 us   712.766 us   756.333 us
+// SeqW            207.154 us   190.604 us   199.912 us  <<-------------------
+// 5.31042e+09
+// ******* testing mTranspose() over 1000x100 TALL matrix(100000 elements). **************
+// OBl            208.258 us   171.020 us   188.650 us
+// LXS            297.078 us   270.873 us   291.582 us
+// SeqR            203.844 us   172.399 us   190.880 us  <<-------------------
+// SeqW            239.979 us   213.223 us   232.795 us
+// - 2.32183e+09
+// ******* testing mTranspose() over 100x1000 wide matrix(100000 elements). **************
+// OBl            224.257 us   192.811 us   203.709 us
+// LXS            190.881 us   155.849 us   185.149 us  <<-------------------
+// SeqR            218.188 us   192.535 us   206.421 us  <<----<<-------------------
+// SeqW            236.394 us   190.605 us   225.144 us
+// 2.37755e+09
+// ******* testing mTranspose() over 10000x10 TALL matrix(100000 elements). **************
+// OBl            317.214 us   293.216 us   305.878 us
+// LXS            279.424 us   263.977 us   279.638 us
+// SeqR            308.939 us   282.459 us   295.510 us
+// SeqW            141.230 us   122.472 us   138.039 us  <<-----<<-------------------
+// 9.69117e+08
+// ******* testing mTranspose() over 10x10000 wide matrix(100000 elements). **************
+// OBl            155.849 us   130.471 us   143.699 us
+// LXS            227.291 us   219.291 us   233.107 us
+// SeqR            150.056 us   138.747 us   149.577 us   <<----<<-------------------
+// SeqW            230.601 us   223.153 us   235.151 us
+// 1.62712e+09
+// ******* testing mTranspose() over 10000x100 TALL matrix(1000000 elements). **************
+// OBl              7.579 ms     7.377 ms     7.567 ms
+// LXS              3.311 ms     3.246 ms     3.323 ms
+// SeqR              7.617 ms     7.356 ms     7.579 ms
+// SeqW              2.318 ms     2.255 ms     2.338 ms  <<-----<<-------------------
+// 2.61649e+09
+// ******* testing mTranspose() over 100x10000 wide matrix(1000000 elements). **************
+// OBl              2.345 ms     2.233 ms     2.324 ms
+// LXS              6.423 ms     6.199 ms     6.406 ms
+// SeqR              2.353 ms     2.157 ms     2.346 ms  <<----<<-------------------
+// SeqW              6.615 ms     6.382 ms     6.653 ms
+// - 6.78666e+08
+
+//basically same as previous, despite some minor differences
+
+
+//////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////
+// UNCLOGGED
+// ******* testing mTranspose() over 128x16 TALL matrix(2048 elements). **************
+// OBl              1.931 us     1.655 us     1.898 us
+// LXS              1.655 us     1.655 us     1.820 us  <<-------------------
+// SeqR              1.931 us     1.655 us     1.947 us  <<-------------------
+// SeqW              2.483 us     2.206 us     2.675 us
+// - 4898.8
+// ******* testing mTranspose() over 16x128 wide matrix(2048 elements). **************
+// OBl              2.207 us     2.206 us     2.344 us
+// LXS              1.103 us   827.000 ns     1.018 us  <<----<<-------------------
+// SeqR              2.483 us     2.206 us     2.422 us
+// SeqW              1.931 us     1.655 us     1.901 us  <<-------------------
+// - 4898.8
+// ******* testing mTranspose() over 128x32 TALL matrix(4096 elements). **************
+// OBl              3.586 us     3.585 us     3.663 us
+// LXS              2.482 us     2.206 us     2.493 us  <<----<<-------------------
+// SeqR              3.586 us     3.585 us     3.664 us  <<-------------------
+// SeqW              4.138 us     3.861 us     4.387 us
+// - 2365.29
+// ******* testing mTranspose() over 32x128 wide matrix(4096 elements). **************
+// OBl              3.861 us     3.861 us     3.970 us
+// LXS              1.655 us     1.655 us     1.884 us  <<----<<-------------------
+// SeqR              4.137 us     4.137 us     4.275 us
+// SeqW              3.586 us     3.585 us     3.687 us  <<-------------------
+// 7031.39
+// ******* testing mTranspose() over 128x64 TALL matrix(8192 elements). **************
+// OBl             17.102 us     9.378 us    10.002 us
+// LXS             11.309 us     8.551 us     9.072 us  <<----<<-------------------
+// SeqR             11.310 us     9.654 us    10.266 us  <<-------------------
+// SeqW             12.689 us    11.309 us    11.751 us
+// 13957.9
+// ******* testing mTranspose() over 64x128 wide matrix(8192 elements). **************
+// OBl             10.206 us     9.654 us    10.044 us
+// LXS              8.276 us     7.999 us     8.499 us  <<----<<-------------------
+// SeqR             10.481 us     9.930 us    10.554 us  <<------<<-------------------
+// SeqW             11.861 us    11.309 us    11.646 us
+// 13958.1
+// ******* testing mTranspose() over 128x128 wide matrix(16384 elements). **************
+// OBl             21.792 us    21.239 us    22.454 us
+// LXS             19.033 us    18.205 us    18.728 us  <<----<<-------------------
+// SeqR             22.067 us    21.515 us    22.565 us  <<----<<-------------------
+// SeqW             23.171 us    22.618 us    23.264 us
+// 5262.69
+// ******* testing mTranspose() over 128x128 wide matrix(16384 elements). **************
+// OBl             22.343 us    21.240 us    22.427 us
+// LXS             18.757 us    18.205 us    18.835 us  <<----<<-------------------
+// SeqR             22.342 us    21.515 us    22.647 us  <<----<<-------------------
+// SeqW             23.171 us    22.618 us    23.340 us
+// 5262.69
+// ******* testing mTranspose() over 256x16 TALL matrix(4096 elements). **************
+// OBl              3.586 us     3.310 us     3.579 us
+// LXS              3.310 us     3.310 us     3.457 us  <<----<<-------------------
+// SeqR              3.586 us     3.310 us     3.716 us  <<-------------------
+// SeqW              4.690 us     4.413 us     5.013 us
+// 7031.24
+// ******* testing mTranspose() over 16x256 wide matrix(4096 elements). **************
+// OBl              4.690 us     4.413 us     4.466 us
+// LXS              1.655 us     1.379 us     1.670 us  <<----<<-------------------
+// SeqR              5.241 us     4.413 us     4.988 us
+// SeqW              3.586 us     3.310 us     3.590 us  <<-------------------
+// 7031.33
+// ******* testing mTranspose() over 256x32 TALL matrix(8192 elements). **************
+// OBl              9.930 us     9.102 us     9.803 us
+// LXS             10.482 us     9.378 us     9.749 us  <<-------------------
+// SeqR             16.551 us     9.378 us     9.920 us  <<-------------------
+// SeqW             12.964 us    12.412 us    12.786 us
+// 13958.4
+// ******* testing mTranspose() over 32x256 wide matrix(8192 elements). **************
+// OBl             11.585 us     9.930 us    10.513 us
+// LXS              9.103 us     7.723 us     8.283 us  <<----<<-------------------
+// SeqR             20.136 us    10.481 us    11.008 us  <<-------------------
+// SeqW             13.240 us     9.654 us    11.551 us  <<-------------------
+// 13958.1
+// ******* testing mTranspose() over 256x64 TALL matrix(16384 elements). **************
+// OBl             22.895 us    21.515 us    22.100 us
+// LXS             22.894 us    20.963 us    21.956 us  <<----<<-------------------
+// SeqR             33.653 us    21.240 us    22.428 us  <<-------------------
+// SeqW             30.894 us    24.273 us    24.919 us
+// 5263.03
+// ******* testing mTranspose() over 64x256 wide matrix(16384 elements). **************
+// OBl             37.514 us    22.618 us    24.001 us
+// LXS             19.033 us    17.929 us    18.487 us  <<----<<-------------------
+// SeqR             25.377 us    23.446 us    24.892 us
+// SeqW             23.722 us    23.170 us    23.866 us  <<-------------------
+// 5263.29
+// ******* testing mTranspose() over 256x128 TALL matrix(32768 elements). **************
+// OBl            129.368 us   105.647 us   108.835 us
+// LXS             92.958 us    91.302 us    92.032 us  <<-------------------
+// SeqR            113.922 us   113.645 us   115.370 us
+// SeqW             91.303 us    90.474 us    91.225 us  <<----<<-------------------
+// 2992.29
+// ******* testing mTranspose() over 128x256 wide matrix(32768 elements). **************
+// OBl            113.921 us    97.095 us   115.021 us
+// LXS             90.475 us    81.648 us    91.227 us  <<-------------------
+// SeqR            116.955 us   110.611 us   117.628 us
+// SeqW             90.200 us    89.647 us    90.665 us  <<-------------------
+// 2992.09
+// ******* testing mTranspose() over 512x16 TALL matrix(8192 elements). **************
+// OBl             10.482 us     9.102 us     9.623 us
+// LXS             23.170 us    20.412 us    20.735 us
+// SeqR             15.999 us     9.102 us     9.569 us  <<-------------------
+// SeqW             12.965 us    11.861 us    13.020 us
+// 13647.6
+// ******* testing mTranspose() over 16x512 wide matrix(8192 elements). **************
+// OBl             11.310 us    10.481 us    10.893 us
+// LXS              8.551 us     7.447 us     7.973 us  <<----<<-------------------
+// SeqR             17.377 us    11.033 us    11.753 us
+// SeqW             12.688 us    11.309 us    11.655 us  <<-------------------
+// 727.307
+// ******* testing mTranspose() over 512x32 TALL matrix(16384 elements). **************
+// OBl             36.135 us    22.618 us    23.943 us
+// LXS             52.409 us    44.134 us    45.121 us
+// SeqR             24.550 us    22.067 us    23.438 us  <<-------------------
+// SeqW             27.860 us    26.204 us    28.154 us
+// - 6760.59
+// ******* testing mTranspose() over 32x512 wide matrix(16384 elements). **************
+// OBl             27.033 us    25.377 us    26.276 us
+// LXS             20.136 us    18.757 us    19.438 us  <<----<<-------------------
+// SeqR             45.789 us    27.308 us    29.539 us
+// SeqW             25.102 us    24.273 us    24.797 us  <<-------------------
+// - 6760.48
+// ******* testing mTranspose() over 512x64 TALL matrix(32768 elements). **************
+// OBl            127.161 us    86.337 us   107.651 us
+// LXS            118.887 us   118.058 us   119.279 us
+// SeqR            115.852 us   114.748 us   117.141 us
+// SeqW             95.164 us    91.854 us    93.547 us  <<----<<-------------------
+// - 31677.4
+// ******* testing mTranspose() over 64x512 wide matrix(32768 elements). **************
+// OBl            120.266 us   117.783 us   120.668 us
+// LXS             90.751 us    90.475 us    91.347 us  <<----<<-------------------
+// SeqR            119.162 us   118.334 us   120.366 us
+// SeqW             90.751 us    89.923 us    91.145 us  <<-------------------
+// - 31676.9
+// ******* testing mTranspose() over 512x128 TALL matrix(65536 elements). **************
+// OBl            187.570 us   183.156 us   187.645 us
+// LXS            243.289 us   198.879 us   245.413 us
+// SeqR            184.260 us   181.502 us   185.455 us  <<-------------------
+// SeqW            209.086 us   186.466 us   188.518 us  <<-------------------
+// - 9670.4
+// ******* testing mTranspose() over 128x512 wide matrix(65536 elements). **************
+// OBl            305.629 us   300.388 us   305.914 us
+// LXS            180.122 us   172.399 us   180.549 us  <<-------------------
+// SeqR            315.559 us   239.979 us   246.448 us
+// SeqW            180.674 us   173.503 us   181.061 us  <<-------------------
+// - 9671.63
+// ******* testing mTranspose() over 1024x16 TALL matrix(16384 elements). **************
+// OBl             36.135 us    24.825 us    26.286 us
+// LXS             41.376 us    40.272 us    40.987 us
+// SeqR             27.032 us    24.550 us    26.087 us
+// SeqW             37.514 us    24.826 us    37.080 us
+// - 14211.8
+// ******* testing mTranspose() over 16x1024 wide matrix(16384 elements). **************
+// OBl             44.410 us    31.446 us    32.687 us
+// LXS             29.515 us    19.308 us    20.149 us  <<----<<-------------------
+// SeqR             36.686 us    32.825 us    34.464 us
+// SeqW             25.929 us    25.653 us    26.109 us  <<-------------------
+// - 14211.5
+// ******* testing mTranspose() over 1024x32 TALL matrix(32768 elements). **************
+// OBl            125.507 us   103.991 us   107.386 us
+// LXS             86.337 us    84.406 us    86.705 us
+// SeqR            117.507 us   116.955 us   117.901 us
+// SeqW             99.026 us    95.440 us    96.429 us
+// - 44571.7
+// ******* testing mTranspose() over 32x1024 wide matrix(32768 elements). **************
+// OBl            204.396 us   198.879 us   208.107 us
+// LXS             91.302 us    86.337 us    91.380 us  <<-------------------
+// SeqR            149.780 us   147.849 us   152.547 us
+// SeqW             91.027 us    83.303 us    91.273 us  <<-------------------
+// - 44571.7
+// ******* testing mTranspose() over 1024x64 TALL matrix(65536 elements). **************
+// OBl            180.123 us   179.571 us   182.780 us
+// LXS            235.566 us   235.290 us   239.417 us
+// SeqR            191.156 us   188.673 us   191.491 us  <<-------------------
+// SeqW            220.671 us   210.741 us   212.367 us
+// - 39461.6
+// ******* testing mTranspose() over 64x1024 wide matrix(65536 elements). **************
+// OBl            738.971 us   667.804 us   675.039 us
+// LXS            182.053 us   168.537 us   182.579 us  <<-------------------
+// SeqR            659.253 us   639.393 us   658.824 us
+// SeqW            184.812 us   180.674 us   182.404 us  <<-------------------
+// - 33612
+// * ****** testing mTranspose() over 1000x100 TALL matrix(100000 elements). **************
+// OBl            145.643 us   145.643 us   149.821 us
+// LXS            327.144 us   257.909 us   263.119 us
+// SeqR            151.987 us   147.573 us   152.503 us  <<-------------------
+// SeqW            203.569 us   194.190 us   197.166 us
+// - 74410.7
+// ******* testing mTranspose() over 100x1000 wide matrix(100000 elements). **************
+// OBl            172.123 us   172.123 us   177.902 us
+// LXS            143.436 us   117.507 us   145.160 us  <<----<<-------------------
+// SeqR            177.364 us   171.020 us   177.277 us
+// SeqW            214.603 us   153.918 us   184.439 us  <<-------------------
+// - 21410.8
+// ******* testing mTranspose() over 10000x10 TALL matrix(100000 elements). **************
+// OBl            265.909 us   262.598 us   266.564 us
+// LXS            302.043 us   255.426 us   263.430 us
+// SeqR            256.530 us   253.219 us   257.813 us
+// SeqW            114.197 us   110.335 us   123.154 us  <<---<<---<<----<<-------------------
+// - 45929.6
+// ******* testing mTranspose() over 10x10000 wide matrix(100000 elements). **************
+// OBl            119.162 us   119.162 us   129.162 us
+// LXS            219.568 us   216.533 us   220.743 us
+// SeqR            133.781 us   125.783 us   134.162 us  <<---<<---<<----<<-------------------
+// SeqW            232.255 us   186.191 us   224.827 us
+// - 15429.9
+// ******* testing mTranspose() over 10000x100 TALL matrix(1000000 elements). **************
+// OBl              7.307 ms     7.079 ms     7.336 ms
+// LXS              3.152 ms     2.915 ms     3.022 ms
+// SeqR              7.327 ms     7.129 ms     7.361 ms
+// SeqW              2.333 ms     2.168 ms     2.285 ms  <<---<<---<<----<<-------------------
+// 31086.2
+// ******* testing mTranspose() over 100x10000 wide matrix(1000000 elements). **************
+// OBl              2.227 ms     2.061 ms     2.170 ms
+// LXS              6.895 ms     6.124 ms     6.447 ms
+// SeqR              2.191 ms     2.114 ms     2.209 ms  <<---<<---<<----<<-------------------
+// SeqW              6.764 ms     6.278 ms     6.663 ms
+// - 32313.6
+//now libxsmm improves significantly with very wide/narrow matrices, but general pattern remains the same.
+//on average I see no point in libxsmm
+
+
+//////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////
 

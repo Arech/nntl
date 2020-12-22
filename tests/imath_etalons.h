@@ -957,6 +957,7 @@ namespace math_etalons {
 		return a;
 	}
 
+
 	template<typename T>
 	void evOneCompl_ET(const ::nntl::math::smatrix<T>& gate, ::nntl::math::smatrix<T>& gcompl)noexcept {
 		static_assert(::std::is_floating_point<T>::value, "");
@@ -1014,8 +1015,7 @@ namespace math_etalons {
 			const auto pS = src.colDataAsVec(static_cast<vec_len_t>(ci));
 			NNTL_ASSERT(pD == dest.colDataAsVec(static_cast<vec_len_t>(ci)));
 			for (size_t i = 0; i < r; ++i) {
-				const auto m = pMask[i];
-				NNTL_ASSERT(m == T(0) || m == T(1.));
+				NNTL_ASSERT(pMask[i] == T(0) || pMask[i] == T(1.));
 				if (pMask[i] != T(0.)) {
 					*pD++ = pS[i];
 				}
@@ -1046,5 +1046,15 @@ namespace math_etalons {
 		}
 	}
 
+	template<typename T>
+	void mTranspose_ignore_bias_ET(const ::nntl::math::smatrix<T>& src, ::nntl::math::smatrix<T>& dest) noexcept {
+		NNTL_ASSERT(src.rows() == dest.cols_no_bias() && src.cols_no_bias() == dest.rows());
+		const auto sRows = src.rows(), sCols = src.cols_no_bias();
+		for (vec_len_t r = 0; r < sRows; ++r) {
+			for (vec_len_t c = 0; c < sCols; ++c) {
+				dest.set(c, r, src.get(r, c));
+			}
+		}
+	}
 }
 }

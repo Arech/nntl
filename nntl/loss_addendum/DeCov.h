@@ -62,8 +62,8 @@ namespace nntl {
 				//we'll need additional biggestMtx.numel_no_bias() elements to store temporary dLoss mtx
 				const auto bWillDoTraining = CD.is_training_possible();
 				auto& iM = CD.iMath();
-				iM.preinit(iM.loss_DeCov_tempMemReqs(bWillDoTraining, biggestMtx)
-					+ (bWillDoTraining && !calcOnFprop)* realmtx_t::sNumel(biggestMtx));
+				iM.preinit(iM.loss_DeCov_needTempMem(bWillDoTraining, biggestMtx)
+					+ (bWillDoTraining && !calcOnFprop)* smatrix_td::sNumel(biggestMtx));
 				return true;
 			}
 

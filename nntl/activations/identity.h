@@ -39,13 +39,19 @@ namespace activation {
 
 	//activation types should not be templated (probably besides real_t), because they are intended to be used
 	//as means to recognize activation function type
-	struct type_linear {};
+	struct type_identity {};
+	// note that identity activation implies that dA/dZ (implemented in void df(..)) == 1 and due to that fact
+	// some optimization become possible.
+	// Therefore derive classes from the type_identity keeping it mind.
+	
+	template<typename ActT>
+	using is_activation_identity = is_type_of<ActT, type_identity>;
 
 	template<typename RealT = d_interfaces::real_t
 		, typename WeightsInitScheme = weights_init::SNNInit>
-		class linear
+		class identity
 		: public _i_activation<RealT, WeightsInitScheme, true>
-		, public type_linear
+		, public type_identity
 	{
 	public:
 		//apply f to each srcdest matrix element to compute activation values. The biases (if any) must be left untouched!
@@ -62,7 +68,7 @@ namespace activation {
 	};
 
 	template<typename RealT, typename WeightsInitScheme = weights_init::SNNInit, bool bNumericStable = false>
-	class linear_quad_loss : public linear<RealT, WeightsInitScheme>, public _i_quadratic_loss<RealT> {
+	class identity_quad_loss : public identity<RealT, WeightsInitScheme>, public _i_quadratic_loss<RealT> {
 	public:
 		template <typename iMath>
 		static void dLdZ(const realmtx_t& data_y, realmtx_t& act_dLdZ, iMath& m)noexcept {
@@ -88,9 +94,9 @@ namespace activation {
 	// Here's how it works for false positives (Linear_Loss_quadWeighted_FP):
 	//		(1) if data_y<bnd && activation>bnd, then apply more heavyweight loss function, like 2*(a-y)^2
 	//		(2) else apply less heavyweight function like (a-y)^2
-	// 
+	// See the _loss_parts.h file for examples
 	template<typename LossT /*= Linear_Loss_quadWeighted_FP<RealT>*/, typename WeightsInitScheme = weights_init::SNNInit>
-	class linear_output : public linear<typename LossT::real_t, WeightsInitScheme>, public _i_activation_loss<typename LossT::real_t> {
+	class identity_custom_loss : public identity<typename LossT::real_t, WeightsInitScheme>, public _i_activation_loss<typename LossT::real_t> {
 	public:
 		typedef LossT Loss_t;
 

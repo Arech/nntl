@@ -76,12 +76,12 @@ namespace math {
 
 		//////////////////////////////////////////////////////////////////////////
 
-		static constexpr numel_cnt_t sNumel(const vec_len_t r, const vec_len_t c)noexcept {
+		inline static constexpr numel_cnt_t sNumel(const vec_len_t r, const vec_len_t c)noexcept {
 			return static_cast<numel_cnt_t>(r)*static_cast<numel_cnt_t>(c); 
 			//return __emulu(r, c);
 			//return __emul(r, c);
 		}
-		static constexpr numel_cnt_t sNumel(const mtx_size_t s)noexcept { return sNumel(s.first, s.second); }
+		inline static constexpr numel_cnt_t sNumel(const mtx_size_t s)noexcept { return sNumel(s.first, s.second); }
 
 		//////////////////////////////////////////////////////////////////////////
 		//debug/NNTL_ASSERT use is preferred
@@ -203,7 +203,8 @@ namespace math {
 				if (m_rows > 0 && m_cols > 0) {
 					//m_pData = new(::std::nothrow) value_type[numel()];
 					//#todo for C++17 must change to ::std::launder(reinterpret_cast< ... 
-					m_pData = reinterpret_cast<value_type*>(_aligned_malloc(byte_size(), NNTL_CFG_DEFAULT_PTR_ALIGN));
+					//#TODO: NNTL_CFG_DEFAULT_FP_PTR_ALIGN is too strict for non-floating point data
+					m_pData = reinterpret_cast<value_type*>(_aligned_malloc(byte_size(), utils::mem_align_for<value_type>()));
 					NNTL_ASSERT(m_pData);
 				} else {
 					m_rows = 0;
@@ -384,7 +385,7 @@ namespace math {
 			return nullptr == m_pData && m_rows>0 && m_cols>0;
 		}
 
-		bool bDontManageStorage()const noexcept { return m_bDontManageStorage; }
+		inline bool bDontManageStorage()const noexcept { return m_bDontManageStorage; }
 
 		//////////////////////////////////////////////////////////////////////////
 		void fill_column_with(const vec_len_t c, const value_type v)noexcept {
@@ -396,6 +397,7 @@ namespace math {
 		}
 
 	protected:
+		//::std::fill(m_pData, m_pData + numel(), value_type(1.0)); //doesn't get vectorized!
 		void _fill_elements(const value_ptr_t pBegin, const numel_cnt_t n, const value_type v)noexcept {
 			for (numel_cnt_t i = 0; i < n; ++i) pBegin[i] = v;
 		}
@@ -407,7 +409,7 @@ namespace math {
 			fill_column_with(m_cols - 1, value_type(1.0));
 			m_bHoleyBiases = false;
 		}
-		bool emulatesBiases()const noexcept { return m_bEmulateBiases; }
+		inline bool emulatesBiases()const noexcept { return m_bEmulateBiases; }
 		void will_emulate_biases()noexcept {
 			NNTL_ASSERT(empty() && m_rows == 0 && m_cols == 0);
 			m_bEmulateBiases = true;
@@ -472,14 +474,15 @@ namespace math {
 			}
 			return !!cond;
 		}
-		//debug/NNTL_ASSERT only
+		//debug/NNTL_ASSERT use only
 		bool test_biases_holey()const noexcept {
 			NNTL_ASSERT(emulatesBiases() && m_bHoleyBiases);
 			return _isBinaryVec(bias_column(), rows());
 		}
 
-		//debug/NNTL_ASSERT only
-		bool test_noNaNs()const noexcept {
+		//debug/NNTL_ASSERT use only
+		template<bool b = ::std::is_floating_point<value_type>::value>
+		::std::enable_if_t<b,bool> test_noNaNs()const noexcept {
 			const auto ne = numel();
 			auto pS = m_pData;
 			const auto pE = m_pData + ne;
@@ -492,6 +495,8 @@ namespace math {
 			}
 			return !cond;
 		}
+		template<bool b = ::std::is_floating_point<value_type>::value>
+		constexpr ::std::enable_if_t<!b, bool> test_noNaNs()const noexcept { return true; }
 
 		//////////////////////////////////////////////////////////////////////////
 		//debug/NNTL_ASSERT use is preferred
@@ -537,17 +542,21 @@ namespace math {
 		}
 
 		//////////////////////////////////////////////////////////////////////////
-		vec_len_t rows() const noexcept { return m_rows; }
-		vec_len_t cols() const noexcept { return m_cols; }
+		inline vec_len_t rows() const noexcept { return m_rows; }
+		inline vec_len_t cols() const noexcept { return m_cols; }
+
+		//leading matrix dimension
+		//it's true for an old code (to be updated), but in new code NEVER assume ldim==rows, always use ldim()
+		inline vec_len_t ldim() const noexcept { return m_rows; }
 
 		// ***if biases are emulated, then actual columns number is one greater, than data cols number
-		vec_len_t cols_no_bias() const noexcept { 
+		inline vec_len_t cols_no_bias() const noexcept {
 			if (m_bEmulateBiases) {
 				NNTL_ASSERT(m_cols > 0);
 				return m_cols - 1;
 			}else return m_cols;
 		}
-		vec_len_t cols(const bool bNoBias) const noexcept {
+		inline vec_len_t cols(const bool bNoBias) const noexcept {
 			if (bNoBias && m_bEmulateBiases) {
 				NNTL_ASSERT(m_cols > 0);
 				return m_cols - 1;
@@ -555,24 +564,32 @@ namespace math {
 		}
 
 		mtx_size_t size()const noexcept { return mtx_size_t(m_rows, m_cols); }
+		mtx_size_t transposed_size()const noexcept { return mtx_size_t(m_cols, m_rows); }
+
 		mtx_size_t size_no_bias()const noexcept { 
 			if (m_bEmulateBiases) {
 				NNTL_ASSERT(m_cols > 0);
 				return mtx_size_t(m_rows, m_cols-1);
 			}else return size();
 		}
+		mtx_size_t transposed_size_no_bias()const noexcept {
+			if (m_bEmulateBiases) {
+				NNTL_ASSERT(m_cols > 0);
+				return mtx_size_t(m_cols - 1, m_rows);
+			} else return size();
+		}
 
-		numel_cnt_t numel()const noexcept { 
+		inline numel_cnt_t numel()const noexcept {
 			//NNTL_ASSERT(m_rows && m_cols);
 			return sNumel(m_rows,m_cols); 
 		}
-		numel_cnt_t numel_no_bias()const noexcept { 
+		inline numel_cnt_t numel_no_bias()const noexcept {
 			if (m_bEmulateBiases) {
 				NNTL_ASSERT(m_cols > 0);
 				return sNumel(m_rows,m_cols-1);
 			} else return numel();
 		}
-		numel_cnt_t numel(const bool bNoBias)const noexcept {
+		inline numel_cnt_t numel(const bool bNoBias)const noexcept {
 			if (bNoBias && m_bEmulateBiases) {
 				NNTL_ASSERT(m_cols > 0);
 				return sNumel(m_rows, m_cols - 1);
@@ -627,21 +644,21 @@ namespace math {
 
 		//////////////////////////////////////////////////////////////////////////
 
-		numel_cnt_t byte_size()const noexcept {
+		inline numel_cnt_t byte_size()const noexcept {
 			return numel()*sizeof(value_type);
 		}
-		numel_cnt_t byte_size_no_bias()const noexcept {
+		inline numel_cnt_t byte_size_no_bias()const noexcept {
 			return numel_no_bias()*sizeof(value_type);
 		}
 
-		bool empty()const noexcept { return nullptr == m_pData; }
+		inline bool empty()const noexcept { return nullptr == m_pData; }
 
 		//to conform ::std::vector API
-		value_ptr_t data()noexcept {
+		inline value_ptr_t data()noexcept {
 			NNTL_ASSERT(!empty() && m_cols > 0 && m_rows > 0);
 			return m_pData;
 		}
-		cvalue_ptr_t data()const noexcept {
+		inline cvalue_ptr_t data()const noexcept {
 			NNTL_ASSERT(!empty() && m_cols > 0 && m_rows > 0);
 			return m_pData;
 		}		
@@ -656,54 +673,54 @@ namespace math {
 		}*/
 
 		//not a real iterators, just pointers
-		value_ptr_t begin()noexcept { return data(); }
-		cvalue_ptr_t begin()const noexcept { return data(); }
+		inline value_ptr_t begin()noexcept { return data(); }
+		inline cvalue_ptr_t begin()const noexcept { return data(); }
 
-		value_ptr_t end()noexcept { return data()+numel(); }
-		cvalue_ptr_t end()const noexcept { return data()+numel(); }
-		value_ptr_t end(const bool bNoBias)noexcept { return data() + numel(bNoBias); }
-		cvalue_ptr_t end(const bool bNoBias)const noexcept { return data() + numel(bNoBias); }
+		inline value_ptr_t end()noexcept { return data()+numel(); }
+		inline cvalue_ptr_t end()const noexcept { return data()+numel(); }
+		inline value_ptr_t end(const bool bNoBias)noexcept { return data() + numel(bNoBias); }
+		inline cvalue_ptr_t end(const bool bNoBias)const noexcept { return data() + numel(bNoBias); }
 
-		value_ptr_t end_no_bias()noexcept { return data() + numel_no_bias(); }
-		cvalue_ptr_t end_no_bias()const noexcept { return data() + numel_no_bias(); }
+		inline value_ptr_t end_no_bias()noexcept { return data() + numel_no_bias(); }
+		inline cvalue_ptr_t end_no_bias()const noexcept { return data() + numel_no_bias(); }
 
-		value_ptr_t colDataAsVec(vec_len_t c)noexcept {
+		inline value_ptr_t colDataAsVec(vec_len_t c)noexcept {
 			NNTL_ASSERT(!empty() && m_cols>0 && m_rows>0 && c <= m_cols);//non strict inequality c <= m_cols to allow reference 'after the last' column
 			return m_pData + sNumel(m_rows, c);
 		}
-		cvalue_ptr_t colDataAsVec(vec_len_t c)const noexcept {
+		inline cvalue_ptr_t colDataAsVec(vec_len_t c)const noexcept {
 			NNTL_ASSERT(!empty() && m_cols > 0 && m_rows > 0 && c <= m_cols);//non strict inequality c <= m_cols to allow reference 'after the last' column
 			return m_pData + sNumel(m_rows, c);
 		}
 
-		value_ptr_t bias_column()noexcept {
+		inline value_ptr_t bias_column()noexcept {
 			NNTL_ASSERT(emulatesBiases());
 			return colDataAsVec(m_cols - 1);
 		}
-		cvalue_ptr_t bias_column()const noexcept {
+		inline cvalue_ptr_t bias_column()const noexcept {
 			NNTL_ASSERT(emulatesBiases());
 			return colDataAsVec(m_cols - 1);
 		}
 
 		//////////////////////////////////////////////////////////////////////////
 		// get/set are for non performance critical code!
-		void set(const vec_len_t r, const vec_len_t c, const value_type& v)noexcept {
+		inline void set(const vec_len_t r, const vec_len_t c, const value_type& v)noexcept {
 			NNTL_ASSERT(!empty());
 			NNTL_ASSERT(r < m_rows && c < m_cols);
-			m_pData[ r + sNumel(m_rows, c)] = v;
+			m_pData[ r + sNumel(ldim(), c)] = v;
 		}
-		const value_type& get(const vec_len_t r, const vec_len_t c)const noexcept {
+		inline const value_type& get(const vec_len_t r, const vec_len_t c)const noexcept {
 			NNTL_ASSERT(!empty());
 			NNTL_ASSERT(r < m_rows && c < m_cols);
-			return m_pData[r + sNumel(m_rows, c)];
+			return m_pData[r + sNumel(ldim(), c)];
 		}
-		value_type& get(const vec_len_t r, const vec_len_t c) noexcept {
+		inline value_type& get(const vec_len_t r, const vec_len_t c) noexcept {
 			NNTL_ASSERT(!empty());
 			NNTL_ASSERT(r < m_rows && c < m_cols);
-			return m_pData[r + sNumel(m_rows, c)];
+			return m_pData[r + sNumel(ldim(), c)];
 		}
-		const value_type& get(const mtx_coords_t crd)const noexcept { return get(crd.first, crd.second); }
-		value_type& get(const mtx_coords_t crd) noexcept { return get(crd.first, crd.second); }
+		inline const value_type& get(const mtx_coords_t crd)const noexcept { return get(crd.first, crd.second); }
+		inline value_type& get(const mtx_coords_t crd) noexcept { return get(crd.first, crd.second); }
 
 		void clear()noexcept {
 			_free();
@@ -742,20 +759,21 @@ namespace math {
 			return bRet;
 		}
 
+		void fill(const value_type v)noexcept {
+			NNTL_ASSERT(!empty());
+			//::std::fill(m_pData, m_pData + numel(), value_type(1.0)); //doesn't get vectorized!
+			_fill_elements(m_pData, numel(), v);
+		}
 		void zeros()noexcept {
 			NNTL_ASSERT(!empty());
 			::std::memset(m_pData, 0, byte_size_no_bias());
 		}
 		void ones()noexcept {
-			NNTL_ASSERT(!empty());
-			//::std::fill(m_pData, m_pData + numel(), value_type(1.0)); //doesn't get vectorized!
-			_fill_elements(m_pData, numel(), value_type(1));
+			fill(value_type(1));
 			m_bHoleyBiases = false;
 		}
 		void nans()noexcept {
-			NNTL_ASSERT(!empty());
-			//::std::fill(m_pData, m_pData + numel(), value_type(1.0)); //doesn't get vectorized!
-			_fill_elements(m_pData, numel(), ::std::numeric_limits<value_type>::quiet_NaN());
+			fill(::std::numeric_limits<value_type>::quiet_NaN());
 			m_bHoleyBiases = false;
 		}
 		void nans_no_bias()noexcept {
@@ -852,15 +870,30 @@ namespace math {
 			} else return true;
 		}
 
-		void assert_storage_does_not_intersect(const smatrix& m)const noexcept {
+		template<typename VT2, bool b = ::std::is_same<value_type, VT2>::value>
+		::std::enable_if_t<b> assert_storage_does_not_intersect(const smatrix<VT2>& m)const noexcept {
 			NNTL_UNREF(m);
 			NNTL_ASSERT(this != &m);
 			NNTL_ASSERT(!empty() && !m.empty());
 			//nonstrict nonequality it necessary here, because &[numel()] references element past the end of the allocated array
 			NNTL_ASSERT( &m.m_pData[m.numel()] <= m_pData || &m_pData[numel()] <= m.m_pData);
 		}
-
+		template<typename VT2, bool b = ::std::is_same<value_type, VT2>::value>
+		constexpr ::std::enable_if_t<!b> assert_storage_does_not_intersect(const smatrix<VT2>& m)const noexcept {}
 	};
+
+	//////////////////////////////////////////////////////////////////////////
+	
+	namespace _impl {
+		template<class T>
+		using is_smatrix_derived = ::std::is_base_of<smatrix<typename T::value_type>, T>;
+	}
+
+	template<typename T>
+	using is_smatrix = ::std::conditional_t<utils::has_value_type<T>::value, _impl::is_smatrix_derived<T>, ::std::false_type>;
+
+	//////////////////////////////////////////////////////////////////////////
+
 
 	//////////////////////////////////////////////////////////////////////////
 	//this class will allow to reuse the same storage for matrix of smaller size
@@ -870,12 +903,17 @@ namespace math {
 	private:
 		typedef smatrix<T_> _base_class;
 
-	protected:
 #ifdef NNTL_DEBUG
+	protected:
 		numel_cnt_t m_maxSize = 0;
-#endif // NNTL_DEBUG
 
 	public:
+		bool _isOkToDeform(vec_len_t r, vec_len_t c_noBias, bool bEmulBias)const noexcept {
+			return m_maxSize >= sNumel(r, c_noBias + vec_len_t(bEmulBias));
+		}
+#endif // NNTL_DEBUG
+	public:
+
 		~smatrix_deform()noexcept {}
 		smatrix_deform()noexcept : _base_class() {}
 		smatrix_deform(const vec_len_t _rows, const vec_len_t _cols, const bool _bEmulBias = false)noexcept
@@ -939,6 +977,7 @@ namespace math {
 				_base_class::operator =(::std::move(rhs));
 #ifdef NNTL_DEBUG
 				m_maxSize = rhs.m_maxSize;
+				rhs.m_maxSize = 0;
 #endif // NNTL_DEBUG
 			}
 			return *this;
@@ -995,12 +1034,13 @@ namespace math {
 		}
 
 		//note that ne MUST include bias column if *pbEmulateBiases was set to true! (same convention as useExternalStorage())
+		//NOTE you MUST call deform(r,c) before using resized with routine matrix!
 		bool resize(const numel_cnt_t ne, const bool*const pbEmulateBiases = nullptr, const bool*const pbHBiases = nullptr)noexcept {
 			NNTL_ASSERT(ne > 0);
 			_free();
 			//auto ptr = new(::std::nothrow) value_type[ne];
 			//#todo for C++17 must change to ::std::launder(reinterpret_cast< ... 
-			value_type* ptr = reinterpret_cast<value_type*>(_aligned_malloc(sizeof(value_type)*ne, NNTL_CFG_DEFAULT_PTR_ALIGN));
+			value_type* ptr = reinterpret_cast<value_type*>(_aligned_malloc(sizeof(value_type)*ne, utils::mem_align_for<value_type>()));
 			if (nullptr == ptr) {
 				NNTL_ASSERT(!"Memory allocation failed!");
 				return false;
@@ -1120,7 +1160,7 @@ namespace math {
 			m_rows = r;
 			m_cols = c;
 		}
-
+		
 		template<typename _T>
 		void deform_like(const smatrix<_T>& m)noexcept { deform(m.rows(), m.cols()); }
 		template<typename _T>
@@ -1130,32 +1170,60 @@ namespace math {
 	//////////////////////////////////////////////////////////////////////////
 	// helper class to define matrix elements range
 	//////////////////////////////////////////////////////////////////////////
-	//template<typename T_>
-	class s_elems_range : public smatrix_td {
+	template<typename T>
+	class st_range : public smatrix_td {
 	public:
 		typedef threads::parallel_range<numel_cnt_t> par_range_t;
+		typedef T value_type;
 
 	public:
-		const numel_cnt_t elmEnd;
-		const numel_cnt_t elmBegin;
-		//const bool bInsideMT;
+		const value_type elmEnd;
+		const value_type elmBegin;
 
 	public:
-		~s_elems_range()noexcept {}
+		~st_range()noexcept {}
 
 		template<typename _T>
-		s_elems_range(const smatrix<_T>& A)noexcept : elmEnd(A.numel()), elmBegin(0){}
+		st_range(const smatrix<_T>& A)noexcept 
+			: elmEnd( static_cast<value_type>(A.numel()) ), elmBegin(0)
+		{
+			NNTL_ASSERT(A.numel() < ::std::numeric_limits<value_type>::max());
+		}
 
 		template<typename _T>
-		s_elems_range(const smatrix<_T>& A, const tag_noBias&)noexcept : elmEnd(A.numel_no_bias()), elmBegin(0) {}
+		st_range(const smatrix<_T>& A, const tag_noBias&)noexcept
+			: elmEnd( static_cast<value_type>(A.numel_no_bias())), elmBegin(0)
+		{
+			NNTL_ASSERT(A.numel_no_bias() < ::std::numeric_limits<value_type>::max());
+		}
 
-		s_elems_range(const par_range_t& pr)noexcept : elmEnd(pr.offset() + pr.cnt()), elmBegin(pr.offset()) {}
+		st_range(const par_range_t& pr)noexcept
+			: elmEnd(static_cast<value_type>(pr.offset() + pr.cnt())), elmBegin(static_cast<value_type>(pr.offset()))
+		{
+			NNTL_ASSERT(pr.offset() < ::std::numeric_limits<value_type>::max());
+			NNTL_ASSERT(pr.cnt() < ::std::numeric_limits<value_type>::max());
+			NNTL_ASSERT((pr.offset() + pr.cnt()) < ::std::numeric_limits<value_type>::max());
+		}
 
-		s_elems_range(const numel_cnt_t eb, const numel_cnt_t ee)noexcept : elmEnd(ee), elmBegin(eb) {
+		st_range(const value_type eb, const value_type ee)noexcept : elmEnd(ee), elmBegin(eb) {
 			NNTL_ASSERT(elmEnd >= elmBegin);
 		}
 
-		numel_cnt_t totalElements()const noexcept { return elmEnd - elmBegin; }
+		value_type totalElements()const noexcept { return elmEnd - elmBegin; }
+	};
+
+	class s_elems_range : public st_range<numel_cnt_t> {
+		typedef st_range<numel_cnt_t> base_class_t;
+	public:
+		template<typename ...ArgsT>
+		s_elems_range(ArgsT&&... a) : base_class_t(::std::forward<ArgsT>(a)...){}
+	};
+
+	class s_vec_range : public st_range<vec_len_t> {
+		typedef st_range<vec_len_t> base_class_t;
+	public:
+		template<typename ...ArgsT>
+		s_vec_range(ArgsT&&... a) : base_class_t(::std::forward<ArgsT>(a)...) {}
 	};
 
 	//////////////////////////////////////////////////////////////////////////

@@ -58,7 +58,7 @@ void seqFillMtx(::nntl::math::smatrix<real_t>& m) {
 }
 
 template<typename real_t>
-void readTd(::nntl::simple_train_data_stor<real_t>& td, const char* pFile = MNIST_FILE) {
+void readTd(::nntl::inmem_train_data_stor<real_t>& td, const char* pFile = MNIST_FILE) {
 	typedef nntl_supp::binfile reader_t;
 
 	SCOPED_TRACE("readTd");

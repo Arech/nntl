@@ -52,6 +52,7 @@ namespace nntl {
 				epochs_to_dump_t m_epochsToDump;
 
 				void on_init_nnet(const numel_cnt_t totalEpochs)noexcept {
+					NNTL_ASSERT(totalEpochs > 0);
 					const auto lastEpochIdx = totalEpochs - 1;
 					if (!m_epochsToDump.size()) m_epochsToDump.push_back(lastEpochIdx);
 
@@ -63,16 +64,41 @@ namespace nntl {
 					}
 				}
 
-				const bool on_train_epochBegin(const numel_cnt_t epochIdx)const noexcept {
+				bool on_train_epochBegin(const numel_cnt_t epochIdx, const numel_cnt_t batchesInEpoch)const noexcept {
+					NNTL_UNREF(batchesInEpoch);
+					NNTL_ASSERT(epochIdx >= 0);
 					return m_dumpEpochCond(epochIdx);
 				}
-#pragma warning(disable : 4100)
-				static constexpr bool on_train_batchBegin(const bool _bDoDump, const numel_cnt_t batchIdx, const numel_cnt_t epochIdx) noexcept {
-					return _bDoDump && 0 == batchIdx;
+				bool on_train_batchBegin(const numel_cnt_t batchIdx, const numel_cnt_t epochIdx) const noexcept {
+					return 0 == batchIdx && m_dumpEpochCond(epochIdx);
 				}
-				static constexpr bool on_calcErr(const numel_cnt_t epochIdx, const data_set_id_t dataSetId) noexcept {return false;};
-#pragma warning(default : 4100)
+				static constexpr bool on_calcErr(const numel_cnt_t /*epochIdx*/, const data_set_id_t /*dataSetId*/) noexcept {return false;};
 			};
+
+			//dumps first batch of an epoch, but if the epoch to dump is a last epoch, dump the last batch
+			struct EpochNumWLastBatch : public EpochNum {
+			private:
+				typedef EpochNum _base_class_t;
+			public:
+				numel_cnt_t lastEpoch, lastBatch;
+
+				void on_init_nnet(const numel_cnt_t totalEpochs)noexcept {
+					NNTL_ASSERT(totalEpochs > 0);
+					lastEpoch = totalEpochs - 1;
+					lastBatch = -1;
+					_base_class_t::on_init_nnet(totalEpochs);
+				}
+
+				bool on_train_epochBegin(const numel_cnt_t epochIdx, const numel_cnt_t batchesInEpoch)noexcept {
+					NNTL_ASSERT(batchesInEpoch > 0);
+					lastBatch = batchesInEpoch - 1;
+					return _base_class_t::on_train_epochBegin(epochIdx, batchesInEpoch);
+				}
+				bool on_train_batchBegin(const numel_cnt_t batchIdx, const numel_cnt_t epochIdx) const noexcept {
+					return m_dumpEpochCond(epochIdx) && (epochIdx==lastEpoch ? batchIdx==lastBatch : 0 == batchIdx);
+				}
+			};
+
 
 			//This function will dump first batch of specified epochs AND the training error calculation
 			struct CalcErrByEpochNum : public EpochNum {
@@ -93,46 +119,35 @@ namespace nntl {
 
 			//This function will dump only the training error calculation for a specified epoch
 			struct CalcErrOnlyByEpochNum : public CalcErrByEpochNum {
-#pragma warning(disable : 4100)
-				static constexpr bool on_train_epochBegin(const numel_cnt_t epochIdx) noexcept { return false; }
-				static constexpr bool on_train_batchBegin(const bool _bDoDump, const numel_cnt_t batchIdx, const numel_cnt_t epochIdx) noexcept {
-					return false;
-				}
-#pragma warning(default : 4100)
+				static constexpr bool on_train_epochBegin(const numel_cnt_t /*epochIdx*/, const numel_cnt_t /*batchesInEpoch*/) noexcept {
+					return false; }
+				static constexpr bool on_train_batchBegin(const numel_cnt_t /*batchIdx*/, const numel_cnt_t /*epochIdx*/) noexcept {
+					return false; }
 			};
-
-			/*struct FullEpochNum : public EpochNum {
-				static constexpr bool bNewBatch2NewFile = false;
-				static constexpr bool on_train_batchBegin(const bool _bDoDump, const vec_len_t batchIdx, const size_t epochIdx) noexcept {
-					return _bDoDump;
-				}
-			};*/
-
+			
 			//useful to debug initial training steps
 			struct FirstBatches : public _i_condDump_base {
-				numel_cnt_t batchesRun, maxBatches, stride;				
+				numel_cnt_t maxBatches, stride;				
 
-				FirstBatches()noexcept:batchesRun(0), maxBatches(0), stride(0){}
+				FirstBatches()noexcept: maxBatches(0), stride(0){}
 
 				void on_init_nnet(const numel_cnt_t /*totalEpochs*/)noexcept {
-					batchesRun = 0;
 					if (!maxBatches) {
 						NNTL_ASSERT(!"FirstBatches::maxBatches must be set!");
 						//OK to die right now with noexcept
+					#pragma warning(push)
 					#pragma warning(disable:4297)//function assumed not to throw
 						throw ::std::logic_error("FirstBatches::maxBatches must be set!");
-					#pragma warning(default:4297)
+					#pragma warning(pop)
 					}
 					if (!stride) stride = 1;
 				}
 
-#pragma warning(disable : 4100)
-				static constexpr bool on_train_epochBegin(const numel_cnt_t epochIdx)noexcept { return true; }
-				const bool on_train_batchBegin(const bool _bDoDump, const numel_cnt_t batchIdx, const numel_cnt_t epochIdx) noexcept {
-					return batchesRun < maxBatches && !(batchesRun++ % stride);
+				static constexpr bool on_train_epochBegin(const numel_cnt_t /*epochIdx*/, const numel_cnt_t /*batchesInEpoch*/)noexcept { return true; }
+				bool on_train_batchBegin(const numel_cnt_t batchIdx, const numel_cnt_t /*epochIdx*/) const noexcept {
+					return batchIdx < maxBatches && !(batchIdx % stride);
 				}
-				static constexpr bool on_calcErr(const numel_cnt_t epochIdx, const data_set_id_t dataSetId) noexcept { return false; };
-#pragma warning(default : 4100)
+				static constexpr bool on_calcErr(const numel_cnt_t /*epochIdx*/, const data_set_id_t /*dataSetId*/) noexcept { return false; };
 			};
 		}
 
@@ -189,10 +204,14 @@ namespace nntl {
 			
 
 			template<bool b = bVerbose>
-			::std::enable_if_t<!b> _verbalize(const char*)const noexcept {}
+			::std::enable_if_t<!b> _verbalize(const char*, const char* = nullptr)const noexcept {}
 			template<bool b = bVerbose>
 			::std::enable_if_t<b> _verbalize(const char* s)const noexcept {
 				STDCOUTL(_layer_name() << " - " << s);
+			}
+			template<bool b = bVerbose>
+			::std::enable_if_t<b> _verbalize(const char* s, const char*const s2)const noexcept {
+				STDCOUTL(_layer_name() << " - " << s << " " << s2);
 			}
 
 		private:
@@ -320,10 +339,12 @@ namespace nntl {
 			void on_train_preCalcError(const data_set_id_t dataSetId)const noexcept {}
 			void on_train_postCalcError()const noexcept {}
 			void on_train_preFprop(const realmtx_t& data_x)const noexcept {}
-			void on_train_preBprop(const realmtx_t& data_y)const noexcept {}
+			template<typename YT>
+			void on_train_preBprop(const math::smatrix<YT>& data_y)const noexcept {}
 			void on_fprop_begin(const layer_index_t lIdx, const realmtx_t& prevAct, const bool bTrainingMode) const noexcept {}
 			void on_fprop_end(const realmtx_t& act) const noexcept {}
-			void on_bprop_begin(const layer_index_t lIdx, const realmtx_t& dLdA) const noexcept {}
+			template<typename T>
+			void on_bprop_begin(const layer_index_t lIdx, const math::smatrix<T>& dLdA) const noexcept {}
 			void on_bprop_end(const realmtx_t& dLdAPrev) const noexcept {}
 #pragma warning(default:4100)
 
@@ -385,12 +406,12 @@ namespace nntl {
 				_bwlist_updateLayer(lIdx, layerTypeId);
 			};
 
-			void train_epochBegin(const numel_cnt_t epochIdx)noexcept {
+			void train_epochBegin(const numel_cnt_t epochIdx, const numel_cnt_t batchesInEpoch)noexcept {
 				m_epochIdx = epochIdx;
-				m_bDoDump = m_condDump.on_train_epochBegin(epochIdx);
+				m_bDoDump = m_condDump.on_train_epochBegin(epochIdx, batchesInEpoch);
 			}
 			void train_batchBegin(const numel_cnt_t batchIdx) noexcept {
-				m_bDoDump = m_condDump.on_train_batchBegin(m_bDoDump, batchIdx, m_epochIdx);
+				m_bDoDump = m_condDump.on_train_batchBegin(batchIdx, m_epochIdx);
 				if (m_bDoDump) {
 					m_batchIdx = batchIdx;
 					STDCOUTL("Going to dump the training dataflow...");
@@ -399,7 +420,8 @@ namespace nntl {
 				}
 			}
 
-			void train_preBprop(const realmtx_t& data_y) noexcept {
+			template<typename YT>
+			void train_preBprop(const math::smatrix<YT>& data_y) noexcept {
 				if (m_bDoDump) {
 					if (bSplitFiles) get_self()._close_archive()
 						._open_archive(_ToDump::BProp, invalid_set_id);
@@ -446,7 +468,8 @@ namespace nntl {
 				if (bDoDump(m_curLayer) && m_curLayer.bUpperLayerDifferent()) get_self().on_fprop_end(act);
 				m_curLayer.pop();
 			}
-			void bprop_begin(const layer_index_t lIdx, const realmtx_t& dLdA) noexcept {
+			template<typename T>
+			void bprop_begin(const layer_index_t lIdx, const math::smatrix<T>& dLdA) noexcept {
 				m_curLayer.push(lIdx);
 				if (bDoDump(lIdx) && m_curLayer.bUpperLayerDifferent()) get_self().on_bprop_begin(lIdx, dLdA);
 			}
@@ -519,8 +542,8 @@ namespace nntl {
 
 			//////////////////////////////////////////////////////////////////////////
 			//////////////////////////////////////////////////////////////////////////
-
-			void on_bprop_begin(const layer_index_t lIdx, const realmtx_t& dLdA)const noexcept {
+			template<typename T>
+			void on_bprop_begin(const layer_index_t lIdx, const math::smatrix<T>& dLdA)const noexcept {
 				NNTL_UNREF(lIdx);
 				_verbalize("on_bprop_begin");
 				auto& ar = getArchive();
