@@ -76,7 +76,7 @@ struct modify_layer_set_RMSProp_and_NM {
 	template<typename _L>
 	::std::enable_if_t<nntl::layer_has_gradworks<_L>::value> operator()(_L& l)noexcept {
 		l.m_gradientWorks.set_type(decltype(l.m_gradientWorks)::RMSProp_Hinton).nesterov_momentum(_I::nesterovMomentum);
-		//	.L2(l2).max_norm(0).set_ILR(.91, 1.05, .0001, 10000);
+		//	.L2(l2).max_norm2(0).set_ILR(.91, 1.05, .0001, 10000);
 	}
 
 	template<typename _L>

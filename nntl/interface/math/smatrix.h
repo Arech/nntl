@@ -939,12 +939,19 @@ namespace math {
 #endif // NNTL_DEBUG
 		}
 
-		smatrix_deform(value_ptr_t ptr, const smatrix_deform& sizeLikeThis) noexcept
-			: _base_class(ptr, sizeLikeThis)
+		smatrix_deform(value_ptr_t ptr, const smatrix_deform& sizeLikeThis) noexcept : _base_class(ptr, sizeLikeThis)
 		{
 #ifdef NNTL_DEBUG
 			m_maxSize = sizeLikeThis.m_maxSize;
 #endif // NNTL_DEBUG
+		}
+
+		template<typename T>
+		smatrix_deform(value_ptr_t ptr, const smatrix<T>& sizeLikeThis) noexcept : _base_class(ptr, sizeLikeThis)
+		{
+		#ifdef NNTL_DEBUG
+			m_maxSize = sizeLikeThis.numel();
+		#endif // NNTL_DEBUG
 		}
 
 		//////////////////////////////////////////////////////////////////////////

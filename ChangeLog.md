@@ -1,6 +1,11 @@
 # Changelog
 I should probably have started doing it long ago, but better late than never. So here it is (for older entries see commit history)
 
+## 2020 Dec 27
+
+- corrected semantic of `_grad_works::max_norm()`. The old function now properly named as `_grad_works::max_norm2()` to represent the fact the argument is treated as square of maximum norm. New `_grad_works::max_norm()` treats argument as pure norm value.
+- changed `DeCov` regularizer implementation to normalize it to columns/neurons count. The old implementation (as published in paper) required to fit regularizer scale to width of a layer and change it every time the width of layer changes. The new implementation is width-stable, so once a decent regularizer scale was found (big enough to work well but not so big to destroy the signal in dL/dZ), it's much safer to experiment with layer width.
+
 ## 2020 Dec 22
 
 - renamed `activation::linear` -> `activation::identity`, `activation::linear_output` -> `activation::identity_custom_loss` and other related stuff.

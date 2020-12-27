@@ -839,8 +839,9 @@ namespace math_etalons {
 		mcwMean_ET(tDM, &vMean[0]);
 		mcwSub_ip_ET(tDM, &vMean[0]);
 		mColumnsCov_ET(tDM, tCov, iM);
-		//return ewSumSquaresTriang_ET<bLowerTriangl>(tCov) / (static_cast<numel_cnt_t>(A.rows())*tDM.cols()*(tDM.cols() - 1));
-		return ewSumSquaresTriang_ET<bLowerTriangl>(tCov) /*/ A.rows()*/;
+
+		//return ewSumSquaresTriang_ET<bLowerTriangl>(tCov) /*/ A.rows()*/;
+		return static_cast<real_t>(static_cast<ext_real_t>(ewSumSquaresTriang_ET<bLowerTriangl>(tCov)) / ext_real_t(A.cols_no_bias() - 1));
 	}
 
 	template<bool bLowerTriangl, typename iMathT>
@@ -862,6 +863,7 @@ namespace math_etalons {
 		mColumnsCov_ET(tDM, tCov, iM);
 
 		const auto N = A.rows(), actCnt = A.cols_no_bias();
+		const ext_real_t ne = static_cast<ext_real_t>(A.numel_no_bias() - N);
 		for (vec_len_t m = 0; m < N; ++m) {
 			for (vec_len_t a = 0; a < actCnt; ++a) {
 				typename iMathT::func_SUM<typename iMathT::real_t, true> F;
@@ -871,8 +873,8 @@ namespace math_etalons {
 						F.op(tCov.get(a, j) * tDM.get(m, j));
 					}
 				}
-				dL.set(m, a, F.result() * 2 / N);
-				//dL.set(m, a, F.result() * 2 / (static_cast<numel_cnt_t>(N)*actCnt*(actCnt - 1)));
+				//dL.set(m, a, F.result() * 2 / N);
+				dL.set(m, a, static_cast<real_t>(ext_real_t(F.result()) * 2 / ne));
 			}
 		}
 	}

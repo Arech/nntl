@@ -476,7 +476,8 @@ namespace math {
 
 		//////////////////////////////////////////////////////////////////////////
 		// operation helpers
-#pragma warning(disable:4100)
+	#pragma warning(push)
+	#pragma warning(disable:4100)
 		struct _mrwHlpr_rw_InitVecElmByVec {
 			static constexpr vec_len_t rw_FirstColumnIdx = 0;
 
@@ -610,7 +611,7 @@ namespace math {
 				vecElm |= mtxElm;
 			}
 		};
-#pragma warning(default:4100)
+	#pragma warning(pop)
 		//////////////////////////////////////////////////////////////////////////
 		// Matrix/Vector elementwise operations
 		//////////////////////////////////////////////////////////////////////////
@@ -1535,7 +1536,7 @@ namespace math {
 				get_self().mrwSum_st(A, pVec);
 			}else get_self().mrwSum_mt(A, pVec);
 		}
-		//#TODO: how are we going to branch code when pRCR is present? Desperately NEED run-time profiler!!!
+		//#TODO: how are we going to branch the code when pRCR is present? Desperately NEED run-time profiler!!!
 		void mrwSum_st(const realmtx_t& A, real_t*const pVec, const rowcol_range*const pRCR = nullptr)noexcept {
 			NNTL_ASSERT(!A.empty() && A.numel() > 0 && pVec);
 			if (A.cols() == 1 || (pRCR && pRCR->colBegin == pRCR->colEnd)) {

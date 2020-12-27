@@ -305,7 +305,7 @@ namespace nntl {
 			set_common_data(cd);
 
 			//we would need twice weightsNumel to make LRDropout for NesterovMomentum if necessary
-			//Currently also see implementation of max_norm enforcer mCheck_normalize_rows()
+			//Currently also see implementation of max_norm2 enforcer mCheck_normalize_rows()
 			get_iMath().preinit(
 				//1 for LRDropout & +1 if NM is also used (could be turned on/off @runtime safely)
 				::std::max({math::smatrix_td::sNumel(weightsSize)*(1 + (
@@ -379,7 +379,7 @@ namespace nntl {
 
 				//this might seems unnecessary, because weights will be normalized during apply_grad(), however note this:
 				//Nesterov momentum might change weights vectors significantly and if it'll make a weight vector norm significantly bigger
-				// than a max_norm, it may seriously affect performance of an optimizer, that uses some function of the
+				// than a max_norm2, it may seriously affect performance of an optimizer, that uses some function of the
 				// weights (such as in Adam or RMSProp)
 				// #todo should thoughtfully test this claim
 				// though, it seems grounded, => leave it here until tests
@@ -664,12 +664,12 @@ namespace nntl {
 
 
 
-		//for max_norm it might be better to take biases into account during calculation of norm value - it doesn't
+		//for max_norm2 it might be better to take biases into account during calculation of norm value - it doesn't
 		//affect the direction that the weight is point to but makes two weights with the same direction but different biases really different.
 		// HOWEVER: if weights are getting small, but a bias has to be big, than there might be issues due to numeric problems.
 		// In general: when there must be a big difference in weights (including bias) magnitude, it may make the things worse. When weights
 		// and bias are similar in magnitude - it helps. To detect such condition try to learn with double precision type. Usually
-		// double+max_norm(,false) works better or similar to float+max_norm(,true) - sign of numeric issues with MN
+		// double+max_norm2(,false) works better or similar to float+max_norm2(,true) - sign of numeric issues with MN
 		
 		//bNormIncludesBias parameter toggles whether the mn parameter describes the max norm of weight vector only (excluding bias weight - false)
 		//or the max norm of a full weight vector (including bias - true). Anyway, full weight vector are scaled.
@@ -682,15 +682,19 @@ namespace nntl {
 		// functions, especically for ReLU-style functions, this assumption is clearly very fragile and unsounded. Therefore,
 		// generally it is better NOT to include bias weight in max-norm constraint and set bNormIncludesBias parameter to false.
 		// Also note, that depending on dataset, it may be beneficial for _some_ neurons to have huge norms while the others to have small norms.
-		// If that is your case - max_norm won't help you (normalize your data first)
-		self_ref_t max_norm(const real_t L2normSquared, const bool bNormIncludesBias = defNormIncludesBias)noexcept {
+		// If that is your case - max_norm2 won't help you (normalize your data first)
+		self_ref_t max_norm(const real_t L2norm, const bool bNormIncludesBias = defNormIncludesBias)noexcept {
+			NNTL_ASSERT(L2norm >= real_t(0.0));
+			return get_self().max_norm2(L2norm*L2norm, bNormIncludesBias);
+		}
+		self_ref_t max_norm2(const real_t L2normSquared, const bool bNormIncludesBias = defNormIncludesBias)noexcept {
 			NNTL_ASSERT(L2normSquared >= real_t(0.0));
 			m_WeightVecNormSqared = L2normSquared;
 			set_opt(f_UseMaxNorm, m_WeightVecNormSqared > real_t(0.0));
 			set_opt(f_NormIncludesBias, bNormIncludesBias);
 			return get_self();
 		}
-		real_t max_norm()const noexcept { return use_max_norm() ? m_WeightVecNormSqared : real_t(.0); }
+		real_t max_norm2()const noexcept { return use_max_norm() ? m_WeightVecNormSqared : real_t(.0); }
 		bool use_max_norm()const noexcept { return get_opt(f_UseMaxNorm); }
 
 

@@ -211,7 +211,7 @@ TEST(TestMathN, dLoss_deCov) {
 //////////////////////////////////////////////////////////////////////////
 
 template<typename base_t> struct loss_deCov_EPS {};
-template<> struct loss_deCov_EPS<double> { static constexpr double eps = 1e-10; };
+template<> struct loss_deCov_EPS<double> { static constexpr double eps = 1e-5; };
 template<> struct loss_deCov_EPS<float> { static constexpr float eps = 1e-1f; };
 
 template<typename RealT, bool bLowerTriangl, bool bNumStab>
@@ -280,6 +280,56 @@ TEST(TestMathN, loss_deCov) {
 	}
 }
 
+TEST(TestMathN, loss_deCovVisually) {
+#pragma warning(disable:4459)
+	typedef float real_t;
+	typedef nntl::math::smatrix<real_t> realmtx_t;
+	typedef d_int_nI<real_t>::iThreads_t iThreads_t;
+	typedef nntl::math::MathN<real_t, iThreads_t> imath_basic_t;
+	imath_basic_t iM;
+#pragma warning(default:4459)
+	
+	const vec_len_t rowsCnt = 5, colsCnt = 4;
+	static constexpr bool bLowerTriangl = false, bNumStab = false;
+
+	realmtx_t A(rowsCnt, colsCnt), dL(rowsCnt, colsCnt);
+	ASSERT_TRUE(!A.isAllocationFailed() && !dL.isAllocationFailed());
+	
+	iM.preinit(iM.loss_DeCov_needTempMem(false, A.size_no_bias()));
+	ASSERT_TRUE(iM.init());
+
+	A.set(0, 0, real_t(10));
+	A.set(1, 0, real_t(11));
+	A.set(2, 0, real_t(9));
+	A.set(3, 0, real_t(10));
+	A.set(4, 0, real_t(9));
+
+	for (vec_len_t r = 0; r < rowsCnt; ++r) A.set(r, 1, A.get(r, 0) + real_t(2));
+	for (vec_len_t r = 0; r < rowsCnt; ++r) A.set(r, 2, -A.get(r, 0) + real_t(20));
+	for (vec_len_t r = 0; r < rowsCnt; ++r) A.set(r, 3, real_t(0));
+	
+	dbg_show_matrix(A, "A", 5, 0);
+	STDCOUTL("Loss = " << (iM.loss_deCov<bLowerTriangl, bNumStab>(A)));
+	
+	iM.dLoss_deCov<bLowerTriangl, bNumStab>(A, dL);
+	dbg_show_matrix(dL, "dL", 10, 3);
+
+	STDCOUTL("===========================");
+
+	realmtx_t A2(A.data(), A.rows(), A.cols() - 1), dL2(dL.data(), dL.rows(), dL.cols()-1);
+	dbg_show_matrix(A2, "A 3cols", 5, 0);
+	STDCOUTL("Loss = " << (iM.loss_deCov<bLowerTriangl, bNumStab>(A2)));
+
+	iM.dLoss_deCov<bLowerTriangl, bNumStab>(A2, dL2);
+	dbg_show_matrix(dL2, "dL 3 cols", 10, 3);
+
+	for (vec_len_t r = 0; r < rowsCnt; ++r) A.set(r, 3, A.get(r, 0) + real_t(2));
+	dbg_show_matrix(A, "A 4cols", 5, 0);
+	STDCOUTL("Loss = " << (iM.loss_deCov<bLowerTriangl, bNumStab>(A)));
+
+	iM.dLoss_deCov<bLowerTriangl, bNumStab>(A, dL);
+	dbg_show_matrix(dL, "dL 4 cols", 10, 3);
+}
 
 //////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////

@@ -61,14 +61,15 @@ namespace loss_addendum {
 		::std::enable_if_t<c> dLossAdd(const realmtx_t& Vals, realmtx_t& dLossdVals, const CommonDataT& CD) const noexcept {
 			NNTL_ASSERT(m_Mtx.size() == Vals.size() && Vals.size() == dLossdVals.size());
 			NNTL_ASSERT(!Vals.emulatesBiases() && !dLossdVals.emulatesBiases());
-			//CD.iMath().evAddScaled_ip(dLossdVals, m_scale, m_Mtx);
+			//CD.iInspect().dLossAddendumScaled(dLossdVals, m_Mtx, m_scale, getName());
 			_appendGradient(CD.iMath(), dLossdVals, m_Mtx);
 		}
 
 		template <typename CommonDataT, bool c = calcOnFprop>
 		::std::enable_if_t<!c> dLossAdd(const realmtx_t& Vals, realmtx_t& dLossdVals, const CommonDataT& CD) const noexcept {
 			NNTL_ASSERT(!Vals.emulatesBiases() && !dLossdVals.emulatesBiases());
-			//CD.iMath().evAddScaledSign_ip(dLossdVals, m_scale, Vals);
+			// yeah, there should be a matrix of sign(Vals), but lets pretend we'll handle it later when we'll read the inspector dump
+			//CD.iInspect().dLossAddendumScaled(dLossdVals, Vals, m_scale, getName());
 			_appendGradientSign(CD.iMath(), dLossdVals, Vals);
 		}
 

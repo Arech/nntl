@@ -126,6 +126,8 @@ namespace nntl {
 			static constexpr double _rone = double(1.);
 			static constexpr double _rposz = double(+0.);
 			static constexpr double _rnegz = double(-0.);
+
+			static constexpr double _rNaN = ::std::numeric_limits<double>::quiet_NaN();
 		};
 		template <> struct real_t_limits<float> {
 			//natural log of closest to zero but non zero (realmin) value
@@ -154,6 +156,8 @@ namespace nntl {
 			static constexpr float _rone = float(1.);
 			static constexpr float _rposz = float(+0.);
 			static constexpr float _rnegz = float(-0.);
+
+			static constexpr float _rNaN = ::std::numeric_limits<float>::quiet_NaN();
 		};
 
 		//////////////////////////////////////////////////////////////////////////

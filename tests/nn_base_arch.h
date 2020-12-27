@@ -143,7 +143,7 @@ namespace nntl_tests {
 					.nesterov_momentum(Prms.nesterovMomentum)
 					.L2(Prms.l2regularizer)
 					.L1(Prms.l1regularizer)
-					.max_norm(Prms.maxNormVal, Prms.bNormIncludesBias)
+					.max_norm2(Prms.maxNormVal, Prms.bNormIncludesBias)
 					//.applyILRToMomentum(Prms.bILR2Momentum)
 					//.set_ILR(Prms.ilrProps)
 					;

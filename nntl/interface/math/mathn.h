@@ -69,7 +69,8 @@ namespace math {
 		//////////////////////////////////////////////////////////////////////////
 		// members
 	protected:
-#pragma warning(disable:4100)
+	#pragma warning(push)
+	#pragma warning(disable:4100)
 		struct _mrw_SOFTMAXPARTS :public _mrwHlpr_rw_UpdVecElm {
 			real_t* pNumerator;//(colmajor) matrix data
 			const real_t*const pMax;//row vector
@@ -114,7 +115,7 @@ namespace math {
 				return VecBaseT(0.0);
 			}
 		};
-#pragma warning(default:4100)
+	#pragma warning(pop)
 		//////////////////////////////////////////////////////////////////////////
 		//methods
 	public:
@@ -886,6 +887,87 @@ namespace math {
 		}
 
 		//////////////////////////////////////////////////////////////////////////
+		// scales each row-vector of matrix A such that it would have l2norm^2 == L2NormSquared.
+		// bNormIncludesBias flag controls whether to include last column (bias or bias weight usually) in norm calculation or not.
+		
+		template<typename T>
+		void mrwSetL2Norm(smatrix<T>& A, const T L2NormSquared, const bool bNormIncludesBias)noexcept {
+			NNTL_ASSERT(!A.empty());
+			smatrix_deform<T> Def(A.data(), A);
+			mrwSetL2Norm(Def, L2NormSquared, bNormIncludesBias);
+		}
+		template<typename T>
+		void mrwSetL2Norm(smatrix_deform<T>& A, const T L2NormSquared, const bool bNormIncludesBias)noexcept {
+			if (A.numel() < Thresholds_t::mCheck_normalize_rows) { //algo almost the same as mCheck_normalize_rows, so leaving its threshold
+				get_self().mrwSetL2Norm_st(A, L2NormSquared, bNormIncludesBias);
+			} else get_self().mrwSetL2Norm_mt(A, L2NormSquared, bNormIncludesBias);
+		}
+		template<typename T>
+		nntl_probably_force_inline numel_cnt_t mrwSetL2Norm_needTempMem(const smatrix<T>& A)const noexcept {
+			static_assert(::std::is_same<T, real_t>::value, "");
+			return smatrix_td::sNumel(A.rows(), m_threads.cur_workers_count()) //mrwSetL2Norm_mt
+				+ get_self().mrwL2NormSquared_needTempMem(A);
+		}
+		template<typename T>
+		void mrwSetL2Norm_st(smatrix_deform<T>& A, const T L2NormSquared, const bool bNormIncludesBias)noexcept {
+			NNTL_ASSERT(!A.empty() && L2NormSquared > real_t(0.0));
+
+			const auto mRows = A.rows();
+			auto pTmp = get_self()._istor_alloc(mRows);
+
+			//A could be (and almost always is) a weight matrix that doesn't have correct emulatesBias() property, therefore
+			//have to use unconditional .hide_last_col() instead of .hide_biases()
+			if (!bNormIncludesBias) A.hide_last_col();
+			get_self().mrwL2NormSquared_st(A, pTmp);
+			if (!bNormIncludesBias) A.restore_last_col();
+
+			//Saving normalization coefficient into pTmp for those rows, that needs normalization, or ones for those, 
+			// that doesn't need.
+			// Making newNorm slightly less, than L2NormSquared to make sure the result will be less than max norm.
+			//const real_t newNorm = L2NormSquared - math::real_t_limits<real_t>::eps_lower_n(L2NormSquared, sCheck_normalize_rows_MULT);
+			// removed. it's not a big deal if resulting norm will be slightly bigger
+			const real_t newNorm = L2NormSquared;// -2 * ::std::sqrt(math::real_t_limits<real_t>::eps_lower(L2NormSquared));
+			auto pCurNorm = pTmp;
+			const auto pTmpE = pTmp + mRows;
+			while (pCurNorm != pTmpE) {
+				const auto rowNorm = *pCurNorm;
+				*pCurNorm++ = ::std::sqrt(newNorm / rowNorm);
+			}
+
+			//renormalize (multiply each rowvector to corresponding coefficient from pTmp)
+			get_self().mrwMulByVec_st(A, pTmp);
+			get_self()._istor_free(pTmp, mRows);
+		}
+		//TODO: might be good to make separate _cw and _rw versions of this algo
+		template<typename T>
+		void mrwSetL2Norm_mt(smatrix_deform<T>& A, const T L2NormSquared, const bool bNormIncludesBias)noexcept {
+			NNTL_ASSERT(!A.empty() && L2NormSquared > real_t(0.0));
+
+			const auto mRows = A.rows();
+			const auto tmemSize = smatrix_td::sNumel(mRows, m_threads.cur_workers_count());
+			const auto pTmpStor = get_self()._istor_alloc(tmemSize);
+
+			//A could be (and almost always is) a weight matrix that doesn't have correct emulatesBias() property, therefore
+			//have to use unconditional .hide_last_col() instead of .hide_biases()
+			if (!bNormIncludesBias) A.hide_last_col();
+			get_self().mrwL2NormSquared(A, pTmpStor);
+			if (!bNormIncludesBias) A.restore_last_col();
+
+			// calc scaling coefficients
+			const auto pRowNormE = pTmpStor + mRows;
+			const real_t newNorm = L2NormSquared;// -2 * ::std::sqrt(math::real_t_limits<real_t>::eps_lower(L2NormSquared));
+			auto pCurNorm = pTmpStor;
+			while (pCurNorm != pRowNormE) {
+				const auto rowNorm = *pCurNorm;
+				*pCurNorm++ = ::std::sqrt(newNorm / rowNorm);
+			}
+
+			// 3. multiplying
+			get_self().mrwMulByVec(A, pTmpStor);
+			get_self()._istor_free(pTmpStor, tmemSize);
+		}
+
+		//////////////////////////////////////////////////////////////////////////
 		// Returns the number of elements equal to zero
 		// Don't expect big n here, so no _mt version
 		template<typename T>
@@ -1107,8 +1189,8 @@ namespace math {
 			while (pDM != pDME) { //#DIDNT_VECTORIZE
 				const auto v = *pDM++;
 				NNTL_ASSERT(v >= real_t(0.0) && v <= real_t(1.0));
-				const real_t dv = v < dropPercAct ? real_t(1.) : real_t(0.);
-				*pA++ *= dv;
+				//const real_t dv = v < dropPercAct ? real_t(1.) : real_t(0.);
+				*pA++ *= v < dropPercAct ? real_t(1.) : real_t(0.);
 			}
 		}
 		void apply_dropout_mask_mt(realmtx_t& mtx, const real_t dropPercAct, const realmtx_t& dropoutMask)noexcept {
@@ -4101,23 +4183,20 @@ namespace math {
 				get_self().RProp_st(dW, learningRate);
 			} else get_self().RProp_mt(dW, learningRate);
 		}
-		static void RProp_st(realmtx_t& dW, const real_t learningRate)noexcept {
-			auto p = dW.data();
-			const auto pE = p + dW.numel();
+		void RProp_st(realmtx_t& dW, const real_t learningRate)noexcept {
+			get_self()._iRProp_st(dW, learningRate, elms_range(dW));
+		}
+		static void _iRProp_st(realmtx_t& dW, const real_t learningRate, const elms_range& er)noexcept {
+			auto p = dW.data() + er.elmBegin;
+			const auto pE = p + er.totalElements();
 			//TODO: verify vectorization
 			while (p != pE) {
 				*p++ = learningRate*math::sign(*p);
 			}
 		}
 		void RProp_mt(realmtx_t& dW, const real_t learningRate)noexcept {
-			auto pW = dW.data();
-			m_threads.run([pW, learningRate](const par_range_t& r) {
-				auto p = pW + r.offset();
-				const auto pE = p + r.cnt();
-				//TODO: verify vectorization
-				while (p != pE) {
-					*p++ = learningRate*math::sign(*p);
-				}
+			get_self().ithreads().run([&dW, learningRate,this](const par_range_t& r) {
+				get_self()._iRProp_st(dW, learningRate, elms_range(r));
 			}, dW.numel());
 		}
 		//////////////////////////////////////////////////////////////////////////
@@ -4479,8 +4558,11 @@ namespace math {
 			get_self().mColumnsCov<bLowerTriangl>(DeMeaned, CovMtx);
 			//sum over a single triangle of a symmetric matrix is a half smaller than the sum over the whole matrix (excluding the main diagonal)
 			//therefore we shouldn't divide it by 2 to fit the formula.
-			// However, we must normalize the error to the batchSize since the error must be normalized --- obsolete
-			const auto ret = get_self().ewSumSquaresTriang<bLowerTriangl, bNumStab>(CovMtx) /*/ Vals.rows()*/;
+			//const auto ret = get_self().ewSumSquaresTriang<bLowerTriangl, bNumStab>(CovMtx);
+
+			const auto ret = static_cast<real_t>(static_cast<ext_real_t>(get_self().ewSumSquaresTriang<bLowerTriangl, bNumStab>(CovMtx))
+				/ static_cast<ext_real_t>(Vals.cols_no_bias() - 1));
+			
 			// - and to the amount of active neurons
 			//const auto ret = get_self().ewSumSquaresTriang<bLowerTriangl, bNumStab>(CovMtx) / (valsNumelNoBias * (DeMeaned.cols() - 1));
 
@@ -4539,8 +4621,10 @@ namespace math {
 
 			//dL = (DM*C - diag(C)'.*DM).*2./N;
 			
-			const real_t cmnScale = (real_t(2.)*deCov_scale) / static_cast<real_t>(vRows);
-			//const real_t cmnScale = real_t(2.) / (valsNumelNoBias * (dLossdVals.cols() - 1));
+			//const real_t cmnScale = (real_t(2.)*deCov_scale) / static_cast<real_t>(vRows);
+			
+			const real_t cmnScale = static_cast<real_t>( (ext_real_t(2.)* static_cast<ext_real_t>(deCov_scale))
+				/ static_cast<ext_real_t>(valsNumelNoBias - vRows));
 
 #if NNTL_DEBUGBREAK_ON_OPENBLAS_DENORMALS
 			enable_denormals();
