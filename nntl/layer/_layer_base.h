@@ -133,34 +133,11 @@ namespace nntl {
 		//NOTE: It won't trigger assert if it's dereferenced in a wrong moment, therefore you'll get invalid values,
 		// so use it wisely only when you absolutely can't use the get_activations()
 		nntl_interface const realmtxdef_t* get_activations_storage()const noexcept;
-	};
-
-/*
-//deprecated
-	template <typename RealT>
-	class _i_layer_gate : private _i_layer_td<RealT>/ *, public m_layer_gate* / {
-	protected:
-		_i_layer_gate()noexcept {};
-		~_i_layer_gate()noexcept {};
-
-		//!! copy constructor not needed
-		_i_layer_gate(const _i_layer_gate& other)noexcept; // = delete; //-it should be `delete`d, but factory function won't work if it is
-																	 //!!assignment is not needed
-		_i_layer_gate& operator=(const _i_layer_gate& rhs) noexcept; // = delete; //-it should be `delete`d, but factory function won't work if it is
-
-	public:
-		//NB: gate is BINARY matrix
-		nntl_interface const realmtx_t& get_gate()const noexcept;
-		nntl_interface const realmtx_t* get_gate_storage()const noexcept;
-		//nntl_interface const real_t* get_bias_gate()const noexcept;
-		nntl_interface const vec_len_t get_gate_width()const noexcept;
+		//same as above, but allows changes. Use only when you know the consequences.
+		//intended future use - to change bBatchesInRows() property where apropriate
+		nntl_interface realmtxdef_t* get_activations_storage_mutable() noexcept;
 	};
 	
-	template<typename LayerT>
-	struct is_layer_gate : public ::std::is_base_of<_i_layer_gate<typename LayerT::real_t>, LayerT> {};
-
-	*/
-
 	//////////////////////////////////////////////////////////////////////////
 
 	// and the same for bprop(). Derives from _i_layer_fprop because it generally need it API
@@ -206,7 +183,7 @@ namespace nntl {
 
 		//use it only if you really know what you're are doing and it won't hurt derivatives calculation
 		//SOME LAYERS may NOT implement this function!
-		nntl_interface realmtxdef_t& _get_activations_mutable()const noexcept;
+		nntl_interface realmtxdef_t& _get_activations_mutable() noexcept;
 
 		//to support and access state-full activation functions
 		nntl_interface auto& get_activation_obj()noexcept;
@@ -520,6 +497,7 @@ namespace nntl {
 	// Implements compile time polymorphism (to get rid of virtual functions),
 	// default _layer_name_ machinery, some default basic typedefs and basic support machinery
 	// (init() function with common_data_t, layer index number, neurons count)
+	// If not mentioned explicitly in a function comment, any member function of the class #supportsBatchesInRows (at least it should)
 	template<typename FinalPolymorphChild, typename InterfacesT>
 	class _layer_base 
 		: public _cpolym_layer_base<FinalPolymorphChild, typename InterfacesT::iMath_t::real_t>
@@ -647,7 +625,7 @@ namespace nntl {
 
 	//////////////////////////////////////////////////////////////////////////
 	// "light"-version of _layer_base that forwards its functions to some other layer, that is acceptable by get_self()._forwarder_layer()
-
+	// If not mentioned explicitly in a function comment, any member function of the class #supportsBatchesInRows (at least it should)
 	template<typename FinalPolymorphChild, typename InterfacesT>
 	class _layer_base_forwarder 
 		: public _cpolym_layer_base<FinalPolymorphChild, typename InterfacesT::real_t>
@@ -704,7 +682,8 @@ namespace nntl {
 
 		const realmtxdef_t& get_activations()const noexcept { return get_self()._forwarder_layer().get_activations(); }
 		const realmtxdef_t* get_activations_storage()const noexcept { return get_self()._forwarder_layer().get_activations_storage(); }
-		realmtxdef_t& _get_activations_mutable()const noexcept { return get_self()._forwarder_layer()._get_activations_mutable(); }
+		realmtxdef_t* get_activations_storage_mutable() noexcept { return get_self()._forwarder_layer().get_activations_storage_mutable(); }
+		realmtxdef_t& _get_activations_mutable() noexcept { return get_self()._forwarder_layer()._get_activations_mutable(); }
 		mtx_size_t get_activations_size()const noexcept { return get_self()._forwarder_layer().get_activations_size(); }
 		bool is_activations_shared()const noexcept { return get_self()._forwarder_layer().is_activations_shared(); }
 

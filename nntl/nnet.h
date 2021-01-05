@@ -63,6 +63,8 @@ namespace nntl {
 	};
 
 	//////////////////////////////////////////////////////////////////////////
+	// If not mentioned explicitly in a function comment, any member function of the class #supportsBatchesInRows (at least it should)
+	// However, it was not extensively tested in bBatchesInRows() mode, so double check
 	template <typename LayersPack>
 	class nnet 
 		: public _has_last_error<_nnet_errs>
@@ -250,7 +252,7 @@ namespace nntl {
 		
 		void _fprop(const realmtx_t& data_x)noexcept {
 			//preparing for evaluation
-			_set_mode_and_batch_size(data_x.rows());
+			_set_mode_and_batch_size(data_x.batch_size());
 			m_Layers.fprop(data_x);
 		}
 
@@ -303,7 +305,7 @@ namespace nntl {
 		// It does NOT calculates and adds to loss any additional loss values that depends on layers weights and so on (m_Layers.calcLossAddendum())
 		template<typename YT>
 		real_t _calcLoss4batch_nonnormalized(const realmtx_t& data_x, const math::smatrix<YT>& data_y) noexcept {
-			NNTL_ASSERT(data_x.rows() == data_y.rows());
+			NNTL_ASSERT(data_x.batch_size() == data_y.batch_size());
 			_fprop(data_x);
 
 			return m_Layers.output_layer().calc_loss(data_y);
@@ -313,7 +315,7 @@ namespace nntl {
 		}		
 		template<typename YT>
 		real_t _calcLoss4batch(const realmtx_t& data_x, const math::smatrix<YT>& data_y) noexcept {
-			return _calcLoss4batch_nonnormalized(data_x, data_y) / data_y.rows();
+			return _calcLoss4batch_nonnormalized(data_x, data_y) / data_y.batch_size();
 		}
 
 		const bool _is_initialized(const vec_len_t biggestFprop, const vec_len_t batchSize)const noexcept {
@@ -564,15 +566,9 @@ namespace nntl {
 						const auto& batch_y = td.batchY();
 						NNTL_ASSERT(batch_x.emulatesBiases() && !batch_y.emulatesBiases());
 						NNTL_ASSERT(batch_x.test_biases_strict());
-						NNTL_ASSERT(batch_x.cols_no_bias() == td.xWidth() && batch_y.cols() == td.yWidth());
-						NNTL_ASSERT(batch_x.rows() == batch_y.rows() && batch_x.rows() == get_const_common_data().get_cur_batch_size());
-						NNTL_ASSERT(batch_x.rows() == maxBatchSize);
-
-						/* just don't need it. Require td to always return batches of fixed size
-						 *if (batch_x.rows() != maxBatchSize) {
-							//it's probably the last batch and it may have less rows, than others
-							_set_training_mode_and_batch_size(batch_x.rows());
-						}*/
+						NNTL_ASSERT(batch_x.sample_size() == td.xWidth() && batch_y.sample_size() == td.yWidth());
+						NNTL_ASSERT(batch_x.batch_size() == batch_y.batch_size() && batch_x.batch_size() == get_const_common_data().get_cur_batch_size());
+						NNTL_ASSERT(batch_x.batch_size() == maxBatchSize);
 
 						iI.train_preFprop(batch_x);
 						m_Layers.fprop(batch_x);
@@ -622,52 +618,17 @@ namespace nntl {
 			return _set_last_error(ec);
 		}
 		void doFixedBatchFprop(const realmtx_t& data_x)noexcept {
-			NNTL_ASSERT(data_x.rows() == get_const_common_data().get_cur_batch_size());
+			NNTL_ASSERT(data_x.batch_size() == get_const_common_data().get_cur_batch_size());
 			m_Layers.fprop(data_x);
 		}
 
 		ErrorCode fprop(const realmtx_t& data_x)noexcept {
-			const auto ec = _init(data_x.rows());
+			const auto ec = _init(data_x.batch_size());
 			if (ErrorCode::Success != ec) return _set_last_error(ec);
 
 			_fprop(data_x);
 			return _set_last_error(ec);
 		}
-
-		/* obsolete
-		 *ErrorCode calcLoss(const realmtx_t& data_x, const realmtx_t& data_y, real_t& lossVal) noexcept {
-			NNTL_ASSERT(data_x.rows() == data_y.rows());
-
-			auto ec = _init(data_x.rows());
-			if (ErrorCode::Success != ec) return _set_last_error(ec);
-
-			if (m_bCalcFullLossValue) m_Layers.resetCalcLossAddendum();
-			lossVal = _calcLoss4batch(&data_x, data_y);
-			return _set_last_error(ec);
-		}*/
-
-		/* obsolete
-		 *ErrorCode eval(const realmtx_t& data_x, const realmtx_t& data_y, nnet_eval_results<real_t>& res)noexcept {
-			NNTL_ASSERT(data_x.rows() == data_y.rows());
-
-			auto ec = _init(data_x.rows());
-			if (ErrorCode::Success != ec) return _set_last_error(ec);
-
-			if (m_bCalcFullLossValue) m_Layers.resetCalcLossAddendum();
-
-			res.lossValue = _calcLoss4batch(&data_x, data_y);
-			m_Layers.output_layer().get_activations().clone_to(res.output_activations);
-			return _set_last_error(ec);
-		}*/
-
-		/* obsolete
-		 *ErrorCode td_eval(const train_data_t& td, nnet_td_eval_results<real_t>& res)noexcept {
-			auto ec = eval(td.train_x(), td.train_y(), res.trainSet);
-			if (ec != ErrorCode::Success) return ec;
-			
-			ec = eval(td.test_x(), td.test_y(), res.testSet);
-			return ec;
-		}*/
 		
 		//////////////////////////////////////////////////////////////////////////
 		//////////////////////////////////////////////////////////////////////////
@@ -724,7 +685,7 @@ namespace nntl {
 
 			bool performCheck(const vec_len_t batchSize, const realmtx_t& data_x, const realmtx_t& data_y)noexcept {
 				const vec_len_t biggestBatch = ::std::max(batchSize, m_ngcSetts.onlineBatchSize);
-				m_data.init(biggestBatch == data_x.rows() ? 0 : biggestBatch, data_x, &data_y);
+				m_data.init(biggestBatch == data_x.batch_size() ? 0 : biggestBatch, data_x, &data_y);
 				
 				bool bRet = false;
 				NNTL_ASSERT(m_ngcSetts.onlineBatchSize > 0);
@@ -865,7 +826,7 @@ namespace nntl {
 					const size_t s = m_ngcSetts.bForceSeed ? ::std::time(0) : 0;
 					iI.gc_prep_check_layer(lIdx, _impl::gradcheck_paramsGroup::dLdA, coords, bLayerMayBeExcluded);
 
-					//_prepNetToBatchSize(false, m_data.batchX().rows());
+					//_prepNetToBatchSize(false, m_data.batchX().batch_size());
 					//we must not change the bTraining state, because this would screw the loss value with dropout for example
 
 					iI.gc_set_phase(_impl::gradcheck_phase::df_numeric_minus);
@@ -878,7 +839,7 @@ namespace nntl {
 					const real_t dLnum = numMult*(_calcLossF(s) - LossMinus);
 
 					iI.gc_set_phase(_impl::gradcheck_phase::df_analytical);
-					//_prepNetToBatchSize(true, m_data.batchX().rows());
+					//_prepNetToBatchSize(true, m_data.batchX().batch_size());
 					if (m_ngcSetts.bForceSeed) m_nn.get_iRng().seed64(s);
 					m_nn.m_Layers.fprop(m_data.batchX());
 					if (m_ngcSetts.bForceSeed) m_nn.get_iRng().seed64(s);
@@ -911,7 +872,7 @@ namespace nntl {
 
 				iI.gc_prep_check_layer(lIdx, _impl::gradcheck_paramsGroup::dLdW, coords, bLayerMayBeExcluded);
 
-				//_prepNetToBatchSize(false, m_data.batchX().rows());
+				//_prepNetToBatchSize(false, m_data.batchX().batch_size());
 
 				iI.gc_set_phase(_impl::gradcheck_phase::df_numeric_minus);
 				const real_t LossMinus = _calcLossF(s);
@@ -923,7 +884,7 @@ namespace nntl {
 				const real_t dLnum = (LossPlus - LossMinus) / (doubleSs*curBs);
 
 				iI.gc_set_phase(_impl::gradcheck_phase::df_analytical);
-				//_prepNetToBatchSize(true, m_data.batchX().rows());
+				//_prepNetToBatchSize(true, m_data.batchX().batch_size());
 				if (m_ngcSetts.bForceSeed) m_nn.get_iRng().seed64(s);
 				m_nn.m_Layers.fprop(m_data.batchX());
 				if (m_ngcSetts.bForceSeed) m_nn.get_iRng().seed64(s);
@@ -1048,7 +1009,7 @@ namespace nntl {
 			}
 
 			void _say_final(const mtx_coords_t& coords)const noexcept {
-				STDCOUT(" coordinates: (" << coords.first << ", " << coords.second << "). Following data rows were used in the batch: ");
+				STDCOUT(" coordinates: (" << coords.first << ", " << coords.second << "). Following data batches were used: ");
 				auto it = m_data.curBatchIdxs();
 				const auto itE = m_data.curBatchIdxsEnd();
 				while (it < itE) {
@@ -1083,8 +1044,8 @@ namespace nntl {
 
 				//auto& cd = m_nn.get_common_data();
 				NNTL_ASSERT(m_nn.get_common_data().is_training_mode());//we MUST be in training mode
-				//const auto batchSize = m_data.batchX().rows();
-				NNTL_ASSERT(m_nn.get_common_data().get_cur_batch_size() == m_data.batchX().rows());
+				//const auto batchSize = m_data.batchX().batch_size();
+				NNTL_ASSERT(m_nn.get_common_data().get_cur_batch_size() == m_data.batchX().batch_size());
 				//if(cd.change_cur_batch_size(batchSize) != batchSize) layrs.on_batch_size_change();
 
 				layrs.fprop(m_data.batchX());
@@ -1116,13 +1077,13 @@ namespace nntl {
 			}
 			const auto biggestBatchSize = ::std::max(batchSize, ngcSetts.onlineBatchSize);
 
-			NNTL_ASSERT(data_x.cols() == m_Layers.input_layer().get_neurons_cnt() + 1 && data_x.rows() >= biggestBatchSize);
-			NNTL_ASSERT(data_y.cols() == m_Layers.output_layer().get_neurons_cnt() && data_y.rows() >= biggestBatchSize);
-			NNTL_ASSERT(data_x.rows() == data_y.rows());
+			NNTL_ASSERT(data_x.sample_size() == m_Layers.input_layer().get_neurons_cnt() && data_x.batch_size() >= biggestBatchSize);
+			NNTL_ASSERT(data_y.sample_size() == m_Layers.output_layer().get_neurons_cnt() && data_y.batch_size() >= biggestBatchSize);
+			NNTL_ASSERT(data_x.batch_size() == data_y.batch_size());
 			if (
-				!(data_x.cols() == m_Layers.input_layer().get_neurons_cnt() + 1 && data_x.rows() >= biggestBatchSize)
-				|| !(data_y.cols() == m_Layers.output_layer().get_neurons_cnt() && data_y.rows() >= biggestBatchSize)
-				|| !(data_x.rows() == data_y.rows())
+				!(data_x.sample_size() == m_Layers.input_layer().get_neurons_cnt() && data_x.batch_size() >= biggestBatchSize)
+				|| !(data_y.sample_size() == m_Layers.output_layer().get_neurons_cnt() && data_y.batch_size() >= biggestBatchSize)
+				|| !(data_x.batch_size() == data_y.batch_size())
 				)
 			{
 				STDCOUTL("Wrong data sizes passed to " << NNTL_FUNCTION);

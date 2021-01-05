@@ -56,6 +56,7 @@ namespace nntl {
 	// (anyway, those who wants to have all correct can make nnet superclass by them self)
 	// May be will provide a move semantic later that will allow to instantiate layers in one place, then move them into layers
 	// and then move layers into nnet. But now there's no real need in this (I think)
+	// If not mentioned explicitly in a function comment, any member function of the class #supportsBatchesInRows (at least it should)
 	template <typename ...Layrs>
 	class layers 
 		: public math::smatrix_td
@@ -155,6 +156,8 @@ namespace nntl {
 			return m_totalLayersCount;
 		}
 
+		//////////////////////////////////////////////////////////////////////////
+		
 		//and apply function _Func(auto& layer) to each underlying (non-pack) layer here
 		template<typename _Func>
 		void for_each_layer(_Func&& f)noexcept {
@@ -204,9 +207,13 @@ namespace nntl {
 			tuple_utils::for_each_exc_first_down(m_layers, ::std::forward<_Func>(f));
 		}
 
+		//////////////////////////////////////////////////////////////////////////
+
 		input_layer_t& input_layer()const noexcept { return ::std::get<0>(m_layers); }
 		output_layer_t& output_layer()const noexcept { return ::std::get<layers_count-1>(m_layers); }
 		preoutput_layer_t& preoutput_layer()const noexcept { return ::std::get<layers_count - 2>(m_layers); }
+
+		//////////////////////////////////////////////////////////////////////////
 
 		//perform layers initialization before training begins.
 		layer_error_t init(const common_data_t& cd, _impl::layers_mem_requirements& LMR) noexcept
@@ -277,7 +284,7 @@ namespace nntl {
 		}
 
 		void on_batch_size_change()noexcept {
-			tuple_utils::for_each_up(m_layers, [](auto& lyr)noexcept { lyr.on_batch_size_change(/*real_t(1.)*/); });
+			tuple_utils::for_each_up(m_layers, [](auto& lyr)noexcept { lyr.on_batch_size_change(); });
 		}
 
 		void fprop(const realmtx_t& data_x) noexcept {
@@ -295,12 +302,13 @@ namespace nntl {
 		template<typename YT>
 		void bprop(const math::smatrix<YT>& data_y) noexcept {
 			NNTL_ASSERT(m_a_dLdA.size() == 2);
-			
-#pragma warning(disable : 4127)
+
+		#pragma warning(push)
+		#pragma warning(disable : 4127)
 			if (2 == layers_count) {
 				m_a_dLdA[0].deform(0,0);
 			} else m_a_dLdA[0].deform_like_no_bias(preoutput_layer().get_activations());
-#pragma warning(default : 4127)
+		#pragma warning(pop)
 
 			output_layer().bprop(data_y, preoutput_layer(), m_a_dLdA[0]);
 			unsigned mtxIdx = 0;
@@ -351,21 +359,21 @@ namespace nntl {
 		using cond = layer_has_gradworks<_L>;
 
 		template<typename _L> static void op(_L& l, const typename _L::real_t lr)noexcept {
-			l.m_gradientWorks.learning_rate(lr);
+			l.get_gradWorks().learning_rate(lr);
 		}
 	};*/
 
 	
 	struct hlpr_layer_set_learning_rate {
 		template<typename _L> ::std::enable_if_t<nntl::layer_has_gradworks<_L>::value> operator()(_L& l, const typename _L::real_t lr)const noexcept {
-			l.m_gradientWorks.learning_rate(lr);
+			l.get_gradWorks().learning_rate(lr);
 		}
 		template<typename _L> ::std::enable_if_t<!nntl::layer_has_gradworks<_L>::value> operator()(_L&, const typename _L::real_t)const noexcept {}
 	};
 	struct hlpr_layer_learning_rate_decay {
 		template<typename _L>
 		::std::enable_if_t<nntl::layer_has_gradworks<_L>::value> operator()(_L& l, const typename _L::real_t decayCoeff)const noexcept {
-			l.m_gradientWorks.learning_rate(l.m_gradientWorks.learning_rate()*decayCoeff);
+			l.get_gradWorks().learning_rate(l.get_gradWorks().learning_rate()*decayCoeff);
 		}
 		template<typename _L>
 		::std::enable_if_t<!nntl::layer_has_gradworks<_L>::value> operator()(_L&, const typename _L::real_t)const noexcept {}
@@ -379,7 +387,7 @@ namespace nntl {
 
 		template<typename _L>
 		::std::enable_if_t<nntl::layer_has_gradworks<_L>::value> operator()(_L& l)const noexcept {
-			l.m_gradientWorks.learning_rate(l.m_gradientWorks.learning_rate()*decayVal);
+			l.get_gradWorks().learning_rate(l.get_gradWorks().learning_rate()*decayVal);
 		}
 		template<typename _L>
 		::std::enable_if_t<!nntl::layer_has_gradworks<_L>::value> operator()(_L&)const noexcept {}
@@ -387,7 +395,7 @@ namespace nntl {
 
 	struct hlpr_layer_set_nesterov_momentum {
 		template<typename _L> ::std::enable_if_t<nntl::layer_has_gradworks<_L>::value> operator()(_L& l, const typename _L::real_t nm)const noexcept {
-			l.m_gradientWorks.nesterov_momentum(nm);
+			l.get_gradWorks().nesterov_momentum(nm);
 		}
 		template<typename _L> ::std::enable_if_t<!nntl::layer_has_gradworks<_L>::value> operator()(_L&, const typename _L::real_t)const noexcept {}
 	};

@@ -54,10 +54,13 @@ namespace _impl {
 
 		static constexpr numel_cnt_t ewBinarizeBatch = 11000;
 
-		static constexpr numel_cnt_t mExtractRows = 8000000/2;//nt
+		static constexpr numel_cnt_t mExtractCols = 6000;//nt
+		static constexpr numel_cnt_t mExtractRows = 5000;//nt
 		static constexpr vec_len_t mExtractRowsByMask = 100;//NT
 
-		static constexpr numel_cnt_t mExtractRowsSeq = 8000000 / 2;//nt
+		static constexpr numel_cnt_t mExtractRowsSeq = 6000;//nt
+
+		static constexpr numel_cnt_t mTransposeTrsh = 90000/2;
 
 		static constexpr vec_len_t mFillRowsByMask = 100;//nt
 
@@ -193,11 +196,15 @@ namespace _impl {
 
 		static constexpr numel_cnt_t ewBinarizeBatch = 9200;
 
-		static constexpr numel_cnt_t mExtractRows = 830000;
-		static constexpr numel_cnt_t mExtractRowsSeq = 900000;
+		static constexpr numel_cnt_t mExtractCols = 10000;
+		static constexpr numel_cnt_t mExtractRows = 7000;
+
+		static constexpr numel_cnt_t mExtractRowsSeq = 10000;
 
 		static constexpr vec_len_t mExtractRowsByMask = 12000;//*
 		static constexpr vec_len_t mFillRowsByMask = 10000;//*
+
+		static constexpr numel_cnt_t mTransposeTrsh = 90000;
 
 		static constexpr numel_cnt_t mrwL2NormSquared = 250000;
 		static constexpr vec_len_t mrwL2NormSquared_mt_cw_ColsPerThread = 3;

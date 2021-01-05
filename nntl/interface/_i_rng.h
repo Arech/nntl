@@ -257,8 +257,22 @@ namespace rng {
 			NNTL_ASSERT(!mtx.emulatesBiases() || mtx.test_biases_strict());
 		}
 
+		// gen_matrixAny() fill a mtx matrix with random just like gen_matrix/gen_matrix_no_bias() but it
+		// doesn't require the mtx to either have or don't have biases. They are just skipped if any
+		// #supportsBatchesInRows
 		void gen_matrixAny(realmtx_t& mtx, const real_t a)noexcept {
-			get_self().gen_vector(mtx.data(), mtx.numel_no_bias(), a);
+			NNTL_ASSERT(!mtx.emulatesBiases() || mtx.test_biases_strict());
+
+			numel_cnt_t ne;
+			//if biases set for bBatchesInRows mode, then generate all and restore biases afterwards
+			if (mtx.emulatesBiases() && mtx.bSamplesInRows()) {
+				ne = mtx.numel_no_bias();
+			} else ne = mtx.numel();
+
+			get_self().gen_vector(mtx.data(), ne, a);
+
+			if (mtx.emulatesBiases() && mtx.bSamplesInColumns())  mtx.fill_bias_row();
+			NNTL_ASSERT(!mtx.emulatesBiases() || mtx.test_biases_strict());
 		}
 
 		//generate matrix with values in range [0,1]

@@ -39,7 +39,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 namespace nntl {
 	//inmem_train_data is the simpliest implementation of _i_train_data interface that stores train/test sets directly in
 	//memory and doesn't provide any augmentation facilities
-
+	// If not mentioned explicitly in a function comment, any member function of the class #supportsBatchesInRows (at least it should)
 	template<typename XT, typename YT = XT>
 	class inmem_train_data
 		: public _impl::_train_data_simple<inmem_train_data<XT, YT>, XT, YT>
@@ -50,10 +50,6 @@ namespace nntl {
 
 	public:
 		//resolving definitions clash
-// 		using base_class_t::value_type;
-// 		using base_class_t::real_t;
-// 		using base_class_t::realmtx_t;
-// 		using base_class_t::realmtxdef_t;
 		using base_class_t::x_t;
 		using base_class_t::y_t;
 		using base_class_t::x_mtx_t;
@@ -71,11 +67,11 @@ namespace nntl {
 		numel_cnt_t dataset_samples_count(data_set_id_t dataSetId)const noexcept {
 			NNTL_ASSERT(!empty());
 			NNTL_ASSERT(dataSetId >= 0 && dataSetId <= 1);
-			return X(dataSetId).rows();
+			return X(dataSetId).batch_size();
 		}
 
-		vec_len_t xWidth()const noexcept { NNTL_ASSERT(!empty()); return train_x().cols_no_bias(); }
-		vec_len_t yWidth()const noexcept { NNTL_ASSERT(!empty()); return train_y().cols_no_bias(); }
+		vec_len_t xWidth()const noexcept { NNTL_ASSERT(!empty()); return train_x().sample_size(); }
+		vec_len_t yWidth()const noexcept { NNTL_ASSERT(!empty()); return train_y().sample_size(); }
 
 		//////////////////////////////////////////////////////////////////////////
 		// other functions

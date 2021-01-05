@@ -1,6 +1,17 @@
 # Changelog
 I should probably have started doing it long ago, but better late than never. So here it is (for older entries see commit history)
 
+## 2021 Jan 05
+
+- slightly changed filenames format for `inspectors::dumper<>`
+- `m_gradientWorks` member variable of `LFC<>` and `layer_output<>` are no longer public. Just use getter method `get_gradWorks()`
+- `bool math::smatrix<>::m_bBatchesInRows` flag is introduced to give more flexibility to algorithms. Make sure you've read a comment for the flag, b/c it is very experimental and unstable (in a sence of support by most of `nntl`) feature. The following classes was audited and should probably work fine with the feature (note - not extensively tested yet!):
+
+  - all in `interface\math\smatrix.h`
+  - `inmem_train_data<>` and all it's base classes
+  - `nnet<>` and `layers<>`
+  - `LFC<>` and `layer_output<>` accepts only activations of previous layer in `bBatchesInRows()` mode and doesn't support own activations in this mode. No general issue to support it for `layer_output<>`, however, there's one for `LFC` with stripping rowvector of biases from `m_activations` before creation of dL/dZ.
+
 ## 2020 Dec 27
 
 - corrected semantic of `_grad_works::max_norm()`. The old function now properly named as `_grad_works::max_norm2()` to represent the fact the argument is treated as square of maximum norm. New `_grad_works::max_norm()` treats argument as pure norm value.

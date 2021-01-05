@@ -392,6 +392,7 @@ namespace nntl {
 		//#todo this code should be refactored.
 		void apply_grad(realmtxdef_t& weights, realmtxdef_t& dLdW) noexcept {
 			NNTL_ASSERT(dLdW.size() == weights.size());
+			NNTL_ASSERT(weights.bBatchesInColumns() && dLdW.bBatchesInColumns());//standard layout must be kept for weights
 #ifdef NNTL_AGGRESSIVE_NANS_DBG_CHECK
 			NNTL_ASSERT(weights.test_noNaNs());
 			NNTL_ASSERT(dLdW.test_noNaNs());

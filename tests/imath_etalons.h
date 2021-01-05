@@ -1058,5 +1058,25 @@ namespace math_etalons {
 			}
 		}
 	}
+
+	template<typename T, typename SeqIt>
+	void mExtractCols_ET(const smtx<T>& src, const SeqIt& cidxs, smtx<T>& dest) {
+		NNTL_ASSERT(src.bBatchesInRows() == dest.bBatchesInRows());
+		NNTL_ASSERT(src.rows_no_bias() == dest.rows_no_bias());
+		NNTL_ASSERT(!dest.emulatesBiases() || dest.test_biases_strict());
+
+		const vec_len_t totC = dest.cols_no_bias();
+		const vec_len_t totR = dest.rows_no_bias();
+		for (vec_len_t ci = 0; ci < totC; ++ci) {
+			const vec_len_t srcIdx = cidxs[ci];
+
+			for (vec_len_t ri = 0; ri < totR; ++ri) {
+				dest.set(ri, ci, src.get(ri, srcIdx));
+			}
+		}
+
+		NNTL_ASSERT(!dest.emulatesBiases() || dest.test_biases_strict());
+	}
+
 }
 }

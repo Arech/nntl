@@ -255,7 +255,7 @@ namespace nntl {
 		::std::enable_if_t<ba && !(is_pack_gated<T>::value && !Dropout_t::bDropoutIsZeroStable)> _fprop4Dropout() noexcept {
 			//no need to make special handling of gating layers etc.
 			if (bDropout()) {
-				_dropout_apply(_get_activations_mutable(), get_common_data());
+				_dropout_apply(get_self()._get_activations_mutable(), get_common_data());
 			}
 		}
 		template<typename T = _base_class_t, bool ba = bDropoutAvailable>
@@ -305,7 +305,7 @@ namespace nntl {
 				//because the true scaled_dL/dA = 1/p * computed_dL/dA
 				//we must undo the scaling of activations done by inverted dropout in order to obtain correct activation values
 				//It must be done as a basis to obtain correct dA/dZ
-				_dropout_restoreScaling(dLdA, _get_activations_mutable(), get_common_data());
+				_dropout_restoreScaling(dLdA, get_self()._get_activations_mutable(), get_common_data());
 			}
 		}
 

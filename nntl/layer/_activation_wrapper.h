@@ -43,6 +43,7 @@ namespace nntl {
 		//////////////////////////////////////////////////////////////////////////
 		// _act_wrap is a class that glues together activation function implementation and all previous layer-related machinery
 		// 
+		// If not mentioned explicitly in a function comment, any member function of the class #supportsBatchesInRows (at least it should)
 		template<typename FinalPolymorphChild, typename InterfacesT, typename ActivFuncT>
 		class _act_wrap
 			: public _act_stor<FinalPolymorphChild, InterfacesT>
@@ -84,7 +85,8 @@ namespace nntl {
 
 			template<typename YT, bool _b = bActivationForOutput>
 			::std::enable_if_t<_b, real_t> calc_loss(const math::smatrix<YT>& data_y)const noexcept {
-				NNTL_ASSERT(data_y.rows() == m_activations.rows());//note that we don't check cols() property to be able to pass
+				NNTL_ASSERT(data_y.batch_size() == m_activations.batch_size());
+				//note that we don't check sample_size() property to be able to pass
 				// some additional data to Activation_t::loss()
 				// note that compilation may break here if Activation_t doesn't support YT different from real_t
 				return Activation_t::loss(m_activations, data_y, get_iMath());
@@ -111,14 +113,14 @@ namespace nntl {
 				return Activation_t::act_scaling_coeff();
 			}
 
-			void on_batch_size_change(/*const real_t learningRateScale,*/ real_t*const pNewActivationStorage = nullptr)noexcept {
+			void on_batch_size_change(real_t*const pNewActivationStorage = nullptr)noexcept {
 				_base_class_t::on_batch_size_change(pNewActivationStorage);
 				Activation_t::on_batch_size_change();
 			}
 
 		protected:
 			bool _activation_init_weights(realmtx_t& weights) noexcept {
-				NNTL_ASSERT(!weights.emulatesBiases());
+				NNTL_ASSERT(!weights.emulatesBiases() && !weights.bBatchesInRows());
 				return Weights_Init_t::init(weights, get_iRng(), get_iMath());
 			}
 
@@ -129,16 +131,11 @@ namespace nntl {
 
 			template<typename iMathT>
 			void _activation_fprop(iMathT& iM)noexcept {
-#ifdef NNTL_AGGRESSIVE_NANS_DBG_CHECK
-				NNTL_ASSERT(m_activations.test_noNaNs());
-#endif // NNTL_AGGRESSIVE_NANS_DBG_CHECK
+				NNTL_ASSERT_MTX_NO_NANS(m_activations);
 
 				if (!bIgnoreActivation()) {
 					Activation_t::f(m_activations, iM);
-
-#ifdef NNTL_AGGRESSIVE_NANS_DBG_CHECK
-					NNTL_ASSERT(m_activations.test_noNaNs());
-#endif // NNTL_AGGRESSIVE_NANS_DBG_CHECK
+					NNTL_ASSERT_MTX_NO_NANS(m_activations);
 				}
 			}
 

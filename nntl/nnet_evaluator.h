@@ -139,7 +139,7 @@ namespace nntl {
 			NNTL_ASSERT(dest.rows() == td.dataset_samples_count(dataSetId));
 
 			auto& iM = cd.iMath();
-			const auto maxBatches = td.walk_over_set(dataSetId, cd);
+			const auto maxBatches = td.walk_over_set(dataSetId, cd, -1, td.flag_exclude_dataX);
 			vec_len_t rOfs = 0;
 			for (numel_cnt_t bi = 0; bi < maxBatches; ++bi) {
 				td.next_subset(bi, cd);
@@ -269,7 +269,7 @@ namespace nntl {
 			NNTL_ASSERT(conform_sign(dest.size()) == td.dataset_samples_count(dataSetId));
 
 			auto& iM = cd.iMath();
-			const auto maxBatches = td.walk_over_set(dataSetId, cd);
+			const auto maxBatches = td.walk_over_set(dataSetId, cd, -1, td.flag_exclude_dataX);
 			vec_len_t rOfs = 0;
 			for (numel_cnt_t bi = 0; bi < maxBatches; ++bi) {
 				td.next_subset(bi, cd);

@@ -2026,8 +2026,9 @@ namespace math {
 			const auto pSrc = srcCol.data();
 			auto pD = dest.colDataAsVec(firstCol);
 			const auto pDE = dest.colDataAsVec(_lastCol ? _lastCol : dest.cols());			
+			const size_t rowByteSize = sizeof(*pSrc)*static_cast<size_t>(_rows);
 			while (pD != pDE) {
-				memcpy(pD, pSrc, sizeof(*pSrc)*_rows);
+				memcpy(pD, pSrc, rowByteSize);
 				pD += _rows;
 			}
 		}

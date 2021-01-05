@@ -38,7 +38,10 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 namespace nntl {
 
 	//For dropout combine with LDo
-
+	// _LFC supports #supportsBatchesInRows only for previous layer activations.
+	// To implement the feature for this layer requires either stripping of a bias row in column-major mode
+	// or reimplementing _activation_bprop() so it'd work columnwise on all but the last (bias) row and
+	// output result into different matrix. Too much work for now.
 	template<typename FinalPolymorphChild, typename ActivFunc, typename GradWorks/*, typename DropoutT*/>
 	class _LFC 
 		: public m_layer_learnable
@@ -58,9 +61,12 @@ namespace nntl {
 		//////////////////////////////////////////////////////////////////////////
 		//members
 	protected:
+		grad_works_t m_gradientWorks;
+
 		// layer weight matrix: <m_neurons_cnt rows> x <m_incoming_neurons_cnt +1(bias)>,
 		// i.e. weights for individual neuron are stored row-wise (that's necessary to make fast cut-off of bias-related weights
 		// during backpropagation  - and that's the reason, why is it deformable)
+		// Note that bBatchesInRows() property must be set to false (the default value)
 		realmtxdef_t m_weights;
 		
 		//obsolete: we may use dLdA for that
@@ -68,11 +74,7 @@ namespace nntl {
 		// may share memory with some other data structure. Must be deformable for grad_works_t
 
 		real_t m_nTiledTimes{ 0 };
-
-	public:
-		grad_works_t m_gradientWorks; //don't use directly, use getter		
-		grad_works_t& get_gradWorks()noexcept { return m_gradientWorks; }
-
+		
 	protected:
 
 		//this flag controls the weights matrix initialization and prevents reinitialization on next nnet.train() calls
@@ -141,6 +143,8 @@ namespace nntl {
 		};
 		
 		//#TODO: move all generic fullyconnected stuff into a special base class!
+		grad_works_t& get_gradWorks()noexcept { return m_gradientWorks; }
+		const grad_works_t& get_gradWorks()const noexcept { return m_gradientWorks; }
 
 		const realmtx_t& get_weights()const noexcept { NNTL_ASSERT(m_bWeightsInitialized); return m_weights; }
 		realmtx_t& get_weights() noexcept { NNTL_ASSERT(m_bWeightsInitialized); return m_weights; }
@@ -148,9 +152,8 @@ namespace nntl {
 		bool set_weights(realmtx_t&& W)noexcept {
 			drop_weights();
 
-			if (W.empty() || W.emulatesBiases()
-				|| (W.cols() != get_incoming_neurons_cnt() + 1)
-				|| W.rows() != get_neurons_cnt())
+			if (W.empty() || W.emulatesBiases() || W.bBatchesInRows()
+				|| (W.cols() != get_incoming_neurons_cnt() + 1) || W.rows() != get_neurons_cnt())
 			{
 				NNTL_ASSERT(!"Wrong weight matrix passed!");
 				return false;
@@ -164,8 +167,8 @@ namespace nntl {
 
 		bool reinit_weights()noexcept {
 			NNTL_ASSERT(m_bWeightsInitialized || !"reinit_weights() can only be called after init()!");
-			NNTL_ASSERT(!m_weights.empty() && mtx_size_t(get_neurons_cnt(), get_incoming_neurons_cnt() + 1) == m_weights.size()
-				|| !"WTF?! Wrong state of weight matrix");
+			NNTL_ASSERT((!m_weights.empty() && mtx_size_t(get_neurons_cnt(), get_incoming_neurons_cnt() + 1) == m_weights.size()
+				&& m_weights.bBatchesInColumns()) || !"WTF?! Wrong state of weight matrix");
 			return _activation_init_weights(m_weights);
 		}
 
@@ -185,16 +188,16 @@ namespace nntl {
 			
 			m_nTiledTimes = real_t(lid.nTiledTimes);
 
-			const auto neurons_cnt = get_neurons_cnt();
+			const auto neurons_cnt = get_self().get_neurons_cnt();
 
 			NNTL_ASSERT(!m_weights.emulatesBiases());
 			if (m_bWeightsInitialized) {
 				//just double check everything is fine
-				NNTL_ASSERT(!m_weights.empty());
+				NNTL_ASSERT(!m_weights.empty() && m_weights.bBatchesInColumns());
 				//prior weight initialization implies you don't want them to be reinitialized silently
-				if (mtx_size_t(neurons_cnt, get_incoming_neurons_cnt() + 1) != m_weights.size()) {
+				if (mtx_size_t(neurons_cnt, get_self().get_incoming_neurons_cnt() + 1) != m_weights.size()) {
 					NNTL_ASSERT(!"WTF? Wrong weight matrix!");
-					STDCOUTL("WTF? Wrong weight matrix for layer " << get_layer_idx() << " " << get_layer_name_str());
+					STDCOUTL("WTF? Wrong weight matrix for layer " << get_self().get_layer_idx() << " " << get_self().get_layer_name_str());
 					abort();
 				}
 			} else {
@@ -203,10 +206,10 @@ namespace nntl {
 				m_weights.clear();
 
 				// initializing
-				if (!m_weights.resize(neurons_cnt, get_incoming_neurons_cnt() + 1)) return ErrorCode::CantAllocateMemoryForWeights;
+				if (!m_weights.resize(neurons_cnt, get_self().get_incoming_neurons_cnt() + 1)) return ErrorCode::CantAllocateMemoryForWeights;
 
 				m_bWeightsInitialized = true;//MUST be set prior call to reinit_weights()
-				if (!reinit_weights()) {
+				if (!get_self().reinit_weights()) {
 					m_weights.clear();
 					m_bWeightsInitialized = false;
 					return ErrorCode::CantInitializeWeights;
@@ -234,52 +237,56 @@ namespace nntl {
 				lid.max_dLdA_numel = ::std::max({ realmtx_t::sNumel(training_batch_size, neurons_cnt), prmsNumel });
 			}
 
-			if (!m_gradientWorks.init(get_common_data(), m_weights))return ErrorCode::CantInitializeGradWorks;
+			if (!get_gradWorks().init(get_common_data(), m_weights))return ErrorCode::CantInitializeGradWorks;
 
 			//#BUGBUG current implementation of GW::hasLossAddendum could return false because LAs are currently disabled,
 			//however they could be enabled later. Seems like not a major bug, so I'll leave it to fix later.
 			//#SeeAlso layer_output
-			lid.bLossAddendumDependsOnWeights = m_gradientWorks.hasLossAddendum();
+			lid.bLossAddendumDependsOnWeights = get_gradWorks().hasLossAddendum();
 
 			bSuccessfullyInitialized = true;
 			return ec;
 		}
 
 		void deinit() noexcept {
-			m_gradientWorks.deinit();
+			get_gradWorks().deinit();
 			m_nTiledTimes = real_t(0.);
 			_base_class_t::deinit();
 		}
 		
-		void on_batch_size_change(/*const real_t learningRateScale,*/ real_t*const pNewActivationStorage = nullptr)noexcept {
-			_base_class_t::on_batch_size_change(/*learningRateScale,*/ pNewActivationStorage);
-			//m_gradientWorks._learning_rate_scale(learningRateScale);//it seems that the whole idea was a mistake; pending for removal
-			NNTL_ASSERT(m_activations.rows() && m_activations.rows() == get_common_data().get_cur_batch_size());
+		void on_batch_size_change(real_t*const pNewActivationStorage = nullptr)noexcept {
+			_base_class_t::on_batch_size_change(pNewActivationStorage);
+			NNTL_ASSERT(!m_activations.empty() && m_activations.batch_size() == get_common_data().get_cur_batch_size());
 		}
 
 	protected:
 		//help compiler to isolate fprop functionality from the specific of previous layer
+		// #supportsBatchesInRows for prevActivations as well as m_activations
 		void _lfc_fprop(const realmtx_t& prevActivations)noexcept {
 			NNTL_ASSERT(prevActivations.test_biases_strict());
-#ifdef NNTL_AGGRESSIVE_NANS_DBG_CHECK
-			NNTL_ASSERT(prevActivations.test_noNaNs());
-#endif // NNTL_AGGRESSIVE_NANS_DBG_CHECK
+			NNTL_ASSERT_MTX_NO_NANS(prevActivations);
 			NNTL_ASSERT(is_activations_shared() || m_activations.test_biases_strict());
+			NNTL_ASSERT(m_activations.emulatesBiases());
 
 			const auto bTrainingMode = get_common_data().is_training_mode();
 			auto& _iI = get_iInspect();
 			_iI.fprop_begin(get_layer_idx(), prevActivations, bTrainingMode);
 
-			NNTL_ASSERT(mtx_size_t(get_common_data().get_cur_batch_size(), get_incoming_neurons_cnt() + 1) == prevActivations.size());
-			NNTL_ASSERT(m_activations.rows() == get_common_data().get_cur_batch_size());
+			NNTL_ASSERT(get_common_data().get_cur_batch_size() == prevActivations.batch_size() 
+				&& get_incoming_neurons_cnt() == prevActivations.sample_size());
+			NNTL_ASSERT(m_activations.batch_size() == get_common_data().get_cur_batch_size());
 
 			//might be necessary for Nesterov momentum application
-			if (bTrainingMode) m_gradientWorks.pre_training_fprop(m_weights);
+			if (bTrainingMode) get_gradWorks().pre_training_fprop(m_weights);
 
 			auto& iM = get_iMath();
 
 			_iI.fprop_makePreActivations(m_weights, prevActivations);
-			iM.mMulABt_Cnb(prevActivations, m_weights, m_activations);
+			
+			//iM.mMulABt_Cnb(prevActivations, m_weights, m_activations);
+			//note, mMul_prevAct_weights_2_act() supports bBatchesInRows() for prevActivations and doesn't support it for m_activations
+			iM.mMul_prevAct_weights_2_act(prevActivations, m_weights, m_activations);
+
 			_iI.fprop_preactivations(m_activations);
 			
 			_activation_fprop(iM);
@@ -299,11 +306,9 @@ namespace nntl {
 			NNTL_ASSERT(m_bActivationsValid);
 			m_bActivationsValid = false;
 
-#ifdef NNTL_AGGRESSIVE_NANS_DBG_CHECK
-			NNTL_ASSERT(dLdA.test_noNaNs());
-			NNTL_ASSERT(prevAct.test_noNaNs());
-			NNTL_ASSERT(m_activations.test_noNaNs());
-#endif // NNTL_AGGRESSIVE_NANS_DBG_CHECK
+			NNTL_ASSERT_MTX_NO_NANS(dLdA);
+			NNTL_ASSERT_MTX_NO_NANS(prevAct);
+			NNTL_ASSERT_MTX_NO_NANS(m_activations);
 
 			auto& _iI = get_iInspect();
 			_iI.bprop_begin(get_layer_idx(), dLdA);
@@ -312,20 +317,30 @@ namespace nntl {
 			NNTL_ASSERT(get_common_data().is_training_mode());
 			NNTL_ASSERT(m_activations.emulatesBiases() && prevAct.emulatesBiases());
 			NNTL_ASSERT(m_activations.size_no_bias() == dLdA.size());
-			NNTL_ASSERT(m_activations.rows() == get_common_data().get_cur_batch_size());
-			NNTL_ASSERT(mtx_size_t(get_common_data().get_cur_batch_size(), get_incoming_neurons_cnt() + 1) == prevAct.size());
+			NNTL_ASSERT(m_activations.batch_size() == get_common_data().get_cur_batch_size());
+			NNTL_ASSERT(get_common_data().get_cur_batch_size() == prevAct.batch_size()
+				&& get_incoming_neurons_cnt() == prevAct.sample_size());
 			NNTL_ASSERT(bPrevLayerIsInput || dLdAPrev.size() == prevAct.size_no_bias());//in vanilla simple BP we shouldn't calculate dLdAPrev for the first layer			
+			NNTL_ASSERT(bPrevLayerIsInput || dLdAPrev.bBatchesInRows() == prevAct.bBatchesInRows());
 
 			_iI.bprop_finaldLdA(dLdA);
 
 			_iI.bprop_predAdZ(m_activations);
 			
 			//dLdZ aliases m_activations (biases skipped)
+			// That is the point where the issue with bBatchesInRows() arise. We can't easily strip bias row from
+			// each m_activations column in this mode. Therefore leaving the old requirement untouched for now:
+			// bBatchesInRows() MUST be false here.
+			// Possible future workaround: decrease rows count but leave proper ldim() trick? Need a workaround for 
+			//     _activation_bprop() then, also for softmax, and finally everything else below here, but it would probably work
+			//     in a fastest way possible... Anyway, it's not the main issue now and just having bBatchesInRows() for previous
+			//     activations only is fine.
+			NNTL_ASSERT(m_activations.bBatchesInColumns() && dLdA.bBatchesInColumns());
 			realmtx_t dLdZ(m_activations.data(), m_activations, realmtx_t::tag_noBias());
 
 			auto& iM = get_iMath();
 
-			//compile-time shortcut for linear/identity activation to turn matrix fillup and ew-multiplication
+			//compile-time shortcut for linear/identity activation to turn matrix filling and ew-multiplication
 			//into just copying dLdA into dLdZ
 			if (activation::is_activation_identity<Activation_t>::value) {
 				const auto b = dLdA.copy_to(dLdZ);
@@ -357,9 +372,10 @@ namespace nntl {
 			if (!bPrevLayerIsInput) {
 				NNTL_ASSERT(!m_weights.emulatesBiases());
 				//compute dL/dAprev to use in lower layer. Before that make m_weights looks like there is no bias weights
-				m_weights.hide_last_col();
-				iM.mMulAB_C(dLdZ, m_weights, dLdAPrev);
-				m_weights.restore_last_col();//restore weights back
+				// m_weights.hide_last_col();
+				// iM.mMulAB_C(dLdZ, m_weights, dLdAPrev);
+				// m_weights.restore_last_col();//restore weights back
+				iM.mMul_dLdZ_weights_2_dLdAPrev(dLdZ, m_weights, dLdAPrev);
 			}
 
 			if (get_self().bUpdateWeights()) {
@@ -382,13 +398,16 @@ namespace nntl {
 				//#todo update grad checking algo to take tiling count into account.
 				//However, the tiled layer in a real life would have a m_nTiledTimes bigger batch size, than the modeled layer should have,
 				// therefore we'll upscale the gradient m_nTiledTimes times.
-				iM.mScaledMulAtB_C((inspector::is_gradcheck_inspector<iInspect_t>::value ? real_t(1) : m_nTiledTimes) / real_t(m_activations.rows())
+// 				iM.mScaledMulAtB_C((inspector::is_gradcheck_inspector<iInspect_t>::value ? real_t(1) : m_nTiledTimes) / real_t(m_activations.batch_size())
+// 					, dLdZ, prevAct, dLdW);
+				iM.mMulScaled_dLdZ_prevAct_2_dLdW(
+					(inspector::is_gradcheck_inspector<iInspect_t>::value ? real_t(1) : m_nTiledTimes) / real_t(m_activations.batch_size())
 					, dLdZ, prevAct, dLdW);
 
 				_iI.bprop_dLdW(dLdZ, prevAct, dLdW);
 
 				//now we can apply gradient to the weights
-				m_gradientWorks.apply_grad(m_weights, dLdW);
+				get_gradWorks().apply_grad(m_weights, dLdW);
 				//and restoring dLdA==dLdW size back (probably we can even skip this step, however, it's cheap and it's better to make it)
 				dLdW.deform_like_no_bias(m_activations);
 			}
@@ -417,9 +436,9 @@ namespace nntl {
 
 		//returns a loss function summand, that's caused by this layer (for example, L2 regularizer adds term
 		// l2Coefficient*Sum(weights.^2) )
-		real_t lossAddendum()const noexcept { return m_gradientWorks.lossAddendum(m_weights); }
+		real_t lossAddendum()const noexcept { return get_gradWorks().lossAddendum(m_weights); }
 		//should return true, if the layer has a value to add to Loss function value (there's some regularizer attached)
-		bool hasLossAddendum()const noexcept { return m_gradientWorks.hasLossAddendum(); }
+		bool hasLossAddendum()const noexcept { return get_gradWorks().hasLossAddendum(); }
 
 		
 

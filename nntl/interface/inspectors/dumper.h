@@ -293,16 +293,11 @@ namespace nntl {
 				if (m_DirToDump.empty()) _epic_fail("m_DirToDump is not set!");
 				if (omode == _ToDump::FProp || omode == _ToDump::BProp) {
 					NNTL_ASSERT(dataSetId == invalid_set_id);
-					//if (cond_dump_t::bNewBatch2NewFile) {
-						sprintf_s(n, ml, omode == _ToDump::FProp ? "%s/ep%03zd_%zdf.mat" : "%s/ep%03zd_%zdb.mat"
-							, m_DirToDump.c_str(), m_epochIdx + 1, m_batchIdx);
-// 					} else {
-// 						sprintf_s(n, ml, omode == _ToDump::FProp ? "%s/epoch%zdf.mat" : "%s/epoch%zdb.mat"
-// 							, m_pDirToDump, m_epochIdx + 1);
-// 					}
+					sprintf_s(n, ml, omode == _ToDump::FProp ? "%s/ep%03zd_%03zd_f.mat" : "%s/ep%03zd_%03zd_b.mat"
+						, m_DirToDump.c_str(), m_epochIdx + 1, m_batchIdx);
 				} else {
 					NNTL_ASSERT(omode == _ToDump::CalcErrOnSet && dataSetId >= 0);
-					sprintf_s(n, ml, "%s/ep%03zd_err%d.mat", m_DirToDump.c_str(), m_epochIdx + 1, dataSetId);
+					sprintf_s(n, ml, "%s/ep%03zd_err_%d.mat", m_DirToDump.c_str(), m_epochIdx + 1, dataSetId);
 				}
 			}
 			template<bool b = bSplitFiles>
@@ -311,14 +306,10 @@ namespace nntl {
 				if (m_DirToDump.empty()) _epic_fail("m_DirToDump is not set!");
 				if (omode == _ToDump::FProp || omode == _ToDump::BProp) {
 					NNTL_ASSERT(dataSetId == invalid_set_id);
-					//if (cond_dump_t::bNewBatch2NewFile) {
-						sprintf_s(n, ml, "%s/ep%03zd_%zd.mat", m_DirToDump.c_str(), m_epochIdx + 1, m_batchIdx);
-// 					} else {
-// 						sprintf_s(n, ml, "%s/epoch%zd.mat", m_pDirToDump, m_epochIdx + 1);
-// 					}
+					sprintf_s(n, ml, "%s/ep%03zd_%03zd_full.mat", m_DirToDump.c_str(), m_epochIdx + 1, m_batchIdx);
 				} else {
 					NNTL_ASSERT(omode == _ToDump::CalcErrOnSet && dataSetId >= 0);
-					sprintf_s(n, ml, "%s/ep%03zd_err%d.mat", m_DirToDump.c_str(), m_epochIdx + 1, dataSetId);
+					sprintf_s(n, ml, "%s/ep%03zd_err_%d.mat", m_DirToDump.c_str(), m_epochIdx + 1, dataSetId);
 				}
 			}
 

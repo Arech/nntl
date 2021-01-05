@@ -188,8 +188,8 @@ struct TLPHO_simple_arch {
 	//////////////////////////////////////////////////////////////////////////
 	struct LayerInit {
 		template<typename _L> ::std::enable_if_t<nntl::layer_has_gradworks<_L>::value> operator()(_L& l)noexcept {
-			l.m_gradientWorks
-				.set_type(decltype(l.m_gradientWorks)::Adam)
+			l.get_gradWorks()
+				.set_type(::std::decay_t<decltype(l.get_gradWorks())>::Adam)
 				.beta1(real_t(.9))
 				.beta2(real_t(.9))
 				;

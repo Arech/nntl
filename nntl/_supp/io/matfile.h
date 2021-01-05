@@ -560,6 +560,8 @@ namespace nntl_supp {
 		// Loading functions
 		// We will update last_error only if an error occurred!
 		// //denormals safe
+		// Note that neither saving nor loading does not properly support any smatrix<> flags except emulateBiases() (and it is
+		// supported only for only one special case)
 		template<typename BaseT>
 		self_ref_t operator>>(nntl::math::smatrix<BaseT>& t) {
 			NNTL_ASSERT((m_matFile && m_curVarName) || !"Open file with openForLoad() and use nvp/named_struct to address data to read!");

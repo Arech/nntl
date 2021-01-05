@@ -232,34 +232,6 @@ namespace _impl {
 
 		//////////////////////////////////////////////////////////////////////////
 		//everything besides written above should be accessed via get_common_data()
-
-		/*const typename iMath_t::vec_len_t max_fprop_batch_size()const noexcept {
-			NNTL_ASSERT(m_pCommonData);
-			return m_pCommonData->max_fprop_batch_size();
-		}
-		const typename iMath_t::vec_len_t training_batch_size()const noexcept {
-			NNTL_ASSERT(m_pCommonData);
-			return m_pCommonData->training_batch_size();
-		}
-		const typename iMath_t::vec_len_t biggest_batch_size()const noexcept {
-			NNTL_ASSERT(m_pCommonData);
-			return m_pCommonData->biggest_batch_size();
-		}
-
-		const bool is_training_mode()const noexcept {
-			NNTL_ASSERT(m_pCommonData);
-			return m_pCommonData->is_training_mode();
-		}
-
-		const bool is_training_possible()const noexcept {
-			NNTL_ASSERT(m_pCommonData);
-			return m_pCommonData->is_training_possible();
-		}
-		
-		const typename iMath_t::vec_len_t get_cur_batch_size()const noexcept {
-			NNTL_ASSERT(m_pCommonData);
-			return m_pCommonData->get_cur_batch_size();
-		}*/
 	};
 
 	//////////////////////////////////////////////////////////////////////////

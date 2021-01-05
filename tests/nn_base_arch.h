@@ -130,12 +130,12 @@ namespace nntl_tests {
 			LayerInit(const ArchPrmsT& P) noexcept : Prms(P) {}
 
 			template<typename _L> ::std::enable_if_t<nntl::layer_has_gradworks<_L>::value> operator()(_L& l)const noexcept {
-				l.m_gradientWorks
+				l.get_gradWorks()
 					//.set_type(decltype(l.m_gradientWorks)::RProp)
 					//.set_type(decltype(l.m_gradientWorks)::RMSProp_Hinton)
 					//.set_type(decltype(l.m_gradientWorks)::RMSProp_Graves)
 					//.set_type(decltype(l.m_gradientWorks)::ModProp)
-					.set_type(decltype(l.m_gradientWorks)::Adam)
+					.set_type( ::std::decay_t<decltype(l.get_gradWorks())>::Adam)
 					//.set_type(decltype(l.m_gradientWorks)::AdaMax)
 					//.numeric_stabilizer(real_t(.0001))
 					//.beta1(real_t(.95))

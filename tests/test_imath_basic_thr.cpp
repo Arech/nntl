@@ -1642,55 +1642,180 @@ TEST(TestMathNThr, evMul_ip) {
 		test_evMul_ip_perf(i, 10);
 	}
 }
-
 //////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////
+/*
 
-void test_mExtractRows_perf(vec_len_t rowsCnt, vec_len_t colsCnt, vec_len_t extrCnt) {
+template<typename IntfT>
+void test_mExtractCols_perf(typename IntfT::iMath_t& iM, typename IntfT::iRng_t& iR
+	, vec_len_t totBatches, vec_len_t sampleSiz, vec_len_t batchSiz, const numel_cnt_t CACHE_SIZE)
+{
+	typedef typename IntfT::real_t real_t;
+	typedef typename IntfT::iMath_t::realmtx_t realmtx_t;
+	typedef typename IntfT::iMath_t::realmtxdef_t realmtxdef_t;
 	typedef ::std::vector<vec_len_t> vec_t;
 
-	if (rowsCnt < extrCnt) extrCnt = rowsCnt;
+	if (totBatches < batchSiz) batchSiz = totBatches;
 
-	realmtx_t src(rowsCnt, colsCnt), dest(extrCnt, colsCnt);
+	realmtx_t src(sampleSiz, totBatches), dest(sampleSiz, batchSiz);
 	ASSERT_TRUE(!src.isAllocationFailed() && !dest.isAllocationFailed());
-	vec_t vec(rowsCnt);
+	vec_t vec(totBatches);
 	::std::iota(vec.begin(), vec.end(), 0);
 
-	STDCOUTL("******* testing mExtractRows() over " << rowsCnt << "x" << colsCnt << " matrix (" << src.numel()
-		<< " elems) ExtractRows=" << extrCnt << " -> " << dest.numel() << " elems *********");
+	STDCOUTL("*** mExtractCols() over " << totBatches << "x" << sampleSiz << " matrix (" << src.numel()
+		<< " elems) ExtractCols=" << batchSiz << " -> " << dest.numel() << " elems ***");
 
-	constexpr unsigned maxReps = TEST_PERF_REPEATS_COUNT;
+	auto bClog = CACHE_SIZE > 0; // dest.byte_size() < CACHE_SIZE;
+	realmtxdef_t cClog, cClogDest;
+	if (bClog) {
+		numel_cnt_t clogNumel = CACHE_SIZE / sizeof(real_t);
+		cClog.resize(clogNumel);
+		cClog.deform(static_cast<vec_len_t>(clogNumel), 1);
+		cClogDest.resize(cClog.size());
+		iR.gen_matrix(cClog, real_t(10));
+	}
 
-	d_interfaces::iRng_t rg;
-	rg.init_ithreads(iM.ithreads());
+	constexpr unsigned maxReps = TEST_PERF_REPEATS_COUNT/5;
 
 	tictoc tS, tM, tB;
 	//testing performance
 	threads::prioritize_workers<threads::PriorityClass::PerfTesting, typename imath_basic_t::iThreads_t> pw(iM.ithreads());
 	real_t v = real_t(0);
 	for (unsigned r = 0; r < maxReps; ++r) {
-		rg.gen_matrix(src, real_t(100));
-		::std::random_shuffle(vec.begin(), vec.end(), rg);
+		iR.gen_matrix(src, real_t(100));
+		::std::random_shuffle(vec.begin(), vec.end(), iR);
+		auto it = vec.begin();
+
+		if (bClog) { ASSERT_TRUE(cClog.copy_to(cClogDest));			for (const auto e : cClogDest) v += r*e; }
 		tS.tic();
-		iM.mExtractRows_seqWrite_st(src, vec.begin(), dest);
+		iM.mExtractCols_st(src, it, dest);
 		tS.toc();
-		for (const auto& e : dest) v += e;
+		for (const auto e : dest) v += e;
 		v = ::std::log(::std::abs(v));
+		it += batchSiz;
+		if (it >= vec.end()) it = vec.begin();
 
-		rg.gen_matrix(src, real_t(100));
-		::std::random_shuffle(vec.begin(), vec.end(), rg);
+		if (bClog) { ASSERT_TRUE(cClog.copy_to(cClogDest));			for (const auto e : cClogDest) v += r*e; }
 		tM.tic();
-		iM.mExtractRows_seqWrite_mt(src, vec.begin(), dest);
+		iM.mExtractCols_mt(src, it, dest);
 		tM.toc();
-		for (const auto& e : dest) v += e;
+		for (const auto e : dest) v += e;
 		v = ::std::log(::std::abs(v));
+		it += batchSiz;
+		if (it >= vec.end()) it = vec.begin();
 
-		rg.gen_matrix(src, real_t(100));
-		::std::random_shuffle(vec.begin(), vec.end(), rg);
+		if (bClog) { ASSERT_TRUE(cClog.copy_to(cClogDest));			for (const auto e : cClogDest) v += r*e; }
 		tB.tic();
-		iM.mExtractRows(src, vec.begin(), dest);
+		iM.mExtractCols(src, it, dest);
 		tB.toc();
-		for (const auto& e : dest) v += e;
+		for (const auto e : dest) v += e;
+		v = ::std::log(::std::abs(v));
+	}
+	tS.say("st");
+	tM.say("mt");
+	tB.say("()");
+	STDCOUTL(v);
+}
+
+TEST(TestMathNThr, mExtractColsPerf) {
+	typedef dt_interfaces<real_t> myInterfaces_t;
+	typename myInterfaces_t::iRng_t iR;
+	iR.init_ithreads(iM.ithreads());
+
+	::std::vector<vec_len_t> samplSizes = { 10, 20, 100, 800, 1500, 4096 };
+	::std::vector<vec_len_t> batchSizes = { 64, 128, 256, 512, 1024, 4096, 32 * 4096 };
+
+#ifdef TESTS_SKIP_LONGRUNNING
+	const numel_cnt_t CACHE_SIZE = 0;
+#else
+	const numel_cnt_t CACHE_SIZE = 6 * 1024 * 1024;
+#endif
+	//const vec_len_t srcNumel = imath_basic_t::Thresholds_t::mExtractCols * srcBatchMul;
+
+	for (const auto ss :samplSizes) {
+		for (const auto bs : batchSizes) {
+			vec_len_t totB;
+		#ifdef TESTS_SKIP_LONGRUNNING
+			totB = bs*2;
+		#else
+			const auto nd = numel_cnt_t(ss)*bs;
+			if (nd <= 1024 * 2600) {
+				totB = bs*256;
+			} else if (nd <= 4096 * 4096) {
+				totB = bs*32;
+			}else totB = bs*6;
+		#endif			
+			test_mExtractCols_perf<myInterfaces_t>(iM, iR, totB, ss, bs, CACHE_SIZE);
+		}
+// 		const vec_len_t totBatches = srcNumel / ss;
+// 		NNTL_RUN_TEST2(imath_basic_t::Thresholds_t::mExtractCols, ss) test_mExtractCols_perf<myInterfaces_t>(iM, iR, totBatches, ss, i, CACHE_SIZE);
+		//NNTL_RUN_TEST2(imath_basic_t::Thresholds_t::mExtractCols_cols, 1) test_mExtractCols_perf<myInterfaces_t>(iM, iR, srcCols, ss, i, CACHE_SIZE);
+	}
+}
+
+//////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////
+
+void test_mExtractRows_perf(vec_len_t totBatches, vec_len_t sampleSiz, vec_len_t batchSiz, const numel_cnt_t CACHE_SIZE) {
+	typedef ::std::vector<vec_len_t> vec_t;
+
+	if (totBatches < batchSiz) batchSiz = totBatches;
+
+	realmtx_t src(totBatches, sampleSiz), dest(batchSiz, sampleSiz);
+	ASSERT_TRUE(!src.isAllocationFailed() && !dest.isAllocationFailed());
+	vec_t vec(totBatches);
+	::std::iota(vec.begin(), vec.end(), 0);
+
+	STDCOUTL("******* testing mExtractRows() over " << totBatches << "x" << sampleSiz << " matrix (" << src.numel()
+		<< " elems) ExtractRows=" << batchSiz << " -> " << dest.numel() << " elems *********");
+
+	constexpr unsigned maxReps = TEST_PERF_REPEATS_COUNT/5;
+
+	d_interfaces::iRng_t iR;
+	iR.init_ithreads(iM.ithreads());
+
+	auto bClog = CACHE_SIZE > 0; // dest.byte_size() < CACHE_SIZE;
+	realmtxdef_t cClog, cClogDest;
+	if (bClog) {
+		numel_cnt_t clogNumel = CACHE_SIZE / sizeof(real_t);
+		cClog.resize(clogNumel);
+		cClog.deform(static_cast<vec_len_t>(clogNumel), 1);
+		cClogDest.resize(cClog.size());
+		iR.gen_matrix(cClog, real_t(10));
+	}
+
+	tictoc tS, tM, tB;
+	//testing performance
+	threads::prioritize_workers<threads::PriorityClass::PerfTesting, typename imath_basic_t::iThreads_t> pw(iM.ithreads());
+	real_t v = real_t(0);
+	for (unsigned r = 0; r < maxReps; ++r) {
+		iR.gen_matrix(src, real_t(100));
+		::std::random_shuffle(vec.begin(), vec.end(), iR);
+		auto it = vec.begin();
+		
+		if (bClog) { ASSERT_TRUE(cClog.copy_to(cClogDest));			for (const auto e : cClogDest) v += r*e; }
+		tS.tic();
+		iM.mExtractRows_seqWrite_st(src, it, dest);
+		tS.toc();
+		for (const auto e : dest) v += e;
+		v = ::std::log(::std::abs(v));
+		it += batchSiz;
+		if (it >= vec.end()) it = vec.begin();
+				
+		if (bClog) { ASSERT_TRUE(cClog.copy_to(cClogDest));			for (const auto e : cClogDest) v += r*e; }
+		tM.tic();
+		iM.mExtractRows_seqWrite_mt(src, it, dest);
+		tM.toc();
+		for (const auto e : dest) v += e;
+		v = ::std::log(::std::abs(v));
+		it += batchSiz;
+		if (it >= vec.end()) it = vec.begin();
+
+		if (bClog) { ASSERT_TRUE(cClog.copy_to(cClogDest));			for (const auto e : cClogDest) v += r*e; }
+		tB.tic();
+		iM.mExtractRows(src, it, dest);
+		tB.toc();
+		for (const auto e : dest) v += e;
 		v = ::std::log(::std::abs(v));
 	}
 	tS.say("st");
@@ -1700,13 +1825,41 @@ void test_mExtractRows_perf(vec_len_t rowsCnt, vec_len_t colsCnt, vec_len_t extr
 }
 
 TEST(TestMathNThr, mExtractRowsPerf) {
-	NNTL_RUN_TEST2(imath_basic_t::Thresholds_t::mExtractRows, 100) test_mExtractRows_perf(i, 100, 100);
-	NNTL_RUN_TEST2(imath_basic_t::Thresholds_t::mExtractRows, 20) test_mExtractRows_perf(i, 20, 100);
+	::std::vector<vec_len_t> samplSizes = { 10, 20, 100, 800, 1500, 4096 };
+	::std::vector<vec_len_t> batchSizes = { 64, 128, 256, 512, 1024, 4096, 32 * 4096 };
+
+#ifdef TESTS_SKIP_LONGRUNNING
+	const numel_cnt_t CACHE_SIZE = 0;
+#else
+	const numel_cnt_t CACHE_SIZE = 6 * 1024 * 1024;
+#endif
+	//const vec_len_t srcNumel = imath_basic_t::Thresholds_t::mExtractRows * srcBatchMul;
+
+	for (const auto ss : samplSizes) {
+		for (const auto bs : batchSizes){
+			vec_len_t totB;
+		#ifdef TESTS_SKIP_LONGRUNNING
+			totB = bs * 2;
+		#else
+			const auto nd = numel_cnt_t(ss)*bs;
+			if (nd <= 1024 * 2600) {
+				totB = bs * 50;
+			} else if (nd <= 4096 * 4096) {
+				totB = bs * 15;
+			} else totB = bs * 3;
+		#endif		
+			test_mExtractRows_perf(totB, ss, bs, CACHE_SIZE);
+		}
+// 		const vec_len_t totBatches = srcNumel / ss;
+// 		NNTL_RUN_TEST2(imath_basic_t::Thresholds_t::mExtractRows, ss) test_mExtractRows_perf(totBatches, ss, i, CACHE_SIZE);
+	}
 }
+*/
 
 //////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////
 
+/*
 void test_mExtractRowsSeq_perf(vec_len_t rowsCnt, vec_len_t colsCnt, vec_len_t extrCnt) {
 	if (rowsCnt < extrCnt) extrCnt = rowsCnt;
 
@@ -1761,7 +1914,7 @@ void test_mExtractRowsSeq_perf(vec_len_t rowsCnt, vec_len_t colsCnt, vec_len_t e
 TEST(TestMathNThr, mExtractRowsSeqPerf) {
 	NNTL_RUN_TEST2(imath_basic_t::Thresholds_t::mExtractRowsSeq, 100) test_mExtractRowsSeq_perf(i, 100, 100);
 	NNTL_RUN_TEST2(imath_basic_t::Thresholds_t::mExtractRowsSeq, 20) test_mExtractRowsSeq_perf(i, 20, 100);
-}
+}*/
 
 //////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////// 
@@ -2100,13 +2253,13 @@ void mTranspose_perf(typename IntfT::iMath_t& iM, vec_len_t rowsCnt, vec_len_t c
 
 		rg.gen_matrix(src, real_t(5));
 		tSR.tic();
-		iM.mTranspose_seq_read_ignore_bias(src, dest);
+		iM.mTranspose_seq_read(src, dest, true);
 		tSR.toc();
 		for (const auto e : dest) v += e;
 
 		rg.gen_matrix(src, real_t(5));
 		tSW.tic();
-		iM.mTranspose_seq_write_ignore_bias(src, dest);
+		iM.mTranspose_seq_write(src, dest, true);
 		tSW.toc();
 		for (const auto e : dest) v += e;
 

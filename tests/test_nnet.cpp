@@ -86,13 +86,13 @@ void testL2L1(const bool bL2, inmem_train_data<real_t>& td, const real_t coeff, 
 	layer_output<activation::sigm_xentropy_loss<real_t, w_init_scheme>> outp(td.train_y().cols(), learningRate);
 
 	if (bL2) {
-		fcl.m_gradientWorks.L2(coeff);
-		fcl2.m_gradientWorks.L2(coeff);
-		outp.m_gradientWorks.L2(coeff);
+		fcl.get_gradWorks().L2(coeff);
+		fcl2.get_gradWorks().L2(coeff);
+		outp.get_gradWorks().L2(coeff);
 	} else {
-		fcl.m_gradientWorks.L1(coeff);
-		fcl2.m_gradientWorks.L1(coeff);
-		outp.m_gradientWorks.L1(coeff);
+		fcl.get_gradWorks().L1(coeff);
+		fcl2.get_gradWorks().L1(coeff);
+		outp.get_gradWorks().L1(coeff);
 	}
 
 	auto lp = make_layers(inp, fcl, fcl2, outp);
@@ -238,7 +238,7 @@ void test_LSUVExt(inmem_train_data<RealT>& td, bool bCentNorm, bool bScaleNorm, 
 		ASSERT_TRUE(::std::decay_t<decltype(lyr)>::Weights_Init_t::init(W, iR, iM));
 		//note that we MUST not use lyr.reinit_weights() function here because layer is not initialized at this point
 		ASSERT_TRUE(lyr.set_weights(::std::move(W)));
-		lyr.m_gradientWorks.set_type(decltype(lyr.m_gradientWorks)::Adam);
+		lyr.get_gradWorks().set_type(::std::decay_t<decltype(lyr.get_gradWorks())>::Adam);
 	});
 
 	if (bUseLSUVExt) {
@@ -256,6 +256,7 @@ void test_LSUVExt(inmem_train_data<RealT>& td, bool bCentNorm, bool bScaleNorm, 
 		outpS.bOnInvidualNeurons = bIndNeurons;
 		outpS.batchSize = batchSize;
 		outpS.maxReinitTries = maxTries;
+		outpS.maxTries = 20;
 
 		def.bOverPreActivations = true;
 		def.bCentralNormalize = bCentNorm;
@@ -263,6 +264,7 @@ void test_LSUVExt(inmem_train_data<RealT>& td, bool bCentNorm, bool bScaleNorm, 
 		def.bOnInvidualNeurons = bIndNeurons;
 		def.batchSize = batchSize;
 		def.maxReinitTries = maxTries;
+		def.maxTries = 20;
 		
 		def.bOnBadStatsBreak = false;
 

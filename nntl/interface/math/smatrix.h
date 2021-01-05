@@ -149,6 +149,83 @@ namespace math {
 			}
 			return !!cond;
 		}
+
+		//////////////////////////////////////////////////////////////////////////
+		// same as above, but with non-unit increment (it won't vectorize)
+		//debug/NNTL_ASSERT use is preferred
+		template<typename T = value_type>
+		static ::std::enable_if_t<::std::is_floating_point<T>::value
+			, bool> _isBinaryVecWLd(const T* pData, const numel_cnt_t ne, const ptrdiff_t ld, const bool bNonBinIsOK = false) noexcept
+		{
+			NNTL_UNREF(bNonBinIsOK);//it's used just to trigger assert and nothing more
+			typedef typename real_t_limits<T>::similar_FWI_t similar_FWI_t;
+
+			const auto _one = similar_FWI_one<T>();
+			const auto _poszero = similar_FWI_pos_zero<T>();
+			const auto _negzero = similar_FWI_neg_zero<T>();
+			//#todo for C++17 must change to ::std::launder(reinterpret_cast< ... 
+			auto ptr = reinterpret_cast<const similar_FWI_t*>(pData);
+
+			const auto pE = ptr + ne;
+			similar_FWI_t cond = similar_FWI_t(1);
+			while (ptr != pE) {
+				const auto v = *ptr;
+				ptr += ld;
+				//we must make sure that binary zero is an actual unsigned(positive) zero
+				const similar_FWI_t c = ((v == _one) | (v == _poszero) | (v == _negzero));
+				NNTL_ASSERT(bNonBinIsOK || c || !"Not a binary vector!");
+				cond = cond & c;
+			}
+			return !!cond;
+		}
+		template<typename T = value_type>
+		static ::std::enable_if_t<::std::is_integral<T>::value, bool> _isBinaryVecWLd(const T* ptr, const numel_cnt_t ne
+			, const ptrdiff_t ld, const bool bNonBinIsOK = false) noexcept
+		{
+			return _isBinaryStrictVecWLd(ptr, ne, ld, bNonBinIsOK);
+		}
+		template<typename T = value_type>
+		static ::std::enable_if_t<::std::is_floating_point<T>::value, bool> _isBinaryStrictVecWLd(const T* pData
+			, const numel_cnt_t ne, const ptrdiff_t ld, const bool bNonBinIsOK = false) noexcept
+		{
+			typedef typename real_t_limits<T>::similar_FWI_t similar_FWI_t;
+
+			const auto _one = similar_FWI_one<T>();
+			const auto _zero = similar_FWI_pos_zero<T>();
+			//#todo for C++17 must change to ::std::launder(reinterpret_cast< ... 
+			auto ptr = reinterpret_cast<const similar_FWI_t*>(pData);
+
+			const auto pE = ptr + ne;
+			similar_FWI_t cond = similar_FWI_t(1);
+			while (ptr != pE) {
+				const auto v = *ptr;
+				ptr += ld;
+				//we must make sure that binary zero is an actual unsigned(positive) zero
+				const similar_FWI_t c = ((v == _one) | (v == _zero));
+				NNTL_ASSERT(bNonBinIsOK || c || !"Not a binary vector!");
+				cond = cond & c;
+			}
+			return !!cond;
+		}
+		template<typename T = value_type>
+		static ::std::enable_if_t<::std::is_integral<T>::value, bool> _isBinaryStrictVecWLd(const T* ptr
+			, const numel_cnt_t ne, const ptrdiff_t ld, const bool bNonBinIsOK = false) noexcept
+		{
+			const auto _one = T(1);
+			const auto _zero = T(0);
+
+			const auto pE = ptr + ne;
+			T cond = T(1);
+			while (ptr != pE) {
+				const auto v = *ptr;
+				ptr += ld;
+				//we must make sure that binary zero is an actual unsigned(positive) zero
+				const T c = ((v == _one) | (v == _zero));
+				NNTL_ASSERT(bNonBinIsOK || c || !"Not a binary vector!");
+				cond = cond & c;
+			}
+			return !!cond;
+		}
 	};
 
 	//////////////////////////////////////////////////////////////////////////
@@ -156,6 +233,10 @@ namespace math {
 	// #TODO note that using char as T_ template parameter may lead to strict aliasing related performance penalties
 	// in many cases where accessing data via char* will be used. Probably should make here some type substituting voodoo to get
 	// rid of char if char is used ?
+	// Note, that matrix data in nntl are ALWAYS in column-major mode. Until late 2020 all data samples are in rows and batches
+	// are in columns. Since/after 2020 the flag m_bBatchesInRows was introduced, that carries information of matrix schema
+	// (what are rows and what are columns) and allows to switch samples with batches, but MOST of nntl's algos still DOESN'T support it.
+	// See comment for m_bBatchesInRows below for more information.
 	template <typename T_>
 	class smatrix : public smatrix_td {
 		static_assert(::std::is_pod<T_>::value, "Matrix type must be POD type for proper mem allocation");
@@ -173,10 +254,13 @@ namespace math {
 		value_ptr_t m_pData;
 		vec_len_t m_rows, m_cols;
 
-		// #TODO: probably it's better to turn m_bEmulateBiases and m_bDontManageStorage variables into template parameters,
+		// #note: probably it's better to turn m_bEmulateBiases and m_bDontManageStorage variables into template parameters,
 		// because it looks like sometimes we don't need to change them during lifetime of an object. It'll help to make class a little faster and
 		// array of objects will require significantly less memory ( N x default alignment, which is 8 or even 16 bytes)
-		// That could lead to another speedup due to faster access to a class members within first 256 bytes of member space
+		// That could lead to another speedup due to faster access to a class members within first 256 bytes of member space.
+		// However, we still need m_bHoleyBiases and some other flags to be managed at run-time... They can be incorporated
+		// into m_pData lowest bits, but that's a bit hacky and probably not universally portable. The latter in not of much concern,
+		// however the burden required to implement is too huge and probably just no need to bother.
 
 		bool m_bEmulateBiases;// off by default. Turn on before filling(resizing) matrix for X data storage. This will append
 		// an additional last column prefilled with ones to emulate neuron biases. Hence m_cols will be 1 greater, than specified
@@ -191,6 +275,20 @@ namespace math {
 		//it is ok for a bias to also have a value of zero. We need this flag to support gating layers, that should completely
 		// blackout data samples including biases. If we are to remove it, test_biases_ok() would fail assestions on gated layers.
 		// This flag doesn't require m_bEmulateBiases flag, because matrix could have biases without this flag set in some cases
+
+		//  [12/29/2020]---
+		// This thing is probably similar to opening a doorway to hell, but still. In some cases working with transposed matrices
+		// leads to x2-x3+ speedup for matrix multiplication and much-much more than that for algos of rowwise processing,
+		// so we need the flexibility to distinguish the case where a data sample is in row and batches of samples are in columns,
+		// from the case of the opposite: when data sample (individual input/output neurons of a layer) is in column and batches are in rows.
+		// The problem is that at this moment each and every implemented algo (including most of smatrix<> itself)
+		// silently (which means there's even no debug mode
+		// assertions) assumes that samples are rows and batches are columns. So if you are to use this flag, it's yours responsibility
+		// to double check all chain of computations to make sure it works as expected.
+		// Most likely the flag will never be fully supported at all, but still some individual functions, marked
+		// with a tag #supportsBatchesInRows, are probably safe to use (still under strict disclaimer above. Well,
+		// may be a little less strict).
+		bool m_bBatchesInRows{ false };
 
 	protected:
 		void _realloc() noexcept {
@@ -228,58 +326,83 @@ namespace math {
 			_free();
 		}
 
+		// #supportsBatchesInRows
 		smatrix() noexcept : m_pData(nullptr), m_rows(0), m_cols(0)
 			, m_bEmulateBiases(false), m_bDontManageStorage(false), m_bHoleyBiases(false){};
 		
-		smatrix(const vec_len_t _rows, const vec_len_t _cols, const bool _bEmulBias=false) noexcept : m_pData(nullptr),
-			m_rows(_rows), m_cols(_cols), m_bEmulateBiases(_bEmulBias), m_bDontManageStorage(false), m_bHoleyBiases(false)
+		// #supportsBatchesInRows
+		smatrix(const vec_len_t _rows, const vec_len_t _cols, const bool _bEmulBias=false, const bool bBatchsInR = false) noexcept
+			: m_pData(nullptr), m_rows(_rows), m_cols(_cols), m_bEmulateBiases(_bEmulBias)
+			, m_bDontManageStorage(false), m_bHoleyBiases(false), m_bBatchesInRows(bBatchsInR)
 		{
 			NNTL_ASSERT(_rows > 0 && _cols > 0);
-			if (m_bEmulateBiases) ++m_cols;
+			m_cols += (_bEmulBias & !bBatchsInR);
+			m_rows += (_bEmulBias & bBatchsInR);
 			_realloc();
-			if (m_bEmulateBiases) set_biases();
+			if (_bEmulBias) set_biases();
 		}
-		smatrix(const mtx_size_t& msize, const bool _bEmulBias = false) noexcept : m_pData(nullptr),
-			m_rows(msize.first), m_cols(msize.second), m_bEmulateBiases(_bEmulBias), m_bDontManageStorage(false), m_bHoleyBiases(false)
+
+		// #supportsBatchesInRows
+		smatrix(const bool bBatchsInR, const vec_len_t _batchSize, const vec_len_t _samplesCnt, const bool _bEmulBias = false) noexcept
+			: m_pData(nullptr), m_rows(bBatchsInR ? _samplesCnt : _batchSize), m_cols(bBatchsInR ? _batchSize : _samplesCnt)
+			, m_bEmulateBiases(_bEmulBias), m_bDontManageStorage(false), m_bHoleyBiases(false), m_bBatchesInRows(bBatchsInR)
+		{
+			NNTL_ASSERT(_batchSize > 0 && _samplesCnt > 0);
+			m_cols += (_bEmulBias & !bBatchsInR);
+			m_rows += (_bEmulBias & bBatchsInR);
+			_realloc();
+			if (_bEmulBias) set_biases();
+		}
+
+		// #supportsBatchesInRows
+		smatrix(const mtx_size_t& msize, const bool _bEmulBias = false, const bool bBatchsInR = false) noexcept
+			: m_pData(nullptr), m_rows(msize.first), m_cols(msize.second), m_bEmulateBiases(_bEmulBias)
+			, m_bDontManageStorage(false), m_bHoleyBiases(false), m_bBatchesInRows(bBatchsInR)
 		{
 			NNTL_ASSERT(m_rows > 0 && m_cols > 0);
-			if (m_bEmulateBiases) ++m_cols;
+			m_cols += (_bEmulBias & !bBatchsInR);
+			m_rows += (_bEmulBias & bBatchsInR);
 			_realloc();
 			if (m_bEmulateBiases) set_biases();
 		}
 
 		//useExternalStorage(value_ptr_t ptr, const smatrix& sizeLikeThis) variation
-		smatrix(value_ptr_t ptr, const smatrix& sizeLikeThis)noexcept : m_pData(nullptr), m_bDontManageStorage(false){
-			useExternalStorage(ptr, sizeLikeThis, sizeLikeThis.emulatesBiases() ? sizeLikeThis.isHoleyBiases() : false);
+		// #supportsBatchesInRows
+		smatrix(value_ptr_t ptr, const smatrix& propsLikeThis) noexcept : m_pData(nullptr), m_bDontManageStorage(false) {
+			useExternalStorage(ptr, propsLikeThis, propsLikeThis.emulatesBiases() ? propsLikeThis.isHoleyBiases() : false);
 		}
-
-		smatrix(value_ptr_t ptr, const mtx_size_t& sizeLikeThis, const bool bEmulateBiases = false, const bool _bHoleyBiases = false)noexcept
-			: m_pData(nullptr), m_bDontManageStorage(false)
+		// #supportsBatchesInRows
+		smatrix(value_ptr_t ptr, const mtx_size_t& sizeLikeThis, const bool bEmulateBiases = false
+			, const bool _bHoleyBiases = false, bool bBatchsInR = false) noexcept : m_pData(nullptr), m_bDontManageStorage(false)
 		{
-			useExternalStorage(ptr, sizeLikeThis, bEmulateBiases, _bHoleyBiases);
+			useExternalStorage(ptr, sizeLikeThis, bEmulateBiases, _bHoleyBiases, bBatchsInR);
 		}
-		smatrix(value_ptr_t ptr, const vec_len_t r, const vec_len_t c, const bool bEmulateBiases = false, const bool _bHoleyBiases = false) noexcept
-			: m_pData(nullptr), m_bDontManageStorage(false)
+		// #supportsBatchesInRows
+		smatrix(value_ptr_t ptr, const vec_len_t r, const vec_len_t c, const bool bEmulateBiases = false
+			, const bool _bHoleyBiases = false, bool bBatchsInR = false) noexcept : m_pData(nullptr), m_bDontManageStorage(false)
 		{
-			useExternalStorage(ptr, r, c, bEmulateBiases, _bHoleyBiases);
+			useExternalStorage(ptr, r, c, bEmulateBiases, _bHoleyBiases, bBatchsInR);
 		}
 
 		//useExternalStorage_no_bias(value_ptr_t ptr, const smatrix& sizeLikeThis) variation
-		smatrix(value_ptr_t ptr, const smatrix& sizeLikeThisNoBias, const tag_noBias&)noexcept : m_pData(nullptr), m_bDontManageStorage(false)
+		// DOES NOT SUPPORT non-default m_bBatchesInRows when emulatesBiases()
+		smatrix(value_ptr_t ptr, const smatrix& propsLikeThisNoBias, const tag_noBias&)noexcept : m_pData(nullptr), m_bDontManageStorage(false)
 		{
-			useExternalStorage_no_bias(ptr, sizeLikeThisNoBias);
+			useExternalStorage_no_bias(ptr, propsLikeThisNoBias);
 		}
 
 		//////////////////////////////////////////////////////////////////////////
-
-		smatrix(smatrix&& src)noexcept : m_pData(src.m_pData), m_rows(src.m_rows), m_cols(src.m_cols),
-			m_bEmulateBiases(src.m_bEmulateBiases), m_bDontManageStorage(src.m_bDontManageStorage), m_bHoleyBiases(src.m_bHoleyBiases)
+		// #supportsBatchesInRows
+		smatrix(smatrix&& src)noexcept : m_pData(src.m_pData), m_rows(src.m_rows), m_cols(src.m_cols)
+			, m_bEmulateBiases(src.m_bEmulateBiases), m_bDontManageStorage(src.m_bDontManageStorage)
+			, m_bHoleyBiases(src.m_bHoleyBiases), m_bBatchesInRows(src.m_bBatchesInRows)
 		{
 			src.m_pData = nullptr;
 			src.m_rows = 0;
 			src.m_cols = 0;
 		}
 
+		// #supportsBatchesInRows
 		smatrix& operator=(smatrix&& rhs) noexcept {
 			if (this!=&rhs) {
 				_free();
@@ -294,6 +417,7 @@ namespace math {
 				m_bEmulateBiases = rhs.m_bEmulateBiases;
 				m_bDontManageStorage = rhs.m_bDontManageStorage;
 				m_bHoleyBiases = rhs.m_bHoleyBiases;
+				m_bBatchesInRows = rhs.m_bBatchesInRows;
 			}
 			return *this;
 		}
@@ -305,16 +429,38 @@ namespace math {
 		smatrix& operator=(const smatrix& rhs) noexcept; // = delete; //-it should be `delete`d, but factory function won't work if it is
 
 		//////////////////////////////////////////////////////////////////////////
-
+		// #supportsBatchesInRows
 		smatrix submatrix_cols_no_bias(const vec_len_t colStart, const vec_len_t numCols)noexcept {
 			NNTL_ASSERT(numCols);
 			NNTL_ASSERT(colStart + numCols <= cols_no_bias());
-			return smatrix(colDataAsVec(colStart), rows(), numCols, false);
+			return smatrix(colDataAsVec(colStart), rows(), numCols, false, false, bBatchesInRows());
 		}
 
 		//////////////////////////////////////////////////////////////////////////
+
+		//If you are to use any API related to m_bBatchesInRows, make sure you've read the comment to m_bBatchesInRows flag.
+		// #supportsBatchesInRows
+		inline bool bBatchesInRows()const noexcept { return m_bBatchesInRows; }
+		inline bool bBatchesInColumns()const noexcept { return !m_bBatchesInRows; }
+		inline bool bSamplesInRows()const noexcept { return !m_bBatchesInRows; }
+		inline bool bSamplesInColumns()const noexcept { return m_bBatchesInRows; }
+		inline void set_batchesInRows(bool b)noexcept { 
+			//NNTL_ASSERT(empty() && m_rows == 0 && m_cols == 0);
+			m_bBatchesInRows = b;
+		}
+		
+		// #supportsBatchesInRows
+		inline vec_len_t sample_size()const noexcept {
+			return bBatchesInRows() ? rows_no_bias() : cols_no_bias();
+		}
+		inline vec_len_t batch_size()const noexcept {
+			return bBatchesInRows() ? cols() : rows();
+		}
+		//////////////////////////////////////////////////////////////////////////
 		
 		//class object copying is a costly procedure, therefore making a special member function for it and will use only in special cases
+		//Note the difference between cloning (with resizing destination matrix) and copying (requires dest to be properly sized)
+		// #supportsBatchesInRows
 		bool clone_to(smatrix& dest)const noexcept {
 			if (dest.m_bDontManageStorage) {
 				if (dest.m_rows != m_rows || dest.m_cols != m_cols) {
@@ -330,7 +476,9 @@ namespace math {
 		}
 
 		//strips biases column from the source data
+		// DOES NOT SUPPORT non-default m_bBatchesInRows when emulatesBiases()
 		bool clone_to_no_bias(smatrix& dest)const noexcept {
+			NNTL_ASSERT(!emulatesBiases() || bBatchesInColumns());
 			const auto cnb = cols_no_bias();
 			if (dest.m_bDontManageStorage) {
 				if (dest.m_rows != m_rows || dest.m_cols != cnb) {
@@ -343,21 +491,26 @@ namespace math {
 					return false;
 				}
 			}
-			dest.m_bEmulateBiases = false;
-			dest.m_bHoleyBiases = false;
+			dest.m_bEmulateBiases = dest.m_bHoleyBiases = false;
+			dest.m_bBatchesInRows = m_bBatchesInRows;
 			memcpy(dest.m_pData, m_pData, byte_size_no_bias());
 			return true;
 		}
 		//similar to clone_to_no_bias(), however it doesn't change the destination bias-related flags. It just ignores their existence
+		// DOES NOT SUPPORT non-default m_bBatchesInRows when emulatesBiases()
 		bool copy_data_skip_bias(smatrix& dest)const noexcept {
+			NNTL_ASSERT(!emulatesBiases() || bBatchesInColumns());
+
 			if (dest.rows() != rows() || dest.cols_no_bias() != cols_no_bias()) {
 				NNTL_ASSERT(!"Wrong dest matrix!");
 				return false;
 			}
+			dest.m_bBatchesInRows = m_bBatchesInRows;
 			memcpy(dest.m_pData, m_pData, byte_size_no_bias());
 			return true;
 		}
 
+		// #supportsBatchesInRows
 		bool copy_to(smatrix& dest)const noexcept {
 			if (dest.rows() != rows() || dest.cols() != cols() || dest.emulatesBiases() != emulatesBiases()) {
 				NNTL_ASSERT(!"Wrong dest matrix!");
@@ -366,49 +519,90 @@ namespace math {
 			memcpy(dest.m_pData, m_pData, byte_size());
 			dest.m_bHoleyBiases = m_bHoleyBiases;
 			//dest.m_bEmulateBiases = m_bEmulateBiases;
+			dest.m_bBatchesInRows = bBatchesInRows();
 			NNTL_ASSERT(*this == dest);
 			return true;
 		}
 		
 		//////////////////////////////////////////////////////////////////////////
-
+		// #supportsBatchesInRows
 		bool operator==(const smatrix& rhs)const noexcept {
 			//TODO: this is bad implementation, but it's enough cause we're gonna use it for testing only.
-			return m_bEmulateBiases == rhs.m_bEmulateBiases && size() == rhs.size() && m_bHoleyBiases == rhs.m_bHoleyBiases
+			return m_bEmulateBiases == rhs.m_bEmulateBiases && m_bBatchesInRows == rhs.m_bBatchesInRows
+				&& size() == rhs.size() && m_bHoleyBiases == rhs.m_bHoleyBiases
 				&& 0 == memcmp(m_pData, rhs.m_pData, byte_size());
 		}
+		// #supportsBatchesInRows
 		bool operator!=(const smatrix& rhs)const noexcept {
 			return !operator==(rhs);
 		}
-
+		// #supportsBatchesInRows
 		bool isAllocationFailed()const noexcept {
 			return nullptr == m_pData && m_rows>0 && m_cols>0;
 		}
-
+		// #supportsBatchesInRows
 		inline bool bDontManageStorage()const noexcept { return m_bDontManageStorage; }
+		inline bool bOwnStorage()const noexcept { return !m_bDontManageStorage; }
 
 		//////////////////////////////////////////////////////////////////////////
+		// #supportsBatchesInRows in a sense that it'l raise assertion failure if try to use on matrix with biases where data samples
+		// are in columns to prevent destroying biases
 		void fill_column_with(const vec_len_t c, const value_type v)noexcept {
 			NNTL_ASSERT(!empty() && m_rows && m_cols);
-			NNTL_ASSERT(c < m_cols);
+			NNTL_ASSERT(c < m_cols && c >= 0);
+			NNTL_ASSERT(!emulatesBiases() || bBatchesInColumns());
 // 			const auto pC = colDataAsVec(c);
 // 			::std::fill(pC, pC + m_rows, v); //doesn't get vectorized!
-			_fill_elements(colDataAsVec(c), m_rows, v);
+			_fill_seq_elements(colDataAsVec(c), m_rows, v);
+		}
+		void fill_last_column(const value_type v)noexcept { fill_column_with(m_cols - 1, v); }
+		void fill_bias_column()noexcept {
+			NNTL_ASSERT(emulatesBiases() && bSamplesInRows());
+			fill_column_with(m_cols - 1, value_type(1.));
+		}
+
+		// #supportsBatchesInRows in a sense that it'l raise assertion failure if try to use on matrix with biases where data samples
+		// are in rows to prevent destroying biases
+		void fill_row_with(const vec_len_t r, const value_type v)noexcept {
+			NNTL_ASSERT(!empty() && m_rows && m_cols);
+			NNTL_ASSERT(r < m_rows && r >= 0);
+			NNTL_ASSERT(!emulatesBiases() || bBatchesInRows());
+			const ptrdiff_t ld = ldim();
+			auto pD = m_pData + r;
+			const auto pDE = pD + ld*m_cols;
+			while (pD < pDE) {
+				*pD = v;
+				pD += ld;
+			}
+		}
+		// #supportsBatchesInRows in a sense that it'l raise assertion failure if try to use on matrix with biases where data samples
+		// are in rows to prevent destroying biases
+		void fill_last_row(const value_type v)noexcept { fill_row_with(m_rows - 1, v); }
+		void fill_bias_row()noexcept { 
+			NNTL_ASSERT(emulatesBiases() && bSamplesInColumns());
+			fill_row_with(m_rows - 1, value_type(1.));
 		}
 
 	protected:
 		//::std::fill(m_pData, m_pData + numel(), value_type(1.0)); //doesn't get vectorized!
-		void _fill_elements(const value_ptr_t pBegin, const numel_cnt_t n, const value_type v)noexcept {
+		// #supportsBatchesInRows
+		static void _fill_seq_elements(const value_ptr_t pBegin, const numel_cnt_t n, const value_type v)noexcept {
+			NNTL_ASSERT(n >= 0);
 			for (numel_cnt_t i = 0; i < n; ++i) pBegin[i] = v;
 		}
 
 	public:
+		// #supportsBatchesInRows
 		void set_biases() noexcept {
-			NNTL_ASSERT(m_bEmulateBiases);
-			// filling last column with ones to emulate biases
-			fill_column_with(m_cols - 1, value_type(1.0));
+			NNTL_ASSERT(m_bEmulateBiases && !empty() && m_rows && m_cols);
+			if (bBatchesInRows()) {
+				fill_bias_row();
+			} else {
+				fill_bias_column();
+			}
 			m_bHoleyBiases = false;
 		}
+		// #supportsBatchesInRows
 		inline bool emulatesBiases()const noexcept { return m_bEmulateBiases; }
 		void will_emulate_biases()noexcept {
 			NNTL_ASSERT(empty() && m_rows == 0 && m_cols == 0);
@@ -422,65 +616,94 @@ namespace math {
 			NNTL_ASSERT(empty() && m_rows == 0 && m_cols == 0);
 			m_bEmulateBiases = b;
 		}
-
+		//////////////////////////////////////////////////////////////////////////
+		// #supportsBatchesInRows
 		bool isHoleyBiases()const noexcept { 
 			NNTL_ASSERT(!empty() && emulatesBiases());//this concept applies to non-empty matrices with a bias column only
 			return m_bHoleyBiases;
 		}
+		// #supportsBatchesInRows
 		bool hasHoleyBiases()const noexcept {//almost the same as isHoleyBiases() but doesn't require the matrix to have biases
 			NNTL_ASSERT(!empty());//this concept applies to non-empty matrices only
 			return m_bEmulateBiases && m_bHoleyBiases;
 		}
+		// #supportsBatchesInRows
 		void holey_biases(const bool b)noexcept {
 			NNTL_ASSERT(emulatesBiases());
 			m_bHoleyBiases = b;
 		}
 
+		// DOES NOT SUPPORT non-default m_bBatchesInRows when emulatesBiases()
 		void copy_biases_from(const value_type* ptr, const vec_len_t countNonZeros = 0)noexcept {
 			NNTL_ASSERT(m_bEmulateBiases && !empty() && rows() >= countNonZeros);
+			NNTL_ASSERT(!emulatesBiases() || bBatchesInColumns());
 			NNTL_ASSERT(_isBinaryVec(ptr, rows()));
 			memcpy(bias_column(), ptr, static_cast<numel_cnt_t>(rows())*sizeof(value_type));
 			m_bHoleyBiases = countNonZeros != rows();
 		}
+		// DOES NOT SUPPORT non-default m_bBatchesInRows when emulatesBiases()
 		void copy_biases_from(const smatrix& src)noexcept {
 			NNTL_ASSERT(m_bEmulateBiases && !empty() && src.emulatesBiases() && !src.empty());
 			NNTL_ASSERT(src.rows() == rows());
+			NNTL_ASSERT(!emulatesBiases() || bBatchesInColumns());
 
 			m_bHoleyBiases = src.isHoleyBiases();
 			if (m_bHoleyBiases) {
 				NNTL_ASSERT(_isBinaryVec(src.bias_column(), src.rows()));
 				::std::memcpy(bias_column(), src.bias_column(), static_cast<numel_cnt_t>(rows()) * sizeof(value_type));
-			}else fill_column_with(m_cols - 1, value_type(1.0));
+			}else fill_bias_column();
 		}
 
 		//////////////////////////////////////////////////////////////////////////
 		//////////////////////////////////////////////////////////////////////////
 		//function is expected to be called from context of NNTL_ASSERT macro.
 		//debug/NNTL_ASSERT only
+		// #supportsBatchesInRows
 		bool test_biases_ok()const noexcept {
 			return m_bHoleyBiases ? test_biases_holey() : test_biases_strict();
 		}
 		//debug/NNTL_ASSERT only
+		// #supportsBatchesInRows
 		bool test_biases_strict()const noexcept {
 			NNTL_ASSERT(emulatesBiases() && !m_bHoleyBiases);
-			const auto ne = numel();
-			auto pS = &m_pData[ne - m_rows];
-			const auto pE = m_pData + ne;
+			NNTL_ASSERT(!empty() && m_rows && m_cols);
+
+			const ptrdiff_t ld = ldim();
 			int cond = 1;
-			while (pS != pE) {
-				const int c = *pS++ == value_type(1.0);
-				NNTL_ASSERT(c || !"Bias check failed!");
-				cond = cond & c;
+
+			if (bBatchesInRows()) {
+				auto pS = m_pData + (m_rows - 1);
+				const auto pE = pS + numel();
+				while (pS < pE) {
+					const int c = *pS == value_type(1.0);
+					NNTL_ASSERT(c || !"Bias check failed!");
+					cond = cond & c;
+					pS += ld;
+				}
+			} else {
+				auto pS = colDataAsVec(m_cols - 1);
+				const auto pE = pS + m_rows;
+				while (pS != pE) {
+					const int c = *pS++ == value_type(1.0);
+					NNTL_ASSERT(c || !"Bias check failed!");
+					cond = cond & c;
+				}
 			}
 			return !!cond;
 		}
 		//debug/NNTL_ASSERT use only
+		// #supportsBatchesInRows
 		bool test_biases_holey()const noexcept {
 			NNTL_ASSERT(emulatesBiases() && m_bHoleyBiases);
-			return _isBinaryVec(bias_column(), rows());
+			NNTL_ASSERT(!empty() && m_rows && m_cols);
+
+			return bBatchesInRows() 
+				? _isBinaryVecWLd(m_pData + (rows() - 1), cols(), static_cast<ptrdiff_t>(ldim()))
+				: _isBinaryVec(bias_column(), rows());
 		}
 
 		//debug/NNTL_ASSERT use only
+		// #supportsBatchesInRows
 		template<bool b = ::std::is_floating_point<value_type>::value>
 		::std::enable_if_t<b,bool> test_noNaNs()const noexcept {
 			const auto ne = numel();
@@ -496,17 +719,22 @@ namespace math {
 			return !cond;
 		}
 		template<bool b = ::std::is_floating_point<value_type>::value>
-		constexpr ::std::enable_if_t<!b, bool> test_noNaNs()const noexcept { return true; }
+		::std::enable_if_t<!b, bool> test_noNaNs() const noexcept { return true; }
 
 		//////////////////////////////////////////////////////////////////////////
 		//debug/NNTL_ASSERT use is preferred
+		// #supportsBatchesInRows
 		bool _isBinary(const bool bNonBinIsOK = false)const noexcept {
 			return _isBinaryVec<value_type>(m_pData, numel(), bNonBinIsOK);
 		}
+		// #supportsBatchesInRows
 		bool _isBinaryStrict(const bool bNonBinIsOK = false)const noexcept {
 			return _isBinaryStrictVec<value_type>(m_pData, numel(), bNonBinIsOK);
 		}
+
+		// DOES NOT SUPPORT non-default m_bBatchesInRows when emulatesBiases()
 		bool _isBinaryStrictNoBias(const bool bNonBinIsOK = false)const noexcept {
+			NNTL_ASSERT(!emulatesBiases() || bBatchesInColumns());
 			return _isBinaryStrictVec<value_type>(m_pData, numel_no_bias(), bNonBinIsOK);
 		}
 		
@@ -515,6 +743,7 @@ namespace math {
 		template<> struct isAlmostBinary_eps<float> { static constexpr float eps = float(1e-8); };
 		template<> struct isAlmostBinary_eps<double> { static constexpr double eps = 1e-16; };
 		//to account numeric problems
+		// #supportsBatchesInRows
 		bool _isAlmostBinary(const value_type eps/* = isAlmostBinary_eps<value_type>::eps*/)const noexcept {
 			auto pS = m_pData;
 			const auto pE = end();
@@ -529,6 +758,7 @@ namespace math {
 		}
 
 		//for testing/debugging only
+		// #supportsBatchesInRows
 		void _breakWhenDenormal()const noexcept {
 			enable_denormals();
 			auto pS = m_pData;
@@ -542,58 +772,70 @@ namespace math {
 		}
 
 		//////////////////////////////////////////////////////////////////////////
+		// #supportsBatchesInRows
+		// note: use sample_size()/batch_size() where appropriate instead of this functions!
 		inline vec_len_t rows() const noexcept { return m_rows; }
 		inline vec_len_t cols() const noexcept { return m_cols; }
 
 		//leading matrix dimension
-		//it's true for an old code (to be updated), but in new code NEVER assume ldim==rows, always use ldim()
+		// #supportsBatchesInRows
+		// it's true for an old code (to be updated), but in new code if possible NEVER assume ldim==rows, always use ldim()
+		// note that smatrix_deform<>::on_transposition() should be updated should ldim() to rely on any other var except m_rows
 		inline vec_len_t ldim() const noexcept { return m_rows; }
 
-		// ***if biases are emulated, then actual columns number is one greater, than data cols number
+		// ***if biases are emulated and samples are in rows, then actual data columns number is one smaller, than m_cols value
+		// #supportsBatchesInRows
+		// note: use sample_size()/batch_size() where appropriate instead of this functions!
 		inline vec_len_t cols_no_bias() const noexcept {
-			if (m_bEmulateBiases) {
-				NNTL_ASSERT(m_cols > 0);
-				return m_cols - 1;
-			}else return m_cols;
+			NNTL_ASSERT(!m_bEmulateBiases || m_cols > 0);
+			return m_cols - (m_bEmulateBiases & bSamplesInRows());
 		}
+		// note: use sample_size()/batch_size() where appropriate instead of this functions!
 		inline vec_len_t cols(const bool bNoBias) const noexcept {
-			if (bNoBias && m_bEmulateBiases) {
-				NNTL_ASSERT(m_cols > 0);
-				return m_cols - 1;
-			} else return m_cols;
+			NNTL_ASSERT(!m_bEmulateBiases || m_cols > 0);
+			return m_cols - (bNoBias & m_bEmulateBiases & bSamplesInRows());
 		}
 
+		// ***if biases are emulated and samples are in columns, then actual data rows number is one smaller, than m_rows value
+		// #supportsBatchesInRows
+		// note: use sample_size()/batch_size() where appropriate instead of this functions!
+		inline vec_len_t rows_no_bias() const noexcept {
+			NNTL_ASSERT(!m_bEmulateBiases || m_rows > 0);
+			return m_rows - (m_bEmulateBiases & bSamplesInColumns());
+		}
+		// note: use sample_size()/batch_size() where appropriate instead of this functions!
+		inline vec_len_t rows(const bool bNoBias) const noexcept {
+			NNTL_ASSERT(!m_bEmulateBiases || m_rows > 0);
+			return m_rows - (bNoBias & m_bEmulateBiases & bSamplesInColumns());
+		}
+
+		// #supportsBatchesInRows
 		mtx_size_t size()const noexcept { return mtx_size_t(m_rows, m_cols); }
 		mtx_size_t transposed_size()const noexcept { return mtx_size_t(m_cols, m_rows); }
 
-		mtx_size_t size_no_bias()const noexcept { 
-			if (m_bEmulateBiases) {
-				NNTL_ASSERT(m_cols > 0);
-				return mtx_size_t(m_rows, m_cols-1);
-			}else return size();
+		// #supportsBatchesInRows
+		mtx_size_t size_no_bias()const noexcept {
+			return mtx_size_t(rows_no_bias(), cols_no_bias());
 		}
 		mtx_size_t transposed_size_no_bias()const noexcept {
-			if (m_bEmulateBiases) {
-				NNTL_ASSERT(m_cols > 0);
-				return mtx_size_t(m_cols - 1, m_rows);
-			} else return size();
+			return mtx_size_t(cols_no_bias(), rows_no_bias());
 		}
 
+		// #supportsBatchesInRows
 		inline numel_cnt_t numel()const noexcept {
-			//NNTL_ASSERT(m_rows && m_cols);
 			return sNumel(m_rows,m_cols); 
 		}
+
+		//there's no issue with #supportsBatchesInRows in the following 2 functions per se, however, they are frequently used
+		//for iteration over the matrix data and if batch layout is non standard, there will be blood
+		// so placed an assert inside
 		inline numel_cnt_t numel_no_bias()const noexcept {
-			if (m_bEmulateBiases) {
-				NNTL_ASSERT(m_cols > 0);
-				return sNumel(m_rows,m_cols-1);
-			} else return numel();
+			NNTL_ASSERT(!emulatesBiases() || bBatchesInColumns());
+			return sNumel(rows_no_bias(),cols_no_bias());
 		}
 		inline numel_cnt_t numel(const bool bNoBias)const noexcept {
-			if (bNoBias && m_bEmulateBiases) {
-				NNTL_ASSERT(m_cols > 0);
-				return sNumel(m_rows, m_cols - 1);
-			} else return numel();
+			NNTL_ASSERT(!bNoBias || !emulatesBiases() || bBatchesInColumns());
+			return sNumel(rows(bNoBias), cols(bNoBias));
 		}
 
 		//////////////////////////////////////////////////////////////////////////
@@ -643,7 +885,7 @@ namespace math {
 		}
 
 		//////////////////////////////////////////////////////////////////////////
-
+		// #supportsBatchesInRows
 		inline numel_cnt_t byte_size()const noexcept {
 			return numel()*sizeof(value_type);
 		}
@@ -654,6 +896,7 @@ namespace math {
 		inline bool empty()const noexcept { return nullptr == m_pData; }
 
 		//to conform ::std::vector API
+		// #supportsBatchesInRows
 		inline value_ptr_t data()noexcept {
 			NNTL_ASSERT(!empty() && m_cols > 0 && m_rows > 0);
 			return m_pData;
@@ -673,17 +916,35 @@ namespace math {
 		}*/
 
 		//not a real iterators, just pointers
+		// #supportsBatchesInRows
 		inline value_ptr_t begin()noexcept { return data(); }
 		inline cvalue_ptr_t begin()const noexcept { return data(); }
 
 		inline value_ptr_t end()noexcept { return data()+numel(); }
 		inline cvalue_ptr_t end()const noexcept { return data()+numel(); }
-		inline value_ptr_t end(const bool bNoBias)noexcept { return data() + numel(bNoBias); }
-		inline cvalue_ptr_t end(const bool bNoBias)const noexcept { return data() + numel(bNoBias); }
 
-		inline value_ptr_t end_no_bias()noexcept { return data() + numel_no_bias(); }
-		inline cvalue_ptr_t end_no_bias()const noexcept { return data() + numel_no_bias(); }
-
+		//////////////////////////////////////////////////////////////////////////
+		// DOES NOT SUPPORT non-default m_bBatchesInRows when emulatesBiases()!!!
+		// again, the issue is how these function is generally used. So better place an assertions inside
+		inline value_ptr_t end(const bool bNoBias)noexcept { 
+			NNTL_ASSERT(!emulatesBiases() || bBatchesInColumns());
+			return data() + numel(bNoBias);
+		}
+		inline cvalue_ptr_t end(const bool bNoBias)const noexcept {
+			NNTL_ASSERT(!emulatesBiases() || bBatchesInColumns());
+			return data() + numel(bNoBias);
+		}
+		// DOES NOT SUPPORT non-default m_bBatchesInRows when emulatesBiases()
+		inline value_ptr_t end_no_bias()noexcept {
+			NNTL_ASSERT(!emulatesBiases() || bBatchesInColumns());
+			return data() + numel_no_bias();
+		}
+		inline cvalue_ptr_t end_no_bias()const noexcept { 
+			NNTL_ASSERT(!emulatesBiases() || bBatchesInColumns());
+			return data() + numel_no_bias();
+		}
+		//////////////////////////////////////////////////////////////////////////
+		// #supportsBatchesInRows
 		inline value_ptr_t colDataAsVec(vec_len_t c)noexcept {
 			NNTL_ASSERT(!empty() && m_cols>0 && m_rows>0 && c <= m_cols);//non strict inequality c <= m_cols to allow reference 'after the last' column
 			return m_pData + sNumel(m_rows, c);
@@ -692,18 +953,19 @@ namespace math {
 			NNTL_ASSERT(!empty() && m_cols > 0 && m_rows > 0 && c <= m_cols);//non strict inequality c <= m_cols to allow reference 'after the last' column
 			return m_pData + sNumel(m_rows, c);
 		}
-
+		// #supportsBatchesInRows note that it's bias _column_ therefore just assertions inside
 		inline value_ptr_t bias_column()noexcept {
-			NNTL_ASSERT(emulatesBiases());
+			NNTL_ASSERT(emulatesBiases() && bBatchesInColumns());
 			return colDataAsVec(m_cols - 1);
 		}
 		inline cvalue_ptr_t bias_column()const noexcept {
-			NNTL_ASSERT(emulatesBiases());
+			NNTL_ASSERT(emulatesBiases() && bBatchesInColumns());
 			return colDataAsVec(m_cols - 1);
 		}
 
 		//////////////////////////////////////////////////////////////////////////
 		// get/set are for non performance critical code!
+		// #supportsBatchesInRows
 		inline void set(const vec_len_t r, const vec_len_t c, const value_type& v)noexcept {
 			NNTL_ASSERT(!empty());
 			NNTL_ASSERT(r < m_rows && c < m_cols);
@@ -722,21 +984,27 @@ namespace math {
 		inline const value_type& get(const mtx_coords_t crd)const noexcept { return get(crd.first, crd.second); }
 		inline value_type& get(const mtx_coords_t crd) noexcept { return get(crd.first, crd.second); }
 
+		// #supportsBatchesInRows
 		void clear()noexcept {
 			_free();
 			//m_bEmulateBiases = false; //MUST NOT clear this flag; it defines a matrix mode and clear() just performs a cleanup. No mode change allowed here.
 			m_bDontManageStorage = false;
 			m_bHoleyBiases = false;//this is a kind of run-time state of the bias column. We've cleared the matrix, therefore clearing this state too.
+			m_bBatchesInRows = false; //this flag is also defines a matrix mode, however we should reset it b/c it's set always
+			//manually only in some special cases by some special code that may work long after the matrix was created by a code,
+			//that expects the flag to have default state.
 		}
 
+		// #supportsBatchesInRows
 		template<typename T>
 		bool resize(const smatrix<T>& m)noexcept {
 			NNTL_ASSERT(!m.empty() && m.rows() > 0 && m.cols() > 0);
 			NNTL_ASSERT(emulatesBiases() == m.emulatesBiases());
-			return resize(m.rows(), m.cols());
+			NNTL_ASSERT(bBatchesInRows() == m.bBatchesInRows());
+			return resize(m.rows_no_bias(), m.cols_no_bias());
 		}
 		bool resize(const mtx_size_t sz)noexcept { return resize(sz.first, sz.second); }
-		bool resize(const vec_len_t r, vec_len_t c) noexcept {
+		bool resize(vec_len_t r, vec_len_t c) noexcept {
 			NNTL_ASSERT(!m_bDontManageStorage);
 			NNTL_ASSERT(r > 0 && c > 0);
 			if (r <= 0 || c <= 0) {
@@ -744,7 +1012,8 @@ namespace math {
 				return false;
 			}
 
-			if (m_bEmulateBiases) ++c;
+			c += (m_bEmulateBiases & bSamplesInRows());
+			r += (m_bEmulateBiases & bSamplesInColumns());
 
 			if (r == m_rows && c == m_cols) return true;
 
@@ -753,21 +1022,41 @@ namespace math {
 
 			_realloc();
 
-			const bool bRet = nullptr != m_pData;
-			if (m_bEmulateBiases && bRet) set_biases();
 			m_bHoleyBiases = false;
+			const bool bRet = nullptr != m_pData;
+			if (bRet & m_bEmulateBiases) set_biases();			
 			return bRet;
 		}
 
+		// #supportsBatchesInRows
+		bool resize_as_dataset(vec_len_t batchSiz, vec_len_t sampleWidt) noexcept {
+			if (bBatchesInRows()) ::std::swap(batchSiz, sampleWidt);
+			return resize(batchSiz, sampleWidt);
+		}
+
+		//////////////////////////////////////////////////////////////////////////
+
+		// #supportsBatchesInRows
 		void fill(const value_type v)noexcept {
 			NNTL_ASSERT(!empty());
 			//::std::fill(m_pData, m_pData + numel(), value_type(1.0)); //doesn't get vectorized!
-			_fill_elements(m_pData, numel(), v);
+			_fill_seq_elements(m_pData, numel(), v);
 		}
-		void zeros()noexcept {
+
+	protected:
+		// #supportsBatchesInRows
+		void _zeros_first(const numel_cnt_t ne)noexcept {
 			NNTL_ASSERT(!empty());
-			::std::memset(m_pData, 0, byte_size_no_bias());
+			::std::memset(m_pData, 0, ne);
 		}
+	public:
+		void zeros()noexcept {
+			const auto bir = bBatchesInRows();
+			_zeros_first(bir ? byte_size() : byte_size_no_bias());
+			if (bir && emulatesBiases()) fill_bias_row();
+		}
+
+		// #supportsBatchesInRows
 		void ones()noexcept {
 			fill(value_type(1));
 			m_bHoleyBiases = false;
@@ -776,18 +1065,25 @@ namespace math {
 			fill(::std::numeric_limits<value_type>::quiet_NaN());
 			m_bHoleyBiases = false;
 		}
+
+		// DOES NOT SUPPORT non-default m_bBatchesInRows when emulatesBiases()
 		void nans_no_bias()noexcept {
 			NNTL_ASSERT(!empty());
+			NNTL_ASSERT(!emulatesBiases() || bBatchesInColumns());
 			//::std::fill(m_pData, m_pData + numel(), value_type(1.0)); //doesn't get vectorized!
-			_fill_elements(m_pData, numel_no_bias(), ::std::numeric_limits<value_type>::quiet_NaN());
+			_fill_seq_elements(m_pData, numel_no_bias(), ::std::numeric_limits<value_type>::quiet_NaN());
 			m_bHoleyBiases = false;
 		}
 
+		//////////////////////////////////////////////////////////////////////////
+
 		// fills matrix with data from pSrc doing type conversion. Bias units left untouched.
+		// DOES NOT SUPPORT non-default m_bBatchesInRows when emulatesBiases()
 		template<typename OtherBaseT>
 		::std::enable_if_t<!::std::is_same<value_type, OtherBaseT>::value> fill_from_array_no_bias(const OtherBaseT*const pSrc)noexcept {
 			static_assert(::std::is_arithmetic<OtherBaseT>::value, "OtherBaseT must be a simple arithmetic data type");
 			NNTL_ASSERT(!empty() && numel() > 0);
+			NNTL_ASSERT(!emulatesBiases() || bBatchesInColumns());
 			const auto ne = numel_no_bias();
 			const auto p = data();
 			for (numel_cnt_t i = 0; i < ne; ++i) p[i] = static_cast<value_type>(pSrc[i]);
@@ -795,38 +1091,74 @@ namespace math {
 		template<typename OtherBaseT>
 		::std::enable_if_t<::std::is_same<value_type, OtherBaseT>::value> fill_from_array_no_bias(const OtherBaseT*const pSrc)noexcept {
 			NNTL_ASSERT(!empty() && numel() > 0);
+			NNTL_ASSERT(!emulatesBiases() || bBatchesInColumns());
 			memcpy(m_pData, pSrc, byte_size_no_bias());
 		}
 
-
+		//////////////////////////////////////////////////////////////////////////
 		//full matrix
-		void useExternalStorage_no_bias(smatrix& src)noexcept {
-			useExternalStorage(src.data(), src.rows(), src.cols_no_bias(), false, false);
+		
+		// DOES NOT SUPPORT non-default m_bBatchesInRows when emulatesBiases()
+		void useExternalStorage_no_bias(smatrix& useMe_no_bias)noexcept {
+			NNTL_ASSERT(!useMe_no_bias.emulatesBiases() || useMe_no_bias.bBatchesInColumns());
+			useExternalStorage(useMe_no_bias.data(), useMe_no_bias.rows_no_bias(), useMe_no_bias.cols_no_bias()
+				, false, false, useMe_no_bias.bBatchesInRows());
 		}
-		void useExternalStorage(smatrix& src)noexcept {
-			const auto b = src.emulatesBiases();
-			useExternalStorage(src.data(), src.rows(), src.cols(), b, b && src.isHoleyBiases());
+		// #supportsBatchesInRows
+		void useExternalStorage(smatrix& useMe)noexcept {
+			const auto b = useMe.emulatesBiases();
+			useExternalStorage(useMe.data(), useMe.rows(), useMe.cols()
+				, b, b && useMe.isHoleyBiases(), useMe.bBatchesInRows());
 		}
 		//matrix part, column set [cBeg, cBeg+totCols)
-		void useExternalStorage_no_bias(smatrix& src, vec_len_t cBeg, vec_len_t totCols)noexcept {
-			NNTL_ASSERT(src.end_no_bias() >= src.colDataAsVec(cBeg + totCols));
-			useExternalStorage(src.colDataAsVec(cBeg), src.rows(), totCols, false, false);
+		// DOES NOT SUPPORT non-default m_bBatchesInRows when emulatesBiases()
+		void useExternalStorage_no_bias(smatrix& useMe_no_bias, vec_len_t cBeg, vec_len_t totCols)noexcept {
+			NNTL_ASSERT(cBeg + totCols <= useMe_no_bias.cols_no_bias());
+			NNTL_ASSERT(!useMe_no_bias.emulatesBiases() || useMe_no_bias.bBatchesInColumns());
+			useExternalStorage(useMe_no_bias.colDataAsVec(cBeg), useMe_no_bias.rows(), totCols, false, false, useMe_no_bias.bBatchesInRows());
 		}
 
 		//raw pointers
-		void useExternalStorage_no_bias(value_ptr_t ptr, const smatrix& sizeLikeThisNoBias)noexcept {
-			useExternalStorage(ptr, sizeLikeThisNoBias.rows(), sizeLikeThisNoBias.cols_no_bias(), false, false);
+		// DOES NOT SUPPORT non-default m_bBatchesInRows when emulatesBiases()
+		inline void useExternalStorage_no_bias(value_ptr_t ptr, const smatrix& propsLikeThisNoBias)noexcept {
+			NNTL_ASSERT(!propsLikeThisNoBias.emulatesBiases() || propsLikeThisNoBias.bBatchesInColumns());
+			useExternalStorage(ptr, propsLikeThisNoBias.rows_no_bias(), propsLikeThisNoBias.cols_no_bias()
+				, false, false, propsLikeThisNoBias.bBatchesInRows());
 		}
-		void useExternalStorage(value_ptr_t ptr, const mtx_size_t sizeLikeThis, bool bEmulateBiases = false, bool bHBiases = false)noexcept {
-			useExternalStorage(ptr, sizeLikeThis.first, sizeLikeThis.second, bEmulateBiases, bHBiases);
+		// #supportsBatchesInRows
+		inline void useExternalStorage(value_ptr_t ptr, const mtx_size_t sizeLikeThis, bool bEmulateBiases = false
+			, bool bHBiases = false, bool bBatchsInR = false)noexcept
+		{
+			useExternalStorage(ptr, sizeLikeThis.first, sizeLikeThis.second, bEmulateBiases, bHBiases, bBatchsInR);
 		}
-		void useExternalStorage(value_ptr_t ptr, const smatrix& sizeLikeThis, bool bHBiases = false)noexcept {
-			useExternalStorage(ptr, sizeLikeThis.rows(), sizeLikeThis.cols(), sizeLikeThis.emulatesBiases(),bHBiases);
+		// #supportsBatchesInRows
+		inline void useExternalStorage(value_ptr_t ptr, const smatrix& propsLikeThis, bool bHBiases = false)noexcept {
+			useExternalStorage(ptr, propsLikeThis.rows(), propsLikeThis.cols(), propsLikeThis.emulatesBiases()
+				, bHBiases, propsLikeThis.bBatchesInRows());
+		}
+
+		// #supportsBatchesInRows
+		inline void useExternalStorage(const bool bBatchsInR, const value_ptr_t ptr, const vec_len_t _batchSiz
+			, const vec_len_t _sampleSizInclBias, const bool bEmulateBiases = false, const bool bHBiases = false)noexcept
+		{
+			useExternalStorage(ptr, bBatchsInR ? _sampleSizInclBias : _batchSiz, bBatchsInR ? _batchSiz : _sampleSizInclBias
+				, bEmulateBiases, bHBiases, bBatchsInR);
+		}
+		//this variation uses already set m_bBatchesInRows property to decide the layout
+		// #supportsBatchesInRows
+		inline void useExternalStorage(const vec_len_t _batchSiz, const vec_len_t _sampleSizInclBias, const value_ptr_t ptr
+			, const bool bEmulateBiases = false, const bool bHBiases = false)noexcept
+		{
+			useExternalStorage(ptr, m_bBatchesInRows ? _sampleSizInclBias : _batchSiz, m_bBatchesInRows ? _batchSiz : _sampleSizInclBias
+				, bEmulateBiases, bHBiases, m_bBatchesInRows);
 		}
 		//note that bEmulateBiases doesn't increment _cols count and doesn't fill biases if specified! This is done to make
 		// sure that a caller knows that ptr will address enough space and to prevent unnecessary memory writes.
 		// Also this allows to use matrix sizeLikeThis as an argument to useExternalStorage() call
-		void useExternalStorage(value_ptr_t ptr, vec_len_t _rows, vec_len_t _cols, bool bEmulateBiases = false, bool bHBiases = false)noexcept {
+		// #supportsBatchesInRows
+		void useExternalStorage(const value_ptr_t ptr, const vec_len_t _rows, const vec_len_t _cols, const bool bEmulateBiases = false
+			, const bool bHBiases = false, const bool bBatchsInR = false)noexcept
+		{
 			NNTL_ASSERT(ptr && _rows > 0 && _cols>0);
 			_free();
 			m_bDontManageStorage = true;
@@ -835,6 +1167,7 @@ namespace math {
 			m_cols = _cols;
 			m_bEmulateBiases = bEmulateBiases;
 			m_bHoleyBiases = bHBiases;
+			m_bBatchesInRows = bBatchsInR;
 
 			//usually, external storage is used with shared memory to store temporary computations, therefore data won't survive between
 			// usages and there is no need to prefill it with biases. m_bEmulateBiases flag is helpful for routines like numel_no_bias()
@@ -844,7 +1177,8 @@ namespace math {
 
 	protected:
 		//special version for smatrix_deform use
-		void _useExternalStorage(value_ptr_t ptr, bool bEmulateBiases = false, bool bHBiases = false)noexcept {
+		// #supportsBatchesInRows
+		void _useExternalStorage(value_ptr_t ptr, bool bEmulateBiases = false, bool bHBiases = false, bool bBatchsInR = false)noexcept {
 			NNTL_ASSERT(ptr);
 			_free();
 			m_bDontManageStorage = true;
@@ -852,6 +1186,7 @@ namespace math {
 			m_rows = m_cols = 0;
 			m_bEmulateBiases = bEmulateBiases;
 			m_bHoleyBiases = bHBiases;
+			m_bBatchesInRows = bBatchsInR;
 
 			//usually, external storage is used with shared memory to store temporary computations, therefore data won't survive between
 			// usages and there is no need to prefill it with biases. m_bEmulateBiases flag is helpful for routines like numel_no_bias()
@@ -860,16 +1195,18 @@ namespace math {
 		}
 
 	public:
-		bool useInternalStorage(vec_len_t _rows=0, vec_len_t _cols=0, bool bEmulateBiases = false)noexcept {
+		// #supportsBatchesInRows
+		bool useInternalStorage(vec_len_t _rows=0, vec_len_t _cols=0, bool bEmulateBiases = false, bool bBatchsInR = false)noexcept {
 			_free();
-			m_bDontManageStorage = false;
-			m_bHoleyBiases = false;
+			m_bDontManageStorage = m_bHoleyBiases = false;
 			m_bEmulateBiases = bEmulateBiases;
+			m_bBatchesInRows = bBatchsInR;
 			if (_rows > 0 && _cols > 0) {
 				return resize(_rows, _cols);
 			} else return true;
 		}
 
+		// #supportsBatchesInRows
 		template<typename VT2, bool b = ::std::is_same<value_type, VT2>::value>
 		::std::enable_if_t<b> assert_storage_does_not_intersect(const smatrix<VT2>& m)const noexcept {
 			NNTL_UNREF(m);
@@ -879,7 +1216,7 @@ namespace math {
 			NNTL_ASSERT( &m.m_pData[m.numel()] <= m_pData || &m_pData[numel()] <= m.m_pData);
 		}
 		template<typename VT2, bool b = ::std::is_same<value_type, VT2>::value>
-		constexpr ::std::enable_if_t<!b> assert_storage_does_not_intersect(const smatrix<VT2>& m)const noexcept {}
+		::std::enable_if_t<!b> assert_storage_does_not_intersect(const smatrix<VT2>& m)const noexcept {}
 	};
 
 	//////////////////////////////////////////////////////////////////////////
@@ -908,16 +1245,27 @@ namespace math {
 		numel_cnt_t m_maxSize = 0;
 
 	public:
-		bool _isOkToDeform(vec_len_t r, vec_len_t c_noBias, bool bEmulBias)const noexcept {
-			return m_maxSize >= sNumel(r, c_noBias + vec_len_t(bEmulBias));
+		// #supportsBatchesInRows
+		bool _isOkToDeform(vec_len_t r_no_bias, vec_len_t c_noBias, const bool bEmulBias, const bool bBatchsInR)const noexcept {
+			return m_maxSize >= sNumel(r_no_bias + (bEmulBias & bBatchsInR) , c_noBias + (bEmulBias & !bBatchsInR));
 		}
 #endif // NNTL_DEBUG
+	
+	protected:
+		void _free()noexcept {
+			_base_class::_free();
+		#ifdef NNTL_DEBUG
+			m_maxSize = 0;
+		#endif
+		}
+	
 	public:
 
+		// #supportsBatchesInRows
 		~smatrix_deform()noexcept {}
 		smatrix_deform()noexcept : _base_class() {}
-		smatrix_deform(const vec_len_t _rows, const vec_len_t _cols, const bool _bEmulBias = false)noexcept
-			: _base_class(_rows, _cols, _bEmulBias)
+		smatrix_deform(const vec_len_t _rows, const vec_len_t _cols, const bool _bEmulBias = false, const bool bBatchsInR = false)noexcept
+			: _base_class(_rows, _cols, _bEmulBias, bBatchsInR)
 		{
 #ifdef NNTL_DEBUG
 			m_maxSize = numel();
@@ -925,27 +1273,31 @@ namespace math {
 		}
 
 		//note that ne MUST include bias column if bEmulateBiases was set to true! (same convention as useExternalStorage())
-		smatrix_deform(const numel_cnt_t ne, const bool bEmulateBiases = false, const bool _bHoleyBiases = false) noexcept
+		// #supportsBatchesInRows
+		smatrix_deform(const numel_cnt_t ne, const bool bEmulateBiases = false, const bool _bHoleyBiases = false, const bool bBatchsInR = false) noexcept
 			: _base_class()
 		{
-			resize(ne, &bEmulateBiases, &_bHoleyBiases);
+			resize(ne, &bEmulateBiases, &_bHoleyBiases, &bBatchsInR);
 		}
 
-		smatrix_deform(value_ptr_t ptr, const vec_len_t r, const vec_len_t c, const bool bEmulateBiases = false, const bool _bHoleyBiases = false) noexcept
-			: _base_class(ptr, r, c, bEmulateBiases, _bHoleyBiases)
+		// #supportsBatchesInRows
+		smatrix_deform(value_ptr_t ptr, const vec_len_t r, const vec_len_t c, const bool bEmulateBiases = false
+			, const bool _bHoleyBiases = false, const bool bBatchsInR = false) noexcept
+			: _base_class(ptr, r, c, bEmulateBiases, _bHoleyBiases, bBatchsInR)
 		{
 #ifdef NNTL_DEBUG
 			m_maxSize = numel();
 #endif // NNTL_DEBUG
 		}
 
+		// #supportsBatchesInRows
 		smatrix_deform(value_ptr_t ptr, const smatrix_deform& sizeLikeThis) noexcept : _base_class(ptr, sizeLikeThis)
 		{
 #ifdef NNTL_DEBUG
 			m_maxSize = sizeLikeThis.m_maxSize;
 #endif // NNTL_DEBUG
 		}
-
+		// #supportsBatchesInRows
 		template<typename T>
 		smatrix_deform(value_ptr_t ptr, const smatrix<T>& sizeLikeThis) noexcept : _base_class(ptr, sizeLikeThis)
 		{
@@ -955,12 +1307,13 @@ namespace math {
 		}
 
 		//////////////////////////////////////////////////////////////////////////
-
+		// #supportsBatchesInRows
 		smatrix_deform(smatrix&& src)noexcept : _base_class(::std::move(src)) {
 #ifdef NNTL_DEBUG
 			m_maxSize = numel();
 #endif // NNTL_DEBUG
 		}
+		// #supportsBatchesInRows
 		smatrix_deform(smatrix_deform&& src)noexcept : _base_class(::std::move(src)) {
 #ifdef NNTL_DEBUG
 			m_maxSize = src.m_maxSize;
@@ -970,6 +1323,7 @@ namespace math {
 		smatrix_deform(const smatrix_deform& other) noexcept; // = delete; //-it should be `delete`d, but factory function won't work if it is
 		smatrix_deform& operator=(const smatrix_deform& rhs) noexcept; // = delete; //-it should be `delete`d, but factory function won't work if it is
 
+		// #supportsBatchesInRows
 		smatrix_deform& operator=(smatrix&& rhs) noexcept {
 			if (this != &rhs) {
 				_base_class::operator =(::std::move(rhs));
@@ -979,6 +1333,7 @@ namespace math {
 			}
 			return *this;
 		}
+		// #supportsBatchesInRows
 		smatrix_deform& operator=(smatrix_deform&& rhs) noexcept {
 			if (this != &rhs) {
 				_base_class::operator =(::std::move(rhs));
@@ -990,12 +1345,15 @@ namespace math {
 			return *this;
 		}
 
+		// DOES NOT SUPPORT non-default m_bBatchesInRows when emulatesBiases()
 		smatrix_deform submatrix_cols_no_bias(const vec_len_t colStart, const vec_len_t numCols)noexcept {
 			NNTL_ASSERT(numCols);
 			NNTL_ASSERT(colStart + numCols <= cols_no_bias());
+			NNTL_ASSERT(!emulatesBiases() || bBatchesInColumns());
 			return smatrix_deform(colDataAsVec(colStart), rows(), numCols, false);
 		}
 
+		// #supportsBatchesInRows
 		void clear()noexcept {
 #ifdef NNTL_DEBUG
 			m_maxSize = 0;
@@ -1003,21 +1361,24 @@ namespace math {
 			_base_class::clear();
 		}
 
+		// #supportsBatchesInRows
 		bool cloneFrom(const smatrix& src)noexcept {
 			_free();
-			auto r = src.clone_to(*this);
+			const auto r = src.clone_to(*this);
 #ifdef NNTL_DEBUG
 			if (r) m_maxSize = numel();
 #endif // NNTL_DEBUG
 			return r;
 		}
 
+		// #supportsBatchesInRows
 		void update_on_hidden_resize()noexcept {
 #ifdef NNTL_DEBUG
 			m_maxSize = numel();
 #endif // NNTL_DEBUG
 		}
 
+		// #supportsBatchesInRows
 		bool resize(const vec_len_t _rows, vec_len_t _cols)noexcept {
 			_free();
 			const auto r = _base_class::resize(_rows, _cols);
@@ -1027,6 +1388,17 @@ namespace math {
 			return r;
 		}
 
+		// #supportsBatchesInRows
+		bool resize_as_dataset(vec_len_t batchSiz, vec_len_t sampleWidt) noexcept {
+			_free();
+			const auto r = _base_class::resize_as_dataset(batchSiz, sampleWidt);
+		#ifdef NNTL_DEBUG
+			if (r) m_maxSize = numel();
+		#endif // NNTL_DEBUG
+			return r;
+		}
+
+		// #supportsBatchesInRows
 		bool resize(const smatrix& m)noexcept {
 			_free();
 			const auto r = _base_class::resize(m);
@@ -1036,13 +1408,17 @@ namespace math {
 			return r;
 		}
 
+		// #supportsBatchesInRows
 		bool resize(const mtx_size_t s)noexcept {
 			return resize(s.first, s.second);
 		}
 
+		// #supportsBatchesInRows
 		//note that ne MUST include bias column if *pbEmulateBiases was set to true! (same convention as useExternalStorage())
 		//NOTE you MUST call deform(r,c) before using resized with routine matrix!
-		bool resize(const numel_cnt_t ne, const bool*const pbEmulateBiases = nullptr, const bool*const pbHBiases = nullptr)noexcept {
+		bool resize(const numel_cnt_t ne, const bool*const pbEmulateBiases = nullptr
+			, const bool*const pbHBiases = nullptr, const bool* const pbBatchsInR = nullptr)noexcept
+		{
 			NNTL_ASSERT(ne > 0);
 			_free();
 			//auto ptr = new(::std::nothrow) value_type[ne];
@@ -1053,39 +1429,68 @@ namespace math {
 				return false;
 			}
 			//default flag values according to defaults of useExternalStorage()
-			useExternalStorage(ptr, ne, pbEmulateBiases ? *pbEmulateBiases : false, pbHBiases ? *pbHBiases : false);
+			useExternalStorage(ptr, ne, pbEmulateBiases ? *pbEmulateBiases : false
+				, pbHBiases ? *pbHBiases : false, pbBatchsInR ? *pbBatchsInR : false);
 			m_bDontManageStorage = false;
 			return true;
 		}
-
-		void useExternalStorage(value_ptr_t ptr, vec_len_t _rows, vec_len_t _cols, bool bEmulateBiases = false, bool bHBiases = false)noexcept {
-			_base_class::useExternalStorage(ptr, _rows, _cols, bEmulateBiases,bHBiases);
+		// #supportsBatchesInRows
+		inline void useExternalStorage(const value_ptr_t ptr, const vec_len_t _rows, const vec_len_t _cols, const bool bEmulateBiases = false
+			, const bool bHBiases = false, const bool bBatchsInR = false)noexcept
+		{
+			_base_class::useExternalStorage(ptr, _rows, _cols, bEmulateBiases,bHBiases, bBatchsInR);
 #ifdef NNTL_DEBUG
 			m_maxSize = numel();
 #endif // NNTL_DEBUG
 		}
-		void useExternalStorage(value_ptr_t ptr, const smatrix& sizeLikeThis, bool bHBiases = false)noexcept {
-			useExternalStorage(ptr, sizeLikeThis.rows(), sizeLikeThis.cols(), sizeLikeThis.emulatesBiases(), bHBiases);
+		// #supportsBatchesInRows
+		inline void useExternalStorage(value_ptr_t ptr, const smatrix& propsLikeThis, bool bHBiases = false)noexcept {
+			useExternalStorage(ptr, propsLikeThis.rows(), propsLikeThis.cols(), propsLikeThis.emulatesBiases()
+				, bHBiases, propsLikeThis.bBatchesInRows());
 		}
 
+		// #supportsBatchesInRows
+		inline void useExternalStorage(const bool bBatchsInR, const value_ptr_t ptr, const vec_len_t _batchSiz
+			, const vec_len_t _sampleSizInclBias, const bool bEmulateBiases = false, const bool bHBiases = false)noexcept
+		{
+			_base_class::_useExternalStorage(bBatchsInR, ptr, _batchSiz, _sampleSizInclBias, bEmulateBiases, bHBiases, bBatchsInR);
+		#ifdef NNTL_DEBUG
+			m_maxSize = numel();
+		#endif
+		}
+		//this variation uses already set m_bBatchesInRows property to decide the layout
+		// #supportsBatchesInRows
+		inline void useExternalStorage(const vec_len_t _batchSiz, const vec_len_t _sampleSizInclBias, const value_ptr_t ptr
+			, const bool bEmulateBiases = false, const bool bHBiases = false)noexcept
+		{
+			_base_class::useExternalStorage(_batchSiz, _sampleSizInclBias, ptr, bEmulateBiases, bHBiases);
+		#ifdef NNTL_DEBUG
+			m_maxSize = numel();
+		#endif
+		}
+
+		// #supportsBatchesInRows
 		//warning, if you change default flag values here in func definition, change in resize(const numel_cnt_t ne) also!
-		void useExternalStorage(value_ptr_t ptr, numel_cnt_t cnt, bool bEmulateBiases = false, bool bHBiases = false)noexcept {
-			_base_class::_useExternalStorage(ptr, bEmulateBiases, bHBiases);
+		inline void useExternalStorage(value_ptr_t ptr, numel_cnt_t cnt, bool bEmulateBiases = false, bool bHBiases = false
+			, const bool bBatchsInR = false)noexcept
+		{
+			_base_class::_useExternalStorage(ptr, bEmulateBiases, bHBiases, bBatchsInR);
 #ifdef NNTL_DEBUG
 			m_maxSize = cnt;
 #else
 			NNTL_UNREF(cnt);
 #endif // NNTL_DEBUG
 		}
-
-		void useExternalStorage(smatrix& src)noexcept {
+		// #supportsBatchesInRows
+		inline void useExternalStorage(smatrix& src)noexcept {
 			_base_class::useExternalStorage(src);
 #ifdef NNTL_DEBUG
 			m_maxSize = numel();
 #endif // NNTL_DEBUG
 		}
 
-		void useExternalStorage_no_bias(smatrix& src)noexcept {
+		// DOES NOT SUPPORT non-default m_bBatchesInRows when emulatesBiases()
+		inline void useExternalStorage_no_bias(smatrix& src)noexcept {
 			_base_class::useExternalStorage_no_bias(src);
 #ifdef NNTL_DEBUG
 			m_maxSize = numel();
@@ -1096,6 +1501,7 @@ namespace math {
 		// ALWAYS run your code in debug mode first.
 		// ALWAYS think about biases - when they should be or should not be set/restored
 		// You've been warned
+		// #supportsBatchesInRows
 		vec_len_t deform_cols(const vec_len_t c)noexcept {
 			NNTL_ASSERT(m_maxSize >= sNumel(m_rows, c));
 			NNTL_ASSERT(!empty());
@@ -1113,22 +1519,25 @@ namespace math {
 			++m_cols;
 		}
 
+		// #supportsBatchesInRows
 		bool hide_last_n_cols(const vec_len_t n)noexcept {
 			NNTL_ASSERT(!empty() && m_cols > n + emulatesBiases());
-			bool hasBiases = emulatesBiases();
-			m_cols -= n + hasBiases;
-			m_bEmulateBiases = false;
-			return hasBiases;
+			bool bWillAlsoDropBiases = (emulatesBiases() & bBatchesInColumns());
+			m_cols -= n + bWillAlsoDropBiases;
+			if (bWillAlsoDropBiases) m_bEmulateBiases = false;
+			return bWillAlsoDropBiases;
 		}
+		// bThereWasBiases is a return value from hide_last_n_cols()
 		void restore_last_n_cols(const bool bThereWasBiases, const vec_len_t n)noexcept {
 			NNTL_ASSERT(!empty() && m_cols >= 1);
 			NNTL_ASSERT(m_maxSize >= sNumel(m_rows, m_cols + n + bThereWasBiases));
 			m_cols += n + bThereWasBiases;
-			m_bEmulateBiases = bThereWasBiases;
+			if (bThereWasBiases) m_bEmulateBiases = true;
 		}
 
-
+		// DOES NOT SUPPORT non-default m_bBatchesInRows when emulatesBiases()
 		bool hide_biases()noexcept {
+			NNTL_ASSERT(!emulatesBiases() || bBatchesInColumns());
 			bool hasBiases = emulatesBiases();
 			if (hasBiases) {
 				hide_last_col();
@@ -1136,15 +1545,17 @@ namespace math {
 			}
 			return hasBiases;
 		}
+		// DOES NOT SUPPORT non-default m_bBatchesInRows when emulatesBiases()
 		void restore_biases(const bool bHideBiasesReturned)noexcept { //should only be called iff hide_biases() returned true
 			NNTL_ASSERT(!emulatesBiases());
+			NNTL_ASSERT(bBatchesInColumns());
 			if (bHideBiasesReturned) {
 				restore_last_col();
 				m_bEmulateBiases = true;
 			}
 		}
 
-
+		// #supportsBatchesInRows
 		//no asserts, just flag value. Better use for testing purposes only
 		bool holeyBiases_flag()const noexcept { return m_bHoleyBiases; }
 		//////////////////////////////////////////////////////////////////////////
@@ -1154,6 +1565,7 @@ namespace math {
 		
 		//////////////////////////////////////////////////////////////////////////
 		// use deform_rows() with extreme care on col-major (default!!!) data!!!
+		// #supportsBatchesInRows
 		vec_len_t deform_rows(vec_len_t r)noexcept {
 			NNTL_ASSERT(m_maxSize >= sNumel(r, m_cols));
 			NNTL_ASSERT(!empty());
@@ -1167,11 +1579,45 @@ namespace math {
 			m_rows = r;
 			m_cols = c;
 		}
+
+		// wrapper to conveniently change rows/cols depending on bBatchesInRows() setting
+		// Note that if new batch size differs from old, set_biases() will be called 
+		// #supportsBatchesInRows
+		void deform_batch_size_with_biases(const vec_len_t bs)noexcept {
+			NNTL_ASSERT(emulatesBiases());
+			const auto oldBs = deform_batch_size(bs);
+			if (oldBs == bs) {
+				NNTL_ASSERT(test_biases_strict());
+			} else set_biases();
+		}
+		// #supportsBatchesInRows
+		//returns old batch size value
+		vec_len_t deform_batch_size(const vec_len_t bs)noexcept {
+			return bBatchesInRows() ? deform_cols(bs) : deform_rows(bs);
+		}
 		
+		// #supportsBatchesInRows
+		// note that it also updates m_bBatchesInRows property!
 		template<typename _T>
-		void deform_like(const smatrix<_T>& m)noexcept { deform(m.rows(), m.cols()); }
+		void deform_like(const smatrix<_T>& m)noexcept { 
+			deform(m.rows(), m.cols());
+			m_bBatchesInRows = m.bBatchesInRows();
+		}
+
+		// #supportsBatchesInRows note that it's just sets rows/cols value
+		// note that it also updates m_bBatchesInRows property!
 		template<typename _T>
-		void deform_like_no_bias(const smatrix<_T>& m)noexcept { deform(m.rows(), m.cols_no_bias()); }
+		void deform_like_no_bias(const smatrix<_T>& m)noexcept { 
+			deform(m.rows_no_bias(), m.cols_no_bias());
+			m_bBatchesInRows = m.bBatchesInRows();
+		}
+
+		// #supportsBatchesInRows
+		void on_transposition()noexcept {
+			NNTL_ASSERT(!empty() && m_rows && m_cols);
+			::std::swap(m_rows, m_cols);
+			m_bBatchesInRows = !m_bBatchesInRows;
+		}
 	};
 
 	//////////////////////////////////////////////////////////////////////////

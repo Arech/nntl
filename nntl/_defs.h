@@ -86,6 +86,12 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #define NNTL_DEBUG_DECLARE(v) v
 #define NNTL_DEBUG_ARG(p) ,p
 
+#ifdef NNTL_AGGRESSIVE_NANS_DBG_CHECK
+#define NNTL_ASSERT_MTX_NO_NANS(mtx) _ASSERTE(mtx.test_noNaNs())
+#else //NNTL_AGGRESSIVE_NANS_DBG_CHECK
+#define NNTL_ASSERT_MTX_NO_NANS(mtx) ((void)(0))
+#endif //NNTL_AGGRESSIVE_NANS_DBG_CHECK
+
 #else //defined(_DEBUG) || defined(DEBUG)
 
 #ifdef NNTL_RELEASE_WITH_DEBUG
@@ -97,11 +103,19 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #define NNTL_DEBUG_DECLARE(v) v
 #define NNTL_DEBUG_ARG(p) ,p
 
+#ifdef NNTL_AGGRESSIVE_NANS_DBG_CHECK
+#define NNTL_ASSERT_MTX_NO_NANS(mtx) nntl_pragma_macro(warning(push)) nntl_pragma_macro(warning(disable:4127)) if(!(mtx.test_noNaNs())) __debugbreak(); nntl_pragma_macro(warning(pop))
+#else //NNTL_AGGRESSIVE_NANS_DBG_CHECK
+#define NNTL_ASSERT_MTX_NO_NANS(mtx) ((void)(0))
+#endif //NNTL_AGGRESSIVE_NANS_DBG_CHECK
+
 #else //NNTL_RELEASE_WITH_DEBUG
 
 #define NNTL_ASSERT(a) ((void)(0))
 #define NNTL_DEBUG_ARG(p)
 #define NNTL_DEBUG_DECLARE(v)
+
+#define NNTL_ASSERT_MTX_NO_NANS(mtx)
 
 #endif // !NNTL_RELEASE_WITH_DEBUG
 

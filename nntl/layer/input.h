@@ -38,6 +38,7 @@ namespace nntl {
 	//////////////////////////////////////////////////////////////////////////
 	// class to derive from when making final input layer. Need it to propagate correct FinalPolymorphChild to
 	// static polymorphism implementation here and in layer__base
+	// If not mentioned explicitly in a function comment, any member function of the class #supportsBatchesInRows (at least it should)
 	template<typename FinalPolymorphChild, typename Interfaces>
 	class _layer_input 
 		: public m_layer_input
@@ -79,6 +80,11 @@ namespace nntl {
 			return *m_pActivations;
 		}
 		const realmtx_t* get_activations_storage()const noexcept { return m_pActivations; }
+		realmtx_t* get_activations_storage_mutable()noexcept { 
+			NNTL_ASSERT(!"_layer_input<> doesn't possess own activation storage, it only references unchangeable dataset X data");
+			return nullptr;
+		}
+
 		mtx_size_t get_activations_size()const noexcept { 
 			NNTL_ASSERT(m_pActivations);
 			return m_pActivations->size();

@@ -446,24 +446,94 @@ namespace math {
 			}			
 		}
 
+		//////////////////////////////////////////////////////////////////////////
+		//////////////////////////////////////////////////////////////////////////
+		// extracts batches of samples from src matrix into dest.
+		// Note that bSamplesInColumns() layout offers much more efficient extraction than bSamplesInRows().
+		// #supportsBatchesInRows
+		template<typename VT, typename SeqIt>
+		void mExtractBatches(const smatrix<VT>& src, const SeqIt& batchIdxsItBegin, smatrix<VT>& dest)noexcept {
+			NNTL_ASSERT(!src.empty() && !dest.empty());
+			NNTL_ASSERT(src.bBatchesInRows() == dest.bBatchesInRows());
+			NNTL_ASSERT(src.sample_size() == dest.sample_size());
+			src.bSamplesInColumns()
+				? get_self().mExtractCols(src, batchIdxsItBegin, dest)
+				: get_self().mExtractRows(src, batchIdxsItBegin, dest);
+		}
 
 		//////////////////////////////////////////////////////////////////////////
 		//////////////////////////////////////////////////////////////////////////
-		//extract rows with indexes specified by Contnr ridxs into dest.
+		// Extracts columns from src, addressed by their indexes set in cIdxsItBegin, into columns of dest.
+		// cIdxsItBegin must contain dest.cols_no_bias() indexes of columns from src to copy into dest.
+		// Bias row (if any) are skipped.
+		// Don't mistake the func with mCloneCols(). This one is mainly for batch extraction from matrix with bBatchesInRows()
+		// prop (though, it's not a requirement)
+		// #supportsBatchesInRows
+		template<typename VT, typename SeqIt>
+		void mExtractCols(const smatrix<VT>& src, const SeqIt& cIdxsItBegin, smatrix<VT>& dest)noexcept {
+			const auto cnb = dest.cols_no_bias();
+			if (cnb < 2 || smatrix_td::sNumel(dest.rows_no_bias(), cnb) < Thresholds_t::mExtractCols) {
+				//not using numel_no_bias() to prevent triggering assertions wrong in this context, but helpful in others
+			//if (cnb < 2 || cnb <= Thresholds_t::mExtractCols_cols) {
+				get_self().mExtractCols_st(src, cIdxsItBegin, dest);
+			} else get_self().mExtractCols_mt(src, cIdxsItBegin, dest);
+		}
+		template<typename VT, typename SeqIt>
+		static void _imExtractCols_st(const smatrix<VT>& src, const SeqIt& cIdxsItBegin, smatrix<VT>& dest, const vec_range& destColR)noexcept {
+			NNTL_ASSERT(!src.empty() && !dest.empty());
+			NNTL_ASSERT(src.bBatchesInRows() == dest.bBatchesInRows());
+			NNTL_ASSERT(src.rows_no_bias() == dest.rows_no_bias());
+			NNTL_ASSERT(dest.cols_no_bias() >= destColR.elmEnd);
+
+			const size_t totRowBytes = static_cast<size_t>(src.rows_no_bias())*sizeof(VT);
+			const ptrdiff_t colEnd = destColR.elmEnd;
+			const ptrdiff_t ldS = src.ldim();
+			const ptrdiff_t ldD = dest.ldim();
+			
+			const VT * __restrict const pSrc = src.data();
+			VT * __restrict const pDest = dest.data();
+
+			for (ptrdiff_t ci = destColR.elmBegin; ci < colEnd; ++ci) {
+				::std::memcpy(pDest + ldD*ci, pSrc + ldS*cIdxsItBegin[ci], totRowBytes);
+			}
+		}
+		template<typename VT, typename SeqIt>
+		void mExtractCols_st(const smatrix<VT>& src, const SeqIt& cIdxsItBegin, smatrix<VT>& dest, const vec_range*const pDestColR=nullptr)noexcept {
+			NNTL_ASSERT(!dest.emulatesBiases() || dest.test_biases_strict());
+			get_self()._imExtractCols_st(src, cIdxsItBegin, dest, pDestColR ? *pDestColR : vec_range(0, dest.cols_no_bias()));
+			NNTL_ASSERT(!dest.emulatesBiases() || dest.test_biases_strict());
+		}
+		template<typename VT, typename SeqIt>
+		void mExtractCols_mt(const smatrix<VT>& src, const SeqIt& cIdxsItBegin, smatrix<VT>& dest)noexcept {
+			NNTL_ASSERT(!dest.emulatesBiases() || dest.test_biases_strict());
+			get_self().ithreads().run([&src, &cIdxsItBegin, &dest, this](const par_range_t& pr)noexcept {
+				get_self()._imExtractCols_st(src, cIdxsItBegin, dest, vec_range(pr));
+			}, dest.cols_no_bias());
+			NNTL_ASSERT(!dest.emulatesBiases() || dest.test_biases_strict());
+		}
+
+		//////////////////////////////////////////////////////////////////////////
+		//////////////////////////////////////////////////////////////////////////
+		//extract rows with indexes specified by Contnr ridxs into dest. Biases (if matrices features them) are not copied
+		//DOES NOT support non-default emulatesBiases() & bBatchesInRows() matrix setting
+		// #todo this is extremely slow function
 		template<typename VT, typename SeqIt>
 		void mExtractRows(const smatrix<VT>& src, const SeqIt& ridxsItBegin, smatrix<VT>& dest)noexcept {
 			if (dest.cols_no_bias() < 2 || dest.numel_no_bias() < Thresholds_t::mExtractRows) {
 				get_self().mExtractRows_seqWrite_st(src, ridxsItBegin, dest);
 			} else get_self().mExtractRows_seqWrite_mt(src, ridxsItBegin, dest);
 		}
+		//DOES NOT support non-default emulatesBiases() & bBatchesInRows() matrix setting
+		//#todo mt() should be done over columns for better thread cache locality
 		template<typename VT, typename SeqIt>
 		static void _imExtractRows_seqWrite_st(const smatrix<VT>& src, const SeqIt& ridxsItBegin, smatrix<VT>& dest, const elms_range& er)noexcept {
 			NNTL_ASSERT(!dest.empty() && !src.empty());
 			src.assert_storage_does_not_intersect(dest);
-			//static_assert(::std::is_same<vec_len_t, SeqIt::value_type>::value, "Contnr type should contain vec_len_t data");
+			NNTL_ASSERT(!src.emulatesBiases() || src.bBatchesInColumns());
+			NNTL_ASSERT(!dest.emulatesBiases() || dest.bBatchesInColumns());
 
 			const numel_cnt_t destRows = dest.rows(), srcRows = src.rows();
-			NNTL_ASSERT(dest.cols() == src.cols() && destRows <= srcRows && !(src.emulatesBiases() ^ dest.emulatesBiases()));
+			NNTL_ASSERT(dest.cols_no_bias() == src.cols_no_bias() && destRows <= srcRows);
 			NNTL_ASSERT(er.elmBegin <= destRows && er.elmEnd <= destRows && er.elmBegin <= er.elmEnd);
 
 			const auto rCnt = er.totalElements();
@@ -473,11 +543,7 @@ namespace math {
 			// to decide whether it's all worth it
 			// It don't. I've just tried. No significant change on big datasets.
 			// Probably a better idea is to transpose the source data to read rows sequentially. Need to implement and test.
-
-			/*if (src.emulatesBiases()) {
-				dest.holey_biases(src.isHoleyBiases());
-			}*/
-
+			
 			auto pSrc = src.data();
 			auto pDest = dest.data() + er.elmBegin;
 			const auto pDestEnd = pDest + dest.numel_no_bias();//we're leaving bias column intact
@@ -1541,7 +1607,7 @@ namespace math {
 			while (pA != pAE) *pA++ *= b;
 		}*/
 		template<typename T>
-		static void vMulC_ip_st(T* __restrict pA, T* __restrict const pAE, const T C)noexcept {
+		static nntl_force_inline void vMulC_ip_st(T* __restrict pA, T* __restrict const pAE, const T C)noexcept {
 			NNTL_ASSERT(pA && pAE && pA <= pAE);
 			NNTL_ASSERT(C != T(0));
 			while (pA != pAE) {
@@ -2306,6 +2372,200 @@ namespace math {
 		}
 
 		//////////////////////////////////////////////////////////////////////////
+		// single entry for calculating preactivation values for fullyconnected layer based on activations of prev.layer and weight
+		// matrix. prevAct must contain biases, act doesn't have to contain biases (just don't touched if any).
+		// weight matrix must be sized [n,p] where n==act.sample_size() and p==prevAct.sample_size()+1 (+1 for bias weight)
+		// #supportsBatchesInRows for prevAct&act only. weights MUST have the standard bBatchesInColumns() layout.
+		template<typename T>
+		static void mMul_prevAct_weights_2_act(const smatrix<T>& prevAct, const smatrix<T>& weights, smatrix<T>& act)noexcept {
+			//layout checks
+			NNTL_ASSERT(prevAct.emulatesBiases() && !weights.emulatesBiases());
+			NNTL_ASSERT(weights.bBatchesInColumns());
+			NNTL_ASSERT(prevAct.sample_size() + 1 == weights.cols() && act.sample_size() == weights.rows());
+			NNTL_ASSERT(prevAct.batch_size() == act.batch_size());
+			//normal checks
+			prevAct.assert_storage_does_not_intersect(weights);
+			prevAct.assert_storage_does_not_intersect(act);
+			weights.assert_storage_does_not_intersect(act);
+
+		#if NNTL_DEBUGBREAK_ON_OPENBLAS_DENORMALS
+			enable_denormals();
+			prevAct._breakWhenDenormal();
+			weights._breakWhenDenormal();
+			global_denormalized_floats_mode();
+		#endif
+
+			const T* p1, *p2;
+			vec_len_t d1, d2;
+			bool bT1, bT2;
+			const auto bABiR = act.bBatchesInRows();
+
+			if (bABiR) {
+// 				if (prevAct.bBatchesInRows()) {
+// 					// AT[n,m] = Wc[n,p] * PT[p,m]
+// 
+// 					b_BLAS_t::gemm(false, false, act.rows_no_bias(), act.cols(), weights.cols(), real_t(1.), weights.data(), weights.ldim()
+// 						, prevAct.data(), prevAct.ldim(), real_t(0), act.data(), act.ldim());
+// 				} else {
+// 					// AT[n,m] = Wc[n,p] * (Pc[m,p])`
+// 
+// 					b_BLAS_t::gemm(false, true, act.rows_no_bias(), act.cols(), weights.cols(), real_t(1.), weights.data(), weights.ldim()
+// 						, prevAct.data(), prevAct.ldim(), real_t(0), act.data(), act.ldim());
+// 				}
+				bT1 = false;
+				bT2 = !prevAct.bBatchesInRows();
+				d1 = weights.ldim();
+				d2 = prevAct.ldim();
+				p1 = weights.data();
+				p2 = prevAct.data();
+			} else {
+				//will call BLAS directly here to reserve for future tricks
+				// note that .sample_size() ignores biases if any, however, here we should deal with prevAct matrix here that ALWAYS have biases
+				/* the code is fine, just do it in one call without branching
+				if (prevAct.bBatchesInRows()) {
+				// PT[p,m] & Wc[n,p],   4.   Ac[m,n] = PT'*Wc'
+				b_BLAS_t::gemm(true, true, act.rows(), act.sample_size(), prevAct.sample_size()+1, real_t(1.), prevAct.data(), prevAct.ldim()
+				, weights.data(), weights.ldim(), real_t(0), act.data(), act.ldim());
+				} else {
+				// Pc[m,p] & Wc[n,p],   2.   Ac[m,n] = Pc*Wc'
+				b_BLAS_t::gemm(false, true, act.rows(), act.sample_size(), prevAct.sample_size()+1, real_t(1.), prevAct.data(), prevAct.ldim()
+				, weights.data(), weights.ldim(), real_t(0), act.data(), act.ldim());
+				}*/
+
+				// prevAct.bBatchesInRows():  PT[p,m] & Wc[n,p],   4.   Ac[m,n] = PT'*Wc'
+				//!prevAct.bBatchesInRows():  Pc[m,p] & Wc[n,p],   2.   Ac[m,n] = Pc*Wc'
+// 				b_BLAS_t::gemm(prevAct.bBatchesInRows(), true, act.rows(), act.cols_no_bias(), weights.cols() //prevAct.sample_size() + 1
+// 					, real_t(1.), prevAct.data(), prevAct.ldim()
+// 					, weights.data(), weights.ldim(), real_t(0), act.data(), act.ldim());
+
+				bT1 = prevAct.bBatchesInRows();
+				bT2 = true;
+				d1 = prevAct.ldim();
+				d2 = weights.ldim();
+				p1 = prevAct.data();
+				p2 = weights.data();
+			}
+
+			b_BLAS_t::gemm(bT1, bT2, act.rows(bABiR), act.cols(!bABiR), weights.cols(), real_t(1.), p1, d1, p2, d2
+				, real_t(0), act.data(), act.ldim());
+
+		#if NNTL_DEBUGBREAK_ON_OPENBLAS_DENORMALS
+			act._breakWhenDenormal();
+		#endif
+		}
+
+		//////////////////////////////////////////////////////////////////////////
+		// single entry for calculating dL/dAPrev values for fullyconnected layer based on current dL/dZ and weight
+		// matrix. There must be no biases in matrices.
+		// weight matrix must be sized [n,p+1] where n==dLdZ.sample_size() and p==dLdAPrev.sample_size(),
+		//		the last column of weight matrix must contain weights of bias units, they will be hidden during calculation
+		// #supportsBatchesInRows for dLdAPrev only. dLdZ & weights MUST have the standard bBatchesInColumns() layout.
+		// There's no problem to support bBatchesInRows() for dLdZ matrix, however it won't be used anyway, b/c of issue with
+		// making dLdA from activations in bprop()
+		template<typename T>
+		static void mMul_dLdZ_weights_2_dLdAPrev(const smatrix<T>& dLdZ, smatrix_deform<T>& weights, smatrix<T>& dLdAPrev)noexcept {
+			//layout checks
+			NNTL_ASSERT(weights.bBatchesInColumns() && dLdZ.bBatchesInColumns());
+			NNTL_ASSERT(dLdAPrev.sample_size() + 1 == weights.cols() && dLdZ.sample_size() == weights.rows());
+			NNTL_ASSERT(dLdAPrev.batch_size() == dLdZ.batch_size());
+			NNTL_ASSERT(!dLdZ.emulatesBiases() && !weights.emulatesBiases() && !dLdAPrev.emulatesBiases());
+			//normal checks
+			dLdAPrev.assert_storage_does_not_intersect(weights);
+			dLdAPrev.assert_storage_does_not_intersect(dLdZ);
+			weights.assert_storage_does_not_intersect(dLdZ);
+
+		#if NNTL_DEBUGBREAK_ON_OPENBLAS_DENORMALS
+			enable_denormals();
+			dLdZ._breakWhenDenormal();
+			weights._breakWhenDenormal();
+			global_denormalized_floats_mode();
+		#endif
+
+			//hiding bias weights
+			weights.hide_last_col();
+
+			//will call BLAS directly here to reserve for future tricks
+			const T* p1, *p2;
+			vec_len_t d1, d2;
+			const bool dLdAPrev_bir = dLdAPrev.bBatchesInRows();
+			//const bool bTr1 = dLdAPrev_bir, bTr2 = dLdAPrev_bir;
+			if (dLdAPrev_bir) {
+				// PT[p,m] = (W[n,p])' * (Dc[m,n])'
+				//bTr1 = bTr2 = true;
+				p1 = weights.data(); d1 = weights.ldim();
+				p2 = dLdZ.data(); d2 = dLdZ.ldim();
+				// b_BLAS_t::gemm(true, true, dLdAPrev.rows(), dLdAPrev.cols(), weights.rows(), real_t(1.), weights.data(), weights.ldim()
+// 					, dLdZ.data(), dLdZ.ldim(), real_t(0), dLdAPrev.data(), dLdAPrev.ldim());
+			} else {
+				// Pc[m,p] = Dc[m,n] * W[n,p]
+				p2 = weights.data(); d2 = weights.ldim();
+				p1 = dLdZ.data(); d1 = dLdZ.ldim();
+				//bTr1 = bTr2 = false;
+// 				b_BLAS_t::gemm(false, false, dLdAPrev.rows(), dLdAPrev.cols(), dLdZ.sample_size(), real_t(1.), dLdZ.data(), dLdZ.ldim()
+// 					, weights.data(), weights.ldim(), real_t(0), dLdAPrev.data(), dLdAPrev.ldim());
+			}
+
+			b_BLAS_t::gemm(dLdAPrev_bir, dLdAPrev_bir, dLdAPrev.rows(), dLdAPrev.cols(), dLdZ.sample_size(), real_t(1.), p1, d1
+				, p2, d2, real_t(0), dLdAPrev.data(), dLdAPrev.ldim());
+
+			weights.restore_last_col();//restore bias weights back
+
+		#if NNTL_DEBUGBREAK_ON_OPENBLAS_DENORMALS
+			dLdAPrev._breakWhenDenormal();
+		#endif
+		}
+
+		//////////////////////////////////////////////////////////////////////////
+		// single entry for calculating scaled dL/dW values for fullyconnected layer based on activations of prev.layer and dL/dZ
+		// matrix. prevAct must contain biases (but they are ignored), dLdZ and weights must not have biases.
+		// weight matrix must be sized [n,p] where n==dLdZ.sample_size() and p==prevAct.sample_size()+1 (+1 for bias weight)
+		// #supportsBatchesInRows for prevAct only. act & weights MUST have the standard bBatchesInColumns() layout.
+		// Probably there's no problem to support bBatchesInRows() for act matrix with a decreased rows count and proper ldim() trick, however
+		// not 100% sure and testing is required. Anyway now it won't be used anyway, b/c of issue with
+		// making dLdA from activations in bprop()
+		template<typename T>
+		static void mMulScaled_dLdZ_prevAct_2_dLdW(const T Sc, const smatrix<T>& dLdZ, const smatrix<T>& prevAct, smatrix<T>& dLdW)noexcept {
+			//layout checks
+			NNTL_ASSERT(dLdW.bBatchesInColumns() && dLdZ.bBatchesInColumns());
+			NNTL_ASSERT(prevAct.sample_size() + 1 == dLdW.cols() && dLdZ.sample_size() == dLdW.rows());
+			NNTL_ASSERT(prevAct.batch_size() == dLdZ.batch_size());
+			//normal checks
+			prevAct.assert_storage_does_not_intersect(dLdW);
+			prevAct.assert_storage_does_not_intersect(dLdZ);
+			dLdW.assert_storage_does_not_intersect(dLdZ);
+
+		#if NNTL_DEBUGBREAK_ON_OPENBLAS_DENORMALS
+			enable_denormals();
+			prevAct._breakWhenDenormal();
+			dLdZ._breakWhenDenormal();
+			if (::std::fpclassify(Sc) == FP_SUBNORMAL) 
+				__debugbreak();
+			global_denormalized_floats_mode();
+		#endif
+
+			//will call BLAS directly here to reserve for future tricks
+			//the code is fine, just do it in one call without branching
+			/*if (prevAct.bBatchesInRows()) {
+				// dW [n,p] = (dZ[m,n])' * (PT[p,m])'
+				b_BLAS_t::gemm(true, true, dLdW.rows(), dLdW.cols(), dLdZ.batch_size(), Sc, dLdZ.data(), dLdZ.ldim()
+					, prevAct.data(), prevAct.ldim(), real_t(0), dLdW.data(), dLdW.ldim());
+			} else {
+				// dW [n,p] = (dZ[m,n])' * Pc[m,p]
+				b_BLAS_t::gemm(true, false, dLdW.rows(), dLdW.cols(), dLdZ.batch_size(), Sc, dLdZ.data(), dLdZ.ldim()
+					, prevAct.data(), prevAct.ldim(), real_t(0), dLdW.data(), dLdW.ldim());
+			}*/
+
+			b_BLAS_t::gemm(true, prevAct.bBatchesInRows(), dLdW.rows(), dLdW.cols(), dLdZ.batch_size(), Sc, dLdZ.data(), dLdZ.ldim()
+				, prevAct.data(), prevAct.ldim(), real_t(0), dLdW.data(), dLdW.ldim());
+
+		#if NNTL_DEBUGBREAK_ON_OPENBLAS_DENORMALS
+			dLdW._breakWhenDenormal();
+		#endif
+		}
+
+
+		//////////////////////////////////////////////////////////////////////////
+		//////////////////////////////////////////////////////////////////////////
 		// Computes a symmetrical matrix C = 1/ARowsCnt  A' * A.
 		// If the columns of A are zero meaned, the resulting matrix is the actual covariance matrix for columns of A
 		// Actual C content stored only in the upper or lower triangular part of C
@@ -2426,20 +2686,40 @@ namespace math {
 
 		//////////////////////////////////////////////////////////////////////////
 		//////////////////////////////////////////////////////////////////////////
+		// matrix transposition. Bias row/column (if any in src or dest) is treated just like any other row/column (also transposed).
+		// Destination matrix as always must be properly sized
+		// #supportsBatchesInRows
+		// Note that is doesn't change bBatchesInRows property of dest matrix
+		template<typename T>
+		void mTranspose(const smatrix<T>& src, smatrix<T>& dest)noexcept {
+			const bool bIsWide = (src.rows() < src.cols());
+			//#TODO: that threshold below depends on hw architecture and current use-case (esp. cache cleanliness; and libxsmm could be better)
+			//but it's insanity to try to hardcode them all.
+			//so just leaving here mine threshold until run-time profiler ready. It should not degrade performance very much, thought
+			// testing is required
+			const bool bIsBig = (src.numel() >= Thresholds_t::mTransposeTrsh);
+			if (bIsWide ^ bIsBig) {
+				get_self().mTranspose_seq_write(src, dest, false);
+			} else get_self().mTranspose_seq_read(src, dest, false);
+		}
+
 		// matrix transposition. Bias column (if any in src or dest) is ignored. Destination matrix as always must be
-		// properly sized
-		
+		// properly sized. Note that is doesn't change bBatchesInRows property of dest matrix
+		// for !emulatesBiases() use mTranspose()
+		// DOES NOT SUPPORT non-default m_bBatchesInRows when emulatesBiases()
 		template<typename T>
 		void mTranspose_ignore_bias(const smatrix<T>& src, smatrix<T>& dest)noexcept {
+			NNTL_ASSERT(src.bBatchesInColumns() || !src.emulatesBiases());
+			NNTL_ASSERT(dest.bBatchesInColumns() || !dest.emulatesBiases());
 			const bool bIsWide = (src.rows() < src.cols_no_bias());
 			//#TODO: that threshold below depends on hw architecture and current use-case (esp. cache cleanliness; and libxsmm could be better)
 			//but it's insanity to try to hardcode them all.
 			//so just leaving here mine threshold until run-time profiler ready. It should not degrade performance very much, thought
 			// testing is required
-			const bool bIsBig = (src.numel_no_bias() >= 90000);
+			const bool bIsBig = (src.numel_no_bias() >= Thresholds_t::mTransposeTrsh);
 			if (bIsWide ^ bIsBig) {
-				get_self().mTranspose_seq_write_ignore_bias(src, dest);
-			} else get_self().mTranspose_seq_read_ignore_bias(src,dest);
+				get_self().mTranspose_seq_write(src, dest, true);
+			} else get_self().mTranspose_seq_read(src, dest, true);
 		}
 
 		//not really using it now
@@ -2459,10 +2739,12 @@ namespace math {
 			NNTL_ASSERT(src.cols_no_bias() == dest.rows() && src.rows() == dest.cols_no_bias());
 			b_BLAS_t::omatcopy(true, src.rows(), src.cols_no_bias(), T(1.0), src.data(), src.ldim(), dest.data(), dest.ldim());
 		}
+		// DOES NOT SUPPORT non-default m_bBatchesInRows when emulatesBiases()
 		template<typename T, bool ce = ::std::is_floating_point<T>::value>
 		static ::std::enable_if_t<ce> mTranspose_ip_ignore_bias_BLAS(smatrix_deform<T>& src_dest)noexcept {
-			const auto sRows = src_dest.rows(), sCols = src_dest.cols_no_bias();
-			NNTL_ASSERT(src_dest._isOkToDeform(sCols, sRows, src_dest.emulatesBiases()));
+			NNTL_ASSERT(!src_dest.emulatesBiases() || src_dest.bBatchesInColumns());
+			const auto sRows = src_dest.rows_no_bias(), sCols = src_dest.cols_no_bias();
+			NNTL_ASSERT(src_dest._isOkToDeform(sCols, sRows, src_dest.emulatesBiases(), src_dest.bBatchesInRows()));
 			b_BLAS_t::imatcopy(true, sRows, sCols, T(1.0), src_dest.data(), src_dest.ldim(), sCols);
 
 			const bool bBias = src_dest.emulatesBiases();
@@ -2470,11 +2752,15 @@ namespace math {
 			if (bBias) src_dest.set_biases();
 		}
 
+		// #supportsBatchesInRows if !bIgnoreBias
+		//DOES NOT support bBatchesInRows with bIgnoreBias!
 		template<typename T>
-		static void mTranspose_seq_read_ignore_bias(const smatrix<T>& src, smatrix<T>& dest) noexcept {
-			NNTL_ASSERT(src.rows() == dest.cols_no_bias() && src.cols_no_bias() == dest.rows());
-			const ptrdiff_t sRows = src.rows(), sCols = src.cols_no_bias();
-			const auto dataCnt = src.numel_no_bias();
+		static void mTranspose_seq_read(const smatrix<T>& src, smatrix<T>& dest, const bool bIgnoreBias) noexcept {
+			NNTL_ASSERT(src.rows(bIgnoreBias) == dest.cols(bIgnoreBias) && src.cols(bIgnoreBias) == dest.rows(bIgnoreBias));
+			NNTL_ASSERT(src.bBatchesInColumns() || !bIgnoreBias);
+			NNTL_ASSERT(dest.bBatchesInColumns() || !bIgnoreBias);
+			const ptrdiff_t sRows = src.rows(bIgnoreBias), sCols = src.cols(bIgnoreBias);
+			const auto dataCnt = src.numel(bIgnoreBias);
 			auto pSrc = src.data();
 			const auto pSrcE = pSrc + dataCnt;
 			auto pDest = dest.data();
@@ -2490,11 +2776,15 @@ namespace math {
 				}
 			}
 		}
+		// #supportsBatchesInRows if !bIgnoreBias
+		//DOES NOT support bBatchesInRows with bIgnoreBias!
 		template<typename T>
-		static void mTranspose_seq_write_ignore_bias(const smatrix<T>& src, smatrix<T>& dest) noexcept {
-			NNTL_ASSERT(src.rows() == dest.cols_no_bias() && src.cols_no_bias() == dest.rows());
-			const ptrdiff_t sRows = src.rows(), sCols = src.cols_no_bias();
-			const auto dataCnt = src.numel_no_bias();
+		static void mTranspose_seq_write(const smatrix<T>& src, smatrix<T>& dest, const bool bIgnoreBias) noexcept {
+			NNTL_ASSERT(src.rows(bIgnoreBias) == dest.cols(bIgnoreBias) && src.cols(bIgnoreBias) == dest.rows(bIgnoreBias));
+			NNTL_ASSERT(src.bBatchesInColumns() || !bIgnoreBias);
+			NNTL_ASSERT(dest.bBatchesInColumns() || !bIgnoreBias);
+			const ptrdiff_t sRows = src.rows(bIgnoreBias), sCols = src.cols(bIgnoreBias);
+			const auto dataCnt = src.numel(bIgnoreBias);
 			auto pSrc = src.data();
 			auto pDest = dest.data();
 			const auto pDestE = pDest + dataCnt;
@@ -2509,6 +2799,23 @@ namespace math {
 					pS += sRows;
 				}
 			}
+		}
+
+		//////////////////////////////////////////////////////////////////////////
+		//full matrix transposition in-place
+		// MUST #supportsBatchesInRows if changed
+		// MUST be static (hence prefix s_)
+		template<typename T>
+		static inline void s_mTranspose_ip(smatrix_deform<T>& src_dest)noexcept {
+			s_mTranspose_ip_BLAS(src_dest);
+		}
+		// #supportsBatchesInRows
+		template<typename T, bool ce = ::std::is_floating_point<T>::value>
+		static inline ::std::enable_if_t<ce> s_mTranspose_ip_BLAS(smatrix_deform<T>& src_dest)noexcept {
+			NNTL_ASSERT(!src_dest.emulatesBiases() || src_dest.test_biases_ok());
+			b_BLAS_t::imatcopy(true, src_dest.rows(), src_dest.cols(), T(1.0), src_dest.data(), src_dest.ldim(), src_dest.cols());
+			src_dest.on_transposition();
+			NNTL_ASSERT(!src_dest.emulatesBiases() || src_dest.test_biases_ok());
 		}
 
 

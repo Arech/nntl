@@ -125,6 +125,7 @@ namespace mtx2Normal {
 		//returns a pointer to matrix data. Matrix must have at least 1 element (and more than 1 over all batches)
 		//walk() is not required to obey batchIdx, it's just a convenience argument. The only requirement is that
 		// the whole matrix must be walked over with all batches.
+		// Note that the matrix returned MUST have samples in rows and batches in columns
 		nntl_interface __declspec(restrict) const datamtx_t* __restrict walk(numel_cnt_t batchIdx)noexcept;
 
 		template<typename AccT, bool c = bAdjustForSampleVar>
@@ -180,6 +181,7 @@ namespace mtx2Normal {
 			//walking over all dataset
 			for (numel_cnt_t bidx = 0; bidx < batchesCnt; ++bidx) {
 				const auto pAct = FNorm.walk(bidx);
+				NNTL_ASSERT(pAct->bBatchesInColumns());
 				applyAccumulator(pAct->begin(), pAct->end_no_bias(), acc);
 			}
 
@@ -291,6 +293,7 @@ namespace mtx2Normal {
 			//walking over all dataset
 			for (numel_cnt_t bidx = 0; bidx < batchesCnt; ++bidx) {
 				const auto pAct = FNorm.walk(bidx);
+				NNTL_ASSERT(pAct->bBatchesInColumns());
 
 				FNorm.iThreads_run([pAct, pAccs = &Accums](const auto& pr)noexcept {
 					const ptrdiff_t batchSize = static_cast<ptrdiff_t>(pAct->rows());

@@ -2161,3 +2161,235 @@ TEST(TestPerfDecisions, mExtractRowsByMask) {
 }
 */
 
+//////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////// 
+
+template<typename base_t> struct mMul_BLAS_EPS {};
+template<> struct mMul_BLAS_EPS<double> { static constexpr double eps = 1e-10; };
+template<> struct mMul_BLAS_EPS<float> { static constexpr float eps = 1e-6f; };
+
+template<typename IntfT>
+void mMul_BLAS_perf(typename IntfT::iMath_t& iM, typename IntfT::iRng_t& iR, vec_len_t batchSize, vec_len_t plnCnt
+	, vec_len_t nCnt, numel_cnt_t CACHE_SIZE)
+{
+	typedef typename IntfT::real_t real_t;
+	typedef math::smatrix<real_t> realmtx_t;
+	typedef math::smatrix_deform<real_t> realmtxdef_t;
+	typedef typename IntfT::iMath_t::b_BLAS_t b_BLAS_t;
+
+	auto bClog = CACHE_SIZE > 0; // dest.byte_size() < CACHE_SIZE;
+	constexpr auto bClogOnlyTheRest = true;
+	STDCOUTL("******* testing matrix multiplication performance in use-case of batchSize=" << batchSize
+		<< ", pn=" << plnCnt << ", n=" << nCnt 
+		<< (bClog ? " WITH cache clogging" : " without cache clogging") << " **************");
+
+	constexpr unsigned maxReps = 150;
+	realmtx_t prevActCur(batchSize, plnCnt), prevActT(plnCnt, batchSize);
+	realmtx_t weightsCur(nCnt, plnCnt), weightsT(plnCnt, nCnt);
+	realmtx_t actCur(batchSize, nCnt), actT(nCnt, batchSize);
+	realmtx_t actCur2(batchSize, nCnt), actT2(nCnt, batchSize);
+
+	realmtxdef_t cClog;
+	realmtx_t cClogDest;
+
+	if (bClog) {
+		numel_cnt_t clogNumel = CACHE_SIZE / sizeof(real_t);
+		if (bClogOnlyTheRest) clogNumel -= prevActCur.numel();
+
+		if (clogNumel > 0) {
+			cClog.resize(clogNumel);
+			cClog.deform(static_cast<vec_len_t>(clogNumel), 1);
+			cClogDest.resize(cClog.size());
+			iR.gen_matrix(cClog, real_t(10));
+		} else bClog = false;
+	}
+
+	threads::prioritize_workers<threads::PriorityClass::PerfTesting, imath_basic_t::iThreads_t> pw(iM.ithreads());
+
+	utils::tictoc t1WcPc2T, t2PcWc2c, t3WcPT2T, t4PTWc2c, t5PcWT2c, t6WTPc2T, t7PTWT2c, t8WTPT2T;
+	real_t v = real_t(0.);
+
+	iR.gen_matrix(prevActCur, real_t(2));
+	iM.mTranspose_ignore_bias(prevActCur, prevActT);
+	iR.gen_matrix(weightsCur, real_t(1));
+	iM.mTranspose_ignore_bias(weightsCur, weightsT);
+
+	const auto Eps = mMul_BLAS_EPS<real_t>::eps * plnCnt;
+	//code warmup & sanity checks
+	// current setup, i.e. for Pc[m,p] & Wc[n,p]
+	// 1.   AT[n,m] = Wc*Pc'
+	b_BLAS_t::gemm(false, true, actT.rows(), actT.cols(), weightsCur.cols(), real_t(1.), weightsCur.data(), weightsCur.ldim()
+		, prevActCur.data(), prevActCur.ldim(), real_t(0), actT.data(), actT.ldim());
+	// 2.   Ac[m,n] = Pc*Wc'
+	b_BLAS_t::gemm(false, true, actCur.rows(), actCur.cols(), prevActCur.cols(), real_t(1.), prevActCur.data(), prevActCur.ldim()
+		, weightsCur.data(), weightsCur.ldim(), real_t(0), actCur.data(), actCur.ldim());
+	iM.mTranspose_ignore_bias(actT, actCur2);
+	ASSERT_TRUE(actT.copy_to(actT2));
+	ASSERT_REALMTX_NEAR(actCur, actCur2, "WTF?! Scenario 1!=2", Eps);
+	// PT[p,m] & Wc[n,p]
+	// 3.   AT[n,m] = Wc*PT
+	b_BLAS_t::gemm(false, false, actT.rows(), actT.cols(), weightsCur.cols(), real_t(1.), weightsCur.data(), weightsCur.ldim()
+		, prevActT.data(), prevActT.ldim(), real_t(0), actT.data(), actT.ldim());
+	ASSERT_REALMTX_NEAR(actT, actT2, "WTF?! Wrong scenario 3", Eps);
+	// 4.   Ac[m,n] = PT'*Wc'
+	b_BLAS_t::gemm(true, true, actCur.rows(), actCur.cols(), prevActT.rows(), real_t(1.), prevActT.data(), prevActT.ldim()
+		, weightsCur.data(), weightsCur.ldim(), real_t(0), actCur.data(), actCur.ldim());
+	ASSERT_REALMTX_NEAR(actCur, actCur2, "WTF?! Wrong scenario 4", Eps);
+	// Pc[m,p] & WT[p,n]
+	// 5.   Ac[m,n] = Pc*WT
+	b_BLAS_t::gemm(false, false, actCur.rows(), actCur.cols(), prevActCur.cols(), real_t(1.), prevActCur.data(), prevActCur.ldim()
+		, weightsT.data(), weightsT.ldim(), real_t(0), actCur.data(), actCur.ldim());
+	ASSERT_REALMTX_NEAR(actCur, actCur2, "WTF?! Wrong scenario 5", Eps);
+	// 6.   AT[n,m] = WT'*Pc'
+	b_BLAS_t::gemm(true, true, actT.rows(), actT.cols(), weightsT.rows(), real_t(1.), weightsT.data(), weightsT.ldim()
+		, prevActCur.data(), prevActCur.ldim(), real_t(0), actT.data(), actT.ldim());
+	ASSERT_REALMTX_NEAR(actT, actT2, "WTF?! Wrong scenario 6", Eps);
+	// PT[p,m] & WT[p,n]
+	// 7.   Ac[m,n] = PT'*WT
+	b_BLAS_t::gemm(true, false, actCur.rows(), actCur.cols(), prevActT.rows(), real_t(1.), prevActT.data(), prevActT.ldim()
+		, weightsT.data(), weightsT.ldim(), real_t(0), actCur.data(), actCur.ldim());
+	ASSERT_REALMTX_NEAR(actCur, actCur2, "WTF?! Wrong scenario 7", Eps);
+	// 8.   AT[n,m] = WT'*PT
+	b_BLAS_t::gemm(true, false, actT.rows(), actT.cols(), weightsT.rows(), real_t(1.), weightsT.data(), weightsT.ldim()
+		, prevActT.data(), prevActT.ldim(), real_t(0), actT.data(), actT.ldim());
+	ASSERT_REALMTX_NEAR(actT, actT2, "WTF?! Wrong scenario 8", Eps);
+	
+	actCur2.clear(); actT2.clear();
+
+	for (unsigned r = 0; r < maxReps; ++r) {
+		// current setup, i.e. for Pc[m,p] & Wc[n,p]
+		// 1.   AT[n,m] = Wc*Pc'
+		iR.gen_matrix(prevActCur, real_t(2)); 		iR.gen_matrix(weightsCur, real_t(1));
+		if (bClog) { ASSERT_TRUE(cClog.copy_to(cClogDest));			for (const auto e : cClogDest) v += r*e; }
+		t1WcPc2T.tic();
+		b_BLAS_t::gemm(false, true, actT.rows(), actT.cols(), weightsCur.cols(), real_t(1.), weightsCur.data(), weightsCur.ldim()
+			, prevActCur.data(), prevActCur.ldim(), real_t(0), actT.data(), actT.ldim());
+		t1WcPc2T.toc();
+		for (const auto e : actT) v += e;
+		
+		// 2.   Ac[m,n] = Pc*Wc'
+		iR.gen_matrix(prevActCur, real_t(2)); 		iR.gen_matrix(weightsCur, real_t(1));
+		if (bClog) { ASSERT_TRUE(cClog.copy_to(cClogDest));			for (const auto e : cClogDest) v += r*e; }
+		t2PcWc2c.tic();
+		b_BLAS_t::gemm(false, true, actCur.rows(), actCur.cols(), prevActCur.cols(), real_t(1.), prevActCur.data(), prevActCur.ldim()
+			, weightsCur.data(), weightsCur.ldim(), real_t(0), actCur.data(), actCur.ldim());
+		t2PcWc2c.toc();
+		for (const auto e : actCur) v += e;
+
+		// PT[p,m] & Wc[n,p]
+		// 3.   AT[n,m] = Wc*PT
+		iR.gen_matrix(prevActT, real_t(2)); 		iR.gen_matrix(weightsCur, real_t(1));
+		if (bClog) { ASSERT_TRUE(cClog.copy_to(cClogDest));			for (const auto e : cClogDest) v += r*e; }
+		t3WcPT2T.tic();
+		b_BLAS_t::gemm(false, false, actT.rows(), actT.cols(), weightsCur.cols(), real_t(1.), weightsCur.data(), weightsCur.ldim()
+			, prevActT.data(), prevActT.ldim(), real_t(0), actT.data(), actT.ldim());
+		t3WcPT2T.toc();
+		for (const auto e : actT) v += e;
+
+		// 4.   Ac[m,n] = PT'*Wc'
+		iR.gen_matrix(prevActT, real_t(2)); 		iR.gen_matrix(weightsCur, real_t(1));
+		if (bClog) { ASSERT_TRUE(cClog.copy_to(cClogDest));			for (const auto e : cClogDest) v += r*e; }
+		t4PTWc2c.tic();
+		b_BLAS_t::gemm(true, true, actCur.rows(), actCur.cols(), prevActT.rows(), real_t(1.), prevActT.data(), prevActT.ldim()
+			, weightsCur.data(), weightsCur.ldim(), real_t(0), actCur.data(), actCur.ldim());
+		t4PTWc2c.toc();
+		for (const auto e : actCur) v += e;
+		
+		// Pc[m,p] & WT[p,n]
+		// 5.   Ac[m,n] = Pc*WT
+		iR.gen_matrix(prevActCur, real_t(2)); 		iR.gen_matrix(weightsT, real_t(1));
+		if (bClog) { ASSERT_TRUE(cClog.copy_to(cClogDest));			for (const auto e : cClogDest) v += r*e; }
+		t5PcWT2c.tic();
+		b_BLAS_t::gemm(false, false, actCur.rows(), actCur.cols(), prevActCur.cols(), real_t(1.), prevActCur.data(), prevActCur.ldim()
+			, weightsT.data(), weightsT.ldim(), real_t(0), actCur.data(), actCur.ldim());
+		t5PcWT2c.toc();
+		for (const auto e : actCur) v += e;
+
+		// 6.   AT[n,m] = WT'*Pc'
+		iR.gen_matrix(prevActCur, real_t(2)); 		iR.gen_matrix(weightsT, real_t(1));
+		if (bClog) { ASSERT_TRUE(cClog.copy_to(cClogDest));			for (const auto e : cClogDest) v += r*e; }
+		t6WTPc2T.tic();
+		b_BLAS_t::gemm(true, true, actT.rows(), actT.cols(), weightsT.rows(), real_t(1.), weightsT.data(), weightsT.ldim()
+			, prevActCur.data(), prevActCur.ldim(), real_t(0), actT.data(), actT.ldim());
+		t6WTPc2T.toc();
+		for (const auto e : actT) v += e;
+
+		// PT[p,m] & WT[p,n]
+		// 7.   Ac[m,n] = PT'*WT
+		iR.gen_matrix(prevActT, real_t(2)); 		iR.gen_matrix(weightsT, real_t(1));
+		if (bClog) { ASSERT_TRUE(cClog.copy_to(cClogDest));			for (const auto e : cClogDest) v += r*e; }
+		t7PTWT2c.tic();
+		b_BLAS_t::gemm(true, false, actCur.rows(), actCur.cols(), prevActT.rows(), real_t(1.), prevActT.data(), prevActT.ldim()
+			, weightsT.data(), weightsT.ldim(), real_t(0), actCur.data(), actCur.ldim());
+		t7PTWT2c.toc();
+		for (const auto e : actCur) v += e;
+		
+		// 8.   AT[n,m] = WT'*PT
+		iR.gen_matrix(prevActT, real_t(2)); 		iR.gen_matrix(weightsT, real_t(1));
+		if (bClog) { ASSERT_TRUE(cClog.copy_to(cClogDest));			for (const auto e : cClogDest) v += r*e; }
+		t8WTPT2T.tic();
+		b_BLAS_t::gemm(true, false, actT.rows(), actT.cols(), weightsT.rows(), real_t(1.), weightsT.data(), weightsT.ldim()
+			, prevActT.data(), prevActT.ldim(), real_t(0), actT.data(), actT.ldim());
+		t8WTPT2T.toc();
+		for (const auto e : actT) v += e;
+	}
+
+	STDCOUTL("current setup, i.e. for Pc[m,p] & Wc[n,p]");
+	t1WcPc2T.say("1. AT[n,m] = Wc*Pc' ");
+	t2PcWc2c.say("2. Ac[m,n] = Pc*Wc' ");
+	
+	STDCOUTL("PT[p,m] & Wc[n,p]");
+	t3WcPT2T.say("3. AT[n,m] = Wc*PT  ");
+	t4PTWc2c.say("4. Ac[m,n] = PT'*Wc'");
+	
+	STDCOUTL("Pc[m,p] & WT[p,n]");
+	t5PcWT2c.say("5. Ac[m,n] = Pc*WT  ");
+	t6WTPc2T.say("6. AT[n,m] = WT'*Pc'");
+	
+	STDCOUTL("PT[p,m] & WT[p,n]");
+	t7PTWT2c.say("7. Ac[m,n] = PT'*WT ");
+	t8WTPT2T.say("8. AT[n,m] = WT'*PT ");
+
+	STDCOUTL(v);	
+}
+
+TEST(TestPerfDecisions, mMulBlasPerf) {
+	//typedef float real_t;
+	typedef dt_interfaces<real_t> myInterfaces_t;
+
+	//typename myInterfaces_t::iMath_t iM;
+	//const vec_len_t g_MinDataSizeDelta = 2 * iM.ithreads().workers_count() + 2;
+
+	const numel_cnt_t CACHE_SIZE = 6 * 1024 * 1024;
+
+	STDCOUTL("sizeof(real_t) = " << sizeof(real_t));
+
+	typename myInterfaces_t::iRng_t iR;
+	iR.init_ithreads(iM.ithreads());
+
+#ifdef TESTS_SKIP_LONGRUNNING
+	ASSERT_NO_FATAL_FAILURE(mMul_BLAS_perf<myInterfaces_t>(iM, iR, 128, 20, 10, 0));
+	ASSERT_NO_FATAL_FAILURE(mMul_BLAS_perf<myInterfaces_t>(iM, iR, 128, 20, 10, CACHE_SIZE));
+#else
+	ASSERT_NO_FATAL_FAILURE(mMul_BLAS_perf<myInterfaces_t>(iM, iR, 4096, 256, 128, 0));
+	ASSERT_NO_FATAL_FAILURE(mMul_BLAS_perf<myInterfaces_t>(iM, iR, 4096, 256, 128, CACHE_SIZE));
+
+	/*::std::vector<vec_len_t> batchSizes = { 128, 256, 512, 4096, 4096*4, 4096 * 32 , 4096 * 1024 };
+	::std::vector<vec_len_t> prevSize = { 32, 64, 128, 256, 512, 1024, 2048 };
+	::std::vector<vec_len_t> thisSize = { 32, 64, 128, 256, 512, 1024, 2048 };
+	constexpr numel_cnt_t maxSize = numel_cnt_t(32) * 4096 * 1024;
+	for(const auto bs :batchSizes){
+		for (const auto n : thisSize) {
+			for (const auto pn : prevSize) {
+				if (math::smatrix_td::sNumel(bs, ::std::max(pn, n)) <= maxSize) {
+					ASSERT_NO_FATAL_FAILURE(mMul_BLAS_perf<myInterfaces_t>(iM, iR, bs, pn, n, 0));
+					//ASSERT_NO_FATAL_FAILURE(mMul_BLAS_perf<myInterfaces_t>(iM, iR, bs, pn, n, CACHE_SIZE));
+				} else {
+					STDCOUTL("-- skipping batchSize=" << bs << ", n=" << n << ", pn=" << pn);
+				}				
+			}
+		}
+	}*/
+#endif //TESTS_SKIP_LONGRUNNING
+}

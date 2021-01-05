@@ -115,6 +115,8 @@ namespace nntl {
 
 			const realmtx_t& get_activations()const noexcept { return m_act; }
 			const realmtx_t* get_activations_storage()const noexcept { return &m_act; }
+			//realmtx_t* get_activations_storage_mutable()noexcept { return &m_act; }
+			//not sure it should expose get_activations_storage_mutable
 			const mtx_size_t get_activations_size()const noexcept { return m_act.size(); }
 		};
 
@@ -215,6 +217,8 @@ namespace nntl {
 
 			const realmtx_t& get_activations()const noexcept { return m_act; }
 			const realmtx_t* get_activations_storage()const noexcept { return &m_act; }
+			//realmtx_t* get_activations_storage_mutable()noexcept { return &m_act; }
+			//not sure it should expose get_activations_storage_mutable
 			mtx_size_t get_activations_size()const noexcept { return m_act.size(); }
 		};
 

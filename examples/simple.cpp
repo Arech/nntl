@@ -74,6 +74,11 @@ TEST(Simple, PlainFFN) {
 	reader_t::ErrorCode rec = reader.read(NNTL_STRING(MNIST_FILE), td);
 	ASSERT_EQ(reader_t::ErrorCode::Success, rec) << "Error code description: " << reader.get_last_error_str();
 
+	// Currently this feature is only supported IFF there's LFC directly on input layer (will add later support for other layers)
+	// Allows to shave off about 10% of time for current datasets due to more efficient algorithm of extracting columns of samples
+	// instead of rows. Note that Y data is still extracted rowwise, b/c of old bBatchesInColumns() layout is still currently
+	// required by most other code (nnet evaluators/observers and softmax, - softmax not applicable here, just to name it)
+	td.transposeX<d_interfaces::iMath_t>();
 
 	//2. define NN layers and their properties
 	int epochs = 20;
@@ -85,14 +90,14 @@ TEST(Simple, PlainFFN) {
 	// any function "hides" this bias column and acts like there's no biases. In this case it returns correct number
 	// of columns in _x data)
 	// Input layer typically does nothing more than offering a unified API to _x data.
-	layer_input<> inp(td.train_x().cols_no_bias());
+	layer_input<> inp(td.train_x().sample_size());
 
 	//b. hidden layers - that's where the magic happening
 	layer_fully_connected<activation::sigm<real_t>> fcl(500, learningRate);
 	layer_fully_connected<activation::sigm<real_t>> fcl2(300, learningRate);
 
 	//c. output layer - using quadratic loss function.
-	layer_output<activation::sigm_quad_loss<real_t>> outp(td.train_y().cols(), learningRate);
+	layer_output<activation::sigm_quad_loss<real_t>> outp(td.train_y().sample_size(), learningRate);
 
 	//3. assemble layer references (!! - not layer objects, but references to them) into a single object - layer_pack. 
 	auto lp = make_layers(inp, fcl, fcl2, outp);
@@ -128,6 +133,12 @@ TEST(Simple, NotSoPlainFFN) {
 	reader_t::ErrorCode rec = reader.read(NNTL_STRING(MNIST_FILE), td);
 	ASSERT_EQ(reader_t::ErrorCode::Success, rec) << "Error code description: " << reader.get_last_error_str();
 
+	// Currently this feature is only supported IFF there's LFC directly on input layer (will add later support for other layers)
+	// Allows to shave off about 10% of time for current datasets due to more efficient algorithm of extracting columns of samples
+	// instead of rows. Note that Y data is still extracted rowwise, b/c of old bBatchesInColumns() layout is still currently
+	// required by most other code (nnet evaluators/observers and softmax, - softmax not applicable here, just to name it)
+	td.transposeX<d_interfaces::iMath_t>();
+
 	//2. define NN layers and their properties
 	int epochs = 30;
 	const real_t learningRate(real_t(.001))
@@ -136,7 +147,7 @@ TEST(Simple, NotSoPlainFFN) {
 		, learningRateDecayCoeff(real_t(.97)), numStab(real_t(1e-8));// _impl::NUM_STAB_EPS<real_t>::value);//real_t(1e-8));
 	
 	// a. input layer
-	layer_input<> inp(td.train_x().cols_no_bias());
+	layer_input<> inp(td.train_x().sample_size());
 
 	//preparing alias for weights initialization scheme type
 	typedef weights_init::XavierFour w_init_scheme;
@@ -149,7 +160,7 @@ TEST(Simple, NotSoPlainFFN) {
 	fcl2.dropoutPercentActive(dropoutActiveRate);
 
 	//c. output layer
-	layer_output<activation::sigm_quad_loss<real_t,w_init_scheme>> outp(td.train_y().cols(), learningRate);
+	layer_output<activation::sigm_quad_loss<real_t,w_init_scheme>> outp(td.train_y().sample_size(), learningRate);
 
 	//d. setting layers properties
 	auto optimizerType = decltype(fcl)::grad_works_t::RMSProp_Hinton;
@@ -159,9 +170,9 @@ TEST(Simple, NotSoPlainFFN) {
 	//auto optimizerType = decltype(fcl)::grad_works_t::Adam;
 	//auto optimizerType = decltype(fcl)::grad_works_t::AdaMax;
 	
-	fcl.m_gradientWorks.set_type(optimizerType).nesterov_momentum(momntm).numeric_stabilizer(numStab);
-	fcl2.m_gradientWorks.set_type(optimizerType).nesterov_momentum(momntm).numeric_stabilizer(numStab);
-	outp.m_gradientWorks.set_type(optimizerType).nesterov_momentum(momntm).numeric_stabilizer(numStab);
+	fcl.get_gradWorks().set_type(optimizerType).nesterov_momentum(momntm).numeric_stabilizer(numStab);
+	fcl2.get_gradWorks().set_type(optimizerType).nesterov_momentum(momntm).numeric_stabilizer(numStab);
+	outp.get_gradWorks().set_type(optimizerType).nesterov_momentum(momntm).numeric_stabilizer(numStab);
 
 	//3. assemble layer references (!! - not layer objects, but references to them) into a single object - layer_pack. 
 	auto lp = make_layers(inp, fcl, fcl2, outp);
@@ -181,7 +192,7 @@ TEST(Simple, NotSoPlainFFN) {
 		// well, we can capture references to layer objects in lambda capture clause and use them directly here,
 		// but lets get an access to them through nn object, passed as function parameter.
 		nn.get_layer_pack().for_each_layer_exc_input([learningRateDecayCoeff](auto& l) {
-			l.m_gradientWorks.learning_rate(l.m_gradientWorks.learning_rate()*learningRateDecayCoeff);
+			l.get_gradWorks().learning_rate(l.get_gradWorks().learning_rate()*learningRateDecayCoeff);
 		});
 		//return false to stop learning
 		return true;
@@ -204,6 +215,12 @@ TEST(Simple, NotSoPlainFFN_LRDO) {
 	reader_t::ErrorCode rec = reader.read(NNTL_STRING(MNIST_FILE), td);
 	ASSERT_EQ(reader_t::ErrorCode::Success, rec) << "Error code description: " << reader.get_last_error_str();
 
+	// Currently this feature is only supported IFF there's LFC directly on input layer (will add later support for other layers)
+	// Allows to shave off about 10% of time for current datasets due to more efficient algorithm of extracting columns of samples
+	// instead of rows. Note that Y data is still extracted rowwise, b/c of old bBatchesInColumns() layout is still currently
+	// required by most other code (nnet evaluators/observers and softmax, - softmax not applicable here, just to name it)
+	td.transposeX<d_interfaces::iMath_t>();
+
 	//2. define NN layers and their properties
 	int epochs = 30;
 	const real_t learningRate(real_t(.001))
@@ -212,7 +229,7 @@ TEST(Simple, NotSoPlainFFN_LRDO) {
 		, learningRateDecayCoeff(real_t(.97)), numStab(real_t(1e-8));// _impl::NUM_STAB_EPS<real_t>::value);//real_t(1e-8));
 
 																	 // a. input layer
-	layer_input<> inp(td.train_x().cols_no_bias());
+	layer_input<> inp(td.train_x().sample_size());
 
 	//preparing alias for weights initialization scheme type
 	typedef weights_init::XavierFour w_init_scheme;
@@ -223,7 +240,7 @@ TEST(Simple, NotSoPlainFFN_LRDO) {
 	LFC<activ_func> fcl2(300, learningRate);
 
 	//c. output layer
-	layer_output<activation::sigm_quad_loss<real_t, w_init_scheme>> outp(td.train_y().cols(), learningRate);
+	layer_output<activation::sigm_quad_loss<real_t, w_init_scheme>> outp(td.train_y().sample_size(), learningRate);
 
 	//d. setting layers properties
 	auto optimizerType = decltype(fcl)::grad_works_t::RMSProp_Hinton;
@@ -233,11 +250,11 @@ TEST(Simple, NotSoPlainFFN_LRDO) {
 	//auto optimizerType = decltype(fcl)::grad_works_t::Adam;
 	//auto optimizerType = decltype(fcl)::grad_works_t::AdaMax;
 
-	fcl.m_gradientWorks.set_type(optimizerType).nesterov_momentum(momntm).numeric_stabilizer(numStab)
+	fcl.get_gradWorks().set_type(optimizerType).nesterov_momentum(momntm).numeric_stabilizer(numStab)
 		.LRDropoutPercentActive(LRDropoutAct).setApplyLRDropoutToNesterovMomentum(true);
-	fcl2.m_gradientWorks.set_type(optimizerType).nesterov_momentum(momntm).numeric_stabilizer(numStab)
+	fcl2.get_gradWorks().set_type(optimizerType).nesterov_momentum(momntm).numeric_stabilizer(numStab)
 		.LRDropoutPercentActive(LRDropoutAct).setApplyLRDropoutToNesterovMomentum(true);
-	outp.m_gradientWorks.set_type(optimizerType).nesterov_momentum(momntm).numeric_stabilizer(numStab)
+	outp.get_gradWorks().set_type(optimizerType).nesterov_momentum(momntm).numeric_stabilizer(numStab)
 		.LRDropoutPercentActive(LRDropoutAct).setApplyLRDropoutToNesterovMomentum(true);
 
 	//3. assemble layer references (!! - not layer objects, but references to them) into a single object - layer_pack. 
@@ -258,7 +275,7 @@ TEST(Simple, NotSoPlainFFN_LRDO) {
 		// well, we can capture references to layer objects in lambda capture clause and use them directly here,
 		// but lets get an access to them through nn object, passed as function parameter.
 		nn.get_layer_pack().for_each_layer_exc_input([learningRateDecayCoeff](auto& l) {
-			l.m_gradientWorks.learning_rate(l.m_gradientWorks.learning_rate()*learningRateDecayCoeff);
+			l.get_gradWorks().learning_rate(l.get_gradWorks().learning_rate()*learningRateDecayCoeff);
 		});
 		//return false to stop learning
 		return true;
@@ -274,10 +291,10 @@ TEST(Simple, NotSoPlainFFN_LRDO) {
 
 //This setup is slightly simplier than NotSoPlainFFN - just Nesterov Momentum, RMSProp and just a better weight initialization algorithm.
 // It beats NotSoPlainFFN and on par with NotSoPlainFFN_LRDO reaching less than 1.6% in less than 20 epochs.
-static time_t commonTime = 0;
+static time_t commonTime = 1609424122;
 static vec_len_t commonBatchSize = 99; //shouldn't make a big difference with prev.tests, however will help to test uneven batchsizes
 #if defined(TESTS_SKIP_NNET_LONGRUNNING)
-static int commonEpochs = 1;
+static int commonEpochs = 3;
 #else
 static int commonEpochs = 20;
 #endif
@@ -289,10 +306,16 @@ TEST(Simple, NesterovMomentumAndRMSPropOnly) {
 	reader_t::ErrorCode rec = reader.read(NNTL_STRING(MNIST_FILE), td);
 	ASSERT_EQ(reader_t::ErrorCode::Success, rec) << "Error code description: " << reader.get_last_error_str();
 
+	// Currently this feature is only supported IFF there's LFC directly on input layer (will add later support for other layers)
+	// Allows to shave off about 10% of time for current datasets due to more efficient algorithm of extracting columns of samples
+	// instead of rows. Note that Y data is still extracted rowwise, b/c of old bBatchesInColumns() layout is still currently
+	// required by most other code (nnet evaluators/observers and softmax, - softmax not applicable here, just to name it)
+	td.transposeX<d_interfaces::iMath_t>();
+
 	const real_t learningRate (real_t(0.0005));
 	const real_t momntm (real_t(0.9));
 
-	layer_input<> inp(td.train_x().cols_no_bias());
+	layer_input<> inp(td.train_x().sample_size());
 
 	typedef weights_init::Martens_SI_sigm<> w_init_scheme;
 	typedef activation::sigm<real_t,w_init_scheme> activ_func;
@@ -301,11 +324,11 @@ TEST(Simple, NesterovMomentumAndRMSPropOnly) {
 	layer_fully_connected<activ_func> fcl2(300, learningRate);
 
 	auto optType = decltype(fcl)::grad_works_t::RMSProp_Hinton;
-	fcl.m_gradientWorks.nesterov_momentum(momntm).set_type(optType);
-	fcl2.m_gradientWorks.nesterov_momentum(momntm).set_type(optType);
+	fcl.get_gradWorks().nesterov_momentum(momntm).set_type(optType);
+	fcl2.get_gradWorks().nesterov_momentum(momntm).set_type(optType);
 
-	layer_output<activation::sigm_quad_loss<real_t,w_init_scheme>> outp(td.train_y().cols(), learningRate);
-	outp.m_gradientWorks.nesterov_momentum(momntm).set_type(optType);
+	layer_output<activation::sigm_quad_loss<real_t,w_init_scheme>> outp(td.train_y().sample_size(), learningRate);
+	outp.get_gradWorks().nesterov_momentum(momntm).set_type(optType);
 
 	auto lp = make_layers(inp, fcl, fcl2, outp);
 
@@ -323,8 +346,8 @@ TEST(Simple, NesterovMomentumAndRMSPropOnly) {
 	ASSERT_EQ(decltype(nn)::ErrorCode::Success, ec) << "Error code description: " << nn.get_last_error_string();
 }
 
-//just like NesterovMomentumAndRMSPropOnly, but doing inference in batches of 1000 samples
-TEST(Simple, NesterovMomentumAndRMSPropOnlyFPBatch1000) {
+//just like NesterovMomentumAndRMSPropOnly, but doing inference in batches of 123 samples
+TEST(Simple, NesterovMomentumAndRMSPropOnlyFPMiniBatch) {
 	inmem_train_data<real_t> td;
 	reader_t reader;
 
@@ -332,10 +355,16 @@ TEST(Simple, NesterovMomentumAndRMSPropOnlyFPBatch1000) {
 	reader_t::ErrorCode rec = reader.read(NNTL_STRING(MNIST_FILE), td);
 	ASSERT_EQ(reader_t::ErrorCode::Success, rec) << "Error code description: " << reader.get_last_error_str();
 
+	// Currently this feature is only supported IFF there's LFC directly on input layer (will add later support for other layers)
+	// Allows to shave off about 10% of time for current datasets due to more efficient algorithm of extracting columns of samples
+	// instead of rows. Note that Y data is still extracted rowwise, b/c of old bBatchesInColumns() layout is still currently
+	// required by most other code (nnet evaluators/observers and softmax, - softmax not applicable here, just to name it)
+	td.transposeX<d_interfaces::iMath_t>();
+
 	const real_t learningRate(real_t(0.0005));
 	const real_t momntm(real_t(0.9));
 
-	layer_input<> inp(td.train_x().cols_no_bias());
+	layer_input<> inp(td.train_x().sample_size());
 
 	typedef weights_init::Martens_SI_sigm<> w_init_scheme;
 	typedef activation::sigm<real_t, w_init_scheme> activ_func;
@@ -344,17 +373,17 @@ TEST(Simple, NesterovMomentumAndRMSPropOnlyFPBatch1000) {
 	layer_fully_connected<activ_func> fcl2(300, learningRate);
 
 	auto optType = decltype(fcl)::grad_works_t::RMSProp_Hinton;
-	fcl.m_gradientWorks.nesterov_momentum(momntm).set_type(optType);
-	fcl2.m_gradientWorks.nesterov_momentum(momntm).set_type(optType);
+	fcl.get_gradWorks().nesterov_momentum(momntm).set_type(optType);
+	fcl2.get_gradWorks().nesterov_momentum(momntm).set_type(optType);
 
-	layer_output<activation::sigm_quad_loss<real_t, w_init_scheme>> outp(td.train_y().cols(), learningRate);
-	outp.m_gradientWorks.nesterov_momentum(momntm).set_type(optType);
+	layer_output<activation::sigm_quad_loss<real_t, w_init_scheme>> outp(td.train_y().sample_size(), learningRate);
+	outp.get_gradWorks().nesterov_momentum(momntm).set_type(optType);
 
 	auto lp = make_layers(inp, fcl, fcl2, outp);
 
 	nnet_train_opts<real_t> opts(commonEpochs);
 
-	opts.batchSize(commonBatchSize).maxFpropSize(1023);
+	opts.batchSize(commonBatchSize).maxFpropSize(123);
 
 	auto nn = make_nnet(lp);
 
