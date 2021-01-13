@@ -427,6 +427,7 @@
     <ClInclude Include="..\nntl\train_data\inmem_train_data.h" />
     <ClInclude Include="..\nntl\train_data\inmem_train_data_stor.h" />
     <ClInclude Include="..\nntl\train_data\_i_train_data.h" />
+    <ClInclude Include="..\nntl\train_data\_td_norm.h" />
     <ClInclude Include="..\nntl\train_data\_train_data_simple.h" />
     <ClInclude Include="..\nntl\utils\bwlist.h" />
     <ClInclude Include="..\nntl\utils\call_wrappers.h" />

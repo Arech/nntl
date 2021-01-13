@@ -504,6 +504,9 @@
     <ClInclude Include="..\nntl\utils\mtx2Normal.h">
       <Filter>nntl\utils</Filter>
     </ClInclude>
+    <ClInclude Include="..\nntl\train_data\_td_norm.h">
+      <Filter>nntl\train_data</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="stdafx.cpp">

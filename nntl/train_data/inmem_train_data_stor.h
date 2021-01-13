@@ -1,7 +1,7 @@
 /*
 This file is a part of NNTL project (https://github.com/Arech/nntl)
 
-Copyright (c) 2015-2019, Arech (aradvert@gmail.com; https://github.com/Arech)
+Copyright (c) 2015-2021, Arech (aradvert@gmail.com; https://github.com/Arech)
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without
@@ -237,6 +237,8 @@ namespace nntl {
 			//////////////////////////////////////////////////////////////////////////
 			// Note that you must know what you're doing if you are to use this function
 			// Stick to #supportsBatchesInRows tagged API only then when will use transposed data
+			// Note that if some matrix's value_type is not floating_point, there may be blood (due to hack to use
+			// of BLAS routine for transposition), or may be not (shouldn't, I guess, for common x86/x64)
 			template<typename iMathT>
 			void transpose()noexcept {
 				NNTL_ASSERT(!empty());

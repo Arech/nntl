@@ -1,7 +1,7 @@
 /*
 This file is a part of NNTL project (https://github.com/Arech/nntl)
 
-Copyright (c) 2015-2019, Arech (aradvert@gmail.com; https://github.com/Arech)
+Copyright (c) 2015-2021, Arech (aradvert@gmail.com; https://github.com/Arech)
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without
@@ -589,6 +589,7 @@ namespace nntl {
 				//returns a pointer to matrix data. Matrix must have at least 1 element (and more than 1 over all batches)
 				//walk() is not required to obey batchIdx, it's just a convenience argument. The only requirement is that
 				// the whole matrix must be walked over with all batches.
+				// I don't get how well MSVC works with restrict keyword (probably there are some bugs), so leaving this "crowded" ver with two kwrds
 				__declspec(restrict) const x_mtx_t* __restrict walk(numel_cnt_t batchIdx)noexcept {
 					m_thisHost.next_subset(batchIdx, m_CD);
 					NNTL_ASSERT(m_thisHost.batchX().bBatchesInColumns());

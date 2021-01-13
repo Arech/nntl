@@ -1,7 +1,7 @@
 /*
 This file is a part of NNTL project (https://github.com/Arech/nntl)
 
-Copyright (c) 2015-2019, Arech (aradvert@gmail.com; https://github.com/Arech)
+Copyright (c) 2015-2021, Arech (aradvert@gmail.com; https://github.com/Arech)
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without
@@ -373,13 +373,13 @@ namespace math {
 		}
 		// #supportsBatchesInRows
 		smatrix(value_ptr_t ptr, const mtx_size_t& sizeLikeThis, const bool bEmulateBiases = false
-			, const bool _bHoleyBiases = false, bool bBatchsInR = false) noexcept : m_pData(nullptr), m_bDontManageStorage(false)
+			, const bool _bHoleyBiases = false, const bool bBatchsInR = false) noexcept : m_pData(nullptr), m_bDontManageStorage(false)
 		{
 			useExternalStorage(ptr, sizeLikeThis, bEmulateBiases, _bHoleyBiases, bBatchsInR);
 		}
 		// #supportsBatchesInRows
 		smatrix(value_ptr_t ptr, const vec_len_t r, const vec_len_t c, const bool bEmulateBiases = false
-			, const bool _bHoleyBiases = false, bool bBatchsInR = false) noexcept : m_pData(nullptr), m_bDontManageStorage(false)
+			, const bool _bHoleyBiases = false, const bool bBatchsInR = false) noexcept : m_pData(nullptr), m_bDontManageStorage(false)
 		{
 			useExternalStorage(ptr, r, c, bEmulateBiases, _bHoleyBiases, bBatchsInR);
 		}
@@ -625,7 +625,7 @@ namespace math {
 		// #supportsBatchesInRows
 		bool hasHoleyBiases()const noexcept {//almost the same as isHoleyBiases() but doesn't require the matrix to have biases
 			NNTL_ASSERT(!empty());//this concept applies to non-empty matrices only
-			return m_bEmulateBiases && m_bHoleyBiases;
+			return m_bEmulateBiases & m_bHoleyBiases;
 		}
 		// #supportsBatchesInRows
 		void holey_biases(const bool b)noexcept {
@@ -1298,9 +1298,12 @@ namespace math {
 #endif // NNTL_DEBUG
 		}
 		// #supportsBatchesInRows
+		//note that if ptr == sizeLikeThis.data(), then sizeof(T) MUST BE the same as sizeof(value_type)
 		template<typename T>
-		smatrix_deform(value_ptr_t ptr, const smatrix<T>& sizeLikeThis) noexcept : _base_class(ptr, sizeLikeThis)
+		smatrix_deform(value_ptr_t ptr, const smatrix<T>& sizeLikeThis) noexcept : _base_class(ptr, sizeLikeThis.rows()
+			, sizeLikeThis.cols(), sizeLikeThis.emulatesBiases(), sizeLikeThis.hasHoleyBiases(), sizeLikeThis.bBatchesInRows())
 		{
+			NNTL_ASSERT(ptr != reinterpret_cast<value_ptr_t>(const_cast<T*>(sizeLikeThis.data())) || sizeof(T) == sizeof(value_type));
 		#ifdef NNTL_DEBUG
 			m_maxSize = sizeLikeThis.numel();
 		#endif // NNTL_DEBUG

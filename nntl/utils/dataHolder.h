@@ -1,7 +1,7 @@
 /*
 This file is a part of NNTL project (https://github.com/Arech/nntl)
 
-Copyright (c) 2015-2019, Arech (aradvert@gmail.com; https://github.com/Arech)
+Copyright (c) 2015-2021, Arech (aradvert@gmail.com; https://github.com/Arech)
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without
@@ -95,6 +95,7 @@ namespace utils {
 		//If a full-batch is the only possible batchsize, then pass 0 to maxBatchSize. Else pass actual maxBatchSize
 		// that strictly less than data_x.rows(). Full batch mode will still be possible in that case, however it'll be optimized
 		void init(const vec_len_t maxBatchSize, const realmtx_t& data_x, const realmtx_t* pData_y = nullptr)noexcept {
+			NNTL_ASSERT(data_x.bBatchesInColumns() && (!pData_y || pData_y->bBatchesInColumns()));
 			NNTL_ASSERT(!maxBatchSize || maxBatchSize < data_x.rows());//see the comment above on the maxBatchSize
 			NNTL_ASSERT(!pData_y || data_x.rows() == pData_y->rows());
 			NNTL_ASSERT(data_x.emulatesBiases() && (!pData_y || !pData_y->emulatesBiases()));

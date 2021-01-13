@@ -1,7 +1,7 @@
 ﻿/*
 This file is a part of NNTL project (https://github.com/Arech/nntl)
 
-Copyright (c) 2015-2019, Arech (aradvert@gmail.com; https://github.com/Arech)
+Copyright (c) 2015-2021, Arech (aradvert@gmail.com; https://github.com/Arech)
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without
@@ -2805,10 +2805,25 @@ namespace math {
 		//full matrix transposition in-place
 		// MUST #supportsBatchesInRows if changed
 		// MUST be static (hence prefix s_)
-		template<typename T>
-		static inline void s_mTranspose_ip(smatrix_deform<T>& src_dest)noexcept {
+		template<typename T, bool ce = ::std::is_floating_point<T>::value>
+		static inline ::std::enable_if_t<ce> s_mTranspose_ip(smatrix_deform<T>& src_dest)noexcept {
 			s_mTranspose_ip_BLAS(src_dest);
 		}
+
+		//the following 2 functions is a dirty hack, use at own risk only!
+		template<typename T, bool ce = ::std::is_floating_point<T>::value, size_t ts = sizeof(T)>
+		static inline ::std::enable_if_t<!ce && (sizeof(float) == ts)> s_mTranspose_ip(smatrix_deform<T>& src_dest)noexcept {
+			smatrix_deform<float> prxy(reinterpret_cast<float*>(src_dest.data()), src_dest);
+			s_mTranspose_ip_BLAS(prxy);
+			src_dest.on_transposition();
+		}
+		template<typename T, bool ce = ::std::is_floating_point<T>::value, size_t ts = sizeof(T)>
+		static inline ::std::enable_if_t<!ce && (sizeof(double) == ts)> s_mTranspose_ip(smatrix_deform<T>& src_dest)noexcept {
+			smatrix_deform<double> prxy(reinterpret_cast<double*>(src_dest.data()), src_dest);
+			s_mTranspose_ip_BLAS(prxy);
+			src_dest.on_transposition();
+		}
+
 		// #supportsBatchesInRows
 		template<typename T, bool ce = ::std::is_floating_point<T>::value>
 		static inline ::std::enable_if_t<ce> s_mTranspose_ip_BLAS(smatrix_deform<T>& src_dest)noexcept {
