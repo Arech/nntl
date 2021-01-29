@@ -39,13 +39,13 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 namespace nntl {
 	//inmem_train_data is the simpliest implementation of _i_train_data interface that stores train/test sets directly in
 	//memory and doesn't provide any augmentation facilities
-	// If not mentioned explicitly in a function comment, any member function of the class #supportsBatchesInRows (at least it should)
-	template<typename XT, typename YT = XT>
-	class inmem_train_data
-		: public _impl::_train_data_simple<inmem_train_data<XT, YT>, XT, YT>
+	// If not mentioned explicitly in a function comment, any member function of the class #supportsBatchInRow (at least it should)
+	template<typename FCT, typename XT, typename YT = XT>
+	class _inmem_train_data
+		: public _impl::_train_data_simple<FCT, XT, YT>
 		, public inmem_train_data_stor<XT, YT>
 	{
-		typedef _impl::_train_data_simple<inmem_train_data<XT, YT>, XT, YT> base_class_t;
+		typedef _impl::_train_data_simple<FCT, XT, YT> base_class_t;
 		typedef inmem_train_data_stor<XT, YT> base_stor_t;
 
 	public:
@@ -76,6 +76,33 @@ namespace nntl {
 		//////////////////////////////////////////////////////////////////////////
 		// other functions
 
+		//////////////////////////////////////////////////////////////////////////
+		//
+		// Normalization support functions.
+		// _fix_trainX_whole() must support train set by default, but may also support any dataset.
+		// after _fix_trainX_whole()/*_cw() any subset of train X returned by the td must be scaled with given values.
+		// If it was called more than 1 time, effect must be cumulative
+		template<typename MtxUpdT, typename CommonDataT, typename StatsT>
+		void _fix_trainX_whole(const CommonDataT& cd, const typename MtxUpdT::template ScaleCentralData_tpl<StatsT>& st
+			, const data_set_id_t dsId = train_set_id)noexcept
+		{
+			MtxUpdT::whole(cd.get_iMath(), get_self().X_mutable(dsId), st);
+		}
+
+		template<typename MtxUpdT, typename CommonDataT, typename StatsT>
+		void _fix_trainX_cw(const CommonDataT& cd, const typename MtxUpdT::template ScaleCentralVector_tpl<StatsT>& allSt
+			, const data_set_id_t dsId = train_set_id)noexcept
+		{
+			MtxUpdT::batchwise(cd.get_iMath(), get_self().X_mutable(dsId), allSt);
+		}
+	};
+
+	template<typename XT, typename YT = XT>
+	class inmem_train_data final : public _inmem_train_data<inmem_train_data<XT, YT>, XT, YT> {
+		typedef _inmem_train_data<inmem_train_data<XT, YT>, XT, YT> _base_class_t;
+	public:
+		template<typename ... ArgsT>
+		inmem_train_data(ArgsT&&... args)noexcept : _base_class_t(::std::forward<ArgsT>(args)...) {}
 	};
 
 }

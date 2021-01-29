@@ -56,7 +56,7 @@ namespace nntl {
 	// (anyway, those who wants to have all correct can make nnet superclass by them self)
 	// May be will provide a move semantic later that will allow to instantiate layers in one place, then move them into layers
 	// and then move layers into nnet. But now there's no real need in this (I think)
-	// If not mentioned explicitly in a function comment, any member function of the class #supportsBatchesInRows (at least it should)
+	// If not mentioned explicitly in a function comment, any member function of the class #supportsBatchInRow (at least it should)
 	template <typename ...Layrs>
 	class layers 
 		: public math::smatrix_td

@@ -63,8 +63,8 @@ namespace nntl {
 	};
 
 	//////////////////////////////////////////////////////////////////////////
-	// If not mentioned explicitly in a function comment, any member function of the class #supportsBatchesInRows (at least it should)
-	// However, it was not extensively tested in bBatchesInRows() mode, so double check
+	// If not mentioned explicitly in a function comment, any member function of the class #supportsBatchInRow (at least it should)
+	// However, it was not extensively tested in bBatchInRow() mode, so double check
 	template <typename LayersPack>
 	class nnet 
 		: public _has_last_error<_nnet_errs>
@@ -138,7 +138,7 @@ namespace nntl {
 		{
 			m_bRequireReinit = false;
 			m_failedLayerIdx = 0;
-			if (iRng_t::is_multithreaded) get_iRng().init_ithreads(get_iMath().ithreads());
+			//if (iRng_t::is_multithreaded) get_iRng().init_ithreads(get_iMath().ithreads());
 		}
 
 		::std::string get_last_error_string()const noexcept {
@@ -346,7 +346,7 @@ namespace nntl {
 			get_iInspect().init_nnet(m_Layers.total_layers(), maxEpoch);
 
 			bool bInitFinished = false;
-			utils::scope_exit _run_deinit([this, &bInitFinished]() {
+			utils::scope_exit _run_deinit([this, &bInitFinished]()noexcept {
 				if (!bInitFinished) deinit();
 			});
 
@@ -452,6 +452,7 @@ namespace nntl {
 				m_Layers.on_batch_size_change();
 			}
 		}
+
 		void _set_inference_mode_and_batch_size(const vec_len_t bs)noexcept {
 			NNTL_ASSERT(bs > 0 && bs <= get_common_data().max_fprop_batch_size());
 			if (get_common_data().set_mode_and_batch_size(false, bs)) {
@@ -460,7 +461,6 @@ namespace nntl {
 		}
 
 	public:
-
 		void deinit()noexcept {
 			m_Layers.deinit();
 			get_iRng().deinit_rng();
@@ -500,7 +500,7 @@ namespace nntl {
 			if (ErrorCode::Success != ec) return _set_last_error(ec);
 
 			//scheduling deinitialization with scope_exit to forget about return statements
-			utils::scope_exit td_deinit([&td]() {
+			utils::scope_exit td_deinit([&td]() noexcept{
 				td.deinit4all();
 			});
 						
@@ -511,7 +511,7 @@ namespace nntl {
 			if (ErrorCode::Success != ec) return _set_last_error(ec);
 
 			//scheduling deinitialization with scope_exit to forget about return statements
-			utils::scope_exit layers_deinit([this, &opts]() {
+			utils::scope_exit layers_deinit([this, &opts]()noexcept {
 				if (opts.ImmediatelyDeinit()) {
 					deinit();
 				}
@@ -524,7 +524,7 @@ namespace nntl {
 			const auto divergenceCheckLastEpoch = opts.divergenceCheckLastEpoch();
 
 			if (! opts.observer().init(maxEpoch, td, get_const_common_data())) return _set_last_error(ErrorCode::CantInitializeObserver);
-			utils::scope_exit observer_deinit([&opts]() {
+			utils::scope_exit observer_deinit([&opts]()noexcept {
 				opts.observer().deinit();
 			});
 			
@@ -610,16 +610,22 @@ namespace nntl {
 			return _set_last_error(ErrorCode::Success);
 		}
 
-		ErrorCode init4fixedBatchFprop(const vec_len_t dataSize)noexcept {
-			NNTL_ASSERT(dataSize);
-			const auto ec = _init(dataSize);
+		ErrorCode init4fixedBatchFprop(const vec_len_t fpropBatchSize)noexcept {
+			NNTL_ASSERT(fpropBatchSize);
+			const auto ec = _init(fpropBatchSize);
 			if (ErrorCode::Success != ec) return _set_last_error(ec);
-			_set_inference_mode_and_batch_size(dataSize);
+			_set_inference_mode_and_batch_size(fpropBatchSize);
 			return _set_last_error(ec);
 		}
-		void doFixedBatchFprop(const realmtx_t& data_x)noexcept {
-			NNTL_ASSERT(data_x.batch_size() == get_const_common_data().get_cur_batch_size());
-			m_Layers.fprop(data_x);
+		//designed to be used in conjunction with _i_train_data::walk_over_set() + next_subset() + batchX()
+		//batchX.batch_size() must never exceed the fpropBatchSize passed to init4fixedBatchFprop() if used in other context
+		void doFixedBatchFprop(const realmtx_t& batchX)noexcept {
+			// if the batch size passed to init*() was not multiple of the set size, then the last batch of the set will contain less data
+			const auto bs = batchX.batch_size();
+			if (bs != get_const_common_data().get_cur_batch_size()) {
+				_set_inference_mode_and_batch_size(bs);
+			}
+			m_Layers.fprop(batchX);
 		}
 
 		ErrorCode fprop(const realmtx_t& data_x)noexcept {

@@ -624,7 +624,7 @@ TEST(TestPerfDecisions, MaxRowwise) {
 //////////////////////////////////////////////////////////////////////////
 template<typename iMath>
 inline void evCMulSub_st(iMath& iM, realmtx_t& vW, const real_t momentum, realmtx_t& W)noexcept {
-	iM.evMulC_ip_st(vW, momentum);
+	iM.evMulC_ip_st(vW, momentum,false);
 	iM.evSub_ip_st_naive(W, vW);
 }
 inline void evcombCMulSub(realmtx_t& vW, const real_t momentum, realmtx_t& W)noexcept {
@@ -2185,10 +2185,10 @@ void mMul_BLAS_perf(typename IntfT::iMath_t& iM, typename IntfT::iRng_t& iR, vec
 		<< (bClog ? " WITH cache clogging" : " without cache clogging") << " **************");
 
 	constexpr unsigned maxReps = 150;
-	realmtx_t prevActCur(batchSize, plnCnt), prevActT(plnCnt, batchSize);
-	realmtx_t weightsCur(nCnt, plnCnt), weightsT(plnCnt, nCnt);
-	realmtx_t actCur(batchSize, nCnt), actT(nCnt, batchSize);
-	realmtx_t actCur2(batchSize, nCnt), actT2(nCnt, batchSize);
+	realmtx_t prevActCur(batchSize, plnCnt), prevActT(true, batchSize, plnCnt);
+	realmtx_t weightsCur(nCnt, plnCnt), weightsT(true, nCnt, plnCnt);
+	realmtx_t actCur(batchSize, nCnt), actT(true, batchSize, nCnt);
+	realmtx_t actCur2(batchSize, nCnt), actT2(true, batchSize, nCnt);
 
 	realmtxdef_t cClog;
 	realmtx_t cClogDest;
@@ -2219,40 +2219,40 @@ void mMul_BLAS_perf(typename IntfT::iMath_t& iM, typename IntfT::iRng_t& iR, vec
 	//code warmup & sanity checks
 	// current setup, i.e. for Pc[m,p] & Wc[n,p]
 	// 1.   AT[n,m] = Wc*Pc'
-	b_BLAS_t::gemm(false, true, actT.rows(), actT.cols(), weightsCur.cols(), real_t(1.), weightsCur.data(), weightsCur.ldim()
-		, prevActCur.data(), prevActCur.ldim(), real_t(0), actT.data(), actT.ldim());
+	b_BLAS_t::gemm(false, true, actT.rows(), actT.cols(), weightsCur.cols(), real_t(1.), weightsCur.data(), weightsCur.ldimAsVecLen()
+		, prevActCur.data(), prevActCur.ldimAsVecLen(), real_t(0), actT.data(), actT.ldimAsVecLen());
 	// 2.   Ac[m,n] = Pc*Wc'
-	b_BLAS_t::gemm(false, true, actCur.rows(), actCur.cols(), prevActCur.cols(), real_t(1.), prevActCur.data(), prevActCur.ldim()
-		, weightsCur.data(), weightsCur.ldim(), real_t(0), actCur.data(), actCur.ldim());
+	b_BLAS_t::gemm(false, true, actCur.rows(), actCur.cols(), prevActCur.cols(), real_t(1.), prevActCur.data(), prevActCur.ldimAsVecLen()
+		, weightsCur.data(), weightsCur.ldimAsVecLen(), real_t(0), actCur.data(), actCur.ldimAsVecLen());
 	iM.mTranspose_ignore_bias(actT, actCur2);
 	ASSERT_TRUE(actT.copy_to(actT2));
 	ASSERT_REALMTX_NEAR(actCur, actCur2, "WTF?! Scenario 1!=2", Eps);
 	// PT[p,m] & Wc[n,p]
 	// 3.   AT[n,m] = Wc*PT
-	b_BLAS_t::gemm(false, false, actT.rows(), actT.cols(), weightsCur.cols(), real_t(1.), weightsCur.data(), weightsCur.ldim()
-		, prevActT.data(), prevActT.ldim(), real_t(0), actT.data(), actT.ldim());
+	b_BLAS_t::gemm(false, false, actT.rows(), actT.cols(), weightsCur.cols(), real_t(1.), weightsCur.data(), weightsCur.ldimAsVecLen()
+		, prevActT.data(), prevActT.ldimAsVecLen(), real_t(0), actT.data(), actT.ldimAsVecLen());
 	ASSERT_REALMTX_NEAR(actT, actT2, "WTF?! Wrong scenario 3", Eps);
 	// 4.   Ac[m,n] = PT'*Wc'
-	b_BLAS_t::gemm(true, true, actCur.rows(), actCur.cols(), prevActT.rows(), real_t(1.), prevActT.data(), prevActT.ldim()
-		, weightsCur.data(), weightsCur.ldim(), real_t(0), actCur.data(), actCur.ldim());
+	b_BLAS_t::gemm(true, true, actCur.rows(), actCur.cols(), prevActT.rows(), real_t(1.), prevActT.data(), prevActT.ldimAsVecLen()
+		, weightsCur.data(), weightsCur.ldimAsVecLen(), real_t(0), actCur.data(), actCur.ldimAsVecLen());
 	ASSERT_REALMTX_NEAR(actCur, actCur2, "WTF?! Wrong scenario 4", Eps);
 	// Pc[m,p] & WT[p,n]
 	// 5.   Ac[m,n] = Pc*WT
-	b_BLAS_t::gemm(false, false, actCur.rows(), actCur.cols(), prevActCur.cols(), real_t(1.), prevActCur.data(), prevActCur.ldim()
-		, weightsT.data(), weightsT.ldim(), real_t(0), actCur.data(), actCur.ldim());
+	b_BLAS_t::gemm(false, false, actCur.rows(), actCur.cols(), prevActCur.cols(), real_t(1.), prevActCur.data(), prevActCur.ldimAsVecLen()
+		, weightsT.data(), weightsT.ldimAsVecLen(), real_t(0), actCur.data(), actCur.ldimAsVecLen());
 	ASSERT_REALMTX_NEAR(actCur, actCur2, "WTF?! Wrong scenario 5", Eps);
 	// 6.   AT[n,m] = WT'*Pc'
-	b_BLAS_t::gemm(true, true, actT.rows(), actT.cols(), weightsT.rows(), real_t(1.), weightsT.data(), weightsT.ldim()
-		, prevActCur.data(), prevActCur.ldim(), real_t(0), actT.data(), actT.ldim());
+	b_BLAS_t::gemm(true, true, actT.rows(), actT.cols(), weightsT.rows(), real_t(1.), weightsT.data(), weightsT.ldimAsVecLen()
+		, prevActCur.data(), prevActCur.ldimAsVecLen(), real_t(0), actT.data(), actT.ldimAsVecLen());
 	ASSERT_REALMTX_NEAR(actT, actT2, "WTF?! Wrong scenario 6", Eps);
 	// PT[p,m] & WT[p,n]
 	// 7.   Ac[m,n] = PT'*WT
-	b_BLAS_t::gemm(true, false, actCur.rows(), actCur.cols(), prevActT.rows(), real_t(1.), prevActT.data(), prevActT.ldim()
-		, weightsT.data(), weightsT.ldim(), real_t(0), actCur.data(), actCur.ldim());
+	b_BLAS_t::gemm(true, false, actCur.rows(), actCur.cols(), prevActT.rows(), real_t(1.), prevActT.data(), prevActT.ldimAsVecLen()
+		, weightsT.data(), weightsT.ldimAsVecLen(), real_t(0), actCur.data(), actCur.ldimAsVecLen());
 	ASSERT_REALMTX_NEAR(actCur, actCur2, "WTF?! Wrong scenario 7", Eps);
 	// 8.   AT[n,m] = WT'*PT
-	b_BLAS_t::gemm(true, false, actT.rows(), actT.cols(), weightsT.rows(), real_t(1.), weightsT.data(), weightsT.ldim()
-		, prevActT.data(), prevActT.ldim(), real_t(0), actT.data(), actT.ldim());
+	b_BLAS_t::gemm(true, false, actT.rows(), actT.cols(), weightsT.rows(), real_t(1.), weightsT.data(), weightsT.ldimAsVecLen()
+		, prevActT.data(), prevActT.ldimAsVecLen(), real_t(0), actT.data(), actT.ldimAsVecLen());
 	ASSERT_REALMTX_NEAR(actT, actT2, "WTF?! Wrong scenario 8", Eps);
 	
 	actCur2.clear(); actT2.clear();
@@ -2263,8 +2263,8 @@ void mMul_BLAS_perf(typename IntfT::iMath_t& iM, typename IntfT::iRng_t& iR, vec
 		iR.gen_matrix(prevActCur, real_t(2)); 		iR.gen_matrix(weightsCur, real_t(1));
 		if (bClog) { ASSERT_TRUE(cClog.copy_to(cClogDest));			for (const auto e : cClogDest) v += r*e; }
 		t1WcPc2T.tic();
-		b_BLAS_t::gemm(false, true, actT.rows(), actT.cols(), weightsCur.cols(), real_t(1.), weightsCur.data(), weightsCur.ldim()
-			, prevActCur.data(), prevActCur.ldim(), real_t(0), actT.data(), actT.ldim());
+		b_BLAS_t::gemm(false, true, actT.rows(), actT.cols(), weightsCur.cols(), real_t(1.), weightsCur.data(), weightsCur.ldimAsVecLen()
+			, prevActCur.data(), prevActCur.ldimAsVecLen(), real_t(0), actT.data(), actT.ldimAsVecLen());
 		t1WcPc2T.toc();
 		for (const auto e : actT) v += e;
 		
@@ -2272,8 +2272,8 @@ void mMul_BLAS_perf(typename IntfT::iMath_t& iM, typename IntfT::iRng_t& iR, vec
 		iR.gen_matrix(prevActCur, real_t(2)); 		iR.gen_matrix(weightsCur, real_t(1));
 		if (bClog) { ASSERT_TRUE(cClog.copy_to(cClogDest));			for (const auto e : cClogDest) v += r*e; }
 		t2PcWc2c.tic();
-		b_BLAS_t::gemm(false, true, actCur.rows(), actCur.cols(), prevActCur.cols(), real_t(1.), prevActCur.data(), prevActCur.ldim()
-			, weightsCur.data(), weightsCur.ldim(), real_t(0), actCur.data(), actCur.ldim());
+		b_BLAS_t::gemm(false, true, actCur.rows(), actCur.cols(), prevActCur.cols(), real_t(1.), prevActCur.data(), prevActCur.ldimAsVecLen()
+			, weightsCur.data(), weightsCur.ldimAsVecLen(), real_t(0), actCur.data(), actCur.ldimAsVecLen());
 		t2PcWc2c.toc();
 		for (const auto e : actCur) v += e;
 
@@ -2282,8 +2282,8 @@ void mMul_BLAS_perf(typename IntfT::iMath_t& iM, typename IntfT::iRng_t& iR, vec
 		iR.gen_matrix(prevActT, real_t(2)); 		iR.gen_matrix(weightsCur, real_t(1));
 		if (bClog) { ASSERT_TRUE(cClog.copy_to(cClogDest));			for (const auto e : cClogDest) v += r*e; }
 		t3WcPT2T.tic();
-		b_BLAS_t::gemm(false, false, actT.rows(), actT.cols(), weightsCur.cols(), real_t(1.), weightsCur.data(), weightsCur.ldim()
-			, prevActT.data(), prevActT.ldim(), real_t(0), actT.data(), actT.ldim());
+		b_BLAS_t::gemm(false, false, actT.rows(), actT.cols(), weightsCur.cols(), real_t(1.), weightsCur.data(), weightsCur.ldimAsVecLen()
+			, prevActT.data(), prevActT.ldimAsVecLen(), real_t(0), actT.data(), actT.ldimAsVecLen());
 		t3WcPT2T.toc();
 		for (const auto e : actT) v += e;
 
@@ -2291,8 +2291,8 @@ void mMul_BLAS_perf(typename IntfT::iMath_t& iM, typename IntfT::iRng_t& iR, vec
 		iR.gen_matrix(prevActT, real_t(2)); 		iR.gen_matrix(weightsCur, real_t(1));
 		if (bClog) { ASSERT_TRUE(cClog.copy_to(cClogDest));			for (const auto e : cClogDest) v += r*e; }
 		t4PTWc2c.tic();
-		b_BLAS_t::gemm(true, true, actCur.rows(), actCur.cols(), prevActT.rows(), real_t(1.), prevActT.data(), prevActT.ldim()
-			, weightsCur.data(), weightsCur.ldim(), real_t(0), actCur.data(), actCur.ldim());
+		b_BLAS_t::gemm(true, true, actCur.rows(), actCur.cols(), prevActT.rows(), real_t(1.), prevActT.data(), prevActT.ldimAsVecLen()
+			, weightsCur.data(), weightsCur.ldimAsVecLen(), real_t(0), actCur.data(), actCur.ldimAsVecLen());
 		t4PTWc2c.toc();
 		for (const auto e : actCur) v += e;
 		
@@ -2301,8 +2301,8 @@ void mMul_BLAS_perf(typename IntfT::iMath_t& iM, typename IntfT::iRng_t& iR, vec
 		iR.gen_matrix(prevActCur, real_t(2)); 		iR.gen_matrix(weightsT, real_t(1));
 		if (bClog) { ASSERT_TRUE(cClog.copy_to(cClogDest));			for (const auto e : cClogDest) v += r*e; }
 		t5PcWT2c.tic();
-		b_BLAS_t::gemm(false, false, actCur.rows(), actCur.cols(), prevActCur.cols(), real_t(1.), prevActCur.data(), prevActCur.ldim()
-			, weightsT.data(), weightsT.ldim(), real_t(0), actCur.data(), actCur.ldim());
+		b_BLAS_t::gemm(false, false, actCur.rows(), actCur.cols(), prevActCur.cols(), real_t(1.), prevActCur.data(), prevActCur.ldimAsVecLen()
+			, weightsT.data(), weightsT.ldimAsVecLen(), real_t(0), actCur.data(), actCur.ldimAsVecLen());
 		t5PcWT2c.toc();
 		for (const auto e : actCur) v += e;
 
@@ -2310,8 +2310,8 @@ void mMul_BLAS_perf(typename IntfT::iMath_t& iM, typename IntfT::iRng_t& iR, vec
 		iR.gen_matrix(prevActCur, real_t(2)); 		iR.gen_matrix(weightsT, real_t(1));
 		if (bClog) { ASSERT_TRUE(cClog.copy_to(cClogDest));			for (const auto e : cClogDest) v += r*e; }
 		t6WTPc2T.tic();
-		b_BLAS_t::gemm(true, true, actT.rows(), actT.cols(), weightsT.rows(), real_t(1.), weightsT.data(), weightsT.ldim()
-			, prevActCur.data(), prevActCur.ldim(), real_t(0), actT.data(), actT.ldim());
+		b_BLAS_t::gemm(true, true, actT.rows(), actT.cols(), weightsT.rows(), real_t(1.), weightsT.data(), weightsT.ldimAsVecLen()
+			, prevActCur.data(), prevActCur.ldimAsVecLen(), real_t(0), actT.data(), actT.ldimAsVecLen());
 		t6WTPc2T.toc();
 		for (const auto e : actT) v += e;
 
@@ -2320,8 +2320,8 @@ void mMul_BLAS_perf(typename IntfT::iMath_t& iM, typename IntfT::iRng_t& iR, vec
 		iR.gen_matrix(prevActT, real_t(2)); 		iR.gen_matrix(weightsT, real_t(1));
 		if (bClog) { ASSERT_TRUE(cClog.copy_to(cClogDest));			for (const auto e : cClogDest) v += r*e; }
 		t7PTWT2c.tic();
-		b_BLAS_t::gemm(true, false, actCur.rows(), actCur.cols(), prevActT.rows(), real_t(1.), prevActT.data(), prevActT.ldim()
-			, weightsT.data(), weightsT.ldim(), real_t(0), actCur.data(), actCur.ldim());
+		b_BLAS_t::gemm(true, false, actCur.rows(), actCur.cols(), prevActT.rows(), real_t(1.), prevActT.data(), prevActT.ldimAsVecLen()
+			, weightsT.data(), weightsT.ldimAsVecLen(), real_t(0), actCur.data(), actCur.ldimAsVecLen());
 		t7PTWT2c.toc();
 		for (const auto e : actCur) v += e;
 		
@@ -2329,8 +2329,8 @@ void mMul_BLAS_perf(typename IntfT::iMath_t& iM, typename IntfT::iRng_t& iR, vec
 		iR.gen_matrix(prevActT, real_t(2)); 		iR.gen_matrix(weightsT, real_t(1));
 		if (bClog) { ASSERT_TRUE(cClog.copy_to(cClogDest));			for (const auto e : cClogDest) v += r*e; }
 		t8WTPT2T.tic();
-		b_BLAS_t::gemm(true, false, actT.rows(), actT.cols(), weightsT.rows(), real_t(1.), weightsT.data(), weightsT.ldim()
-			, prevActT.data(), prevActT.ldim(), real_t(0), actT.data(), actT.ldim());
+		b_BLAS_t::gemm(true, false, actT.rows(), actT.cols(), weightsT.rows(), real_t(1.), weightsT.data(), weightsT.ldimAsVecLen()
+			, prevActT.data(), prevActT.ldimAsVecLen(), real_t(0), actT.data(), actT.ldimAsVecLen());
 		t8WTPT2T.toc();
 		for (const auto e : actT) v += e;
 	}

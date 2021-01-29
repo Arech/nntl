@@ -145,6 +145,9 @@ namespace nntl {
 		//		Also that implies that it is the _i_train_data<> derived class who should decide how many batches of given
 		//		size there should be for a given training epoch number
 
+		//Also note that if an object is already initialized on init*() entry - an error should be returned and no
+		//automatic deinitialization be done. It's better be done explicitly, or the user may not know what's they doing.
+
 		//takes desired batch sizes, updates them if necessary to any suitable value and initializes internal state for training
 		nntl_interface nnet_errors_t init4train(IN OUT vec_len_t& maxFPropSize, IN OUT vec_len_t& maxBatchSize, OUT bool& bMiniBatch)noexcept;
 		//init4inference() does a subset of initialization required to perform inference on the given _i_train_data object
@@ -155,6 +158,20 @@ namespace nntl {
 		nntl_interface bool is_initialized4train()const noexcept;
 		nntl_interface bool is_initialized4inference()const noexcept;
 		
+		//returns the values that had corresponding vars on init*() exit. If uninitialized, returns 0
+		nntl_interface vec_len_t get_maxFPropSize()const noexcept;
+		nntl_interface vec_len_t get_maxTrainBatchSize()const noexcept;
+
+		//usually the object is initialized with either a trivial (0) batch size (usually it means full-batch learning), or
+		//with some batchSize>0 that is left unmodified on init*() exit. However, if init*() is to modify batchSize passed 
+		// in a some consistent way (for example, with transf_train_data, that returns all patches of given batchSize images),
+		// then these 2 functions must return original batchSize passed to init*() on entry (corresponds to images count in an example,
+		// while values from get_maxFPropSize/get_maxTrainBatchSize returns a total patches count made from these images).
+		// In other cases, it should return the same values, as get_maxFPropSize/get_maxTrainBatchSize.
+		//nntl_interface vec_len_t get_orig_maxFPropSize()const noexcept;
+		//nntl_interface vec_len_t get_orig_maxTrainBatchSize()const noexcept;
+		// BAD IDEA. All batchSizes should be coherent across functions, so pass the same values to init*() as well as to other funcs
+
 		//////////////////////////////////////////////////////////////////////////
 		// the following set of functions can be called only if init4train() was called earlier
 		// 
@@ -183,6 +200,8 @@ namespace nntl {
 		// Note 1: once the mode is changed, the caller MUST assume that underlying data, returned earlier by these functions, became a junk
 		// Note 2: if the mode was set to exclude X or Y data (see excludeDataFlag argument of walk_over_set()), then
 		//		corresponding batchX() or batchY() MUST NOT be called.
+		// Note 3: dataset X/Y data (as well as batches) may have any bBatchInRow() property given that it's consistent across batches&datasets
+		//		thought X.bBatchInRow() doesn't have to be the same as Y.bBatchInRow().
 		nntl_interface const x_mtx_t& batchX()const noexcept;
 		nntl_interface const y_mtx_t& batchY()const noexcept;
 		// 		
@@ -193,7 +212,7 @@ namespace nntl {
 		// init4train() or init4inference())
 		// Anyway, batchSize must be less then or equal to maxFPropSize.
 		// Returns the total count of calls to next_subset() required to walk over whole selected set with
-		// current batch size. Note that the last batch may contain less samples than cd.get_cur_batch_size() returns during
+		// current batch size. Note that the last batch may contain less samples than the batch size specification require during
 		// running this function, so adjust-set batch size for the nnet accordingly.
 		// Also note, that implementation MUST NOT permute the data samples of corresponding datasets and MUST always
 		// return the data in the same order. Recall that if allowExternalCachingOfSets==true, then total amount of data returned
@@ -204,8 +223,10 @@ namespace nntl {
 			, vec_len_t batchSize = -1, const unsigned excludeDataFlag = flag_exclude_nothing)noexcept;
 
 		//convenience wrappers around walk_over_set(). Always uses maxFPropSize returned from init*() as a batch size
-		nntl_interface numel_cnt_t walk_over_train_set()noexcept;
-		nntl_interface numel_cnt_t walk_over_test_set()noexcept;
+		template<typename CommonDataT>
+		nntl_interface numel_cnt_t walk_over_train_set(const CommonDataT& cd)noexcept;
+		template<typename CommonDataT>
+		nntl_interface numel_cnt_t walk_over_test_set(const CommonDataT& cd)noexcept;
 		
 		// similar to on_next_batch() prepares object to return corresponding data subset.
 		// Always pass batchIdx that correctly corresponds to this function call number

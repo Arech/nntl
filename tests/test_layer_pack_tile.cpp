@@ -73,7 +73,7 @@ TEST(TestLayerPackTile, GradCheck) {
 	Prms.lUnderlay_nc = 300;
 	nntl_tests::NN_arch<GC_LPT<ArchPrms_t>> nnArch(Prms);
 
-	auto ec = nnArch.warmup(td, 10, 100);
+	auto ec = nnArch.warmup(td, 5, 100);
 	ASSERT_EQ(decltype(nnArch)::ErrorCode_t::Success, ec) << "Reason: " << nnArch.NN.get_error_str(ec);
 
 	gradcheck_settings<real_t> ngcSetts;
@@ -110,7 +110,7 @@ TEST(TestLayerPackTile, GradCheck_LPV) {
 	Prms.lUnderlay_nc = 300;
 	nntl_tests::NN_arch<GC_LPT_LPV<ArchPrms_t>> nnArch(Prms);
 
-	auto ec = nnArch.warmup(td, 10, 100);
+	auto ec = nnArch.warmup(td, 5, 100);
 	ASSERT_EQ(decltype(nnArch)::ErrorCode_t::Success, ec) << "Reason: " << nnArch.NN.get_error_str(ec);
 
 	gradcheck_settings<real_t> ngcSetts;

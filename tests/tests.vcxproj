@@ -426,7 +426,9 @@
     <ClInclude Include="..\nntl\train_data.h" />
     <ClInclude Include="..\nntl\train_data\inmem_train_data.h" />
     <ClInclude Include="..\nntl\train_data\inmem_train_data_stor.h" />
+    <ClInclude Include="..\nntl\train_data\transf_train_data.h" />
     <ClInclude Include="..\nntl\train_data\_i_train_data.h" />
+    <ClInclude Include="..\nntl\train_data\_td_base.h" />
     <ClInclude Include="..\nntl\train_data\_td_norm.h" />
     <ClInclude Include="..\nntl\train_data\_train_data_simple.h" />
     <ClInclude Include="..\nntl\utils\bwlist.h" />
@@ -442,6 +444,7 @@
     <ClInclude Include="..\nntl\utils\layer_idx_keeper.h" />
     <ClInclude Include="..\nntl\utils\mixins.h" />
     <ClInclude Include="..\nntl\utils\mtx2Normal.h" />
+    <ClInclude Include="..\nntl\utils\variant.h" />
     <ClInclude Include="..\nntl\utils\vector_conditions.h" />
     <ClInclude Include="..\nntl\utils\chrono.h" />
     <ClInclude Include="..\nntl\utils\matlab.h" />
@@ -454,7 +457,6 @@
     <ClInclude Include="..\nntl\weights_init.h" />
     <ClInclude Include="..\nntl\weights_init\LsuvExt.h" />
     <ClInclude Include="..\nntl\weights_init\static.h" />
-    <ClInclude Include="..\nntl\weights_init\_procedural_base.h" />
     <ClInclude Include="..\nntl\_defs.h" />
     <ClInclude Include="..\nntl\layer\_layer_base.h" />
     <ClInclude Include="..\nntl\layers.h" />

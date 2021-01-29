@@ -40,12 +40,47 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 namespace nntl {
 namespace math_etalons {
 
+	// #supportsBatchInRow
+	template<typename T>
+	void evMulC_ip_ET(smtx<T>& A, const T cv, const bool bIgnoreBias = false)noexcept {
+		ASSERT_TRUE(bIgnoreBias || !A.emulatesBiases());
+		const auto rm = A.rows(bIgnoreBias), cm = A.cols(bIgnoreBias);
+		for (vec_len_t c = 0; c < cm; ++c) {
+			for (vec_len_t r = 0; r < rm; ++r) {
+				A.get(r, c) *= cv;
+			}
+		}
+	}
+
+	// #supportsBatchInRow
+	template<typename T>
+	void evAddC_ip_ET(smtx<T>& A, const T cv, const bool bIgnoreBias = false)noexcept {
+		ASSERT_TRUE(bIgnoreBias || !A.emulatesBiases());
+		const auto rm = A.rows(bIgnoreBias), cm = A.cols(bIgnoreBias);
+		for (vec_len_t c = 0; c < cm; ++c) {
+			for (vec_len_t r = 0; r < rm; ++r) {
+				A.get(r, c) += cv;
+			}
+		}
+	}
+	// #supportsBatchInRow
+	template<typename T>
+	void evMulCAddC_ip_ET(smtx<T>& A, const T mulC, const T addC, const bool bIgnoreBias = false)noexcept {
+		ASSERT_TRUE(bIgnoreBias || !A.emulatesBiases());
+		const auto rm = A.rows(bIgnoreBias), cm = A.cols(bIgnoreBias);
+		for (vec_len_t c = 0; c < cm; ++c) {
+			for (vec_len_t r = 0; r < rm; ++r) {
+				A.set(r, c, A.get(r, c)*mulC + addC);
+			}
+		}
+	}
+
 	//TODO: STUPID implementation!!! Rewrite
 	template<typename iMath>
 	void evCMulSub_ET(iMath& iM, smtx<typename iMath::real_t>& vW, const typename iMath::real_t momentum
 		, smtx<typename iMath::real_t>& W)noexcept
 	{
-		iM.evMulC_ip_st(vW, momentum);
+		evMulC_ip_ET(vW, momentum, false);
 		iM.evSub_ip_st_naive(W, vW);
 	}
 
@@ -1048,20 +1083,30 @@ namespace math_etalons {
 		}
 	}
 
+	// #supportsBatchInRow
 	template<typename T>
-	void mTranspose_ignore_bias_ET(const ::nntl::math::smatrix<T>& src, ::nntl::math::smatrix<T>& dest) noexcept {
-		NNTL_ASSERT(src.rows() == dest.cols_no_bias() && src.cols_no_bias() == dest.rows());
-		const auto sRows = src.rows(), sCols = src.cols_no_bias();
+	void mTranspose_ET(const ::nntl::math::smatrix<T>& src, ::nntl::math::smatrix<T>& dest, const bool bIgnoreBias = false) noexcept {
+		NNTL_ASSERT(src.bBatchInRow() == !dest.bBatchInRow());
+		NNTL_ASSERT(src.rows(bIgnoreBias) == dest.cols(bIgnoreBias) && src.cols(bIgnoreBias) == dest.rows(bIgnoreBias));
+		NNTL_ASSERT(src.if_biases_test_strict() && dest.if_biases_test_strict());
+		const auto sRows = src.rows(bIgnoreBias), sCols = src.cols(bIgnoreBias);
 		for (vec_len_t r = 0; r < sRows; ++r) {
 			for (vec_len_t c = 0; c < sCols; ++c) {
 				dest.set(c, r, src.get(r, c));
 			}
 		}
+		NNTL_ASSERT(dest.if_biases_test_strict());
+	}
+
+	// #supportsBatchInRow
+	template<typename T>
+	void mTranspose_ignore_bias_ET(const ::nntl::math::smatrix<T>& src, ::nntl::math::smatrix<T>& dest) noexcept {
+		mTranspose_ET(src, dest, true);
 	}
 
 	template<typename T, typename SeqIt>
 	void mExtractCols_ET(const smtx<T>& src, const SeqIt& cidxs, smtx<T>& dest) {
-		NNTL_ASSERT(src.bBatchesInRows() == dest.bBatchesInRows());
+		NNTL_ASSERT(src.bBatchInRow() == dest.bBatchInRow());
 		NNTL_ASSERT(src.rows_no_bias() == dest.rows_no_bias());
 		NNTL_ASSERT(!dest.emulatesBiases() || dest.test_biases_strict());
 

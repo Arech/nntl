@@ -2228,7 +2228,7 @@ void mTranspose_perf(typename IntfT::iMath_t& iM, vec_len_t rowsCnt, vec_len_t c
 		<< " elements). **************");
 
 	constexpr unsigned maxReps = TEST_PERF_REPEATS_COUNT;
-	realmtx_t dest(colsCnt, rowsCnt), src(rowsCnt, colsCnt);
+	realmtx_t dest(true, rowsCnt, colsCnt), src(false, rowsCnt, colsCnt);
 
 	typename IntfT::iRng_t rg;
 	rg.init_ithreads(iM.ithreads());
@@ -2241,15 +2241,15 @@ void mTranspose_perf(typename IntfT::iMath_t& iM, vec_len_t rowsCnt, vec_len_t c
 	real_t v = real_t(0.);
 
 	//code warmup
-	iM.mTranspose_ignore_bias_BLAS(src, dest);
+	//iM.mTranspose_ignore_bias_BLAS(src, dest);
 
 	for (unsigned r = 0; r < maxReps; ++r) {
 
-		rg.gen_matrix(src, real_t(5));
-		tOBlas.tic();
-		iM.mTranspose_ignore_bias_BLAS(src, dest);
-		tOBlas.toc();
-		for (const auto e : dest) v += e;
+// 		rg.gen_matrix(src, real_t(5));
+// 		tOBlas.tic();
+// 		iM.mTranspose_ignore_bias_BLAS(src, dest);
+// 		tOBlas.toc();
+// 		for (const auto e : dest) v += e;
 
 		rg.gen_matrix(src, real_t(5));
 		tSR.tic();
@@ -2270,7 +2270,7 @@ void mTranspose_perf(typename IntfT::iMath_t& iM, vec_len_t rowsCnt, vec_len_t c
 		for (const auto e : dest) v += e;
 	}
 
-	tOBlas.say(" OBl");
+	//tOBlas.say(" OBl");
 	tSR.say("SeqR");
 	tSW.say("SeqW");
 	tB.say("best");

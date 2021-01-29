@@ -297,6 +297,7 @@ namespace _impl {
 			if (bOwnMath) delete m_pMath;
 			if (bOwnRng) delete m_pRng;
 			if (bOwnInspect) delete m_pInspect;
+			//corresponding vars will be zeroed by base class destructor
 		}
 
 		template<typename PInspT = ::std::nullptr_t, typename PMathT = ::std::nullptr_t, typename PRngT = ::std::nullptr_t>
@@ -309,6 +310,10 @@ namespace _impl {
 			NNTL_ASSERT(m_pRng);
 			_make_Inspector(pI);
 			NNTL_ASSERT(m_pInspect);
+
+			//#TODO where's error handling?
+			if (iRng_t::is_multithreaded) get_iRng().init_ithreads(get_iMath().ithreads());
+
 			m_pbNotLearningNow = &m_bLearningBlockedFlag;
 		}
 

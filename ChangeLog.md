@@ -1,6 +1,16 @@
 # Changelog
 I should probably have started doing it long ago, but better late than never. So here it is (for older entries see commit history)
 
+## 2021 Jan 29
+
+- Refactored and moved dataset normalization code from `_train_data_simple<>` into independent separate class `_impl::td_norm<>` and partly into base class `_impl::_td_base<>`. Finally normalization code is abstract enough to be used with many various `train_data` implementations (provided that they have 4 additional special functions implemented that does actual data-transformation work).
+- `transf_train_data<>` is introduced to easily generate training data on the fly.
+- `LSUVExt` finally works with an object of `_i_train_data<>` interface (that refactoring - totally coincedentally of course! - fixed some old odd featurebug)
+- Upgrades to `math::smatrix<>` interface
+- `iMath_t::mTranspose()` and it's variants now properly supports `m_bBatchInRow` mode with all variations of bias/no_bias combination.
+- Tested with latest boost library v.1.75.0
+- Some minor updates
+
 ## 2021 Jan 05
 
 - slightly changed filenames format for `inspectors::dumper<>`

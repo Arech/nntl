@@ -134,7 +134,7 @@ namespace nntl {
 		// so use it wisely only when you absolutely can't use the get_activations()
 		nntl_interface const realmtxdef_t* get_activations_storage()const noexcept;
 		//same as above, but allows changes. Use only when you know the consequences.
-		//intended future use - to change bBatchesInRows() property where apropriate
+		//intended future use - to change bBatchInRow() property where apropriate
 		nntl_interface realmtxdef_t* get_activations_storage_mutable() noexcept;
 	};
 	
@@ -497,7 +497,7 @@ namespace nntl {
 	// Implements compile time polymorphism (to get rid of virtual functions),
 	// default _layer_name_ machinery, some default basic typedefs and basic support machinery
 	// (init() function with common_data_t, layer index number, neurons count)
-	// If not mentioned explicitly in a function comment, any member function of the class #supportsBatchesInRows (at least it should)
+	// If not mentioned explicitly in a function comment, any member function of the class #supportsBatchInRow (at least it should)
 	template<typename FinalPolymorphChild, typename InterfacesT>
 	class _layer_base 
 		: public _cpolym_layer_base<FinalPolymorphChild, typename InterfacesT::iMath_t::real_t>
@@ -625,7 +625,7 @@ namespace nntl {
 
 	//////////////////////////////////////////////////////////////////////////
 	// "light"-version of _layer_base that forwards its functions to some other layer, that is acceptable by get_self()._forwarder_layer()
-	// If not mentioned explicitly in a function comment, any member function of the class #supportsBatchesInRows (at least it should)
+	// If not mentioned explicitly in a function comment, any member function of the class #supportsBatchInRow (at least it should)
 	template<typename FinalPolymorphChild, typename InterfacesT>
 	class _layer_base_forwarder 
 		: public _cpolym_layer_base<FinalPolymorphChild, typename InterfacesT::real_t>

@@ -37,7 +37,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "../nntl/common.h"
 
 #include "../nntl/interface/math/mathn.h"
-#include "../nntl/interfaces.h"
+#include "../nntl/common_nn_data.h"
 
 #include "../nntl/_supp/io/jsonreader.h"
 
@@ -67,6 +67,11 @@ typedef math::smatrix_deform<real_t> realmtxdef_t;
 
 typedef d_interfaces::iThreads_t iThreads_t;
 typedef math::MathN<real_t, iThreads_t> imath_basic_t;
+
+
+template<typename RealT>
+using def_keeper_tpl = ::nntl::_impl::interfaces_keeper<dt_interfaces<RealT>>;
+
 
 static imath_basic_t iM;
 const vec_len_t g_MinDataSizeDelta = 2 * iM.ithreads().workers_count() + 2;
@@ -2769,107 +2774,232 @@ TEST(TestMathN, evMul_ip) {
 		}
 	}
 }
-
 //////////////////////////////////////////////////////////////////////////
-template<typename iMath>
-void test_evMulC_ip(iMath& iM, vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
-	const auto dataSize = realmtx_t::sNumel(rowsCnt, colsCnt);
-	STDCOUTL("********* testing evMulC_ip() over " << rowsCnt << "x" << colsCnt << " matrix (" << dataSize << " elements) **************");
+//////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////// 
+template<typename CommonDataT>
+void test_evMulC_ip(const CommonDataT& cd, vec_len_t batchSiz, vec_len_t sampleSiz, const bool bBiases, const bool bBiR) {
+	typedef typename CommonDataT::real_t real_t;
+	typedef math::smatrix<real_t> realmtx_t;
 
-	EXPECT_TRUE(steady_clock::is_steady);
-	double tmtNaive, tstNaive, tBest; //tstVect, tmtVect
-	steady_clock::time_point bt;
-	nanoseconds diff;
-	constexpr vec_len_t maxReps = TEST_PERF_REPEATS_COUNT;
+	constexpr unsigned testCorrRepCnt = TEST_CORRECTN_REPEATS_COUNT;
+	const auto bIgnoreBias = bBiases;
 
-	const real_t mulC = real_t(0.01);
-	realmtx_t m, etM(rowsCnt, colsCnt), etDest(rowsCnt, colsCnt);
-	ASSERT_EQ(dataSize, etM.numel());
+	constexpr unsigned _scopeMsgLen = 256;
+	char _scopeMsg[_scopeMsgLen];
+	sprintf_s(_scopeMsg, "%s: data size is %dx%d (%lld elements), bBiases=%d, bBiR=%d", "mTranspose_corr", batchSiz, sampleSiz
+		, ::nntl::math::smatrix_td::sNumel(batchSiz, sampleSiz), int(bBiases), int(bBiR));
+	SCOPED_TRACE(_scopeMsg);
 
-	//filling etalon
-	d_interfaces::iRng_t rg;
-	rg.init_ithreads(iM.ithreads());
-	rg.gen_matrix(etM, 5);
-	auto ptrEtM = etM.data(), ptrDest=etDest.data();
-	for (vec_len_t i = 0; i < dataSize; ++i) ptrDest[i] = mulC*ptrEtM[i];
+	realmtx_t srcET(bBiR, batchSiz, sampleSiz, bBiases), src_dest(bBiR, batchSiz, sampleSiz, bBiases)
+		, destET(bBiR, batchSiz, sampleSiz, bBiases);
+	ASSERT_TRUE(!srcET.isAllocationFailed() && !src_dest.isAllocationFailed() && !destET.isAllocationFailed());
 	
-	real_t v{ real_t(0.) };
-	//testing performance
-	threads::prioritize_workers<threads::PriorityClass::PerfTesting, iMath::iThreads_t> pw(iM.ithreads());
+#pragma warning(push)
+#pragma warning(disable:4459)
+	auto& iM = cd.get_iMath();
+#pragma warning(pop)
+	auto& iR = cd.get_iRng();
 
-	//////////////////////////////////////////////////////////////////////////
-	//single threaded naive
-	diff = nanoseconds(0);
-	for (vec_len_t r = 0; r < maxReps; ++r) {
-		ASSERT_TRUE(etM.clone_to(m));
-		bt = steady_clock::now();
-		iM.evMulC_ip_st(m, mulC);
-		diff += steady_clock::now() - bt;
-		for (const auto e : m) v += e;
-	}
-	ASSERT_EQ(m, etDest);
-	STDCOUTL("st_naive:\t" << utils::duration_readable(diff, maxReps, &tstNaive));
+	for (unsigned rr = 0; rr < testCorrRepCnt; ++rr) {
+		iR.gen_matrixAny(srcET, real_t(5));
+		ASSERT_TRUE(srcET.if_biases_test_strict());
+		ASSERT_TRUE(srcET.copy_to(destET));
 
-	//////////////////////////////////////////////////////////////////////////
-	//multi threaded naive
-	diff = nanoseconds(0);
-	for (vec_len_t r = 0; r < maxReps; ++r) {
-		ASSERT_TRUE(etM.clone_to(m));
-		bt = steady_clock::now();
-		iM.evMulC_ip_mt(m, mulC);
-		diff += steady_clock::now() - bt;
-		for (const auto e : m) v += e;
-	}
-	ASSERT_EQ(m, etDest);
-	STDCOUTL("mt_naive:\t" << utils::duration_readable(diff, maxReps, &tmtNaive));
+		const real_t C = iR.gen_f(real_t(10)) - real_t(5);
 
-	/*//////////////////////////////////////////////////////////////////////////
-	//single threaded vectorized
-	diff = nanoseconds(0);
-	for (vec_len_t r = 0; r < maxReps; ++r) {
-		ASSERT_TRUE(etM.clone_to(m));
-		bt = steady_clock::now();
-		iM.evMulC_ip_st_vec(m, mulC);
-		diff += steady_clock::now() - bt;
-	}
-	ASSERT_EQ(m, etDest);
-	STDCOUTL("st_vec:\t\t" << utils::duration_readable(diff, maxReps, &tstVect));
+		evMulC_ip_ET(destET, C, bIgnoreBias);
+		ASSERT_TRUE(destET.if_biases_test_strict());
 
-	//////////////////////////////////////////////////////////////////////////
-	//multi threaded vectorized
-	diff = nanoseconds(0);
-	for (vec_len_t r = 0; r < maxReps; ++r) {
-		ASSERT_TRUE(etM.clone_to(m));
-		bt = steady_clock::now();
-		iM.evMulC_ip_mt_vec(m, mulC);
-		diff += steady_clock::now() - bt;
-	}
-	ASSERT_EQ(m, etDest);
-	STDCOUTL("mt_vec:\t\t" << utils::duration_readable(diff, maxReps, &tmtVect));*/
+		ASSERT_TRUE(srcET.copy_to(src_dest));
+		iM.evMulC_ip_st(src_dest, C, bIgnoreBias);
+		ASSERT_MTX_EQ(destET, src_dest, "evMulC_ip_st() failed");
 
-	//////////////////////////////////////////////////////////////////////////
-	//best guess
-	diff = nanoseconds(0);
-	for (vec_len_t r = 0; r < maxReps; ++r) {
-		ASSERT_TRUE(etM.clone_to(m));
-		bt = steady_clock::now();
-		iM.evMulC_ip(m, mulC);
-		diff += steady_clock::now() - bt;
-		for (const auto e : m) v += e;
+		ASSERT_TRUE(srcET.copy_to(src_dest));
+		iM.evMulC_ip_mt(src_dest, C, bIgnoreBias);
+		ASSERT_MTX_EQ(destET, src_dest, "evMulC_ip_mt() failed");
+
+		ASSERT_TRUE(srcET.copy_to(src_dest));
+		iM.evMulC_ip(src_dest, C, bIgnoreBias);
+		ASSERT_MTX_EQ(destET, src_dest, "evMulC_ip() failed");
 	}
-	ASSERT_EQ(m, etDest);
-	STDCOUTL("best:\t\t" << utils::duration_readable(diff, maxReps, &tBest));
-	STDCOUTL(v);
 }
 
 TEST(TestMathN, evMulC_ip) {
-// 	typedef nntl::d_interfaces::iThreads_t def_threads_t;
-// 	typedef math::MathN<real_t, def_threads_t> iMB;
-// 	iMB iM;
-	NNTL_RUN_TEST2(imath_basic_t::Thresholds_t::evMulC_ip, 100) test_evMulC_ip(iM, i, 100);
+	typedef def_keeper_tpl<real_t> IKeeper_t;
+
+	IKeeper_t keeper;
+	auto& cd = keeper.get_const_common_data();
+
+	for (vec_len_t r = 1; r < g_MinDataSizeDelta; ++r) {
+		for (vec_len_t c = 1; c < g_MinDataSizeDelta; ++c) {
+			for (int f = 0; f < 4; ++f) {
+				ASSERT_NO_FATAL_FAILURE(test_evMulC_ip(cd, r, c, !(f & 1), !(f & 2)));
+			}
+		}
+	}
+
+	constexpr unsigned rowsCnt = _baseRowsCnt;
+	const vec_len_t maxCols = 3 * g_MinDataSizeDelta, maxRows = rowsCnt + g_MinDataSizeDelta;
+	for (vec_len_t r = rowsCnt; r < maxRows; ++r) {
+		for (vec_len_t c = 1; c < maxCols; ++c) {
+			for (int f = 0; f < 4; ++f) {
+				ASSERT_NO_FATAL_FAILURE(test_evMulC_ip(cd, r, c, !(f & 1), !(f & 2)));
+			}
+		}
+	}
+}
+//////////////////////////////////////////////////////////////////////////
+template<typename CommonDataT>
+void test_evAddC_ip(const CommonDataT& cd, vec_len_t batchSiz, vec_len_t sampleSiz, const bool bBiases, const bool bBiR) {
+	typedef typename CommonDataT::real_t real_t;
+	typedef math::smatrix<real_t> realmtx_t;
+
+	constexpr unsigned testCorrRepCnt = TEST_CORRECTN_REPEATS_COUNT;
+		const auto bIgnoreBias = bBiases;
+
+	constexpr unsigned _scopeMsgLen = 256;
+	char _scopeMsg[_scopeMsgLen];
+	sprintf_s(_scopeMsg, "%s: data size is %dx%d (%lld elements), bBiases=%d, bBiR=%d", "mTranspose_corr", batchSiz, sampleSiz
+		, ::nntl::math::smatrix_td::sNumel(batchSiz, sampleSiz), int(bBiases), int(bBiR));
+	SCOPED_TRACE(_scopeMsg);
+
+	realmtx_t srcET(bBiR, batchSiz, sampleSiz, bBiases), src_dest(bBiR, batchSiz, sampleSiz, bBiases)
+		, destET(bBiR, batchSiz, sampleSiz, bBiases);
+	ASSERT_TRUE(!srcET.isAllocationFailed() && !src_dest.isAllocationFailed() && !destET.isAllocationFailed());
+
+#pragma warning(push)
+#pragma warning(disable:4459)
+	auto& iM = cd.get_iMath();
+#pragma warning(pop)
+	auto& iR = cd.get_iRng();
+
+	for (unsigned rr = 0; rr < testCorrRepCnt; ++rr) {
+		iR.gen_matrixAny(srcET, real_t(5));
+		ASSERT_TRUE(srcET.if_biases_test_strict());
+		ASSERT_TRUE(srcET.copy_to(destET));
+
+		const real_t C = iR.gen_f(real_t(10)) - real_t(5);
+
+		evAddC_ip_ET(destET, C, bIgnoreBias);
+		ASSERT_TRUE(destET.if_biases_test_strict());
+
+		ASSERT_TRUE(srcET.copy_to(src_dest));
+		iM.evAddC_ip_st(src_dest, C, bIgnoreBias);
+		ASSERT_MTX_EQ(destET, src_dest, "evAddC_ip_st() failed");
+
+		ASSERT_TRUE(srcET.copy_to(src_dest));
+		iM.evAddC_ip_mt(src_dest, C, bIgnoreBias);
+		ASSERT_MTX_EQ(destET, src_dest, "evAddC_ip_mt() failed");
+
+		ASSERT_TRUE(srcET.copy_to(src_dest));
+		iM.evAddC_ip(src_dest, C, bIgnoreBias);
+		ASSERT_MTX_EQ(destET, src_dest, "evAddC_ip() failed");
+	}
+}
+
+TEST(TestMathN, evAddC_ip) {
+	typedef def_keeper_tpl<real_t> IKeeper_t;
+
+	IKeeper_t keeper;
+	auto& cd = keeper.get_const_common_data();
+
+	for (vec_len_t r = 1; r < g_MinDataSizeDelta; ++r) {
+		for (vec_len_t c = 1; c < g_MinDataSizeDelta; ++c) {
+			for (int f = 0; f < 4; ++f) {
+				ASSERT_NO_FATAL_FAILURE(test_evAddC_ip(cd, r, c, !(f & 1), !(f & 2)));
+			}
+		}
+	}
+
+	constexpr unsigned rowsCnt = _baseRowsCnt;
+	const vec_len_t maxCols = 3 * g_MinDataSizeDelta, maxRows = rowsCnt + g_MinDataSizeDelta;
+	for (vec_len_t r = rowsCnt; r < maxRows; ++r) {
+		for (vec_len_t c = 1; c < maxCols; ++c) {
+			for (int f = 0; f < 4; ++f) {
+				ASSERT_NO_FATAL_FAILURE(test_evAddC_ip(cd, r, c, !(f & 1), !(f & 2)));
+			}
+		}
+	}
+}
+
+//////////////////////////////////////////////////////////////////////////
+
+template<typename CommonDataT>
+void test_evMulCAddC_ip(const CommonDataT& cd, vec_len_t batchSiz, vec_len_t sampleSiz, const bool bBiases, const bool bBiR) {
+	typedef typename CommonDataT::real_t real_t;
+	typedef math::smatrix<real_t> realmtx_t;
+
+	constexpr unsigned testCorrRepCnt = TEST_CORRECTN_REPEATS_COUNT;
+	const auto bIgnoreBias = bBiases;
+
+	constexpr unsigned _scopeMsgLen = 256;
+	char _scopeMsg[_scopeMsgLen];
+	sprintf_s(_scopeMsg, "%s: data size is %dx%d (%lld elements), bBiases=%d, bBiR=%d", "mTranspose_corr", batchSiz, sampleSiz
+		, ::nntl::math::smatrix_td::sNumel(batchSiz, sampleSiz), int(bBiases), int(bBiR));
+	SCOPED_TRACE(_scopeMsg);
+
+	realmtx_t srcET(bBiR, batchSiz, sampleSiz, bBiases), src_dest(bBiR, batchSiz, sampleSiz, bBiases)
+		, destET(bBiR, batchSiz, sampleSiz, bBiases);
+	ASSERT_TRUE(!srcET.isAllocationFailed() && !src_dest.isAllocationFailed() && !destET.isAllocationFailed());
+
+#pragma warning(push)
+#pragma warning(disable:4459)
+	auto& iM = cd.get_iMath();
+#pragma warning(pop)
+	auto& iR = cd.get_iRng();
+
+	for (unsigned rr = 0; rr < testCorrRepCnt; ++rr) {
+		iR.gen_matrixAny(srcET, real_t(5));
+		ASSERT_TRUE(srcET.if_biases_test_strict());
+		ASSERT_TRUE(srcET.copy_to(destET));
+
+		const real_t sc = iR.gen_f(real_t(6)) - real_t(6), ofs = iR.gen_f(real_t(6)) - real_t(6);;
+
+		evMulCAddC_ip_ET(destET, sc, ofs, bIgnoreBias);
+		ASSERT_TRUE(destET.if_biases_test_strict());
+
+		ASSERT_TRUE(srcET.copy_to(src_dest));
+		iM.evMulCAddC_ip_st(src_dest, sc, ofs, bIgnoreBias);
+		ASSERT_MTX_EQ(destET, src_dest, "evMulCAddC_ip_st() failed");
+
+		ASSERT_TRUE(srcET.copy_to(src_dest));
+		iM.evMulCAddC_ip_mt(src_dest, sc, ofs, bIgnoreBias);
+		ASSERT_MTX_EQ(destET, src_dest, "evMulCAddC_ip_mt() failed");
+
+		ASSERT_TRUE(srcET.copy_to(src_dest));
+		iM.evMulCAddC_ip(src_dest, sc, ofs, bIgnoreBias);
+		ASSERT_MTX_EQ(destET, src_dest, "evMulCAddC_ip() failed");
+	}
+}
+
+TEST(TestMathN, evMulCAddC_ip) {
+	typedef def_keeper_tpl<real_t> IKeeper_t;
+
+	IKeeper_t keeper;
+	auto& cd = keeper.get_const_common_data();
+
+	for (vec_len_t r = 1; r < g_MinDataSizeDelta; ++r) {
+		for (vec_len_t c = 1; c < g_MinDataSizeDelta; ++c) {
+			for (int f = 0; f < 4; ++f) {
+				ASSERT_NO_FATAL_FAILURE(test_evMulCAddC_ip(cd, r, c, !(f & 1), !(f & 2)));
+			}
+		}
+	}
+
+	constexpr unsigned rowsCnt = _baseRowsCnt;
+	const vec_len_t maxCols = 3 * g_MinDataSizeDelta, maxRows = rowsCnt + g_MinDataSizeDelta;
+	for (vec_len_t r = rowsCnt; r < maxRows; ++r) {
+		for (vec_len_t c = 1; c < maxCols; ++c) {
+			for (int f = 0; f < 4; ++f) {
+				ASSERT_NO_FATAL_FAILURE(test_evMulCAddC_ip(cd, r, c, !(f & 1), !(f & 2)));
+			}
+		}
+	}
 }
 
 
+//////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////
 /*
 template<typename base_t> struct sigm_EPS {};
@@ -4472,54 +4602,111 @@ void my_libxsmm_transpose_ignore_bias(const math::smatrix<T>& src, math::smatrix
 }
 */
 
-template<typename IntfT>
-void mTranspose_corr(typename IntfT::iMath_t& iM, vec_len_t rowsCnt, vec_len_t colsCnt, bool bEBias) {
-	typedef typename IntfT::real_t real_t;
+template<typename CommonDataT>
+void mTranspose_corr(const CommonDataT& cd, vec_len_t batchSiz, vec_len_t sampleSiz
+	, const bool bSrcBias, const bool bDestBias, const bool bSrcBiR, const bool _bIgnoreBias)
+{
+	typedef typename CommonDataT::real_t real_t;
 	typedef math::smatrix<real_t> realmtx_t;
 	typedef math::smatrix_deform<real_t> realmtxdef_t;
 
-	MTXSIZE_SCOPED_TRACE(rowsCnt, colsCnt, "mTranspose_corr");
 	constexpr unsigned testCorrRepCnt = TEST_CORRECTN_REPEATS_COUNT;
 
-	realmtx_t srcET(rowsCnt, colsCnt, bEBias), src(rowsCnt, colsCnt, bEBias), destT(colsCnt, rowsCnt, bEBias), destTET(colsCnt, rowsCnt, bEBias);
-	ASSERT_TRUE(!srcET.isAllocationFailed() && !src.isAllocationFailed() && !destT.isAllocationFailed() && !destTET.isAllocationFailed());
-	realmtxdef_t mdef(realmtx_t::sNumel(rowsCnt, colsCnt) + numel_cnt_t(bEBias)*::std::max(rowsCnt, colsCnt), bEBias);
+	const auto bSameBias = (bSrcBias == bDestBias);
+	const auto bIgnoreBias = (_bIgnoreBias || !bSameBias);
+
+	constexpr unsigned _scopeMsgLen = 256;
+	char _scopeMsg[_scopeMsgLen];
+	sprintf_s(_scopeMsg, "%s: data size is %dx%d (%lld elements), bSrcB=%d, bDestB=%d, bSrcBiR=%d, bIgnoreBias=%d"
+		, "mTranspose_corr", batchSiz, sampleSiz
+		, ::nntl::math::smatrix_td::sNumel(batchSiz, sampleSiz)
+		, int(bSrcBias), int(bDestBias), int(bSrcBiR), int(bIgnoreBias)
+	);
+	SCOPED_TRACE(_scopeMsg);
+
+	realmtx_t srcET(bSrcBiR, batchSiz, sampleSiz, bSrcBias), src2(bSrcBiR, batchSiz, sampleSiz, bSrcBias)
+		, destT(!bSrcBiR, batchSiz, sampleSiz, bDestBias), destTET(!bSrcBiR, batchSiz, sampleSiz, bDestBias);
+	ASSERT_TRUE(!srcET.isAllocationFailed() && !src2.isAllocationFailed() && !destT.isAllocationFailed() && !destTET.isAllocationFailed());
+	
+	realmtxdef_t mdef(realmtx_t::sNumel(batchSiz, sampleSiz) + numel_cnt_t(bSrcBias)*::std::max(batchSiz, sampleSiz), bSrcBias);
 	ASSERT_TRUE(!mdef.isAllocationFailed());
 
-	realmtx_t destLXS(colsCnt, rowsCnt, bEBias);
-	ASSERT_TRUE(!destLXS.isAllocationFailed());
+	//realmtx_t destLXS(bSrcBiR, colsCnt, rowsCnt, bSrcBias);
+	//ASSERT_TRUE(!destLXS.isAllocationFailed());
 
-	typename IntfT::iRng_t rg;
-	rg.init_ithreads(iM.ithreads());
+#pragma warning(push)
+#pragma warning(disable:4459)
+	auto& iM = cd.get_iMath();
+#pragma warning(pop)
+	auto& iR = cd.get_iRng();
+
 	for (unsigned rr = 0; rr < testCorrRepCnt; ++rr) {
-		rg.gen_matrixAny(srcET, real_t(5));
+		iR.gen_matrixAny(srcET, real_t(5));
+		ASSERT_TRUE(srcET.if_biases_test_strict());
 
-		mTranspose_ignore_bias_ET(srcET, destTET);
+		mTranspose_ET(srcET, destTET, bIgnoreBias);
+		ASSERT_TRUE(destTET.if_biases_test_strict());
 
-		iM.mTranspose_seq_write(srcET, destT, true);
+		destT.ones();
+		iM.mTranspose_seq_write(srcET, destT, bIgnoreBias);
 		ASSERT_MTX_EQ(destTET, destT, "mTranspose_seq_write() failed!");
-		iM.mTranspose_seq_write(destT, src, true);
-		ASSERT_MTX_EQ(srcET, src, "mTranspose_seq_write() failed double application!");
-
-		iM.mTranspose_seq_read(srcET, destT, true);
+		if (bSameBias) {
+			src2.ones();
+			iM.mTranspose_seq_write(destT, src2, bIgnoreBias);
+			ASSERT_MTX_EQ(srcET, src2, "mTranspose_seq_write() failed double application!");
+		}
+		
+		destT.ones();
+		iM.mTranspose_seq_read(srcET, destT, bIgnoreBias);
 		ASSERT_MTX_EQ(destTET, destT, "mTranspose_seq_read() failed!");
-		iM.mTranspose_seq_read(destT, src, true);
-		ASSERT_MTX_EQ(srcET, src, "mTranspose_seq_read() failed double application!");
+		if (bSameBias) {
+			src2.ones();
+			iM.mTranspose_seq_read(destT, src2, bIgnoreBias);
+			ASSERT_MTX_EQ(srcET, src2, "mTranspose_seq_read() failed double application!");
+		}
 
-		iM.mTranspose_ignore_bias(srcET, destT);
-		ASSERT_MTX_EQ(destTET, destT, "mTranspose_ignore_bias() failed!");
-		iM.mTranspose_ignore_bias(destT, src);
-		ASSERT_MTX_EQ(srcET, src, "mTranspose_ignore_bias() failed double application!");
+		destT.ones();
+		iM.mTranspose(srcET, destT, bIgnoreBias);
+		ASSERT_MTX_EQ(destTET, destT, "mTranspose(bIgnoreBias) failed!");
+		if (bSameBias) {
+			src2.ones();
+			iM.mTranspose(destT, src2, bIgnoreBias);
+			ASSERT_MTX_EQ(srcET, src2, "mTranspose(bIgnoreBias) failed double application!");
+		}
 
-		iM.mTranspose_ignore_bias_BLAS(srcET, destT);
+		if (bIgnoreBias) {
+			destT.ones();
+			iM.mTranspose_ignore_bias(srcET, destT);
+			ASSERT_MTX_EQ(destTET, destT, "mTranspose_ignore_bias() failed!");
+			if (bSameBias) {
+				src2.ones();
+				iM.mTranspose_ignore_bias(destT, src2);
+				ASSERT_MTX_EQ(srcET, src2, "mTranspose_ignore_bias() failed double application!");
+			}
+		}
+
+		/*iM.mTranspose_ignore_bias_BLAS(srcET, destT);
 		ASSERT_MTX_EQ(destTET, destT, "mTranspose_ignore_bias_BLAS() failed!");
-		iM.mTranspose_ignore_bias_BLAS(destT, src);
-		ASSERT_MTX_EQ(srcET, src, "mTranspose_ignore_bias_BLAS() failed double application!");
+		iM.mTranspose_ignore_bias_BLAS(destT, src2);
+		ASSERT_MTX_EQ(srcET, src2, "mTranspose_ignore_bias_BLAS() failed double application!");*/
 
-		mdef.deform(rowsCnt, colsCnt + bEBias);
-		srcET.clone_to(mdef);
-		iM.mTranspose_ip_ignore_bias_BLAS(mdef);
-		ASSERT_MTX_EQ(destTET, static_cast<realmtx_t&>(mdef), "mTranspose_ip_ignore_bias_BLAS() failed!");
+		if (bSameBias) {
+			mdef.set_batchInRow(bSrcBiR); mdef.deform(1, 1);
+			if (mdef.emulatesBiases()) mdef.set_biases();//must do it, b/c set_batchInRow() may change row/col relationship and destroy biases
+			mdef.deform_dataset(srcET.batch_size(), srcET.sample_size() + bSrcBias);
+			ASSERT_EQ(srcET.size(), mdef.size());
+			srcET.copy_to(mdef);
+			iM.s_mTranspose_ip_BLAS(mdef);
+			ASSERT_MTX_EQ(destTET, static_cast<realmtx_t&>(mdef), "s_mTranspose_ip_BLAS() failed!");
+
+			mdef.set_batchInRow(bSrcBiR); mdef.deform(1, 1);
+			if (mdef.emulatesBiases()) mdef.set_biases();//must do it, b/c set_batchInRow() may change row/col relationship and destroy biases
+			mdef.deform_dataset(srcET.batch_size(), srcET.sample_size() + bSrcBias);
+			ASSERT_EQ(srcET.size(), mdef.size());
+			srcET.copy_to(mdef);
+			iM.s_mTranspose_ip(mdef);
+			ASSERT_MTX_EQ(destTET, static_cast<realmtx_t&>(mdef), "s_mTranspose_ip() failed!");
+		}
 
 		//my_libxsmm_transpose_ignore_bias(srcET, destLXS);
 		//ASSERT_MTX_EQ(destTET, destLXS, "my_libxsmm_transpose_ignore_bias() failed!");
@@ -4527,20 +4714,21 @@ void mTranspose_corr(typename IntfT::iMath_t& iM, vec_len_t rowsCnt, vec_len_t c
 }
 
 TEST(TestMathN, mTranspose) {
-	//typedef float real_t;
-	typedef dt_interfaces<real_t> myInterfaces_t;
+	typedef def_keeper_tpl<real_t> IKeeper_t;
 
-	//typename myInterfaces_t::iMath_t iM;
-	//const vec_len_t g_MinDataSizeDelta = 2 * iM.ithreads().workers_count() + 2;
+	IKeeper_t keeper;
+	auto& cd = keeper.get_const_common_data();
 
 	STDCOUTL("sizeof(real_t) = " << sizeof(real_t));
 
 	//my_libxsmm_init();
+	//const vec_len_t g_MinDataSizeDelta = 2 * iM.ithreads().workers_count() + 2;
 
 	for (vec_len_t r = 1; r < g_MinDataSizeDelta; ++r) {
 		for (vec_len_t c = 1; c < g_MinDataSizeDelta; ++c) {
-			ASSERT_NO_FATAL_FAILURE(mTranspose_corr<myInterfaces_t>(iM, r, c, false));
-			ASSERT_NO_FATAL_FAILURE(mTranspose_corr<myInterfaces_t>(iM, r, c, true));
+			for (int bin = 0; bin < (1 << 4); ++bin) {
+				ASSERT_NO_FATAL_FAILURE(mTranspose_corr(cd, r, c, !(bin & 1), !(bin & 2), !(bin & 4), !(bin & 8)));
+			}
 		}
 	}
 
@@ -4548,17 +4736,17 @@ TEST(TestMathN, mTranspose) {
 	const vec_len_t maxCols = g_MinDataSizeDelta, maxRows = rowsCnt + g_MinDataSizeDelta;
 	for (vec_len_t r = rowsCnt; r < maxRows; ++r) {
 		for (vec_len_t c = 1; c < maxCols; ++c) {
-			ASSERT_NO_FATAL_FAILURE(mTranspose_corr<myInterfaces_t>(iM, r, c, false));
-			ASSERT_NO_FATAL_FAILURE(mTranspose_corr<myInterfaces_t>(iM, r, c, true));
+			for (int bin = 0; bin < (1 << 4); ++bin) {
+				ASSERT_NO_FATAL_FAILURE(mTranspose_corr(cd, r, c, !(bin & 1), !(bin & 2), !(bin & 4), !(bin & 8)));
+			}
 		}
 	}
 
 #ifndef TESTS_SKIP_LONGRUNNING
-	ASSERT_NO_FATAL_FAILURE(mTranspose_corr<myInterfaces_t>(iM, 17, 1291, false));
-	ASSERT_NO_FATAL_FAILURE(mTranspose_corr<myInterfaces_t>(iM, 17, 1291, true));
-
-	ASSERT_NO_FATAL_FAILURE(mTranspose_corr<myInterfaces_t>(iM, 1291, 17, false));
-	ASSERT_NO_FATAL_FAILURE(mTranspose_corr<myInterfaces_t>(iM, 1291, 17, true));
+	for (int bin = 0; bin < (1 << 4); ++bin) {
+		ASSERT_NO_FATAL_FAILURE(mTranspose_corr(cd, 17, 1291, !(bin & 1), !(bin & 2), !(bin & 4), !(bin & 8)));
+		ASSERT_NO_FATAL_FAILURE(mTranspose_corr(cd, 1291, 17, !(bin & 1), !(bin & 2), !(bin & 4), !(bin & 8)));
+	}
 #endif
 
 	//my_libxsmm_deinit();
@@ -5430,15 +5618,15 @@ void mMul_prevAct_weights_2_act_corr(typename IntfT::iMath_t& iM, typename IntfT
 	constexpr unsigned _scopeMsgLen = 200;
 	char _scopeMsg[_scopeMsgLen];
 	sprintf_s(_scopeMsg, "mMul_prevAct_weights_2_act_corr: prevAct=[%d,%d, BiR=%d], thisAct=[%d,%d, bias=%d, BiR=%d]"
-		, prevAct.batch_size(), prevAct.sample_size(), prevAct.bBatchesInRows(), Act.batch_size(), Act.sample_size()
-		, int(Act.emulatesBiases()), int(Act.bBatchesInRows()));
+		, prevAct.batch_size(), prevAct.sample_size(), prevAct.bBatchInRow(), Act.batch_size(), Act.sample_size()
+		, int(Act.emulatesBiases()), int(Act.bBatchInRow()));
 	SCOPED_TRACE(_scopeMsg);
 
 	const auto Eps = mMul_BLAS_EPS<real_t>::eps * prevNc;
 
 	for (unsigned rr = 0; rr < testCorrRepCnt; ++rr) {
 		iR.gen_matrixAny(weights, real_t(1));
-		ASSERT_TRUE(!weights.emulatesBiases() && weights.bBatchesInColumns());
+		ASSERT_TRUE(!weights.emulatesBiases() && weights.bBatchInColumn());
 		iR.gen_matrixAny(prevActET, real_t(2));
 		ASSERT_TRUE(prevActET.emulatesBiases() && prevActET.test_biases_strict());
 		
@@ -5448,10 +5636,10 @@ void mMul_prevAct_weights_2_act_corr(typename IntfT::iMath_t& iM, typename IntfT
 		if (prevBiR) {
 			iM.mTranspose(prevActET, prevAct);
 		} else prevActET.copy_to(prevAct);
-		ASSERT_TRUE(prevAct.bBatchesInRows() == prevBiR && prevAct.emulatesBiases());
+		ASSERT_TRUE(prevAct.bBatchInRow() == prevBiR && prevAct.emulatesBiases());
 		ASSERT_TRUE(prevAct.test_biases_strict());
 		iM.mMul_prevAct_weights_2_act(prevAct, weights, Act);
-		ASSERT_TRUE(thisBiR == Act.bBatchesInRows());
+		ASSERT_TRUE(thisBiR == Act.bBatchInRow());
 		if (bThisBiases) ASSERT_TRUE(Act.emulatesBiases() && Act.test_biases_strict());
 
 		if (thisBiR) {
@@ -5477,18 +5665,9 @@ TEST(TestMathN, mMul_prevAct_weights_2_act) {
 	for (vec_len_t bs = 1; bs < g_MinDataSizeDelta; ++bs) {
 		for (vec_len_t prevNc = 1; prevNc < g_MinDataSizeDelta; ++prevNc) {
 			for (vec_len_t thisNc = 1; thisNc < g_MinDataSizeDelta; ++thisNc) {
-				ASSERT_NO_FATAL_FAILURE(mMul_prevAct_weights_2_act_corr<myInterfaces_t>(iM, iR, bs, prevNc, thisNc, false, false, false));
-				ASSERT_NO_FATAL_FAILURE(mMul_prevAct_weights_2_act_corr<myInterfaces_t>(iM, iR, bs, prevNc, thisNc, true, false, false));
-
-				ASSERT_NO_FATAL_FAILURE(mMul_prevAct_weights_2_act_corr<myInterfaces_t>(iM, iR, bs, prevNc, thisNc, false, true, false));
-				ASSERT_NO_FATAL_FAILURE(mMul_prevAct_weights_2_act_corr<myInterfaces_t>(iM, iR, bs, prevNc, thisNc, true, true, false));
-
-
-				ASSERT_NO_FATAL_FAILURE(mMul_prevAct_weights_2_act_corr<myInterfaces_t>(iM, iR, bs, prevNc, thisNc, false, false, true));
-				ASSERT_NO_FATAL_FAILURE(mMul_prevAct_weights_2_act_corr<myInterfaces_t>(iM, iR, bs, prevNc, thisNc, true, false, true));
-
-				ASSERT_NO_FATAL_FAILURE(mMul_prevAct_weights_2_act_corr<myInterfaces_t>(iM, iR, bs, prevNc, thisNc, false, true, true));
-				ASSERT_NO_FATAL_FAILURE(mMul_prevAct_weights_2_act_corr<myInterfaces_t>(iM, iR, bs, prevNc, thisNc, true, true, true));
+				for (int f = 0; f < 8; ++f) {
+					ASSERT_NO_FATAL_FAILURE(mMul_prevAct_weights_2_act_corr<myInterfaces_t>(iM, iR, bs, prevNc, thisNc, !(f & 1), !(f & 2), !(f & 4)));
+				}
 			}
 		}
 	}
@@ -5498,18 +5677,9 @@ TEST(TestMathN, mMul_prevAct_weights_2_act) {
 	for (vec_len_t bs = rowsCnt; bs < maxRows; ++bs) {
 		for (vec_len_t prevNc = 3; prevNc < maxCols; prevNc += 3) {
 			for (vec_len_t thisNc = 3; thisNc < maxCols; thisNc += 2) {
-				ASSERT_NO_FATAL_FAILURE(mMul_prevAct_weights_2_act_corr<myInterfaces_t>(iM, iR, bs, prevNc, thisNc, false, false, false));
-				ASSERT_NO_FATAL_FAILURE(mMul_prevAct_weights_2_act_corr<myInterfaces_t>(iM, iR, bs, prevNc, thisNc, true, false, false));
-
-				ASSERT_NO_FATAL_FAILURE(mMul_prevAct_weights_2_act_corr<myInterfaces_t>(iM, iR, bs, prevNc, thisNc, false, true, false));
-				ASSERT_NO_FATAL_FAILURE(mMul_prevAct_weights_2_act_corr<myInterfaces_t>(iM, iR, bs, prevNc, thisNc, true, true, false));
-
-
-				ASSERT_NO_FATAL_FAILURE(mMul_prevAct_weights_2_act_corr<myInterfaces_t>(iM, iR, bs, prevNc, thisNc, false, false, true));
-				ASSERT_NO_FATAL_FAILURE(mMul_prevAct_weights_2_act_corr<myInterfaces_t>(iM, iR, bs, prevNc, thisNc, true, false, true));
-
-				ASSERT_NO_FATAL_FAILURE(mMul_prevAct_weights_2_act_corr<myInterfaces_t>(iM, iR, bs, prevNc, thisNc, false, true, true));
-				ASSERT_NO_FATAL_FAILURE(mMul_prevAct_weights_2_act_corr<myInterfaces_t>(iM, iR, bs, prevNc, thisNc, true, true, true));
+				for (int f = 0; f < 8; ++f) {
+					ASSERT_NO_FATAL_FAILURE(mMul_prevAct_weights_2_act_corr<myInterfaces_t>(iM, iR, bs, prevNc, thisNc, !(f & 1), !(f & 2), !(f & 4)));
+				}
 			}
 		}
 	}

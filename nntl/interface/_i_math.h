@@ -168,10 +168,10 @@ namespace math {
 
 		//////////////////////////////////////////////////////////////////////////
  		//inplace elementwise multiplication A = b.*A
-		nntl_interface void evMulC_ip(realmtx_t& A, const real_t b)noexcept;
+		//nntl_interface void evMulC_ip(realmtx_t& A, const real_t b)noexcept;
 
 		//inplace elementwise multiplication A(no_bias) = b.*A(no_bias)
-		nntl_interface void evMulC_ip_nb(realmtx_t& A, const real_t b)noexcept;
+		//nntl_interface void evMulC_ip_nb(realmtx_t& A, const real_t b)noexcept;
 		
 		//inplace elementwise multiplication A = A.*B
 		nntl_interface void evMul_ip(realmtx_t& A, const realmtx_t& B)noexcept;

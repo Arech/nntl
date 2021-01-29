@@ -34,10 +34,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include <type_traits>
 
-#include "_procedural_base.h"
 #include "../utils/layers_settings.h"
-//#include "../utils/layer_idx_keeper.h"
-
 #include "../utils/mtx2Normal.h"
 
 //LSUV algorithm (D.Mishkin, J.Matas, "All You Need is a Good Init", ArXiv:1511.06422) with some extensions.
@@ -75,27 +72,38 @@ namespace weights_init {
 		//note that actually we don't support anything except mean as central and var as scale measures as for now
 		//(need a generic way to update weights for generic measures)
 
-		template<typename NnetT, typename StatsT = typename NnetT::real_t>
-		struct LSUVExt : public _impl::_base<NnetT> {
-		private:
-			typedef _impl::_base<NnetT> _base_class_t;
-
+		template<typename NnetT, typename TDT, typename StatsT = typename NnetT::real_t>
+		class LSUVExt {
 		public:
+			typedef LSUVExt<NnetT, TDT, StatsT> self_t;
+
+			typedef NnetT nnet_t;
+			typedef typename NnetT::real_t real_t;
+			typedef typename NnetT::realmtx_t realmtx_t;
+			typedef typename NnetT::realmtxdef_t realmtxdef_t;
+
+			static_assert(is_train_data_intf<TDT>::value, "TDT template parameter must implement _i_train_data<> interface");
+			typedef TDT td_t;
+
 			typedef StatsT statsdata_t;
-			typedef LSUVExt<NnetT> LSUVExt_t;
 			typedef WeightNormSetts<real_t, statsdata_t> LayerSetts_t;
 			typedef utils::layer_settings<LayerSetts_t> setts_keeper_t;
 
-			static constexpr bool bAdjustForSampleVar = true;
-
-		public:
-			setts_keeper_t m_setts;
-			
-		public:
-			layer_index_t m_firstFailedLayerIdx;
+			//static constexpr bool bAdjustForSampleVar = true;
+			typedef utils::mtx2Normal::_FNorm_stats_var_mean<true> StatsFunctor_t;
 
 		protected:
-			vec_len_t m_fullBatchSize;
+			nnet_t& m_nn;
+
+			//we'll use train_set::X only!
+			td_t& m_td;
+
+		public:
+			setts_keeper_t m_setts;			
+			layer_index_t m_firstFailedLayerIdx{ 0 };
+
+		protected:
+			vec_len_t m_largestBatchSize{ 0 };
 
 		public:
 			bool m_bDeinitNnetOnDestroy{ true };
@@ -107,23 +115,31 @@ namespace weights_init {
 				}
 			}
 
-			LSUVExt(nnet_t& nn) noexcept : _base_class_t(nn), m_firstFailedLayerIdx(0) {}
+			//Note that we'll only use train set's X of train data
+
+			LSUVExt(nnet_t& nn, td_t& td) noexcept : m_nn(nn), m_td(td) {}
 
 			template<typename ST>
-			LSUVExt(nnet_t& nn, ST&& defSetts) noexcept 
-				: _base_class_t(nn), m_firstFailedLayerIdx(0), m_setts(::std::forward<ST>(defSetts))
-				, m_fullBatchSize(0)
+			LSUVExt(nnet_t& nn, td_t& td, ST&& defSetts) noexcept
+				: m_nn(nn), m_td(td), m_setts(::std::forward<ST>(defSetts))
 			{}
 
 			setts_keeper_t& setts()noexcept { return m_setts; }
 
-			bool run(const realmtx_t& data_x)noexcept {
+			bool run()noexcept {
 				m_firstFailedLayerIdx = 0;
 
 				vec_len_t secondBiggestBatch = 0, biggestBatch = 0;
-				const auto fullBatch = data_x.batch_size();
+				const auto fullBatch = m_td.trainset_samples_count() > ::std::numeric_limits<vec_len_t>::max()
+					? ::std::numeric_limits<vec_len_t>::max() : static_cast<vec_len_t>(m_td.trainset_samples_count());
 
-				m_fullBatchSize = fullBatch;
+				NNTL_ASSERT(fullBatch > 1);
+				if (fullBatch < 2) {
+					STDCOUTL("Too small data passed, variance normalization will fail");
+					return false;
+				}
+
+				m_largestBatchSize = fullBatch;
 				m_setts.for_each([&secondBiggestBatch, &biggestBatch, fullBatch](const LayerSetts_t& ls)noexcept
 				{
 					const auto bs = ::std::min(ls.batchSize, fullBatch);
@@ -132,22 +148,10 @@ namespace weights_init {
 						secondBiggestBatch = ::std::max(secondBiggestBatch, ls.batchSize);
 					}
 				});
-
-				NNTL_ASSERT(fullBatch > 1);
-				if (fullBatch < 2) {
-					STDCOUTL("Too small data passed, variance normalization will fail");
-					return false;
-				}
-
-				_base_class_t::init(secondBiggestBatch, data_x);
 				
-				//to fully initialize the nn and its layers
-				prepareToBatchSize(biggestBatch);
-				_fprop();
-
 				m_nn.get_layer_pack().for_each_packed_layer_exc_input(*this);
 
-				_base_class_t::deinit();
+				m_td.deinit4all();
 
 				return m_firstFailedLayerIdx == 0;
 			}
@@ -233,16 +237,36 @@ namespace weights_init {
 				lyr.setIgnoreActivation(false);
 			}
 
-			void prepareToBatchSize(const vec_len_t _bs)noexcept {
-				NNTL_ASSERT(m_fullBatchSize);
-				const auto bs = _bs ? ::std::min(_bs, m_fullBatchSize) : m_fullBatchSize;
-				m_data.prepareToBatchSize(bs);
-				m_nn.init4fixedBatchFprop(bs);
+			//some fireworks
+			static void die_die_die_my_darling(const char*const msg, const vec_len_t batchSize)noexcept {
+				STDCOUTL("LSUVExt::die_die_die_my_darling: " << msg << ", batchSize=" << batchSize);
+				NNTL_ASSERT(!"LSUVExt::die_die_die_my_darling!");
+			#pragma warning(push)
+			#pragma warning(disable:4297)//function assumed not to throw
+				throw ::std::logic_error(msg);
+			#pragma warning(pop)
 			}
 
-			void _fprop()noexcept {
-				m_data.nextBatch(m_nn.get_iRng(), m_nn.get_iMath());
-				m_nn.doFixedBatchFprop(m_data.batchX());
+			vec_len_t nonZeroBatchSize(const vec_len_t _bs)const noexcept {
+				NNTL_ASSERT(m_largestBatchSize && _bs >= 0);
+				return _bs ? ::std::min(_bs, m_largestBatchSize) : m_largestBatchSize;
+			}
+
+			void prepareToBatchSize(const vec_len_t _bs)noexcept {
+				auto bs = nonZeroBatchSize(_bs);
+				const auto oldBs = m_td.get_maxFPropSize();
+				if (bs > oldBs) {
+					const auto ec = m_td.init4inference(bs);
+					if (decltype(ec)::Success != ec) die_die_die_my_darling("m_td.init4inference failed", bs);
+				}
+
+				const auto ec = m_nn.init4fixedBatchFprop(bs);
+				if (decltype(ec)::Success != ec) die_die_die_my_darling("m_nn.init4fixedBatchFprop failed", bs);
+			}
+
+			void _fprop(numel_cnt_t batchIdx)noexcept {
+				m_td.next_subset(batchIdx, m_nn.get_const_common_data());
+				m_nn.doFixedBatchFprop(m_td.batchX());
 			}
 			
 			//////////////////////////////////////////////////////////////////////////
@@ -253,22 +277,27 @@ namespace weights_init {
 				const realmtx_t& m_Act;
 				const LayerSetts_t& m_lSetts;
 
-				LSUVExt_t& m_thisHost;
+				self_t& m_thisHost;
 				
-				_WeightsNormBase(realmtx_t& w, const realmtx_t& A, const LayerSetts_t& lS, const statsdata_t asc, LSUVExt_t& h) noexcept
+				_WeightsNormBase(realmtx_t& w, const realmtx_t& A, const LayerSetts_t& lS, const statsdata_t asc, self_t& h) noexcept
 					: m_actScaling(asc), m_weights(w), m_Act(A), m_lSetts(lS), m_thisHost(h) {}
 
 				// Returns how many iterations (batch counts) must be done to satisfy preferred arguments
 				numel_cnt_t prepareToWalk()noexcept {
-					const auto dataBatchCnt = m_thisHost.m_data.batchesCount();
+					//const auto dataBatchCnt = m_thisHost.m_data.batchesCount();
+					const auto dataBatchCnt = m_thisHost.m_td.walk_over_set(
+						td_t::train_set_id
+						, m_thisHost.m_nn.get_const_common_data(), m_thisHost.nonZeroBatchSize(m_lSetts.batchSize)
+						, td_t::flag_exclude_dataY);
+
 					NNTL_ASSERT(dataBatchCnt > 0);
 					return ::std::min(dataBatchCnt, m_lSetts.batchCount ? numel_cnt_t(m_lSetts.batchCount) : dataBatchCnt);
 				}
 				//returns a pointer to matrix data. Matrix must have at least 1 element (and more than 1 over all batches)
 				//walk() is not required to obey batchIdx, it's just a convenience argument. The only requirement is that
 				// the whole matrix must be walked over with all batches.
-				__declspec(restrict) const realmtx_t* __restrict walk(numel_cnt_t /*batchIdx*/)noexcept {
-					m_thisHost._fprop();
+				__declspec(restrict) const realmtx_t* __restrict walk(numel_cnt_t batchIdx)noexcept {
+					m_thisHost._fprop(batchIdx);
 					return &m_Act;
 				}
 			};
@@ -277,10 +306,10 @@ namespace weights_init {
 
 			template<typename FinalT>
 			class _WeightsNorm_whole 
-				: public utils::mtx2Normal::_FNorm_whole_base<FinalT, real_t, bAdjustForSampleVar, statsdata_t>
+				: public utils::mtx2Normal::_FNorm_whole_base<FinalT, real_t, StatsFunctor_t, statsdata_t>
 				, protected _WeightsNormBase
 			{
-				typedef utils::mtx2Normal::_FNorm_whole_base<FinalT, real_t, bAdjustForSampleVar, statsdata_t> _base_t;
+				typedef utils::mtx2Normal::_FNorm_whole_base<FinalT, real_t, StatsFunctor_t, statsdata_t> _base_t;
 				typedef _WeightsNormBase _wnbase_t;
 
 			public:
@@ -289,36 +318,20 @@ namespace weights_init {
 
 				template<typename ...ArgsT>
 				_WeightsNorm_whole(ArgsT&&... args)noexcept : _wnbase_t(::std::forward<ArgsT>(args)...){}
+				
+				void normalize_whole(statsdata_t scaleVal, const statsdata_t centralVal, const bool bScale, const bool bCentral)noexcept {
+					if (bScale) {
+						NNTL_ASSERT(scaleVal != statsdata_t(0.));
+						scaleVal = m_lSetts.targetScale / scaleVal;
+						m_thisHost.m_nn.get_iMath().evMulC_ip(m_weights, static_cast<real_t>(scaleVal));
+					} else scaleVal = statsdata_t(1.0);
 
-				void change_scale(const statsdata_t scaleVal)noexcept {
-					NNTL_ASSERT(scaleVal != statsdata_t(0));
-					const auto multVal = static_cast<real_t>(m_lSetts.targetScale / scaleVal);
-					NNTL_ASSERT(!::std::isnan(multVal) && ::std::isfinite(multVal));
-					die_check_fpvar(multVal);
-
-					m_thisHost.m_nn.get_iMath().evMulC_ip(m_weights, multVal);
-				}
-				void change_central(const statsdata_t centralVal)noexcept {
-					auto pB = m_weights.colDataAsVec(m_weights.cols() - 1);
-					const auto pBE = m_weights.end();
-					const real_t centrOffs = static_cast<real_t>((m_lSetts.targetCentral - centralVal)*m_actScaling);
-					die_check_fpvar(centrOffs);
-					while (pB < pBE) *pB++ += centrOffs;
-				}
-				void change_both(const statsdata_t scaleVal, const statsdata_t centralVal)noexcept {
-					NNTL_ASSERT(scaleVal != statsdata_t(0));
-					const auto multVal = m_lSetts.targetScale / scaleVal;
-					NNTL_ASSERT(!::std::isnan(multVal) && ::std::isfinite(multVal));
-					die_check_fpvar(multVal);
-
-					const real_t centrOffs = static_cast<real_t>((m_lSetts.targetCentral - centralVal)*m_actScaling*multVal);
-					die_check_fpvar(centrOffs);
-
-					m_thisHost.m_nn.get_iMath().evMulC_ip(m_weights, static_cast<real_t>(multVal));
-
-					auto pB = m_weights.colDataAsVec(m_weights.cols() - 1);
-					const auto pBE = m_weights.end();
-					while (pB < pBE) *pB++ += centrOffs;
+					if (bCentral) {
+						const real_t centrOffs = static_cast<real_t>((m_lSetts.targetCentral - centralVal)*m_actScaling*scaleVal);
+						auto pB = m_weights.colDataAsVec(m_weights.cols() - 1);
+						const auto pBE = m_weights.end();
+						while (pB < pBE) *pB++ += centrOffs;
+					}
 				}
 			};
 
@@ -330,6 +343,7 @@ namespace weights_init {
 			};
 
 			bool _processWeights_shared(realmtx_t& weights, const realmtx_t& Act, const LayerSetts_t& lSetts, const real_t actScaling)noexcept {
+				NNTL_ASSERT(Act.bBatchInColumn());//utils::mtx2Normal::normalize_whole requirement
 				WeightsNorm_whole fn(weights, Act, lSetts, actScaling, *this);
 				return utils::mtx2Normal::normalize_whole(lSetts, fn);
 			}
@@ -337,10 +351,10 @@ namespace weights_init {
 			//////////////////////////////////////////////////////////////////////////
 			template<typename FinalT>
 			class _WeightsNorm_cw
-				: public utils::mtx2Normal::_FNorm_cw_base<FinalT, real_t, bAdjustForSampleVar, statsdata_t>
+				: public utils::mtx2Normal::_FNorm_cw_base<FinalT, real_t, StatsFunctor_t, statsdata_t>
 				, protected _WeightsNormBase
 			{
-				typedef utils::mtx2Normal::_FNorm_cw_base<FinalT, real_t, bAdjustForSampleVar, statsdata_t> _base_t;
+				typedef utils::mtx2Normal::_FNorm_cw_base<FinalT, real_t, StatsFunctor_t, statsdata_t> _base_t;
 				typedef _WeightsNormBase _wnbase_t;
 
 			public:
@@ -358,49 +372,28 @@ namespace weights_init {
 					return m_thisHost.m_nn.get_iThreads().run(::std::forward<ArgsT>(args)...);
 				}
 
-				//perform change scale operation over the column colIdx of original data
-				void cw_change_scale(const vec_len_t colIdx, const statsdata_t scaleVal)noexcept {
-					NNTL_ASSERT(scaleVal != statsdata_t(0));
-					const auto multVal = static_cast<real_t>(m_lSetts.targetScale / scaleVal);
-					NNTL_ASSERT(!::std::isnan(multVal) && ::std::isfinite(multVal));
-					die_check_fpvar(multVal);
+				void normalize_cw(const vec_len_t colIdx, statsdata_t scaleVal, const statsdata_t centralVal
+					, const bool bScale, const bool bCentral)noexcept
+				{
+					if (bScale) {
+						NNTL_ASSERT(statsdata_t(0.) != scaleVal);
+						scaleVal = m_lSetts.targetScale / scaleVal;
 
-					//column in activation matrix corresponds to a row in weight matrix.
-					auto pW = m_weights.data() + colIdx;
-					const auto pWE = m_weights.end();
-					const ptrdiff_t ldw = m_weights.ldim();
-					while (pW < pWE) {
-						*pW *= multVal;
-						pW += ldw;
-					}
-				}
-				void cw_change_central(const vec_len_t colIdx, const statsdata_t centralVal)noexcept {
-					const real_t ofs = static_cast<real_t>((m_lSetts.targetCentral - centralVal)*m_actScaling);
-					die_check_fpvar(ofs);
-					m_weights.get(colIdx, m_weights.cols() - 1) += ofs;
-				}
-				void cw_change_both(const vec_len_t colIdx, const statsdata_t scaleVal, const statsdata_t centralVal)noexcept {
-					NNTL_ASSERT(scaleVal != statsdata_t(0));
-					const auto multVal = m_lSetts.targetScale / scaleVal;
-					NNTL_ASSERT(!::std::isnan(multVal) && ::std::isfinite(multVal));
-					die_check_fpvar(multVal);
+						//column==batch in activation matrix corresponds to a row in weight matrix.
+						real_t*__restrict pW = m_weights.data() + colIdx;
+						const auto pWE = m_weights.end();
+						const ptrdiff_t ldw = m_weights.ldim();
+						const auto mv = static_cast<real_t>(scaleVal);
+						while (pW < pWE) {
+							*pW *= mv;
+							pW += ldw;
+						}
+					} else scaleVal = statsdata_t(1.);
 
-					//column in activation matrix corresponds to a row in weight matrix.
-					auto pW = m_weights.data() + colIdx;
-					const auto pWE = m_weights.end();
-					//const auto pWE = m_weights.colDataAsVec(m_weights.cols()-1);
-					const ptrdiff_t ldw = m_weights.ldim();
-					const auto mv = static_cast<real_t>(multVal);
-					while (pW < pWE) {
-						*pW *= mv;
-						pW += ldw;
+					if (bCentral) {
+						const real_t ofs = static_cast<real_t>((m_lSetts.targetCentral - centralVal)*m_actScaling*scaleVal);
+						m_weights.get(colIdx, m_weights.cols() - 1) += ofs;
 					}
-					pW -= ldw;
-					NNTL_ASSERT(pW < pWE);
-					//scale shouldn't be applied to the bias, as it affects the variation around bias only
-					const auto ofs = static_cast<real_t>((m_lSetts.targetCentral - centralVal)*m_actScaling*multVal);
-					die_check_fpvar(ofs);
-					*pW += ofs;
 				}
 			};
 
@@ -412,6 +405,7 @@ namespace weights_init {
 			};
 
 			bool _processWeights_individual(realmtx_t& weights, const realmtx_t& Act, const LayerSetts_t& lSetts, const real_t actScaling)noexcept {
+				NNTL_ASSERT(Act.bBatchInColumn());//utils::mtx2Normal::normalize_cw requirement
 				WeightsNorm_cw fn(weights, Act, lSetts, actScaling, *this);
 				return utils::mtx2Normal::normalize_cw(lSetts, fn);
 			}

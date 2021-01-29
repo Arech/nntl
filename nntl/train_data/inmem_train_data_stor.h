@@ -64,20 +64,20 @@ namespace nntl {
 			y_mtx_array_t m_y;
 
 		public:
-			// #supportsBatchesInRows
+			// #supportsBatchInRow
 			const x_mtxdef_t& train_x()const noexcept { return m_x[train_set_id]; }
 			const y_mtxdef_t& train_y()const noexcept { return m_y[train_set_id]; }
 			const x_mtxdef_t& test_x()const noexcept { return m_x[test_set_id]; }
 			const y_mtxdef_t& test_y()const noexcept { return m_y[test_set_id]; }
-			// #supportsBatchesInRows
+			// #supportsBatchInRow
 			const x_mtxdef_t& X(data_set_id_t dataSetId)const noexcept { NNTL_ASSERT(dataSetId >= 0 && dataSetId <= 1); return m_x[dataSetId]; }
 			const y_mtxdef_t& Y(data_set_id_t dataSetId)const noexcept { NNTL_ASSERT(dataSetId >= 0 && dataSetId <= 1); return m_y[dataSetId]; }
-			// #supportsBatchesInRows
+			// #supportsBatchInRow
 			x_mtxdef_t& train_x_mutable() noexcept { return m_x[train_set_id]; }
 			y_mtxdef_t& train_y_mutable() noexcept { return m_y[train_set_id]; }
 			x_mtxdef_t& test_x_mutable() noexcept { return m_x[test_set_id]; }
 			y_mtxdef_t& test_y_mutable() noexcept { return m_y[test_set_id]; }
-			// #supportsBatchesInRows
+			// #supportsBatchInRow
 			x_mtxdef_t& X_mutable(data_set_id_t dataSetId) noexcept { NNTL_ASSERT(dataSetId >= 0 && dataSetId <= 1); return m_x[dataSetId]; }
 			y_mtxdef_t& Y_mutable(data_set_id_t dataSetId) noexcept { NNTL_ASSERT(dataSetId >= 0 && dataSetId <= 1); return m_y[dataSetId]; }
 
@@ -104,7 +104,7 @@ namespace nntl {
 			//!!assignment is not needed
 			inmem_train_data_stor& operator=(const inmem_train_data_stor& rhs) noexcept = delete;
 			
-			// #supportsBatchesInRows
+			// #supportsBatchInRow
 			inmem_train_data_stor& operator=(inmem_train_data_stor&& rhs) noexcept {
 				if (this != &rhs) {
 					if (rhs.empty()) {
@@ -119,7 +119,7 @@ namespace nntl {
 				return *this;
 			}
 
-			// #supportsBatchesInRows
+			// #supportsBatchInRow
 			void absorb(inmem_train_data_stor&& rhs)noexcept {
 				*this = ::std::move(rhs);
 			}
@@ -127,7 +127,7 @@ namespace nntl {
 			//////////////////////////////////////////////////////////////////////////
 
 			//using designated function instead of operator= to prevent accidental use
-			// #supportsBatchesInRows
+			// #supportsBatchInRow
 			bool dupe(inmem_train_data_stor& td)const noexcept {
 				x_mtxdef_t trx, tx;
 				y_mtxdef_t trY, ty;
@@ -141,17 +141,17 @@ namespace nntl {
 			}
 
 			//////////////////////////////////////////////////////////////////////////
-			// #supportsBatchesInRows
+			// #supportsBatchInRow
 			bool operator==(const inmem_train_data_stor& rhs)const noexcept {
 				return train_x() == rhs.train_x() && train_y() == rhs.train_y() && test_x() == rhs.test_x() && test_y() == rhs.test_y();
 			}
 
-			// #supportsBatchesInRows
+			// #supportsBatchInRow
 			bool empty()const noexcept {
 				return train_x().empty() || train_y().empty() || test_x().empty() || test_y().empty();
 			}
 
-			// #supportsBatchesInRows
+			// #supportsBatchInRow
 			void clear()noexcept {
 				for (data_set_id_t i = 0; i < 2; ++i) {
 					X_mutable(i).clear();
@@ -159,7 +159,7 @@ namespace nntl {
 				}
 			}
 
-			// #supportsBatchesInRows
+			// #supportsBatchInRow
 			bool absorb(x_mtxdef_t&& _train_x, y_mtxdef_t&& _train_y, x_mtxdef_t&& _test_x, y_mtxdef_t&& _test_y)noexcept {
 				if (!absorbsion_will_succeed(_train_x, _train_y, _test_x, _test_y))  return false;
 				NNTL_ASSERT(_train_x.test_biases_strict());
@@ -172,7 +172,7 @@ namespace nntl {
 				return true;
 			}
 
-			// #supportsBatchesInRows
+			// #supportsBatchInRow
 			static bool absorbsion_will_succeed(const x_mtxdef_t& _train_x, const y_mtxdef_t& _train_y
 				, const x_mtxdef_t& _test_x, const y_mtxdef_t& _test_y)noexcept //, const bool noBiasEmulationNecessary) noexcept
 			{
@@ -188,7 +188,7 @@ namespace nntl {
 				//&& (noBiasEmulationNecessary ^ _train_x.emulatesBiases()) && (noBiasEmulationNecessary ^ _test_x.emulatesBiases());
 			}
 
-			// #supportsBatchesInRows
+			// #supportsBatchInRow
 			bool replace_Y_will_succeed(const y_mtxdef_t& _train_y, const y_mtxdef_t& _test_y)const noexcept
 			{
 				return !_train_y.empty() && _train_y.rows() == train_y().rows()
@@ -199,7 +199,7 @@ namespace nntl {
 					;
 			}
 
-			// #supportsBatchesInRows
+			// #supportsBatchInRow
 			bool replace_Y(y_mtxdef_t&& _train_y, y_mtxdef_t&& _test_y)noexcept {
 				if (!replace_Y_will_succeed(_train_y, _test_y)) return false;
 
@@ -209,7 +209,7 @@ namespace nntl {
 			}
 
 			//opposite of absorb()
-			// #supportsBatchesInRows
+			// #supportsBatchInRow
 			void extract(x_mtxdef_t& _train_x, y_mtxdef_t& _train_y, x_mtxdef_t& _test_x, y_mtxdef_t& _test_y)noexcept {
 				NNTL_ASSERT(!empty());
 
@@ -221,22 +221,22 @@ namespace nntl {
 				NNTL_ASSERT(empty());
 			}
 
-			// #supportsBatchesInRows
+			// #supportsBatchInRow
 			bool samplesStorageCoherent()const noexcept {
-				const auto bb = train_x().bBatchesInRows();
-				return bb == train_y().bBatchesInRows() && bb == test_x().bBatchesInRows() && bb == test_y().bBatchesInRows();
+				const auto bb = train_x().bBatchInRow();
+				return bb == train_y().bBatchInRow() && bb == test_x().bBatchInRow() && bb == test_y().bBatchInRow();
 			}
-			// #supportsBatchesInRows
+			// #supportsBatchInRow
 			bool samplesXStorageCoherent()const noexcept {
-				return train_x().bBatchesInRows() == test_x().bBatchesInRows();
+				return train_x().bBatchInRow() == test_x().bBatchInRow();
 			}
 			bool samplesYStorageCoherent()const noexcept {
-				return train_y().bBatchesInRows() == test_y().bBatchesInRows();
+				return train_y().bBatchInRow() == test_y().bBatchInRow();
 			}
 
 			//////////////////////////////////////////////////////////////////////////
 			// Note that you must know what you're doing if you are to use this function
-			// Stick to #supportsBatchesInRows tagged API only then when will use transposed data
+			// Stick to #supportsBatchInRow tagged API only then when will use transposed data
 			// Note that if some matrix's value_type is not floating_point, there may be blood (due to hack to use
 			// of BLAS routine for transposition), or may be not (shouldn't, I guess, for common x86/x64)
 			template<typename iMathT>

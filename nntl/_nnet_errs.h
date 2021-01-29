@@ -38,6 +38,7 @@ namespace nntl {
 		enum ErrorCode {
 			Success = 0,
 			InvalidTD,
+			TDDeinitializationRequired,
 
 			InvalidInputLayerNeuronsCount,
 			InvalidOutputLayerNeuronsCount,
@@ -73,6 +74,7 @@ namespace nntl {
 			switch (ec) {
 			case Success: return NNTL_STRING("No error / success.");
 			case InvalidTD: return NNTL_STRING("Invalid training data passed.");
+			case TDDeinitializationRequired: return NNTL_STRING("Deinitialize TD first!");
 
 			case InvalidInputLayerNeuronsCount: return NNTL_STRING("Input layer neurons count mismatches train_x width.");
 			case InvalidOutputLayerNeuronsCount: return NNTL_STRING("Output layer neurons count mismatches train_y width.");

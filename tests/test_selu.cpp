@@ -276,7 +276,7 @@ void test_selu_distr(const size_t seedVal, const RealT dpa, const neurons_count_
 
 
 	if (bApplyWeightNorm) {
-		typedef weights_init::procedural::LSUVExt<decltype(nn)> winit_t;
+		typedef weights_init::procedural::LSUVExt<decltype(nn), ::std::decay_t<decltype(td)>> winit_t;
 		winit_t::LayerSetts_t def, outpS;
 
 		def.bOverPreActivations = false;
@@ -291,12 +291,12 @@ void test_selu_distr(const size_t seedVal, const RealT dpa, const neurons_count_
 		outpS.bScaleNormalize = false;
 		outpS.bVerbose = bVerbose;
 
-		winit_t obj(nn, def);
+		winit_t obj(nn, td, def);
 		
 		obj.setts().add(outp.get_layer_idx(), outpS);
 
 		//individual neuron stats requires a lot of data to be correctly evaluated
-		if (!obj.run(td.train_x())) {
+		if (!obj.run()) {
 			STDCOUTL("*** Layer with ID=" << obj.m_firstFailedLayerIdx << " was the first to fail convergence. There might be more of them.");
 		}
 	}

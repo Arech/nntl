@@ -481,31 +481,31 @@ namespace math {
 		struct _mrwHlpr_rw_InitVecElmByVec {
 			static constexpr vec_len_t rw_FirstColumnIdx = 0;
 
-			//numel_cnt_t mtxRows - numel_cnt_t by intention!
+			//numel_cnt_t ldM - numel_cnt_t by intention!
 			template<typename VecBaseT, typename MtxBaseT>
-			static constexpr VecBaseT rw_initVecElm(VecBaseT& vecElm, MtxBaseT*& pFirstMtxElm, const numel_cnt_t mtxRows
+			static constexpr VecBaseT rw_initVecElm(VecBaseT& vecElm, MtxBaseT*& pFirstMtxElm, const numel_cnt_t ldM
 				, const numel_cnt_t colBegin, const numel_cnt_t r)noexcept
 			{ return vecElm; }
 		};
 		struct _mrwHlpr_rw_InitVecElmByMtxElm {
 			static constexpr vec_len_t rw_FirstColumnIdx = 1;
 
-			//numel_cnt_t mtxRows - numel_cnt_t by intention!
+			//numel_cnt_t ldM - numel_cnt_t by intention!
 			template<typename VecBaseT, typename MtxBaseT>
-			static VecBaseT rw_initVecElm(VecBaseT& vecElm, MtxBaseT*& pFirstMtxElm, const numel_cnt_t mtxRows
+			static VecBaseT rw_initVecElm(VecBaseT& vecElm, MtxBaseT*& pFirstMtxElm, const numel_cnt_t ldM
 				, const numel_cnt_t colBegin, const numel_cnt_t r)noexcept
 			{
 				const auto v = *pFirstMtxElm;
-				pFirstMtxElm += mtxRows;
+				pFirstMtxElm += ldM;
 				return v;
 			}
 		};
 		struct _mrwHlpr_rw_InitVecElmByZero {
 			static constexpr vec_len_t rw_FirstColumnIdx = 0;
 
-			//numel_cnt_t mtxRows - numel_cnt_t by intention!
+			//numel_cnt_t ldM - numel_cnt_t by intention!
 			template<typename VecBaseT, typename MtxBaseT>
-			static constexpr VecBaseT rw_initVecElm(const VecBaseT& vecElm, const MtxBaseT*const & pFirstMtxElm, const numel_cnt_t mtxRows
+			static constexpr VecBaseT rw_initVecElm(const VecBaseT& vecElm, const MtxBaseT*const & pFirstMtxElm, const numel_cnt_t ldM
 				, const numel_cnt_t colBegin, const numel_cnt_t r)noexcept
 			{
 				return VecBaseT(0);
@@ -522,35 +522,35 @@ namespace math {
 			}
 		};
 		struct _mrwHlpr_simpleLoops {
-			static constexpr void initOperation(const vec_len_t colBegin, const vec_len_t mtxRows)noexcept {};
+			static constexpr void initOperation(const vec_len_t colBegin, const vec_len_t ldM)noexcept {};
 
-			static constexpr void cw_toNextCol(const numel_cnt_t mtxRows)noexcept {};
+			static constexpr void cw_toNextCol(const numel_cnt_t ldM)noexcept {};
 		};
 
 		//////////////////////////////////////////////////////////////////////////
 		//operations
 		/*struct _mrw_COUNT_Zeros : public _mrwHlpr_rw_InitVecElmByZero, public _mrwHlpr_rw_UpdVecElm, public _mrwHlpr_simpleLoops {
 			template<_OperationType OpType, typename BaseT>
-			static void op(const BaseT& mtxElm, BaseT& vecElm, const vec_len_t r, const vec_len_t c, const numel_cnt_t mtxRows)noexcept {
+			static void op(const BaseT& mtxElm, BaseT& vecElm, const vec_len_t r, const vec_len_t c, const numel_cnt_t ldM)noexcept {
 				vecElm += (mtxElm==real_t(0));
 			}
 		};*/
 
 		struct _mrw_MUL_mtx_by_vec : public _mrwHlpr_rw_InitVecElmByVec, public _mrwHlpr_rw_Dont_UpdVecElm, public _mrwHlpr_simpleLoops {
 			template<_OperationType OpType, typename BaseT>
-			static void op(BaseT& mtxElm, const BaseT vecElm, const numel_cnt_t r, const numel_cnt_t c, const numel_cnt_t mtxRows)noexcept {
+			static void op(BaseT& mtxElm, const BaseT vecElm, const numel_cnt_t r, const numel_cnt_t c, const numel_cnt_t ldM)noexcept {
 				mtxElm *= vecElm;
 			}
 		};
 		struct _mrw_DIV_mtx_by_vec : public _mrwHlpr_rw_InitVecElmByVec, public _mrwHlpr_rw_Dont_UpdVecElm, public _mrwHlpr_simpleLoops {
 			template<_OperationType OpType, typename BaseT>
-			static void op(BaseT& mtxElm, const BaseT vecElm, const numel_cnt_t r, const numel_cnt_t c, const numel_cnt_t mtxRows)noexcept {
+			static void op(BaseT& mtxElm, const BaseT vecElm, const numel_cnt_t r, const numel_cnt_t c, const numel_cnt_t ldM)noexcept {
 				mtxElm /= vecElm;
 			}
 		};
 		struct _mrwFind_MAX : public _mrwHlpr_rw_InitVecElmByMtxElm, public _mrwHlpr_rw_UpdVecElm, public _mrwHlpr_simpleLoops {
 			template<_OperationType OpType, typename BaseT>
-			static void op(const BaseT mtxElm, BaseT& vecElm, const numel_cnt_t r, const numel_cnt_t c, const numel_cnt_t mtxRows)noexcept {
+			static void op(const BaseT mtxElm, BaseT& vecElm, const numel_cnt_t r, const numel_cnt_t c, const numel_cnt_t ldM)noexcept {
 				if (mtxElm > vecElm) vecElm = mtxElm;
 			}
 		};
@@ -561,14 +561,14 @@ namespace math {
 			_mrwFindIdxsOf_MAX(vec_len_t* pd)noexcept : pDest(pd) {}
 
 			template<_OperationType OpType, typename BaseT>
-			::std::enable_if_t<OpType == mrw_cw> op(const BaseT mtxElm, BaseT& vecElm, const numel_cnt_t r, const numel_cnt_t c, const numel_cnt_t mtxRows)noexcept {
+			::std::enable_if_t<OpType == mrw_cw> op(const BaseT mtxElm, BaseT& vecElm, const numel_cnt_t r, const numel_cnt_t c, const numel_cnt_t ldM)noexcept {
 				if (mtxElm > vecElm) {
 					vecElm = mtxElm;
 					pDest[r] = static_cast<vec_len_t>(c);
 				}
 			}
 			template<_OperationType OpType, typename BaseT>
-			::std::enable_if_t<OpType == mrw_rw> op(const BaseT mtxElm, BaseT& vecElm, const numel_cnt_t r, const numel_cnt_t c, const numel_cnt_t mtxRows)noexcept {
+			::std::enable_if_t<OpType == mrw_rw> op(const BaseT mtxElm, BaseT& vecElm, const numel_cnt_t r, const numel_cnt_t c, const numel_cnt_t ldM)noexcept {
 				if (mtxElm > vecElm) {
 					vecElm = mtxElm;
 					_maxColumnIdx = c;
@@ -578,12 +578,12 @@ namespace math {
 			static constexpr vec_len_t rw_FirstColumnIdx = 1;
 
 			template<typename VecBaseT, typename MtxBaseT>
-			VecBaseT rw_initVecElm(VecBaseT& vecElm, MtxBaseT*& pFirstMtxElm, const numel_cnt_t mtxRows
+			VecBaseT rw_initVecElm(VecBaseT& vecElm, MtxBaseT*& pFirstMtxElm, const numel_cnt_t ldM
 				, const numel_cnt_t colBegin, const numel_cnt_t r)noexcept
 			{
 				_maxColumnIdx = colBegin;
 				const auto v = *pFirstMtxElm;
-				pFirstMtxElm += mtxRows;
+				pFirstMtxElm += ldM;
 				return v;
 			}
 
@@ -599,7 +599,7 @@ namespace math {
 		};
 		struct _mrw_SUM : public _mrwHlpr_rw_InitVecElmByMtxElm, public _mrwHlpr_rw_UpdVecElm, public _mrwHlpr_simpleLoops {
 			template<_OperationType OpType, typename BaseT>
-			static void op(const BaseT mtxElm, BaseT& vecElm, const numel_cnt_t r, const numel_cnt_t c, const numel_cnt_t mtxRows)noexcept {
+			static void op(const BaseT mtxElm, BaseT& vecElm, const numel_cnt_t r, const numel_cnt_t c, const numel_cnt_t ldM)noexcept {
 				vecElm += mtxElm;
 			}
 		};
@@ -607,7 +607,7 @@ namespace math {
 		//Binary/bitwise OR
 		struct _mrw_BinaryOR : public _mrwHlpr_rw_InitVecElmByMtxElm, public _mrwHlpr_rw_UpdVecElm, public _mrwHlpr_simpleLoops {
 			template<_OperationType OpType, typename BaseT>
-			static void op(const BaseT mtxElm, BaseT& vecElm, const numel_cnt_t r, const numel_cnt_t c, const numel_cnt_t mtxRows)noexcept {
+			static void op(const BaseT mtxElm, BaseT& vecElm, const numel_cnt_t r, const numel_cnt_t c, const numel_cnt_t ldM)noexcept {
 				vecElm |= mtxElm;
 			}
 		};
@@ -647,19 +647,20 @@ namespace math {
 		// No ref-qualified functor operations should be defined!
 		template<typename MtxT, typename VecValueT, typename mrwOperationT>
 		nntl_probably_force_inline static void _mrwVecOperation_st_cw(MtxT& A, VecValueT*const pVec, vec_len_t colBegin
-			, const rowcol_range& RCR, mrwOperationT&& F)noexcept
+			, const rowcol_range& RCR, mrwOperationT&& F, const bool bIgnoreBias = false)noexcept
 		{
 			static_assert(::std::is_same< smatrix<::std::remove_const_t<VecValueT>>, ::std::remove_const_t<MtxT> >::value, "Types mismatch");
 			NNTL_UNREF(F);
 			NNTL_ASSERT(!A.empty() && A.numel() > 0 && pVec);
 			NNTL_ASSERT(colBegin == 0 || colBegin == 1);
-			const numel_cnt_t rm = A.rows(); // , cm = A.cols();
+			const numel_cnt_t ldA = A.ldim();
 			colBegin += RCR.colBegin;
 			NNTL_ASSERT(colBegin <= RCR.colEnd);
 			auto pA = A.colDataAsVec(colBegin);
 			//::std::forward<mrwOperationT>(F).initOperation(colBegin, A.rows());
-			F.initOperation(colBegin, A.rows());
+			F.initOperation(colBegin, A.rows(bIgnoreBias));
 			const numel_cnt_t ce = RCR.colEnd, re = RCR.rowEnd;
+			NNTL_ASSERT(re <= A.rows(bIgnoreBias));
 			for (numel_cnt_t c = colBegin; c < ce; ++c) {
 				for (numel_cnt_t r = RCR.rowBegin; r < re; ++r) {//FOR cycle with offset calculation is generally faster than WHILE,
 					const auto pV = pVec + r;//because usually compiler can unfold a cycle into many instructions
@@ -668,11 +669,11 @@ namespace math {
 					//static call-style mrwOperationT::op() vs. object call-style F.op() doesn't make any difference in asm 
 					// code (at the moment of testing), but object call-style permits far more generic algorithms creation
 					//::std::forward<mrwOperationT>(F).op<mrw_cw>(*pElm, *pV, r, c, rm);
-					F.op<mrw_cw>(*pElm, *pV, r, c, rm);
+					F.op<mrw_cw>(*pElm, *pV, r, c, ldA);
 				}
-				pA += rm;
+				pA += ldA;
 				//::std::forward<mrwOperationT>(F).cw_toNextCol(rm);
-				F.cw_toNextCol(rm);
+				F.cw_toNextCol(ldA);
 			}
 		}
 
@@ -724,7 +725,7 @@ namespace math {
 			auto*const pAE = A.colDataAsVec(RCR.colEnd);
 			pVec += RCR.colBegin;
 			const numel_cnt_t rc = A.rows();
-			while (pA != pAE) {//#DIDNT_VECTORIZE
+			while (pA != pAE) {
 				const auto pC = pA;
 				pA += rc;
 				const auto v = *pVec++;
@@ -757,7 +758,7 @@ namespace math {
 			//TODO: for some algorithms and datasizes it may be highly beneficial to make smart partitioning, that takes into account
 			//CPU cache size (will probably require more than workers_count() call to worker function, but each call will run significanly
 			// faster, due to correct cache use)
-			m_threads.run([&A, &F{ Func }](const par_range_t& pr) {
+			m_threads.run([&A, &F{ Func }](const par_range_t& pr) noexcept{
 				const auto colBeg = static_cast<vec_len_t>(pr.offset());
 				F(rowcol_range(A, colBeg, colBeg + static_cast<vec_len_t>(pr.cnt())));// , pr.tid());
 				//#note we mustn't forward back to LambdaF here, because current lambda is called by a several threads simultaneously
@@ -766,13 +767,13 @@ namespace math {
 		}		
 
 		template<typename VT, typename LambdaF>
-		nntl_probably_force_inline void _processMtx_cw(const smatrix<VT>& A, LambdaF&& Func)noexcept {
-			_do_processMtx_cw(A, ::std::forward<LambdaF>(Func), A.cols());
+		nntl_probably_force_inline void _processMtx_cw(const smatrix<VT>& A, LambdaF&& Func, const bool bIgnoreBias=false)noexcept {
+			get_self()._do_processMtx_cw(A, ::std::forward<LambdaF>(Func), A.cols(bIgnoreBias));
 		}
 
 		template<typename VT, typename LambdaF>
 		nntl_probably_force_inline void _processMtx_cw_nb(const smatrix<VT>& A, LambdaF&& Func)noexcept {
-			_do_processMtx_cw(A, ::std::forward<LambdaF>(Func), A.cols_no_bias());
+			get_self()._processMtx_cw(A, ::std::forward<LambdaF>(Func), true);
 		}
 
 		//max mem required for _processMtx_cw() with 4+ args to process matrix A
@@ -809,8 +810,8 @@ namespace math {
 			//TODO: for some algorithms and datasizes it may be highly beneficial to make smart partitioning, that takes into account
 			//CPU cache size (will probably require more than workers_count() calls to worker function, but each call will run significanly
 			// faster, due to correct cache use)
-			//m_threads.run([&A, pTmpMem, rm, F{ ::std::forward<LambdaF>(Func) }](const par_range_t& pr) {
-			m_threads.run([&A, pTmpMem, rm, &F{ Func }](const par_range_t& pr) {
+			//m_threads.run([&A, pTmpMem, rm, F{ ::std::forward<LambdaF>(Func) }](const par_range_t& pr) noexcept{
+			m_threads.run([&A, pTmpMem, rm, &F{ Func }](const par_range_t& pr) noexcept{
 				const auto colBeg = static_cast<vec_len_t>(pr.offset());
 				auto pVec = pTmpMem + smatrix<VT>::sNumel(rm, pr.tid());
 				//::std::forward<LambdaF>(F)(rowcol_range(A, colBeg, colBeg + static_cast<vec_len_t>(pr.cnt())), pVec);
@@ -855,8 +856,8 @@ namespace math {
 			//TODO: for some algorithms and datasizes it may be highly beneficial to make smart partitioning, that takes into account
 			//CPU cache size (will probably require more than workers_count() call to worker function, but each call will run significanly
 			// faster, due to correct cache use)
-			//m_threads.run([&A, pMainVec, pScndVec, rm, F{ ::std::forward<LambdaF>(Func) }](const par_range_t& pr) {
-			m_threads.run([&A, pMainVec, pScndVec, rm, &F{ Func }](const par_range_t& pr) {
+			//m_threads.run([&A, pMainVec, pScndVec, rm, F{ ::std::forward<LambdaF>(Func) }](const par_range_t& pr) noexcept{
+			m_threads.run([&A, pMainVec, pScndVec, rm, &F{ Func }](const par_range_t& pr) noexcept{
 				const auto _tmpElmOffset = smatrix<VT>::sNumel(rm, pr.tid());
 				auto pVec = pMainVec + _tmpElmOffset;
 				auto pSVec = pScndVec + _tmpElmOffset;
@@ -877,14 +878,12 @@ namespace math {
 		// Rowwise processing
 		//LambdaF is void (*Func) (const rowcol_range& RCR)
 		template<typename MtxT, typename LambdaF>
-		nntl_probably_force_inline void _processMtx_rw(MtxT& A, LambdaF&& Func)noexcept {
+		nntl_probably_force_inline void _processMtx_rw(MtxT& A, LambdaF&& Func, const bool bIgnoreBias = false)noexcept {
 			NNTL_ASSERT(!A.empty() && A.numel() > 0);
-			//m_threads.run([&A, F{ ::std::forward<LambdaF>(Func) }](const par_range_t& pr) {
-			m_threads.run([&A, &F{ Func }](const par_range_t& pr) {
+			m_threads.run([&A, &F{ Func }](const par_range_t& pr) noexcept{
 				const auto ofs = static_cast<vec_len_t>(pr.offset());
-				//::std::forward<LambdaF>(F)(rowcol_range(ofs, ofs + static_cast<vec_len_t>(pr.cnt()), A));
 				F(rowcol_range(ofs, ofs + static_cast<vec_len_t>(pr.cnt()), A));
-			}, A.rows());
+			}, A.rows(bIgnoreBias));
 		}
 
 	public:
@@ -914,7 +913,7 @@ namespace math {
 		}
 		real_t ewSumProd_mt(const realmtx_t& A, const realmtx_t& B)noexcept {
 			NNTL_ASSERT(!A.empty() && !B.empty() && B.size() == A.size());
-			return m_threads.reduce([&A, &B, this](const par_range_t& pr)->reduce_data_t {
+			return m_threads.reduce([&A, &B, this](const par_range_t& pr)noexcept->reduce_data_t {
 				return converter_reduce_data_tpl<real_t>::to(
 					get_self()._iewSumProd_st(A, B, elms_range(pr))
 				);
@@ -945,7 +944,7 @@ namespace math {
 		}
 		real_t ewSumSquares_mt(const realmtx_t& A)noexcept {
 			NNTL_ASSERT(!A.empty());
-			return m_threads.reduce([pA = A.data(), this](const par_range_t& pr)->reduce_data_t {
+			return m_threads.reduce([pA = A.data(), this](const par_range_t& pr)noexcept->reduce_data_t {
 				return converter_reduce_data_tpl<real_t>::to(
 					get_self()._iewSumSquares_st(pA, elms_range(pr))
 				);
@@ -962,7 +961,7 @@ namespace math {
 			return get_self()._iewSumSquares_st(pA, pER ? *pER : elms_range(0, n));
 		}
 		real_t ewSumSquares_mt(const real_t* pA, const numel_cnt_t n)noexcept {
-			return m_threads.reduce([pA, this](const par_range_t& pr)->reduce_data_t {
+			return m_threads.reduce([pA, this](const par_range_t& pr)noexcept->reduce_data_t {
 				return converter_reduce_data_tpl<real_t>::to(
 					get_self()._iewSumSquares_st(pA, elms_range(pr))
 				);
@@ -980,7 +979,7 @@ namespace math {
 		}
 		real_t ewSumSquares_mt_ns(const realmtx_t& A)noexcept {
 			NNTL_ASSERT(!A.empty());
-			return m_threads.reduce([pA = A.data(), this](const par_range_t& pr)->reduce_data_t {
+			return m_threads.reduce([pA = A.data(), this](const par_range_t& pr)noexcept->reduce_data_t {
 				return converter_reduce_data_tpl<real_t>::to(
 					get_self()._iewSumSquares_st_ns(pA, elms_range(pr))
 				);
@@ -997,7 +996,7 @@ namespace math {
 			return get_self()._iewSumSquares_st_ns(pA, pER ? *pER : elms_range(0, n));
 		}
 		real_t ewSumSquares_mt_ns(const real_t* pA, const numel_cnt_t n)noexcept {
-			return m_threads.reduce([pA, this](const par_range_t& pr)->reduce_data_t {
+			return m_threads.reduce([pA, this](const par_range_t& pr)noexcept->reduce_data_t {
 				return converter_reduce_data_tpl<real_t>::to(
 					get_self()._iewSumSquares_st_ns(pA, elms_range(pr))
 				);
@@ -1023,7 +1022,7 @@ namespace math {
 
 		template<bool bLowerTriangl, bool bNumStab, typename _T>
 		_T ewSumSquaresTriang_mt(const smatrix<_T>& A)noexcept {
-			return m_threads.reduce([&A, this](const par_range_t& pr)->reduce_data_t {
+			return m_threads.reduce([&A, this](const par_range_t& pr)noexcept->reduce_data_t {
 				return converter_reduce_data_tpl<real_t>::to(
 					get_self()._iewSumSquaresTriang_st<bLowerTriangl, bNumStab>(A, elms_range(pr))
 				);
@@ -1042,6 +1041,7 @@ namespace math {
 		// Matrix RowWise operations
 		//////////////////////////////////////////////////////////////////////////
 		// divide each matrix A row by a corresponding vector d element, A(i,:) = A(i,:) / d(i)
+		// #TODO: preprocess vector pDiv = 1/pDiv and then call mrwMulByVec
 		void mrwDivideByVec(realmtx_t& A, const real_t*const pDiv)noexcept {
 			if (A.numel() < Thresholds_t::mrwDivideByVec) {
 				get_self().mrwDivideByVec_st(A, pDiv);
@@ -1068,13 +1068,13 @@ namespace math {
 		}		
 		void mrwDivideByVec_mt_cw(realmtx_t& A, const real_t*const pDiv)noexcept {
 			NNTL_ASSERT(!A.empty() && A.numel() > 0 && pDiv);
-			_processMtx_cw(A, [&A, pDiv, this](const rowcol_range& RCR){//, const thread_id_t _tid) {
+			_processMtx_cw(A, [&A, pDiv, this](const rowcol_range& RCR)noexcept {//, const thread_id_t _tid) {
 				get_self().mrwDivideByVec_st(A, pDiv, &RCR);
 			});
 		}
 		void mrwDivideByVec_mt_rw(realmtx_t& A, const real_t*const pDiv)noexcept {
 			NNTL_ASSERT(!A.empty() && A.numel() > 0 && pDiv);
-			_processMtx_rw(A, [&A, pDiv, this](const rowcol_range& RCR) {
+			_processMtx_rw(A, [&A, pDiv, this](const rowcol_range& RCR)noexcept {
 				get_self().mrwDivideByVec_st(A, pDiv, &RCR);
 			});
 		}
@@ -1106,12 +1106,12 @@ namespace math {
 		}
 		void mrwMulByVec_mt_cw(realmtx_t& A, const real_t*const pMul)noexcept {
 			NNTL_ASSERT(!A.empty() && A.numel() > 0 && pMul);
-			_processMtx_cw(A, [&A, pMul, this](const rowcol_range& RCR) {//, const thread_id_t _tid) {
+			_processMtx_cw(A, [&A, pMul, this](const rowcol_range& RCR)noexcept {//, const thread_id_t _tid) {
 				get_self().mrwMulByVec_st(A, pMul, &RCR);
 			});
 		}
 		void mrwMulByVec_mt_rw(realmtx_t& A, const real_t*const pMul)noexcept {
-			_processMtx_rw(A, [&A, pMul, this](const rowcol_range& RCR) {
+			_processMtx_rw(A, [&A, pMul, this](const rowcol_range& RCR)noexcept {
 				get_self().mrwMulByVec_st(A, pMul, &RCR);
 			});
 		}
@@ -1152,13 +1152,13 @@ namespace math {
 		template<typename MtxValueT, typename VecValueT>
 		void mrwCountZeros_mt_cw(const smatrix<MtxValueT>& A, VecValueT*const pVec)noexcept {
 			NNTL_ASSERT(!A.empty() && A.numel() > 0 && pVec);
-			_processMtx_cw(A, [&A, pVec, this](const rowcol_range& RCR) {//, const thread_id_t _tid) {
+			_processMtx_cw(A, [&A, pVec, this](const rowcol_range& RCR)noexcept {//, const thread_id_t _tid) {
 				get_self().mrwCountZeros_st(A, pVec, &RCR);
 			});
 		}
 		template<typename MtxValueT, typename VecValueT>
 		void mrwCountZeros_mt_rw(const smatrix<MtxValueT>& A, VecValueT*const pVec)noexcept {
-			_processMtx_rw(A, [&A, pVec, this](const rowcol_range& RCR) {
+			_processMtx_rw(A, [&A, pVec, this](const rowcol_range& RCR)noexcept {
 				get_self().mrwCountZeros_st(A, pVec, &RCR);
 			});
 		}*/
@@ -1283,10 +1283,10 @@ namespace math {
 
 		void mrwIdxsOfMax_mt_cw(const realmtx_t& A, vec_len_t*const pDest)noexcept {
 			_processMtx_cw<vec_len_t>(A, Thresholds_t::mrwIdxsOfMax_ColsPerThread
-				, [&A, this](const rowcol_range& RCR, real_t*const pMax, vec_len_t*const pIdxsVec)
+				, [&A, this](const rowcol_range& RCR, real_t*const pMax, vec_len_t*const pIdxsVec)noexcept
 			{
 				get_self().mrwIdxsOfMax_st(A, pIdxsVec, pMax, &RCR);
-			}, [pDest, this](realmtx_t& fin, vec_len_t*const pIdxsStor) {
+			}, [pDest, this](realmtx_t& fin, vec_len_t*const pIdxsStor)noexcept {
 				//now we should gather temporary max'es into the final max'es&indexes
 				const auto pMaxStor = fin.data();
 				const auto _elmsCnt = fin.numel();
@@ -1335,7 +1335,7 @@ namespace math {
 
 			//now we may run max calculation in parallel for each column-set into pMaxStor and pIdxsStor
 			auto pMD = A.data();
-			m_threads.run([rm, pMaxStor, pIdxsStor, pMD](const par_range_t& pr) {
+			m_threads.run([rm, pMaxStor, pIdxsStor, pMD](const par_range_t& pr) noexcept{
 				const auto _tid = pr.tid();
 				const auto _tmpElmOffset = realmtx_t::sNumel(rm, _tid);
 				auto pTMax = pMaxStor + _tmpElmOffset;
@@ -1391,7 +1391,7 @@ namespace math {
 		void mrwIdxsOfMax_mt_rw(const realmtx_t& A, vec_len_t*const pDest)noexcept {
 			NNTL_ASSERT(!A.empty() && A.numel() > 0 && pDest);
 			const auto pMax = get_self()._istor_alloc(A.rows());
-			_processMtx_rw(A, [&A, pDest, pMax, this](const rowcol_range& RCR) {
+			_processMtx_rw(A, [&A, pDest, pMax, this](const rowcol_range& RCR)noexcept {
 				NNTL_ASSERT(RCR.colBegin == 0 && RCR.colEnd == A.cols());
 				get_self().mrwIdxsOfMax_st_rw(A, pDest, pMax, &RCR);
 			});
@@ -1446,7 +1446,7 @@ namespace math {
 		}
 		void mrwMax_mt_rw(const realmtx_t& A, real_t*const pMax)noexcept {
 			NNTL_ASSERT(!A.empty() && A.numel() > 0 && pMax);
-			_processMtx_rw(A, [&A, pMax, this](const rowcol_range& RCR) {
+			_processMtx_rw(A, [&A, pMax, this](const rowcol_range& RCR)noexcept {
 				get_self().mrwMax_st(A, pMax, &RCR);
 			});
 		}
@@ -1454,9 +1454,9 @@ namespace math {
 		//code is ok, just is not used. Note, that it requires _processMtx_cw_needTempMem() preallocated!
 		/*void mrwMax_mt_cw(const realmtx_t& A, real_t*const pMax)noexcept {
 			NNTL_ASSERT(!A.empty() && A.numel() > 0 && pMax);
-			_processMtx_cw(A, Thresholds_t::mrwMax_mt_cw_ColsPerThread, [&A, this](const rowcol_range& RCR, real_t*const pVec) {
+			_processMtx_cw(A, Thresholds_t::mrwMax_mt_cw_ColsPerThread, [&A, this](const rowcol_range& RCR, real_t*const pVec)noexcept {
 				get_self().mrwMax_st(A, pVec, &RCR);
-			}, [pMax, this](const realmtx_t& fin) {
+			}, [pMax, this](const realmtx_t& fin) noexcept{
 				get_self().mrwMax_st(fin, pMax);
 			});
 		}*/
@@ -1519,7 +1519,7 @@ namespace math {
 		}
 		void mrwSum_ip_mt_rw(realmtx_t& A)noexcept {
 			NNTL_ASSERT(!A.empty() && A.numel() > 0);
-			_processMtx_rw(A, [&A, this](const rowcol_range& RCR){
+			_processMtx_rw(A, [&A, this](const rowcol_range& RCR)noexcept {
 				get_self().mrwSum_ip_st(A, &RCR);
 			});
 		}
@@ -1570,16 +1570,16 @@ namespace math {
 		}
 		void mrwSum_mt_rw(const realmtx_t& A, real_t*const pVec)noexcept {
 			NNTL_ASSERT(!A.empty() && A.numel() > 0 && A.cols() > 1 && pVec);
-			_processMtx_rw(A, [&A, pVec, this](const rowcol_range& RCR) {
+			_processMtx_rw(A, [&A, pVec, this](const rowcol_range& RCR)noexcept {
 				get_self().mrwSum_st(A, pVec, &RCR);
 			});
 		}
 		void mrwSum_mt_cw(const realmtx_t& A, real_t*const pVec)noexcept {
 			NNTL_ASSERT(!A.empty() && A.numel() > 0 && A.cols() > Thresholds_t::mrwSum_mt_cw_colsPerThread && pVec);
 			//will sum partial matrices into temp memory, and then sum it to pVec
-			_processMtx_cw(A, Thresholds_t::mrwSum_mt_cw_colsPerThread, [&A, this](const rowcol_range& RCR, real_t*const pVec) {
+			_processMtx_cw(A, Thresholds_t::mrwSum_mt_cw_colsPerThread, [&A, this](const rowcol_range& RCR, real_t*const pVec)noexcept {
 				get_self().mrwSum_st(A, pVec, &RCR);
-			}, [pVec, this](const realmtx_t& fin) {
+			}, [pVec, this](const realmtx_t& fin)noexcept {
 				get_self().mrwSum_st(fin, pVec);
 			});
 		}
@@ -1705,7 +1705,7 @@ namespace math {
 			if (A.cols() == 1) {
 				memcpy(pVec, A.data(), A.byte_size());
 			} else {
-				_processMtx_rw(A, [&A, pVec, this](const rowcol_range& RCR) {
+				_processMtx_rw(A, [&A, pVec, this](const rowcol_range& RCR)noexcept {
 					get_self().mrwBinaryOR_st(A, pVec, &RCR);
 				});
 			}
@@ -1714,9 +1714,9 @@ namespace math {
 		void mrwBinaryOR_mt_cw(const smatrix<BaseT>& A, BaseT*const pVec)noexcept {
 			NNTL_ASSERT(!A.empty() && A.numel() > 0 && A.cols() > Thresholds_t::mrwBinaryOR_mt_cw_colsPerThread && pVec);
 			//will sum partial matrices into temp memory, and then sum it to pVec
-			_processMtx_cw(A, Thresholds_t::mrwBinaryOR_mt_cw_colsPerThread, [&A, this](const rowcol_range& RCR, BaseT*const pVec) {
+			_processMtx_cw(A, Thresholds_t::mrwBinaryOR_mt_cw_colsPerThread, [&A, this](const rowcol_range& RCR, BaseT*const pVec)noexcept {
 				get_self().mrwBinaryOR_st(A, pVec, &RCR);
-			}, [pVec, this](const smatrix<BaseT>& fin) {
+			}, [pVec, this](const smatrix<BaseT>& fin)noexcept {
 				get_self().mrwBinaryOR_st(fin, pVec);
 			});
 		}
@@ -2000,7 +2000,7 @@ namespace math {
 			NNTL_ASSERT(srcCols.rows() == dest.rows());
 			NNTL_ASSERT(dest.cols() == ::std::accumulate(pColSpec, pColSpec + srcCols.cols(), vec_len_t(0)));
 
-			m_threads.run([&srcCols, &dest, pColSpec, this](const par_range_t& pr) {
+			m_threads.run([&srcCols, &dest, pColSpec, this](const par_range_t& pr) noexcept{
 				const auto colBeg = static_cast<vec_len_t>(pr.offset());
 				get_self().mCloneCols_st(srcCols, dest, pColSpec, colBeg, colBeg + static_cast<vec_len_t>(pr.cnt()));
 			},dest.cols());
@@ -2037,7 +2037,7 @@ namespace math {
 			NNTL_ASSERT(1 == srcCol.cols());
 			NNTL_ASSERT(srcCol.rows() == dest.rows());
 
-			m_threads.run([&srcCol, &dest, this](const par_range_t& pr) {
+			m_threads.run([&srcCol, &dest, this](const par_range_t& pr) noexcept{
 				const auto colBeg = static_cast<vec_len_t>(pr.offset());
 				get_self().mCloneCol_st(srcCol, dest, colBeg, colBeg + static_cast<vec_len_t>(pr.cnt()));
 			}, dest.cols());
@@ -2127,7 +2127,7 @@ namespace math {
 			NNTL_ASSERT(!src.emulatesBiases() || src.test_biases_strict());
 			NNTL_ASSERT(!dest.emulatesBiases() || dest.test_biases_strict());
 
-			m_threads.run([&src, &dest, this](const par_range_t& pr) {
+			m_threads.run([&src, &dest, this](const par_range_t& pr) noexcept{
 				const auto colBeg = static_cast<vec_len_t>(pr.offset());
 				get_self().mTilingRoll_seqread_st(src, dest, colBeg, colBeg + static_cast<vec_len_t>(pr.cnt()));
 			}, src.cols_no_bias());
@@ -2192,7 +2192,7 @@ namespace math {
 			NNTL_ASSERT(!src.emulatesBiases() || src.test_biases_strict());
 			NNTL_ASSERT(!dest.emulatesBiases() || dest.test_biases_strict());
 
-			m_threads.run([&src, &dest, this](const par_range_t& pr) {
+			m_threads.run([&src, &dest, this](const par_range_t& pr) noexcept{
 				const auto colBeg = static_cast<vec_len_t>(pr.offset());
 				get_self().mTilingRoll_seqwrite_st(src, dest, colBeg, colBeg + static_cast<vec_len_t>(pr.cnt()));
 			}, dest.cols_no_bias());
@@ -2287,7 +2287,7 @@ namespace math {
 			//NNTL_ASSERT(!dest.emulatesBiases() || dest.test_biases_strict());
 			NNTL_ASSERT(!src.emulatesBiases() || src.test_biases_strict());
 
-			m_threads.run([&dest, &src, this](const par_range_t& pr) {
+			m_threads.run([&dest, &src, this](const par_range_t& pr) noexcept{
 				const auto colBeg = static_cast<vec_len_t>(pr.offset());
 				get_self().mTilingUnroll_seqwrite_st(src, dest, colBeg, colBeg + static_cast<vec_len_t>(pr.cnt()));
 			}, dest.cols_no_bias());
@@ -2351,7 +2351,7 @@ namespace math {
 			NNTL_ASSERT(!src.emulatesBiases() || src.test_biases_strict());
 			//NNTL_ASSERT(!dest.emulatesBiases() || dest.test_biases_strict());
 
-			m_threads.run([&src, &dest, this](const par_range_t& pr) {
+			m_threads.run([&src, &dest, this](const par_range_t& pr) noexcept{
 				const auto colBeg = static_cast<vec_len_t>(pr.offset());
 				get_self().mTilingUnroll_seqread_st(src, dest, colBeg, colBeg + static_cast<vec_len_t>(pr.cnt()));
 			}, src.cols_no_bias());

@@ -190,14 +190,14 @@ namespace math {
 
 		//////////////////////////////////////////////////////////////////////////
 		//inplace elementwise multiplication A = b.*A
-		void evMulC_ip(realmtx_t& A, const real_t& b)noexcept {
-			base_class_t::evMulC_ip(A, b);
-		}
+// 		void evMulC_ip(realmtx_t& A, const real_t& b)noexcept {
+// 			base_class_t::evMulC_ip(A, b);
+// 		}
 
 		//inplace elementwise multiplication A(no_bias) = b.*A(no_bias)
-		void evMulC_ip_nb(realmtx_t& A, const real_t& b)noexcept {
-			base_class_t::evMulC_ip_nb(A, b);
-		}
+// 		void evMulC_ip_nb(realmtx_t& A, const real_t& b)noexcept {
+// 			base_class_t::evMulC_ip_nb(A, b);
+// 		}
 
 		//////////////////////////////////////////////////////////////////////////
 		//inplace elementwise multiplication A = A.*B

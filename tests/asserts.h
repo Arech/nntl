@@ -38,15 +38,6 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include <numeric>
 
-//#BUGBUG there must be no global typedefs!!!!
-//typedef nntl::d_interfaces::real_t real_t;
-//typedef nntl::math::smatrix<real_t> realmtx_t;
-//typedef nntl::math::smatrix_deform<real_t> realmtxdef_t;
-//typedef typename ::nntl::math::smatrix_td::vec_len_t vec_len_t;
-//typedef typename ::nntl::math::smatrix_td::numel_cnt_t numel_cnt_t;
-//typedef ::nntl::vec_len_t vec_len_t;
-//typedef ::nntl::numel_cnt_t numel_cnt_t;
-
 #define ASSERT_SUPPORTED_REAL_T(T) static_assert(::std::is_same<T,float>::value || ::std::is_same<T,double>::value, \
 "Only float or double supported for type=" #T);
 
@@ -87,9 +78,11 @@ inline void _ASSERT_REALMTX_NEAR(const nntl::math::smatrix<_T>& c1, const nntl::
 	, const double eps, const ::nntl::thread_id_t ti = -1) noexcept
 {
 	if (ti >= 0) {
+		ASSERT_EQ(c1.bBatchInRow(), c2.bBatchInRow()) << "(threads cnt " << ti << ")" << descr;
 		ASSERT_EQ(c1.size(), c2.size()) << "(threads cnt " << ti << ")" << descr;
 		ASSERT_EQ(c1.emulatesBiases(), c2.emulatesBiases()) << "(threads cnt " << ti << ")" << descr;
 	} else {
+		ASSERT_EQ(c1.bBatchInRow(), c2.bBatchInRow()) << descr;
 		ASSERT_EQ(c1.size(), c2.size()) << descr;
 		ASSERT_EQ(c1.emulatesBiases(), c2.emulatesBiases()) << descr;
 	}
@@ -118,7 +111,9 @@ void _ASSERT_MTX_EQ(const BaseT& c1, const BaseT& c2, const char* descr = "") no
 
 template<typename BaseT>
 ::std::enable_if_t<::std::is_integral<BaseT>::value>
-	_ASSERT_MTX_EQ(const nntl::math::smatrix<BaseT>& c1, const nntl::math::smatrix<BaseT>& c2, const char* descr = "") noexcept {
+	_ASSERT_MTX_EQ(const nntl::math::smatrix<BaseT>& c1, const nntl::math::smatrix<BaseT>& c2, const char* descr = "") noexcept
+{
+	ASSERT_EQ(c1.bBatchInRow(), c2.bBatchInRow()) << descr;
 	ASSERT_EQ(c1.size(), c2.size()) << descr;
 	ASSERT_EQ(c1.emulatesBiases(), c2.emulatesBiases()) << descr;
 	const auto p1 = c1.data(), p2 = c2.data();
@@ -130,6 +125,7 @@ template<typename BaseT>
 
 template<>
 inline void _ASSERT_MTX_EQ(const nntl::math::smatrix<float>& c1, const nntl::math::smatrix<float>& c2, const char* descr) noexcept {
+	ASSERT_EQ(c1.bBatchInRow(), c2.bBatchInRow()) << descr;
 	ASSERT_EQ(c1.size(), c2.size()) << descr;
 	ASSERT_EQ(c1.emulatesBiases(), c2.emulatesBiases()) << descr;
 	const auto p1 = c1.data(), p2 = c2.data();
@@ -140,6 +136,7 @@ inline void _ASSERT_MTX_EQ(const nntl::math::smatrix<float>& c1, const nntl::mat
 }
 template<>
 inline void _ASSERT_MTX_EQ(const nntl::math::smatrix<double>& c1, const nntl::math::smatrix<double>& c2, const char* descr) noexcept {
+	ASSERT_EQ(c1.bBatchInRow(), c2.bBatchInRow()) << descr;
 	ASSERT_EQ(c1.size(), c2.size()) << descr;
 	ASSERT_EQ(c1.emulatesBiases(), c2.emulatesBiases()) << descr;
 	const auto p1 = c1.data(), p2 = c2.data();

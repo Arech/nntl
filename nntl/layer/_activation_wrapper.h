@@ -43,7 +43,7 @@ namespace nntl {
 		//////////////////////////////////////////////////////////////////////////
 		// _act_wrap is a class that glues together activation function implementation and all previous layer-related machinery
 		// 
-		// If not mentioned explicitly in a function comment, any member function of the class #supportsBatchesInRows (at least it should)
+		// If not mentioned explicitly in a function comment, any member function of the class #supportsBatchInRow (at least it should)
 		template<typename FinalPolymorphChild, typename InterfacesT, typename ActivFuncT>
 		class _act_wrap
 			: public _act_stor<FinalPolymorphChild, InterfacesT>
@@ -120,7 +120,7 @@ namespace nntl {
 
 		protected:
 			bool _activation_init_weights(realmtx_t& weights) noexcept {
-				NNTL_ASSERT(!weights.emulatesBiases() && !weights.bBatchesInRows());
+				NNTL_ASSERT(!weights.emulatesBiases() && !weights.bBatchInRow());
 				return Weights_Init_t::init(weights, get_iRng(), get_iMath());
 			}
 

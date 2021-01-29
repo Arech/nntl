@@ -38,7 +38,7 @@ namespace nntl {
 namespace _impl {
 
 	//_act_stor is a base class that handles m_activations matrix
-	// If not mentioned explicitly in a function comment, any member function of the class #supportsBatchesInRows (at least it should)
+	// If not mentioned explicitly in a function comment, any member function of the class #supportsBatchInRow (at least it should)
 	template<typename FinalPolymorphChild, typename InterfacesT>
 	class _act_stor : public _layer_base<FinalPolymorphChild, InterfacesT> {
 	private:

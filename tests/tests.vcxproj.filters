@@ -348,9 +348,6 @@
     <ClInclude Include="..\nntl\weights_init\LsuvExt.h">
       <Filter>nntl\weight_init</Filter>
     </ClInclude>
-    <ClInclude Include="..\nntl\weights_init\_procedural_base.h">
-      <Filter>nntl\weight_init</Filter>
-    </ClInclude>
     <ClInclude Include="..\nntl\utils\dataHolder.h">
       <Filter>nntl\utils</Filter>
     </ClInclude>
@@ -506,6 +503,15 @@
     </ClInclude>
     <ClInclude Include="..\nntl\train_data\_td_norm.h">
       <Filter>nntl\train_data</Filter>
+    </ClInclude>
+    <ClInclude Include="..\nntl\train_data\_td_base.h">
+      <Filter>nntl\train_data</Filter>
+    </ClInclude>
+    <ClInclude Include="..\nntl\train_data\transf_train_data.h">
+      <Filter>nntl\train_data</Filter>
+    </ClInclude>
+    <ClInclude Include="..\nntl\utils\variant.h">
+      <Filter>nntl\utils</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

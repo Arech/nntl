@@ -38,7 +38,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 namespace nntl {
 
 	//For dropout combine with LDo
-	// _LFC supports #supportsBatchesInRows only for previous layer activations.
+	// _LFC supports #supportsBatchInRow only for previous layer activations.
 	// To implement the feature for this layer requires either stripping of a bias row in column-major mode
 	// or reimplementing _activation_bprop() so it'd work columnwise on all but the last (bias) row and
 	// output result into different matrix. Too much work for now.
@@ -66,7 +66,7 @@ namespace nntl {
 		// layer weight matrix: <m_neurons_cnt rows> x <m_incoming_neurons_cnt +1(bias)>,
 		// i.e. weights for individual neuron are stored row-wise (that's necessary to make fast cut-off of bias-related weights
 		// during backpropagation  - and that's the reason, why is it deformable)
-		// Note that bBatchesInRows() property must be set to false (the default value)
+		// Note that bBatchInRow() property must be set to false (the default value)
 		realmtxdef_t m_weights;
 		
 		//obsolete: we may use dLdA for that
@@ -152,7 +152,7 @@ namespace nntl {
 		bool set_weights(realmtx_t&& W)noexcept {
 			drop_weights();
 
-			if (W.empty() || W.emulatesBiases() || W.bBatchesInRows()
+			if (W.empty() || W.emulatesBiases() || W.bBatchInRow()
 				|| (W.cols() != get_incoming_neurons_cnt() + 1) || W.rows() != get_neurons_cnt())
 			{
 				NNTL_ASSERT(!"Wrong weight matrix passed!");
@@ -168,7 +168,7 @@ namespace nntl {
 		bool reinit_weights()noexcept {
 			NNTL_ASSERT(m_bWeightsInitialized || !"reinit_weights() can only be called after init()!");
 			NNTL_ASSERT((!m_weights.empty() && mtx_size_t(get_neurons_cnt(), get_incoming_neurons_cnt() + 1) == m_weights.size()
-				&& m_weights.bBatchesInColumns()) || !"WTF?! Wrong state of weight matrix");
+				&& m_weights.bBatchInColumn()) || !"WTF?! Wrong state of weight matrix");
 			return _activation_init_weights(m_weights);
 		}
 
@@ -193,7 +193,7 @@ namespace nntl {
 			NNTL_ASSERT(!m_weights.emulatesBiases());
 			if (m_bWeightsInitialized) {
 				//just double check everything is fine
-				NNTL_ASSERT(!m_weights.empty() && m_weights.bBatchesInColumns());
+				NNTL_ASSERT(!m_weights.empty() && m_weights.bBatchInColumn());
 				//prior weight initialization implies you don't want them to be reinitialized silently
 				if (mtx_size_t(neurons_cnt, get_self().get_incoming_neurons_cnt() + 1) != m_weights.size()) {
 					NNTL_ASSERT(!"WTF? Wrong weight matrix!");
@@ -261,7 +261,7 @@ namespace nntl {
 
 	protected:
 		//help compiler to isolate fprop functionality from the specific of previous layer
-		// #supportsBatchesInRows for prevActivations as well as m_activations
+		// #supportsBatchInRow for prevActivations as well as m_activations
 		void _lfc_fprop(const realmtx_t& prevActivations)noexcept {
 			NNTL_ASSERT(prevActivations.test_biases_strict());
 			NNTL_ASSERT_MTX_NO_NANS(prevActivations);
@@ -284,7 +284,7 @@ namespace nntl {
 			_iI.fprop_makePreActivations(m_weights, prevActivations);
 			
 			//iM.mMulABt_Cnb(prevActivations, m_weights, m_activations);
-			//note, mMul_prevAct_weights_2_act() supports bBatchesInRows() for prevActivations and doesn't support it for m_activations
+			//note, mMul_prevAct_weights_2_act() supports bBatchInRow() for prevActivations and doesn't support it for m_activations
 			iM.mMul_prevAct_weights_2_act(prevActivations, m_weights, m_activations);
 
 			_iI.fprop_preactivations(m_activations);
@@ -321,21 +321,21 @@ namespace nntl {
 			NNTL_ASSERT(get_common_data().get_cur_batch_size() == prevAct.batch_size()
 				&& get_incoming_neurons_cnt() == prevAct.sample_size());
 			NNTL_ASSERT(bPrevLayerIsInput || dLdAPrev.size() == prevAct.size_no_bias());//in vanilla simple BP we shouldn't calculate dLdAPrev for the first layer			
-			NNTL_ASSERT(bPrevLayerIsInput || dLdAPrev.bBatchesInRows() == prevAct.bBatchesInRows());
+			NNTL_ASSERT(bPrevLayerIsInput || dLdAPrev.bBatchInRow() == prevAct.bBatchInRow());
 
 			_iI.bprop_finaldLdA(dLdA);
 
 			_iI.bprop_predAdZ(m_activations);
 			
 			//dLdZ aliases m_activations (biases skipped)
-			// That is the point where the issue with bBatchesInRows() arise. We can't easily strip bias row from
+			// That is the point where the issue with bBatchInRow() arise. We can't easily strip bias row from
 			// each m_activations column in this mode. Therefore leaving the old requirement untouched for now:
-			// bBatchesInRows() MUST be false here.
+			// bBatchInRow() MUST be false here.
 			// Possible future workaround: decrease rows count but leave proper ldim() trick? Need a workaround for 
 			//     _activation_bprop() then, also for softmax, and finally everything else below here, but it would probably work
-			//     in a fastest way possible... Anyway, it's not the main issue now and just having bBatchesInRows() for previous
+			//     in a fastest way possible... Anyway, it's not the main issue now and just having bBatchInRow() for previous
 			//     activations only is fine.
-			NNTL_ASSERT(m_activations.bBatchesInColumns() && dLdA.bBatchesInColumns());
+			NNTL_ASSERT(m_activations.bBatchInColumn() && dLdA.bBatchInColumn());
 			realmtx_t dLdZ(m_activations.data(), m_activations, realmtx_t::tag_noBias());
 
 			auto& iM = get_iMath();

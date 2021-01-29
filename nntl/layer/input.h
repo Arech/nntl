@@ -38,7 +38,7 @@ namespace nntl {
 	//////////////////////////////////////////////////////////////////////////
 	// class to derive from when making final input layer. Need it to propagate correct FinalPolymorphChild to
 	// static polymorphism implementation here and in layer__base
-	// If not mentioned explicitly in a function comment, any member function of the class #supportsBatchesInRows (at least it should)
+	// If not mentioned explicitly in a function comment, any member function of the class #supportsBatchInRow (at least it should)
 	template<typename FinalPolymorphChild, typename Interfaces>
 	class _layer_input 
 		: public m_layer_input

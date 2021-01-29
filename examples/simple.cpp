@@ -76,7 +76,7 @@ TEST(Simple, PlainFFN) {
 
 	// Currently this feature is only supported IFF there's LFC directly on input layer (will add later support for other layers)
 	// Allows to shave off about 10% of time for current datasets due to more efficient algorithm of extracting columns of samples
-	// instead of rows. Note that Y data is still extracted rowwise, b/c of old bBatchesInColumns() layout is still currently
+	// instead of rows. Note that Y data is still extracted rowwise, b/c of old bBatchInColumn() layout is still currently
 	// required by most other code (nnet evaluators/observers and softmax, - softmax not applicable here, just to name it)
 	td.transposeX<d_interfaces::iMath_t>();
 
@@ -135,7 +135,7 @@ TEST(Simple, NotSoPlainFFN) {
 
 	// Currently this feature is only supported IFF there's LFC directly on input layer (will add later support for other layers)
 	// Allows to shave off about 10% of time for current datasets due to more efficient algorithm of extracting columns of samples
-	// instead of rows. Note that Y data is still extracted rowwise, b/c of old bBatchesInColumns() layout is still currently
+	// instead of rows. Note that Y data is still extracted rowwise, b/c of old bBatchInColumn() layout is still currently
 	// required by most other code (nnet evaluators/observers and softmax, - softmax not applicable here, just to name it)
 	td.transposeX<d_interfaces::iMath_t>();
 
@@ -217,7 +217,7 @@ TEST(Simple, NotSoPlainFFN_LRDO) {
 
 	// Currently this feature is only supported IFF there's LFC directly on input layer (will add later support for other layers)
 	// Allows to shave off about 10% of time for current datasets due to more efficient algorithm of extracting columns of samples
-	// instead of rows. Note that Y data is still extracted rowwise, b/c of old bBatchesInColumns() layout is still currently
+	// instead of rows. Note that Y data is still extracted rowwise, b/c of old bBatchInColumn() layout is still currently
 	// required by most other code (nnet evaluators/observers and softmax, - softmax not applicable here, just to name it)
 	td.transposeX<d_interfaces::iMath_t>();
 
@@ -308,7 +308,7 @@ TEST(Simple, NesterovMomentumAndRMSPropOnly) {
 
 	// Currently this feature is only supported IFF there's LFC directly on input layer (will add later support for other layers)
 	// Allows to shave off about 10% of time for current datasets due to more efficient algorithm of extracting columns of samples
-	// instead of rows. Note that Y data is still extracted rowwise, b/c of old bBatchesInColumns() layout is still currently
+	// instead of rows. Note that Y data is still extracted rowwise, b/c of old bBatchInColumn() layout is still currently
 	// required by most other code (nnet evaluators/observers and softmax, - softmax not applicable here, just to name it)
 	td.transposeX<d_interfaces::iMath_t>();
 
@@ -357,7 +357,7 @@ TEST(Simple, NesterovMomentumAndRMSPropOnlyFPMiniBatch) {
 
 	// Currently this feature is only supported IFF there's LFC directly on input layer (will add later support for other layers)
 	// Allows to shave off about 10% of time for current datasets due to more efficient algorithm of extracting columns of samples
-	// instead of rows. Note that Y data is still extracted rowwise, b/c of old bBatchesInColumns() layout is still currently
+	// instead of rows. Note that Y data is still extracted rowwise, b/c of old bBatchInColumn() layout is still currently
 	// required by most other code (nnet evaluators/observers and softmax, - softmax not applicable here, just to name it)
 	td.transposeX<d_interfaces::iMath_t>();
 

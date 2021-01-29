@@ -35,7 +35,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 namespace nntl {
 
-	// _layer_output supports #supportsBatchesInRows only for previous layer activations. There's no particular issue to
+	// _layer_output supports #supportsBatchInRow only for previous layer activations. There's no particular issue to
 	// support it for m_activations, just need to update corresponding iM functions
 	template<typename FinalPolymorphChild, typename ActivFunc, typename GradWorks>
 	class _layer_output 
@@ -146,7 +146,7 @@ namespace nntl {
 		bool set_weights(realmtx_t&& W)noexcept {
 			drop_weights();
 
-			if (W.empty() || W.emulatesBiases() || W.bBatchesInRows()
+			if (W.empty() || W.emulatesBiases() || W.bBatchInRow()
 				|| (W.cols() != get_incoming_neurons_cnt() + 1) || W.rows() != get_neurons_cnt())
 			{
 				NNTL_ASSERT(!"Wrong weight matrix passed!");
@@ -162,7 +162,7 @@ namespace nntl {
 		bool reinit_weights()noexcept {
 			NNTL_ASSERT(m_bWeightsInitialized || !"reinit_weights() can only be called after init()!");
 			NNTL_ASSERT((!m_weights.empty() && mtx_size_t(get_neurons_cnt(), get_incoming_neurons_cnt() + 1) == m_weights.size()
-				&& m_weights.bBatchesInColumns()) || !"WTF?! Wrong state of weight matrix");
+				&& m_weights.bBatchInColumn()) || !"WTF?! Wrong state of weight matrix");
 			return _activation_init_weights(m_weights);
 		}
 
@@ -190,7 +190,7 @@ namespace nntl {
 			NNTL_ASSERT(!m_weights.emulatesBiases());
 			if (m_bWeightsInitialized) {
 				//just double check everything is fine
-				NNTL_ASSERT(!m_weights.empty() && m_weights.bBatchesInColumns());
+				NNTL_ASSERT(!m_weights.empty() && m_weights.bBatchInColumn());
 				//prior weight initialization implies you don't want them to be reinitialized silently
 				if (mtx_size_t(get_neurons_cnt(), get_incoming_neurons_cnt() + 1) != m_weights.size()) {
 					NNTL_ASSERT(!"WTF? Wrong weight matrix!");
@@ -265,7 +265,7 @@ namespace nntl {
 		}
 
 	protected:
-		// #supportsBatchesInRows for prevActivations as well as m_activations
+		// #supportsBatchInRow for prevActivations as well as m_activations
 		void _outp_fprop(const realmtx_t& prevActivations)noexcept {
 			NNTL_ASSERT_MTX_NO_NANS(prevActivations);
 			NNTL_ASSERT(prevActivations.test_biases_strict());
@@ -299,8 +299,8 @@ namespace nntl {
 
 		void _cust_inspect(const realmtx_t&)const noexcept { }
 
-		// #supportsBatchesInRows for prevActivations, data_y and m_activations (iif the dLdZ, obtained from
-		// activation_t::dLdZ() has bBatchesInRows() layout -- need to update other iM func to make it work completely) 
+		// #supportsBatchInRow for prevActivations, data_y and m_activations (iif the dLdZ, obtained from
+		// activation_t::dLdZ() has bBatchInRow() layout -- need to update other iM func to make it work completely) 
 		template<typename YT>
 		unsigned _outp_bprop(const math::smatrix<YT>& data_y, const realmtx_t& prevActivations, const bool bPrevLayerIsInput, realmtx_t& dLdAPrev)noexcept {
 			NNTL_ASSERT(prevActivations.test_biases_strict());
@@ -324,19 +324,19 @@ namespace nntl {
 			NNTL_ASSERT(get_common_data().get_cur_batch_size() == prevActivations.batch_size() 
 				&& get_incoming_neurons_cnt() == prevActivations.sample_size());
 			NNTL_ASSERT(bPrevLayerIsInput || dLdAPrev.size() == prevActivations.size_no_bias());
-			NNTL_ASSERT(bPrevLayerIsInput || dLdAPrev.bBatchesInRows() == prevActivations.bBatchesInRows());
+			NNTL_ASSERT(bPrevLayerIsInput || dLdAPrev.bBatchInRow() == prevActivations.bBatchInRow());
 
 			auto& iM = get_iMath();
 
 			_iI.bprop_predLdZOut(m_activations, data_y);
 			//compute dL/dZ into m_activations. Note that there's no requirement to make layout of dLdZ the same as m_activations, therefore
 			//remembering it to restore later (this is not necessary now, but will be in future)
-			const auto bActBatchesInRows = m_activations.bBatchesInRows();
+			const auto bActBatchesInRows = m_activations.bBatchInRow();
 			_activation_bprop_output(data_y, iM);
 			//now dLdZ is calculated into m_activations
 
 			//#todo: once upgrade finished, remove the following assert
-			NNTL_ASSERT(m_activations.bBatchesInColumns());
+			NNTL_ASSERT(m_activations.bBatchInColumn());
 
 			realmtx_t & dLdZ = m_activations;
 			_iI.bprop_dLdZ(dLdZ);
@@ -354,13 +354,13 @@ namespace nntl {
 				//m_weights.hide_last_col();
 				//iM.mMulAB_C(dLdZ, m_weights, dLdAPrev);
 				//m_weights.restore_last_col();//restore weights back
-				// #TODO support bBatchesInRows for dLdZ!!!
+				// #TODO support bBatchInRow for dLdZ!!!
 				iM.mMul_dLdZ_weights_2_dLdAPrev(dLdZ, m_weights, dLdAPrev);
 			}
 
 			if (get_self().bUpdateWeights()) {
 				dLdAPrev.assert_storage_does_not_intersect(m_dLdW);
-				NNTL_ASSERT(!m_dLdW.emulatesBiases() && m_dLdW.bBatchesInColumns() && m_weights.bBatchesInColumns());
+				NNTL_ASSERT(!m_dLdW.emulatesBiases() && m_dLdW.bBatchInColumn() && m_weights.bBatchInColumn());
 				NNTL_ASSERT(m_dLdW.size() == m_weights.size());
 
 				//NNTL_ASSERT(m_nTiledTimes > 0);
@@ -372,7 +372,7 @@ namespace nntl {
 				// therefore we'll upscale the gradient m_nTiledTimes times.
 				//compute dL/dW = 1/batchsize * (dL/dZ)` * Aprev
 				//iM.mScaledMulAtB_C(real_t(1.) / real_t(dLdZ.rows()), dLdZ, prevActivations, m_dLdW);
-				// #TODO support bBatchesInRows for dLdZ!!!
+				// #TODO support bBatchInRow for dLdZ!!!
 				iM.mMulScaled_dLdZ_prevAct_2_dLdW(real_t(1.) / real_t(dLdZ.rows()), dLdZ, prevActivations, m_dLdW);
 
 				_iI.bprop_dLdW(dLdZ, prevActivations, m_dLdW);
@@ -381,7 +381,7 @@ namespace nntl {
 				get_gradWorks().apply_grad(m_weights, m_dLdW);
 			}
 			//restoring layout possibly changed by dLdZ computation
-			m_activations.set_batchesInRows(bActBatchesInRows);
+			m_activations.set_batchInRow(bActBatchesInRows);
 
 			_iI.bprop_end(dLdAPrev);
 			return 1;
