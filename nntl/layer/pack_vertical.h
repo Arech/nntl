@@ -51,6 +51,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 // to the input of the first layer.
 // 
 #include "_pack_.h"
+#include "_tuple_utils.h"
 #include "../utils.h"
 
 namespace nntl {
@@ -266,10 +267,10 @@ namespace nntl {
 
 		template<typename LLWrapT>
 		unsigned _lpv_bprop(realmtxdef_t& dLdA, realmtxdef_t& dLdAPrev, const realmtx_t& prevAct)noexcept {
-			static constexpr bool bLowerLayerIsInput = is_layer_input<LLWrapT>::value;
+			static constexpr bool bPrevLayerWBprop = is_layer_with_bprop<LLWrapT>::value;
 			NNTL_ASSERT(prevAct.test_biases_strict());
 			NNTL_ASSERT(dLdA.size() == topmost_layer().get_activations().size_no_bias());
-			NNTL_ASSERT(bLowerLayerIsInput || dLdAPrev.size() == prevAct.size_no_bias());
+			NNTL_ASSERT(!bPrevLayerWBprop || dLdAPrev.size() == prevAct.size_no_bias());
 
 			auto& iI = get_iInspect();
 			iI.bprop_begin(get_layer_idx(), dLdA);
@@ -279,7 +280,8 @@ namespace nntl {
 			unsigned mtxIdx = 0;
 			//bool bContBprop = true;
 
-			tuple_utils::for_eachwn_downfullbp(m_layers, [&mtxIdx, &a_dLdA/*, &bContBprop*/](auto& lcur, auto& lprev, const bool)noexcept {
+			//tuple_utils::for_eachwn_downfullbp(m_layers, [&mtxIdx, &a_dLdA/*, &bContBprop*/](auto& lcur, auto& lprev, const bool)noexcept {
+			tuple_utils::for_each_down4bprop(m_layers, [&mtxIdx, &a_dLdA/*, &bContBprop*/](auto& lcur, auto& lprev)noexcept {
 				//if (bContBprop && lcur.bDoBProp()) {
 					const unsigned nextMtxIdx = mtxIdx ^ 1;
 					a_dLdA[nextMtxIdx]->deform_like_no_bias(lprev.get_activations());
@@ -296,9 +298,9 @@ namespace nntl {
 
 			//if (bContBprop && lowmost_layer().bDoBProp()) {
 				const unsigned nextMtxIdx = mtxIdx ^ 1;
-				if (bLowerLayerIsInput) {
-					a_dLdA[nextMtxIdx]->deform(0, 0);
-				} else a_dLdA[nextMtxIdx]->deform_like_no_bias(prevAct);
+				if (bPrevLayerWBprop) {
+					a_dLdA[nextMtxIdx]->deform_like_no_bias(prevAct);
+				} else a_dLdA[nextMtxIdx]->deform(0, 0); 
 				const unsigned bAlternate = lowmost_layer().bprop(*a_dLdA[mtxIdx], LLWrapT(prevAct), *a_dLdA[nextMtxIdx]);
 				NNTL_ASSERT(1 == bAlternate || 0 == bAlternate);
 				mtxIdx ^= bAlternate;

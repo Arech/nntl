@@ -93,7 +93,7 @@ namespace nntl {
 			}
 
 			//////////////////////////////////////////////////////////////////////////
-			ErrorCode init(_layer_init_data_t& lid, real_t* pNewActivationStorage = nullptr)noexcept {
+			ErrorCode init(_layer_init_data_t& lid, real_t*const pNewActivationStorage)noexcept {
 				const auto ec = _base_class_t::init(lid, pNewActivationStorage);
 				if (ErrorCode::Success != ec) return ec;
 
@@ -126,6 +126,7 @@ namespace nntl {
 
 			//this is to return how many temporary real_t elements activation function might require the iMath interface to have
 			auto _activation_tmp_mem_reqs()const noexcept {
+				NNTL_ASSERT(m_activations.batch_size() >= get_common_data().biggest_batch_size());
 				return Activation_t::needTempMem(m_activations, get_iMath());
 			}
 
@@ -133,7 +134,7 @@ namespace nntl {
 			void _activation_fprop(iMathT& iM)noexcept {
 				NNTL_ASSERT_MTX_NO_NANS(m_activations);
 
-				if (!bIgnoreActivation()) {
+				if (!get_self().bIgnoreActivation()) {
 					Activation_t::f(m_activations, iM);
 					NNTL_ASSERT_MTX_NO_NANS(m_activations);
 				}
@@ -144,7 +145,7 @@ namespace nntl {
 				NNTL_ASSERT(m_activations.emulatesBiases() && !act2dAdZ_nb.emulatesBiases());
 				NNTL_ASSERT(m_activations.data() == act2dAdZ_nb.data() && m_activations.size_no_bias() == act2dAdZ_nb.size());
 				//NNTL_ASSERT(act2dAdZ_nb.test_noNaNs()); //did it already, not necessary here
-				if (bIgnoreActivation()) {
+				if (get_self().bIgnoreActivation()) {
 					Activation_t::dIdentity(act2dAdZ_nb, iM);
 				} else {
 					Activation_t::df(act2dAdZ_nb, iM);
@@ -156,7 +157,7 @@ namespace nntl {
 			::std::enable_if_t<_b> _activation_bprop_output(const math::smatrix<YT>& data_y, iMathT& iM)noexcept {
 				NNTL_ASSERT(!m_activations.emulatesBiases() && !data_y.emulatesBiases());
 				//note: compilation may break here if Activation_t doesn't support YT passed!
-				if (bIgnoreActivation()) {
+				if (get_self().bIgnoreActivation()) {
 					Activation_t::dLdZIdentity(data_y, m_activations, iM);
 				} else {
 					Activation_t::dLdZ(data_y, m_activations, iM);

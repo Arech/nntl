@@ -1,7 +1,7 @@
 # nntl
 
 Neural Network Templates Library is a set of C++14 template classes
-that helps to implement fast vectorized feedforward neural networks.
+that helps to implement fast vectorized feedforward neural networks to perform training/inference on (mostly) structured data.
 It is multithreaded, memory optimized and uses OpenBLAS only as a back-end
 to multiply matrices. NNTL is a header only library and requires no
 other dependencies, except for OpenBLAS and Boost (in header-only mode). It is
@@ -10,21 +10,6 @@ statically typed and doesn't use virtual functions, allowing compiler to generat
 NNTL provides a way to describe desired neural network architecture in a form of UML class diagram and convert the diagram directly into C++ code (allowing to draw something [like this](https://github.com/Arech/nntl/blob/master/arch_sample.png?raw=true) and directly convert it to nntl-powered code). This feature is extremely helpful for designing proper network architectures and an absolute time-saver. It allows a user to focus on incorporating domain knowledge into neural network instead of doing error-prone architecture programming. However, it requires some additional software - [Visual Paradigm](https://www.visual-paradigm.com/) for diagramming and Matlab (probably Octave) to execute converter scripts. See below for details.
 
 [![Join the chat at https://gitter.im/nntl/Lobby](https://badges.gitter.im/nntl/Lobby.svg)](https://gitter.im/nntl/Lobby?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
-
-### Performance
-*This paragraph is outdated. The library was improved in many ways since the performance measurements, so current results are better.
-
-Here is the performance of training a 3 layer `768->500->300->10` network with a sigmoid activation function and a quadratic loss function over the MNIST dataset (60000 training samples and 10000 validation samples) for 20 epochs in a minibatches of size 100 using double precision floating point math. A NN implementation from [DeepLearnToolbox](https://github.com/rasmusbergpalm/DeepLearnToolbox) on a Matlab R2014a x64 is taken as a baseline (it also uses vectorized computations, multithreading and double as a basic floating-point type). The hardware in both cases are the same: AMD Phenom II X6 1090T @3500Mhz CPU (with all power-saving features turned off) with 16Gb of RAM under Windows 7 (swap file turned off, so no paging occur during testing). The CPU is pretty old today, it has only SSE2+ instructions (no AVX/AVX2), so everything should work a way faster on newer CPUs).
-
-Model|Baseline|NNTL|ratio
------|--------|----|-----
-base|271s|**137s**|**x2.0**
-base + momentum|295s|**159s**|**x1.9**
-base + momentum + dropout|332s|**166s**|**x2.0**
-
-One may switch computations to use a float data type instead of a double to run the code even more faster (roughly at about 2/3 of the time required to run with a double precision). Also it's possible to tune a loss evaluation strategy to skip evaluation at some/all epochs, which will allow to train the NN even more faster.
-
-I wouldn't state the NNTL is the fastest CPU implementation of feedforward neural networks, but nonetheless it's indeed fast due to proper architecture, vectorizable math code and memory use optimization, and it is BSD-licensed (except for [random number generators](https://github.com/Arech/AF_randomc_h), which is GPL licensed, - but it's easy to substitute RNG (as well as almost any other part of the library) for another implementation if needed).
 
 ## Implemented Features
 * A full-batch or a mini-batch SGD
@@ -95,8 +80,6 @@ but it was broken by design).
 * Numeric gradient check routine
 
 ## The Pros and Cons
-### Nuances
-Just want to stress again: NNTL is not a kind of a Plug-n-Play system to solve typical tasks. And it's not mean to do so (however, it's perfectly capable with some tasks out of the box). NNTL is a C++ framework to build fast neural networks and experiment with them. If you just want to play with neural networks and see what happens, it's definitely better to start with something like [TensorFlow](http://tensorflow.org/) or [PyTorch](https://pytorch.org/).
 
 ### The Pros
 * pretty fast x64 vectorized multithreaded header only C++14 implementation, that allows to build almost any kind of feedforward neural network architecture.
@@ -122,10 +105,10 @@ Just want to stress again: NNTL is not a kind of a Plug-n-Play system to solve t
 * achieving the best possible performance with small data sizes (for example, when using very small minibatches and/or a small number of neurons) may require some manual tuning of thresholds that define when to use a single- or multi-threaded branch of a code. At this moment this thresholds are hardcoded into a `\nntl\interface\math\mathn_thr.h` and a `\nntl\interface\rng\afrand_mt_thr.h` respectively. So, you'll need to fix them all to suit your own hardware needs in order to get the best possible performance (It's a real hell, btw). However, if you're not going to use too small nets/batches, you'll probably be fine with a current multithreading-by-default implementation of the i_math interface.
 * Current mathematical subsystem implementation is for a CPU only. Other types (GPU, for example) could 'easily' be added, however, someone has to write&test them.
   * probably most of math routines are suboptimal or even naive, however nntl is still quite fast - thanks to mostly proper architecture and an optimizing compiler. And that means it can be speed up even more.
-* Random number generator is made on very fast RNGs developed by [Agner Fog](http://www.agner.org/random/randomc.zip). But they are GPL-licensed, therefore are distributed as a separate package [AF_randomc_h](https://github.com/Arech/AF_randomc_h) that has to be downloaded and placed at the `/_extern/agner.org/AF_randomc_h` folder. If you don't like it, you can easily use your own RNG by implementing a few interface functions. I wouldn't recommend using a `\nntl\interface\rng\std.h`, because it is about a 100-200 times slower than Agner Fog's RNGs (it matters a lot for a dropout, for example).
+* Random number generators is based on very fast RNGs developed by [Agner Fog](http://www.agner.org/random/randomc.zip). But they are GPL-licensed, therefore are distributed as a separate package [AF_randomc_h](https://github.com/Arech/AF_randomc_h) that has to be downloaded and placed at the `/_extern/agner.org/AF_randomc_h` folder. If you don't like it, you can easily use your own RNG by implementing a few interface functions. I wouldn't recommend using a `\nntl\interface\rng\std.h`, because it is about a 100-200 times slower than Agner Fog's RNGs (it matters a lot for a dropout, for example).
 * Built and tested with only one compiler: the MSVC2015 on Windows 7. That means, that most likely you'll have to fix some technical issues and incompatibles before you'll be able to compile it with another compiler. Please, submit patches.
-* Due to some historical reasons the code lacks handling exceptions that can be thrown by external components (such as indicating low memory conditions in STL). Moreover, most of a code has the noexcept attribute. Probably, it won't hurt you much, if you have enought RAM.
-* There is no documentation except rich code comments at this moment. Unfortunately, I'm too busy with my own work and NNTL development that I have virtually no time for it. You shouldn't be scared by necessity of reading a code and code comments in order to undestand how to use components. I tried to make this process easy by extensively commenting a code and making it clean&clear. You decide if it helps and feel free to contact me if you need clarifications. I'll be happy to help.
+* Due to some historical reasons the code lacks handling exceptions that can be thrown by external components (such as indicating low memory conditions in STL). Moreover, most of a code has the noexcept attribute which basically means that exception==abort(). Though, it won't hurt you much, probably, if you have enought RAM, because such unhandled allocations are happened mostly in some support code that doesn't allocate much. Most memory intensive allocations are internal to nntl and, of course, have appropriate error handling.
+* There is no documentation except rich code comments at this moment. You shouldn't be scared by necessity of reading a code and code comments in order to undestand how to use components. I tried to make this process easy by extensively commenting a code and making it clean&clear. You decide if it helps and don't hesitate to contact me if you need clarifications. I'll be happy to help.
 
 ## Compilers Supported
 Developed and tested on the MSVC2015 on Windows 7. Be sure to have the latest service pack installed as well as other hotfixes (such as [KB3207317](https://support.microsoft.com/en-us/help/3207317/visual-c-optimizer-fixes-for-visual-studio-2015-update-3) ).
@@ -151,9 +134,9 @@ There is a lot of things to be said about how to draw a proper class-diagramm, h
 3. Download the latest [Boost](http://www.boost.org/) and setup correct paths in Solution's "VC++ Directories" for include and library files of the Boost. In fact, compilation of the Boost is not required, it's used in header-only mode, therefore actually only an include folder path should be updated. However this may not be the case for a future versions of the NNTL.
 4. Download the [OpenBLAS](http://www.openblas.net/) SDK and build suitable x64 binaries or download them from the [repository](https://sourceforge.net/projects/openblas/files/) (use the [v0.2.14](https://sourceforge.net/projects/openblas/files/v0.2.14/) for a quickstart as it's the version that was used during development/testing of the NNTL. Download the [OpenBLAS-v0.2.14-Win64-int32.zip](https://sourceforge.net/projects/openblas/files/v0.2.14/OpenBLAS-v0.2.14-Win64-int32.zip/download) and the supplemental [mingw64_dll.zip](https://sourceforge.net/projects/openblas/files/v0.2.14/mingw64_dll.zip/download) ). Place binaries in a PATH or into a corresponding debug/release solution folder. Update paths to the SDK in the Solution's "VC++ Directories" property page.
   
-  - **If you are noticing that NN training time (epoch time) fluctuates significantly** without a additional known load on the computer (in general, epochs time shouldn't vary more than just a few percents), you may want to check if OpenBLAS was build with `CONSISTENT_FPCSR=1` option. This option ensures it will respect denormalized floats handling mode set for the NNTL. OpenBLAS versions after 0.2.20 [will probably](https://github.com/xianyi/OpenBLAS/issues/1237) have this option turned on by default. However, newest to the date 29.10.2019 version 0.3.7 still had to be manually compiled from source with the mentioned flag (say "hello" to OpenBLAS's developers in the bugtracker using the link above).
+  - **If you are noticing that NN training time (epoch time) fluctuates significantly** without a additional known load on the computer (in general, epochs time shouldn't vary more than just a few percents), and your processor is prone to bad denormalized floats handling (i.e. it's old), you may want to check if OpenBLAS was build with `CONSISTENT_FPCSR=1` option. This option ensures it will respect denormalized floats handling mode set for the NNTL. OpenBLAS versions after 0.2.20 [will probably](https://github.com/xianyi/OpenBLAS/issues/1237) have this option turned on by default. However, newest to the date of test 29.10.2019 version 0.3.7 still had to be manually compiled from source with the mentioned flag (please, say "hello" to OpenBLAS's developers in the bugtracker using the link above).
   
-5. If your target CPU supports AVX/AVX2 instructions, then update the "Enable Enhanced Instruction Set" solution's setting accordingly.
+5. If your target CPU supports AVX/AVX2 instructions, then surely update the "Enable Enhanced Instruction Set" solution's setting accordingly.
 6. If you have a Matlab installed and want to use `.mat` files to interchange data with the NNTL, then leave the line `#define NNTL_MATLAB_AVAILABLE 1` as is in the `stdafx.h` and see instructions in the `nntl/utils/matlab.h` on how to update solution's build settings. If not, change the difinition to the `#define NNTL_MATLAB_AVAILABLE 0` and don't use the `nntl/_supp/io/matfile.h`.
 7. if I didn't forget anything, now you can take a look at the [.\nntl\examples\simple.cpp](https://github.com/Arech/nntl/blob/master/examples/simple.cpp) to see how to build your first feedforward neural network with the NNTL. I'll write more about it later.
 
@@ -166,7 +149,7 @@ The main rule - don't hesitate to ask for help, if you are interested.
 
 ## The Status of the code
 
-The code in general is pretty stable and could be used for tasks it was made for in production and as a basis for extension. However, please note that it's a personal tool I made for my own research, joy and projects. I'm very limited on resources, so it can be very unperfect in some (or by some standards - all) points.
+The code in general is pretty stable and could be used for tasks it was made for in production and as a basis for extension. However, please note that it's a personal tool I made for my own research, joy and projects. I'm limited on resources, so it can be not very perfect in some points.
 
 See for yourself and feel free to contact me if you need some help. And remember to check the [changelog.md](ChangeLog.md)
 

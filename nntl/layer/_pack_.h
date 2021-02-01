@@ -87,7 +87,7 @@ namespace nntl {
 
 		//////////////////////////////////////////////////////////////////////////
 		// trainable_layer_wrapper wraps all activation matrix of a layer
-		// PIMLT is the type you get by specializing m_prop_input_marker<> with a corresponding layer type, m_prop_input_marker<WrappedLayerT>
+		// PIMLT is the type you get by specializing m_propagate_markers<> with a corresponding layer type, m_propagate_markers<WrappedLayerT>
 		// Don't use directly if you can, use the wrap_trainable_layer<> template below.
 		// The reason for this whole burdensome machinery to get the same pseudo-layer type for different layer types and
 		// prevent template code bloating
@@ -123,7 +123,7 @@ namespace nntl {
 		// The reason for this whole burdensome machinery to get the same pseudo-layer type for different layer types and
 		// prevent template code bloating
 		template<typename LayerT>
-		using wrap_trainable_layer = _trainable_layer_wrapper< m_prop_input_marker<LayerT> >;
+		using wrap_trainable_layer = _trainable_layer_wrapper< m_propagate_markers<LayerT> >;
 
 
 		//////////////////////////////////////////////////////////////////////////
@@ -223,7 +223,7 @@ namespace nntl {
 		};
 
 		template<typename LayerT>
-		using wrap_part_trainable_layer = _trainable_partial_layer_wrapper< m_prop_input_marker<LayerT> >;
+		using wrap_part_trainable_layer = _trainable_partial_layer_wrapper< m_propagate_markers<LayerT> >;
 		
 
 		//////////////////////////////////////////////////////////////////////////

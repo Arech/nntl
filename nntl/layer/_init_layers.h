@@ -45,10 +45,14 @@ namespace nntl {
 	struct m_layer_gate {};
 	//struct m_layer_tolerates_no_biases {};//marks that a layer doesn't require a bias column to perform fprop/bprop correctly. (LI)
 
+	//mark layer as the layer to cancel chain of backpropagation, which means that this layer's bprop() (as well as every layer 
+	// below the layer in stack, if any) must not be called
+	struct m_layer_stops_bprop {};
+
 	//this class marks a layer as learnable. It must provide get_weights/set_weights/reinit_weights/drop_weights()
 	// , bIgnoreActivation()/setIgnoreActivation()
 	// and get_gradWorks() functions,
-	// as well as compute dL/dW during bprop()
+	// as well as compute dL/dW during bprop() (if prev layer doesn't have a m_layer_stops_bprop marker)
 	struct m_layer_learnable {};
 
 	//when a layer is derived from this class, it is expected to be used inside of some layer_pack_* objects and it
@@ -70,6 +74,11 @@ namespace nntl {
 
 	template<typename LayerT>
 	using is_layer_gate = ::std::is_base_of<m_layer_gate, LayerT>;
+
+	template<typename LayerT>
+	using is_layer_stops_bprop = ::std::is_base_of<m_layer_stops_bprop, LayerT>;
+	template<typename LayerT>
+	using is_layer_with_bprop = ::std::negation<::std::is_base_of<m_layer_stops_bprop, LayerT>>;
 
 	//////////////////////////////////////////////////////////////////////////
 	template <typename T, typename = int>
@@ -106,6 +115,9 @@ namespace nntl {
 		template<bool b>
 		using conditional_layer_output = ::std::conditional_t<b, m_layer_output, _m_dummy>;
 
+		template<bool b>
+		using conditional_layer_stops_bprop = ::std::conditional_t<b, m_layer_stops_bprop, _m_dummy>;
+
 		//////////////////////////////////////////////////////////////////////////
 		//this definition of m_prop_input_marker<> strips away information about LT
 		template<typename RealT> struct _not_from_IL {
@@ -125,6 +137,18 @@ namespace nntl {
 			::std::is_base_of<_not_from_IL<typename T::real_t>,T>
 			, ::std::is_base_of<_from_IL<typename T::real_t>, T>
 		>;
+
+		//////////////////////////////////////////////////////////////////////////
+		struct _l_stops_bprop : public m_layer_stops_bprop {};
+		struct _l_has_bprop {};
+
+		template<typename LT>
+		using m_prop_stops_bprop_marker = ::std::conditional_t<is_layer_stops_bprop<LT>::value, _l_stops_bprop, _l_has_bprop>;
+
+		//////////////////////////////////////////////////////////////////////////
+
+		template<typename LT>
+		struct m_propagate_markers : public m_prop_input_marker<LT>, public m_prop_stops_bprop_marker<LT> {};
 
 		//////////////////////////////////////////////////////////////////////////
 		class init_layer_index {

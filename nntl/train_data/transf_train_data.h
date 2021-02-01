@@ -67,7 +67,9 @@ namespace nntl {
 		//real batch size of data produced by transformer == baseBatchSize*samplesInBaseSample()
 
 		nntl_interface void deinit()noexcept;
-		nntl_interface bool init(const_TD_stor_t& tds, vec_len_t baseBatchSize)noexcept;
+
+		template<typename iMathT>
+		nntl_interface bool init(iMathT& iM, const_TD_stor_t& tds, vec_len_t baseBatchSize)noexcept;
 
 		template<typename CommonDataT>
 		nntl_interface void next_epoch(const_TD_stor_t& tds, const numel_cnt_t epochIdx, const CommonDataT& cd
@@ -98,7 +100,6 @@ namespace nntl {
 		// _transf_train_data require a derived class to provide const realmtx_t& X(data_set_id_t dataSetId) and Y() functions
 		// to return corresponding matrices with complete dataset data (that implies that the class can not work with datasets
 		// with greater than max(vec_len_t) samples).
-		// Also bool samplesXStorageCoherent()/samplesYStorageCoherent() should be implemented
 		// Note that batch sizes passed to _transf_train_data<> MUST be a multiple of TFunctT::samplesInBaseSample()
 		// If not mentioned explicitly in a function comment, every member function of the class #supportsBatchInRow (at least it should)
 		template<typename FinalPolymorphChild, typename TFuncT, typename StatsFuncT>
@@ -234,7 +235,8 @@ namespace nntl {
 
 		public:
 			// Note that batch sizes passed to _transf_train_data<> MUST be a multiple of TFunctT::samplesInBaseSample()
-			nnet_errors_t init4inference(IN OUT vec_len_t& maxFPropSize)noexcept {
+			template<typename iMathT>
+			nnet_errors_t init4inference(iMathT& iM, IN OUT vec_len_t& maxFPropSize)noexcept {
 				const auto ec = _base_init_checks(maxFPropSize);
 				if (nnet_errors_t::Success != ec) return ec;
 
@@ -252,14 +254,15 @@ namespace nntl {
 				maxFPropSize = static_cast<vec_len_t>(realFPropSize);
 				m_maxFPropSize = maxFPropSize;
 
-				if (!m_TFunct.init(m_tdStor, base_maxFPropSize)) return nnet_errors_t::OtherTdInitError;
+				if (!m_TFunct.init(iM, m_tdStor, base_maxFPropSize)) return nnet_errors_t::OtherTdInitError;
 
 				return nnet_errors_t::Success;
 			}
 
 			//takes desired batch sizes, updates them if necessary to any suitable value and initializes internal state for training
 			// Note that batch sizes passed to _transf_train_data<> MUST be a multiple of TFunctT::samplesInBaseSample()
-			nnet_errors_t init4train(IN OUT vec_len_t& maxFPropSize, IN OUT vec_len_t& maxBatchSize, OUT bool& bMiniBatch) noexcept {
+			template<typename iMathT>
+			nnet_errors_t init4train(iMathT& iM, IN OUT vec_len_t& maxFPropSize, IN OUT vec_len_t& maxBatchSize, OUT bool& bMiniBatch) noexcept {
 				const auto ec = _base_init_checks(maxFPropSize, maxBatchSize);
 				if (nnet_errors_t::Success != ec) return ec;
 
@@ -310,7 +313,7 @@ namespace nntl {
 					::std::iota(m_vSampleIdxs.begin(), m_vSampleIdxs.end(), 0);
 				//}
 
-				if (!m_TFunct.init(m_tdStor, ::std::max(base_maxFPropSize, base_maxBatchSize))) return nnet_errors_t::OtherTdInitError;
+				if (!m_TFunct.init(iM, m_tdStor, ::std::max(base_maxFPropSize, base_maxBatchSize))) return nnet_errors_t::OtherTdInitError;
 
 				bSuccess = true;
 				return nnet_errors_t::Success;

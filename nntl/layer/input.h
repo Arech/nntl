@@ -42,6 +42,7 @@ namespace nntl {
 	template<typename FinalPolymorphChild, typename Interfaces>
 	class _layer_input 
 		: public m_layer_input
+		, public m_layer_stops_bprop
 		, public _layer_base<FinalPolymorphChild, Interfaces>
 	{
 	private:
@@ -129,6 +130,7 @@ namespace nntl {
 
 		template <typename LowerLayer>
 		unsigned bprop(realmtx_t& dLdA, const LowerLayer& lowerLayer, realmtx_t& dLdAPrev)noexcept {
+			static_assert(always_false<LowerLayer>::value, "shouldn't be in input_layer::bprop");
 			NNTL_ASSERT(!"shouldn't be in input_layer::bprop");
 			//NNTL_ASSERT(get_self().bDoBProp());
 			NNTL_ASSERT(m_bActivationsValid);
@@ -140,9 +142,6 @@ namespace nntl {
 			//iI.bprop_end(dLdAPrev);
 			return 1;
 		}
-
-		//should return true, if the layer has a value to add to Loss function value (there's some regularizer attached)
-		constexpr const bool hasLossAddendum()const noexcept { return false; }
 
 	protected:
 		friend class _impl::_preinit_layers;

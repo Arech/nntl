@@ -1,6 +1,11 @@
 # Changelog
 I should probably have started doing it long ago, but better late than never. So here it is (for older entries see commit history)
 
+## 2021 Feb 01
+
+- proper `m_layer_stops_bprop` layer marker introduced to distinguish between real `m_layer_input` marked layer and a layer that just terminates a back propagation chain (it was the job of `m_layer_input` marker earlier).
+- refactored common code of `LFC` & `layer_output` for fully-connected forward propagation into `LFC_FProp` which also became spawnable (in case one needs the `fprop()` -only part of `LFC` alone).
+
 ## 2021 Jan 29
 
 - Refactored and moved dataset normalization code from `_train_data_simple<>` into independent separate class `_impl::td_norm<>` and partly into base class `_impl::_td_base<>`. Finally normalization code is abstract enough to be used with many various `train_data` implementations (provided that they have 4 additional special functions implemented that does actual data-transformation work).

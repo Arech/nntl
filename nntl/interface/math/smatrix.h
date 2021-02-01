@@ -858,6 +858,12 @@ namespace math {
 			return sNumel(rows(bNoBias), cols(bNoBias));
 		}
 
+		//#supportsBatchInRow
+		//these 2 functions essentially the same as their counterpart without _sBiR suffix, they just don't spawn asserts and
+		// are used in a new code
+		inline numel_cnt_t numel_no_bias_sBiR()const noexcept { return sNumel(rows_no_bias(), cols_no_bias()); }
+		inline numel_cnt_t numel_sBiR(const bool bNoBias)const noexcept { return sNumel(rows(bNoBias), cols(bNoBias)); }
+
 		//////////////////////////////////////////////////////////////////////////
 		// triangular matrix support
 		//returns the number of elements in a triangular matrix of size N. (Elements of the main diagonal are excluded)
@@ -963,6 +969,13 @@ namespace math {
 			NNTL_ASSERT(!emulatesBiases() || bBatchInColumn());
 			return data() + numel_no_bias();
 		}
+
+		// #supportsBatchInRow variation with _sBiR suffix. Yes, it's ugly approach but it's safe
+		inline value_ptr_t end_sBiR(const bool bNoBias)noexcept { return data() + numel_sBiR(bNoBias); }
+		inline cvalue_ptr_t end_sBiR(const bool bNoBias)const noexcept { return data() + numel_sBiR(bNoBias); }
+		inline value_ptr_t end_no_bias_sBiR()noexcept { return data() + numel_no_bias_sBiR(); }
+		inline cvalue_ptr_t end_no_bias_sBiR()const noexcept { return data() + numel_no_bias_sBiR(); }
+
 		//////////////////////////////////////////////////////////////////////////
 		// #supportsBatchInRow
 		inline value_ptr_t colDataAsVec(vec_len_t c)noexcept {
@@ -1706,6 +1719,10 @@ namespace math {
 			NNTL_ASSERT(pr.offset() < ::std::numeric_limits<value_type>::max());
 			NNTL_ASSERT(pr.cnt() < ::std::numeric_limits<value_type>::max());
 			NNTL_ASSERT((pr.offset() + pr.cnt()) < ::std::numeric_limits<value_type>::max());
+		}
+
+		constexpr st_range(const value_type eTot)noexcept : elmEnd(eTot), elmBegin(0) {
+			NNTL_ASSERT(elmEnd >= elmBegin);
 		}
 
 		constexpr st_range(const value_type eb, const value_type ee)noexcept : elmEnd(ee), elmBegin(eb) {

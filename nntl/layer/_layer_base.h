@@ -53,35 +53,34 @@ namespace nntl {
 	template< class T >
 	struct is_layer_pack<T, ::std::void_t<typename T::LayerPack_t>> : ::std::true_type {};
 
-	//helper function to call internal _for_each_layer(f) for layer_pack_* classes
-	//it iterates through the layers from the lowmost (input) to the highmost (output).
+	//helper to call internal _for_each_layer(f) for layer_pack_* classes
+	//it iterates through the layers from the lowmost (input) to the uppermost (output).
 	// layer_pack's are also passed to F!
 	// Therefore the .for_each_layer() is the main mean to apply F to every layer in a network/pack
 	template<typename Func, typename LayerT> inline
 		::std::enable_if_t<is_layer_pack<LayerT>::value> call_F_for_each_layer(Func&& F, LayerT& l)noexcept
 	{
-		l.for_each_layer(F); //mustn't forward, because we'll be using F later!
-		
+		l.for_each_layer(F);
 		//must also call for the layer itself
-		::std::forward<Func>(F)(l);//it's OK to cast to rvalue here if suitable, as we don't care what will happens with F after that.
+		::std::forward<Func>(F)(l);
 	}
 	template<typename Func, typename LayerT> inline
 		::std::enable_if_t<!is_layer_pack<LayerT>::value> call_F_for_each_layer(Func&& F, LayerT& l)noexcept
 	{
-		::std::forward<Func>(F)(l);//OK to forward if suitable
+		::std::forward<Func>(F)(l);
 	}
 
 	//probably we don't need it, but let it be
 	template<typename Func, typename LayerT> inline
 		::std::enable_if_t<is_layer_pack<LayerT>::value> call_F_for_each_layer_down(Func&& F, LayerT& l)noexcept
 	{
-		F(l);//mustn't forward, we'll use it later
-		l.for_each_layer_down(::std::forward<Func>(F));//OK, last use
+		F(l);
+		l.for_each_layer_down(::std::forward<Func>(F));
 	}
 	template<typename Func, typename LayerT> inline
 		::std::enable_if_t<!is_layer_pack<LayerT>::value> call_F_for_each_layer_down(Func&& F, LayerT& l)noexcept
 	{
-		::std::forward<Func>(F)(l);//OK to forward
+		::std::forward<Func>(F)(l);
 	}
 
 	//////////////////////////////////////////////////////////////////////////
@@ -539,8 +538,7 @@ namespace nntl {
 	public:
 		//////////////////////////////////////////////////////////////////////////
 		//nntl_interface overridings
-		ErrorCode init(_layer_init_data_t& lid, real_t* pNewActivationStorage = nullptr)noexcept {
-			NNTL_UNREF(pNewActivationStorage);
+		ErrorCode init(_layer_init_data_t& lid)noexcept {
 			_base_class_t::init();
 
 			set_common_data(lid.commonData);
@@ -581,7 +579,8 @@ namespace nntl {
 
 		//returns a loss function summand, that's caused by this layer (for example, L2 regularizer adds term
 		// l2Coefficient*Sum(weights.^2) )
-		constexpr real_t lossAddendum()const noexcept { return real_t(0.0); }
+		static constexpr real_t lossAddendum() noexcept { return real_t(0.0); }
+		static constexpr bool hasLossAddendum()noexcept { return false; }
 		
 		//////////////////////////////////////////////////////////////////////////
 

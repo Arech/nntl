@@ -149,9 +149,11 @@ namespace nntl {
 		//automatic deinitialization be done. It's better be done explicitly, or the user may not know what's they doing.
 
 		//takes desired batch sizes, updates them if necessary to any suitable value and initializes internal state for training
-		nntl_interface nnet_errors_t init4train(IN OUT vec_len_t& maxFPropSize, IN OUT vec_len_t& maxBatchSize, OUT bool& bMiniBatch)noexcept;
+		template<typename iMathT>
+		nntl_interface nnet_errors_t init4train(iMathT& iM, IN OUT vec_len_t& maxFPropSize, IN OUT vec_len_t& maxBatchSize, OUT bool& bMiniBatch)noexcept;
 		//init4inference() does a subset of initialization required to perform inference on the given _i_train_data object
-		nntl_interface nnet_errors_t init4inference(IN OUT vec_len_t& maxFPropSize)noexcept;
+		template<typename iMathT>
+		nntl_interface nnet_errors_t init4inference(iMathT& iM, IN OUT vec_len_t& maxFPropSize)noexcept;
 
 		nntl_interface void deinit4all()noexcept;
 

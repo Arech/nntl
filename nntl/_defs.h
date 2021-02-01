@@ -160,3 +160,8 @@ template<typename T> static constexpr int static_show_type() {
 };
 //static constexpr int v = static_show_type<TypeToCheck>();
 
+template<typename T> static constexpr int static_show_type(T&& v) {
+	static_assert(always_false<T>::value, "you've requested type of T, see below");
+	return 0;
+};
+

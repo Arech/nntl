@@ -394,6 +394,7 @@
     <ClInclude Include="..\nntl\layer\pack_horizontal.h" />
     <ClInclude Include="..\nntl\layer\pack_tile.h" />
     <ClInclude Include="..\nntl\layer\pack_vertical.h" />
+    <ClInclude Include="..\nntl\layer\_tuple_utils.h" />
     <ClInclude Include="..\nntl\layer\_activation_storage.h" />
     <ClInclude Include="..\nntl\layer\_activation_wrapper.h" />
     <ClInclude Include="..\nntl\layer\_init_layers.h" />

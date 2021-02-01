@@ -127,7 +127,9 @@ namespace nntl {
 				return bsc;
 			}
 
-			nnet_errors_t init4inference(IN OUT vec_len_t& maxFPropSize)noexcept {
+			template<typename iMathT>
+			nnet_errors_t init4inference(iMathT& iM, IN OUT vec_len_t& maxFPropSize)noexcept {
+				NNTL_UNREF(iM);
 				NNTL_ASSERT(maxFPropSize >= 0);
 				if (get_self().is_initialized4inference() || get_self().is_initialized4train()) {
 					NNTL_ASSERT(!"already initialized!");
@@ -152,7 +154,9 @@ namespace nntl {
 
 			//takes desired batch sizes, updates them if necessary to any suitable value and initializes internal state for training
 			//implementation for simplest TD that completely fits into the memory
-			nnet_errors_t init4train(IN OUT vec_len_t& maxFPropSize, IN OUT vec_len_t& maxBatchSize, OUT bool& bMiniBatch) noexcept {
+			template<typename iMathT>
+			nnet_errors_t init4train(iMathT& iM, IN OUT vec_len_t& maxFPropSize, IN OUT vec_len_t& maxBatchSize, OUT bool& bMiniBatch) noexcept {
+				NNTL_UNREF(iM);
 				NNTL_ASSERT(maxBatchSize >= 0 && maxFPropSize >= 0);
 
 				if (get_self().is_initialized4inference() || get_self().is_initialized4train()) {

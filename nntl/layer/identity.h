@@ -57,11 +57,6 @@ namespace nntl {
 		
 		static constexpr const char _defName[] = "li";
 
-		static constexpr bool hasLossAddendum()noexcept { return false; }
-		//returns a loss function summand, that's caused by this layer (for example, L2 regularizer adds term
-		// l2Coefficient*Sum(weights.^2) )
-		static constexpr real_t lossAddendum()noexcept { return real_t(0.); }
-
 		//////////////////////////////////////////////////////////////////////////
 	protected:
 

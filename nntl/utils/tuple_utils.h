@@ -200,7 +200,8 @@ namespace tuple_utils {
 
 	//////////////////////////////////////////////////////////////////////////
 	//for each with next downwards, backprop-version (don't use <LAST>)
-	namespace _impl {
+	/* too specific for this generic file and still not good. See nntl/layer/_tuple_utils.h for proper replacement
+	 *namespace _impl {
 		template<int I, class Tuple, typename F> struct _for_eachwn_downbp {
 			static void for_each(Tuple&& t, F&& f) noexcept {
 				f(::std::get<I>(t), ::std::get<I - 1>(t), false);
@@ -247,6 +248,7 @@ namespace tuple_utils {
 		static_assert(lei > 0, "Tuple must have more than 1 element");
 		_impl::_for_eachwn_downfullbp<lei, Tuple, F>::for_each(::std::forward<Tuple>(t), ::std::forward<F>(f));
 	}
+	*/
 
 
 	//////////////////////////////////////////////////////////////////////////

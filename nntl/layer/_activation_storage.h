@@ -70,7 +70,7 @@ namespace _impl {
 		realmtxdef_t* get_activations_storage_mutable() noexcept { return &m_activations; }
 
 		realmtxdef_t& _get_activations_mutable() noexcept {
-			return const_cast<realmtxdef_t&>(get_activations());
+			return const_cast<realmtxdef_t&>(get_self().get_activations());
 		}
 
 		mtx_size_t get_activations_size()const noexcept { return m_activations.size(); }
@@ -80,8 +80,8 @@ namespace _impl {
 		bool is_activations_shared()const noexcept { return m_activations.bDontManageStorage(); }
 
 		//////////////////////////////////////////////////////////////////////////
-		ErrorCode init(_layer_init_data_t& lid, real_t* pNewActivationStorage)noexcept {
-			const auto ec = _base_class_t::init(lid, pNewActivationStorage);
+		ErrorCode init(_layer_init_data_t& lid, real_t*const pNewActivationStorage)noexcept {
+			const auto ec = _base_class_t::init(lid);
 			if (ErrorCode::Success != ec) return ec;
 
 			static constexpr bool bActivationMustHaveBiases = !is_layer_output<self_t>::value;
@@ -89,7 +89,7 @@ namespace _impl {
 			//non output layers must have biases while output layers must not
 			NNTL_ASSERT(!(m_activations.emulatesBiases() ^ bActivationMustHaveBiases));
 
-			const auto neurons_cnt = get_neurons_cnt();
+			const auto neurons_cnt = get_self().get_neurons_cnt();
 			NNTL_ASSERT(neurons_cnt);
 			const auto biggestBatchSize = get_common_data().biggest_batch_size();
 			if (pNewActivationStorage) {
@@ -115,7 +115,7 @@ namespace _impl {
 		void on_batch_size_change(real_t*const pNewActivationStorage = nullptr)noexcept {
 			constexpr bool bOutputLayer = is_layer_output<self_t>::value;
 
-			NNTL_ASSERT(get_neurons_cnt());
+			NNTL_ASSERT(get_self().get_neurons_cnt());
 			NNTL_ASSERT(m_activations.emulatesBiases() ^ bOutputLayer);
 			m_bActivationsValid = false;
 

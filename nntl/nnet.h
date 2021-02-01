@@ -495,7 +495,7 @@ namespace nntl {
 			vec_len_t maxFPropSize = opts.maxFpropSize(), maxBatchSize = opts.batchSize();
 			bool bMiniBatch = true;//default value
 
-			ec = td.init4train(maxFPropSize, maxBatchSize, bMiniBatch);
+			ec = td.init4train(get_iMath(), maxFPropSize, maxBatchSize, bMiniBatch);
 			NNTL_ASSERT(maxFPropSize > 0 && maxBatchSize > 0 && maxBatchSize <= maxFPropSize);
 			if (ErrorCode::Success != ec) return _set_last_error(ec);
 

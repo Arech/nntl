@@ -1554,7 +1554,8 @@ namespace math {
 		static void vMulCAddC_ip_st(T* __restrict pA, T* __restrict const pAE, const T sc, const T ofs)noexcept {
 			NNTL_ASSERT(pA && pAE && pA <= pAE);
 			NNTL_ASSERT(sc != T(0));
-			NNTL_ASSERT(!::std::isnan(sc) && ::std::isfinite(sc) && !::std::isnan(ofs) && ::std::isfinite(ofs));
+			NNTL_ASSERT(!::std::is_floating_point<T>::value ||
+				(!::std::isnan(sc) && ::std::isfinite(sc) && !::std::isnan(ofs) && ::std::isfinite(ofs)));
 			//#TODO should help a compiler with FMA (probably, should code by hand - check it)?
 			while (pA != pAE) { // #vectorized
 				const auto v = *pA;
@@ -1809,7 +1810,7 @@ namespace math {
 		template<typename T>
 		static void vAddC_ip_st(T*__restrict pA, T*__restrict const pAE, const T c)noexcept {
 			NNTL_ASSERT(pA && pAE && pA <= pAE);
-			NNTL_ASSERT(!::std::isnan(c) && ::std::isfinite(c));
+			NNTL_ASSERT(!::std::is_floating_point<T>::value || (!::std::isnan(c) && ::std::isfinite(c)));
 			while (pA != pAE) { // #vectorized
 				*pA++ += c;
 			}

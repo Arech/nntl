@@ -37,6 +37,8 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <algorithm>
 #include <array>
 
+#include "layer/_tuple_utils.h"
+
 #include "layer/_layer_base.h"
 #include "utils.h"
 
@@ -313,10 +315,13 @@ namespace nntl {
 			output_layer().bprop(data_y, preoutput_layer(), m_a_dLdA[0]);
 			unsigned mtxIdx = 0;
 
-			tuple_utils::for_eachwn_downbp(m_layers, [&mtxIdx, &_a_dLdA = m_a_dLdA](auto& lcur, auto& lprev, const bool bPrevIsFirstLayer)noexcept {
+			//tuple_utils::for_eachwn_downbp(m_layers, [&mtxIdx, &_a_dLdA = m_a_dLdA](auto& lcur, auto& lprev, const bool bPrevIsFirstLayer)noexcept {
+			tuple_utils::for_each_down4bprop_no_last(m_layers, [&mtxIdx, &_a_dLdA = m_a_dLdA](auto& lcur, auto& lprev)noexcept {
+				constexpr bool bNoBprop4Prev = is_layer_stops_bprop<::std::decay_t<decltype(lprev)>>::value;
+
 				const unsigned nextMtxIdx = mtxIdx ^ 1;
-				if (bPrevIsFirstLayer) {
-					//TODO: for IBP we'd need a normal matrix
+
+				if (bNoBprop4Prev) {
 					_a_dLdA[nextMtxIdx].deform(0, 0);
 				} else {
 					_a_dLdA[nextMtxIdx].deform_like_no_bias(lprev.get_activations());

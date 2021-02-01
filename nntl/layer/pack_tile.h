@@ -376,7 +376,7 @@ namespace nntl {
 			//we'd use m_innerLowerLayerActivations instead of lowerLayer.get_activations()
 			NNTL_ASSERT(m_innerLowerLayerActivations.test_biases_strict());
 			NNTL_ASSERT(dLdA.size() == m_activations.size_no_bias());
-			NNTL_ASSERT((is_layer_input<LLWrapT>::value) || dLdAPrev.size() == prevAct.size_no_bias());
+			NNTL_ASSERT((!is_layer_with_bprop<LLWrapT>::value) || dLdAPrev.size() == prevAct.size_no_bias());
 
 			// The only problem now is in size of dLdA and dLdAPrev. Therefore we'll change matrices size appropriately and
 			// then transform dLdA into dLdAPrev storage. Then we'll use dLdAPrev as dLdA and vice versa. Once the bprop() finishes
@@ -387,7 +387,7 @@ namespace nntl {
 			auto& iM = get_iMath();
 			iM.mTilingRoll(dLdA, dLdAPrev);
 
-			constexpr bool bProducedLdAPrev = !is_layer_input<LLWrapT>::value;
+			constexpr bool bProducedLdAPrev = is_layer_with_bprop<LLWrapT>::value;
 			//now the correct dLdA for the m_tiledLayer is actually in dLdAPrev. We're going to store dLdAPrev in dLdA
 			//BTW: we've just switched the matrices, therefore at this moment we must return (1^switchMtxs) from bprop()
 			if (bProducedLdAPrev) {

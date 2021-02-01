@@ -513,6 +513,9 @@
     <ClInclude Include="..\nntl\utils\variant.h">
       <Filter>nntl\utils</Filter>
     </ClInclude>
+    <ClInclude Include="..\nntl\layer\_tuple_utils.h">
+      <Filter>nntl\layer</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="stdafx.cpp">

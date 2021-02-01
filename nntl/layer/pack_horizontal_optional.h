@@ -302,14 +302,14 @@ namespace nntl {
 
 		template<typename LLWrapT>
 		unsigned _lpho_bprop(realmtxdef_t& dLdA, realmtxdef_t& dLdAPrev, const realmtx_t& prevAct)noexcept {
-			static constexpr bool bLowerLayerIsInput = is_layer_input<LLWrapT>::value;
+			static constexpr bool bPrevLayerWBprop = is_layer_with_bprop<LLWrapT>::value;
 			NNTL_ASSERT(is_activations_shared() || m_activations.test_biases_strict());
 			NNTL_ASSERT(prevAct.test_biases_strict());
 			NNTL_ASSERT(get_common_data().is_training_mode());
 			NNTL_ASSERT(m_activations.rows() == get_common_data().get_cur_batch_size());
 			NNTL_ASSERT(dLdA.size() == m_activations.size_no_bias());
 			NNTL_ASSERT(mtx_size_t(get_common_data().get_cur_batch_size(), get_incoming_neurons_cnt() + 1) == prevAct.size());
-			NNTL_ASSERT(bLowerLayerIsInput || dLdAPrev.size() == prevAct.size_no_bias());
+			NNTL_ASSERT(!bPrevLayerWBprop || dLdAPrev.size() == prevAct.size_no_bias());
 			NNTL_ASSERT(m_bActivationsValid);
 			m_bActivationsValid = false;
 
@@ -330,7 +330,7 @@ namespace nntl {
 				, &_innerdLdA = m_innerdLdA, &_innerdLdAPrev = m_innerdLdAPrev, _pTmpBiasStorage = m_pTmpBiasStorage
 				, &_Math = get_iMath(), bbs = CD.biggest_batch_size()](const auto& phl)
 			{
-				static constexpr bool bLowerLayerIsInput = is_layer_input<LLWrapT>::value;
+				static constexpr bool bPrevLayerWBprop = is_layer_with_bprop<LLWrapT>::value;
 				auto& lyr = phl.l;
 
 				NNTL_ASSERT(lIdx > 0);
@@ -360,14 +360,14 @@ namespace nntl {
 					//_Math.evMulC_ip(_innerdLdA, real_t(dLdA.rows()) / real_t(_innerdLdA.rows()));
 
 					//setting up the _innerdLdAPrev
-					if (bLowerLayerIsInput) {
-						_innerdLdAPrev.deform(0, 0);
-					} else _innerdLdAPrev.deform(_innerdLdA.rows(), phl.coord.m_count);
+					if (bPrevLayerWBprop) {
+						_innerdLdAPrev.deform(_innerdLdA.rows(), phl.coord.m_count);
+					} else _innerdLdAPrev.deform(0, 0);
 
 					const auto switchMtxs = lyr.bprop(_innerdLdA
 						, LLWrapT(prA, _pTmpBiasStorage, realmtx_t::sNumel(bbs, lyr.get_incoming_neurons_cnt())), _innerdLdAPrev);
 
-					if (!bLowerLayerIsInput) {
+					if (bPrevLayerWBprop) {
 						const auto& gatedCurdLdAPrev = switchMtxs ? _innerdLdAPrev : _innerdLdA;
 						NNTL_ASSERT(gatedCurdLdAPrev.size() == prA.size_no_bias());
 
@@ -378,7 +378,7 @@ namespace nntl {
 					}
 				} else {
 					//gate is completely closed and nothing to do here except for zeroing corresponding region of dLdAPrev
-					if (!bLowerLayerIsInput) {
+					if (bPrevLayerWBprop) {
 						auto curdLdAPrev = dLdAPrev.submatrix_cols_no_bias(phl.coord.m_offset, phl.coord.m_count);
 						curdLdAPrev.zeros();
 					}
@@ -392,10 +392,10 @@ namespace nntl {
 
 			//doing bprop() for the gating layer
 			const auto& gate_phl = ::std::get<0>(m_phl_tuple);
-			NNTL_ASSERT(!bLowerLayerIsInput || (dLdAPrev.rows() == 0 && dLdAPrev.cols() == 0));
+			NNTL_ASSERT(bPrevLayerWBprop || (dLdAPrev.rows() == 0 && dLdAPrev.cols() == 0));
 			if (layer_has_trivial_bprop<gating_layer_t>::value) {
 				//just resetting corresponding dLdAPrev
-				if (!bLowerLayerIsInput) {
+				if (bPrevLayerWBprop) {
 					auto curdLdAPrev = dLdAPrev.submatrix_cols_no_bias(gate_phl.coord.m_offset, gate_phl.coord.m_count);
 					curdLdAPrev.zeros();
 				}
@@ -403,12 +403,12 @@ namespace nntl {
 			} else {
 				//calling bprop()
 				m_innerdLdA.deform_like_no_bias(gating_layer().get_activations());
-				if (bLowerLayerIsInput) {
-					m_innerdLdAPrev.deform(0, 0);
-				} else m_innerdLdAPrev.deform(m_innerdLdA.rows(), gate_phl.coord.m_count);
+				if (bPrevLayerWBprop) {
+					m_innerdLdAPrev.deform(m_innerdLdA.rows(), gate_phl.coord.m_count);
+				} else m_innerdLdAPrev.deform(0, 0); 
 
 				const auto switchMtxs = gating_layer().bprop(m_innerdLdA, LLWrapT(prevAct, m_pTmpBiasStorage, gate_phl.coord), m_innerdLdAPrev);
-				if (!bLowerLayerIsInput) {
+				if (bPrevLayerWBprop) {
 					const auto& curdLdAPrev = switchMtxs ? m_innerdLdAPrev : m_innerdLdA;
 					::std::memcpy(dLdAPrev.colDataAsVec(gate_phl.coord.m_offset), curdLdAPrev.data(), curdLdAPrev.byte_size());
 				}

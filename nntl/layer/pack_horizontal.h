@@ -104,14 +104,14 @@ namespace nntl {
 		// it would require significantly more complicated and error-prone code to keep all data safe
 		template<typename LLWrapT>
 		unsigned _lph_bprop(realmtxdef_t& dLdA, realmtxdef_t& dLdAPrev, const realmtx_t& prevAct)noexcept {
-			static constexpr bool bLowerLayerIsInput = is_layer_input<LLWrapT>::value;
+			static constexpr bool bPrevLayerWBprop = is_layer_with_bprop<LLWrapT>::value;
 			NNTL_ASSERT(is_activations_shared() || m_activations.test_biases_strict());
 			NNTL_ASSERT(prevAct.test_biases_strict());
 			NNTL_ASSERT(get_common_data().is_training_mode());
 			NNTL_ASSERT(m_activations.rows() == get_common_data().get_cur_batch_size());
 			NNTL_ASSERT(dLdA.size() == m_activations.size_no_bias());
 			NNTL_ASSERT(mtx_size_t(get_common_data().get_cur_batch_size(), get_incoming_neurons_cnt() + 1) == prevAct.size());
-			NNTL_ASSERT(bLowerLayerIsInput || dLdAPrev.size() == prevAct.size_no_bias());
+			NNTL_ASSERT(!bPrevLayerWBprop || dLdAPrev.size() == prevAct.size_no_bias());
 
 			NNTL_ASSERT(m_bActivationsValid);
 			m_bActivationsValid = false;
@@ -121,7 +121,7 @@ namespace nntl {
 			iI.bprop_finaldLdA(dLdA);
 
 			// We'll copy corresponding parts of dLdA into m_innerdLdA and on inner layer.bprop() return we'll ADD corresponding dLdA to dLdAPrev passed
-			if (!bLowerLayerIsInput) dLdAPrev.zeros();
+			if (bPrevLayerWBprop) dLdAPrev.zeros();
 
 			neurons_count_t firstNeuronOfs = get_neurons_cnt();
 
@@ -132,7 +132,7 @@ namespace nntl {
 				, &_innerdLdA = m_innerdLdA, &_innerdLdAPrev = m_innerdLdAPrev, _pTmpBiasStorage = m_pTmpBiasStorage
 				, &_Math = get_iMath()](const auto& phl)
 			{
-				static constexpr bool bLowerLayerIsInput = is_layer_input<LLWrapT>::value;
+				static constexpr bool bPrevLayerWBprop = is_layer_with_bprop<LLWrapT>::value;
 				auto& lyr = phl.l;
 
 				NNTL_ASSERT(firstNeuronOfs >= lyr.get_neurons_cnt());
@@ -152,14 +152,14 @@ namespace nntl {
 				// больше располагаемой тут dLdA внешнего слоя)
 
 				//setting up the _innerdLdAPrev
-				if (bLowerLayerIsInput) {
-					_innerdLdAPrev.deform(0, 0);
-				} else _innerdLdAPrev.deform(_training_batch_size, phl.coord.m_count);
-				NNTL_ASSERT(bLowerLayerIsInput || _innerdLdAPrev.rows() == dLdAPrev.rows());
+				if (bPrevLayerWBprop) {
+					_innerdLdAPrev.deform(_training_batch_size, phl.coord.m_count);
+				} else _innerdLdAPrev.deform(0, 0);
+				NNTL_ASSERT(!bPrevLayerWBprop || _innerdLdAPrev.rows() == dLdAPrev.rows());
 
 				const auto switchMtxs = lyr.bprop(_innerdLdA, LLWrapT(prevAct, _pTmpBiasStorage, phl.coord), _innerdLdAPrev);
 
-				if (!bLowerLayerIsInput) {
+				if (bPrevLayerWBprop) {
 					const auto& curdLdAPrev = switchMtxs ? _innerdLdAPrev : _innerdLdA;
 					NNTL_ASSERT(curdLdAPrev.size() == realmtx_t::mtx_size_t(_training_batch_size, phl.coord.m_count));
 
