@@ -139,17 +139,28 @@ namespace math {
 		// NOTE THAT THIS INTERNAL MEMORY BUFFER IS AS AS WRONG AS IT COULD BE, BECAUSE here we're asking in real_t[count]
 		// but almost elsewhere we're computing requirements as typename T[count]. #TODO
 		real_t* _istor_alloc(const numel_cnt_t maxDataSize)noexcept {
-			NNTL_ASSERT(m_minTempStorageSize >= maxDataSize + m_curStorElementsAllocated);
 			NNTL_ASSERT(conform_sign(m_threadTempRawStorage.size()) >= m_minTempStorageSize);
+			if (m_minTempStorageSize < maxDataSize + m_curStorElementsAllocated) {
+				STDCOUTL("SMath::_istor_alloc not enought internal memory. Did you call preinit() correctly?");
+				NNTL_ASSERT(!"SMath::_istor_alloc not enought internal memory. Did you call preinit() correctly?");
+				::std::abort();
+			}
 			auto r = &m_threadTempRawStorage[m_curStorElementsAllocated];
 			m_curStorElementsAllocated += maxDataSize;
 			return r;
 		}
 		void _istor_free(real_t*const ptr, const numel_cnt_t maxDataSize)noexcept {
-			NNTL_UNREF(ptr);
-			NNTL_ASSERT(m_curStorElementsAllocated >= maxDataSize);
+			if (m_curStorElementsAllocated < maxDataSize) {
+				STDCOUTL("SMath::_istor_free attempting to free more memory than possible. Check _istor_alloc/_istor_free calls!");
+				NNTL_ASSERT(!"SMath::_istor_free attempting to free more memory than possible. Check _istor_alloc/_istor_free calls!");
+				::std::abort();
+			}
 			m_curStorElementsAllocated -= maxDataSize;
-			NNTL_ASSERT(ptr == &m_threadTempRawStorage[m_curStorElementsAllocated]);//if this assert triggered, then the wrong pointer was allocated/freed
+			if (ptr != &m_threadTempRawStorage[m_curStorElementsAllocated]) {
+				STDCOUTL("SMath::_istor_free You are attempting to free memory in a wrong order!");
+				NNTL_ASSERT(!"SMath::_istor_free You are attempting to free memory in a wrong order!");
+				::std::abort();
+			}
 		}
 
 		iThreads_t& ithreads()noexcept { return m_threads; }
@@ -1271,13 +1282,12 @@ namespace math {
 		void mrwIdxsOfMax_st_rw(const realmtx_t& A, vec_len_t*const pDest, real_t* pMax = nullptr, const rowcol_range*const pRCR = nullptr)noexcept {
 			NNTL_ASSERT(!(!pMax ^ !pRCR));
 			NNTL_ASSERT(!A.empty() && A.numel() > 0 && pDest);
-			const auto bSaveMax = !!pMax;
-			if (!bSaveMax) pMax = get_self()._istor_alloc(A.rows());
-			if (bSaveMax) {
-				_mrwVecOperation_st_rw(A, pMax, pRCR ? *pRCR : rowcol_range(A), _mrwFindIdxsOf_MAX<true>(pDest));
-			} else {
+			if (!pMax) {
+				pMax = get_self()._istor_alloc(A.rows());
 				_mrwVecOperation_st_rw(A, pMax, pRCR ? *pRCR : rowcol_range(A), _mrwFindIdxsOf_MAX<false>(pDest));
 				get_self()._istor_free(pMax, A.rows());
+			} else {
+				_mrwVecOperation_st_rw(A, pMax, pRCR ? *pRCR : rowcol_range(A), _mrwFindIdxsOf_MAX<true>(pDest));
 			}
 		}
 

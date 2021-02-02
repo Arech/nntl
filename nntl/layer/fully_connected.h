@@ -38,9 +38,9 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 namespace nntl {
 
 	//fprop only base class
-	template<typename FinalPolymorphChild, typename InterfacesT, typename ActivFunc, bool bNoBpropInDerived = false>
+	template<typename FinalPolymorphChild, typename InterfacesT, typename ActivFunc, bool bFPropOnlyInDerived = false>
 	class _LFC_FProp
-		: public _impl::conditional_layer_stops_bprop<bNoBpropInDerived>
+		: public _impl::conditional_layer_stops_bprop<bFPropOnlyInDerived>
 		, public _impl::_act_wrap<FinalPolymorphChild, InterfacesT, ActivFunc>
 	{
 	private:
@@ -50,7 +50,7 @@ namespace nntl {
 		static_assert(bActivationForHidden, "ActivFunc template parameter should be derived from activations::_i_activation");
 
 		static constexpr const char _defName[] = "fclFP";
-		static constexpr bool bExpectNoBProp = bNoBpropInDerived;
+		static constexpr bool bAssumeFPropOnly = bFPropOnlyInDerived;
 
 	protected:
 
@@ -109,7 +109,8 @@ namespace nntl {
 			: _base_class_t(_neurons_cnt, pCustomName), m_weights(), m_bWeightsInitialized(false)
 		{
 			NNTL_ASSERT(_neurons_cnt > 0);//LFC should have valid neuron count from the very start
-			m_activations.emulate_biases(!bActivationForOutput);
+			//m_activations.emulate_biases(!bActivationForOutput);//redundant, base class do this
+			NNTL_ASSERT(!bActivationForOutput == m_activations.emulatesBiases());
 		};
 
 		_LFC_FProp(const neurons_count_t _neurons_cnt, const char* pCustomName = nullptr)noexcept
@@ -203,15 +204,13 @@ namespace nntl {
 				}
 			}
 
-			// Math interface during fprop() may have to operate on the following matrices:
-			// m_weights, dLdW - (m_neurons_cnt, get_incoming_neurons_cnt() + 1)
-			// m_activations - (biggestBatchSize, m_neurons_cnt+1) and unbiased matrices derived from m_activations - such as m_dAdZ
-			// prevActivations - size (m_training_batch_size, get_incoming_neurons_cnt() + 1).
-			get_iMath().preinit(::std::max({
-				m_weights.numel()
-				, realmtx_t::sNumel(get_common_data().max_fprop_batch_size(), incoming_neurons_cnt + 1)//for prev activations.
-				//, _activation_tmp_mem_reqs() //base class is doing it!
-			}));
+			// there's no use of iMath _istor_alloc/_istor_free() functions during operation of this class's functions
+			// (as well as inside of iMath calls we do here), so there's no need to call iMath.preinit() at all
+// 			get_iMath().preinit(::std::max({
+// 				m_weights.numel()
+// 				, realmtx_t::sNumel(get_common_data().max_fprop_batch_size(), incoming_neurons_cnt + 1)//for prev activations.
+// 				//, _activation_tmp_mem_reqs() //base class is doing it!
+// 			}));
 
 			bSuccessfullyInitialized = true;
 			return ec;
@@ -247,7 +246,7 @@ namespace nntl {
 			NNTL_ASSERT(m_activations.batch_size() == get_common_data().get_cur_batch_size());
 
 			//might be necessary for Nesterov momentum application
-			if (!bExpectNoBProp && bTrainingMode) get_self()._on_fprop_in_training_mode();
+			if (!bAssumeFPropOnly && bTrainingMode) get_self()._on_fprop_in_training_mode();
 
 			_iI.fprop_makePreActivations(m_weights, prevActivations);
 
@@ -358,9 +357,9 @@ namespace nntl {
 			const numel_cnt_t prmsNumel = get_self().bUpdateWeights() ? m_weights.numel() : 0;
 			lid.nParamsToLearn = prmsNumel;
 			
-			get_iMath().preinit(::std::max({
-				realmtx_t::sNumel(get_common_data().biggest_batch_size(), get_self().get_incoming_neurons_cnt() + 1)//for prev activations.
-			}));
+// 			get_iMath().preinit(::std::max({
+// 				realmtx_t::sNumel(get_common_data().biggest_batch_size(), get_self().get_incoming_neurons_cnt() + 1)//for prev activations.
+// 			}));
 
 			if (get_common_data().is_training_possible()) {
 				//it'll be training session, therefore must allocate necessary supplementary matrices and form temporary memory reqs.

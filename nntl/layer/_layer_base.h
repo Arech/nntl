@@ -173,11 +173,12 @@ namespace nntl {
 		
 		// class constructor MUST have const char* pCustomName as the first parameter.
 		
-		//shared activations implies that the bias column may hold not the biases, but activations of some another layer
-		//Therefore use such activation matrix only in proper context (biases of shared activations are valid only in
+		// Shared activations implies that the bias column may hold not the biases, but activations of some another layer
+		// Therefore use such activation matrix only in proper context (biases of shared activations are valid only in
 		// contexts of fprop()/bprop() of upper layers).
-		//If the layer was given a pNewActivationStorage parameter in init/on_batch_size_change, it implies
-		//that the activations are shared.
+		// If the layer was given a pNewActivationStorage parameter in init/on_batch_size_change, it implies
+		// that the activations are shared and the function must return true.
+		// If activations is not shared, biased must be valid all the time when activations is valid.
 		nntl_interface bool is_activations_shared()const noexcept;
 
 		//use it only if you really know what you're are doing and it won't hurt derivatives calculation
@@ -346,10 +347,13 @@ namespace nntl {
 		layer_index_t m_layerIdx = invalid_layer_index;//must be reachable from derived classes, because it's set not here
 
 		//////////////////////////////////////////////////////////////////////////
-		//for a data packing reasons we have a plenty of space here to fit some flags
+		//for a data packing reasons we have a plenty of space here, so putting some flags for later use right here
 		// 
 		//run-time flags (reset during init/deinit())
 		bool m_bActivationsValid = false;
+
+		//flag for is_activations_shared()
+		bool m_bActivationsShared = false;
 
 		//////////////////////////////////////////////////////////////////////////
 		// persistent flags (generally unaffected by init/deinit(), but actually depends on derived class intent)
@@ -376,14 +380,20 @@ namespace nntl {
 		_layer_core()noexcept{}
 
 		void init()noexcept {
-			m_bActivationsValid = false;
+			m_bActivationsValid = m_bActivationsShared = false;
 			NNTL_DEBUG_DECLARE(dbgm_bInitialized = true);
 			//persistent flags are left untouched
 		}
 		void deinit()noexcept {
 			m_bActivationsValid = false;
+			///note that we don't touch m_bActivationsShared here and reset it only during init(). Just for the case
 			NNTL_DEBUG_DECLARE(dbgm_bInitialized = false);
 			//persistent flags are left untouched
+		}
+
+		void _set_activations_shared(const bool bSh)noexcept {
+			NNTL_ASSERT(dbgm_bInitialized);
+			m_bActivationsShared = bSh;
 		}
 
 	public:
@@ -411,6 +421,9 @@ namespace nntl {
 			NNTL_ASSERT(!dbgm_bInitialized || !"Hey! Don't call that function after init() was run!");
 			m_bDropBProp = !b;
 		}*/
+
+		bool is_activations_shared()const noexcept { return m_bActivationsShared; }
+
 	};
 
 

@@ -91,10 +91,8 @@ namespace nntl {
 			return m_pActivations->size();
 		}
 		static constexpr bool is_activations_shared()noexcept {
-			return true;//input layer doesn't manage activation matrix
-// 			const auto r = _base_class::is_activations_shared();
-// 			NNTL_ASSERT(!r || m_activations.bDontManageStorage());//shared activations can't manage their own storage
-// 			return r;
+			//no particular reason for that, but shouldn't expect that biases are there except for during fprop/bprop of a next layer
+			return true;
 		}
 
 		ErrorCode init(_layer_init_data_t& lid)noexcept {

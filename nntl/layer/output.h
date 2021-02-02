@@ -137,9 +137,9 @@ namespace nntl {
 			const numel_cnt_t prmsNumel = get_self().bUpdateWeights() ? m_weights.numel() : 0;
 			lid.nParamsToLearn = prmsNumel;
 			
-			get_iMath().preinit(::std::max({
-				realmtx_t::sNumel(get_common_data().biggest_batch_size(), get_self().get_incoming_neurons_cnt() + 1)//for prev activations.
-			}));
+// 			get_iMath().preinit(::std::max({
+// 				realmtx_t::sNumel(get_common_data().biggest_batch_size(), get_self().get_incoming_neurons_cnt() + 1)//for prev activations.
+// 			}));
 
 			if (get_common_data().is_training_possible() && get_self().bUpdateWeights() /*&& get_self().bDoBProp()*/) {
 				//There's no dLdA coming into the output layer, therefore leave max_dLdA_numel it zeroed

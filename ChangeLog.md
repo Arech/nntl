@@ -1,6 +1,11 @@
 # Changelog
 I should probably have started doing it long ago, but better late than never. So here it is (for older entries see commit history)
 
+## 2021 Feb 02
+
+- cleanup of internal memory consumption.
+- layers' `is_activations_shared()` no longer relyes on `m_activations.bDontManageStorage()` flag, but uses it's own. This allows to substitute activation storage in a derived class without breaking layers packing code.
+
 ## 2021 Feb 01
 
 - proper `m_layer_stops_bprop` layer marker introduced to distinguish between real `m_layer_input` marked layer and a layer that just terminates a back propagation chain (it was the job of `m_layer_input` marker earlier).

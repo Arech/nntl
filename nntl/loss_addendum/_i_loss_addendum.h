@@ -79,11 +79,11 @@ namespace loss_addendum {
 		nntl_interface const bool bEnabled()const noexcept;
 
 		// Performs initialization.
-		//At mininum, it must call iMath.preinit()
+		//At mininum, it must call iMath.preinit() --- why??? It's a job for derived class to know whether it needs it or not
 		//override in derived class to suit needs
 		template <typename CommonDataT>
-		static bool init(const mtx_size_t biggestMtx, const CommonDataT& CD) noexcept {
-			CD.iMath().preinit( realmtx_t::sNumel(biggestMtx) );
+		static bool init(const mtx_size_t /*biggestMtx*/, const CommonDataT& /*CD*/) noexcept {
+			//CD.iMath().preinit( realmtx_t::sNumel(biggestMtx) );
 			return true;
 		}
 		static void deinit()noexcept{}

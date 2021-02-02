@@ -219,7 +219,7 @@ namespace nntl {
 
 		vec_len_t m_curYOfs;
 
-		NNTL_DEBUG_DECLARE(vec_len_t m_maxFPropBatch);
+		NNTL_DEBUG_DECLARE(vec_len_t m_biggestBatch);
 
 	public:
 		~eval_classification_one_hot_cached()noexcept {}
@@ -241,18 +241,18 @@ namespace nntl {
 				return false;
 			}
 
-			const auto maxFprop = cd.max_fprop_batch_size();
-			NNTL_DEBUG_DECLARE(m_maxFPropBatch = maxFprop);
+			const auto biggestBatch = cd.biggest_batch_size();
+			NNTL_DEBUG_DECLARE(m_biggestBatch = biggestBatch);
 
 			auto& iM = cd.iMath();
-			iM.preinit(iM.mrwIdxsOfMax_needTempMem<real_t>(maxFprop));
+			iM.preinit(iM.mrwIdxsOfMax_needTempMem<real_t>(biggestBatch));
 			iM.init();
 
 			try {
 				m_ydataClassIdxs[train_set_id].resize(trainSamples);
 				m_ydataClassIdxs[test_set_id].resize(testSamples);
-				m_predictionClassOrYDataIdxs[0].resize(maxFprop);
-				if (td.datasets_count() > 2) m_predictionClassOrYDataIdxs[1].resize(maxFprop);
+				m_predictionClassOrYDataIdxs[0].resize(biggestBatch);
+				if (td.datasets_count() > 2) m_predictionClassOrYDataIdxs[1].resize(biggestBatch);
 			}catch(const ::std::exception&){
 				NNTL_ASSERT(!"Exception caught while resizing vectors in eval_classification_one_hot_cached::init");
 				deinit();
@@ -297,9 +297,9 @@ namespace nntl {
 		template<typename iMath>
 		numel_cnt_t correctlyClassified(const data_set_id_t dataSetId, const realmtx_t& data_y, const realmtx_t& activations, iMath& iM)noexcept {
 			NNTL_ASSERT(data_y.size() == activations.size());
-			NNTL_ASSERT(data_y.rows() <= m_maxFPropBatch);
+			NNTL_ASSERT(data_y.batch_size() <= m_biggestBatch);
 
-			NNTL_ASSERT(conform_sign(m_predictionClassOrYDataIdxs[0].capacity()) >= activations.rows());
+			NNTL_ASSERT(conform_sign(m_predictionClassOrYDataIdxs[0].capacity()) >= activations.batch_size());
 			m_predictionClassOrYDataIdxs[0].resize(activations.rows());
 			iM.mrwIdxsOfMax(activations, &m_predictionClassOrYDataIdxs[0][0]);
 
