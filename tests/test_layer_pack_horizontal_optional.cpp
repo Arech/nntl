@@ -456,7 +456,7 @@ void run_gc4lpho(inmem_train_data<RealT>& td)noexcept {
 	gradcheck_settings<real_t> ngcSetts(true, false);
 	ngcSetts.evalSetts.bIgnoreZerodLdWInUndelyingLayer = true;
 	ngcSetts.onlineBatchSize = 50;//batch must be big enough to minimize probability of the whole gate==0
-	ngcSetts.evalSetts.dLdW_setts.relErrFailThrsh = real_t(6e-4);
+	ngcSetts.evalSetts.dLdW_setts.relErrFailThrsh = real_t(1e-3);
 	ngcSetts.evalSetts.dLdW_setts.percOfZeros = 10;
 	ngcSetts.evalSetts.dLdA_setts.percOfZeros = 90;
 

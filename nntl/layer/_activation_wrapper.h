@@ -89,45 +89,47 @@ namespace nntl {
 				//note that we don't check sample_size() property to be able to pass
 				// some additional data to Activation_t::loss()
 				// note that compilation may break here if Activation_t doesn't support YT different from real_t
-				return Activation_t::loss(m_activations, data_y, get_iMath());
+				return get_self().get_activation_obj().loss(m_activations, data_y, get_iMath());
 			}
 
 			//////////////////////////////////////////////////////////////////////////
-			ErrorCode init(_layer_init_data_t& lid, real_t*const pNewActivationStorage)noexcept {
-				const auto ec = _base_class_t::init(lid, pNewActivationStorage);
+			ErrorCode layer_init(_layer_init_data_t& lid, real_t*const pNewActivationStorage)noexcept {
+				const auto ec = _base_class_t::layer_init(lid, pNewActivationStorage);
 				if (ErrorCode::Success != ec) return ec;
 
-				if (!Activation_t::act_init(get_common_data(), get_neurons_cnt())) return ErrorCode::CantInitializeActFunc;
+				if (!get_self().get_activation_obj().act_init(get_common_data(), lid.outgBS, get_neurons_cnt()))
+					return ErrorCode::CantInitializeActFunc;
 
 				get_iMath().preinit(_activation_tmp_mem_reqs());
 
 				return ErrorCode::Success;
 			}
 
-			void deinit() noexcept {
-				Activation_t::act_deinit();
-				_base_class_t::deinit();
+			void layer_deinit() noexcept {
+				get_self().get_activation_obj().act_deinit();
+				_base_class_t::layer_deinit();
 			}
 
 			real_t act_scaling_coeff() const noexcept {
-				return Activation_t::act_scaling_coeff();
+				return get_self().get_activation_obj().act_scaling_coeff();
 			}
 
-			void on_batch_size_change(real_t*const pNewActivationStorage = nullptr)noexcept {
-				_base_class_t::on_batch_size_change(pNewActivationStorage);
-				Activation_t::on_batch_size_change();
+			vec_len_t on_batch_size_change(const vec_len_t incBatchSize, real_t*const pNewActivationStorage = nullptr)noexcept {
+				const auto outgBs = _base_class_t::on_batch_size_change(incBatchSize, pNewActivationStorage);
+				get_self().get_activation_obj().on_batch_size_change(outgBs);
+				return outgBs;
 			}
 
 		protected:
 			bool _activation_init_weights(realmtx_t& weights) noexcept {
-				NNTL_ASSERT(!weights.emulatesBiases() && !weights.bBatchInRow());
-				return Weights_Init_t::init(weights, get_iRng(), get_iMath());
+				NNTL_ASSERT(get_self().isWeightsSuitable(weights));
+				return get_self().get_activation_obj().get_weightsInit().make_weights(weights, get_iRng(), get_iMath());
 			}
 
 			//this is to return how many temporary real_t elements activation function might require the iMath interface to have
 			auto _activation_tmp_mem_reqs()const noexcept {
-				NNTL_ASSERT(m_activations.batch_size() >= get_common_data().biggest_batch_size());
-				return Activation_t::needTempMem(m_activations, get_iMath());
+				NNTL_ASSERT(m_activations.batch_size() >= m_outgBS.biggest());
+				return get_self().get_activation_obj().needTempMem(m_activations, get_iMath());
 			}
 
 			template<typename iMathT>
@@ -135,7 +137,7 @@ namespace nntl {
 				NNTL_ASSERT_MTX_NO_NANS(m_activations);
 
 				if (!get_self().bIgnoreActivation()) {
-					Activation_t::f(m_activations, iM);
+					get_self().get_activation_obj().f(m_activations, iM);
 					NNTL_ASSERT_MTX_NO_NANS(m_activations);
 				}
 			}
@@ -146,9 +148,9 @@ namespace nntl {
 				NNTL_ASSERT(m_activations.data() == act2dAdZ_nb.data() && m_activations.size_no_bias() == act2dAdZ_nb.size());
 				//NNTL_ASSERT(act2dAdZ_nb.test_noNaNs()); //did it already, not necessary here
 				if (get_self().bIgnoreActivation()) {
-					Activation_t::dIdentity(act2dAdZ_nb, iM);
+					get_self().get_activation_obj().dIdentity(act2dAdZ_nb, iM);
 				} else {
-					Activation_t::df(act2dAdZ_nb, iM);
+					get_self().get_activation_obj().df(act2dAdZ_nb, iM);
 				}
 				NNTL_ASSERT(act2dAdZ_nb.test_noNaNs());
 			}
@@ -158,9 +160,9 @@ namespace nntl {
 				NNTL_ASSERT(!m_activations.emulatesBiases() && !data_y.emulatesBiases());
 				//note: compilation may break here if Activation_t doesn't support YT passed!
 				if (get_self().bIgnoreActivation()) {
-					Activation_t::dLdZIdentity(data_y, m_activations, iM);
+					get_self().get_activation_obj().dLdZIdentity(data_y, m_activations, iM);
 				} else {
-					Activation_t::dLdZ(data_y, m_activations, iM);
+					get_self().get_activation_obj().dLdZ(data_y, m_activations, iM);
 				}
 				NNTL_ASSERT(m_activations.test_noNaNs());
 			}

@@ -148,6 +148,8 @@ namespace nntl {
 		real_t _pab_lossAddendum(const realmtxdef_t& ThisActivations, const CommonDataT& CD)const noexcept {
 			real_t ret(0.0);
 
+			NNTL_ASSERT(ThisActivations.bBatchInColumn());
+
 			//the only modification of activations we may use is stripping/restoring last (bias) column,
 			//which is in fact not a modification from outside POV
 			realmtxdef_t& act = const_cast<realmtxdef_t&>(ThisActivations);
@@ -187,6 +189,7 @@ namespace nntl {
 
 		template<typename Fnctr>
 		void _for_each_call_functor(const realmtxdef_t& ThisActivations, const typename Fnctr::CommonData_t& CD)noexcept {
+			NNTL_ASSERT(ThisActivations.bBatchInColumn());
 			//dropping const only to hide+restore biases
 			realmtxdef_t& act = const_cast<realmtxdef_t&>(ThisActivations);
 			//NNTL_ASSERT(act.emulatesBiases());//we may get a matrix without bias column here, that's ok
@@ -212,6 +215,7 @@ namespace nntl {
 		//bprop() is implemented for output_layer now
 		template<typename CommonDataT>
 		void _pab_update_dLdA(realmtx_t& dLdA, const realmtxdef_t& ThisActivations, const CommonDataT& CD)noexcept {
+			NNTL_ASSERT(ThisActivations.bBatchInColumn());
 			//dropping const only to hide+restore biases
 			realmtxdef_t& act = const_cast<realmtxdef_t&>(ThisActivations);
 			const auto bRestoreBiases = act.hide_biases();

@@ -131,6 +131,8 @@ namespace math {
 			global_denormalized_floats_mode();
 		}
 
+		iThreads_t& ithreads()noexcept { return m_threads; }
+
 		// use with care, it's kind of "internal memory" of the class object. Don't know, if really 
 		// should expose it into public (for some testing purposes only at this moment)
 		// Always perform corresponding call to _istor_free() in LIFO (stack) order!
@@ -163,17 +165,34 @@ namespace math {
 			}
 		}
 
-		iThreads_t& ithreads()noexcept { return m_threads; }
-
-		//math preinitialization, should be called from each NN layer. n - maximum data length (in real_t), that this layer will use in calls
-		//to math interface. Used to calculate max necessary temporary storage length.
+		// math internal mem storage preinitialization,
+		// should be called before any code will call _istor_alloc().
+		// n - total maximum data length (in real_t), that can simultaneuisly used by _istor_alloc().
 		// #TODO some functions have weird or non-trivial memory requirements (see for example softmax_needTempMem()), so
 		// it's better to employ some mechanism to specify which functions with which biggest datasizes code is going to use
 		// and let the internals to do all the necessary tmp mem requrements calculations. Before that, make at least
 		// a special function similar to noted softmax_needTempMem() for every implementation and call it to get correct
 		// preinit() argument.
 		void preinit(const numel_cnt_t n)noexcept {
-			if (n > m_minTempStorageSize) m_minTempStorageSize = n;
+			//if (n > m_minTempStorageSize) m_minTempStorageSize = n;
+			m_minTempStorageSize = ::std::max(m_minTempStorageSize, n);
+		}
+
+		//this is quick and dirty method for implementing the possibility of stacked preinit() calls
+		// 1. exec "const auto rv = .preinit_push()"
+		// 2. call the initializing code that may execute .preinit()
+		// 3. exec ".preinit_pop(rv, _your_mem_req)".
+		// 4. now you may safely use up to _your_mem_req elements of _istor without interfering with the other code reqs.
+		// Note that preinit_push() must always be accompanied with preinit_pop() (_pop() could be skipped only
+		// if there was unrecoverable error that would eventually lead to deinit() call)
+		// Will be refactored when whole _istor concept will be reworked.
+		numel_cnt_t preinit_push()noexcept {
+			const auto r = m_minTempStorageSize;
+			m_minTempStorageSize = 0;
+			return r;
+		}
+		void preinit_pop(const numel_cnt_t _preinit_push_retval, const numel_cnt_t _topLevel_preinit_arg)noexcept {
+			m_minTempStorageSize = ::std::max(_preinit_push_retval, m_minTempStorageSize + _topLevel_preinit_arg);
 		}
 
 		//real math initialization, used to allocate necessary temporary storage of size max(preinit::n)

@@ -63,10 +63,8 @@ namespace nntl {
 		realmtxdef_t m_dLdW;//doesn't guarantee to retain it's value between usage in different code flows;
 		//may share memory with some other data structure. Must be deformable for grad_works_t
 		
-		//real_t m_nTiledTimes{ 0 };
-
 		real_t m_dLdZRestrictLowerBnd, m_dLdZRestrictUpperBnd;
-		bool m_bRestrictdLdZ;//restriction flag should be permanent for init/deinit calls and changed only by explicit calls to respective functions
+		bool m_bRestrictdLdZ;//restriction flag should be permanent for layer_init/layer_deinit calls and changed only by explicit calls to respective functions
 						
 		//////////////////////////////////////////////////////////////////////////
 		//Serialization support
@@ -118,21 +116,20 @@ namespace nntl {
 		grad_works_t& get_gradWorks()noexcept { return m_gradientWorks; }
 		const grad_works_t& get_gradWorks()const noexcept { return m_gradientWorks; }
 
-		ErrorCode init(_layer_init_data_t& lid)noexcept {
+		ErrorCode layer_init(_layer_init_data_t& lid)noexcept {
 			bool bSuccessfullyInitialized = false;
 			utils::scope_exit onExit([&bSuccessfullyInitialized, this]() {
-				if (!bSuccessfullyInitialized) get_self().deinit();
+				if (!bSuccessfullyInitialized) get_self().layer_deinit();
 			});
 
-			auto ec = _base_class_t::init(lid);
+			auto ec = _base_class_t::layer_init(lid);
 			if (ErrorCode::Success != ec) return ec;
 
 			//we need this to be able to include layer_output into LPT (though, it won't work now, at least because LPT doesn't
 			// propagate m_output_layer marker)
-			NNTL_ASSERT(lid.nTiledTimes == 1 || !"If you've updated LPT to incapsulate this layer, uncomment every m_nTiledTimes usage if it is still necessary");
+			//NNTL_ASSERT(lid.nTiledTimes == 1 || !"If you've updated LPT to incapsulate this layer, uncomment every m_nTiledTimes usage if it is still necessary");
 			//and note, that that nTiledTimes machinery is actually a hack to make LPT pass a grad check. So it's better to make grad checker
 			//routine aware of layer differences.
-			//m_nTiledTimes = real_t(lid.nTiledTimes);
 			
 			const numel_cnt_t prmsNumel = get_self().bUpdateWeights() ? m_weights.numel() : 0;
 			lid.nParamsToLearn = prmsNumel;
@@ -149,7 +146,7 @@ namespace nntl {
 				lid.maxMemTrainingRequire = prmsNumel;
 			}
 
-			if (!get_self().get_gradWorks().init(get_common_data(), m_weights))return ErrorCode::CantInitializeGradWorks;
+			if (!get_self().get_gradWorks().gw_init(get_common_data(), m_weights))return ErrorCode::CantInitializeGradWorks;
 
 			//#BUGBUG current implementation of GW::hasLossAddendum could return false because LAs are currently disabled,
 			//however they could be enabled later. Seems like not a major bug, so I'll leave it to fix later.
@@ -160,11 +157,10 @@ namespace nntl {
 			return ec;
 		}
 
-		void deinit()noexcept {
-			get_gradWorks().deinit();
+		void layer_deinit()noexcept {
+			get_gradWorks().gw_deinit();
 			m_dLdW.clear();
-			//m_nTiledTimes = real_t(0);
-			_base_class_t::deinit();
+			_base_class_t::layer_deinit();
 		}
 
 		void initMem(real_t* ptr, numel_cnt_t cnt)noexcept {
@@ -184,34 +180,33 @@ namespace nntl {
 
 		void _cust_inspect(const realmtx_t&)const noexcept { }
 
-		// #supportsBatchInRow for prevActivations, data_y and m_activations (iif the dLdZ, obtained from
+		// #supportsBatchInRow for prevAct, data_y and m_activations (iif the dLdZ, obtained from
 		// activation_t::dLdZ() has bBatchInRow() layout -- need to update other iM func to make it work completely) 
 		template<typename YT>
-		unsigned _outp_bprop(const math::smatrix<YT>& data_y, const realmtx_t& prevActivations, const bool bPrevLayerWBprop, realmtx_t& dLdAPrev)noexcept {
-			NNTL_ASSERT(prevActivations.test_biases_strict());
-			//NNTL_ASSERT(real_t(1.) == get_gradWorks()._learning_rate_scale());//output layer mustn't have lr scaled.
-			// Don't implement lrdecay using the _learning_rate_scale(), it's for internal use only!
+		unsigned _outp_bprop(const math::smatrix<YT>& data_y, const realmtx_t& prevAct, const bool bPrevLayerWBprop, realmtx_t& dLdAPrev)noexcept {
+			NNTL_ASSERT(prevAct.test_biases_strict());
+			NNTL_ASSERT(get_common_data().is_training_mode());
+			NNTL_ASSERT(prevAct.batch_size() <= m_incBS.maxTrainBS);
+			NNTL_ASSERT(m_activations.batch_size() <= m_outgBS.maxTrainBS);
+			NNTL_ASSERT(prevAct.batch_size() == m_activations.batch_size());
+
 			NNTL_ASSERT(m_bActivationsValid);
 			m_bActivationsValid = false;
 
-			NNTL_ASSERT_MTX_NO_NANS(prevActivations);
+			NNTL_ASSERT_MTX_NO_NANS(prevAct);
 			NNTL_ASSERT_MTX_NO_NANS(data_y);
 
+			data_y.assert_storage_does_not_intersect(dLdAPrev);
+			//NNTL_ASSERT(m_activations.size() == data_y.size()); //too strong. We may need loss functions that may require different columns count
+			//NNTL_ASSERT(m_activations.batch_size() == data_y.batch_size());//actually it is also redundant
+			NNTL_ASSERT(get_incoming_neurons_cnt() == prevAct.sample_size());
+			NNTL_ASSERT(!bPrevLayerWBprop || dLdAPrev.size() == prevAct.size_no_bias());
+			NNTL_ASSERT(!bPrevLayerWBprop || dLdAPrev.bBatchInRow() == prevAct.bBatchInRow());
+
+			auto& iM = get_iMath();
 			auto& _iI = get_iInspect();
 			_iI.bprop_begin(get_layer_idx(), data_y);
 			//_iI.bprop_finaldLdA(dLdA); //--doesn't apply here actually
-
-			data_y.assert_storage_does_not_intersect(dLdAPrev);
-			NNTL_ASSERT(get_common_data().is_training_mode());
-			//NNTL_ASSERT(m_activations.size() == data_y.size()); //too strong. We may need loss functions that may require different columns count
-			NNTL_ASSERT(m_activations.batch_size() == data_y.batch_size());
-			NNTL_ASSERT(m_activations.batch_size() == get_common_data().get_cur_batch_size());
-			NNTL_ASSERT(get_common_data().get_cur_batch_size() == prevActivations.batch_size() 
-				&& get_incoming_neurons_cnt() == prevActivations.sample_size());
-			NNTL_ASSERT(!bPrevLayerWBprop || dLdAPrev.size() == prevActivations.size_no_bias());
-			NNTL_ASSERT(!bPrevLayerWBprop || dLdAPrev.bBatchInRow() == prevActivations.bBatchInRow());
-
-			auto& iM = get_iMath();
 
 			_iI.bprop_predLdZOut(m_activations, data_y);
 			//compute dL/dZ into m_activations. Note that there's no requirement to make layout of dLdZ the same as m_activations, therefore
@@ -256,11 +251,11 @@ namespace nntl {
 				//However, the tiled layer in a real life would have a m_nTiledTimes bigger batch size, than the modeled layer should have,
 				// therefore we'll upscale the gradient m_nTiledTimes times.
 				//compute dL/dW = 1/batchsize * (dL/dZ)` * Aprev
-				//iM.mScaledMulAtB_C(real_t(1.) / real_t(dLdZ.rows()), dLdZ, prevActivations, m_dLdW);
+				//iM.mScaledMulAtB_C(real_t(1.) / real_t(dLdZ.rows()), dLdZ, prevAct, m_dLdW);
 				// #TODO support bBatchInRow for dLdZ!!!
-				iM.mMulScaled_dLdZ_prevAct_2_dLdW(real_t(1.) / real_t(dLdZ.rows()), dLdZ, prevActivations, m_dLdW);
+				iM.mMulScaled_dLdZ_prevAct_2_dLdW(real_t(1.) / real_t(dLdZ.rows()), dLdZ, prevAct, m_dLdW);
 
-				_iI.bprop_dLdW(dLdZ, prevActivations, m_dLdW);
+				_iI.bprop_dLdW(dLdZ, prevAct, m_dLdW);
 
 				//now we can apply gradient to the weights
 				get_gradWorks().apply_grad(m_weights, m_dLdW);

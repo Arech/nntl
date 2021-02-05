@@ -31,6 +31,10 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 #pragma once
 
+#include <limits>
+
+#include "_defs.h"
+
 namespace nntl {
 	
 	//typename for referring layer numbers, indexes, counts and so on. *640k* 256 layers should enough for everyone :-D
@@ -121,4 +125,94 @@ namespace nntl {
 	#endif
 		return static_cast<conf_T>(v);
 	}
+
+	struct BatchSizes {
+		vec_len_t maxBS{ 0 }; //max batch size for any mode
+		vec_len_t maxTrainBS{ 0 }; //max batch size for training only 
+
+		BatchSizes()noexcept{}
+
+		BatchSizes(const vec_len_t mbs, const vec_len_t tbs)noexcept : maxBS(mbs), maxTrainBS(tbs) {
+			NNTL_ASSERT(mbs > 0 && (0 == tbs || (tbs > 0 && mbs >= tbs)));
+		}
+
+		//no assertions here
+		BatchSizes(const BatchSizes& o)noexcept : maxBS(o.maxBS), maxTrainBS(o.maxTrainBS) {}
+		BatchSizes(BatchSizes&& o)noexcept : maxBS(o.maxBS), maxTrainBS(o.maxTrainBS) {}
+		
+	public:
+		void set(const vec_len_t mbs, const vec_len_t tbs)noexcept {
+			NNTL_ASSERT(mbs > 0 && (0 == tbs || (tbs > 0 && mbs >= tbs)));
+			maxBS = mbs;
+			maxTrainBS = tbs;
+		}
+		void set_from(const BatchSizes& o)noexcept {
+			NNTL_ASSERT(o.isValid());
+			_set_from(o);
+		}
+	protected:
+		void _set_from(const BatchSizes& o)noexcept {
+			maxBS = o.maxBS;
+			maxTrainBS = o.maxTrainBS;
+		}
+
+	public:
+		BatchSizes& operator=(const BatchSizes& o)noexcept {
+			if (this != &o) {
+				set_from(o);
+			}
+			return *this;
+		}
+		//move usually perform compiler when operating over higher-level structures that may contain uninitalized/empty/non valid BatchSizes
+		//so skipping assertions here
+		BatchSizes& operator=(BatchSizes&& o)noexcept {
+			_set_from(o);
+			return *this;
+		}
+
+		bool isValid()const noexcept {
+			NNTL_ASSERT((maxBS == 0 && maxTrainBS == 0) || (maxBS > 0 && (0 == maxTrainBS || (maxTrainBS > 0 && maxBS >= maxTrainBS))));
+			return maxBS > 0;
+		}
+
+		bool isValidForTraining()const noexcept {
+			NNTL_ASSERT(maxBS >= maxTrainBS);
+			return maxBS > 0 && maxTrainBS > 0;
+		}
+
+		vec_len_t biggest()const noexcept {
+			NNTL_ASSERT(isValid());
+			//return ::std::max(maxBatchSize, maxTrainingBatchSize);
+			return maxBS;
+		}
+
+		vec_len_t max_bs4mode(const bool bTrainingMode)const noexcept {
+			NNTL_ASSERT(isValid());
+			NNTL_ASSERT(!bTrainingMode || maxTrainBS > 0);
+			return bTrainingMode ? maxTrainBS : biggest();
+		}
+
+		void clear()noexcept {
+			maxBS = maxTrainBS = 0;
+		}
+
+		bool operator==(const BatchSizes& o)const noexcept {
+			return maxBS == o.maxBS && maxTrainBS == o.maxTrainBS;
+		}
+		bool operator!=(const BatchSizes& o)const noexcept {
+			return maxBS != o.maxBS || maxTrainBS != o.maxTrainBS;
+		}
+
+		BatchSizes operator*(const vec_len_t mult)const noexcept {
+			NNTL_ASSERT(isValid());
+			NNTL_ASSERT(mult > 0);
+			return BatchSizes(maxBS*mult, maxTrainBS*mult);
+		}
+
+		BatchSizes operator/(const vec_len_t divis)const noexcept {
+			NNTL_ASSERT(isValid());
+			NNTL_ASSERT(divis > 0 && 0 == maxBS%divis);
+			return BatchSizes(maxBS / divis, maxTrainBS / divis);
+		}
+	};
 }

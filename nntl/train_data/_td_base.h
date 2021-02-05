@@ -175,7 +175,7 @@ namespace _impl {
 				if (bDoInit) {
 					vec_len_t mfs = Setts.batchSize < 0 ? 0 : Setts.batchSize;
 					const auto ec = get_self().init4inference(cd.get_iMath(), mfs);
-					if (nnet_errors_t::Success != ec) {
+					if (nnet_errors_t::Success != ec || !cd.get_iMath().init()) {
 						STDCOUTL("Failed to initialize TD for normalization: " << _nnet_errs::get_error_str(ec));
 						return false;
 					}

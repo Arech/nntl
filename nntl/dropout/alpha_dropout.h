@@ -90,9 +90,9 @@ namespace nntl {
 		}
 
 		template<typename CommonDataT>
-		bool _dropout_init(const neurons_count_t neurons_cnt, const CommonDataT& CD)noexcept {
+		bool _dropout_init(const neurons_count_t neurons_cnt, const CommonDataT& CD, const _impl::_layer_init_data<CommonDataT>& lid)noexcept {
 			NNTL_ASSERT(neurons_cnt);
-			if (!_base_class_t::_dropout_init(neurons_cnt, CD))  return false;
+			if (!_base_class_t::_dropout_init(neurons_cnt, CD, lid))  return false;
 
 			if (CD.is_training_possible()) {
 				//condition means if (there'll be a training session) and (we're going to use dropout)

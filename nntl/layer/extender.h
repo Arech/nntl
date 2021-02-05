@@ -158,7 +158,7 @@ namespace nntl {
 
 		template<bool c = bDropoutAvailable>
 		::std::enable_if_t<c, bool> _init_do(_layer_init_data_t& lid) noexcept {
-			if (!_dropout_init(get_neurons_cnt(), get_common_data()))
+			if (!_dropout_init(get_neurons_cnt(), get_common_data(), lid))
 				return false;
 
 			if (get_common_data().is_training_possible()) {
@@ -174,9 +174,14 @@ namespace nntl {
 		}
 
 	public:
-		ErrorCode init(_layer_init_data_t& lid, real_t* pNewActivationStorage = nullptr)noexcept {
-			const auto ec = _base_class_t::init(lid, pNewActivationStorage);
+		ErrorCode layer_init(_layer_init_data_t& lid, real_t* pNewActivationStorage = nullptr)noexcept {
+			auto ec = _base_class_t::layer_init(lid, pNewActivationStorage);
 			if (ec != ErrorCode::Success) return ec;
+
+			bool bSuccessfullyInitialized = false;
+			utils::scope_exit onExit([&bSuccessfullyInitialized, this]() {
+				if (!bSuccessfullyInitialized) get_self().layer_deinit();
+			});
 
 			const auto as = get_activations_size();
 			if (!_PAB_t::_pab_init(mtx_size_t(as.first, as.second - 1), get_common_data()))
@@ -187,26 +192,31 @@ namespace nntl {
 				lid.bLossAddendumDependsOnActivations = true;
 			}
 
-			return _init_do(lid) ? ErrorCode::Success : ErrorCode::DropoutInitFailed;
+			if (_init_do(lid)) {
+				ec = ErrorCode::Success;
+				bSuccessfullyInitialized = true;
+			} else ec = ErrorCode::DropoutInitFailed;
+			return ec;
 		}
 
-		void deinit()noexcept {
+		void layer_deinit()noexcept {
 			_dropout_deinit();
 			_PAB_t::_pab_deinit();
-			_base_class_t::deinit();
+			_base_class_t::layer_deinit();
 		}
 		
 		//////////////////////////////////////////////////////////////////////////
 
 		template<bool c = bDropoutAvailable>
-		::std::enable_if_t<c> on_batch_size_change(/*const real_t learningRateScale,*/ real_t*const pNewActivationStorage = nullptr)noexcept {
-			_base_class_t::on_batch_size_change(/*learningRateScale,*/ pNewActivationStorage);
-			_dropout_on_batch_size_change(get_common_data());
+		::std::enable_if_t<c, vec_len_t> on_batch_size_change(const vec_len_t incBatchSize, real_t*const pNewActivationStorage = nullptr)noexcept {
+			const auto outgBS = _base_class_t::on_batch_size_change(incBatchSize, pNewActivationStorage);
+			_dropout_on_batch_size_change(get_common_data(), outgBS);
+			return outgBS;
 		}
 
 		template<bool c = bDropoutAvailable>
-		::std::enable_if_t<!c> on_batch_size_change(/*const real_t learningRateScale,*/ real_t*const pNewActivationStorage = nullptr)noexcept {
-			_base_class_t::on_batch_size_change(/*learningRateScale,*/ pNewActivationStorage);
+		::std::enable_if_t<!c, vec_len_t> on_batch_size_change(const vec_len_t incBatchSize, real_t*const pNewActivationStorage = nullptr)noexcept {
+			return _base_class_t::on_batch_size_change(incBatchSize, pNewActivationStorage);
 		}
 
 	protected:

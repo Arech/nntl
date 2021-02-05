@@ -95,23 +95,25 @@ namespace nntl {
 			return true;
 		}
 
-		ErrorCode init(_layer_init_data_t& lid)noexcept {
-			auto ec = _base_class::init(lid);
+		ErrorCode layer_init(_layer_init_data_t& lid)noexcept {
+			auto ec = _base_class::layer_init(lid);
 			if (ErrorCode::Success != ec) return ec;
 
 			m_pActivations = nullptr;
 			return ec;
 		}
-		void deinit()noexcept {
+		void layer_deinit()noexcept {
 			m_pActivations = nullptr;
-			_base_class::deinit();
+			_base_class::layer_deinit();
 		}
 
 
 		void initMem(real_t* ptr, numel_cnt_t cnt)noexcept { NNTL_UNREF(ptr); NNTL_UNREF(cnt); }
-		void on_batch_size_change(/*const real_t learningRateScale*/)noexcept {
-			//NNTL_UNREF(learningRateScale);
+		vec_len_t on_batch_size_change(const vec_len_t bs)noexcept {
+			NNTL_ASSERT(bs > 0 && bs <= m_incBS.max_bs4mode(get_common_data().is_training_mode()));
+			NNTL_ASSERT(m_incBS == m_outgBS);
 			m_bActivationsValid = false;
+			return bs;
 		}
 
 		void fprop(const realmtx_t& data_x)noexcept {

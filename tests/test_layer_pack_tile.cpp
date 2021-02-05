@@ -169,7 +169,7 @@ TEST(TestLayerPackTile, ComparativeNonSpecialX) {
 	Aoutp.get_weights().clone_to(AoutpW);
 
 	Ann.___get_common_data().set_mode_and_batch_size(true, batchSize);
-	Alp.on_batch_size_change();
+	Alp.on_batch_size_change(batchSize);
 	Alp.fprop(_train_x);
 
 	//saving activations for comparison
@@ -219,7 +219,7 @@ TEST(TestLayerPackTile, ComparativeNonSpecialX) {
 
 	// doing fprop
 	Bnn.___get_common_data().set_mode_and_batch_size(true, batchSize);
-	Blp.on_batch_size_change();
+	Blp.on_batch_size_change(batchSize);
 	Blp.fprop(_train_x);
 
 	//comparing activations

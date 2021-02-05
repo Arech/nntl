@@ -38,7 +38,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 namespace nntl {
 
 	//fprop only base class
-	template<typename FinalPolymorphChild, typename InterfacesT, typename ActivFunc, bool bFPropOnlyInDerived = false>
+	template<typename FinalPolymorphChild, typename InterfacesT, typename ActivFunc, bool bFPropOnlyInDerived>
 	class _LFC_FProp
 		: public _impl::conditional_layer_stops_bprop<bFPropOnlyInDerived>
 		, public _impl::_act_wrap<FinalPolymorphChild, InterfacesT, ActivFunc>
@@ -124,7 +124,7 @@ namespace nntl {
 
 		bool isWeightsSuitable(const realmtx_t& W)const noexcept {
 			if (W.empty() || W.bBatchInRow() || W.emulatesBiases()
-				|| (W.cols() != get_self().get_incoming_neurons_cnt() + 1) || W.rows() != get_self().get_neurons_cnt())
+				|| (W.cols() != get_incoming_neurons_cnt() + 1) || W.rows() != get_neurons_cnt())
 			{
 				NNTL_ASSERT(!"Wrong weight matrix passed!");
 				return false;
@@ -135,26 +135,24 @@ namespace nntl {
 
 		//note: it should be called after assembling layers into a layer_pack, b/c it requires _incoming_neurons_cnt
 		bool set_weights(realmtx_t&& W)noexcept {
-			get_self().drop_weights();
 			if (!get_self().isWeightsSuitable(W)) return false;
+			get_self().drop_weights();
 
 			m_weights = ::std::move(W);
 			m_bWeightsInitialized = true;
 			return true;
 		}
 		bool set_weights(const realmtx_t& W)noexcept {
-			get_self().drop_weights();
 			if (!get_self().isWeightsSuitable(W)) return false;
+			get_self().drop_weights();
 
-			if (!W.clone_to(m_weights)) return false;
-			m_weights.update_on_hidden_resize();
+			if (!m_weights.cloneFrom(W)) return false;
 			m_bWeightsInitialized = true;
 		}
 
 		bool reinit_weights()noexcept {
-			NNTL_ASSERT(m_bWeightsInitialized || !"reinit_weights() can only be called after init()!");
-			NNTL_ASSERT((!m_weights.empty() && mtx_size_t(get_neurons_cnt(), get_incoming_neurons_cnt() + 1) == m_weights.size()
-				&& m_weights.bBatchInColumn()) || !"WTF?! Wrong state of weight matrix");
+			NNTL_ASSERT(m_bWeightsInitialized || !"reinit_weights() can only be called after layer_init()!");
+			NNTL_ASSERT(get_self().isWeightsSuitable(m_weights) || !"WTF?! Wrong state of weight matrix");
 			return _activation_init_weights(m_weights);
 		}
 
@@ -165,25 +163,31 @@ namespace nntl {
 
 		//////////////////////////////////////////////////////////////////////////
 
-		ErrorCode init(_layer_init_data_t& lid, real_t*const pNewActivationStorage = nullptr)noexcept {
+		//nothing to do here, base class has implementation
+// 		void layer_deinit() noexcept {
+// 			_base_class_t::layer_deinit();
+// 		}
+
+		ErrorCode layer_init(_layer_init_data_t& lid, real_t*const pNewActivationStorage = nullptr)noexcept {
 			NNTL_ASSERT(!bActivationForOutput || !pNewActivationStorage);//output layer always uses own activation storage 
 
 			bool bSuccessfullyInitialized = false;
 			utils::scope_exit onExit([&bSuccessfullyInitialized, this]() {
-				if (!bSuccessfullyInitialized) get_self().deinit();
+				if (!bSuccessfullyInitialized) get_self().layer_deinit();
 			});
 
-			auto ec = _base_class_t::init(lid, pNewActivationStorage);
+			auto ec = _base_class_t::layer_init(lid, pNewActivationStorage);
 			if (ErrorCode::Success != ec) return ec;
 
-			const auto neurons_cnt = get_self().get_neurons_cnt(), incoming_neurons_cnt = get_self().get_incoming_neurons_cnt();
+			const auto neurons_cnt = get_neurons_cnt(), incoming_neurons_cnt = get_incoming_neurons_cnt();
 
 			NNTL_ASSERT(!m_weights.emulatesBiases());
 			if (m_bWeightsInitialized) {
 				//just double check everything is fine
 				NNTL_ASSERT(!m_weights.empty() && m_weights.bBatchInColumn());
 				//prior weight initialization implies you don't want them to be reinitialized silently
-				if (mtx_size_t(neurons_cnt, incoming_neurons_cnt + 1) != m_weights.size()) {
+				//if (mtx_size_t(neurons_cnt, incoming_neurons_cnt + 1) != m_weights.size()) {
+				if (!get_self().isWeightsSuitable(m_weights)) {
 					NNTL_ASSERT(!"WTF? Wrong weight matrix!");
 					STDCOUTL("WTF? Wrong weight matrix @layer " << get_self().get_layer_idx() << " " << get_self().get_layer_name_str());
 					abort();
@@ -216,10 +220,13 @@ namespace nntl {
 			return ec;
 		}
 
-		void on_batch_size_change(real_t*const pNewActivationStorage = nullptr)noexcept {
-			_base_class_t::on_batch_size_change(pNewActivationStorage);
-			NNTL_ASSERT(!m_activations.empty() && m_activations.batch_size() == get_common_data().get_cur_batch_size());
-		}
+		//no need to check anything here
+// 		vec_len_t on_batch_size_change(const vec_len_t incBatchSize, real_t*const pNewActivationStorage = nullptr)noexcept {
+// 			const auto outgBs = _base_class_t::on_batch_size_change(incBatchSize, pNewActivationStorage);
+// 			NNTL_ASSERT(outgBs > 0 && outgBs <= (get_common_data().is_training_mode() ? m_outgBS.maxTrainBS : m_outgBS.maxBS));
+// 			NNTL_ASSERT(!m_activations.empty() && m_activations.batch_size() == outgBs);
+// 			return outgBs;
+// 		}
 
 		template <typename LowerLayer>
 		void fprop(const LowerLayer& lowerLayer)noexcept {
@@ -229,38 +236,40 @@ namespace nntl {
 
 	protected:
 		//separate function to isolate fprop() functionality from a previous layer type
-		// #supportsBatchInRow for prevActivations as well as m_activations
-		void _lfc_fprop(const realmtx_t& prevActivations)noexcept {
-			NNTL_ASSERT(prevActivations.test_biases_strict());
-			NNTL_ASSERT_MTX_NO_NANS(prevActivations);
+		// #supportsBatchInRow for prevAct as well as m_activations
+		void _lfc_fprop(const realmtx_t& prevAct)noexcept {
+			NNTL_ASSERT(prevAct.test_biases_strict());
+			NNTL_ASSERT_MTX_NO_NANS(prevAct);
+			NNTL_ASSERT(get_incoming_neurons_cnt() == prevAct.sample_size());
 
 			NNTL_ASSERT(bActivationForOutput != m_activations.emulatesBiases());
 			NNTL_ASSERT(bActivationForOutput || is_activations_shared() || m_activations.test_biases_strict());
 
 			const auto bTrainingMode = get_common_data().is_training_mode();
-			auto& _iI = get_iInspect();
-			_iI.fprop_begin(get_layer_idx(), prevActivations, bTrainingMode);
 
-			NNTL_ASSERT(get_common_data().get_cur_batch_size() == prevActivations.batch_size()
-				&& get_incoming_neurons_cnt() == prevActivations.sample_size());
-			NNTL_ASSERT(m_activations.batch_size() == get_common_data().get_cur_batch_size());
+			NNTL_ASSERT(prevAct.batch_size() <= m_incBS.max_bs4mode(bTrainingMode));
+			NNTL_ASSERT(m_activations.batch_size() <= m_outgBS.max_bs4mode(bTrainingMode));
+			NNTL_ASSERT(prevAct.batch_size() == m_activations.batch_size());
+
+			auto& _iI = get_iInspect();
+			_iI.fprop_begin(get_layer_idx(), prevAct, bTrainingMode);
 
 			//might be necessary for Nesterov momentum application
 			if (!bAssumeFPropOnly && bTrainingMode) get_self()._on_fprop_in_training_mode();
 
-			_iI.fprop_makePreActivations(m_weights, prevActivations);
+			_iI.fprop_makePreActivations(m_weights, prevAct);
 
 			auto& iM = get_iMath();
-			//iM.mMulABt_Cnb(prevActivations, m_weights, m_activations);
-			//note, mMul_prevAct_weights_2_act() supports bBatchInRow() for prevActivations and doesn't support it for m_activations
-			iM.mMul_prevAct_weights_2_act(prevActivations, m_weights, m_activations);
+			//iM.mMulABt_Cnb(prevAct, m_weights, m_activations);
+			//note, mMul_prevAct_weights_2_act() supports bBatchInRow() for prevAct and doesn't support it for m_activations
+			iM.mMul_prevAct_weights_2_act(prevAct, m_weights, m_activations);
 
 			_iI.fprop_preactivations(m_activations);
 
 			_activation_fprop(iM);
 			_iI.fprop_activations(m_activations);
 
-			NNTL_ASSERT(prevActivations.test_biases_strict());
+			NNTL_ASSERT(prevAct.test_biases_strict());
 			NNTL_ASSERT(bActivationForOutput || is_activations_shared() || m_activations.test_biases_strict());
 			_iI.fprop_end(m_activations);
 			m_bActivationsValid = true;
@@ -301,7 +310,7 @@ namespace nntl {
 	protected:
 		grad_works_t m_gradientWorks;
 
-		real_t m_nTiledTimes{ 0 };
+		//real_t m_nTiledTimes{ 0 };
 		
 		//////////////////////////////////////////////////////////////////////////
 		//Serialization support
@@ -330,7 +339,7 @@ namespace nntl {
 	public:
 		~_LFC() noexcept {};
 		_LFC(const char* pCustomName, const neurons_count_t _neurons_cnt, const real_t learningRate = real_t(.01))noexcept
-			: _base_class_t(_neurons_cnt, pCustomName), m_gradientWorks(learningRate), m_nTiledTimes(0.)
+			: _base_class_t(_neurons_cnt, pCustomName), m_gradientWorks(learningRate) //, m_nTiledTimes(0.)
 		{
 			NNTL_ASSERT(m_activations.emulatesBiases());
 		};
@@ -342,17 +351,16 @@ namespace nntl {
 		grad_works_t& get_gradWorks()noexcept { return m_gradientWorks; }
 		const grad_works_t& get_gradWorks()const noexcept { return m_gradientWorks; }
 
-
-		ErrorCode init(_layer_init_data_t& lid, real_t*const pNewActivationStorage = nullptr)noexcept {
+		ErrorCode layer_init(_layer_init_data_t& lid, real_t*const pNewActivationStorage = nullptr)noexcept {
 			bool bSuccessfullyInitialized = false;
 			utils::scope_exit onExit([&bSuccessfullyInitialized, this]() {
-				if (!bSuccessfullyInitialized) get_self().deinit();
+				if (!bSuccessfullyInitialized) get_self().layer_deinit();
 			});
 
-			auto ec = _base_class_t::init(lid, pNewActivationStorage);
+			auto ec = _base_class_t::layer_init(lid, pNewActivationStorage);
 			if (ErrorCode::Success != ec) return ec;
 			
-			m_nTiledTimes = real_t(lid.nTiledTimes);
+			//m_nTiledTimes = real_t(lid.nTiledTimes);
 
 			const numel_cnt_t prmsNumel = get_self().bUpdateWeights() ? m_weights.numel() : 0;
 			lid.nParamsToLearn = prmsNumel;
@@ -364,13 +372,11 @@ namespace nntl {
 			if (get_common_data().is_training_possible()) {
 				//it'll be training session, therefore must allocate necessary supplementary matrices and form temporary memory reqs.
 				// because we're free to reuse the dLdA space as it's no longer need, we'll also be using dLdA matrix to compute dLdW into it
-				lid.max_dLdA_numel = ::std::max({
-					realmtx_t::sNumel(get_common_data().training_batch_size(), get_self().get_neurons_cnt())
-					, prmsNumel
-				});
+				NNTL_ASSERT(lid.outgBS.maxTrainBS > 0);
+				lid.max_dLdA_numel = ::std::max(realmtx_t::sNumel(lid.outgBS.maxTrainBS, get_neurons_cnt()), prmsNumel);
 			}
 
-			if (!get_self().get_gradWorks().init(get_common_data(), m_weights))return ErrorCode::CantInitializeGradWorks;
+			if (!get_self().get_gradWorks().gw_init(get_common_data(), m_weights))return ErrorCode::CantInitializeGradWorks;
 
 			//#BUGBUG current implementation of GW::hasLossAddendum could return false because LAs are currently disabled,
 			//however they could be enabled later. Seems like not a major bug, so I'll leave it to fix later.
@@ -381,10 +387,10 @@ namespace nntl {
 			return ec;
 		}
 
-		void deinit() noexcept {
-			get_gradWorks().deinit();
-			m_nTiledTimes = real_t(0.);
-			_base_class_t::deinit();
+		void layer_deinit() noexcept {
+			get_gradWorks().gw_deinit();
+			//m_nTiledTimes = real_t(0.);
+			_base_class_t::layer_deinit();
 		}
 
 		void _on_fprop_in_training_mode()noexcept {
@@ -401,22 +407,24 @@ namespace nntl {
 			NNTL_ASSERT(m_bActivationsValid);
 			m_bActivationsValid = false;
 
+			NNTL_ASSERT(get_common_data().is_training_mode());
+			NNTL_ASSERT(prevAct.batch_size() <= m_incBS.maxTrainBS);
+			NNTL_ASSERT(m_activations.batch_size() <= m_outgBS.maxTrainBS);
+			NNTL_ASSERT(prevAct.batch_size() == m_activations.batch_size());
+
 			NNTL_ASSERT_MTX_NO_NANS(dLdA);
 			NNTL_ASSERT_MTX_NO_NANS(prevAct);
 			NNTL_ASSERT_MTX_NO_NANS(m_activations);
 
-			auto& _iI = get_iInspect();
-			_iI.bprop_begin(get_layer_idx(), dLdA);
-
 			dLdA.assert_storage_does_not_intersect(dLdAPrev);
-			NNTL_ASSERT(get_common_data().is_training_mode());
 			NNTL_ASSERT(m_activations.emulatesBiases() && prevAct.emulatesBiases());
 			NNTL_ASSERT(m_activations.size_no_bias() == dLdA.size());
-			NNTL_ASSERT(m_activations.batch_size() == get_common_data().get_cur_batch_size());
-			NNTL_ASSERT(get_common_data().get_cur_batch_size() == prevAct.batch_size()
-				&& get_incoming_neurons_cnt() == prevAct.sample_size());
+			NNTL_ASSERT(get_incoming_neurons_cnt() == prevAct.sample_size());
 			NNTL_ASSERT(!bPrevLayerWBprop || dLdAPrev.size() == prevAct.size_no_bias());//in vanilla simple BP we shouldn't calculate dLdAPrev for the first layer			
 			NNTL_ASSERT(!bPrevLayerWBprop || dLdAPrev.bBatchInRow() == prevAct.bBatchInRow());
+
+			auto& _iI = get_iInspect();
+			_iI.bprop_begin(get_layer_idx(), dLdA);
 
 			_iI.bprop_finaldLdA(dLdA);
 
@@ -451,7 +459,7 @@ namespace nntl {
 			
 			//since that moment, we no longer need the data in dLdA, therefore we're free to reuse that space for any
 			//temporary computations we need provided that we keep the size of dLdA on function exit untouched.
-			// We'll be using dLdA later to compute and apply dL/dW. Note, that we've stated during init() that dLdA
+			// We'll be using dLdA later to compute and apply dL/dW. Note, that we've stated during layer_init() that dLdA
 			// must have enough size to fit dL/dW in it.
 			_iI.bprop_dLdZ(dLdZ);
 
@@ -484,9 +492,9 @@ namespace nntl {
 
 				realmtxdef_t& dLdW = dLdA;//we'll be using dLdA to compute dLdW and now creating a corresponding alias to it for readability
 				dLdW.deform_like(m_weights); //ok to do that, because the storage (dLdA) was allocated using layer_init_data::max_dLdA_numel
-											 //member variable, that we've set to fit m_weights during init()
+											 //member variable, that we've set to fit m_weights during layer_init()
 
-				NNTL_ASSERT(m_nTiledTimes > 0);
+				//NNTL_ASSERT(m_nTiledTimes > 0);
 				//#hack to make gradient check of LPT happy, we would ignore the tiling count here entirely (because numerical error is
 				// implicitly normalized to batch size, however, analytical - doesn't and it's normalized to the current batch size. Inner
 				// layers of LPT have different batch sizes, so we just going to ignore that here. Probably we should:
@@ -496,7 +504,8 @@ namespace nntl {
 // 				iM.mScaledMulAtB_C((inspector::is_gradcheck_inspector<iInspect_t>::value ? real_t(1) : m_nTiledTimes) / real_t(m_activations.batch_size())
 // 					, dLdZ, prevAct, dLdW);
 				iM.mMulScaled_dLdZ_prevAct_2_dLdW(
-					(inspector::is_gradcheck_inspector<iInspect_t>::value ? real_t(1) : m_nTiledTimes) / real_t(m_activations.batch_size())
+					//(inspector::is_gradcheck_inspector<iInspect_t>::value ? real_t(1) : m_nTiledTimes) / real_t(m_activations.batch_size())
+					real_t(1) / real_t(m_activations.batch_size())
 					, dLdZ, prevAct, dLdW);
 
 				_iI.bprop_dLdW(dLdZ, prevAct, dLdW);

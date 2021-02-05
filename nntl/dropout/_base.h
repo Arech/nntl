@@ -65,12 +65,14 @@ namespace nntl {
 		static constexpr void _dropout_deinit() noexcept {}
 
 		template<typename CommonDataT>
-		static constexpr bool _dropout_init(const neurons_count_t neurons_cnt, const CommonDataT& CD)noexcept {
+		static constexpr bool _dropout_init(const neurons_count_t /*neurons_cnt*/
+			, const CommonDataT& /*CD*/, const _impl::_layer_init_data<CommonDataT>& /*lid*/)noexcept
+		{
 			return true;
 		}
 
 		template<typename CommonDataT>
-		static constexpr void _dropout_on_batch_size_change(const CommonDataT& CD) noexcept {}
+		static constexpr void _dropout_on_batch_size_change(const CommonDataT& CD, const vec_len_t outgBS) noexcept {}
 
 		//const realmtxdef_t& _dropout_get_original_activations()const noexcept{};
 

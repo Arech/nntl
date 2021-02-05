@@ -157,6 +157,11 @@ namespace nntl {
 
 		nntl_interface void deinit4all()noexcept;
 
+		//if the TD requires some temporarily memory during batch calculation and takes it from iMath::_istor*
+		// , call iM.preinit() inside init*() and also override the next function.
+		template<typename iMathT>
+		static void preinit_iMath(iMathT& /*iM*/)noexcept {};
+		
 		nntl_interface bool is_initialized4train()const noexcept;
 		nntl_interface bool is_initialized4inference()const noexcept;
 		

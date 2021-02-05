@@ -80,72 +80,80 @@ namespace _impl {
 		//bool is_activations_shared()const noexcept { return m_activations.bDontManageStorage(); }
 
 		//////////////////////////////////////////////////////////////////////////
-		ErrorCode init(_layer_init_data_t& lid, real_t*const pNewActivationStorage)noexcept {
-			const auto ec = _base_class_t::init(lid);
+		ErrorCode layer_init(_layer_init_data_t& lid, real_t*const pNewActivationStorage)noexcept {
+			const auto ec = _base_class_t::layer_init(lid);
 			if (ErrorCode::Success != ec) return ec;
-
+			return get_self()._act_stor_init_activations(lid.biggest_outgoing_batch_size(), pNewActivationStorage);
+		}
+	protected:
+		//redefine in derived class to override
+		ErrorCode _act_stor_init_activations(const vec_len_t biggestOutgBS, real_t*const pNewActivationStorage)noexcept {
 			static constexpr bool bActivationMustHaveBiases = !is_layer_output<self_t>::value;
 
 			//non output layers must have biases while output layers must not
 			NNTL_ASSERT(m_activations.emulatesBiases() == bActivationMustHaveBiases);
 
-			const auto neurons_cnt = get_self().get_neurons_cnt();
+			const auto neurons_cnt = get_neurons_cnt();
 			NNTL_ASSERT(neurons_cnt);
-			const auto biggestBatchSize = get_common_data().biggest_batch_size();
+			//const auto biggestOutgBS = lid.biggest_outgoing_batch_size();
 
 			_set_activations_shared(!!pNewActivationStorage);
 			if (pNewActivationStorage) {
 				NNTL_ASSERT(!is_layer_output<self_t>::value || !"WTF? pNewActivationStorage can't be set for output layer");
-				m_activations.useExternalStorage(biggestBatchSize, neurons_cnt + bActivationMustHaveBiases//+1 for biases
+				m_activations.useExternalStorage(biggestOutgBS, neurons_cnt + bActivationMustHaveBiases//+1 for biases
 					, pNewActivationStorage, bActivationMustHaveBiases);
 			} else {
-				if (!m_activations.resize_as_dataset(biggestBatchSize, neurons_cnt))
+				if (!m_activations.resize_as_dataset(biggestOutgBS, neurons_cnt))
 					return ErrorCode::CantAllocateMemoryForActivations;
 			}
 			return ErrorCode::Success;
 		}
 
-		void deinit() noexcept {
+	public:
+		void layer_deinit() noexcept {
 			static constexpr bool bActivationMustHaveBiases = !is_layer_output<self_t>::value;
-			NNTL_ASSERT(!(m_activations.emulatesBiases() ^ bActivationMustHaveBiases));
+			NNTL_ASSERT(m_activations.emulatesBiases() == bActivationMustHaveBiases);
 			m_activations.clear();
-			_base_class_t::deinit();
+			_base_class_t::layer_deinit();
 		}
 
-		void on_batch_size_change(real_t*const pNewActivationStorage = nullptr)noexcept {
-			static constexpr bool bOutputLayer = is_layer_output<self_t>::value;
+		vec_len_t on_batch_size_change(const vec_len_t incBatchSize, real_t*const pNewActivationStorage = nullptr)noexcept {
+			NNTL_ASSERT(incBatchSize > 0 && incBatchSize <= m_incBS.max_bs4mode(get_common_data().is_training_mode()));
+			//if the layer changes batch size, you'll still have to redefine this function, so checking incBatchSize as outgoing too
+			NNTL_ASSERT(incBatchSize == get_self().incoming2outgoing_batch_size(incBatchSize));
+			NNTL_ASSERT(m_incBS == m_outgBS);
+			static constexpr bool bNotOutputLayer = !is_layer_output<self_t>::value;
 
-			NNTL_ASSERT(get_self().get_neurons_cnt());
-			NNTL_ASSERT(m_activations.emulatesBiases() ^ bOutputLayer);
+			NNTL_ASSERT(get_neurons_cnt());
+			NNTL_ASSERT(m_activations.emulatesBiases() == bNotOutputLayer);
 			m_bActivationsValid = false;
 
-			const auto& CD = get_common_data();
-			const vec_len_t batchSize = CD.get_cur_batch_size();
-			NNTL_ASSERT(batchSize > 0 && batchSize <= CD.biggest_batch_size());
+			//const auto& CD = get_common_data();
+			//const vec_len_t incBatchSize = CD.get_cur_batch_size();
+			//NNTL_ASSERT(incBatchSize > 0 && incBatchSize <= CD.biggest_batch_size());
 
 		#pragma warning(push)
 		#pragma warning(disable : 4127)
-			NNTL_ASSERT(!bOutputLayer || !pNewActivationStorage);
-			const bool bUseActst = !bOutputLayer && pNewActivationStorage;
+			NNTL_ASSERT(bNotOutputLayer || !pNewActivationStorage);
+			const bool bUseActst = bNotOutputLayer && pNewActivationStorage;
 			if (bUseActst) {
 				NNTL_ASSERT(m_activations.bDontManageStorage() && get_self().is_activations_shared());
 				//m_neurons_cnt + 1 for biases
-				m_activations.useExternalStorage(batchSize, get_neurons_cnt() + 1, pNewActivationStorage, true);
+				m_activations.useExternalStorage(incBatchSize, get_neurons_cnt() + 1, pNewActivationStorage, true);
 				//should not restore biases here, because for compound layers its a job for their fprop() implementation
 			} else {
 				NNTL_ASSERT(!pNewActivationStorage);
 				NNTL_ASSERT(m_activations.bOwnStorage() && !get_self().is_activations_shared());
 				
-				const auto oldBatchSize = m_activations.batch_size();
-				m_activations.deform_batch_size(batchSize);
+				const auto oldBatchSize = m_activations.deform_batch_size(incBatchSize);
 				//we must restore biases if the batch size has been changed
-				if (!bOutputLayer && oldBatchSize != batchSize && batchSize != CD.biggest_batch_size()) {
+				if (bNotOutputLayer && oldBatchSize != incBatchSize) { // && incBatchSize != CD.biggest_batch_size()) {
 					m_activations.set_biases();
-				}
-				NNTL_ASSERT(bOutputLayer || m_activations.test_biases_strict());
+				}else NNTL_ASSERT(!bNotOutputLayer || m_activations.test_biases_strict());
 			}
 		#pragma warning(pop)
 			_set_activations_shared(bUseActst);//just for the case
+			return incBatchSize;
 		}
 	};
 

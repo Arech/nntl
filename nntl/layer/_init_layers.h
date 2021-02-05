@@ -49,7 +49,7 @@ namespace nntl {
 	// below the layer in stack, if any) must not be called
 	struct m_layer_stops_bprop {};
 
-	//this class marks a layer as learnable. It must provide get_weights/set_weights/reinit_weights/drop_weights()
+	//this class marks a layer as learnable. It must provide get_weights/set_weights/reinit_weights/drop_weights/isWeightsSuitable()
 	// , bIgnoreActivation()/setIgnoreActivation()
 	// and get_gradWorks() functions,
 	// as well as compute dL/dW during bprop() (if prev layer doesn't have a m_layer_stops_bprop marker)
@@ -134,7 +134,7 @@ namespace nntl {
 
 		template<typename T>
 		using is_m_prop_input_marker = ::std::disjunction<
-			::std::is_base_of<_not_from_IL<typename T::real_t>,T>
+			::std::is_base_of<_not_from_IL<typename T::real_t>, T>
 			, ::std::is_base_of<_from_IL<typename T::real_t>, T>
 		>;
 
@@ -157,10 +157,10 @@ namespace nntl {
 
 		public:
 			~init_layer_index()noexcept {}
-			init_layer_index(layer_index_t& src)noexcept : _idx(src){
+			init_layer_index(layer_index_t& src)noexcept : _idx(src) {
 				NNTL_ASSERT(0 == src);
 			}
-			init_layer_index(init_layer_index& other)noexcept : _idx(other._idx){}
+			init_layer_index(init_layer_index& other)noexcept : _idx(other._idx) {}
 
 			layer_index_t newIndex()noexcept {
 				NNTL_ASSERT(_idx != invalid_layer_index || !"WTF?! Too huge nnet having >65k layers?");
@@ -183,10 +183,10 @@ namespace nntl {
 
 
 			~_preinit_layers()noexcept {
-				if(m_pPHLCheckStorage) delete[] m_pPHLCheckStorage;
+				if (m_pPHLCheckStorage) delete[] m_pPHLCheckStorage;
 			}
 			_preinit_layers(layer_index_t& src) noexcept : m_ILI(src), _incNeurons(0), m_pPHLCheckStorage(nullptr) {}
-			_preinit_layers(init_layer_index& ili, const neurons_count_t n) noexcept 
+			_preinit_layers(init_layer_index& ili, const neurons_count_t n) noexcept
 				: m_ILI(ili), _incNeurons(n), m_pPHLCheckStorage(nullptr)
 			{
 				NNTL_ASSERT(n);
@@ -222,7 +222,7 @@ namespace nntl {
 				static_assert(::std::is_base_of<_i_layer<PHLT::phl_original_t::real_t>, PHLT::phl_original_t>::value, "Each layer must derive from i_layer");
 				static_assert(!is_layer_input<PHLT::phl_original_t>::value && !is_layer_output<PHLT::phl_original_t>::value,
 					"No input/output layers is allowed within _LPH");
-				
+
 				NNTL_ASSERT(m_pPHLCheckStorage && phl.coord.m_count && phl.coord.m_offset < _incNeurons && (phl.coord.m_offset + phl.coord.m_count) <= _incNeurons);
 				const auto pBeg = m_pPHLCheckStorage + phl.coord.m_offset;
 				::std::fill(pBeg, pBeg + phl.coord.m_count, char(1));
@@ -247,7 +247,7 @@ namespace nntl {
 				layr._preinit_layer(m_ILI, _incNeurons);
 			}
 		};
-
+	
 		//////////////////////////////////////////////////////////////////////////
 		// This structure is passed to a _i_layer::init() during initialization phase.
 		// OUT marks variables that should be filled/returned by a layer if applicable. Most of this variables are used to
@@ -284,7 +284,7 @@ namespace nntl {
 			// could be necessary for fprop() for a loss function value computation. Therefore to reduce memory consumption
 			// during nnet evaluating and learning, it makes sense to distinguish how much memory is required to evaluate nnet, from how much
 			// memory is required for the training.
-			// During the init() phase, layer gets a reference to common_data_t structure via _layer_init_data::commonData. These structure
+			// During the init() phase, layer gets a reference to common_data_t structure via _layer_init_data::commonData. This structure
 			// contains description of maximum number of data rows for evaluating nnet and for training nnet. Using this information, the layer
 			// should calculate how much shared memory (in number of real_t elements) it would require in both cases. The layer returns this
 			// numbers in _layer_init_data::maxMemFPropRequire and _layer_init_data::maxMemTrainingRequire variables.
@@ -305,7 +305,10 @@ namespace nntl {
 			// completely from the stack !!! We need this variable!
 			OUT numel_cnt_t nParamsToLearn;//total number of parameters, that layer has to learn during training
 
-			IN unsigned nTiledTimes;
+			//IN unsigned nTiledTimes;
+
+			IN BatchSizes incBS;
+			OUT BatchSizes outgBS;
 
 			OUT bool bOutputDifferentDuringTraining;//set by layer.init() to note that the layer output (fprop results)
 			// differs in the training and testing mode for the same data_x and parameters (for example, due to a dropout)
@@ -315,30 +318,45 @@ namespace nntl {
 			OUT bool bLossAddendumDependsOnActivations; //layer.init() sets this option when there's at least one loss addendum that
 			//depends on activations values (necessary for correct loss addendum caching handling for training/testing sets).
 
-			_layer_init_data(const common_data_t& cd) noexcept : commonData(cd) {
+			_layer_init_data(const common_data_t& cd, const vec_len_t mbs, const vec_len_t tbs) noexcept 
+				: commonData(cd), outgBS(mbs, tbs)//we always call .pass_to_upper_layer() first!
+			{
 				//clean(); //not necessary here because the struct is almost always reused and cleaned before each use.
 			}
 
+			_layer_init_data(const common_data_t& cd, const BatchSizes& bs) noexcept
+				: commonData(cd), outgBS(bs.maxBS, bs.maxTrainBS)//not using copy constructor to trigger assertions if necessary
+				//setting to the same value as inc_* because we always call .pass_to_upper_layer() first!
+			{	//clean(); //not necessary here because the struct is almost always reused and cleaned before each use.
+			}
+
+			vec_len_t biggest_incoming_batch_size()const noexcept { return incBS.biggest(); }
+			vec_len_t biggest_outgoing_batch_size()const noexcept { return outgBS.biggest(); }
+
 		protected:
-			void _clean(const unsigned nTT = 1)noexcept {
-				maxMemFPropRequire = 0;
-				maxMemTrainingRequire = 0;
-				max_dLdA_numel = 0;
-				nParamsToLearn = 0;
-				nTiledTimes = nTT;
-				
-				bLossAddendumDependsOnWeights = false;
-				bLossAddendumDependsOnActivations = false;
-				bOutputDifferentDuringTraining = false;
+			//void _clean(const vec_len_t inFPBs, const vec_len_t inTBS, const unsigned nTT)noexcept {
+			void _clean(const BatchSizes& _bs)noexcept {
+				maxMemFPropRequire = maxMemTrainingRequire = max_dLdA_numel = nParamsToLearn = 0;
+				//nTiledTimes = nTT;
+				incBS.set_from(_bs);
+				outgBS.clear();
+				bOutputDifferentDuringTraining = bLossAddendumDependsOnWeights = bLossAddendumDependsOnActivations = false;
 			}
-			void _clean(const _layer_init_data& o)noexcept {
-				_clean(o.nTiledTimes);
-			}
+// 			void _clean(const _layer_init_data& o)noexcept {
+// 				_clean(o.nTiledTimes);
+// 			}
 			
 		public:
+			void layer_doesnt_change_batchsize()noexcept { outgBS.set_from(incBS); }
+
+			//this function must be called on the object before it is passed to layer.init()
+			void pass_to_upper_layer()noexcept {
+				_clean(outgBS);
+			}
+
 			//this function must be called on the object before it is passed to layer.init()
 			//i.e. _i_layer.init() expects the object to be clean()'ed
-			void clean_using(const _layer_init_data& o)noexcept {
+			/*void clean_using(const _layer_init_data& o)noexcept {
 				_clean(o);
 			}
 			void clean_using()noexcept {
@@ -346,10 +364,10 @@ namespace nntl {
 			}
 			void clean_passing(const _layer_init_data& o)noexcept {
 				_clean(o.nTiledTimes);
-			}
+			}*/
 
 			//used by compound layers to gather data from layers encapsulated into them.
-			void update(const _layer_init_data& o)noexcept {
+			void aggregate_from(const _layer_init_data& o)noexcept {
 				maxMemFPropRequire = ::std::max(maxMemFPropRequire, o.maxMemFPropRequire);
 				maxMemTrainingRequire = ::std::max(maxMemTrainingRequire, o.maxMemTrainingRequire);
 				max_dLdA_numel = ::std::max(max_dLdA_numel, o.max_dLdA_numel);
@@ -360,7 +378,11 @@ namespace nntl {
 			}
 
 			_layer_init_data dupe()const noexcept {
-				return _layer_init_data(commonData);
+				return _layer_init_data(commonData, incBS);
+			}
+
+			_layer_init_data exact_dupe()const noexcept {
+				return *this;
 			}
 		};
 
@@ -406,8 +428,10 @@ namespace nntl {
 
 			template<typename _layer_init_data_t>
 			void updateLayerReq(const _layer_init_data_t& lid)noexcept {
-				return updateLayerReq(lid.maxMemFPropRequire, lid.maxMemTrainingRequire, lid.max_dLdA_numel
-					, lid.nParamsToLearn, lid.bLossAddendumDependsOnWeights, lid.bLossAddendumDependsOnActivations, lid.bOutputDifferentDuringTraining);
+				return updateLayerReq(lid.maxMemFPropRequire, lid.maxMemTrainingRequire
+					, lid.max_dLdA_numel, lid.nParamsToLearn
+					, lid.bLossAddendumDependsOnWeights, lid.bLossAddendumDependsOnActivations
+					, lid.bOutputDifferentDuringTraining);
 			}
 		};
 	}

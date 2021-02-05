@@ -77,20 +77,22 @@ namespace nntl {
 			}
 
 			template<typename CommonDataT>
-			bool _dropout_init(const neurons_count_t neurons_cnt, const CommonDataT& CD)noexcept {
+			bool _dropout_init(const neurons_count_t neurons_cnt, const CommonDataT& CD
+				, const _impl::_layer_init_data<CommonDataT>& lid)noexcept
+			{
 				NNTL_ASSERT(neurons_cnt);
 				static_assert(!bDropoutWorksAtEvaluationToo, "Next if() depends on it");
 				if (CD.is_training_possible()) {
-					const auto max_batch_size = CD.training_batch_size();//!bDropoutWorksAtEvaluationToo !!!!
-					NNTL_ASSERT(max_batch_size);
+					const auto maxTrainBS = lid.outgBS.maxTrainBS; //CD.training_batch_size();//!bDropoutWorksAtEvaluationToo !!!!
+					NNTL_ASSERT(maxTrainBS);
 					//we don't check bDropout() here because assume that if the dropout enabled, it'll be used
 					//even if now it's disabled.
 					NNTL_ASSERT(!m_dropoutMask.emulatesBiases());
 					//resize to the biggest possible size during training
-					if (!m_dropoutMask.resize(max_batch_size, neurons_cnt)) return false;
+					if (!m_dropoutMask.resize(maxTrainBS, neurons_cnt)) return false;
 
 					NNTL_ASSERT(!m_origActivations.emulatesBiases());
-					if (!m_origActivations.resize(max_batch_size, neurons_cnt)) return false;
+					if (!m_origActivations.resize(maxTrainBS, neurons_cnt)) return false;
 
 					CD.iRng().preinit_additive_norm(m_dropoutMask.numel());
 				}
@@ -104,15 +106,13 @@ namespace nntl {
 			}
 
 			template<typename CommonDataT>
-			void _dropout_on_batch_size_change(const CommonDataT& CD)noexcept {
+			void _dropout_on_batch_size_change(const CommonDataT& CD, const vec_len_t outgBS)noexcept {
 				if (CD.is_training_mode() && bDropout()) {
-					const auto bs = CD.get_cur_batch_size();
-
 					NNTL_ASSERT(!m_dropoutMask.empty());
-					m_dropoutMask.deform_rows(bs);
+					m_dropoutMask.deform_rows(outgBS);
 
 					NNTL_ASSERT(!m_origActivations.empty());
-					m_origActivations.deform_rows(bs);
+					m_origActivations.deform_rows(outgBS);
 				}
 			}
 

@@ -148,7 +148,7 @@ namespace nntl {
 				//we must restore the original data back to bias column
 				NNTL_ASSERT(!m_act.emulatesBiases() || m_act.test_biases_strict());
 				if (m_pTmpBiasStor) {
-					NNTL_ASSERT(m_act.emulatesBiases());
+					NNTL_ASSERT(m_act.emulatesBiases() && m_act.bBatchInColumn());
 					memcpy(m_act.bias_column(), m_pTmpBiasStor, sizeof(*m_pTmpBiasStor)*m_act.rows());
 				}
 			}
@@ -157,6 +157,7 @@ namespace nntl {
 			void _ctor(const realmtx_t& underlyingLayerAct, const PHL_coord& phl_coord, const bool bMakeBiases)noexcept {
 				NNTL_ASSERT(underlyingLayerAct.test_biases_strict());
 				NNTL_ASSERT(phl_coord.m_offset + phl_coord.m_count <= underlyingLayerAct.cols_no_bias());
+				NNTL_ASSERT(underlyingLayerAct.bBatchInColumn() && m_act.bBatchInColumn());
 
 				// activation matrix (m_act) are NOT expected to be changed from the outside, therefore trick with const_cast<> should do no harm.
 				m_act.useExternalStorage(const_cast<real_t*>(underlyingLayerAct.colDataAsVec(phl_coord.m_offset))
@@ -202,6 +203,7 @@ namespace nntl {
 				: m_pTmpBiasStor(pTmpBiasStor)
 			{
 				NNTL_ASSERT(underlyingLayerAct.emulatesBiases() && pTmpBiasStor);
+				NNTL_ASSERT(underlyingLayerAct.bBatchInColumn() && m_act.bBatchInColumn());
 				// activation matrix (m_act) are NOT expected to be changed from the outside, therefore trick with const_cast<> should do no harm.
 				m_act.useExternalStorage(const_cast<real_t*>(underlyingLayerAct.data()), underlyingLayerAct.rows(), underlyingLayerAct.cols(), true);
 

@@ -262,6 +262,12 @@ namespace weights_init {
 
 				const auto ec = m_nn.init4fixedBatchFprop(bs);
 				if (decltype(ec)::Success != ec) die_die_die_my_darling("m_nn.init4fixedBatchFprop failed", bs);
+
+				//init4fixedBatchFprop() may have called m_nn.deinit(), so we must give td a second chance to allocate memory
+				//if it didn't - it won't hurt
+				auto& iM = m_nn.get_iMath();
+				m_td.preinit_iMath(iM);
+				if (!iM.init()) die_die_die_my_darling("iM.init() failed", bs);
 			}
 
 			void _fprop(numel_cnt_t batchIdx)noexcept {

@@ -69,6 +69,20 @@ namespace _impl {
 
 		mutable vec_len_t m_cur_batch_size;
 
+		BatchSizes m_outBatchSizes;
+
+		// note that since we want to permit layer objects to mix data in a more flexible way (for example, convolutional
+		// layer may reorder the data in a way technically seen as changing the batch size), these three vars regarding batch size
+		// in general case are no longer applies to any layer but to the input layer only.
+		// Each layer now is given through init(lid) argument it's own set of incoming batch sizes and must define
+		// a set of outgoing batch sizes. The same concept now applies to on_batch_size_change() function - the new incoming 
+		// batch size is given in argument and the layer must return it's outgoing batch size.
+		// In short - when dealing with any layer except input layer, assume it has it's own batch sizes and never rely
+		// on the values in common data (yeah, it would take a lot of effort to update all the library, so don't be confused if
+		// some old unchanged code still relies on these values - it's just an artifact of old waiting to be upgraded)
+		//////////////////////////////////////////////////////////////////////////
+
+
 		bool m_bInTraining;
 
 		//////////////////////////////////////////////////////////////////////////
@@ -102,6 +116,7 @@ namespace _impl {
 			m_max_fprop_batch_size = 0;
 			m_training_batch_size = 0;
 			m_cur_batch_size = 0;
+			m_outBatchSizes.clear();
 		}
 		void init(vec_len_t fbs, vec_len_t bbs)noexcept {
 			NNTL_ASSERT(m_pMath && m_pRng && m_pInspect);//must be preinitialized!
@@ -111,6 +126,7 @@ namespace _impl {
 			m_training_batch_size = bbs;
 			m_cur_batch_size = 0;
 			m_bInTraining = false;
+			NNTL_ASSERT(!m_outBatchSizes.isValid());
 		}
 
 		//////////////////////////////////////////////////////////////////////////
@@ -133,6 +149,7 @@ namespace _impl {
 		void set_training_mode(bool bTraining)noexcept { m_bInTraining = bTraining; }
 		bool is_training_mode()const noexcept { return m_bInTraining; }
 
+		//#ATTENTION see notes for batch size related member vars of this class!!
 		//returns false if the same mode&batch has already been set
 		bool set_mode_and_batch_size(const bool bTraining, const vec_len_t BatchSize)noexcept {
 			NNTL_ASSERT(m_pMath && m_pRng && m_pInspect);//must be preinitialized!
@@ -147,8 +164,6 @@ namespace _impl {
 			return true;
 		}
 
-		vec_len_t get_cur_batch_size()const noexcept { return m_cur_batch_size; }
-
 		vec_len_t change_cur_batch_size(const vec_len_t bs)const noexcept {
 			NNTL_ASSERT(m_pMath && m_pRng && m_pInspect);//must be preinitialized!
 			NNTL_ASSERT(m_max_fprop_batch_size > 0 && bs > 0);
@@ -160,29 +175,48 @@ namespace _impl {
 			return r;
 		}
 
-		vec_len_t max_fprop_batch_size()const noexcept {
+		//#ATTENTION see notes for batch size related member vars of this class!!
+		//vec_len_t get_cur_batch_size()const noexcept { return m_cur_batch_size; }
+		vec_len_t input_batch_size()const noexcept { return m_cur_batch_size; }
+
+		//#ATTENTION see notes for batch size related member vars of this class!!
+		//vec_len_t max_fprop_batch_size()const noexcept {
+		vec_len_t input_max_fprop_batch_size()const noexcept {
 			NNTL_ASSERT(m_pMath && m_pRng && m_pInspect);//must be preinitialized!
 			NNTL_ASSERT(m_max_fprop_batch_size > 0);
 			return m_max_fprop_batch_size;
 		}
-		vec_len_t training_batch_size()const noexcept {
+		//#ATTENTION see notes for batch size related member vars of this class!!
+		//vec_len_t training_batch_size()const noexcept {
+		vec_len_t input_training_batch_size()const noexcept {
 			//NNTL_ASSERT(m_training_batch_size >= 0);//batch size could be 0 to run fprop() only
 			NNTL_ASSERT(m_pMath && m_pRng && m_pInspect);//must be preinitialized!
 			return m_training_batch_size;
 		}
-		vec_len_t biggest_batch_size()const noexcept {
+		//#ATTENTION see notes for batch size related member vars of this class!!
+		//vec_len_t biggest_batch_size()const noexcept {
+		vec_len_t input_biggest_batch_size()const noexcept {
 			NNTL_ASSERT(m_pMath && m_pRng && m_pInspect);//must be preinitialized!
 			NNTL_ASSERT(m_max_fprop_batch_size > 0);
 			return ::std::max(m_training_batch_size, m_max_fprop_batch_size);
 		}
 
 		bool is_training_possible()const noexcept {
-			return training_batch_size() > 0;
+			return input_training_batch_size() > 0;
 		}
 
 		bool is_initialized()const noexcept {
 			NNTL_ASSERT(m_pMath && m_pRng && m_pInspect);//must be preinitialized!
 			return m_max_fprop_batch_size > 0;
+		}
+
+		const BatchSizes& get_outBatchSizes()const noexcept {
+			NNTL_ASSERT(m_outBatchSizes.isValid());
+			return m_outBatchSizes;
+		}
+		void set_outBatchSizes(const BatchSizes& bs)noexcept {
+			NNTL_ASSERT(bs.isValid());
+			m_outBatchSizes = bs;
 		}
 	};
 

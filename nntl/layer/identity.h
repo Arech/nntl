@@ -63,7 +63,6 @@ namespace nntl {
 		void _li_fprop(const realmtx_t& prevActivations)noexcept {
 			NNTL_ASSERT(is_activations_shared() || m_activations.test_biases_strict());
 			NNTL_ASSERT(prevActivations.size_no_bias() == m_activations.size_no_bias());
-			NNTL_ASSERT(m_activations.rows() == get_common_data().get_cur_batch_size());
 
 			auto& iI = get_iInspect();
 			iI.fprop_begin(get_layer_idx(), prevActivations, get_common_data().is_training_mode());
@@ -87,7 +86,6 @@ namespace nntl {
 			NNTL_ASSERT(is_activations_shared() || m_activations.test_biases_strict());
 			NNTL_ASSERT(dLdA.size() == m_activations.size_no_bias());
 			NNTL_ASSERT(m_bActivationsValid);
-			NNTL_ASSERT(m_activations.rows() == get_common_data().get_cur_batch_size());
 
 			m_bActivationsValid = false;
 			auto& iI = get_iInspect();

@@ -1547,8 +1547,8 @@ namespace math {
 		// You've been warned
 		// #supportsBatchInRow
 		vec_len_t deform_cols(const vec_len_t c)noexcept {
-			NNTL_ASSERT(m_maxSize >= sNumel(m_rows, c));
 			NNTL_ASSERT(!empty());
+			NNTL_ASSERT(m_maxSize >= sNumel(m_rows, c));
 			auto ret = m_cols;
 			m_cols = c;
 			return ret;
@@ -1611,15 +1611,15 @@ namespace math {
 		// use deform_rows() with extreme care on col-major (default!!!) data!!!
 		// #supportsBatchInRow
 		vec_len_t deform_rows(vec_len_t r)noexcept {
-			NNTL_ASSERT(m_maxSize >= sNumel(r, m_cols));
 			NNTL_ASSERT(!empty());
+			NNTL_ASSERT(m_maxSize >= sNumel(r, m_cols));
 			auto ret = m_rows;
 			m_rows = r;
 			return ret;
 		}
 		void deform(vec_len_t r, vec_len_t c)noexcept {
-			NNTL_ASSERT(m_maxSize >= sNumel(r, c));
 			NNTL_ASSERT(!empty());
+			NNTL_ASSERT(m_maxSize >= sNumel(r, c));
 			m_rows = r;
 			m_cols = c;
 		}

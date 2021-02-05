@@ -57,8 +57,8 @@ namespace nntl {
 			typedef math::smatrix_deform<real_t> realmtxdef_t;
 
 			template<typename common_data_t>//actually common_data_t is well defined and templated here only for convenience
-			nntl_interface bool init(const common_data_t& cd, const realmtx_t& weights)noexcept;
-			nntl_interface void deinit()noexcept;
+			nntl_interface bool gw_init(const common_data_t& cd, const realmtx_t& weights)noexcept;
+			nntl_interface void gw_deinit()noexcept;
 
 			nntl_interface auto learning_rate(const real_t learningRate)noexcept;
 			nntl_interface real_t learning_rate()const noexcept;
@@ -111,7 +111,7 @@ namespace nntl {
 
 	protected:
 		enum OptsList {
-			f_FirstRun = 0,//flag to find out first call to apply_grad() after init()
+			f_FirstRun = 0,//flag to find out first call to apply_grad() after gw_init()
 
 			f_UseMomentum,
 			f_UseNesterovMomentum,//Flag to turn on Nesterov Momentum, aka Nesterov Accelerated Gradient method.
@@ -281,11 +281,11 @@ namespace nntl {
 		
 	public:
 		//template<typename grad_init_t>
-		//bool init(const common_data_t& cd, const mtx_size_t& weightsSize)noexcept {
-		bool init(const common_data_t& cd, const realmtx_t& weights)noexcept {
+		//bool gw_init(const common_data_t& cd, const mtx_size_t& weightsSize)noexcept {
+		bool gw_init(const common_data_t& cd, const realmtx_t& weights)noexcept {
 			const auto weightsSize = weights.size();
 			//TODO: there must be some flag that prevents resetting of the data state between distinct calls to nnet.train()
-			//(which causes init/deinit cycle)
+			//(which causes gw_init/gw_deinit cycle)
 
 			if (use_momentums()) {
 				if (!m_Vw.resize(weightsSize)) return false;
@@ -321,7 +321,7 @@ namespace nntl {
 			return true;
 		}
 
-		void deinit() noexcept {
+		void gw_deinit() noexcept {
 			clean_common_data();
 			
 			ILR_deinit();

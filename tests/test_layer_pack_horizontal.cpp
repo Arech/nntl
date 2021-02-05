@@ -179,24 +179,25 @@ void test_same_layers(inmem_train_data<real_t>& td, uint64_t rngSeed) {
 	common_data_t CD(iMath, iRng, iInsp, bUNUSED);
 
 	CD.init(evalSamplesCnt, trainSamplesCnt);
-	_impl::_layer_init_data<common_data_t> lid(CD);
+	_impl::_layer_init_data<common_data_t> lid(CD, CD.input_biggest_batch_size(), CD.input_training_batch_size());
+	const auto origLid = lid.exact_dupe();
 	_impl::layers_mem_requirements lmr;
 	
 	iRng.seed64(rngSeed-1);
-	lid.clean_using();
-	auto ec = Ainp.init(lid);
+	lid.pass_to_upper_layer();
+	auto ec = Ainp.layer_init(lid);
 	ASSERT_EQ(ec, _nnet_errs::ErrorCode::Success) << "Failed to initialize Ainp";
 	lmr.updateLayerReq(lid);
 	
 	iRng.seed64(rngSeed);
-	lid.clean_using();
-	ec = Aund.init(lid);
+	lid.pass_to_upper_layer();
+	ec = Aund.layer_init(lid);
 	ASSERT_EQ(ec, _nnet_errs::ErrorCode::Success) << "Failed to initialize Aund";
 	lmr.updateLayerReq(lid);
 
 	iRng.seed64(rngSeed+1);
-	lid.clean_using();
-	ec = Aint.init(lid);
+	lid.pass_to_upper_layer();
+	ec = Aint.layer_init(lid);
 	ASSERT_EQ(ec, _nnet_errs::ErrorCode::Success) << "Failed to initialize Aint";
 	lmr.updateLayerReq(lid);
 	
@@ -237,24 +238,25 @@ void test_same_layers(inmem_train_data<real_t>& td, uint64_t rngSeed) {
 	tuple_utils::for_eachwp_up(BlayersTuple, _impl::_preinit_layers(blc));
 
 	lmr.zeros();
+	auto lid2 = origLid.exact_dupe(); //we can't use lid here, b/c operator=() is deleted b/c of reference member
 
 	iRng.seed64(rngSeed-1);
-	lid.clean_using();
-	ec = Binp.init(lid);
+	lid2.pass_to_upper_layer();
+	ec = Binp.layer_init(lid2);
 	ASSERT_EQ(ec, _nnet_errs::ErrorCode::Success) << "Failed to initialize Binp";
-	lmr.updateLayerReq(lid);
+	lmr.updateLayerReq(lid2);
 
 	iRng.seed64(rngSeed);
-	lid.clean_using();
-	ec = Bund.init(lid);
+	lid2.pass_to_upper_layer();
+	ec = Bund.layer_init(lid2);
 	ASSERT_EQ(ec, _nnet_errs::ErrorCode::Success) << "Failed to initialize Bund";
-	lmr.updateLayerReq(lid);
+	lmr.updateLayerReq(lid2);
 
 	iRng.seed64(rngSeed + 1);
-	lid.clean_using();
-	ec = lpHor.init(lid);
+	lid2.pass_to_upper_layer();
+	ec = lpHor.layer_init(lid2);
 	ASSERT_EQ(ec, _nnet_errs::ErrorCode::Success) << "Failed to initialize lpHor";
-	lmr.updateLayerReq(lid);
+	lmr.updateLayerReq(lid2);
 
 	//ASSERT_TRUE(lmr.maxSingledLdANumel > 0 && lmr.maxMemLayerTrainingRequire > 0);
 	const numel_cnt_t BtotalTempMemSize = lmr.maxMemLayerTrainingRequire + 2 * lmr.maxSingledLdANumel;
@@ -292,12 +294,14 @@ void test_same_layers(inmem_train_data<real_t>& td, uint64_t rngSeed) {
 	// doing and checking forward pass
 	CD.set_mode_and_batch_size(true, trainSamplesCnt);
 
-	tuple_utils::for_each_up(AlayersTuple, [](auto& lyr)noexcept { lyr.on_batch_size_change(/*real_t(1.)*/); });
+	auto bs = trainSamplesCnt;
+	tuple_utils::for_each_up(AlayersTuple, [&bs](auto& lyr)noexcept { bs = lyr.on_batch_size_change(bs); });
 	Ainp.fprop(trainX);
 	Aund.fprop(Ainp);
 	Aint.fprop(Aund);
 
-	tuple_utils::for_each_up(BlayersTuple, [](auto& lyr)noexcept { lyr.on_batch_size_change(/*real_t(1.)*/); });
+	bs = trainSamplesCnt;
+	tuple_utils::for_each_up(BlayersTuple, [&bs](auto& lyr)noexcept { bs = lyr.on_batch_size_change(bs); });
 	Binp.fprop(trainX);
 	Bund.fprop(Binp);
 	lpHor.fprop(Bund);

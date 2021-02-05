@@ -45,7 +45,7 @@ namespace activation {
 	//////////////////////////////////////////////////////////////////////////
 
 	template<typename RealT, typename WeightsInitT, bool bZeroStable>
-	class _i_function : public math::smatrix_td
+	class _i_function : public math::smatrix_td, private WeightsInitT
 	{
 	public:
 		typedef RealT real_t;
@@ -54,6 +54,10 @@ namespace activation {
 
 		typedef math::smatrix<real_t> realmtx_t;
 		typedef math::smatrix_deform<real_t> realmtxdef_t;		
+
+		//////////////////////////////////////////////////////////////////////////
+		weights_scheme_t& get_weightsInit()noexcept { return static_cast<weights_scheme_t&>(*this); }
+		const weights_scheme_t& get_weightsInit()const noexcept { return static_cast<const weights_scheme_t&>(*this); }
 
 		//apply f to each srcdest matrix element to compute activation values. The biases (if any) must be left untouched!
 		template <typename iMath>
@@ -75,7 +79,9 @@ namespace activation {
 		//////////////////////////////////////////////////////////////////////////
 		//to support state-full activations override the following functions in derived class
 		template<typename CommonDataT>
-		static constexpr bool act_init(const CommonDataT& /*cd*/, neurons_count_t /*neuronsCnt*/)noexcept{ return true; }
+		static constexpr bool act_init(const CommonDataT& /*cd*/, const BatchSizes& /*outgBS*/, neurons_count_t /*neuronsCnt*/)noexcept{
+			return true;
+		}
 		static constexpr void act_deinit()noexcept {}
 		//pointer to CommonDataT passed could be stored and used until act_deinit() is called.
 		// To use it parametrize your activation class with <typename InterfacesT> used all over your nnet and then just
@@ -84,7 +90,7 @@ namespace activation {
 		// unexpected change of original common_data_t definition, override act_init() with
 		// exact parameter type common_data_t, not the template typename CommonDataT
 		
-		static constexpr void on_batch_size_change()noexcept{}
+		static constexpr void on_batch_size_change(const vec_len_t /*bs*/)noexcept{}
 	};
 
 	//class defines interface for activation functions. It's intended to be used as a parent class only

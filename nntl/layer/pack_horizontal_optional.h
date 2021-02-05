@@ -70,22 +70,17 @@ namespace nntl {
 		//array of previous activations with gate applied
 		::std::array<realmtxdef_t, gated_layers_count> m_aPrevActs;
 
-		//array of common_data structures to be used with inner layers (we must use a separate CD in order to have different batch sizes)
-		//::std::array<common_data_t, gated_layers_count> m_aCD;
-
 		//storage for matrices of m_aPrevActs
 		::std::unique_ptr<real_t[]> m_prevActsStor;
-
-		//real_t m_upperLayerLRScale{real_t(1.)};
 
 		//////////////////////////////////////////////////////////////////////////
 	public:
 		~_LPHO()noexcept {}
 		_LPHO(const char* pCustomName, const PHLsTuple& phls)noexcept : _base_class_t(pCustomName, phls
-			, static_cast<neurons_count_t>(bAddDataNotPresentFeature*gated_layers_count))//, m_upperLayerLRScale(real_t(1.))
+			, static_cast<neurons_count_t>(bAddDataNotPresentFeature*gated_layers_count))
 		{}
 		_LPHO(const char* pCustomName, PHLsTuple&& phls)noexcept : _base_class_t(pCustomName, ::std::move(phls)
-			, static_cast<neurons_count_t>(bAddDataNotPresentFeature*gated_layers_count))//, m_upperLayerLRScale(real_t(1.))
+			, static_cast<neurons_count_t>(bAddDataNotPresentFeature*gated_layers_count))
 		{}
 		
 		static constexpr const char _defName[] = "lpho";
@@ -103,7 +98,8 @@ namespace nntl {
 
 		//////////////////////////////////////////////////////////////////////////
 		ErrorCode _init_phls(_layer_init_data_t& lid)noexcept {
-			auto initD = lid.dupe();
+			NNTL_ASSERT(m_activations.bBatchInColumn() && !m_activations.empty());
+			const auto origLid = lid.exact_dupe();
 
 			//first we must initialize the gating layer
 			if (gated_layers_count != gating_layer().get_neurons_cnt()) {
@@ -112,38 +108,45 @@ namespace nntl {
 				abort();
 			}
 			
-			initD.clean_using(lid);//we must propagate any IN flags set in the .lid variable to the layer being initialized.
 			//#todo flag for inner layers to strip biases in the topmost layer?
 
 			//we need to forward the gate values directly to the activations matrix
-			ErrorCode ec = gating_layer().init(initD, m_activations.data());
-			if (ErrorCode::Success == ec) {
-				lid.update(initD);
-			} else return ec;
+			auto initD = origLid.exact_dupe();
+			ErrorCode ec = gating_layer().layer_init(initD, m_activations.data());
+			if (ErrorCode::Success != ec) return ec;
+
+			NNTL_ASSERT(initD.outgBS.isValid());
+			const auto commonOutgBS = initD.outgBS;
+			lid.aggregate_from(initD);
 
 			//then initialize layers under the gate
 			layer_index_t failedLayerIdx = 0;
-			for_each_gated_layer([&](auto& l)noexcept {
+			for_each_gated_layer([&ec, &failedLayerIdx, &lid, &origLid, &commonOutgBS](auto& l)noexcept {
 				if (ErrorCode::Success == ec) {
-					initD.clean_using(lid);//we must propagate any IN flags set in the .lid variable to the layer being initialized.
+					auto initD = origLid.exact_dupe();
 
 					//#todo flag for inner layers to strip biases in the topmost layer?
-					ec = l.init(initD, nullptr);
+					ec = l.layer_init(initD, nullptr);
 					if (ErrorCode::Success == ec) {
-						lid.update(initD);
+						if (commonOutgBS != initD.outgBS) {
+							STDCOUTL("Error: every PHL'ed layer must produce the same outgoing batch sizes! Not true for the first layer and "
+								<< l.get_layer_name_str());
+							NNTL_ASSERT(!"Error: every PHL'ed layer must produce the same outgoing batch sizes!");
+							ec = ErrorCode::InvalidBatchSizeCombination;
+							return;
+						}
+						lid.aggregate_from(initD);
 					} else failedLayerIdx = l.get_layer_idx();
-				}				
+				}
 			});
+			if (ErrorCode::Success == ec)
+				lid.outgBS = commonOutgBS;
 			return ec;
 		}
 
-		ErrorCode _init_self(_layer_init_data_t& lid)noexcept {
-			NNTL_UNREF(lid);
+		ErrorCode _init_self(const _layer_init_data_t& lid)noexcept {
 			//we must check that there's no overlapping in receptive fields of inner layers
 			neurons_count_t totalIncomingNC = 0;
-// 			for_each_gated_layer([&totalIncomingNC](const auto& l)noexcept {
-// 				totalIncomingNC += l.get_incoming_neurons_cnt();
-// 			});
 			tuple_utils::for_each_up(m_phl_tuple, [&totalIncomingNC](const auto& phl)noexcept {
 				totalIncomingNC += phl.l.get_incoming_neurons_cnt();
 			});
@@ -159,41 +162,41 @@ namespace nntl {
 			//allocate memory for gated previous layers activations (still have to use biggest_batch_size(), because
 			//a gate might be completely open (all ones), and have to add +1 to neurons count to account bias column
 			// for the last/rightmost layer
-			const auto bbs = get_common_data().biggest_batch_size();
-			real_t* ptr = new(::std::nothrow) real_t[realmtx_t::sNumel(bbs, totalIncomingNC + 1)];
+			const auto biggestIncBS = lid.incBS.biggest();
+			real_t* ptr = new(::std::nothrow) real_t[realmtx_t::sNumel(biggestIncBS, totalIncomingNC + 1)];
 
 			if (ptr) {
 				//storing ptr
 				m_prevActsStor.reset(ptr);
 				//now we must redistribute the storage under ptr to activation matrices
 				size_t glIdx = 0;
-				for_each_gated_layer([bbs, &ptr, &glIdx, &actArr = m_aPrevActs](const auto& l)noexcept {
+				for_each_gated_layer([biggestIncBS, &ptr, &glIdx, &actArr = m_aPrevActs](const auto& l)noexcept {
 					const auto pnc = l.get_incoming_neurons_cnt();
 					NNTL_ASSERT(pnc);
 					auto& prevAct = actArr[glIdx++];
-					prevAct.useExternalStorage(ptr, bbs, pnc+1, true, false);//adding one column for biases
-					ptr += realmtx_t::sNumel(bbs, pnc);//not including bias column here, as it'll be substituted as it is done in ordinary LPH
+					prevAct.useExternalStorage(ptr, biggestIncBS, pnc+1, true, false);//adding one column for biases
+					ptr += realmtx_t::sNumel(biggestIncBS, pnc);//not including bias column here, as it'll be substituted as it is done in ordinary LPH
 				});
 				NNTL_ASSERT(glIdx == gated_layers_count);
 			}
 			return ptr ? ErrorCode::Success : ErrorCode::CantAllocateMemoryForInnerLLActivations;
 		}
 
-		void deinit() noexcept {
-			_base_class_t::deinit();
-
+		void layer_deinit() noexcept {
 			for (auto& e : m_aPrevActs) e.clear();
 			m_prevActsStor.reset(::std::nullptr_t());
+			_base_class_t::layer_deinit();
 		}
 
-
-		void on_batch_size_change(/*const real_t learningRateScale,*/ real_t*const pNewActivationStorage = nullptr)noexcept {
+		vec_len_t on_batch_size_change(const vec_len_t incBatchSize, real_t*const pNewActivationStorage = nullptr)noexcept {
 			//passing the on_batch_size_change to the pre-base class
-			_pre_LPH_base_class_t::on_batch_size_change(/*learningRateScale,*/ pNewActivationStorage);
+			const auto outgBS = _pre_LPH_base_class_t::on_batch_size_change(incBatchSize, pNewActivationStorage);
 			//m_upperLayerLRScale = learningRateScale;
 			//we don't need to call on_batch_size_change() on every inner layer except for the gate now, because the batch size for them
 			//depends on a gating neuron column content
-			gating_layer().on_batch_size_change(/*learningRateScale,*/ m_activations.data());
+			const auto gtbs = gating_layer().on_batch_size_change(incBatchSize, m_activations.data());
+			NNTL_ASSERT(gtbs == outgBS);
+			return outgBS;
 		}
 
 	protected:
@@ -220,9 +223,8 @@ namespace nntl {
 
 		template<typename LLWrapT>
 		void _lpho_fprop(const realmtx_t& prevAct)noexcept {
-			NNTL_ASSERT(prevAct.test_biases_strict());
+			NNTL_ASSERT(prevAct.test_biases_strict() && prevAct.bBatchInColumn());
 			NNTL_ASSERT(is_activations_shared() || m_activations.test_biases_strict());
-			NNTL_ASSERT(m_activations.rows() == get_common_data().get_cur_batch_size());
 			NNTL_ASSERT(prevAct.rows() == m_activations.rows());
 
 			auto& iI = get_iInspect();
@@ -237,13 +239,9 @@ namespace nntl {
 
 			//1. we must calculate batch sizes for inner layers (they depends on a corresponding gating neuron value),
 			// prepare individual activations and call on_batch_size_change() for layers
-			const auto& CD = get_common_data();
-			const auto curBS = CD.get_cur_batch_size();
-
 			neurons_count_t ofs = gate_neurons_count, lIdx=0;
-			tuple_utils::for_each_exc_first_up(m_phl_tuple, [&prevAct, &CD //, ulLRScale = m_upperLayerLRScale
-				, &act = m_activations, &iM = get_iMath(), &ofs, &lIdx, &aPA = m_aPrevActs
-				, &gate = gating_layer().get_activations()](const auto& phl)noexcept
+			tuple_utils::for_each_exc_first_up(m_phl_tuple, [&prevAct, &act = m_activations, &iM = get_iMath()
+				, &ofs, &lIdx, &aPA = m_aPrevActs, &gate = gating_layer().get_activations()](const auto& phl)noexcept
 			{
 				const real_t*const pG = gate.colDataAsVec(lIdx);
 				const vec_len_t nzc = static_cast<vec_len_t>(iM.vCountNonZeros(pG, gate.rows()));
@@ -259,8 +257,7 @@ namespace nntl {
 
 				if (nzc) {
 					//changing the batch size and notifying the layer about it
-					CD.change_cur_batch_size(nzc);
-					phl.l.on_batch_size_change(/*static_cast<real_t>(real_t(ulLRScale) *(real_t(nzc) / real_t(act.rows()))),*/ nullptr);
+					phl.l.on_batch_size_change(nzc, nullptr);
 
 					//constructing alias to relevant columns of prevAct
 					NNTL_ASSERT(phl.coord.m_offset + phl.coord.m_count <= prevAct.cols_no_bias());
@@ -288,10 +285,6 @@ namespace nntl {
 				++lIdx;
 			});
 			NNTL_ASSERT(lIdx == gated_layers_count);
-
-			//restoring the correct batch size
-			CD.change_cur_batch_size(curBS);
-
 			NNTL_ASSERT(prevAct.test_biases_strict());			
 			NNTL_ASSERT(is_activations_shared() || m_activations.test_biases_strict());
 
@@ -306,9 +299,8 @@ namespace nntl {
 			NNTL_ASSERT(is_activations_shared() || m_activations.test_biases_strict());
 			NNTL_ASSERT(prevAct.test_biases_strict());
 			NNTL_ASSERT(get_common_data().is_training_mode());
-			NNTL_ASSERT(m_activations.rows() == get_common_data().get_cur_batch_size());
 			NNTL_ASSERT(dLdA.size() == m_activations.size_no_bias());
-			NNTL_ASSERT(mtx_size_t(get_common_data().get_cur_batch_size(), get_incoming_neurons_cnt() + 1) == prevAct.size());
+			NNTL_ASSERT(get_incoming_neurons_cnt() == prevAct.sample_size());
 			NNTL_ASSERT(!bPrevLayerWBprop || dLdAPrev.size() == prevAct.size_no_bias());
 			NNTL_ASSERT(m_bActivationsValid);
 			m_bActivationsValid = false;
@@ -322,13 +314,10 @@ namespace nntl {
 			NNTL_ASSERT(!m_innerdLdA.emulatesBiases() && !m_innerdLdAPrev.emulatesBiases());
 
 			neurons_count_t firstNeuronOfs = get_neurons_cnt(), lIdx = gated_layers_count;
-			const auto& CD = get_common_data();
-			const auto curBS = CD.get_cur_batch_size();
-
 			tuple_utils::for_each_exc_first_down(m_phl_tuple, [&firstNeuronOfs, &dLdA, &dLdAPrev
-				, &CD, &lIdx, &aPA = m_aPrevActs, &gate = gating_layer().get_activations()
+				, &lIdx, &aPA = m_aPrevActs, &gate = gating_layer().get_activations()
 				, &_innerdLdA = m_innerdLdA, &_innerdLdAPrev = m_innerdLdAPrev, _pTmpBiasStorage = m_pTmpBiasStorage
-				, &_Math = get_iMath(), bbs = CD.biggest_batch_size()](const auto& phl)
+				, &_Math = get_iMath(), bbs = m_biggestIncBS](const auto& phl)
 			{
 				static constexpr bool bPrevLayerWBprop = is_layer_with_bprop<LLWrapT>::value;
 				auto& lyr = phl.l;
@@ -345,9 +334,6 @@ namespace nntl {
 				NNTL_ASSERT(prA.rows() == _Math.vCountNonZeros(pG, gate.rows()));
 
 				if (prA.rows()) {
-					//before any lyr.() calls, restoring correct batch size for the layer.
-					CD.change_cur_batch_size(prA.rows());
-					
 					//setting up the _innerdLdA
 					_innerdLdA.deform_like_no_bias(lyr.get_activations());
 					NNTL_ASSERT(firstNeuronOfs + _innerdLdA.cols() <= dLdA.cols());
@@ -386,10 +372,7 @@ namespace nntl {
 			});
 			NNTL_ASSERT(firstNeuronOfs == gate_neurons_count);
 			NNTL_ASSERT(prevAct.test_biases_strict());
-
-			//restoring the correct batch size
-			CD.change_cur_batch_size(curBS);
-
+			
 			//doing bprop() for the gating layer
 			const auto& gate_phl = ::std::get<0>(m_phl_tuple);
 			NNTL_ASSERT(bPrevLayerWBprop || (dLdAPrev.rows() == 0 && dLdAPrev.cols() == 0));
@@ -428,7 +411,7 @@ namespace nntl {
 		template <typename LowerLayer>
 		unsigned bprop(realmtxdef_t& dLdA, const LowerLayer& lowerLayer, realmtxdef_t& dLdAPrev)noexcept {
 			static_assert(::std::is_base_of<_i_layer_trainable, LowerLayer>::value, "Template parameter LowerLayer must implement _i_layer_trainable");
-			//NNTL_ASSERT(get_self().bDoBProp());
+			static_assert(!bAssumeFPropOnly, "");
 			return get_self()._lpho_bprop<_impl::wrap_part_trainable_layer<LowerLayer>>(dLdA, dLdAPrev, lowerLayer.get_activations());
 		}
 	};

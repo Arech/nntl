@@ -225,7 +225,7 @@ namespace nntl {
 				if (batchSize < 0) {
 					batchSize = m_maxTrainBatchSize;
 				} else if (0 == batchSize) {
-					batchSize = cd.get_cur_batch_size();
+					batchSize = cd.input_batch_size();
 				}
 				NNTL_ASSERT(batchSize > 0 && batchSize <= m_maxTrainBatchSize && batchSize <= get_self().trainset_samples_count());
 				m_curBatchSize = batchSize;
@@ -297,7 +297,7 @@ namespace nntl {
 				if (batchSize < 0) {
 					batchSize = m_maxFPropSize;
 				} else if (0 == batchSize) {
-					batchSize = cd.get_cur_batch_size();
+					batchSize = cd.input_batch_size();
 				}
 
 				NNTL_ASSERT(batchSize > 0 && batchSize <= m_maxFPropSize);
@@ -354,7 +354,7 @@ namespace nntl {
 				NNTL_ASSERT(get_self().is_initialized4inference());
 				NNTL_ASSERT(m_curDataset2Walk != invalid_set_id);
 
-				//we MUST NOT use cd.get_cur_batch_size() here because it is not required to be set to proper value for just
+				//we MUST NOT use cd.input_batch_size() here because it is not required to be set to proper value for just
 				//walking over any dataset (what if you are just inspecting its content and not going to do inferencing at all?)
 
 				if (m_curBatchSize > 0) {//it's a minibatch mode!		

@@ -32,16 +32,18 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #pragma once
 
-// this file provides definitions of static (ones that doesn't require full nnet computation) weights initialization algorithms
+// this file provides definitions of static weights initialization algorithms
 // Procedural weight initialization algorithms, such as LSUV, are separated into neighboring headers
 
 #include "../interface/rng/distr_normal_naive.h"
 
 namespace nntl {
 	namespace weights_init {
-		//BE AWARE, that most likely a math interface object passed to init() function will be not initialized
+		//BE AWARE, that most likely a math interface object passed to make_weights() function will be not initialized
 		//That's expected and OK because most (all?) of iMath functions to be used here doesn't require prior initialization
 
+		//basically weight init schemes must be stateless (no visible reason for them to be statefull).
+		//the reason to make them instantiable with non static member function is to pass additional parameters to the algo itself
 
 		// According to Xavier et al. "Understanding the difficulty of training deep feedforward neural networks" 2010
 		// for symmetric activation function (probably with unit derivative at 0) it's a 
@@ -55,7 +57,7 @@ namespace nntl {
 		template<unsigned int scalingCoeff1e6 = 1000000>
 		struct Xavier {
 			template <typename iRng_t, typename iMath_t>
-			static bool init(typename iRng_t::realmtx_t& W, iRng_t& iR, iMath_t& iM)noexcept {
+			static bool make_weights(typename iRng_t::realmtx_t& W, iRng_t& iR, iMath_t& iM)noexcept {
 			#pragma warning(push)
 			#pragma warning(disable : 4459)
 				typedef typename iRng_t::real_t real_t;
@@ -85,7 +87,7 @@ namespace nntl {
 		template<unsigned int scalingCoeff1e6 = 1000000>
 		struct He_Zhang {
 			template <typename iRng_t, typename iMath_t>
-			static bool init(typename iRng_t::realmtx_t& W, iRng_t& iR, iMath_t& iM)noexcept {
+			static bool make_weights(typename iRng_t::realmtx_t& W, iRng_t& iR, iMath_t& iM)noexcept {
 			#pragma warning(push)
 			#pragma warning(disable : 4459)
 				typedef typename iRng_t::real_t real_t;
@@ -114,7 +116,7 @@ namespace nntl {
 		template<unsigned int paramCoeff1e6 = 2000000>
 		struct He_Zhang2 {
 			template <typename iRng_t, typename iMath_t>
-			static bool init(typename iRng_t::realmtx_t& W, iRng_t& iR, iMath_t& iM)noexcept {
+			static bool make_weights(typename iRng_t::realmtx_t& W, iRng_t& iR, iMath_t& iM)noexcept {
 			#pragma warning(push)
 			#pragma warning(disable : 4459)
 				typedef typename iRng_t::real_t real_t;
@@ -155,7 +157,7 @@ namespace nntl {
 		template<int Biases1e6 = 0, unsigned int StdDev1e6 = 1000000, unsigned int NonZeroUnitsCount = 15>
 		struct Martens_SI {
 			template <typename iRng_t, typename iMath_t>
-			static bool init(typename iRng_t::realmtx_t& W, iRng_t& iR, iMath_t& iM)noexcept {
+			static bool make_weights(typename iRng_t::realmtx_t& W, iRng_t& iR, iMath_t& iM)noexcept {
 			#pragma warning(push)
 			#pragma warning(disable : 4459)
 				typedef typename iRng_t::real_t real_t;
@@ -231,7 +233,7 @@ namespace nntl {
 		template<unsigned int Gain1e6 = 1000000, unsigned maxTries = 5>
 		struct OrthoInit {
 			template <typename iRng_t, typename iMath_t>
-			static bool init(typename iRng_t::realmtx_t& W, iRng_t& iR, iMath_t& iM)noexcept {
+			static bool make_weights(typename iRng_t::realmtx_t& W, iRng_t& iR, iMath_t& iM)noexcept {
 			#pragma warning(push)
 			#pragma warning(disable : 4459)
 				typedef typename iRng_t::real_t real_t;

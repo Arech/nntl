@@ -90,7 +90,7 @@ namespace nntl {
 		real_t m_binarizeThreshold;
 		vec_len_t m_curYOfs;
 
-		NNTL_DEBUG_DECLARE(vec_len_t m_maxFPropBatch);
+		NNTL_DEBUG_DECLARE(vec_len_t m_maxOutpBS);
 
 	public:
 		~eval_classification_binary_cached()noexcept {}
@@ -115,19 +115,19 @@ namespace nntl {
 				return false;
 			}
 			
-			const auto maxFprop = cd.max_fprop_batch_size();
+			const auto maxOutpBS = cd.get_outBatchSizes().biggest();
 			const auto ySize = td.yWidth();
 			
 			if (!m_ydataPP[train_set_id].resize(static_cast<vec_len_t>(trainSamples), ySize)//will contain preprocessed Y for training set
 				|| !m_ydataPP[test_set_id].resize(static_cast<vec_len_t>(testSamples), ySize)//and for test set
-				|| !m_predictionsPP_orYData[0].resize(maxFprop, ySize)//will binarize activations in here
-				|| (td.datasets_count() > 2 && !m_predictionsPP_orYData[1].resize(maxFprop, ySize)))//will binarize dataY for supplementary datasets in here
+				|| !m_predictionsPP_orYData[0].resize(maxOutpBS, ySize)//will binarize activations in here
+				|| (td.datasets_count() > 2 && !m_predictionsPP_orYData[1].resize(maxOutpBS, ySize)))//will binarize dataY for supplementary datasets in here
 			{
 				deinit();
 				return false;
 			}
 
-			NNTL_DEBUG_DECLARE(m_maxFPropBatch = maxFprop);//just to make sure it won't change since init()
+			NNTL_DEBUG_DECLARE(m_maxOutpBS = maxOutpBS);//just to make sure it won't change since init()
 			
 			binarizeYOfDataset(train_set_id, td, m_ydataPP[train_set_id], cd);
 			binarizeYOfDataset(test_set_id, td, m_ydataPP[test_set_id], cd);
@@ -168,7 +168,7 @@ namespace nntl {
 		template<typename iMath>
 		numel_cnt_t correctlyClassified(const data_set_id_t dataSetId, const realmtx_t& data_y, const realmtx_t& activations, iMath& iM)noexcept {
 			NNTL_ASSERT(data_y.size() == activations.size());
-			NNTL_ASSERT(data_y.rows() <= m_maxFPropBatch);
+			NNTL_ASSERT(data_y.rows() <= m_maxOutpBS);
 			NNTL_ASSERT(dataSetId > 1 || data_y.cols() == m_ydataPP[dataSetId].cols());
 
 			m_predictionsPP_orYData[0].deform_like(activations);
@@ -241,18 +241,18 @@ namespace nntl {
 				return false;
 			}
 
-			const auto biggestBatch = cd.biggest_batch_size();
-			NNTL_DEBUG_DECLARE(m_biggestBatch = biggestBatch);
+			const auto biggestOutpBatch = cd.get_outBatchSizes().biggest();
+			NNTL_DEBUG_DECLARE(m_biggestBatch = biggestOutpBatch);
 
 			auto& iM = cd.iMath();
-			iM.preinit(iM.mrwIdxsOfMax_needTempMem<real_t>(biggestBatch));
+			iM.preinit(iM.mrwIdxsOfMax_needTempMem<real_t>(biggestOutpBatch));
 			iM.init();
 
 			try {
 				m_ydataClassIdxs[train_set_id].resize(trainSamples);
 				m_ydataClassIdxs[test_set_id].resize(testSamples);
-				m_predictionClassOrYDataIdxs[0].resize(biggestBatch);
-				if (td.datasets_count() > 2) m_predictionClassOrYDataIdxs[1].resize(biggestBatch);
+				m_predictionClassOrYDataIdxs[0].resize(biggestOutpBatch);
+				if (td.datasets_count() > 2) m_predictionClassOrYDataIdxs[1].resize(biggestOutpBatch);
 			}catch(const ::std::exception&){
 				NNTL_ASSERT(!"Exception caught while resizing vectors in eval_classification_one_hot_cached::init");
 				deinit();

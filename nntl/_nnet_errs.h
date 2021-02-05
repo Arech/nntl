@@ -43,6 +43,8 @@ namespace nntl {
 			InvalidInputLayerNeuronsCount,
 			InvalidOutputLayerNeuronsCount,
 
+			InvalidBatchSizeCombination,
+
 			TooBigTrainTestSet,
 			TooBigTrainSet,
 			InvalidBatchSize2MaxFPropSizeRelation,
@@ -78,6 +80,8 @@ namespace nntl {
 
 			case InvalidInputLayerNeuronsCount: return NNTL_STRING("Input layer neurons count mismatches train_x width.");
 			case InvalidOutputLayerNeuronsCount: return NNTL_STRING("Output layer neurons count mismatches train_y width.");
+
+			case InvalidBatchSizeCombination: return NNTL_STRING("Invalid batch size combination encountered.");
 
 			case TooBigTrainTestSet: return NNTL_STRING("Too big train or test set size, set proper opts.maxFpropSize()");
 			case TooBigTrainSet: return NNTL_STRING("Too big train set size, set proper opts.batchSize()");

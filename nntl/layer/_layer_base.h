@@ -176,7 +176,7 @@ namespace nntl {
 		// Shared activations implies that the bias column may hold not the biases, but activations of some another layer
 		// Therefore use such activation matrix only in proper context (biases of shared activations are valid only in
 		// contexts of fprop()/bprop() of upper layers).
-		// If the layer was given a pNewActivationStorage parameter in init/on_batch_size_change, it implies
+		// If the layer was given a pNewActivationStorage parameter in layer_init/on_batch_size_change, it implies
 		// that the activations are shared and the function must return true.
 		// If activations is not shared, biased must be valid all the time when activations is valid.
 		nntl_interface bool is_activations_shared()const noexcept;
@@ -221,8 +221,8 @@ namespace nntl {
 		// inside of compound layers, should totally omit this parameter to break compilation.
 		// For the _layer_init_data_t parameter see the _impl::_layer_init_data<>.
 		template<typename _layer_init_data_t>
-		nntl_interface ErrorCode init(_layer_init_data_t& lid, real_t* pNewActivationStorage /*= nullptr*/)noexcept;
-		//If the layer was given a pNewActivationStorage (during the init() or on_batch_size_change()), then it MUST NOT touch a bit
+		nntl_interface ErrorCode layer_init(_layer_init_data_t& lid, real_t* pNewActivationStorage /*= nullptr*/)noexcept;
+		//If the layer was given a pNewActivationStorage (during the layer_init() or on_batch_size_change()), then it MUST NOT touch a bit
 		// in the bias column of the activation storage during bprop()/fprop() and everywhere else.
 		// In general - if the layer allocates activation matrix by itself (when the pNewActivationStorage==nullptr),
 		//					then it also allocates, sets up and manages biases keeping them in coherent state.
@@ -244,18 +244,17 @@ namespace nntl {
 		// Resetting of biases is not required at this case, however.
 		// Layers, that should never be a part of other compound layers, should totally omit this parameter
 		// from function signature (not recommended use-case, however)
-		// 
-		// #deprecated learningRateScale - is a scaling coefficient that must be applied to a learningRate value to account for some
-		//	specific layer usage (inside LPT or LPHO, for example). //it seems that the whole idea was a mistake; pending for removal
-		nntl_interface void on_batch_size_change(/*const real_t learningRateScale,*/ real_t*const pNewActivationStorage /*= nullptr*/)noexcept;
-		//If the layer was given a pNewActivationStorage (during the init() or on_batch_size_change()), then it MUST NOT touch a bit
-		// in the bias column of the activation storage during fprop() and everywhere else.
+		// incBatchSize - is a batch size of incoming (lower layer) activation data. The func must return it's own batch size
+		// i.e. how many rows would the activation matrix have
+		nntl_interface vec_len_t on_batch_size_change(const vec_len_t incBatchSize, real_t*const pNewActivationStorage /*= nullptr*/)noexcept;
+		//If the layer was given a pNewActivationStorage (during the layer_init() or on_batch_size_change()), then 
+		// it MUST NOT touch biases of the activation storage during fprop() and everywhere else.
 		// For more information about how memory storage is organized, see discussion in _init_layers.h::_layer_init_data{}
 
 		//frees any temporary resources that doesn't contain layer-specific information (i.e. layer weights shouldn't be freed).
 		//In other words, this routine burns some unnecessary fat layer gained during training, but don't touch any data necessary
 		// for new subsequent call to nnet.train()
-		nntl_interface void deinit() noexcept;
+		nntl_interface void layer_deinit() noexcept;
 
 		//provides a temporary storage for a layer. It is guaranteed, that during fprop() or bprop() the storage
 		// can be modified only by the layer. However, it's not a persistent storage and layer mustn't rely on it
@@ -263,7 +262,7 @@ namespace nntl {
 		// Compound layers (that call other's layers fprop()/bprop()) should use this storage with a great care and make sure
 		// they offsets the memory pointer they pass to inner layers.
 		// Function is guaranteed to be called if any of {_layer_init_data::minMemFPropRequire,_layer_init_data::minMemBPropRequire}
-		// were set to non zero during init()
+		// were set to non zero during layer_init()
 		// cnt is guaranteed to be at least as big as max(minMemFPropRequire,minMemBPropRequire)
 		nntl_interface void initMem(real_t* ptr, numel_cnt_t cnt)noexcept;
 
@@ -288,7 +287,7 @@ namespace nntl {
 		//  
 		// realmtxdef_t type is used in pack_* layers. Non-compound layers should use less generic realmtxt_t type instead.
 		// The function is allowed to use the dLdA parameter once it's not needed anymore as it wants (including resizing operation,
-		// provided that it won't resize it greater than a max size previuosly set by the layer during init() phase.
+		// provided that it won't resize it greater than a max size previuosly set by the layer during layer_init() phase.
 		// BTW, beware! The run-time check of maximum matrix size works only
 		// in DEBUG builds!).
 		// Same for the dLdAPrev, - layer is free to use it as it wants during bprop(), - but on exit from the bprop()
@@ -302,7 +301,7 @@ namespace nntl {
 		//    void bprop(const realmtx_t& data_y, const LowerLayer& lowerLayer, realmtxdef_t& dLdAPrev);
 		// 
 		//On the function return value: in a short, simple/single layers should return 1.
-		// In a long: during the init() phase, each layer returns the total (maximum) size of its dLdA matrix in _layer_init_data_t::max_dLdA_numel.
+		// In a long: during the layer_init() phase, each layer returns the total (maximum) size of its dLdA matrix in _layer_init_data_t::max_dLdA_numel.
 		// This value, gathered from every layer in a layers stack, are gets aggregated by the max()
 		// into the biggest possible dLdA size for a whole NNet.
 		// Then two matrices of this (biggest) size are allocated and passed to a layers::bprop() function during backpropagation. One of these
@@ -333,6 +332,10 @@ namespace nntl {
 		template<typename F> nntl_interface void apply(F&& f)noexcept;
 		template<typename F> nntl_interface void apply(F&& f)const noexcept;
 
+		//if the layer change batch size, override in derived class
+		//doesn't have to be static constexpr, but must be const-qualified if non-static
+		static constexpr vec_len_t incoming2outgoing_batch_size(const vec_len_t incBatchSize)noexcept { return incBatchSize; }
+
 	private:
 		//support for ::boost::serialization
 		friend class ::boost::serialization::access;
@@ -349,14 +352,14 @@ namespace nntl {
 		//////////////////////////////////////////////////////////////////////////
 		//for a data packing reasons we have a plenty of space here, so putting some flags for later use right here
 		// 
-		//run-time flags (reset during init/deinit())
+		//run-time flags (reset during layer_init/layer_deinit())
 		bool m_bActivationsValid = false;
 
 		//flag for is_activations_shared()
 		bool m_bActivationsShared = false;
 
 		//////////////////////////////////////////////////////////////////////////
-		// persistent flags (generally unaffected by init/deinit(), but actually depends on derived class intent)
+		// persistent flags (generally unaffected by layer_init/layer_deinit(), but actually depends on derived class intent)
 
 		//#todo this flag is probably worst possible solution, however we may need some flag to switch off nonlinearity in a run-time.
 		//Is there a better (non-branching when it's not necessary) solution available?
@@ -365,34 +368,33 @@ namespace nntl {
 
 	private:
 		// if true layer still MUST calculate correct dL/dAprev but MUST NOT update own weights
-		// NEVER change after init()!
+		// NEVER change after layer_init()!
 		bool m_bDoNotUpdateWeights = false;
 		
 		//if true layer MUST skip backpropagation phase completely. Note that every layer located below current MUST also have
 		//this flag turned on or it will process invalid dLdA.
-		// NEVER change after init()!
+		// NEVER change after layer_init()!
 		//bool m_bDropBProp = false;//too much burden with proper implementation. Will do sometime in future
 
 		NNTL_DEBUG_DECLARE(bool dbgm_bInitialized = false);
 
 	protected:
-		~_layer_core()noexcept{}
 		_layer_core()noexcept{}
 
-		void init()noexcept {
+		void layer_init()noexcept {
 			m_bActivationsValid = m_bActivationsShared = false;
 			NNTL_DEBUG_DECLARE(dbgm_bInitialized = true);
 			//persistent flags are left untouched
 		}
-		void deinit()noexcept {
+		void layer_deinit()noexcept {
 			m_bActivationsValid = false;
-			///note that we don't touch m_bActivationsShared here and reset it only during init(). Just for the case
+			///note that we don't touch m_bActivationsShared here and reset it only during layer_init(). Just for the case
 			NNTL_DEBUG_DECLARE(dbgm_bInitialized = false);
 			//persistent flags are left untouched
 		}
 
 		void _set_activations_shared(const bool bSh)noexcept {
-			NNTL_ASSERT(dbgm_bInitialized);
+			//NNTL_ASSERT(dbgm_bInitialized);
 			m_bActivationsShared = bSh;
 		}
 
@@ -406,19 +408,19 @@ namespace nntl {
 		bool bUpdateWeights()const noexcept { return !m_bDoNotUpdateWeights; }
 		//bool bDoBProp()const noexcept { return !m_bDropBProp; }
 
-		//Note, that meddling with _setUpdateWeights/_setDoBProp after init() phase may lead to memory corruption
+		//Note, that meddling with _setUpdateWeights/_setDoBProp after layer_init() phase may lead to memory corruption
 		//because these variables define how much memory should be allocated
 		void _setUpdateWeights(const bool b)noexcept {
-			NNTL_ASSERT(!dbgm_bInitialized || !"Hey! Don't call that function after init() was run!");
+			NNTL_ASSERT(!dbgm_bInitialized || !"Hey! Don't call that function after layer_init() was run!");
 			m_bDoNotUpdateWeights = !b;
 		}
-		//Note, that meddling with _setUpdateWeights/_setDoBProp after init() phase may lead to memory corruption
+		//Note, that meddling with _setUpdateWeights/_setDoBProp after layer_init() phase may lead to memory corruption
 		//because these variables define how much memory should be allocated
 		// use hlpr_setDoBProp_for_layerId_range
 		//Also note that disabling bprop is actually a kind of a hack and there's no check of correct usage. So it's yours
 		// responsibility to make sure that every layer under the layer with disabled bprop also have it disabled!
 		/*void _setDoBProp(const bool b)noexcept {
-			NNTL_ASSERT(!dbgm_bInitialized || !"Hey! Don't call that function after init() was run!");
+			NNTL_ASSERT(!dbgm_bInitialized || !"Hey! Don't call that function after layer_init() was run!");
 			m_bDropBProp = !b;
 		}*/
 
@@ -508,7 +510,7 @@ namespace nntl {
 	// base class for most of layers.
 	// Implements compile time polymorphism (to get rid of virtual functions),
 	// default _layer_name_ machinery, some default basic typedefs and basic support machinery
-	// (init() function with common_data_t, layer index number, neurons count)
+	// (layer_init() function with common_data_t, layer index number, neurons count)
 	// If not mentioned explicitly in a function comment, any member function of the class #supportsBatchInRow (at least it should)
 	template<typename FinalPolymorphChild, typename InterfacesT>
 	class _layer_base 
@@ -524,6 +526,9 @@ namespace nntl {
 
 		using _base_class_t::real_t;
 
+	protected:
+		NNTL_DEBUG_DECLARE(BatchSizes m_incBS);
+		NNTL_DEBUG_DECLARE(BatchSizes m_outgBS);
 
 	private:
 		neurons_count_t m_neurons_cnt, m_incoming_neurons_cnt;
@@ -551,18 +556,33 @@ namespace nntl {
 	public:
 		//////////////////////////////////////////////////////////////////////////
 		//nntl_interface overridings
-		ErrorCode init(_layer_init_data_t& lid)noexcept {
-			_base_class_t::init();
+		ErrorCode layer_init(_layer_init_data_t& lid)noexcept {
+			_base_class_t::layer_init();
 
 			set_common_data(lid.commonData);
+
+			NNTL_ASSERT(lid.incBS.isValid());
+			if (!lid.outgBS.isValid()) {
+				// most of layers doesn't change batch size as it pass through fprop
+				// If the derived class actually does change it, better set the appropriate vars before passing lid here.
+				// Changing it after this->layer_init() is possible, thought it may break code in intermediate derived classed
+				lid.layer_doesnt_change_batchsize();
+			}
+			NNTL_ASSERT(lid.outgBS.maxBS == get_self().incoming2outgoing_batch_size(lid.incBS.maxBS));
+			NNTL_ASSERT(lid.outgBS.maxTrainBS == get_self().incoming2outgoing_batch_size(lid.incBS.maxTrainBS));
+
+			NNTL_DEBUG_DECLARE(m_incBS.set_from(lid.incBS));
+			NNTL_DEBUG_DECLARE(m_outgBS.set_from(lid.outgBS));
 
 			get_iInspect().init_layer(get_layer_idx(), get_self().get_layer_name_str(), get_self().get_layer_type_id());
 
 			return ErrorCode::Success;
 		}
-		void deinit() noexcept {
+		void layer_deinit() noexcept {
+			NNTL_DEBUG_DECLARE(m_incBS.clear());
+			NNTL_DEBUG_DECLARE(m_outgBS.clear());
 			clean_common_data();
-			_base_class_t::deinit();
+			_base_class_t::layer_deinit();
 		}
 
 		void initMem(real_t* , numel_cnt_t )noexcept {}

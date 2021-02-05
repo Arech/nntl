@@ -71,11 +71,10 @@ namespace nntl {
 		void _lph_fprop(const realmtx_t& prevAct)noexcept {
 			NNTL_ASSERT(prevAct.test_biases_strict());
 			NNTL_ASSERT(is_activations_shared() || m_activations.test_biases_strict());
+			NNTL_ASSERT(m_activations.bBatchInColumn() && prevAct.bBatchInColumn());
 
 			auto& iI = get_iInspect();
 			iI.fprop_begin(get_layer_idx(), prevAct, get_common_data().is_training_mode());
-
-			NNTL_ASSERT(m_activations.rows() == get_common_data().get_cur_batch_size());
 
 			tuple_utils::for_each_up(m_phl_tuple, [&prevAct, pTBS = m_pTmpBiasStorage](const auto& phl) {
 				phl.l.fprop(LLWrapT(prevAct, pTBS, phl.coord));
@@ -106,11 +105,11 @@ namespace nntl {
 		unsigned _lph_bprop(realmtxdef_t& dLdA, realmtxdef_t& dLdAPrev, const realmtx_t& prevAct)noexcept {
 			static constexpr bool bPrevLayerWBprop = is_layer_with_bprop<LLWrapT>::value;
 			NNTL_ASSERT(is_activations_shared() || m_activations.test_biases_strict());
+			NNTL_ASSERT(dLdA.bBatchInColumn() && dLdAPrev.bBatchInColumn() && prevAct.bBatchInColumn() && m_activations.bBatchInColumn());
 			NNTL_ASSERT(prevAct.test_biases_strict());
 			NNTL_ASSERT(get_common_data().is_training_mode());
-			NNTL_ASSERT(m_activations.rows() == get_common_data().get_cur_batch_size());
 			NNTL_ASSERT(dLdA.size() == m_activations.size_no_bias());
-			NNTL_ASSERT(mtx_size_t(get_common_data().get_cur_batch_size(), get_incoming_neurons_cnt() + 1) == prevAct.size());
+			NNTL_ASSERT(get_incoming_neurons_cnt() == prevAct.sample_size());
 			NNTL_ASSERT(!bPrevLayerWBprop || dLdAPrev.size() == prevAct.size_no_bias());
 
 			NNTL_ASSERT(m_bActivationsValid);
@@ -128,7 +127,6 @@ namespace nntl {
 			//The order of traversing is EXTREMELY IMPORTANT for gating layers, for example (they might expect a gating layer to be
 			// processed first during fprop() and last during bprop()). Therefore we must go backwards here!
 			tuple_utils::for_each_down(m_phl_tuple, [&firstNeuronOfs, &prevAct, &dLdA, &dLdAPrev
-				, _training_batch_size = get_common_data().get_cur_batch_size()
 				, &_innerdLdA = m_innerdLdA, &_innerdLdAPrev = m_innerdLdAPrev, _pTmpBiasStorage = m_pTmpBiasStorage
 				, &_Math = get_iMath()](const auto& phl)
 			{
@@ -141,7 +139,7 @@ namespace nntl {
 				//setting up the _innerdLdA
 				_innerdLdA.deform_like_no_bias(lyr.get_activations());
 				NNTL_ASSERT(firstNeuronOfs + _innerdLdA.cols() <= dLdA.cols());
-				NNTL_ASSERT(_innerdLdA.rows() == dLdA.rows() && _training_batch_size == _innerdLdA.rows());
+				NNTL_ASSERT(_innerdLdA.rows() == dLdA.rows());
 				::std::memcpy(_innerdLdA.data(), dLdA.colDataAsVec(firstNeuronOfs), _innerdLdA.byte_size());
 
 				//#consider если для каждого внутреннего слоя помнить max_dLdA_numel, и она окажется меньше _innerdLdA.numel() и
@@ -153,19 +151,18 @@ namespace nntl {
 
 				//setting up the _innerdLdAPrev
 				if (bPrevLayerWBprop) {
-					_innerdLdAPrev.deform(_training_batch_size, phl.coord.m_count);
+					_innerdLdAPrev.deform(dLdAPrev.rows(), phl.coord.m_count);
 				} else _innerdLdAPrev.deform(0, 0);
-				NNTL_ASSERT(!bPrevLayerWBprop || _innerdLdAPrev.rows() == dLdAPrev.rows());
 
 				const auto switchMtxs = lyr.bprop(_innerdLdA, LLWrapT(prevAct, _pTmpBiasStorage, phl.coord), _innerdLdAPrev);
 
 				if (bPrevLayerWBprop) {
 					const auto& curdLdAPrev = switchMtxs ? _innerdLdAPrev : _innerdLdA;
-					NNTL_ASSERT(curdLdAPrev.size() == realmtx_t::mtx_size_t(_training_batch_size, phl.coord.m_count));
+					NNTL_ASSERT(curdLdAPrev.size() == realmtx_t::mtx_size_t(dLdAPrev.rows(), phl.coord.m_count));
 
 					//saving curdLdAPrev to dLdAPrev
 					_Math.vAdd_ip(dLdAPrev.colDataAsVec(phl.coord.m_offset)
-						, curdLdAPrev.data(), realmtx_t::sNumel(_training_batch_size, phl.coord.m_count));
+						, curdLdAPrev.data(), curdLdAPrev.numel());
 				}
 			});
 			NNTL_ASSERT(firstNeuronOfs == 0);
@@ -185,6 +182,7 @@ namespace nntl {
 		template <typename LowerLayer>
 		unsigned bprop(realmtxdef_t& dLdA, const LowerLayer& lowerLayer, realmtxdef_t& dLdAPrev)noexcept {
 			static_assert(::std::is_base_of<_i_layer_trainable, LowerLayer>::value, "Template parameter LowerLayer must implement _i_layer_trainable");
+			static_assert(!bAssumeFPropOnly, "");
 			//NNTL_ASSERT(get_self().bDoBProp());
 			return get_self()._lph_bprop<_impl::wrap_part_trainable_layer<LowerLayer>>(dLdA, dLdAPrev, lowerLayer.get_activations());
 		}

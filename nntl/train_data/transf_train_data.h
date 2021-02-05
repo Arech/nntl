@@ -71,6 +71,9 @@ namespace nntl {
 		template<typename iMathT>
 		nntl_interface bool init(iMathT& iM, const_TD_stor_t& tds, vec_len_t baseBatchSize)noexcept;
 
+		template<typename iMathT>
+		static void preinit_iMath(iMathT& iM)noexcept {};
+
 		template<typename CommonDataT>
 		nntl_interface void next_epoch(const_TD_stor_t& tds, const numel_cnt_t epochIdx, const CommonDataT& cd
 			, const vec_len_t baseBatchSize, x_mtx_t** ppBatchX, y_mtx_t** ppBatchY) noexcept;
@@ -189,6 +192,9 @@ namespace nntl {
 				return bs* m_TFunct.samplesInBaseSample();
 			}
 
+			template<typename iMathT>
+			void preinit_iMath(iMathT& iM)noexcept { m_TFunct.preinit_iMath(iM); };
+			
 			//////////////////////////////////////////////////////////////////////////
 
 			vec_len_t xWidth()const noexcept { NNTL_ASSERT(!get_self().empty()); return m_TFunct.xWidth(m_tdStor); }
@@ -336,7 +342,7 @@ namespace nntl {
 				if (batchSize < 0) {
 					batchSize = m_maxTrainBatchSize;
 				} else if (0 == batchSize) {
-					batchSize = cd.get_cur_batch_size();
+					batchSize = cd.input_batch_size();
 				}
 				NNTL_ASSERT(batchSize > 0 && batchSize <= m_maxTrainBatchSize && batchSize <= get_self().trainset_samples_count());
 				NNTL_ASSERT(0 == batchSize % m_TFunct.samplesInBaseSample());
@@ -388,7 +394,7 @@ namespace nntl {
 				if (batchSize < 0) {
 					batchSize = m_maxFPropSize;
 				} else if (0 == batchSize) {
-					batchSize = cd.get_cur_batch_size();
+					batchSize = cd.input_batch_size();
 				}
 
 				NNTL_ASSERT(batchSize > 0 && batchSize <= m_maxFPropSize && (0 == batchSize%m_TFunct.samplesInBaseSample()));

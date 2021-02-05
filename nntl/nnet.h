@@ -113,10 +113,10 @@ namespace nntl {
 
 		//realmtx_t m_batch_x, m_batch_y;
 
-		layer_index_t m_failedLayerIdx;
+		layer_index_t m_failedLayerIdx{ 0 };
 
 		bool m_bCalcFullLossValue;//set based on nnet_train_opts::calcFullLossValue() and the value, returned by layers init()
-		bool m_bRequireReinit;//set this flag to require nnet object and its layers to reinitialize on next call
+		bool m_bRequireReinit{false};//set this flag to require nnet object and its layers to reinitialize on next call
 
 		//////////////////////////////////////////////////////////////////////////
 		//Serialization support
@@ -135,11 +135,7 @@ namespace nntl {
 		template<typename PInspT = ::std::nullptr_t, typename PMathT = ::std::nullptr_t, typename PRngT = ::std::nullptr_t>
 		nnet(layers_pack_t& lp, PInspT pI=nullptr, PMathT pM=nullptr, PRngT pR=nullptr) noexcept
 			: _base_class(pI, pM, pR), m_Layers(lp)
-		{
-			m_bRequireReinit = false;
-			m_failedLayerIdx = 0;
-			//if (iRng_t::is_multithreaded) get_iRng().init_ithreads(get_iMath().ithreads());
-		}
+		{}
 
 		::std::string get_last_error_string()const noexcept {
 			::std::string les(get_last_error_str());
@@ -158,6 +154,7 @@ namespace nntl {
 
 		//call this to force nnet and its dependents to reinitialize 
 		void require_reinit()noexcept { m_bRequireReinit = true; }
+		void dont_require_reinit()noexcept { m_bRequireReinit = false; }
 
 		//////////////////////////////////////////////////////////////////////////
 		// weights persistence (depends on Matlab archive types this moment)
@@ -320,8 +317,8 @@ namespace nntl {
 
 		const bool _is_initialized(const vec_len_t biggestFprop, const vec_len_t batchSize)const noexcept {
 			return !m_bRequireReinit && get_common_data().is_initialized()
-				&& biggestFprop <= get_common_data().max_fprop_batch_size()
-				&& batchSize <= get_common_data().training_batch_size();
+				&& biggestFprop <= get_common_data().input_max_fprop_batch_size()
+				&& batchSize <= get_common_data().input_training_batch_size();
 				//&& (0 == batchSize || batchSize == get_common_data().training_batch_size());
 		}
 
@@ -329,20 +326,48 @@ namespace nntl {
 		// biggestFprop - the biggest expected batch size for inferencing/fprop
 		// batchSize - the biggest expected batch size for training/bprop (as well as inferencing/fprop for training also)
 		//		batchSize==0 means that _init is called for use in fprop scenario only
-		ErrorCode _init(const vec_len_t biggestFprop, vec_len_t batchSize = 0, const bool bMiniBatch = false
+		ErrorCode _init(const vec_len_t biggestFprop, const vec_len_t batchSize = 0, const bool bMiniBatch = false
 			, const numel_cnt_t maxEpoch = 1)noexcept
 		{
 			NNTL_ASSERT(biggestFprop > 0 && biggestFprop >= batchSize);
 			if (_is_initialized(biggestFprop, batchSize)) {
-				//_processTmpStor(bMiniBatch, train_x_cols, train_y_cols, batchSize, pTtd);
-				//looks like the call above is actually a bug. If the nnet is initalized, no work should be done with its memory
+				if (!get_iMath().init()) return ErrorCode::CantInitializeIMath;
 				get_iInspect().init_nnet(m_Layers.total_layers(), maxEpoch);
 				return ErrorCode::Success;
 			}
 
 			//#TODO we must be sure here that no internal objects settings will be hurt during deinit phase
 			deinit();
-			
+			return _full_init(biggestFprop, batchSize, bMiniBatch, maxEpoch);
+		}
+
+		template<typename TdT>
+		ErrorCode _init4train(TdT& td, vec_len_t& maxFPropSize, vec_len_t& maxBatchSize, bool& bMiniBatch, const numel_cnt_t maxEpoch)noexcept
+		{
+			const auto ec = td.init4train(get_iMath(), maxFPropSize, maxBatchSize, bMiniBatch);
+			NNTL_ASSERT(maxFPropSize > 0 && maxBatchSize > 0 && maxBatchSize <= maxFPropSize);
+			if (ErrorCode::Success != ec) return _set_last_error(ec);
+
+			if (_is_initialized(maxFPropSize, maxBatchSize)) {
+				//must call get_iMath().init() b/c td.init* could do iM.preinit()
+				if (!get_iMath().init()) return ErrorCode::CantInitializeIMath;
+				get_iInspect().init_nnet(m_Layers.total_layers(), maxEpoch);
+				return ErrorCode::Success;
+			}
+
+			//#TODO we must be sure here that no internal objects settings will be hurt during deinit phase
+			deinit();
+			//because of deinit, we have to allow td to call preinit() again.
+			td.preinit_iMath(get_iMath());
+
+			return _full_init(maxFPropSize, maxBatchSize, bMiniBatch, maxEpoch);
+		}
+
+		ErrorCode _full_init(const vec_len_t biggestFprop, const vec_len_t batchSize, const bool bMiniBatch, const numel_cnt_t maxEpoch)noexcept {
+			NNTL_ASSERT(biggestFprop > 0 && biggestFprop >= batchSize);
+			//call deinit if appropriate in caller
+			//deinit();
+
 			get_iInspect().init_nnet(m_Layers.total_layers(), maxEpoch);
 
 			bool bInitFinished = false;
@@ -351,15 +376,15 @@ namespace nntl {
 			});
 
 			get_common_data().init(biggestFprop, batchSize);
-			
+
 			m_failedLayerIdx = 0;
-			const auto le = m_Layers.init(get_const_common_data(), m_LMR);
+			const auto le = m_Layers.init_layers(get_common_data(), m_LMR);
 			if (ErrorCode::Success != le.first) {
 				m_failedLayerIdx = le.second;
 				return le.first;
 			}
 			NNTL_ASSERT(batchSize == 0 || m_LMR.maxSingledLdANumel > 0);
-			
+
 			if (!get_iMath().init()) return ErrorCode::CantInitializeIMath;
 			if (!get_iRng().init_rng()) return ErrorCode::CantInitializeIRng;
 
@@ -367,13 +392,14 @@ namespace nntl {
 			//m_pTmpStor.reset(new(::std::nothrow)real_t[totalTempMemSize]);
 			//if (nullptr == m_pTmpStor.get()) return ErrorCode::CantAllocateMemoryForTempData;
 			m_pTmpStor.resize(totalTempMemSize);
-			
+
 			const auto _memUsed = _processTmpStor(bMiniBatch, batchSize);
 			NNTL_ASSERT(totalTempMemSize == _memUsed);
 
 			bInitFinished = true;
 			return ErrorCode::Success;
 		}
+
 		const numel_cnt_t _totalTrainingMemSize(const bool bMiniBatch, const vec_len_t batchSize)noexcept
 			//, const vec_len_t train_x_cols, const vec_len_t train_y_cols)noexcept
 		{
@@ -436,33 +462,34 @@ namespace nntl {
 		}
 		
 		//if bs==0 then "set training mode with batchsize = cd.training_batch_size()", else set inference mode with batchsize==bs
-		void _set_mode_and_batch_size(const vec_len_t bs)noexcept {
+		void _set_mode_and_batch_size(vec_len_t bs)noexcept {
 			NNTL_ASSERT(bs >= 0);
 			const bool bIsTraining = bs == 0;
 			auto& cd = get_common_data();
-			if (cd.set_mode_and_batch_size(bIsTraining, bIsTraining ? cd.training_batch_size() : bs)) {
-				m_Layers.on_batch_size_change();
+			bs = bIsTraining ? cd.input_training_batch_size() : bs;
+			if (cd.set_mode_and_batch_size(bIsTraining, bs)) {
+				m_Layers.on_batch_size_change(cd.input_batch_size());
 			}
 		}
 
 		//similar to _set_mode_and_batch_size(), but unconditionally sets training mode with given non zero batchsize
 		void _set_training_mode_and_batch_size(const vec_len_t bs)noexcept {
-			NNTL_ASSERT(bs > 0 && bs <= get_common_data().training_batch_size());
+			NNTL_ASSERT(bs > 0 && bs <= get_common_data().input_training_batch_size());
 			if (get_common_data().set_mode_and_batch_size(true, bs)) {
-				m_Layers.on_batch_size_change();
+				m_Layers.on_batch_size_change(get_common_data().input_batch_size());
 			}
 		}
 
 		void _set_inference_mode_and_batch_size(const vec_len_t bs)noexcept {
-			NNTL_ASSERT(bs > 0 && bs <= get_common_data().max_fprop_batch_size());
+			NNTL_ASSERT(bs > 0 && bs <= get_common_data().input_max_fprop_batch_size());
 			if (get_common_data().set_mode_and_batch_size(false, bs)) {
-				m_Layers.on_batch_size_change();
+				m_Layers.on_batch_size_change(get_common_data().input_batch_size());
 			}
 		}
 
 	public:
 		void deinit()noexcept {
-			m_Layers.deinit();
+			m_Layers.deinit_layers();
 			get_iRng().deinit_rng();
 			get_iMath().deinit();
 			get_common_data().deinit();
@@ -490,28 +517,18 @@ namespace nntl {
 			if (!td.isSuitableForOutputOf(m_Layers.output_layer().get_neurons_cnt())) return _set_last_error(ErrorCode::InvalidOutputLayerNeuronsCount);
 
 			const numel_cnt_t maxEpoch = opts.maxEpoch();
-
-			ErrorCode ec;
 			vec_len_t maxFPropSize = opts.maxFpropSize(), maxBatchSize = opts.batchSize();
 			bool bMiniBatch = true;//default value
-
-			ec = td.init4train(get_iMath(), maxFPropSize, maxBatchSize, bMiniBatch);
-			NNTL_ASSERT(maxFPropSize > 0 && maxBatchSize > 0 && maxBatchSize <= maxFPropSize);
-			if (ErrorCode::Success != ec) return _set_last_error(ec);
-
-			//scheduling deinitialization with scope_exit to forget about return statements
-			utils::scope_exit td_deinit([&td]() noexcept{
-				td.deinit4all();
-			});
 						
 			m_bCalcFullLossValue = opts.calcFullLossValue();
 			//////////////////////////////////////////////////////////////////////////
 			// perform layers initialization, gather temp memory requirements, then allocate and spread temp buffers
-			ec = _init(maxFPropSize, maxBatchSize, bMiniBatch, maxEpoch);
+			auto ec = _init4train(td, maxFPropSize, maxBatchSize, bMiniBatch, maxEpoch);
 			if (ErrorCode::Success != ec) return _set_last_error(ec);
 
 			//scheduling deinitialization with scope_exit to forget about return statements
-			utils::scope_exit layers_deinit([this, &opts]()noexcept {
+			utils::scope_exit layers_deinit([this, &opts, &td]()noexcept {
+				td.deinit4all();
 				if (opts.ImmediatelyDeinit()) {
 					deinit();
 				}
@@ -567,7 +584,7 @@ namespace nntl {
 						NNTL_ASSERT(batch_x.emulatesBiases() && !batch_y.emulatesBiases());
 						NNTL_ASSERT(batch_x.test_biases_strict());
 						NNTL_ASSERT(batch_x.sample_size() == td.xWidth() && batch_y.sample_size() == td.yWidth());
-						NNTL_ASSERT(batch_x.batch_size() == batch_y.batch_size() && batch_x.batch_size() == get_const_common_data().get_cur_batch_size());
+						NNTL_ASSERT(batch_x.batch_size() == batch_y.batch_size() && batch_x.batch_size() == get_const_common_data().input_batch_size());
 						NNTL_ASSERT(batch_x.batch_size() == maxBatchSize);
 
 						iI.train_preFprop(batch_x);
@@ -610,6 +627,8 @@ namespace nntl {
 			return _set_last_error(ErrorCode::Success);
 		}
 
+		//note that as there's no train_data given, it's caller responsibility to execute
+		//td.preinit_iMath(get_iMath()); and get_iMath().init() afterwards to allow td object to safe use iMath's internal memory
 		ErrorCode init4fixedBatchFprop(const vec_len_t fpropBatchSize)noexcept {
 			NNTL_ASSERT(fpropBatchSize);
 			const auto ec = _init(fpropBatchSize);
@@ -622,12 +641,14 @@ namespace nntl {
 		void doFixedBatchFprop(const realmtx_t& batchX)noexcept {
 			// if the batch size passed to init*() was not multiple of the set size, then the last batch of the set will contain less data
 			const auto bs = batchX.batch_size();
-			if (bs != get_const_common_data().get_cur_batch_size()) {
+			if (bs != get_const_common_data().input_batch_size()) {
 				_set_inference_mode_and_batch_size(bs);
 			}
 			m_Layers.fprop(batchX);
 		}
 
+		//note that as there's no train_data given, it's caller responsibility to execute
+		//td.preinit_iMath(get_iMath()); and get_iMath().init() afterwards to allow td object to safe use iMath's internal memory
 		ErrorCode fprop(const realmtx_t& data_x)noexcept {
 			const auto ec = _init(data_x.batch_size());
 			if (ErrorCode::Success != ec) return _set_last_error(ec);
@@ -670,7 +691,7 @@ namespace nntl {
 
 				m_nn.m_bCalcFullLossValue = m__bOrigCalcFullLossValue;
 				if (m_nn.get_common_data().set_mode_and_batch_size(m__bOrigInTraining, m__origBatchSize))
-					m_nn.m_Layers.on_batch_size_change();
+					m_nn.m_Layers.on_batch_size_change(m__origBatchSize);
 				m_nn._unblockLearning();
 			}
 			GradCheckFunctor(nnet& n, const gradcheck_settings<real_t>& ngcSetts)noexcept
@@ -678,7 +699,7 @@ namespace nntl {
 				//saving nnet mode & affected state
 				, m__bOrigInTraining(n.get_common_data().is_training_mode())
 				, m__bOrigCalcFullLossValue(n.m_bCalcFullLossValue)
-				, m__origBatchSize(n.get_common_data().get_cur_batch_size())
+				, m__origBatchSize(n.get_common_data().input_batch_size())
 			{
 				NNTL_ASSERT(m_ngcSetts.evalSetts.dLdA_setts.relErrWarnThrsh <= m_ngcSetts.evalSetts.dLdA_setts.relErrFailThrsh);
 				NNTL_ASSERT(m_ngcSetts.evalSetts.dLdW_setts.relErrWarnThrsh <= m_ngcSetts.evalSetts.dLdW_setts.relErrFailThrsh);
@@ -785,8 +806,9 @@ namespace nntl {
 
 			void _prepNetToBatchSize(const bool bTraining, const vec_len_t batchSize)noexcept {
 				NNTL_ASSERT(batchSize);
-				if (m_nn.get_common_data().set_mode_and_batch_size(bTraining, batchSize))
-					m_nn.m_Layers.on_batch_size_change();
+				auto& cd = m_nn.get_common_data();
+				if (cd.set_mode_and_batch_size(bTraining, batchSize))
+					m_nn.m_Layers.on_batch_size_change(cd.input_batch_size());
 			}
 
 			template<typename LayerT>
@@ -1051,7 +1073,7 @@ namespace nntl {
 				//auto& cd = m_nn.get_common_data();
 				NNTL_ASSERT(m_nn.get_common_data().is_training_mode());//we MUST be in training mode
 				//const auto batchSize = m_data.batchX().batch_size();
-				NNTL_ASSERT(m_nn.get_common_data().get_cur_batch_size() == m_data.batchX().batch_size());
+				NNTL_ASSERT(m_nn.get_common_data().input_batch_size() == m_data.batchX().batch_size());
 				//if(cd.change_cur_batch_size(batchSize) != batchSize) layrs.on_batch_size_change();
 
 				layrs.fprop(m_data.batchX());

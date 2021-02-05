@@ -57,8 +57,10 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 namespace nntl {
 
 	template<typename FinalPolymorphChild, typename LayrsRefTuple>
-	class _LPV : public _layer_base_forwarder<FinalPolymorphChild,
-		typename ::std::remove_reference<typename ::std::tuple_element<0, LayrsRefTuple>::type>::type::interfaces_t>
+	class _LPV : public _layer_base_forwarder<FinalPolymorphChild
+		, typename ::std::remove_reference<typename ::std::tuple_element<0, LayrsRefTuple>::type>::type::interfaces_t>
+		, public _impl::m_prop_stops_bprop_marker<typename ::std::remove_reference
+		<typename ::std::tuple_element<::std::tuple_size<LayrsRefTuple>::value - 1, LayrsRefTuple>::type>::type>
 	{
 	private:
 		typedef _layer_base_forwarder<FinalPolymorphChild,
@@ -76,6 +78,12 @@ namespace nntl {
 
 		static_assert(layers_count > 1, "For vertical pack with a single inner layer use that layer instead");
 
+		typedef ::std::remove_reference_t<::std::tuple_element_t<0, _layers>> lowmost_layer_t;
+		typedef ::std::remove_reference_t<::std::tuple_element_t<layers_count - 1, _layers>> topmost_layer_t;
+		//fprop() goes from the lowmost_layer_t to the topmost_layer_t layer.
+
+		static constexpr bool bAssumeFPropOnly = is_layer_stops_bprop<topmost_layer_t>::value;
+
 		template<typename T>
 		struct _layers_props : ::std::true_type {
 			static_assert(::std::is_lvalue_reference<T>::value, "Must be a reference to a layer");
@@ -86,10 +94,6 @@ namespace nntl {
 			static_assert(::std::is_base_of<_i_layer<real_t>, LT>::value, "must derive from _i_layer");
 		};
 		static_assert(tuple_utils::assert_each<_layers, _layers_props>::value, "LayrsRefTuple must be assembled from proper objects!");
-
-		typedef ::std::remove_reference_t<::std::tuple_element_t<0, _layers>> lowmost_layer_t;
-		typedef ::std::remove_reference_t<::std::tuple_element_t<layers_count - 1, _layers>> topmost_layer_t;
-		//fprop() goes from the lowmost_layer_t to the topmost_layer_t layer.
 
 		typedef typename lowmost_layer_t::_layer_init_data_t _layer_init_data_t;
 		typedef typename lowmost_layer_t::common_data_t common_data_t;
@@ -164,7 +168,7 @@ namespace nntl {
 		}
 
 		//overriding _layer_base_forwarder<> implementation.
-		const neurons_count_t get_incoming_neurons_cnt()const noexcept { return  lowmost_layer().get_incoming_neurons_cnt(); }
+		neurons_count_t get_incoming_neurons_cnt()const noexcept { return  lowmost_layer().get_incoming_neurons_cnt(); }
 
 		//should return true, if the layer has a value to add to Loss function value (there's some regularizer attached)
 		bool hasLossAddendum()const noexcept {
@@ -181,14 +185,14 @@ namespace nntl {
 
 		//////////////////////////////////////////////////////////////////////////
 		//
-		ErrorCode init(_layer_init_data_t& lid, real_t* pNewActivationStorage = nullptr)noexcept {
-			_base_class_t::init();
+		ErrorCode layer_init(_layer_init_data_t& lid, real_t* pNewActivationStorage = nullptr)noexcept {
+			_base_class_t::layer_init();
 			ErrorCode ec = ErrorCode::Success;
 			layer_index_t failedLayerIdx = 0;
 
 			bool bSuccessfullyInitialized = false;
 			utils::scope_exit onExit([&bSuccessfullyInitialized, this]() {
-				if (!bSuccessfullyInitialized) get_self().deinit();
+				if (!bSuccessfullyInitialized) get_self().layer_deinit();
 			});
 
 			//we must initialize encapsulated layers and find out their initMem() requirements. Things to consider:
@@ -198,28 +202,21 @@ namespace nntl {
 			auto initD = lid.dupe();
 			tuple_utils::for_each_exc_last_up(m_layers, [&ec, &initD, &lid, &failedLayerIdx](auto& l)noexcept {
 				if (ErrorCode::Success == ec) {
-					initD.clean_passing(lid); // there are currently no IN flags/variables in _layer_init_data_t structure,
-					// that must be propagated to every layer in a stack, therefore we're using the default clean_using() form.
-					ec = l.init(initD);
+					initD.pass_to_upper_layer();
+					ec = l.layer_init(initD);
 					if (ErrorCode::Success == ec) {
-						lid.update(initD);
+						lid.aggregate_from(initD);
 					} else failedLayerIdx = l.get_layer_idx();
 				}
 			});
+			//separate initialization for the top layer.
 			//doubling the code by intention, because some layers can be incompatible with pNewActivationStorage specification
 			if (ErrorCode::Success == ec) {
-				initD.clean_using(lid);//we must propagate any IN flags set in the .lid variable to the topmost layer being initialized.
-				ec = topmost_layer().init(initD, pNewActivationStorage);
+				initD.pass_to_upper_layer();
+				ec = topmost_layer().layer_init(initD, pNewActivationStorage);
 				if (ErrorCode::Success == ec) {
-					lid.update(initD);
-
-					//finally checking if topmost layer has bprop disabled, we should also disable it
-					/*if (!topmost_layer().bDoBProp() && get_self().bDoBProp()) {
-						STDCOUTL("## LPV::init '"<< get_self().get_layer_name_str()
-							<< "': note that topmost layer has bprop() turned off, but ours is turned on! Disabling it.");
-						get_self()._setDoBProp(false);
-					}*/
-
+					lid.aggregate_from(initD);
+					lid.outgBS = initD.outgBS;
 				} else failedLayerIdx = topmost_layer().get_layer_idx();
 			}
 
@@ -231,9 +228,9 @@ namespace nntl {
 			return ec;
 		}
 
-		void deinit() noexcept {
-			for_each_packed_layer([](auto& l) {l.deinit(); });
-			_base_class_t::deinit();
+		void layer_deinit() noexcept {
+			for_each_packed_layer([](auto& l) {l.layer_deinit(); });
+			_base_class_t::layer_deinit();
 		}
 
 		void initMem(real_t* ptr, numel_cnt_t cnt)noexcept {
@@ -241,11 +238,11 @@ namespace nntl {
 			for_each_packed_layer([=](auto& l) {l.initMem(ptr, cnt); });
 		}
 
-		void on_batch_size_change(/*const real_t learningRateScale,*/ real_t*const pNewActivationStorage = nullptr)noexcept {
-			tuple_utils::for_each_exc_last_up(m_layers, [/*learningRateScale*/](auto& lyr)noexcept {
-				lyr.on_batch_size_change(/*learningRateScale*/);
+		vec_len_t on_batch_size_change(vec_len_t incBatchSize, real_t*const pNewActivationStorage = nullptr)noexcept {
+			tuple_utils::for_each_exc_last_up(m_layers, [&incBatchSize](auto& lyr)noexcept {
+				incBatchSize = lyr.on_batch_size_change(incBatchSize);
 			});
-			topmost_layer().on_batch_size_change(/*learningRateScale,*/ pNewActivationStorage);
+			return topmost_layer().on_batch_size_change(incBatchSize, pNewActivationStorage);
 		}
 
 	protected:
@@ -324,7 +321,7 @@ namespace nntl {
 		template <typename LowerLayer>
 		unsigned bprop(realmtxdef_t& dLdA, const LowerLayer& lowerLayer, realmtxdef_t& dLdAPrev)noexcept {
 			static_assert(::std::is_base_of<_i_layer_trainable, LowerLayer>::value, "Template parameter LowerLayer must implement _i_layer_trainable");
-			//NNTL_ASSERT(get_self().bDoBProp());
+			static_assert(!bAssumeFPropOnly, "");
 			return get_self()._lpv_bprop<_impl::wrap_trainable_layer<LowerLayer>>(dLdA, dLdAPrev, lowerLayer.get_activations());
 		}
 
@@ -347,7 +344,6 @@ namespace nntl {
 	class LPV final : public _LPV<LPV<Layrs...>, ::std::tuple<Layrs&...>>
 	{
 	public:
-		~LPV() noexcept {};
 		LPV(Layrs&... layrs) noexcept
 			: _LPV<LPV<Layrs...>, ::std::tuple<Layrs&...>>(nullptr, ::std::tie(layrs...)) {};
 		LPV(const char* pCustomName, Layrs&... layrs) noexcept

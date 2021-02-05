@@ -235,7 +235,7 @@ void test_LSUVExt(inmem_train_data<RealT>& td, bool bCentNorm, bool bScaleNorm, 
 	nn.get_layer_pack().for_each_layer_exc_input([&iR = nn.get_iRng(), &iM = nn.get_iMath()](auto& lyr) {
 		math::smatrix<real_t> W;
 		ASSERT_TRUE(W.resize(lyr.get_neurons_cnt(), lyr.get_incoming_neurons_cnt() + 1));
-		ASSERT_TRUE(::std::decay_t<decltype(lyr)>::Weights_Init_t::init(W, iR, iM));
+		ASSERT_TRUE(::std::decay_t<decltype(lyr)>::Weights_Init_t::make_weights(W, iR, iM));
 		//note that we MUST not use lyr.reinit_weights() function here because layer is not initialized at this point
 		ASSERT_TRUE(lyr.set_weights(::std::move(W)));
 		lyr.get_gradWorks().set_type(::std::decay_t<decltype(lyr.get_gradWorks())>::Adam);

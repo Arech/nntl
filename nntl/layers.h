@@ -218,17 +218,17 @@ namespace nntl {
 		//////////////////////////////////////////////////////////////////////////
 
 		//perform layers initialization before training begins.
-		layer_error_t init(const common_data_t& cd, _impl::layers_mem_requirements& LMR) noexcept
+		layer_error_t init_layers(common_data_t& cd, _impl::layers_mem_requirements& LMR) noexcept
 		{
 			ErrorCode ec = ErrorCode::Success;
 			layer_index_t failedLayerIdx = 0;
 
-			_layer_init_data_t lid(cd);
+			_layer_init_data_t lid(cd, cd.input_biggest_batch_size(), cd.input_training_batch_size());
 
-			tuple_utils::for_each_up(m_layers, [&](auto& lyr)noexcept {
+			tuple_utils::for_each_up(m_layers, [&ec, &failedLayerIdx, &lid, &LMR](auto& lyr)noexcept {
 				if (ErrorCode::Success == ec) {
-					lid.clean_using();
-					ec = lyr.init(lid);
+					lid.pass_to_upper_layer();
+					ec = lyr.layer_init(lid);
 					if (ErrorCode::Success == ec) {
 						LMR.updateLayerReq(lid);
 					} else {
@@ -236,6 +236,10 @@ namespace nntl {
 					}
 				}
 			});
+
+			if (ErrorCode::Success == ec) {
+				cd.set_outBatchSizes(lid.outgBS);
+			}
 
 			//handing of special case
 		#pragma warning(disable: 4127) // conditional expression is constant
@@ -247,9 +251,9 @@ namespace nntl {
 			return layer_error_t(ec, failedLayerIdx);
 		}
 
-		void deinit() noexcept {
+		void deinit_layers() noexcept {
 			tuple_utils::for_each_up(m_layers, [](auto& lyr)noexcept {
-				lyr.deinit();
+				lyr.layer_deinit();
 			});
 			for (auto& m : m_a_dLdA) { m.clear(); }
 		}
@@ -285,8 +289,10 @@ namespace nntl {
 			return m_lossAddendum;
 		}
 
-		void on_batch_size_change()noexcept {
-			tuple_utils::for_each_up(m_layers, [](auto& lyr)noexcept { lyr.on_batch_size_change(); });
+		void on_batch_size_change(vec_len_t batchSize)noexcept {
+			tuple_utils::for_each_up(m_layers, [&batchSize](auto& lyr)noexcept {
+				batchSize = lyr.on_batch_size_change(batchSize);
+			});
 		}
 
 		void fprop(const realmtx_t& data_x) noexcept {
