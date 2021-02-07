@@ -71,6 +71,8 @@ namespace nntl {
 		nntl_interface void on_training_end(const nanoseconds& trainTime)noexcept;
 	};
 
+#pragma warning(push)
+#pragma warning(disable : 4100) //unreferenced formal parameter
 	template<typename RealT>
 	struct training_observer_silent : public i_training_observer<RealT> {
 		
@@ -91,6 +93,10 @@ namespace nntl {
 		static constexpr void on_training_fragment_end(const numel_cnt_t epochEnded, const real_t trainLoss, const real_t testLoss, const nanoseconds& elapsedSincePrevFragment)noexcept{}
 		static constexpr void on_training_end(const nanoseconds& trainTime) noexcept {}
 	};
+#pragma warning(pop)
+
+	template<typename ObsT>
+	using is_observer_silent = ::std::is_base_of<training_observer_silent<typename ObsT::real_t>, ObsT>;
 
 	//////////////////////////////////////////////////////////////////////////
 	namespace _impl {

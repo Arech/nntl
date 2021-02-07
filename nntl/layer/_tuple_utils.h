@@ -57,13 +57,13 @@ namespace tuple_utils {
 
 		template<int I, class Tuple, typename F> struct _down4bprop_stop {
 			static void for_each(Tuple&& t, F&& f) noexcept {
-				f(::std::get<I>(t), ::std::get<I - 1>(t));
+				//f(::std::get<I>(t), ::std::get<I - 1>(t));
 			}
 		};
 
 		template<int I, class Tuple, typename F>
 		struct _down4bprop : public ::std::conditional_t<
-			is_layer_stops_bprop< ::std::tuple_element_t<I, ::std::decay_t<Tuple>> >::value
+			is_layer_stops_bprop<::std::decay_t<::std::tuple_element_t<I, ::std::decay_t<Tuple>>>>::value
 			, _down4bprop_stop<I, Tuple, F>
 			, _down4bprop_go<I, Tuple, F>
 		> {};

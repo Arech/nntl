@@ -70,11 +70,8 @@ namespace activation {
 		// preallocation algorithm of iMath). This is default version. Override in derived class if need something more
 		// #todo we should probably split output to fprop() only and fprop()+bprop() versions like we're doing in _i_layer::init()
 		// #todo probably should adopt a _i_loss_addendum initialization scheme here
-		template <typename iMath>
-		static numel_cnt_t needTempMem(const realmtx_t& /*act*/, iMath& ) noexcept {
-			//return act.numel();//WTF? What for?!
-			return 0;
-		}
+		template <typename MtxValueT, typename iMath>
+		static constexpr numel_cnt_t needTempMem(const mtx_size_t& /*actSizeNoBias*/, iMath& ) noexcept { return 0; }
 
 		//////////////////////////////////////////////////////////////////////////
 		//to support state-full activations override the following functions in derived class

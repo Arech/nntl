@@ -85,7 +85,7 @@ namespace nntl {
 
 			template<typename YT, bool _b = bActivationForOutput>
 			::std::enable_if_t<_b, real_t> calc_loss(const math::smatrix<YT>& data_y)const noexcept {
-				NNTL_ASSERT(data_y.batch_size() == m_activations.batch_size());
+				//NNTL_ASSERT(data_y.batch_size() == m_activations.batch_size()); //it's a job for activation object (and it may not holds)
 				//note that we don't check sample_size() property to be able to pass
 				// some additional data to Activation_t::loss()
 				// note that compilation may break here if Activation_t doesn't support YT different from real_t
@@ -100,7 +100,7 @@ namespace nntl {
 				if (!get_self().get_activation_obj().act_init(get_common_data(), lid.outgBS, get_neurons_cnt()))
 					return ErrorCode::CantInitializeActFunc;
 
-				get_iMath().preinit(_activation_tmp_mem_reqs());
+				get_iMath().preinit(_activation_tmp_mem_reqs(lid.outgBS.biggest()));
 
 				return ErrorCode::Success;
 			}
@@ -127,9 +127,9 @@ namespace nntl {
 			}
 
 			//this is to return how many temporary real_t elements activation function might require the iMath interface to have
-			auto _activation_tmp_mem_reqs()const noexcept {
-				NNTL_ASSERT(m_activations.batch_size() >= m_outgBS.biggest());
-				return get_self().get_activation_obj().needTempMem(m_activations, get_iMath());
+			auto _activation_tmp_mem_reqs(const vec_len_t biggestBS)const noexcept {
+				NNTL_ASSERT(biggestBS <= m_outgBS.biggest());
+				return get_self().get_activation_obj().needTempMem<real_t>(mtx_size_t(biggestBS, get_neurons_cnt()), get_iMath());
 			}
 
 			template<typename iMathT>

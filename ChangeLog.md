@@ -1,13 +1,16 @@
 # Changelog
 I should probably have started doing it long ago, but better late than never. So here it is (for older entries see commit history)
 
+## 2021 Feb 07
+
+- bug fixes and some minor updates
+
 ## 2021 Feb 05
 
 - weight initialization algorithm now may have a non-static implementaion. Consequently weights creation function is renamed from `init()` to `make_weights()`
 - layer's interface `init()` is renamed to `layer_init()` and `deinit()` to `layer_deinit()` (it was bad idea to give these functions too generic names - hard to grep 'em all). Same applies to `_i_grad_works<>::init/deinit` - they are now `gw_init/gw_deinit`.
 - `on_batch_size_change()` has changed the signature to get new incoming batch size and return outgoing.
 - Now a layer may (technically) change the batch size (rows count of data matrices) during data propagation (allows more flexibility in algorithms). Corresponding `common_nn_data<>` members no longer applies to the whole nnet, just to an input_layer. All nests are passing, however due to huge scale of changes, it is possible that some very rarely used code not covered by tests remained unchanged (I just forgot about its existence) and therefore it won't compile. Changes required are quite straightforward though, so I don't feel it wouldn't be unsolvable anyone who dares to use it.
-
 
 ## 2021 Feb 02
 

@@ -78,6 +78,7 @@ namespace math {
 		typedef RealT real_t;
 		typedef smatrix<real_t> realmtx_t;
 		typedef smatrix_deform<real_t> realmtxdef_t;
+		typedef typename realmtx_t::mtx_size_t mtx_size_t;
 
 		typedef s_rowcol_range rowcol_range;
 		typedef s_elems_range elms_range;
@@ -812,6 +813,11 @@ namespace math {
 			return _processMtx_cw_needTempMem<ScndVecType>(A.rows());
 		}
 		template<typename ScndVecType>
+		nntl_probably_force_inline numel_cnt_t _processMtx_cw_needTempMem(const mtx_size_t& actSizeNoBias)const noexcept {
+			return _processMtx_cw_needTempMem<ScndVecType>(actSizeNoBias.first);
+		}
+
+		template<typename ScndVecType>
 		nntl_probably_force_inline numel_cnt_t _processMtx_cw_needTempMem(const vec_len_t aRows)const noexcept {
 			static_assert(::std::is_pod<ScndVecType>::value, "");
 			const auto elemsCnt = smatrix_td::sNumel(aRows, m_threads.cur_workers_count());
@@ -1494,8 +1500,12 @@ namespace math {
 		//////////////////////////////////////////////////////////////////////////
 		template<typename T>
 		nntl_probably_force_inline numel_cnt_t mrwSum_ip_needTempMem(const smatrix<T>& A)const noexcept {
-			return get_self().mrwSum_needTempMem(A);
-		}		
+			return get_self().mrwSum_ip_needTempMem<T>(A.size_no_bias());
+		}
+		template<typename T>
+		nntl_probably_force_inline numel_cnt_t mrwSum_ip_needTempMem(const mtx_size_t& actSizeNoBias)const noexcept {
+			return get_self().mrwSum_needTempMem<T>(actSizeNoBias);
+		}
 		// Calculates into the first row of A a sum of columns for each row.
 		void mrwSum_ip(realmtx_t& A)noexcept {
 			const auto cm = A.cols();
@@ -1557,8 +1567,13 @@ namespace math {
 		//////////////////////////////////////////////////////////////////////////
 		template<typename T>
 		nntl_probably_force_inline numel_cnt_t mrwSum_needTempMem(const smatrix<T>& A)const noexcept {
-			return _processMtx_cw_needTempMem<T>(A);
+			return mrwSum_needTempMem<T>(A.size_no_bias());
 		}
+		template<typename T>
+		nntl_probably_force_inline numel_cnt_t mrwSum_needTempMem(const mtx_size_t& actSizeNoBias)const noexcept {
+			return _processMtx_cw_needTempMem<T>(actSizeNoBias);
+		}
+
 		// Calculate rowwise sum into vec
 		void mrwSum(const realmtx_t& A, real_t*const pVec)noexcept {
 			if (A.numel() < Thresholds_t::mrwSum) {

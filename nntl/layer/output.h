@@ -124,12 +124,6 @@ namespace nntl {
 
 			auto ec = _base_class_t::layer_init(lid);
 			if (ErrorCode::Success != ec) return ec;
-
-			//we need this to be able to include layer_output into LPT (though, it won't work now, at least because LPT doesn't
-			// propagate m_output_layer marker)
-			//NNTL_ASSERT(lid.nTiledTimes == 1 || !"If you've updated LPT to incapsulate this layer, uncomment every m_nTiledTimes usage if it is still necessary");
-			//and note, that that nTiledTimes machinery is actually a hack to make LPT pass a grad check. So it's better to make grad checker
-			//routine aware of layer differences.
 			
 			const numel_cnt_t prmsNumel = get_self().bUpdateWeights() ? m_weights.numel() : 0;
 			lid.nParamsToLearn = prmsNumel;
@@ -138,9 +132,8 @@ namespace nntl {
 // 				realmtx_t::sNumel(get_common_data().biggest_batch_size(), get_self().get_incoming_neurons_cnt() + 1)//for prev activations.
 // 			}));
 
-			if (get_common_data().is_training_possible() && get_self().bUpdateWeights() /*&& get_self().bDoBProp()*/) {
+			if (get_common_data().is_training_possible() && get_self().bUpdateWeights()) {
 				//There's no dLdA coming into the output layer, therefore leave max_dLdA_numel it zeroed
-				//lid.max_dLdA_numel = 0;
 				
 				// we'll need 1 temporarily matrix for bprop(): dL/dW [m_neurons_cnt x get_incoming_neurons_cnt()+1]
 				lid.maxMemTrainingRequire = prmsNumel;
@@ -243,15 +236,6 @@ namespace nntl {
 				NNTL_ASSERT(!m_dLdW.emulatesBiases() && m_dLdW.bBatchInColumn() && m_weights.bBatchInColumn());
 				NNTL_ASSERT(m_dLdW.size() == m_weights.size());
 
-				//NNTL_ASSERT(m_nTiledTimes > 0);
-				//#hack to make gradient check of LPT happy, we would ignore the tiling count here entirely (because numerical error is
-				// implicitly normalized to batch size, however, analytical - doesn't and it's normalized to the current batch size. Inner
-				// layers of LPT have different batch sizes, so we just going to ignore that here. Probably we should:
-				//#todo update grad checking algo to take tiling count into account.
-				//However, the tiled layer in a real life would have a m_nTiledTimes bigger batch size, than the modeled layer should have,
-				// therefore we'll upscale the gradient m_nTiledTimes times.
-				//compute dL/dW = 1/batchsize * (dL/dZ)` * Aprev
-				//iM.mScaledMulAtB_C(real_t(1.) / real_t(dLdZ.rows()), dLdZ, prevAct, m_dLdW);
 				// #TODO support bBatchInRow for dLdZ!!!
 				iM.mMulScaled_dLdZ_prevAct_2_dLdW(real_t(1.) / real_t(dLdZ.rows()), dLdZ, prevAct, m_dLdW);
 

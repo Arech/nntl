@@ -37,7 +37,7 @@ namespace nntl {
 namespace inspector {
 
 	template<typename RealT>
-	class dummy final : public _impl::_base<RealT> {
+	class dummy : public _impl::_base<RealT> {
 	public:
 		~dummy() noexcept {}
 		dummy()noexcept {}
@@ -46,7 +46,7 @@ namespace inspector {
 	template< class, class = ::std::void_t<> >
 	struct is_dummy_inspector : ::std::false_type { };
 	template< class T >
-	struct is_dummy_inspector<T, ::std::void_t<typename ::std::enable_if< ::std::is_same<dummy<typename T::real_t>, T>::value >::type > > : ::std::true_type {};
+	struct is_dummy_inspector<T, ::std::void_t<typename ::std::enable_if< ::std::is_base_of<dummy<typename T::real_t>, T>::value >::type > > : ::std::true_type {};
 
 }
 }

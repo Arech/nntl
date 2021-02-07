@@ -335,6 +335,7 @@ namespace nntl {
 		//if the layer change batch size, override in derived class
 		//doesn't have to be static constexpr, but must be const-qualified if non-static
 		static constexpr vec_len_t incoming2outgoing_batch_size(const vec_len_t incBatchSize)noexcept { return incBatchSize; }
+		//also note that in that case on_batch_size_change() must also be overriden and return a proper value even if it do nothing else
 
 	private:
 		//support for ::boost::serialization
@@ -460,6 +461,7 @@ namespace nntl {
 		//just a pointer as passed, because don't want to care about memory allocation and leave a footprint as small as possible,
 		//because it's just a matter of convenience.
 		const char* m_customName;
+		//note that it should persist over layer_deinit()
 
 	protected:
 		~_cpolym_layer_base()noexcept {}
@@ -500,7 +502,7 @@ namespace nntl {
 		}
 	public:
 		static constexpr layer_type_id_t get_layer_type_id()noexcept {
-			static_assert(sizeof(self_t::_defName) <= sizeof(layer_type_id_t), "Too long default layer name has been used. Can't use it to derive layer_type_id");
+			static_assert(sizeof(self_t::_defName)-1 <= sizeof(layer_type_id_t), "Too long default layer name has been used. Can't use it to derive layer_type_id");
 			return _get_layer_type_id(self_t::_defName);
 		}
 

@@ -119,18 +119,15 @@ namespace _impl {
 
 		vec_len_t on_batch_size_change(const vec_len_t incBatchSize, real_t*const pNewActivationStorage = nullptr)noexcept {
 			NNTL_ASSERT(incBatchSize > 0 && incBatchSize <= m_incBS.max_bs4mode(get_common_data().is_training_mode()));
-			//if the layer changes batch size, you'll still have to redefine this function, so checking incBatchSize as outgoing too
-			NNTL_ASSERT(incBatchSize == get_self().incoming2outgoing_batch_size(incBatchSize));
-			NNTL_ASSERT(m_incBS == m_outgBS);
+
+			const auto outgBatchSize = get_self().incoming2outgoing_batch_size(incBatchSize);
+			NNTL_ASSERT(outgBatchSize <= m_outgBS.max_bs4mode(get_common_data().is_training_mode()));
+
 			static constexpr bool bNotOutputLayer = !is_layer_output<self_t>::value;
 
 			NNTL_ASSERT(get_neurons_cnt());
 			NNTL_ASSERT(m_activations.emulatesBiases() == bNotOutputLayer);
 			m_bActivationsValid = false;
-
-			//const auto& CD = get_common_data();
-			//const vec_len_t incBatchSize = CD.get_cur_batch_size();
-			//NNTL_ASSERT(incBatchSize > 0 && incBatchSize <= CD.biggest_batch_size());
 
 		#pragma warning(push)
 		#pragma warning(disable : 4127)
@@ -139,21 +136,21 @@ namespace _impl {
 			if (bUseActst) {
 				NNTL_ASSERT(m_activations.bDontManageStorage() && get_self().is_activations_shared());
 				//m_neurons_cnt + 1 for biases
-				m_activations.useExternalStorage(incBatchSize, get_neurons_cnt() + 1, pNewActivationStorage, true);
+				m_activations.useExternalStorage(outgBatchSize, get_neurons_cnt() + 1, pNewActivationStorage, true);
 				//should not restore biases here, because for compound layers its a job for their fprop() implementation
 			} else {
 				NNTL_ASSERT(!pNewActivationStorage);
 				NNTL_ASSERT(m_activations.bOwnStorage() && !get_self().is_activations_shared());
 				
-				const auto oldBatchSize = m_activations.deform_batch_size(incBatchSize);
+				const auto oldBatchSize = m_activations.deform_batch_size(outgBatchSize);
 				//we must restore biases if the batch size has been changed
-				if (bNotOutputLayer && oldBatchSize != incBatchSize) { // && incBatchSize != CD.biggest_batch_size()) {
+				if (bNotOutputLayer && oldBatchSize != outgBatchSize) { // && outgBatchSize != CD.biggest_batch_size()) {
 					m_activations.set_biases();
 				}else NNTL_ASSERT(!bNotOutputLayer || m_activations.test_biases_strict());
 			}
 		#pragma warning(pop)
 			_set_activations_shared(bUseActst);//just for the case
-			return incBatchSize;
+			return outgBatchSize;
 		}
 	};
 

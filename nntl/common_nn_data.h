@@ -67,7 +67,7 @@ namespace _impl {
 		vec_len_t m_max_fprop_batch_size;//The biggest samples count for fprop(), usually this is data_x.rows()
 		vec_len_t m_training_batch_size;//The biggest batch size for bprop(), usually it is a batchSize
 
-		mutable vec_len_t m_cur_batch_size;
+		/*mutable*/ vec_len_t m_cur_batch_size;
 
 		BatchSizes m_outBatchSizes;
 
@@ -164,7 +164,7 @@ namespace _impl {
 			return true;
 		}
 
-		vec_len_t change_cur_batch_size(const vec_len_t bs)const noexcept {
+		vec_len_t change_cur_batch_size(const vec_len_t bs)/*const*/ noexcept {
 			NNTL_ASSERT(m_pMath && m_pRng && m_pInspect);//must be preinitialized!
 			NNTL_ASSERT(m_max_fprop_batch_size > 0 && bs > 0);
 			NNTL_ASSERT((m_bInTraining && m_training_batch_size > 0 && bs <= m_training_batch_size)

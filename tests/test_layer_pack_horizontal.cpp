@@ -180,11 +180,13 @@ void test_same_layers(inmem_train_data<real_t>& td, uint64_t rngSeed) {
 
 	CD.init(evalSamplesCnt, trainSamplesCnt);
 	_impl::_layer_init_data<common_data_t> lid(CD, CD.input_biggest_batch_size(), CD.input_training_batch_size());
-	const auto origLid = lid.exact_dupe();
 	_impl::layers_mem_requirements lmr;
 	
-	iRng.seed64(rngSeed-1);
 	lid.pass_to_upper_layer();
+	const auto origLid = lid.exact_dupe();
+
+	iRng.seed64(rngSeed-1);
+	
 	auto ec = Ainp.layer_init(lid);
 	ASSERT_EQ(ec, _nnet_errs::ErrorCode::Success) << "Failed to initialize Ainp";
 	lmr.updateLayerReq(lid);
@@ -241,7 +243,6 @@ void test_same_layers(inmem_train_data<real_t>& td, uint64_t rngSeed) {
 	auto lid2 = origLid.exact_dupe(); //we can't use lid here, b/c operator=() is deleted b/c of reference member
 
 	iRng.seed64(rngSeed-1);
-	lid2.pass_to_upper_layer();
 	ec = Binp.layer_init(lid2);
 	ASSERT_EQ(ec, _nnet_errs::ErrorCode::Success) << "Failed to initialize Binp";
 	lmr.updateLayerReq(lid2);

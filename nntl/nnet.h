@@ -52,16 +52,19 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 namespace nntl {
 
-	//dummy callback for .train() function.
+	//dummy callbacks for .train() function.
 	struct NNetCB_OnEpochEnd_Dummy {
-		/*template<typename _nnet, typename _opts>*/
-		constexpr bool operator()(/*_nnet& nn, _opts& opts,*/ size_t epochEnded)const {
-			/*NNTL_UNREF(nn); NNTL_UNREF(opts);*/ NNTL_UNREF(epochEnded);
+		constexpr bool operator()(size_t /*epochEnded*/)const noexcept {
 			//return false to stop learning
 			return true;
 		}
 	};
-
+	struct NNetCB_OnInit_Dummy {
+		constexpr auto operator()()const noexcept {
+			//return non success such as PostInitStopFromCallback to break learning
+			return _nnet_errs::ErrorCode::Success;
+		}
+	};
 	//////////////////////////////////////////////////////////////////////////
 	// If not mentioned explicitly in a function comment, any member function of the class #supportsBatchInRow (at least it should)
 	// However, it was not extensively tested in bBatchInRow() mode, so double check
@@ -383,7 +386,8 @@ namespace nntl {
 				m_failedLayerIdx = le.second;
 				return le.first;
 			}
-			NNTL_ASSERT(batchSize == 0 || m_LMR.maxSingledLdANumel > 0);
+
+			if (batchSize > 0 && 0 == m_LMR.maxSingledLdANumel) m_LMR.maxSingledLdANumel = 1;//just to make assertions happy
 
 			if (!get_iMath().init()) return ErrorCode::CantInitializeIMath;
 			if (!get_iRng().init_rng()) return ErrorCode::CantInitializeIRng;
@@ -446,7 +450,7 @@ namespace nntl {
 
 				//2. dLdA
 				//#TODO: better move it to m_Layers
-				for(auto& m : m_Layers.m_a_dLdA){
+				for (auto& m : m_Layers.m_a_dLdA) {
 					m.useExternalStorage(&tempMemStorage[spreadTempMemSize], m_LMR.maxSingledLdANumel);
 					spreadTempMemSize += m_LMR.maxSingledLdANumel;
 				}
@@ -504,8 +508,15 @@ namespace nntl {
 		// note that TrainDataT& td doesn't have a const modifier. That's because actually it has to be a statefull modifiable
 		// resettable wrapper over some const data storage. So, it's ok to pass it here without const modifier, because the only
 		// thing that is allowed to be changed in it is the wrapper state, but not the data itself.
-		template <bool bPrioritizeThreads = true, typename TrainDataT, typename TrainOptsT, typename OnEpochEndCbT = NNetCB_OnEpochEnd_Dummy>
-		ErrorCode train(TrainDataT& td, TrainOptsT& opts, OnEpochEndCbT&& onEpochEndCB = NNetCB_OnEpochEnd_Dummy())noexcept {
+		template <bool bPrioritizeThreads = true, typename TrainDataT, typename TrainOptsT
+			, typename onEpochEndCbT = NNetCB_OnEpochEnd_Dummy
+			, typename onNnetInitCbT = NNetCB_OnInit_Dummy
+		>
+		ErrorCode train(TrainDataT& td, TrainOptsT& opts
+			, onEpochEndCbT&& onEpochEndCB = NNetCB_OnEpochEnd_Dummy()
+			, onNnetInitCbT&& onInitCB = NNetCB_OnInit_Dummy()
+		)noexcept
+		{
 			static_assert(is_train_data_intf<TrainDataT>::value, "td object MUST be derived from _i_train_data interface");
 			static_assert(::std::is_same<typename TrainDataT::x_t, real_t>::value, "TrainDataT::x_t must be same as real_t");
 
@@ -518,6 +529,7 @@ namespace nntl {
 
 			const numel_cnt_t maxEpoch = opts.maxEpoch();
 			vec_len_t maxFPropSize = opts.maxFpropSize(), maxBatchSize = opts.batchSize();
+			const bool bRepOnlyTime = opts.bReportOnlyTime();
 			bool bMiniBatch = true;//default value
 						
 			m_bCalcFullLossValue = opts.calcFullLossValue();
@@ -535,9 +547,12 @@ namespace nntl {
 			});
 
 			if (m_bCalcFullLossValue) m_bCalcFullLossValue = m_LMR.bLossAddendumDependsOnWeights || m_LMR.bLossAddendumDependsOnActivations;
-			
+
+			ec = ::std::forward<onNnetInitCbT>(onInitCB)();
+			if (ErrorCode::Success != ec) return _set_last_error(ec);
+
 			//////////////////////////////////////////////////////////////////////////
-			const auto& cee = opts.getCondEpochEval();			
+			const auto& reportEpochCond = opts.getCondEpochEval();			
 			const auto divergenceCheckLastEpoch = opts.divergenceCheckLastEpoch();
 
 			if (! opts.observer().init(maxEpoch, td, get_const_common_data())) return _set_last_error(ErrorCode::CantInitializeObserver);
@@ -565,11 +580,7 @@ namespace nntl {
 				threads_prioritizer_tpl<bPrioritizeThreads> pw(get_iMath().ithreads());//raising thread priorities for faster computation
 				auto& iI = get_iInspect();
 
-				for (numel_cnt_t epochIdx = 0; epochIdx < maxEpoch; ++epochIdx) {
-					const bool bReportEpoch = cee(epochIdx);
-					const bool bCheckForDivergence = epochIdx < divergenceCheckLastEpoch;
-					const bool bCalcLoss = bReportEpoch || bCheckForDivergence;
-					
+				for (numel_cnt_t epochIdx = 0; epochIdx < maxEpoch; ++epochIdx) {					
 					const numel_cnt_t numBatches = td.on_next_epoch(epochIdx, get_const_common_data());
 					NNTL_ASSERT(numBatches > 0);
 					iI.train_epochBegin(epochIdx, numBatches);
@@ -596,15 +607,27 @@ namespace nntl {
 						iI.train_batchEnd();
 					}
 
-					if (bCalcLoss) {						
+					const bool bCheckForDivergence = epochIdx < divergenceCheckLastEpoch;
+					if (reportEpochCond(epochIdx) || bCheckForDivergence) {
 						const auto epochPeriodEnds = ::std::chrono::steady_clock::now();
-
-						// #note should depend on bPrioritizeThreads value to relax priorities for callbacks?
-						const auto trainLoss = _report_training_progress(epochIdx, td, epochPeriodEnds - epochPeriodBeginsAt, opts.observer());
+						const auto periodTime = epochPeriodEnds - epochPeriodBeginsAt;
 						epochPeriodBeginsAt = epochPeriodEnds;//restarting period timer
 
-						if (bCheckForDivergence && trainLoss >= opts.divergenceCheckThreshold())
-							return _set_last_error(ErrorCode::NNDiverged);
+						if (bRepOnlyTime && !bCheckForDivergence) {
+							static constexpr char* szReportFmt = "% 3zd/%-3zd %3.1fs (time report only)";
+							static constexpr unsigned uBufSize = 64;
+
+							char szRep[uBufSize];
+							const real_t secs = real_t(periodTime.count()) * (real_t(1.) / real_t(1e9));
+
+							sprintf_s(szRep, uBufSize, szReportFmt, epochIdx + 1, maxEpoch, secs);
+							STDCOUTL(szRep);
+						} else {
+							// #note should depend on bPrioritizeThreads value to relax priorities for callbacks?
+							const auto trainLoss = _report_training_progress(epochIdx, td, periodTime, opts.observer());
+							if (bCheckForDivergence && trainLoss >= opts.divergenceCheckThreshold())
+								return _set_last_error(ErrorCode::NNDiverged);
+						}
 					}
 
 					iI.train_epochEnd();
@@ -622,7 +645,18 @@ namespace nntl {
 					_set_mode_and_batch_size(0);
 				}
 			}
-			opts.observer().on_training_end(::std::chrono::steady_clock::now()- trainingBeginsAt);
+
+			const auto totalTrainTime = ::std::chrono::steady_clock::now() - trainingBeginsAt;
+			if (bRepOnlyTime) {
+				static constexpr char* szReportFmt = "%-3zd training epochs took %3.1fs (time report only)";
+				static constexpr unsigned uBufSize = 64;
+
+				char szRep[uBufSize];
+				const real_t secs = real_t(totalTrainTime.count()) * (real_t(1.) / real_t(1e9));
+
+				sprintf_s(szRep, uBufSize, szReportFmt, maxEpoch, secs);
+				STDCOUTL(szRep);
+			}else opts.observer().on_training_end(totalTrainTime);
 
 			return _set_last_error(ErrorCode::Success);
 		}

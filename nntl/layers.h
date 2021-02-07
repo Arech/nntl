@@ -241,13 +241,6 @@ namespace nntl {
 				cd.set_outBatchSizes(lid.outgBS);
 			}
 
-			//handing of special case
-		#pragma warning(disable: 4127) // conditional expression is constant
-			if (2 == layers_count && LMR.maxSingledLdANumel==0) {
-				LMR.maxSingledLdANumel = 1;//just to make asserts happy
-			}
-		#pragma warning(default: 4127)
-
 			return layer_error_t(ec, failedLayerIdx);
 		}
 
@@ -313,7 +306,7 @@ namespace nntl {
 
 		#pragma warning(push)
 		#pragma warning(disable : 4127)
-			if (2 == layers_count) {
+			if (is_layer_stops_bprop<preoutput_layer_t>::value) {
 				m_a_dLdA[0].deform(0,0);
 			} else m_a_dLdA[0].deform_like_no_bias(preoutput_layer().get_activations());
 		#pragma warning(pop)
@@ -323,7 +316,7 @@ namespace nntl {
 
 			//tuple_utils::for_eachwn_downbp(m_layers, [&mtxIdx, &_a_dLdA = m_a_dLdA](auto& lcur, auto& lprev, const bool bPrevIsFirstLayer)noexcept {
 			tuple_utils::for_each_down4bprop_no_last(m_layers, [&mtxIdx, &_a_dLdA = m_a_dLdA](auto& lcur, auto& lprev)noexcept {
-				constexpr bool bNoBprop4Prev = is_layer_stops_bprop<::std::decay_t<decltype(lprev)>>::value;
+				static constexpr bool bNoBprop4Prev = is_layer_stops_bprop<::std::decay_t<decltype(lprev)>>::value;
 
 				const unsigned nextMtxIdx = mtxIdx ^ 1;
 

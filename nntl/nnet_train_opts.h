@@ -126,10 +126,8 @@ namespace nntl {
 		// don't store anything valuable) on .train() exit
 		bool m_bImmediatelyDeinit;
 
-		//deprecated
-		//set this flag to true to skip forward pass during training set error calculation in full-batch mode
-		//This will make error value report slightly wrong (errVal corresponds to the previous pass), but will make a significant speedup
-		//bool m_bDropFProp4TrainingSetErrorCalculationWhileFullBatch;
+		//for epochs allowed by m_vbEpochEval, report only epoch index and duration of time. Dont calculate loss at all
+		bool m_bReportOnlyTime;
 
 		void _ctor()noexcept {
 			m_BatchSize = m_maxFpropSize = 0;
@@ -137,13 +135,13 @@ namespace nntl {
 			m_DivergenceCheckThreshold = real_t(1e5);
 			m_bCalcFullLossValue = true;
 			m_bImmediatelyDeinit = false;
+			m_bReportOnlyTime = is_observer_silent<training_observer_t>::value;
 			//m_pNNEvalFinalRes = nullptr;
-			//m_bDropFProp4TrainingSetErrorCalculationWhileFullBatch = false;
 		}
 
 	public:
 		~nnet_train_opts()noexcept {}
-		nnet_train_opts(numel_cnt_t _maxEpoch, const bool& defVal = true)noexcept : m_vbEpochEval(_maxEpoch, defVal)
+		nnet_train_opts(numel_cnt_t _maxEpoch, const bool defVal = true)noexcept : m_vbEpochEval(_maxEpoch, defVal)
 		{_ctor();}
 		nnet_train_opts(numel_cnt_t _maxEpoch, numel_cnt_t stride)noexcept : m_vbEpochEval(_maxEpoch, stride)
 		{		_ctor();	}
@@ -160,6 +158,7 @@ namespace nntl {
 
 		numel_cnt_t divergenceCheckLastEpoch() const noexcept { return m_DivergenceCheckLastEpoch; }
 		self_t& divergenceCheckLastEpoch(int16_t val) noexcept { m_DivergenceCheckLastEpoch = val; return *this; }
+		self_t& noDivergenceCheck()noexcept { m_DivergenceCheckLastEpoch = -2; return *this; }
 
 		//batchSize is a term for training. 0 means a full batch mode (whole training set at once)
 		vec_len_t batchSize() const noexcept { 
@@ -192,7 +191,7 @@ namespace nntl {
 			return m_maxFpropSize;
 		}
 		//note that setting it to nonzero requies batchSize() to be set first to nonzero value
-		self_t& maxFpropSize(vec_len_t val)noexcept{
+		self_t& maxFpropSize(const vec_len_t val)noexcept{
 			NNTL_ASSERT(m_BatchSize >= 0);
 			if (val < 0 || (val > 0 && 0 == m_BatchSize) || (val > 0 && val < m_BatchSize)) {
 				NNTL_ASSERT(!"WTF?! Trying to set invalid maxFpropSize!");
@@ -209,16 +208,13 @@ namespace nntl {
 		training_observer_t& observer() noexcept { return m_trainingObserver; }
 
 		bool calcFullLossValue()const noexcept { return m_bCalcFullLossValue; }
-		self_t& calcFullLossValue(bool cflv)noexcept { m_bCalcFullLossValue = cflv; return *this; }
+		self_t& calcFullLossValue(const bool cflv)noexcept { m_bCalcFullLossValue = cflv; return *this; }
 
 		bool ImmediatelyDeinit()const noexcept { return m_bImmediatelyDeinit; }
-		self_t& ImmediatelyDeinit(bool imd)noexcept { m_bImmediatelyDeinit = imd; return *this; }
+		self_t& ImmediatelyDeinit(const bool imd)noexcept { m_bImmediatelyDeinit = imd; return *this; }
 
-		/*
-		 *deprecated
-		self_t& dropFProp4FullBatchErrorCalc(bool f)noexcept { m_bDropFProp4TrainingSetErrorCalculationWhileFullBatch = f; return *this; }
-		bool dropFProp4FullBatchErrorCalc()const noexcept { return m_bDropFProp4TrainingSetErrorCalculationWhileFullBatch; }
-		*/
+		bool bReportOnlyTime()const noexcept { return m_bReportOnlyTime; }
+		self_t& bReportOnlyTime(const bool r)noexcept { m_bReportOnlyTime = r; return *this; }
 
 		/* deprecated
 		 *const bool evalNNFinalPerf()const noexcept { return !!m_pNNEvalFinalRes; }

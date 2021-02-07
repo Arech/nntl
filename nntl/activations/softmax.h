@@ -62,9 +62,9 @@ namespace activation {
 		};
 		//get requirements on temporary memory size needed to calculate f() over matrix act (need it for memory
 		// preallocation algorithm of iMath).
-		template <typename iMath>
-		static numel_cnt_t needTempMem(const realmtx_t& act, iMath& m) noexcept {
-			return m.softmax_needTempMem(act);
+		template <typename MtxValueT, typename iMath>
+		static numel_cnt_t needTempMem(const mtx_size_t& actSizeNoBias, iMath& m) noexcept {
+			return m.softmax_needTempMem<MtxValueT>(actSizeNoBias);
 		}
 
 		template <typename iMath>

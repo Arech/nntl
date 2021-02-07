@@ -295,7 +295,8 @@ namespace math {
 		//SoftMax
 		// helper function that return the amount of temporary memory (in real_t) needed to process by softmax()
 		// a matrix of size act.size()
-		nntl_interface numel_cnt_t softmax_needTempMem(const realmtx_t& act)noexcept;
+// 		template<typename MtxValueT>
+// 		nntl_interface numel_cnt_t softmax_needTempMem(const mtx_size_t& actSizeNoBias)noexcept;
 		// MUST ignore biases!
 		nntl_interface void softmax(realmtxdef_t& srcdest) noexcept;
 

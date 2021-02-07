@@ -305,8 +305,6 @@ namespace nntl {
 			// completely from the stack !!! We need this variable!
 			OUT numel_cnt_t nParamsToLearn;//total number of parameters, that layer has to learn during training
 
-			//IN unsigned nTiledTimes;
-
 			IN BatchSizes incBS;
 			OUT BatchSizes outgBS;
 
@@ -318,53 +316,47 @@ namespace nntl {
 			OUT bool bLossAddendumDependsOnActivations; //layer.init() sets this option when there's at least one loss addendum that
 			//depends on activations values (necessary for correct loss addendum caching handling for training/testing sets).
 
+			// public constructors expects the .pass_to_upper_layer() be called before use!
 			_layer_init_data(const common_data_t& cd, const vec_len_t mbs, const vec_len_t tbs) noexcept 
 				: commonData(cd), outgBS(mbs, tbs)//we always call .pass_to_upper_layer() first!
 			{
 				//clean(); //not necessary here because the struct is almost always reused and cleaned before each use.
+				NNTL_ASSERT(outgBS.isValid());
 			}
 
 			_layer_init_data(const common_data_t& cd, const BatchSizes& bs) noexcept
 				: commonData(cd), outgBS(bs.maxBS, bs.maxTrainBS)//not using copy constructor to trigger assertions if necessary
 				//setting to the same value as inc_* because we always call .pass_to_upper_layer() first!
 			{	//clean(); //not necessary here because the struct is almost always reused and cleaned before each use.
+				NNTL_ASSERT(outgBS.isValid());
 			}
 
-			vec_len_t biggest_incoming_batch_size()const noexcept { return incBS.biggest(); }
-			vec_len_t biggest_outgoing_batch_size()const noexcept { return outgBS.biggest(); }
-
 		protected:
-			//void _clean(const vec_len_t inFPBs, const vec_len_t inTBS, const unsigned nTT)noexcept {
-			void _clean(const BatchSizes& _bs)noexcept {
+			_layer_init_data(const BatchSizes& inBs, const common_data_t& cd) noexcept : commonData(cd), incBS(inBs) {
+				NNTL_ASSERT(incBS.isValid());
+				_clean_exc_incBS();
+			}
+			void _clean_exc_incBS()noexcept {
 				maxMemFPropRequire = maxMemTrainingRequire = max_dLdA_numel = nParamsToLearn = 0;
-				//nTiledTimes = nTT;
-				incBS.set_from(_bs);
 				outgBS.clear();
 				bOutputDifferentDuringTraining = bLossAddendumDependsOnWeights = bLossAddendumDependsOnActivations = false;
 			}
-// 			void _clean(const _layer_init_data& o)noexcept {
-// 				_clean(o.nTiledTimes);
-// 			}
-			
+
+			void _clean(const BatchSizes& _bs)noexcept {				
+				incBS.set_from(_bs);
+				_clean_exc_incBS();
+			}
+
 		public:
+			vec_len_t biggest_incoming_batch_size()const noexcept { return incBS.biggest(); }
+			vec_len_t biggest_outgoing_batch_size()const noexcept { return outgBS.biggest(); }
+		
 			void layer_doesnt_change_batchsize()noexcept { outgBS.set_from(incBS); }
 
 			//this function must be called on the object before it is passed to layer.init()
 			void pass_to_upper_layer()noexcept {
 				_clean(outgBS);
 			}
-
-			//this function must be called on the object before it is passed to layer.init()
-			//i.e. _i_layer.init() expects the object to be clean()'ed
-			/*void clean_using(const _layer_init_data& o)noexcept {
-				_clean(o);
-			}
-			void clean_using()noexcept {
-				_clean();
-			}
-			void clean_passing(const _layer_init_data& o)noexcept {
-				_clean(o.nTiledTimes);
-			}*/
 
 			//used by compound layers to gather data from layers encapsulated into them.
 			void aggregate_from(const _layer_init_data& o)noexcept {
@@ -377,12 +369,16 @@ namespace nntl {
 				bOutputDifferentDuringTraining |= o.bOutputDifferentDuringTraining;
 			}
 
+			//dupe() just like public constructors expects the .pass_to_upper_layer() to be called first
 			_layer_init_data dupe()const noexcept {
 				return _layer_init_data(commonData, incBS);
 			}
 
+			//produces proper duplicate with same commonData and incBS.
+			//note that this object must already pass through .pass_to_upper_layer();
 			_layer_init_data exact_dupe()const noexcept {
-				return *this;
+				NNTL_ASSERT(incBS.isValid());
+				return _layer_init_data(incBS, commonData);
 			}
 		};
 

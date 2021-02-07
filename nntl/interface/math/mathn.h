@@ -197,16 +197,18 @@ namespace math {
 		// helper function that return the amount of temporary memory (in real_t) needed to process by softmax()
 		// a matrix of size act.size()
 		template<typename T>
-		numel_cnt_t ___softmax_needTempMem(const smatrix<T>& act)const noexcept {
+		numel_cnt_t ___softmax_needTempMem(const mtx_size_t& actSizeNoBias)const noexcept {
 			// to compute softmax we'll need a row to store rowwise_max(), at max m_threads.cur_workers_count() rows for
 			// rowwise_sum_exp()-denominator of softmax expression, and a
 			// 			// whole matrix of exp(Aij - maxj) (numerator of softmax expression).
 			// 	and also mrwSum_ip() requirements may apply
-			return smatrix_td::sNumel(act.rows(), act.cols_no_bias() + 1 + m_threads.cur_workers_count());
+			//return smatrix_td::sNumel(act.rows(), act.cols_no_bias() + 1 + m_threads.cur_workers_count());
+			static_assert(::std::is_same<T, real_t>::value, "");
+			return smatrix_td::sNumel(actSizeNoBias.first, actSizeNoBias.second + 1 + m_threads.cur_workers_count());
 		}
 		template<typename T>
-		numel_cnt_t softmax_needTempMem(const smatrix<T>& act)const noexcept {
-			return get_self().___softmax_needTempMem(act) + get_self().mrwSum_ip_needTempMem(act);
+		numel_cnt_t softmax_needTempMem(const mtx_size_t& actSizeNoBias)const noexcept {
+			return get_self().___softmax_needTempMem<T>(actSizeNoBias) + get_self().mrwSum_ip_needTempMem<T>(actSizeNoBias);
 		}
 		//////////////////////////////////////////////////////////////////////////
 		// MUST ignore biases!
@@ -220,7 +222,7 @@ namespace math {
 			const auto bRestoreBiases = srcdest.hide_biases();
 
 			const auto rm = srcdest.rows();
-			const auto tmemSize = get_self().___softmax_needTempMem(srcdest);
+			const auto tmemSize = get_self().___softmax_needTempMem<real_t>(srcdest.size_no_bias());
 			const auto pTmp = get_self()._istor_alloc(tmemSize);
 			const auto pNumer = pTmp;
 			const auto pMax = pTmp + srcdest.numel();
@@ -242,7 +244,7 @@ namespace math {
 			const auto bRestoreBiases = srcdest.hide_biases();
 
 			const auto rm = srcdest.rows();
-			const auto tmemSize = get_self().___softmax_needTempMem(srcdest);
+			const auto tmemSize = get_self().___softmax_needTempMem<real_t>(srcdest.size_no_bias());
 			const auto pTmp = get_self()._istor_alloc(tmemSize);
 			const auto pNumer = pTmp;
 			const auto pMax = pTmp + srcdest.numel();

@@ -69,6 +69,8 @@ namespace nntl {
 			CantInitializeWeights,
 			CantInitializePAB,
 			NNDiverged,
+
+			PostInitStopFromCallback
 		};
 
 		//TODO: table lookup would be better here. But it's not essential
@@ -107,6 +109,7 @@ namespace nntl {
 			case CantInitializeWeights: return NNTL_STRING("Weights initialization failed");
 			case CantInitializePAB: return NNTL_STRING("Activations penalizer initialization failed");
 			case NNDiverged: return NNTL_STRING("NN diverged! (Training loss value surpassed the threshold from opts.divergenceCheckThreshold())");
+			case PostInitStopFromCallback: return NNTL_STRING("Callback onInitCB returned non successfull code");
 			default: NNTL_ASSERT(!"WTF?"); return NNTL_STRING("Unknown code.");
 			}
 		}

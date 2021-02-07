@@ -740,7 +740,7 @@ void test_softmax(vec_len_t rowsCnt, vec_len_t colsCnt) {
 	realmtxdef_t A(rowsCnt, colsCnt, bHasBiases), A_ET(rowsCnt, colsCnt, bHasBiases), A_orig(rowsCnt, colsCnt, bHasBiases);
 	ASSERT_TRUE(!A.isAllocationFailed() && !A_ET.isAllocationFailed() && !A_orig.isAllocationFailed());
 
-	const auto maxSoftmaxMemSize = iM.softmax_needTempMem(A);
+	const auto maxSoftmaxMemSize = iM.softmax_needTempMem<real_t>(A.size_no_bias());
 	iM.preinit(maxSoftmaxMemSize);
 	ASSERT_TRUE(iM.init());
 	d_interfaces::iRng_t rg;

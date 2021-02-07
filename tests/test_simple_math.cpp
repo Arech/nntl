@@ -1022,7 +1022,7 @@ void test_mrwSumIp_corr(vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 	constexpr unsigned testCorrRepCnt = TEST_CORRECTN_REPEATS_COUNT;
 	realmtx_t A(rowsCnt, colsCnt), A2(rowsCnt, colsCnt), A3(rowsCnt, colsCnt);
 	ASSERT_TRUE(!A.isAllocationFailed() && !A2.isAllocationFailed() && !A3.isAllocationFailed());
-	iM.preinit(iM.mrwSum_ip_needTempMem(A));
+	iM.preinit(iM.mrwSum_ip_needTempMem<real_t>(A.size_no_bias()));
 	ASSERT_TRUE(iM.init());
 	d_interfaces::iRng_t rg;
 	rg.init_ithreads(iM.ithreads());

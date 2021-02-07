@@ -1497,7 +1497,7 @@ namespace math {
 		inline void useExternalStorage(const bool bBatchInR, const value_ptr_t ptr, const vec_len_t _batchSiz
 			, const vec_len_t _sampleSizInclBias, const bool bEmulateBiases = false, const bool bHBiases = false)noexcept
 		{
-			_base_class::useExternalStorage(bBatchInR, ptr, _batchSiz, _sampleSizInclBias, bEmulateBiases, bHBiases, bBatchInR);
+			_base_class::useExternalStorage(bBatchInR, ptr, _batchSiz, _sampleSizInclBias, bEmulateBiases, bHBiases);
 		#ifdef NNTL_DEBUG
 			m_maxSize = numel();
 		#endif

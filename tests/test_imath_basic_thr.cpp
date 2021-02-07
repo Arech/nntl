@@ -1031,7 +1031,7 @@ void test_softmax_perf(vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 	realmtxdef_t A(rowsCnt, colsCnt);
 	ASSERT_TRUE(!A.isAllocationFailed());
 	
-	iM.preinit(iM.softmax_needTempMem(A));
+	iM.preinit(iM.softmax_needTempMem<real_t>(A.size_no_bias()));
 	ASSERT_TRUE(iM.init());
 	d_interfaces::iRng_t rg;
 	rg.init_ithreads(iM.ithreads());
