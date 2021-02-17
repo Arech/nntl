@@ -35,6 +35,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 // inside smatrix class object
 
 #include "../_i_threads.h"
+#include "../imemmgr/imemmgr.h"
 #include "smatrix.h"
 #include "smath_thr.h"
 #include <algorithm>
@@ -63,14 +64,15 @@ namespace math {
 	// 
 
 	// #todo drop <typename RealT> class template parameter in favor of corresponding function template parameter!
-	template<typename RealT, typename iThreadsT, typename ThresholdsT, typename FinalPolymorphChild>
+	template<typename RealT, typename iThreadsT, typename iMemmgrT, typename ThresholdsT, typename FinalPolymorphChild>
 	class _SMath {
 		static_assert(::std::is_base_of<threads::_i_threads<RealT, typename iThreadsT::range_t>, iThreadsT>::value, "iThreads must implement threads::_i_threads");
+		static_assert(::std::is_base_of<imem::_i_imemmgr, iMemmgrT>::value, "iMemmgrT must implement imem::_i_imemmgr");
 
 	public:
 		typedef FinalPolymorphChild self_t;
-		NNTL_METHODS_SELF_CHECKED( (::std::is_base_of<_SMath<RealT, iThreadsT, ThresholdsT, FinalPolymorphChild>, FinalPolymorphChild>::value)
-			, "FinalPolymorphChild must derive from _SMath<RealT, iThreadsT, FinalPolymorphChild>" );
+		NNTL_METHODS_SELF_CHECKED( (::std::is_base_of<_SMath<RealT, iThreadsT, iMemmgrT, ThresholdsT, FinalPolymorphChild>, FinalPolymorphChild>::value)
+			, "FinalPolymorphChild must derive from _SMath<RealT, iThreadsT, iMemmgrT, FinalPolymorphChild>" );
 
 		//OBSOLETE! Note that actually any math function should not depend on RealT/real_t type and dependent types,
 		// but must be parametrized with it so we'd be able to call it with any suitable data type.
@@ -84,6 +86,8 @@ namespace math {
 		typedef s_elems_range elms_range;
 		typedef s_vec_range vec_range;
 		//#WARNING use proxy variables instead of members of a structure, received by reference in performance sensitive code
+
+		typedef iMemmgrT iMemmgr_t;
 
 		// here's small guide for using rowcol_range/elms_range :
 		// Every function that should be multithreaded should have 3 (!!!) functions:
@@ -123,6 +127,8 @@ namespace math {
 	protected:
 		iThreads_t m_threads;
 
+		iMemmgr_t m_imemmgr;
+
 		numel_cnt_t m_minTempStorageSize, m_curStorElementsAllocated;
 		thread_temp_storage_t m_threadTempRawStorage;
 		
@@ -134,6 +140,29 @@ namespace math {
 
 		iThreads_t& ithreads()noexcept { return m_threads; }
 
+		//not functional now, don't use yet
+		iMemmgr_t& get_iMemmgr()noexcept { return m_imemmgr; }
+
+		//////////////////////////////////////////////////////////////////////////
+		//////////////////////////////////////////////////////////////////////////
+		//#todo move to memory manager when ready
+		static constexpr size_t _CACHE_LINE_SIZE_BYTES = 64;//#todo fetch from OS
+		// returns k>=n such that two arrays of objects T[k] placed in memory sequentially will guaranteed to
+		// reside in different processor cache lines (to prevent false sharing penalty when modifying
+		// any of their elements from different threads)
+		template<typename T>
+		static numel_cnt_t _istor_round_count_to_cache_line_size(const numel_cnt_t n)noexcept {
+			NNTL_ASSERT(n > 0);
+			const size_t minCacheLinesReq = (size_t(n) * sizeof(T) + (_CACHE_LINE_SIZE_BYTES - 1)) / _CACHE_LINE_SIZE_BYTES;
+			const auto r = static_cast<numel_cnt_t>((minCacheLinesReq*_CACHE_LINE_SIZE_BYTES + (sizeof(T) - 1)) / sizeof(T));
+			NNTL_ASSERT(r >= n);
+			return r;
+		}
+		template<typename T>
+		static vec_len_t _istor_round_count_to_cache_line_size(const vec_len_t n)noexcept {
+			return static_cast<vec_len_t>(_istor_round_count_to_cache_line_size(static_cast<numel_cnt_t>(n)));
+		}
+		
 		// use with care, it's kind of "internal memory" of the class object. Don't know, if really 
 		// should expose it into public (for some testing purposes only at this moment)
 		// Always perform corresponding call to _istor_free() in LIFO (stack) order!
@@ -215,12 +244,12 @@ namespace math {
 			m_curStorElementsAllocated = 0;
 		}
 
-
+		//////////////////////////////////////////////////////////////////////////
 		//////////////////////////////////////////////////////////////////////////
 		// Math Methods
 	//protected:
 		template<typename FuncT>
-		static void _vec_apply_func(const typename ::std::remove_reference_t<FuncT>::value_type *const _ptr
+		static void _vec_apply_func(const typename ::std::remove_reference_t<FuncT>::value_type *__restrict const _ptr
 			, const numel_cnt_t _cnt, FuncT&& F)noexcept
 		{
 			NNTL_ASSERT(_ptr && _cnt > 0);
@@ -773,7 +802,8 @@ namespace math {
 		// mt stuff
 		thread_id_t _howMuchThreadsNeededForCols(const vec_len_t minColumnsPerThread, const vec_len_t columns)const noexcept {
 			NNTL_ASSERT(columns > minColumnsPerThread);
-			const auto minThreadsReq = static_cast<thread_id_t>(ceil(real_t(columns) / minColumnsPerThread));
+			//const auto minThreadsReq = static_cast<thread_id_t>(ceil(real_t(columns) / minColumnsPerThread));
+			const auto minThreadsReq = static_cast<thread_id_t>((columns + minColumnsPerThread - 1) / minColumnsPerThread);
 			NNTL_ASSERT(minThreadsReq > 1);
 			auto workersCnt = m_threads.cur_workers_count();
 			if (minThreadsReq < workersCnt) workersCnt = minThreadsReq;
@@ -817,11 +847,13 @@ namespace math {
 			return _processMtx_cw_needTempMem<ScndVecType>(actSizeNoBias.first);
 		}
 
+		//#BUGBUG MUST take alignment requirements in account here, and in general - this is all for memory manager refactoring.
 		template<typename ScndVecType>
 		nntl_probably_force_inline numel_cnt_t _processMtx_cw_needTempMem(const vec_len_t aRows)const noexcept {
 			static_assert(::std::is_pod<ScndVecType>::value, "");
 			const auto elemsCnt = smatrix_td::sNumel(aRows, m_threads.cur_workers_count());
-			return elemsCnt + static_cast<numel_cnt_t>(ceil((ext_real_t(sizeof(ScndVecType)) / sizeof(real_t))*elemsCnt));
+			//return elemsCnt + static_cast<numel_cnt_t>(ceil((ext_real_t(sizeof(ScndVecType)) / sizeof(real_t))*elemsCnt));
+			return elemsCnt + static_cast<numel_cnt_t>((elemsCnt * sizeof(ScndVecType) + sizeof(real_t) - 1) / sizeof(real_t));
 		}
 
 		//Variation to make a vector out of const A
@@ -881,7 +913,8 @@ namespace math {
 
 			static_assert(sizeof(VT) == sizeof(real_t), "Mismatching type sizes will lead to wrong malloc");
 			const auto elemsCnt = smatrix_td::sNumel(rm, threadsToUse);
-			const auto tmemSize = elemsCnt + static_cast<numel_cnt_t>(ceil((ext_real_t(sizeof(ScndVecType)) / sizeof(real_t))*elemsCnt));
+			//const auto tmemSize = elemsCnt + static_cast<numel_cnt_t>(ceil((ext_real_t(sizeof(ScndVecType)) / sizeof(real_t))*elemsCnt));
+			const auto tmemSize = elemsCnt + static_cast<numel_cnt_t>((elemsCnt * sizeof(ScndVecType) + sizeof(real_t) - 1) / sizeof(real_t));
 			const auto pTmpMem = get_self()._istor_alloc(tmemSize);
 
 			const auto pMainVec = pTmpMem;
@@ -2407,11 +2440,11 @@ namespace math {
 	};
 
 
-	template<typename RealT, typename iThreadsT, typename ThresholdsT = _impl::SMATH_THR<RealT>>
-	class SMath final : public _SMath<RealT, iThreadsT, ThresholdsT, SMath<RealT, iThreadsT, ThresholdsT>> {
+	template<typename RealT, typename iThreadsT, typename iMemmgrT, typename ThresholdsT = _impl::SMATH_THR<RealT>>
+	class SMath final : public _SMath<RealT, iThreadsT, iMemmgrT, ThresholdsT, SMath<RealT, iThreadsT, iMemmgrT, ThresholdsT>> {
 	public:
 		~SMath()noexcept {}
-		SMath()noexcept : _SMath<RealT, iThreadsT, ThresholdsT, SMath<RealT, iThreadsT, ThresholdsT>>() {}
+		SMath()noexcept : _SMath<RealT, iThreadsT, iMemmgrT, ThresholdsT, SMath<RealT, iThreadsT, iMemmgrT, ThresholdsT>>() {}
 
 	};
 }

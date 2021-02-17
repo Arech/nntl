@@ -173,6 +173,20 @@ namespace nntl {
 				call_F_for_each_layer(func, l);
 			});
 		}
+
+		template<typename _Func>
+		void for_each_layer_down(_Func&& f)noexcept {
+			tuple_utils::for_each_down(m_layers, [&func{ f }](auto& l) {
+				call_F_for_each_layer_down(func, l);//mustn't forward because lambda is called multiple times
+			});
+		}
+		template<typename _Func>
+		void for_each_layer_down(_Func&& f)const noexcept {
+			tuple_utils::for_each_down(m_layers, [&func{ f }](const auto& l) {
+				call_F_for_each_layer_down(func, l);
+			});
+		}
+
 		//This will apply f to every layer, packed in tuple no matter whether it is a _pack_* kind of layer or no
 		template<typename _Func>
 		void for_each_packed_layer(_Func&& f)noexcept {

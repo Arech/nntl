@@ -254,8 +254,8 @@ namespace weights_init {
 
 			void prepareToBatchSize(const vec_len_t _bs)noexcept {
 				auto bs = nonZeroBatchSize(_bs);
-				const auto oldBs = m_td.get_maxFPropSize();
-				if (bs > oldBs) {
+
+				if (!m_td.is_initialized4inference(bs)) {
 					const auto ec = m_td.init4inference(m_nn.get_iMath(), bs);
 					if (decltype(ec)::Success != ec) die_die_die_my_darling("m_td.init4inference failed", bs);
 				}

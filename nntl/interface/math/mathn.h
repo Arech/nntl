@@ -44,6 +44,8 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include "smath.h"
 
+#include "_mcwFindKOrdered_hlpr.h"
+
 namespace nntl {
 namespace math {
 
@@ -51,10 +53,10 @@ namespace math {
 	// see notes in smath.h
 
 	// this class uses some routines from OpenBLAS to implement _i_math
-	template <typename RealT, typename iThreadsT, typename ThresholdsT, typename FinalPolymorphChild, typename bindingBlasT = b_OpenBLAS>
-	class _MathN : public _SMath<RealT, iThreadsT, ThresholdsT, FinalPolymorphChild>, public _i_math<RealT> {
+	template <typename RealT, typename iThreadsT, typename iMemmgrT, typename ThresholdsT, typename FinalPolymorphChild, typename bindingBlasT = b_OpenBLAS>
+	class _MathN : public _SMath<RealT, iThreadsT, iMemmgrT, ThresholdsT, FinalPolymorphChild>, public _i_math<RealT> {
 	public:
-		typedef _SMath<RealT, iThreadsT, ThresholdsT, FinalPolymorphChild> base_class_t;
+		typedef _SMath<RealT, iThreadsT, iMemmgrT, ThresholdsT, FinalPolymorphChild> base_class_t;
 		typedef bindingBlasT b_BLAS_t;
 
 		using base_class_t::real_t;
@@ -328,19 +330,23 @@ namespace math {
 			} else get_self().ewBinarize_mt(Dest, A, frac);
 		}
 		template<typename BaseDestT>
-		static void _iewBinarize_st(BaseDestT*const pD, const realmtx_t& A, const real_t frac, const elms_range& er)noexcept {
-			const auto pA = A.data();
+		static void _iewBinarize_st(BaseDestT*__restrict /*const*/ pD, const realmtx_t& A, const real_t frac, const elms_range& er)noexcept {
+			/*const real_t*__restrict const pA = A.data();
 			const auto ee = er.elmEnd;
 			//#strictAliasingViolation here if BaseDestT is char?
-			for (numel_cnt_t i = er.elmBegin; i < ee; ++i)  pD[i] = pA[i] > frac ? BaseDestT(1.0) : BaseDestT(0.0);
-			/*auto pA = A.data();
+			for (numel_cnt_t i = er.elmBegin; i < ee; ++i)  pD[i] = pA[i] > frac ? BaseDestT(1.0) : BaseDestT(0.0);*/
+			
+			const real_t*__restrict pA = A.data();
 			const auto pAE = pA + er.elmEnd;
 			pA += er.elmBegin;
 			pD += er.elmBegin;
-			while (pA != pAE) {
+			//const auto r1 = BaseDestT(1.0), r0 = BaseDestT(0.0);
+			while (pA != pAE) {//vectorized!!
 				const auto a = *pA++;
-				*pD++ = a > frac ? BaseDestT(1.0) : BaseDestT(0.0);
-			}*/
+				*pD++ = (a > frac)*BaseDestT(1.0);
+				//*pD++ = a > frac ? BaseDestT(1.0) : BaseDestT(0.0);
+				//*pD++ = a > frac ? r1 : r0;
+			}
 		}
 		template<typename DestContainerT>
 		static void ewBinarize_st(DestContainerT& Dest, const realmtx_t& A, const real_t frac, const elms_range*const pER = nullptr)noexcept {
@@ -1558,7 +1564,6 @@ namespace math {
 			NNTL_ASSERT(sc != T(0));
 			NNTL_ASSERT(!::std::is_floating_point<T>::value ||
 				(!::std::isnan(sc) && ::std::isfinite(sc) && !::std::isnan(ofs) && ::std::isfinite(ofs)));
-			//#TODO should help a compiler with FMA (probably, should code by hand - check it)?
 			while (pA != pAE) { // #vectorized
 				const auto v = *pA;
 				*pA++ = sc*v + ofs;
@@ -3849,6 +3854,119 @@ namespace math {
 				get_self()._idloglogu_nbn_nbp_st(f_df, elms_range(r));
 			}, f_df.numel());
 		}
+
+
+		//////////////////////////////////////////////////////////////////////////
+		//////////////////////////////////////////////////////////////////////////
+		//LogU : 0 | x<=0,   log(x+1)/log(b_pos) | x>0
+		void logu(realmtx_t& srcdest, const real_t b_pos) noexcept {
+			if (srcdest.numel_no_bias() < Thresholds_t::logu) {
+				get_self().logu_st(srcdest, b_pos);
+			} else get_self().logu_mt(srcdest, b_pos);
+		}
+		void logu_st(realmtx_t& srcdest, const real_t b_pos, const elms_range*const pER = nullptr) const noexcept {
+			get_self()._ilogu_st(srcdest, b_pos, pER ? *pER : elms_range(0, srcdest.numel_no_bias()));
+		}
+		static void _ilogu_st(realmtx_t& srcdest, const real_t b_pos, const elms_range& er) noexcept {
+			NNTL_ASSERT(!srcdest.empty());
+			NNTL_ASSERT(b_pos > real_t(1.0));
+			const real_t lbposi = real_t(ext_real_t(1.) / ::std::log(ext_real_t(b_pos)));
+			real_t*__restrict pV = srcdest.data() + er.elmBegin;
+			const auto pVE = pV + er.totalElements();
+			while (pV != pVE) {
+				const auto v = *pV;
+				*pV++ = (v <= real_t(0.0) ? real_t(0.) : lbposi*math::log1p(v));
+			}
+		}
+		void logu_mt(realmtx_t& srcdest, const real_t b_pos) noexcept {
+			NNTL_ASSERT(!srcdest.empty());
+			NNTL_ASSERT(b_pos > real_t(1.0));
+			m_threads.run([&srcdest, b_pos, this](const par_range_t& r) noexcept {
+				get_self()._ilogu_st(srcdest, b_pos, elms_range(r));
+			}, srcdest.numel_no_bias());
+		}
+		//////////////////////////////////////////////////////////////////////////
+		// d(LogU)/dZ = 0 | x<=0 ,  exp(-y*log(b_pos)-log(log(b_pos))) | x>0
+		void dlogu(realmtx_t& f_df, const real_t b_pos) noexcept {
+			if (f_df.numel() < Thresholds_t::dlogu) {
+				get_self().dlogu_st(f_df, b_pos);
+			} else get_self().dlogu_mt(f_df, b_pos);
+		}
+		void dlogu_st(realmtx_t& f_df, const real_t b_pos, const elms_range*const pER = nullptr) const noexcept {
+			get_self()._idlogu_st(f_df, b_pos, pER ? *pER : elms_range(f_df));
+		}
+		static void _idlogu_st(realmtx_t& f_df, const real_t b_pos, const elms_range& er) noexcept {
+			NNTL_ASSERT(b_pos > real_t(1.0));
+			NNTL_ASSERT(!f_df.empty());
+			const ext_real_t _lbpos = ::std::log(ext_real_t(b_pos));
+			const real_t nllbpos = -static_cast<real_t>(::std::log(_lbpos)), nlbpos = -static_cast<real_t>(_lbpos);
+			real_t*__restrict ptrDF = f_df.data() + er.elmBegin;
+			const auto ptrDFE = ptrDF + er.totalElements();
+			while (ptrDF != ptrDFE) {
+				const auto v = *ptrDF;
+				*ptrDF++ = (v <= real_t(0.) ? real_t(0.) : ::std::exp(v*nlbpos + nllbpos));
+			}
+		}
+		void dlogu_mt(realmtx_t& f_df, const real_t b_pos) noexcept {
+			NNTL_ASSERT(!f_df.empty());
+			NNTL_ASSERT(b_pos > real_t(1.0));
+			m_threads.run([&f_df, b_pos, this](const par_range_t& r) noexcept {
+				get_self()._idlogu_st(f_df, b_pos, elms_range(r));
+			}, f_df.numel());
+		}
+
+		//natural base case
+		void logu_nb(realmtx_t& srcdest) noexcept {
+			if (srcdest.numel_no_bias() < Thresholds_t::logu_nb) {
+				get_self().logu_nb_st(srcdest);
+			} else get_self().logu_nb_mt(srcdest);
+		}
+		void logu_nb_st(realmtx_t& srcdest, const elms_range*const pER = nullptr) const noexcept {
+			get_self()._ilogu_nb_st(srcdest, pER ? *pER : elms_range(0, srcdest.numel_no_bias()));
+		}
+		static void _ilogu_nb_st(realmtx_t& srcdest, const elms_range& er) noexcept {
+			NNTL_ASSERT(!srcdest.empty());
+			real_t*__restrict pV = srcdest.data() + er.elmBegin;
+			const auto pVE = pV + er.totalElements();
+			while (pV != pVE) {
+				const auto v = *pV;
+				*pV++ = (v <= real_t(0.0) ? real_t(0.) : math::log1p(v));
+			}
+		}
+		void logu_nb_mt(realmtx_t& srcdest) noexcept {
+			NNTL_ASSERT(!srcdest.empty());
+			m_threads.run([&srcdest, this](const par_range_t& r) noexcept {
+				get_self()._ilogu_nb_st(srcdest, elms_range(r));
+			}, srcdest.numel_no_bias());
+		}
+		//////////////////////////////////////////////////////////////////////////
+		// d(LogU)/dZ = 0 | x<=0 ,  exp(-y) | x>0
+		void dlogu_nb(realmtx_t& f_df) noexcept {
+			if (f_df.numel() < Thresholds_t::dlogu_nb) {
+				get_self().dlogu_nb_st(f_df);
+			} else get_self().dlogu_nb_mt(f_df);
+		}
+		void dlogu_nb_st(realmtx_t& f_df, const elms_range*const pER = nullptr) const noexcept {
+			get_self()._idlogu_nb_st(f_df, pER ? *pER : elms_range(f_df));
+		}
+		static void _idlogu_nb_st(realmtx_t& f_df, const elms_range& er) noexcept {
+			NNTL_ASSERT(!f_df.empty());
+			real_t*__restrict ptrDF = f_df.data() + er.elmBegin;
+			const auto ptrDFE = ptrDF + er.totalElements();
+			while (ptrDF != ptrDFE) {
+				const auto v = *ptrDF;
+				*ptrDF++ = (v <= real_t(0.) ? real_t(0.) : ::std::exp(-v));
+			}
+		}
+		void dlogu_nb_mt(realmtx_t& f_df) noexcept {
+			NNTL_ASSERT(!f_df.empty());
+			m_threads.run([&f_df, this](const par_range_t& r) noexcept {
+				get_self()._idlogu_nb_st(f_df, elms_range(r));
+			}, f_df.numel());
+		}
+
+
+
 		//////////////////////////////////////////////////////////////////////////
 		//////////////////////////////////////////////////////////////////////////
 		// y = (x/(a+|x|)), dy/dx = (1-|y|)^2 /a, parameter 'a' controls the slope of the curve
@@ -4859,9 +4977,11 @@ namespace math {
 			const real_t mHat_c_mt = bIsNadam ? mu*((real_t(1.) - mu_pow_t) / (real_t(1) - mu*mu_pow_t)) : (real_t(1.) - gamma);
 			const real_t mHat_c_g = bIsNadam ? o_m_mu_t : gamma;
 
-			auto pdW = dW.data() + er.elmBegin, pMt = Mt.data() + er.elmBegin, pNt = Nt.data() + er.elmBegin;
+			real_t*__restrict pdW = dW.data() + er.elmBegin;
+			real_t*__restrict pMt = Mt.data() + er.elmBegin;
+			real_t*__restrict pNt = Nt.data() + er.elmBegin;
 			const auto pDWE = pdW + er.totalElements();
-			while (pdW != pDWE) {
+			while (pdW != pDWE) { //#vectorized
 				const auto g = *pdW;
 
 				const auto n = (*pNt)*eta_t + (g*g)*o_m_eta_t;
@@ -5055,13 +5175,127 @@ namespace math {
 			get_self()._istor_free(pDeMeaned, valsNumelNoBias);
 		}
 
+		//////////////////////////////////////////////////////////////////////////
+		//////////////////////////////////////////////////////////////////////////
+
+		// MUCH faster than partial_sort on datasizes bigger than 100000 rows. The more rows, the bigger the difference
+		// Also it returns k biggest DISTINCT values/indexes.. See use-case in tests
+		// Biases if any are ignored.
+		// Didn't do _st() version as it's generally _mt only
+		// #supportsBatchInRow, note that actual flag is irrelevant here, b/c it's always columnwise, hence "mcw" func.name prefix
+		template<typename HelperT>
+		void mcwFindKOrdered(const smatrix<typename HelperT::src_value_t>& src
+			, typename HelperT::hlprmtx_t& mHlpr
+			, const bool bNextBatch = false)noexcept
+		{
+			typedef HelperT mcwFindKOrdered_hlpr_t;
+			typedef typename HelperT::src_value_t src_value_t;
+			typedef typename mcwFindKOrdered_hlpr_t::value_t hlpr_value_t;
+			typedef typename mcwFindKOrdered_hlpr_t::idxs_t idxs_t;
+			typedef typename mcwFindKOrdered_hlpr_t::OrderFunctor_t OrderFunctor_t;
+			NNTL_ASSERT(mcwFindKOrdered_hlpr_t::is_hlprmtx_fine_for(mHlpr, src));
+			NNTL_ASSERT(!bNextBatch || mcwFindKOrdered_hlpr_t::is_hlprmtx_ok(mHlpr));
+
+			static constexpr bool bNonStrictComparision = OrderFunctor_t::first_better(OrderFunctor_t::most_extreme(), OrderFunctor_t::most_extreme());
+
+			get_self().ithreads().run([&mHlpr, &src, bNextBatch](const auto& pr)noexcept {
+				const auto ldH = mHlpr.ldim(), ldS = src.ldim();
+				const ptrdiff_t r = src.rows_no_bias();
+
+				hlpr_value_t*__restrict pHlprVals = mHlpr.colDataAsVec(static_cast<vec_len_t>(pr.offset()));
+				const src_value_t*__restrict pSrc = src.colDataAsVec(static_cast<vec_len_t>(pr.offset()));
+				const auto pHlprE = pHlprVals + ldH * pr.cnt();
+
+				const vec_len_t k = mcwFindKOrdered_hlpr_t::get_k(mHlpr);
+
+				while (pHlprVals != pHlprE) {
+					//initializing cache
+					idxs_t*__restrict const pI = mcwFindKOrdered_hlpr_t::get_idxs_ptr_from_column_ptr(pHlprVals, k);
+					src_value_t*__restrict const pCache = mcwFindKOrdered_hlpr_t::get_cache_ptr_from_column_ptr(pHlprVals, k);
+					NNTL_ASSERT(pI + k <= reinterpret_cast<idxs_t*>(pHlprVals + ldH));
+					NNTL_ASSERT(pCache + k <= reinterpret_cast<src_value_t*>(pHlprVals + ldH));
+					
+					// pCache will contain top-K biggest values in ascending order
+					// and pI will contain their indexes within current batch/matrix.
+					// on function exit an invalid index (>=0 is valid by def) mean that the corresponding value in cache
+					// is not from current source matrix
+					for (vec_len_t i = 0; i < k; ++i) pI[i] = -1;
+
+					if (!bNextBatch) {
+						//reinitializing the values to lowest possible to start from the beginning
+						for (vec_len_t i = 0; i < k; ++i) {
+							//pCache[i] = ::std::numeric_limits<src_value_t>::lowest();
+							pCache[i] = OrderFunctor_t::most_extreme();
+						}
+					}//if it is next batch, just leave cached values to compare against intact
+
+					//doing single pass over src and filling the values and indexes
+					const src_value_t*__restrict pS = pSrc;
+					const auto pSE = pS + r;
+					auto cache0 = pCache[0];
+					while (pS != pSE) {
+						const auto v = *pS++;
+						//walk over max k prestored values to find if v is bigger
+						//if (v > cache0) {
+						if (OrderFunctor_t::first_better(v, cache0)) {
+							//v should be placed into cache. Looking for proper place
+							vec_len_t hi = 1;
+							for (; hi < k; ++hi) {
+								//if (pCache[hi] > v) break; //we must put v to position hi-1
+								if (OrderFunctor_t::first_better(pCache[hi], v)) break;
+							}
+							const auto insertPos = hi - 1;
+							//if (v > pCache[insertPos]) {
+						#pragma warning(push,3)
+							if (bNonStrictComparision || OrderFunctor_t::first_better(v, pCache[insertPos])) {
+								//elements with indexes 0..hi-1 are smaller than v. We should move them one step up and put v to [vi]
+								for (vec_len_t hj = 0; hj < insertPos; ++hj) {
+									pCache[hj] = pCache[hj + 1];
+									pI[hj] = pI[hj + 1];
+								}
+								pCache[insertPos] = v;
+								pI[insertPos] = static_cast<idxs_t>(pS - pSrc - 1);
+								cache0 = pCache[0];
+							} else NNTL_ASSERT(bNonStrictComparision || v == pCache[insertPos]); //leaving old value in place!
+						#pragma warning(pop)
+						}
+					}
+
+					pSrc += ldS;
+					pHlprVals += ldH;
+				}
+			}, mHlpr.cols());
+
+			NNTL_ASSERT(mcwFindKOrdered_hlpr_t::is_hlprmtx_ok(mHlpr));
+		}
+
+		template<typename T>
+		void mcwFindKBiggestDistinct(const smatrix<T>& src, typename mcwFindKOrdered_hlpr_base<T>::hlprmtx_t& mHlpr, const bool bNextBatch = false)noexcept
+		{
+			mcwFindKOrdered<mcwFindKOrdered_hlpr<T, Order_BiggestDistinct>>(src, mHlpr, bNextBatch);
+		}
+		template<typename T>
+		void mcwFindKBiggest(const smatrix<T>& src, typename mcwFindKOrdered_hlpr_base<T>::hlprmtx_t& mHlpr, const bool bNextBatch = false)noexcept
+		{
+			mcwFindKOrdered<mcwFindKOrdered_hlpr<T, Order_Biggest>>(src, mHlpr, bNextBatch);
+		}
+		template<typename T>
+		void mcwFindKSmallestDistinct(const smatrix<T>& src, typename mcwFindKOrdered_hlpr_base<T>::hlprmtx_t& mHlpr, const bool bNextBatch = false)noexcept
+		{
+			mcwFindKOrdered<mcwFindKOrdered_hlpr<T, Order_SmallestDistinct>>(src, mHlpr, bNextBatch);
+		}
+		template<typename T>
+		void mcwFindKSmallest(const smatrix<T>& src, typename mcwFindKOrdered_hlpr_base<T>::hlprmtx_t& mHlpr, const bool bNextBatch = false)noexcept
+		{
+			mcwFindKOrdered<mcwFindKOrdered_hlpr<T, Order_Smallest>>(src, mHlpr, bNextBatch);
+		}
 	};
 
-	template <typename RealT, typename iThreadsT, typename ThresholdsT = _impl::MATHN_THR<RealT>>
-	class MathN final : public _MathN<RealT, iThreadsT, ThresholdsT, MathN<RealT, iThreadsT, ThresholdsT>> {
+	template <typename RealT, typename iThreadsT, typename iMemmgrT, typename ThresholdsT = _impl::MATHN_THR<RealT>>
+	class MathN final : public _MathN<RealT, iThreadsT, iMemmgrT, ThresholdsT, MathN<RealT, iThreadsT, iMemmgrT, ThresholdsT>> {
 	public:
 		~MathN()noexcept {}
-		MathN()noexcept : _MathN<RealT, iThreadsT, ThresholdsT, MathN<RealT, iThreadsT, ThresholdsT>>() {}
+		MathN()noexcept : _MathN<RealT, iThreadsT, iMemmgrT, ThresholdsT, MathN<RealT, iThreadsT, iMemmgrT, ThresholdsT>>() {}
 	};
 
 }

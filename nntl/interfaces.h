@@ -35,11 +35,13 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "interface/math/mathn_mt.h"
 #include "interface/rng/afrand_mt.h"
 #include "interface/inspectors/dummy.h"
+#include "interface/imemmgr/imemmgr.h"
 
 namespace nntl {
 
 	template<typename RealT>
 	struct d_int_nI {
+		//#todo real_t definition should be removed from here.
 		typedef RealT real_t;
 
 // #ifdef NNTL_THREADS_WINQDU_AVAILABLE
@@ -52,9 +54,11 @@ namespace nntl {
 		//typedef threads::Workers<real_t, math::smatrix_td::numel_cnt_t> iThreads_t;
 		typedef threads::Workers<real_t, numel_cnt_t> iThreads_t;
 
+		typedef imem::imemmgr iMemmgr_t;
+
 		//_mt is deprecated. Going to make run-time profiler sometime
 		//typedef math::MathN_mt<real_t, iThreads_t> iMath_t;
-		typedef math::MathN<real_t, iThreads_t> iMath_t;
+		typedef math::MathN<real_t, iThreads_t, iMemmgr_t> iMath_t;
 
 		typedef rng::AFRand_mt<real_t, AFog::CRandomSFMT0, iThreads_t> iRng_t;
 	};
@@ -79,13 +83,16 @@ namespace nntl {
 		typedef typename interfaces_t::iRng_t iRng_t;
 		typedef typename interfaces_t::iThreads_t iThreads_t;
 		typedef typename interfaces_t::iInspect_t iInspect_t;
+		typedef typename interfaces_t::iMemmgr_t iMemmgr_t;
 
 		static_assert(::std::is_base_of<math::_i_math<real_t>, iMath_t>::value, "iMath_t type should be derived from _i_math");
 		static_assert(::std::is_base_of<rng::_i_rng<real_t>, iRng_t>::value, "iRng_t type should be derived from _i_rng");
 		static_assert(::std::is_base_of<threads::_i_threads<real_t, typename iThreads_t::range_t>, iThreads_t>::value, "iThreads_t type should be derived from _i_threads");
 		static_assert(::std::is_base_of<inspector::_i_inspector<real_t>, iInspect_t>::value, "iInspect_t type should be derived from i_inspector");
+		static_assert(::std::is_base_of<imem::_i_imemmgr, iMemmgr_t>::value, "iMemmgr_t type should be derived from _i_imemmgr");
 
 		static_assert(::std::is_same<iThreads_t, typename iMath_t::iThreads_t>::value, "Math interface must use the same iThreadsT as specified in InterfacesT!");
+		static_assert(::std::is_same<iMemmgr_t, typename iMath_t::iMemmgr_t>::value, "Math interface must use the same iMemmgrT as specified in InterfacesT!");
 		static_assert(::std::is_same<iThreads_t, typename iRng_t::iThreads_t>::value, "Math interface must use the same iThreadsT as specified in InterfacesT!");
 		
 		static_assert(::std::is_same<real_t, typename iThreads_t::real_t>::value, "real_t must resolve to the same type!");

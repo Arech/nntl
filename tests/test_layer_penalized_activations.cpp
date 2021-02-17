@@ -137,6 +137,7 @@ void testActivationsL2L1(inmem_train_data<real_t>& td, const real_t coeff, uint6
 		mf << serialization::make_nvp("fclW", fcl.get_weights());
 	}
 #endif*/
+	td.deinit4all();
 }
 
 TEST(TestLPA, ActivationsConstraintsL2L1) {

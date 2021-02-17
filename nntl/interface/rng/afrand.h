@@ -31,8 +31,10 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 #pragma once
 
-//CRandomMersenne from Agner Fog's randomc.zip package
+// code obsolete, use AFRand_mt
 
+
+//CRandomMersenne from Agner Fog's randomc.zip package
 #include "../../../_extern/agner.org/AF_randomc_h/random.h"
 
 #include "../_i_rng.h"

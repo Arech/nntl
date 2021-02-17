@@ -287,12 +287,11 @@ namespace nntl {
 			// 
 			template<typename TdT, typename CommonDataT>
 			static bool normalize_data(TdT& td, const CommonDataT& cd, const NormalizationSettings_t& Setts)noexcept {
-				NNTL_ASSERT(td.is_initialized4inference());
 				return Setts.bColumnwise
 					? normalize_data_cw(td, cd, Setts)
 					: normalize_data_whole(td, cd, Setts);
 			}
-
+			
 			// Support only bBatchInColumn()==true underlying X data matrices!
 			template<typename TdT, typename CommonDataT>
 			static bool normalize_data_whole(TdT& td, const CommonDataT& cd, const NormBaseSettings_t& Setts)noexcept {
@@ -301,7 +300,8 @@ namespace nntl {
 					return true;
 				}
 
-				if (!td.is_initialized4inference()) {
+				vec_len_t bs = Setts.batchSize < 0 ? 0 : Setts.batchSize;
+				if (!td.is_initialized4inference(bs)) {
 					NNTL_ASSERT(!"Initialize with at least init4inference() first");
 					STDCOUTL("Initialize with at least init4inference() first");
 					return false;
@@ -326,7 +326,8 @@ namespace nntl {
 					return true;
 				}
 
-				if (!td.is_initialized4inference()) {
+				vec_len_t bs = Setts.batchSize < 0 ? 0 : Setts.batchSize;
+				if (!td.is_initialized4inference(bs)) {
 					NNTL_ASSERT(!"Initialize with at least init4inference() first");
 					STDCOUTL("## Initialize with at least init4inference() first");
 					return false;

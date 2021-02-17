@@ -98,24 +98,10 @@ namespace _impl {
 		}
 
 		//////////////////////////////////////////////////////////////////////////
-
-		bool is_initialized4inference()const noexcept {
-			NNTL_ASSERT(!get_self().empty());
-			return m_maxFPropSize > 0;
-		}
-
-		bool is_initialized4train()const noexcept {
-			NNTL_ASSERT(!get_self().empty());
-			return m_maxTrainBatchSize > 0 && m_maxFPropSize > 0;
-		}
-
 		//returns the values that had corresponding vars on init*() exit
-		vec_len_t get_maxFPropSize()const noexcept { return m_maxFPropSize; }
-		vec_len_t get_maxTrainBatchSize()const noexcept { return m_maxTrainBatchSize; }
+		//vec_len_t get_maxFPropSize()const noexcept { return m_maxFPropSize; }
+		//vec_len_t get_maxTrainBatchSize()const noexcept { return m_maxTrainBatchSize; }
 
-		//redefine in derived if needed.
-// 		vec_len_t get_orig_maxFPropSize()const noexcept { return m_maxFPropSize; }
-// 		vec_len_t get_orig_maxTrainBatchSize()const noexcept { return m_maxTrainBatchSize; }
 
 		void deinit4all()noexcept {
 			m_pCurBatchX = nullptr;
@@ -166,15 +152,12 @@ namespace _impl {
 			NNTL_ASSERT(!get_self().empty());
 
 			if (Setts.bShouldNormalize()) {
-				if (Setts.batchSize > 0 && get_self().get_maxFPropSize() > 0 && get_self().get_maxFPropSize() < Setts.batchSize) {
-					NNTL_ASSERT(!"Improper initialization");
-					STDCOUTL("Improper initialization");
-					return false;
-				}
-				const bool bDoInit = !get_self().is_initialized4inference();
-				if (bDoInit) {
-					vec_len_t mfs = Setts.batchSize < 0 ? 0 : Setts.batchSize;
+				vec_len_t mfs = Setts.batchSize < 0 ? 0 : Setts.batchSize;
+				const bool bDoInit = !get_self().is_initialized4inference(mfs);
+
+				if (bDoInit) {					
 					const auto ec = get_self().init4inference(cd.get_iMath(), mfs);
+					//we also must reinit iMath b/c td might use it
 					if (nnet_errors_t::Success != ec || !cd.get_iMath().init()) {
 						STDCOUTL("Failed to initialize TD for normalization: " << _nnet_errs::get_error_str(ec));
 						return false;

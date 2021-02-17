@@ -1,3 +1,4 @@
+#pragma once
 /*
 This file is a part of NNTL project (https://github.com/Arech/nntl)
 
@@ -30,12 +31,7 @@ OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
-#pragma once
-
-#include <map>
-#include <set>
-
-// defines some common traits and struct for layer_pack_* layers
+// defines some tests primarily for layer_pack_* layers
 
 namespace nntl {
 
@@ -70,4 +66,11 @@ namespace nntl {
 	struct is_pack_tiled : ::std::false_type { };
 	template< class T >
 	struct is_pack_tiled<T, ::std::void_t<typename T::tiled_layer_t>> : ::std::true_type {};
+
+	//////////////////////////////////////////////////////////////////////////
+	// Tests if a layer has ::_phl_tuple type which means it's a some kind of LPH-style layer
+	template< class, class = ::std::void_t<> >
+	struct is_layer_LPH: ::std::false_type { };
+	template< class T >
+	struct is_layer_LPH<T, ::std::void_t<typename T::_phl_tuple>> : ::std::true_type {};
 }

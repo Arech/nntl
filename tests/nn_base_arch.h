@@ -182,6 +182,7 @@ namespace nntl_tests {
 			> opts(epochs, false);
 
 			opts.batchSize(batch_size).ImmediatelyDeinit(false).calcFullLossValue(bCalcFullLoss);
+			td.deinit4all();//it could be initialized from previous calls, to it's easier to deinit it now
 
 			return NN.train<false>(td, opts);
 		}

@@ -42,7 +42,8 @@ namespace activation {
 
 	//////////////////////////////////////////////////////////////////////////
 	//////////////////////////////////////////////////////////////////////////
-	// SoftSigm, y = (x/(2*(a+|x|)) +.5), dy/dx = (.5-|y-.5|)^2 * 2/a, parameter 'a' controls the slope of the curve
+	// SoftSigm, y = (x/(2*(a+|x|)) +.5), dy/dx = (.5-|y-.5|)^2 * 2/a,
+	// parameter 'a' controls the slope of the curve - the bigger the a, the less steep the curve.
 	template<typename RealT, unsigned int A1e3 = 1000
 		, typename WeightsInitScheme = weights_init::He_Zhang<>>
 	class softsigm

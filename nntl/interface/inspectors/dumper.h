@@ -99,6 +99,21 @@ namespace nntl {
 				}
 			};
 
+			//dumps first batch of an epoch, but if the epoch to dump is a last epoch, dump the last batch
+			//Also dumps first N batches of the first epoch
+			struct EpochNumWFirstNLastBatch : public EpochNumWLastBatch {
+			//private:
+				typedef EpochNumWLastBatch _base_class_t;
+			public:
+				numel_cnt_t m_firstNBatches{ 0 }, m_firstNBatchesStride{ 1 };
+
+				bool on_train_batchBegin(const numel_cnt_t batchIdx, const numel_cnt_t epochIdx) const noexcept {
+					return 0 == epochIdx 
+						? (batchIdx < m_firstNBatches && (0 == batchIdx || m_firstNBatchesStride <= 1 || 0 == batchIdx % m_firstNBatchesStride))
+						: _base_class_t::on_train_batchBegin(batchIdx, epochIdx);
+				}
+			};
+
 
 			//This function will dump first batch of specified epochs AND the training error calculation
 			struct CalcErrByEpochNum : public EpochNum {

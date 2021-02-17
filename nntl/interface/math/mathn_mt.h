@@ -44,10 +44,10 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 namespace nntl {
 namespace math {
 
-	template <typename RealT, typename iThreadsT, typename ThresholdsT = _impl::MATHN_THR<RealT>>
-	class MathN_mt final : public _MathN<RealT, iThreadsT, ThresholdsT, MathN_mt<RealT, iThreadsT, ThresholdsT>> {
+	template <typename RealT, typename iThreadsT, typename iMemmgrT = imem::imemmgr, typename ThresholdsT = _impl::MATHN_THR<RealT>>
+	class MathN_mt final : public _MathN<RealT, iThreadsT, iMemmgrT, ThresholdsT, MathN_mt<RealT, iThreadsT, iMemmgrT, ThresholdsT>> {
 	public:
-		typedef _MathN<RealT, iThreadsT, ThresholdsT, MathN_mt<RealT, iThreadsT, ThresholdsT>> base_class_t;
+		typedef _MathN<RealT, iThreadsT, iMemmgrT, ThresholdsT, MathN_mt<RealT, iThreadsT, iMemmgrT, ThresholdsT>> base_class_t;
 
 		~MathN_mt()noexcept {};
 		MathN_mt() noexcept : base_class_t(){}

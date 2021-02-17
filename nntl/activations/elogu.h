@@ -50,8 +50,6 @@ namespace activation {
 		, public type_elogu
 	{
 	public:
-
-
 		static constexpr real_t Alpha = real_t(Alpha1e3) / real_t(1000.0);
 		static constexpr bool bIsUnitAlpha = (Alpha1e3 == 1000);
 

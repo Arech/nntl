@@ -119,7 +119,7 @@ namespace nntl {
 				return n*eps_lower(v);
 			}
 
-			typedef ::std::uint64_t similar_FWI_t;
+			typedef ::std::uint64_t similar_FWI_t;// probably it's a "similar fixed width integer"
 			static_assert(sizeof(double) == sizeof(similar_FWI_t), "Wrong type sizes!");
 			static_assert(::std::is_unsigned<similar_FWI_t>::value, "");
 
@@ -166,26 +166,45 @@ namespace nntl {
 		// который может в любой момент сломаться.
 		// Правильно делать через memcpy
 		//////////////////////////////////////////////////////////////////////////
-		template<typename real_t>
-		static inline typename real_t_limits<real_t>::similar_FWI_t similar_FWI_one() noexcept {
-			typename real_t_limits<real_t>::similar_FWI_t r;
-			memcpy(&r, &real_t_limits<real_t>::_rone, sizeof(typename real_t_limits<real_t>::similar_FWI_t));
+		template<typename RealT>
+		static inline typename real_t_limits<RealT>::similar_FWI_t similar_FWI_one() noexcept {
+			typename real_t_limits<RealT>::similar_FWI_t r;
+			memcpy(&r, &real_t_limits<RealT>::_rone, sizeof(typename real_t_limits<RealT>::similar_FWI_t));
 			return r;
-			//return *reinterpret_cast<const typename real_t_limits<real_t>::similar_FWI_t*>(&real_t_limits<real_t>::_rone);
+			//return *reinterpret_cast<const typename real_t_limits<RealT>::similar_FWI_t*>(&real_t_limits<RealT>::_rone);
 		}
-		template<typename real_t>
-		static inline typename real_t_limits<real_t>::similar_FWI_t similar_FWI_pos_zero() noexcept {
-			typename real_t_limits<real_t>::similar_FWI_t r;
-			memcpy(&r, &real_t_limits<real_t>::_rposz, sizeof(typename real_t_limits<real_t>::similar_FWI_t));
+		template<typename RealT>
+		static inline typename real_t_limits<RealT>::similar_FWI_t similar_FWI_pos_zero() noexcept {
+			typename real_t_limits<RealT>::similar_FWI_t r;
+			memcpy(&r, &real_t_limits<RealT>::_rposz, sizeof(typename real_t_limits<RealT>::similar_FWI_t));
 			return r;
-			//return *reinterpret_cast<const typename real_t_limits<real_t>::similar_FWI_t*>(&real_t_limits<real_t>::_rposz);
+			//return *reinterpret_cast<const typename real_t_limits<RealT>::similar_FWI_t*>(&real_t_limits<RealT>::_rposz);
 		}
-		template<typename real_t>
-		static inline typename real_t_limits<real_t>::similar_FWI_t similar_FWI_neg_zero() noexcept {
-			typename real_t_limits<real_t>::similar_FWI_t r;
-			memcpy(&r, &real_t_limits<real_t>::_rnegz, sizeof(typename real_t_limits<real_t>::similar_FWI_t));
+		template<typename RealT>
+		static inline typename real_t_limits<RealT>::similar_FWI_t similar_FWI_neg_zero() noexcept {
+			typename real_t_limits<RealT>::similar_FWI_t r;
+			memcpy(&r, &real_t_limits<RealT>::_rnegz, sizeof(typename real_t_limits<RealT>::similar_FWI_t));
 			return r;
-			//return *reinterpret_cast<const typename real_t_limits<real_t>::similar_FWI_t*>(&real_t_limits<real_t>::_rnegz);
+			//return *reinterpret_cast<const typename real_t_limits<RealT>::similar_FWI_t*>(&real_t_limits<RealT>::_rnegz);
 		}
+
+		//////////////////////////////////////////////////////////////////////////
+		// to return back to proper real_t from similar_FWI_t
+		template <typename T> struct int_t_limits {};
+
+		template<> struct int_t_limits<::std::int32_t> {
+			typedef float similar_FP_t;
+		};
+		template<> struct int_t_limits<::std::uint32_t> {
+			typedef float similar_FP_t;
+		};
+
+		template<> struct int_t_limits<::std::int64_t> {
+			typedef double similar_FP_t;
+		};
+		template<> struct int_t_limits<::std::uint64_t> {
+			typedef double similar_FP_t;
+		};
+
 	}
 }

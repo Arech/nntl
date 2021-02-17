@@ -40,6 +40,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "../nntl/utils/tictoc.h"
 
 #include "../nntl/_SNN_common.h"
+#include "../nntl/common_nn_data.h"
 
 #include "imath_etalons.h"
 
@@ -54,12 +55,16 @@ typedef math::smatrix<real_t> realmtx_t;
 typedef math::smatrix_deform<real_t> realmtxdef_t;
 
 typedef d_interfaces::iThreads_t iThreads_t;
-typedef math::MathN<real_t, iThreads_t> imath_basic_t;
+typedef d_interfaces::iMemmgr_t iMemmgr_t;
+typedef math::MathN<real_t, iThreads_t, iMemmgr_t> imath_basic_t;
+
+template<typename RealT>
+using def_keeper_tpl = ::nntl::_impl::interfaces_keeper<dt_interfaces<RealT>>;
 
 static imath_basic_t iM;
 
 #ifdef TESTS_SKIP_LONGRUNNING
-constexpr unsigned TEST_PERF_REPEATS_COUNT = 10;
+constexpr unsigned TEST_PERF_REPEATS_COUNT = 20;
 #else
 constexpr unsigned TEST_PERF_REPEATS_COUNT = 1000;
 #endif // NNTL_DEBUG
@@ -2290,7 +2295,7 @@ TEST(TestMathNThr, mTransposePerf) {
 	ASSERT_NO_FATAL_FAILURE(mTranspose_perf<myInterfaces_t>(iM, 100, 10));
 	ASSERT_NO_FATAL_FAILURE(mTranspose_perf<myInterfaces_t>(iM, 10, 100));
 
-#else TESTS_SKIP_LONGRUNNING
+#else //TESTS_SKIP_LONGRUNNING
 
 	ASSERT_NO_FATAL_FAILURE(mTranspose_perf<myInterfaces_t>(iM, 128, 16));
 	ASSERT_NO_FATAL_FAILURE(mTranspose_perf<myInterfaces_t>(iM, 16, 128));
@@ -2354,6 +2359,271 @@ TEST(TestMathNThr, mTransposePerf) {
 ////////////////////////////////////////////////////////////////////////// 
 ////////////////////////////////////////////////////////////////////////// 
 
+#define SORT_MUL_K_FOR_DISTINCT 2
+
+template<typename iMathT>
+void mcwFindKOrdered_std_partial_sort_init(iMathT& iM, math::smatrix<vec_len_t>& idxs)noexcept {
+	NNTL_ASSERT(!idxs.emulatesBiases());
+	NNTL_ASSERT(idxs.ldimAsVecLen() == idxs.rows());
+	iM.ithreads().run([&idxs](const auto& pr)noexcept {
+		const auto ldI = idxs.ldim();
+		vec_len_t*__restrict pIdx = idxs.colDataAsVec(static_cast<vec_len_t>(pr.offset()));
+		const auto pIE = pIdx + ldI*pr.cnt();
+		while (pIdx != pIE) {
+			const auto pE = pIdx + ldI;
+			::std::iota(pIdx, pE, 0);
+			pIdx = pE;
+		}
+	}, idxs.cols_no_bias());
+}
+
+template<template<class>class StdOrderTpl, typename iMathT, typename T>
+void mcwFindKOrdered_std_partial_sort_winit(iMathT& iM, const math::smatrix<T>& src, math::smatrix<vec_len_t>& idxs, const vec_len_t k)noexcept {
+	NNTL_ASSERT(!idxs.emulatesBiases());
+	NNTL_ASSERT(src.cols_no_bias() == idxs.cols() && idxs.rows() == src.rows_no_bias());
+	
+	typedef StdOrderTpl<T> StdOrder_t;
+
+	iM.ithreads().run([&src, &idxs, k](const auto& pr)noexcept {
+		const auto ldI = idxs.ldim(), ldS = src.ldim();
+		const T*__restrict pSrc = src.colDataAsVec(static_cast<vec_len_t>(pr.offset()));
+		vec_len_t*__restrict pIdx = idxs.colDataAsVec(static_cast<vec_len_t>(pr.offset()));
+		const auto pIE = pIdx + ldI*pr.cnt();
+		while (pIdx != pIE) {
+			const auto pE = pIdx + ldI;
+
+			const T*__restrict const pS = pSrc;
+			//lets hope 2*k is enough to find at least k biggest DISTINCT elements
+			::std::partial_sort(pIdx, pIdx + k, pE, [pS](const vec_len_t i1, const vec_len_t i2)noexcept {
+				return StdOrder_t()(pS[i1] , pS[i2]);
+			});
+
+			pSrc += ldS;
+			pIdx = pE;
+		}
+	}, idxs.cols());
+}
+
+template<template<class>class StdOrderTpl, typename iMathT, typename T>
+void mcwFindKOrdered_std_partial_sort(iMathT& iM, const math::smatrix<T>& src, math::smatrix<vec_len_t>& idxs, const vec_len_t k)noexcept {
+	NNTL_ASSERT(!idxs.emulatesBiases());
+	NNTL_ASSERT(src.cols_no_bias() == idxs.cols() && idxs.rows() == src.rows_no_bias());
+
+	typedef StdOrderTpl<T> StdOrder_t;
+
+	iM.ithreads().run([&src, &idxs, k](const auto& pr)noexcept {
+		const auto ldI = idxs.ldim(), ldS = src.ldim();
+		const T*__restrict pSrc = src.colDataAsVec(static_cast<vec_len_t>(pr.offset()));
+		vec_len_t*__restrict pIdx = idxs.colDataAsVec(static_cast<vec_len_t>(pr.offset()));
+		const auto pIE = pIdx + ldI*pr.cnt();
+		while (pIdx != pIE) {
+			const auto pE = pIdx + ldI;
+			::std::iota(pIdx, pE, 0);
+
+			const T*__restrict const pS = pSrc;
+			//lets hope 2*k is enough to find at least k biggest DISTINCT elements
+			::std::partial_sort(pIdx, pIdx + k, pE, [pS](const vec_len_t i1, const vec_len_t i2)noexcept {
+				return StdOrder_t()(pS[i1], pS[i2]);
+			});
+
+			pSrc += ldS;
+			pIdx = pE;
+		}
+	}, idxs.cols());
+}
+
+template<template<class>class StdOrderTpl, typename T>
+void mcwFindKOrdered_std_partial_sort_ET(const math::smatrix<T>& src, math::smatrix<vec_len_t>& idxs, const vec_len_t k)noexcept {
+	NNTL_ASSERT(!idxs.emulatesBiases());
+	NNTL_ASSERT(src.cols_no_bias() == idxs.cols() && idxs.rows() == src.rows_no_bias());
+	NNTL_ASSERT(idxs.rows() == idxs.ldim());
+
+	typedef StdOrderTpl<T> StdOrder_t;
+
+	const auto ldI = idxs.ldim(), ldS = src.ldim();
+	const T*__restrict pSrc = src.data();
+	vec_len_t*__restrict pIdx = idxs.data();
+	const auto pIE = idxs.end();
+	while (pIdx != pIE) {
+		const auto pE = pIdx + ldI;
+		::std::iota(pIdx, pE, 0);
+
+		const T*__restrict const pS = pSrc;
+		//lets hope 2*k is enough to find at least k biggest DISTINCT elements
+		::std::partial_sort(pIdx, pIdx + k, pE, [pS](const vec_len_t i1, const vec_len_t i2)noexcept {
+			return StdOrder_t()(pS[i1], pS[i2]);
+		});
+
+		pSrc += ldS;
+		pIdx = pE;
+	}
+}
+
+#pragma warning(push)
+#pragma warning(disable:4459)// declaration of 'real_t' hides global declaration
+
+template<template<class>class OrderTpl, template<class>class StdOrderTpl, typename CommonDataT>
+void test_mcwFindKOrdered_perf_cand(const CommonDataT&cd, const vec_len_t batchSiz, const vec_len_t sampSiz, const vec_len_t k)noexcept {
+	typedef typename CommonDataT::real_t real_t;
+	typedef math::smatrix<real_t> realmtx_t;
+
+	typedef typename CommonDataT::iMath_t iMath_t;
+	typedef math::mcwFindKOrdered_hlpr<real_t, OrderTpl> mcwFindKOrdered_hlpr_t;
+	typedef mcwFindKOrdered_hlpr_t::hlprmtx_t hlprmtx_t;
+	typedef mcwFindKOrdered_hlpr_t::OrderFunctor_t OrderFunctor_t;
+	typedef StdOrderTpl<real_t> StdOrder_t;
+
+	static constexpr bool bStrictComparision = !OrderFunctor_t::first_better(OrderFunctor_t::most_extreme(), OrderFunctor_t::most_extreme());
+
+	STDCOUTL("[" << batchSiz << "," << sampSiz << "] k=" << k << " real_t=" << sizeof(real_t)
+		<< " bSourceTFirst=" << mcwFindKOrdered_hlpr_t::bSourceTFirst);
+
+	hlprmtx_t hlpr(mcwFindKOrdered_hlpr_t::hlprmtx_size_for(k, sampSiz));
+	//hlpr.k = k;
+	ASSERT_EQ(k, mcwFindKOrdered_hlpr_t::get_k(hlpr));
+
+	realmtx_t src(batchSiz, sampSiz);
+	ASSERT_FALSE(src.isAllocationFailed()); ASSERT_FALSE(hlpr.isAllocationFailed());
+	math::smatrix<vec_len_t> idxs_winit(batchSiz, sampSiz), idxs(batchSiz, sampSiz); // , idxsET(batchSiz, sampSiz);
+	ASSERT_FALSE(idxs.isAllocationFailed()); ASSERT_FALSE(idxs_winit.isAllocationFailed()); //ASSERT_FALSE(idxsET.isAllocationFailed());
+
+	auto& iM = cd.get_iMath();
+	auto& iR = cd.get_iRng();
+	utils::tictoc tMy, tStdInit, tStd;
+	const auto _4stdK = bStrictComparision*SORT_MUL_K_FOR_DISTINCT*k + (!bStrictComparision)*k;
+
+	mcwFindKOrdered_std_partial_sort_init(iM, idxs_winit);
+
+	for (int r = 0; r < TEST_PERF_REPEATS_COUNT; ++r) {
+		iR.gen_matrix(src, real_t(10));
+
+		//mcwFindKOrdered_std_partial_sort_ET(src, idxsET, k);
+
+		tMy.tic();
+		iM.mcwFindKOrdered<mcwFindKOrdered_hlpr_t>(src, hlpr);
+		tMy.toc();
+		ASSERT_TRUE(mcwFindKOrdered_hlpr_t::is_hlprmtx_ok(hlpr));
+
+		tStdInit.tic();
+		mcwFindKOrdered_std_partial_sort_winit<StdOrderTpl>(iM, src, idxs_winit, _4stdK);
+		tStdInit.toc();
+
+		//ASSERT_MTX_EQ(idxs_winit, idxsET, "mcwFindKOrdered_std_partial_sort_winit");//may differ b/c different start conditions
+
+		tStd.tic();
+		mcwFindKOrdered_std_partial_sort<StdOrderTpl>(iM, src, idxs, _4stdK);
+		tStd.toc();
+
+		//ASSERT_MTX_EQ(idxs, idxsET, "mcwFindKOrdered_std_partial_sort");
+
+		//comparing results. Note that STD algos doesn't throw away same elements, so we have to do it for them
+		for (vec_len_t c = 0; c < sampSiz; ++c) {
+			const auto pS = src.colDataAsVec(c);
+			const auto pStd = idxs.colDataAsVec(c);
+			const auto pStdWinit = idxs_winit.colDataAsVec(c);
+
+			const auto pIdxs = mcwFindKOrdered_hlpr_t::get_idxs_ptr_from_column_ptr(hlpr.colDataAsVec(c), k);
+			const auto pCache = mcwFindKOrdered_hlpr_t::get_cache_ptr_from_column_ptr(hlpr.colDataAsVec(c), k);
+			
+			vec_len_t iss = 0, isi=0;
+			for (vec_len_t i = 0; i < k; ++i, ++iss, ++isi) {
+				if (iss > 0) {
+					//ASSERT_GE(pS[pStd[iss - 1]], pS[pStd[iss]]);
+					if (bStrictComparision) {
+						while (pS[pStd[iss - 1]] == pS[pStd[iss]]) ++iss;
+						ASSERT_LT(iss, _4stdK) << "Failed to find k distinct elements with ::std algos, increase SORT_MUL_K_FOR_DISTINCT";
+					}
+				}
+
+				const auto stdIdx = pStd[iss];
+				ASSERT_TRUE(stdIdx >= 0 && stdIdx < batchSiz);
+				const auto stdV = pS[stdIdx];
+
+				if (isi > 0) {
+					//ASSERT_GE(pS[pStdWinit[isi - 1]], pS[pStdWinit[isi]]);
+					if (bStrictComparision) {
+						while (pS[pStdWinit[isi - 1]] == pS[pStdWinit[isi]]) ++isi;
+						ASSERT_LT(isi, _4stdK) << "Failed to find k distinct elements with ::std algos, increase SORT_MUL_K_FOR_DISTINCT";
+					}
+				}
+
+				const auto iniIdx = pStdWinit[isi];
+				ASSERT_TRUE(iniIdx >= 0 && iniIdx < batchSiz);
+				auto iniV = pS[iniIdx];
+
+				if (stdIdx != iniIdx) {
+					ASSERT_EQ(stdV, iniV) << "col=" << c << ", i=" << i << ", pS(std)=" << stdV << " while pS(std_winit)=" << iniV;
+				}
+
+				const auto myIdx = pIdxs[k - i - 1];
+				const auto myCache = pCache[k - i - 1];
+				ASSERT_TRUE(myIdx >= 0 && myIdx < batchSiz);
+
+				const auto myV = pS[myIdx];
+				ASSERT_EQ(myCache, myV);
+
+				ASSERT_EQ(stdV, myCache) << "col=" << c << ", i=" << i << ", stdV=" << stdV << ", stdIdx=" << stdIdx
+					<< " while myV=" << myV << " myCache=" << myCache << ", myidx=" << myIdx;
+
+				if (stdIdx != myIdx) {
+					ASSERT_EQ(stdV, myV) << "col=" << c << ", i=" << i << ", stdV=" << stdV << ", stdIdx=" << stdIdx
+						<< " while myV=" << myV << " myCache=" << myCache << ", myidx=" << myIdx;
+				}
+			}
+		}
+	}
+
+	tMy.say("My");
+	tStdInit.say("StdInit");
+	tStd.say("Std");
+}
+
+template<typename IKeeperT, template<class>class OrderTpl, template<class>class StdOrderTpl>
+void test_mcwFindKOrdered_perf() {
+	IKeeperT keeper;
+	//--gtest_break_on_failure
+#ifdef TESTS_SKIP_LONGRUNNING
+	ASSERT_NO_FATAL_FAILURE((test_mcwFindKOrdered_perf_cand<OrderTpl, StdOrderTpl>(keeper.get_const_common_data(), 100000, 30, 5)));
+	ASSERT_NO_FATAL_FAILURE((test_mcwFindKOrdered_perf_cand<OrderTpl, StdOrderTpl>(keeper.get_const_common_data(), 100000, 30, 10)));
+#else
+	ASSERT_NO_FATAL_FAILURE((test_mcwFindKOrdered_perf_cand<OrderTpl, StdOrderTpl>(keeper.get_const_common_data(), 100000, 30, 5)));
+	ASSERT_NO_FATAL_FAILURE((test_mcwFindKOrdered_perf_cand<OrderTpl, StdOrderTpl>(keeper.get_const_common_data(), 100000, 30, 10)));
+	ASSERT_NO_FATAL_FAILURE((test_mcwFindKOrdered_perf_cand<OrderTpl, StdOrderTpl>(keeper.get_const_common_data(), 100000, 30, 20)));
+
+	ASSERT_NO_FATAL_FAILURE((test_mcwFindKOrdered_perf_cand<OrderTpl, StdOrderTpl>(keeper.get_const_common_data(), 200000, 30, 5)));
+	ASSERT_NO_FATAL_FAILURE((test_mcwFindKOrdered_perf_cand<OrderTpl, StdOrderTpl>(keeper.get_const_common_data(), 200000, 30, 10)));
+	ASSERT_NO_FATAL_FAILURE((test_mcwFindKOrdered_perf_cand<OrderTpl, StdOrderTpl>(keeper.get_const_common_data(), 200000, 30, 20)));
+#endif
+}
+
+TEST(TestMathNThr, mcwFindKOrdered_BiggestDistinct_float) {
+	test_mcwFindKOrdered_perf<def_keeper_tpl<float>, math::Order_BiggestDistinct, ::std::greater>();
+}
+TEST(TestMathNThr, mcwFindKOrdered_Biggest_float) {
+	test_mcwFindKOrdered_perf<def_keeper_tpl<float>, math::Order_Biggest, ::std::greater>();
+}
+
+TEST(TestMathNThr, mcwFindKOrdered_SmallestDistinct_float) {
+	test_mcwFindKOrdered_perf<def_keeper_tpl<float>, math::Order_SmallestDistinct, ::std::less>();
+}
+TEST(TestMathNThr, mcwFindKOrdered_Smallest_float) {
+	test_mcwFindKOrdered_perf<def_keeper_tpl<float>, math::Order_Smallest, ::std::less>();
+}
+
+TEST(TestMathNThr, mcwFindKOrdered_BiggestDistinct_double) {
+	test_mcwFindKOrdered_perf<def_keeper_tpl<double>, math::Order_BiggestDistinct, ::std::greater>();
+}
+TEST(TestMathNThr, mcwFindKOrdered_Biggest_double) {
+	test_mcwFindKOrdered_perf<def_keeper_tpl<double>, math::Order_Biggest, ::std::greater>();
+}
+
+TEST(TestMathNThr, mcwFindKOrdered_SmallestDistinct_double) {
+	test_mcwFindKOrdered_perf<def_keeper_tpl<double>, math::Order_SmallestDistinct, ::std::less>();
+}
+TEST(TestMathNThr, mcwFindKOrdered_Smallest_double) {
+	test_mcwFindKOrdered_perf<def_keeper_tpl<double>, math::Order_Smallest, ::std::less>();
+}
+#pragma warning(pop)//4459 declaration of 'real_t' hides global declaration
 
 ////////////////////////////////////////////////////////////////////////// 
 ////////////////////////////////////////////////////////////////////////// 

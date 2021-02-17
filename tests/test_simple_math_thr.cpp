@@ -54,7 +54,8 @@ typedef math::smatrix_deform<real_t> realmtxdef_t;
 typedef dt_interfaces<real_t> myInterfaces_t;
 typedef myInterfaces_t::iThreads_t iThreads_t;
 typedef myInterfaces_t::iRng_t iRng_t;
-typedef math::SMath < real_t, iThreads_t> SMath_t;
+typedef typename myInterfaces_t::iMemmgr_t iMemmgr_t;
+typedef math::SMath < real_t, iThreads_t, iMemmgr_t> SMath_t;
 
 static SMath_t iM;
 

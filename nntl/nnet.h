@@ -300,6 +300,12 @@ namespace nntl {
 			return lossVal;
 		}
 
+		bool is_initialized(const vec_len_t biggestFprop, const vec_len_t batchSize = 0)const noexcept {
+			return get_common_data().is_initialized()
+				&& biggestFprop <= get_common_data().input_max_fprop_batch_size()
+				&& batchSize <= get_common_data().input_training_batch_size();
+		}
+
 	protected:
 		// note that the function only calculate loss that depends on model prediction and data_y.
 		// It does NOT calculates and adds to loss any additional loss values that depends on layers weights and so on (m_Layers.calcLossAddendum())
@@ -318,11 +324,8 @@ namespace nntl {
 			return _calcLoss4batch_nonnormalized(data_x, data_y) / data_y.batch_size();
 		}
 
-		const bool _is_initialized(const vec_len_t biggestFprop, const vec_len_t batchSize)const noexcept {
-			return !m_bRequireReinit && get_common_data().is_initialized()
-				&& biggestFprop <= get_common_data().input_max_fprop_batch_size()
-				&& batchSize <= get_common_data().input_training_batch_size();
-				//&& (0 == batchSize || batchSize == get_common_data().training_batch_size());
+		bool _is_initialized(const vec_len_t biggestFprop, const vec_len_t batchSize)const noexcept {
+			return !m_bRequireReinit && is_initialized(biggestFprop, batchSize);
 		}
 
 		//
@@ -345,11 +348,14 @@ namespace nntl {
 		}
 
 		template<typename TdT>
-		ErrorCode _init4train(TdT& td, vec_len_t& maxFPropSize, vec_len_t& maxBatchSize, bool& bMiniBatch, const numel_cnt_t maxEpoch)noexcept
+		ErrorCode _init4train(TdT& td, vec_len_t& maxFPropSize, vec_len_t& maxBatchSize, bool& bMiniBatch
+			, const numel_cnt_t maxEpoch, const bool bForceReinitTrainData)noexcept
 		{
-			const auto ec = td.init4train(get_iMath(), maxFPropSize, maxBatchSize, bMiniBatch);
+			if (bForceReinitTrainData || !td.is_initialized4train(maxFPropSize, maxBatchSize, bMiniBatch)) {
+				const auto ec = td.init4train(get_iMath(), maxFPropSize, maxBatchSize, bMiniBatch);
+				if (ErrorCode::Success != ec) return _set_last_error(ec);
+			}
 			NNTL_ASSERT(maxFPropSize > 0 && maxBatchSize > 0 && maxBatchSize <= maxFPropSize);
-			if (ErrorCode::Success != ec) return _set_last_error(ec);
 
 			if (_is_initialized(maxFPropSize, maxBatchSize)) {
 				//must call get_iMath().init() b/c td.init* could do iM.preinit()
@@ -367,7 +373,7 @@ namespace nntl {
 		}
 
 		ErrorCode _full_init(const vec_len_t biggestFprop, const vec_len_t batchSize, const bool bMiniBatch, const numel_cnt_t maxEpoch)noexcept {
-			NNTL_ASSERT(biggestFprop > 0 && biggestFprop >= batchSize);
+			NNTL_ASSERT(biggestFprop > 0 && biggestFprop >= batchSize && batchSize >= 0);
 			//call deinit if appropriate in caller
 			//deinit();
 
@@ -391,6 +397,8 @@ namespace nntl {
 
 			if (!get_iMath().init()) return ErrorCode::CantInitializeIMath;
 			if (!get_iRng().init_rng()) return ErrorCode::CantInitializeIRng;
+			//#TODO shouldn't we reseed RNG here?
+			//#BUGBUG ??
 
 			const numel_cnt_t totalTempMemSize = _totalTrainingMemSize(bMiniBatch, batchSize);
 			//m_pTmpStor.reset(new(::std::nothrow)real_t[totalTempMemSize]);
@@ -527,24 +535,24 @@ namespace nntl {
 			if (td.xWidth() != m_Layers.input_layer().get_neurons_cnt()) return _set_last_error(ErrorCode::InvalidInputLayerNeuronsCount);
 			if (!td.isSuitableForOutputOf(m_Layers.output_layer().get_neurons_cnt())) return _set_last_error(ErrorCode::InvalidOutputLayerNeuronsCount);
 
+			//scheduling deinitialization with scope_exit to forget about return statements
+			utils::scope_exit layers_deinit([this, &opts, &td]()noexcept {
+				if (opts.ImmediatelyDeinit()) {
+					td.deinit4all();
+					deinit();
+				}
+			});
+
 			const numel_cnt_t maxEpoch = opts.maxEpoch();
 			vec_len_t maxFPropSize = opts.maxFpropSize(), maxBatchSize = opts.batchSize();
 			const bool bRepOnlyTime = opts.bReportOnlyTime();
 			bool bMiniBatch = true;//default value
-						
 			m_bCalcFullLossValue = opts.calcFullLossValue();
+
 			//////////////////////////////////////////////////////////////////////////
 			// perform layers initialization, gather temp memory requirements, then allocate and spread temp buffers
-			auto ec = _init4train(td, maxFPropSize, maxBatchSize, bMiniBatch, maxEpoch);
+			auto ec = _init4train(td, maxFPropSize, maxBatchSize, bMiniBatch, maxEpoch, opts.bForceReinitTD());
 			if (ErrorCode::Success != ec) return _set_last_error(ec);
-
-			//scheduling deinitialization with scope_exit to forget about return statements
-			utils::scope_exit layers_deinit([this, &opts, &td]()noexcept {
-				td.deinit4all();
-				if (opts.ImmediatelyDeinit()) {
-					deinit();
-				}
-			});
 
 			if (m_bCalcFullLossValue) m_bCalcFullLossValue = m_LMR.bLossAddendumDependsOnWeights || m_LMR.bLossAddendumDependsOnActivations;
 
@@ -648,13 +656,13 @@ namespace nntl {
 
 			const auto totalTrainTime = ::std::chrono::steady_clock::now() - trainingBeginsAt;
 			if (bRepOnlyTime) {
-				static constexpr char* szReportFmt = "%-3zd training epochs took %3.1fs (time report only)";
-				static constexpr unsigned uBufSize = 64;
+				static constexpr char* szReportFmt = "%-3zd training epochs (%zd params) took %3.1fs (time report only)";
+				static constexpr unsigned uBufSize = 128;
 
 				char szRep[uBufSize];
 				const real_t secs = real_t(totalTrainTime.count()) * (real_t(1.) / real_t(1e9));
 
-				sprintf_s(szRep, uBufSize, szReportFmt, maxEpoch, secs);
+				sprintf_s(szRep, uBufSize, szReportFmt, maxEpoch, m_LMR.totalParamsToLearn, secs);
 				STDCOUTL(szRep);
 			}else opts.observer().on_training_end(totalTrainTime);
 
@@ -669,6 +677,11 @@ namespace nntl {
 			if (ErrorCode::Success != ec) return _set_last_error(ec);
 			_set_inference_mode_and_batch_size(fpropBatchSize);
 			return _set_last_error(ec);
+		}
+
+
+		void prepare_to_doFixedBatchFprop(const vec_len_t bs)noexcept {
+			_set_inference_mode_and_batch_size(bs);
 		}
 		//designed to be used in conjunction with _i_train_data::walk_over_set() + next_subset() + batchX()
 		//batchX.batch_size() must never exceed the fpropBatchSize passed to init4fixedBatchFprop() if used in other context

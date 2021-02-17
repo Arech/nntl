@@ -82,6 +82,9 @@
     <Filter Include="nntl\train_data">
       <UniqueIdentifier>{7d6a244b-39d8-428a-a404-68613034d25d}</UniqueIdentifier>
     </Filter>
+    <Filter Include="nntl\interface\imemmgr">
+      <UniqueIdentifier>{f5b6f640-656e-481d-8121-cadcbcc32052}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <Text Include="ReadMe.txt" />
@@ -515,6 +518,18 @@
     </ClInclude>
     <ClInclude Include="..\nntl\layer\_tuple_utils.h">
       <Filter>nntl\layer</Filter>
+    </ClInclude>
+    <ClInclude Include="..\nntl\activations\logu.h">
+      <Filter>nntl\activations</Filter>
+    </ClInclude>
+    <ClInclude Include="..\nntl\interface\math\_mcwFindKOrdered_hlpr.h">
+      <Filter>nntl\interface\math</Filter>
+    </ClInclude>
+    <ClInclude Include="..\nntl\interface\_i_imemmgr.h">
+      <Filter>nntl\interface</Filter>
+    </ClInclude>
+    <ClInclude Include="..\nntl\interface\imemmgr\imemmgr.h">
+      <Filter>nntl\interface\imemmgr</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

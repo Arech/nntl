@@ -1,4 +1,5 @@
-﻿/*
+#pragma once
+/*
 This file is a part of NNTL project (https://github.com/Arech/nntl)
 
 Copyright (c) 2015-2021, Arech (aradvert@gmail.com; https://github.com/Arech)
@@ -8,15 +9,15 @@ Redistribution and use in source and binary forms, with or without
 modification, are permitted provided that the following conditions are met:
 
 * Redistributions of source code must retain the above copyright notice, this
-  list of conditions and the following disclaimer.
+list of conditions and the following disclaimer.
 
 * Redistributions in binary form must reproduce the above copyright notice,
-  this list of conditions and the following disclaimer in the documentation
-  and/or other materials provided with the distribution.
+this list of conditions and the following disclaimer in the documentation
+and/or other materials provided with the distribution.
 
 * Neither the name of NNTL nor the names of its
-  contributors may be used to endorse or promote products derived from
-  this software without specific prior written permission.
+contributors may be used to endorse or promote products derived from
+this software without specific prior written permission.
 
 THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
 AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
@@ -29,17 +30,30 @@ CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
 OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
-#pragma once
 
-#include "./activations/elogu.h"
-#include "./activations/elu.h"
-#include "./activations/loglogu.h"
-#include "./activations/logu.h"
-#include "./activations/relu_family.h"
-#include "./activations/selu.h"
-#include "./activations/sigm.h"
-#include "./activations/softmax.h"
-#include "./activations/softsigm.h"
-#include "./activations/softsign.h"
-#include "./activations/step.h"
-#include "./activations/identity.h"
+#include "../_i_imemmgr.h"
+
+//#todo not implemented yet, just a placeholder now. TBD later
+
+namespace nntl {
+namespace imem {
+
+	template<typename FPC>
+	struct _imemmgr : public _i_imemmgr {
+		typedef FPC self_t;
+		NNTL_METHODS_SELF_CHECKED((::std::is_base_of<_imemmgr<FPC>, FPC>::value), "FinalPolymorphChild must derive from imemmgr<FPC>");
+
+
+
+	};
+
+
+	class imemmgr final: public _imemmgr<imemmgr> {
+		typedef _imemmgr<imemmgr> _base_class_t;
+
+	public:
+		template<typename...ArgsT>
+		imemmgr(ArgsT&&... ar)noexcept : _base_class_t(::std::forward<ArgsT>(ar)...) {}
+	};
+}
+}

@@ -79,6 +79,8 @@ void test_LayerPackVertical1(inmem_train_data<real_t>& td, uint64_t rngSeed)noex
 	auto ec = Ann.train(td, Aopts);
 	ASSERT_EQ(decltype(Ann)::ErrorCode::Success, ec) << "Error code description: " << Ann.get_last_error_string();
 
+	//we must deinit td to make sure it'll be in the same state after reseeding RNG for B as it was for A when it was initialized first
+	td.deinit4all();
 
 	layer_input<> Binp(td.train_x().cols_no_bias());
 
@@ -124,7 +126,9 @@ void test_LayerPackVertical2(inmem_train_data<real_t>& td, uint64_t rngSeed)noex
 	Ann.get_iRng().seed64(rngSeed);
 	auto ec = Ann.train(td, Aopts);
 	ASSERT_EQ(decltype(Ann)::ErrorCode::Success, ec) << "Error code description: " << Ann.get_last_error_string();
-
+	
+	//we must deinit td to make sure it'll be in the same state after reseeding RNG for B as it was for A when it was initialized first
+	td.deinit4all();
 
 	layer_input<> Binp(td.train_x().cols_no_bias());
 
@@ -172,7 +176,8 @@ void test_LayerPackVertical3(inmem_train_data<real_t>& td, uint64_t rngSeed)noex
 	Ann.get_iRng().seed64(rngSeed);
 	auto ec = Ann.train(td, Aopts);
 	ASSERT_EQ(decltype(Ann)::ErrorCode::Success, ec) << "Error code description: " << Ann.get_last_error_string();
-
+	//we must deinit td to make sure it'll be in the same state after reseeding RNG for B as it was for A when it was initialized first
+	td.deinit4all();
 
 	layer_input<> Binp(td.train_x().cols_no_bias());
 
@@ -222,6 +227,8 @@ void test_LayerPackVertical4(inmem_train_data<real_t>& td, uint64_t rngSeed)noex
 	auto ec = Ann.train(td, Aopts);
 	ASSERT_EQ(decltype(Ann)::ErrorCode::Success, ec) << "Error code description: " << Ann.get_last_error_string();
 
+	//we must deinit td to make sure it'll be in the same state after reseeding RNG for B as it was for A when it was initialized first
+	td.deinit4all();
 
 	layer_input<> Binp(td.train_x().cols_no_bias());
 
@@ -261,8 +268,14 @@ TEST(TestLPV, LayerPackVertical) {
 	ASSERT_TRUE(td.test_x().emulatesBiases());
 
 	ASSERT_NO_FATAL_FAILURE(test_LayerPackVertical1(td, ::std::time(0)));
+	//we must deinit td to make sure it'll be in the same state after reseeding RNG for B as it was for A when it was initialized first
+	td.deinit4all();
 	ASSERT_NO_FATAL_FAILURE(test_LayerPackVertical2(td, ::std::time(0)));
+	//we must deinit td to make sure it'll be in the same state after reseeding RNG for B as it was for A when it was initialized first
+	td.deinit4all();
 	ASSERT_NO_FATAL_FAILURE(test_LayerPackVertical3(td, ::std::time(0)));
+	//we must deinit td to make sure it'll be in the same state after reseeding RNG for B as it was for A when it was initialized first
+	td.deinit4all();
 	ASSERT_NO_FATAL_FAILURE(test_LayerPackVertical4(td, ::std::time(0)));
 }
 

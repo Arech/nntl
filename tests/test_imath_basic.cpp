@@ -66,7 +66,8 @@ typedef math::smatrix<real_t> realmtx_t;
 typedef math::smatrix_deform<real_t> realmtxdef_t;
 
 typedef d_interfaces::iThreads_t iThreads_t;
-typedef math::MathN<real_t, iThreads_t> imath_basic_t;
+typedef d_interfaces::iMemmgr_t iMemmgr_t;
+typedef math::MathN<real_t, iThreads_t, iMemmgr_t> imath_basic_t;
 
 
 template<typename RealT>
@@ -100,7 +101,7 @@ void dump_deCov(const char* pFileName, vec_len_t rowsCnt, vec_len_t colsCnt = 10
 	typedef RealT real_t;
 	typedef nntl::math::smatrix<real_t> realmtx_t;
 	typedef d_int_nI<real_t>::iThreads_t iThreads_t;
-	typedef nntl::math::MathN<real_t, iThreads_t> imath_basic_t;
+	typedef nntl::math::MathN<real_t, iThreads_t, d_int_nI<real_t>::iMemmgr_t> imath_basic_t;
 	imath_basic_t iM;
 	
 	MTXSIZE_SCOPED_TRACE(rowsCnt, colsCnt, "dump_deCov");
@@ -146,13 +147,14 @@ template<> struct dLoss_deCov_EPS<float> { static constexpr float eps = 1; };
 
 template<typename RealT, bool bLowerTriangl, bool bNumStab>
 void test_dLoss_deCov(vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
-#pragma warning(disable:4459)
+#pragma warning(push)
+#pragma warning(disable:4459)// declaration of 'real_t' hides global declaration
 	typedef RealT real_t;
 	typedef nntl::math::smatrix<real_t> realmtx_t;
 	typedef d_int_nI<real_t>::iThreads_t iThreads_t;
-	typedef nntl::math::MathN<real_t, iThreads_t> imath_basic_t;
+	typedef nntl::math::MathN<real_t, iThreads_t, d_int_nI<real_t>::iMemmgr_t> imath_basic_t;
 	imath_basic_t iM;
-#pragma warning(default:4459)
+#pragma warning(pop)
 
 
 	MTXSIZE_SCOPED_TRACE(rowsCnt, colsCnt, "dLoss_deCov");
@@ -225,7 +227,7 @@ void test_loss_deCov(vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 	typedef RealT real_t;
 	typedef nntl::math::smatrix<real_t> realmtx_t;
 	typedef d_int_nI<real_t>::iThreads_t iThreads_t;
-	typedef nntl::math::MathN<real_t, iThreads_t> imath_basic_t;
+	typedef nntl::math::MathN<real_t, iThreads_t, d_int_nI<real_t>::iMemmgr_t> imath_basic_t;
 	imath_basic_t iM;
 #pragma warning(default:4459)
 
@@ -290,7 +292,7 @@ TEST(TestMathN, loss_deCovVisually) {
 	typedef float real_t;
 	typedef nntl::math::smatrix<real_t> realmtx_t;
 	typedef d_int_nI<real_t>::iThreads_t iThreads_t;
-	typedef nntl::math::MathN<real_t, iThreads_t> imath_basic_t;
+	typedef nntl::math::MathN<real_t, iThreads_t, d_int_nI<real_t>::iMemmgr_t> imath_basic_t;
 	imath_basic_t iM;
 #pragma warning(default:4459)
 	
@@ -880,9 +882,6 @@ void test_vSumAbs(iMath& iM, vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 	STDCOUTL(vv);
 }
 TEST(TestMathN, vSumAbs) {
-// 	typedef nntl::d_interfaces::iThreads_t def_threads_t;
-// 	typedef math::MathN<real_t, def_threads_t> iMB;
-// 	iMB iM;
 	NNTL_RUN_TEST2(imath_basic_t::Thresholds_t::vSumAbs, 100) test_vSumAbs(iM, i, 100);
 }
 
@@ -958,9 +957,6 @@ void test_evAddScaledSign_ip(iMath& iM, vec_len_t rowsCnt, vec_len_t colsCnt = 1
 	tb.say("best");
 }
 TEST(TestMathN, evAddScaledSign_ip) {
-// 	typedef nntl::d_interfaces::iThreads_t def_threads_t;
-// 	typedef math::MathN<real_t, def_threads_t> iMB;
-// 	iMB iM;
 	NNTL_RUN_TEST2(imath_basic_t::Thresholds_t::evAddScaledSign_ip, 100) test_evAddScaledSign_ip(iM, i, 100);
 }
 
@@ -1080,9 +1076,6 @@ void test_evAdd_ip(iMath& iM, vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 	tb.say("best");
 }
 TEST(TestMathN, evAddIp) {
-// 	typedef nntl::d_interfaces::iThreads_t def_threads_t;
-// 	typedef math::MathN<real_t, def_threads_t> iMB;
-// 	iMB iM;
 	NNTL_RUN_TEST2(imath_basic_t::Thresholds_t::evAdd_ip, 100) test_evAdd_ip(iM, i, 100);
 }
 
@@ -1157,9 +1150,6 @@ void test_evMulCipSubip(iMath& iM, vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 }
 
 TEST(TestMathN, evMulCipSubip) {
-// 	typedef nntl::d_interfaces::iThreads_t def_threads_t;
-// 	typedef math::MathN<real_t, def_threads_t> iMB;
-// 	iMB iM;
 	NNTL_RUN_TEST2(imath_basic_t::Thresholds_t::evMulC_ip_Sub_ip, 100) test_evMulCipSubip(iM, i, 100);
 }
 
@@ -1286,9 +1276,6 @@ void test_evSub(iMath& iM, vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 }
 
 TEST(TestMathN, evSub) {
-// 	typedef nntl::d_interfaces::iThreads_t def_threads_t;
-// 	typedef math::MathN<real_t, def_threads_t> iMB;
-// 	iMB iM;
 	NNTL_RUN_TEST2(imath_basic_t::Thresholds_t::evSub, 10) test_evSub(iM, i, 10);
 }
 
@@ -1370,9 +1357,6 @@ void test_evSub_ip(iMath& iM, vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 }
 
 TEST(TestMathN, evSubIp) {
-// 	typedef nntl::d_interfaces::iThreads_t def_threads_t;
-// 	typedef math::MathN<real_t, def_threads_t> iMB;
-// 	iMB iM;
 	NNTL_RUN_TEST2(imath_basic_t::Thresholds_t::evSub_ip, 100) test_evSub_ip(iM, i,100);
 }
 
@@ -1443,9 +1427,6 @@ void test_apply_momentum(iMath& iM, vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 }
 
 TEST(TestMathN, applyMomentum) {
-// 	typedef nntl::d_interfaces::iThreads_t def_threads_t;
-// 	typedef math::MathN<real_t, def_threads_t> iMB;
-// 	iMB iM;
 	NNTL_RUN_TEST2(imath_basic_t::Thresholds_t::apply_momentum, 100) test_apply_momentum(iM, i,100);
 }
 
@@ -1590,9 +1571,6 @@ void test_evAbs_perf(iMath& iM, vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 }
 
 TEST(TestMathN, evAbsPerf) {
-// 	typedef nntl::d_interfaces::iThreads_t def_threads_t;
-// 	typedef math::MathN<real_t, def_threads_t> iMB;
-// 	iMB iM;
 	NNTL_RUN_TEST2(imath_basic_t::Thresholds_t::evAbs, 100) test_evAbs_perf(iM, i,100);
 }
 
@@ -1656,9 +1634,6 @@ void test_evSquare_perf(iMath& iM, vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 }
 
 TEST(TestMathN, evSquarePerf) {
-// 	typedef nntl::d_interfaces::iThreads_t def_threads_t;
-// 	typedef math::MathN<real_t, def_threads_t> iMB;
-// 	iMB iM;
 	NNTL_RUN_TEST2(imath_basic_t::Thresholds_t::evSquare, 100) test_evSquare_perf(iM, i,100);
 }
 
@@ -1752,9 +1727,6 @@ void test_modprop_perf(iMath& iM, vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 }
 
 TEST(TestMathN, ModPropPerf) {
-// 	typedef nntl::d_interfaces::iThreads_t def_threads_t;
-// 	typedef math::MathN<real_t, def_threads_t> iMB;
-// 	iMB iM;
 	NNTL_RUN_TEST2(imath_basic_t::Thresholds_t::ModProp, 1) test_modprop_perf(iM, i,1);
 }
 //////////////////////////////////////////////////////////////////////////
@@ -1834,9 +1806,6 @@ void test_rprop_perf(iMath& iM, vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 }
 
 TEST(TestMathN, RPropPerf) {
-// 	typedef nntl::d_interfaces::iThreads_t def_threads_t;
-// 	typedef math::MathN<real_t, def_threads_t> iMB;
-// 	iMB iM;
 	NNTL_RUN_TEST2(imath_basic_t::Thresholds_t::RProp, 1) test_rprop_perf(iM, i,1);
 }
 
@@ -1935,9 +1904,6 @@ void test_rmspropgraves_perf(iMath& iM, vec_len_t rowsCnt, vec_len_t colsCnt = 1
 }
 
 TEST(TestMathN, RMSProp_Graves) {
-// 	typedef nntl::d_interfaces::iThreads_t def_threads_t;
-// 	typedef math::MathN<real_t, def_threads_t> iMB;
-// 	iMB iM;
 	NNTL_RUN_TEST2(imath_basic_t::Thresholds_t::RMSProp_Graves, 10) test_rmspropgraves_perf(iM, i,10);
 }
 
@@ -2025,9 +1991,6 @@ void test_rmsprophinton_perf(iMath& iM, vec_len_t rowsCnt, vec_len_t colsCnt = 1
 }
 
 TEST(TestMathN, RMSProp_Hinton) {
-// 	typedef nntl::d_interfaces::iThreads_t def_threads_t;
-// 	typedef math::MathN<real_t, def_threads_t> iMB;
-// 	iMB iM;
 	NNTL_RUN_TEST2(imath_basic_t::Thresholds_t::RMSProp_Hinton, 10) test_rmsprophinton_perf(iM, i,10);
 }
 
@@ -2398,9 +2361,6 @@ TEST(TestMathN, apply_dropout_mask) {
 //////////////////////////////////////////////////////////////////////////
 
 TEST(TestMathN, vCountSameNaive) {
-// 	typedef nntl::d_interfaces::iThreads_t def_threads_t;
-// 	typedef math::MathN<real_t, def_threads_t> iMB;
-
 	constexpr vec_len_t dataCnt = 9;
 	const ::std::array<vec_len_t, dataCnt> src1 = { 3,55,32, 35,63,5, 2,400,6 };
 	const ::std::array<vec_len_t, dataCnt> src2 = { 3,55,33, 35,63,5, 4,400,6 };
@@ -2411,7 +2371,7 @@ TEST(TestMathN, vCountSameNaive) {
 
 TEST(TestMathN, vCountSameMtCorrectness) {
 	typedef nntl::d_interfaces::iThreads_t def_threads_t;
-	typedef math::MathN<real_t, def_threads_t> iMB;
+	typedef math::MathN<real_t, def_threads_t, iMemmgr_t> iMB;
 	typedef ::std::vector<vec_len_t> vec_t;
 
 #ifdef NNTL_DEBUG
@@ -2482,9 +2442,6 @@ void test_vCountSame_perf(iMath& iM, vec_len_t rowsCnt) {
 }
 
 TEST(TestMathN, vCountSamePerf) {
-// 	typedef nntl::d_interfaces::iThreads_t def_threads_t;
-// 	typedef math::MathN<real_t, def_threads_t> iMB;
-// 	iMB iM;
 	NNTL_RUN_TEST4(100000, 75, 25, 1) test_vCountSame_perf(iM, i);
 }
 
@@ -2541,9 +2498,6 @@ void test_evClamp_perf(iMath& iM, vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 }
 
 TEST(TestMathN, evClampPerf) {
-// 	typedef nntl::d_interfaces::iThreads_t def_threads_t;
-// 	typedef math::MathN<real_t, def_threads_t> iMB;
-// 	iMB iM;
 	NNTL_RUN_TEST2(imath_basic_t::Thresholds_t::evClamp, 10) test_evClamp_perf(iM, i,10);
 }
 
@@ -2650,7 +2604,7 @@ TEST(TestMathN, mMulABt_Cnb) {
 	using namespace nntl_supp;
 
 	typedef nntl::d_interfaces::iThreads_t def_threads_t;
-	typedef math::MathN<real_t, def_threads_t> iMB;
+	typedef math::MathN<real_t, def_threads_t, iMemmgr_t> iMB;
 	
 	using ErrCode = jsonreader::ErrorCode;
 	typedef math::smatrix<real_t> realmtx_t;
@@ -2688,7 +2642,7 @@ TEST(TestMathN, mMulABt_Cnb_biased) {
 	using namespace nntl_supp;
 
 	typedef nntl::d_interfaces::iThreads_t def_threads_t;
-	typedef math::MathN<real_t, def_threads_t> iMB;
+	typedef math::MathN<real_t, def_threads_t, iMemmgr_t> iMB;
 
 	using ErrCode = jsonreader::ErrorCode;
 
@@ -3849,9 +3803,6 @@ void test_loss_quadratic(iMath& iM, vec_len_t rowsCnt, vec_len_t colsCnt = 10) {
 	STDCOUTL(quadLoss);
 }
 TEST(TestMathN, LossQuadratic) {
-// 	typedef nntl::d_interfaces::iThreads_t def_threads_t;
-// 	typedef math::MathN<real_t, def_threads_t> iMB;
-// 	iMB iM;
 	NNTL_RUN_TEST2(imath_basic_t::Thresholds_t::loss_quadratic, 100) test_loss_quadratic(iM, i, 100);
 }
 

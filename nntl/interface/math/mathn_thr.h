@@ -146,6 +146,11 @@ namespace _impl {
 		static constexpr numel_cnt_t loglogu_nbn_nbp = 1020;
 		static constexpr numel_cnt_t dloglogu_nbn_nbp = 3000;
 
+		static constexpr numel_cnt_t logu = 1000;//*
+		static constexpr numel_cnt_t dlogu = 1500;//*
+		static constexpr numel_cnt_t logu_nb = 1000;//*
+		static constexpr numel_cnt_t dlogu_nb = 1500;//*
+
 		static constexpr numel_cnt_t softsign = 15000;
 		static constexpr numel_cnt_t softsign_uc = 15000;
 		static constexpr numel_cnt_t dsoftsign = 20000;
@@ -286,6 +291,11 @@ namespace _impl {
 		static constexpr numel_cnt_t dloglogu_nbp = 4800;//*
 		static constexpr numel_cnt_t loglogu_nbn_nbp = 1000;//*
 		static constexpr numel_cnt_t dloglogu_nbn_nbp = 4900;//*
+
+		static constexpr numel_cnt_t logu = 2000;//*
+		static constexpr numel_cnt_t dlogu = 3000;//*
+		static constexpr numel_cnt_t logu_nb = 2000;//*
+		static constexpr numel_cnt_t dlogu_nb = 3000;//*
 
 		static constexpr numel_cnt_t softsign = 8900;//*
 		static constexpr numel_cnt_t softsign_uc = 9300;//*

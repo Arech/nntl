@@ -130,15 +130,18 @@ namespace nntl {
 			typedef typename Norm_mtx_update_t::template ScaleCentralData_tpl<x_t> ScaleCentralData_t;
 			typedef typename Norm_mtx_update_t::template ScaleCentralVector_tpl<x_t> ScaleCentralVector_t;
 
+			// if it is safe to cache training or testing set elsewhere, however the total size could be too big so disabling possible caching
+			static constexpr bool allowExternalCachingOfSets = false;
+
 		protected:
 			//vector to hold randomized training set row numbers
 			::std::vector<vec_len_t> m_vSampleIdxs;
-			::std::vector<vec_len_t>::iterator m_curSampleIdx;
+			//::std::vector<vec_len_t>::iterator m_curSampleIdx;
 
 			TransFunctor_t& m_TFunct;
 			const_TD_stor_t& m_tdStor;
 
-			vec_len_t m_curWalkingBatchIdx{ 0 };
+			//vec_len_t m_curWalkingBatchIdx{ 0 };
 
 			unsigned m_excludeDataFlag;
 
@@ -147,6 +150,7 @@ namespace nntl {
 			// normalization algo implementation yet)
 			typedef NNTL_VARIANT_NS::variant<NNTL_VARIANT_NS::monostate, ScaleCentralData_t, ScaleCentralVector_t> NormPrms_t;
 
+			//note that normalization doesn't reset with deinit(), an explicit call to reset_normalization() is required
 			NormPrms_t m_NormalizationPrms;
 
 		public:
@@ -161,7 +165,16 @@ namespace nntl {
 			const_TD_stor_t& get_TDStor()noexcept { return m_tdStor; }
 			const const_TD_stor_t& get_TDStor()const noexcept { return m_tdStor; }
 
-			const auto& get_curSampleIdxIt()const noexcept { return m_curSampleIdx; }
+			const x_t* getOriginalSamplePtr(data_set_id_t dataSetId, const numel_cnt_t batchIdx
+				, const vec_len_t SampleIdx, vec_len_t& len)const noexcept
+			{
+				NNTL_ASSERT(m_curBatchSize > 0);
+				const auto ofs = batchIdx*m_curBatchSize + SampleIdx;
+				if (m_curBatchSize <= 0 || batchIdx < 0 || SampleIdx < 0 || ofs<0
+					|| ofs >= get_self().base_dataset_samples_count(dataSetId))
+					return nullptr;
+				return m_TFunct.getOriginalSamplePtr(m_tdStor, dataSetId, ofs, len);
+			}
 
 			//////////////////////////////////////////////////////////////////////////
 			bool empty()const noexcept { return m_tdStor.empty(); }
@@ -203,43 +216,44 @@ namespace nntl {
 			void deinit4all()noexcept {
 				m_TFunct.deinit();
 				_base_class_t::deinit4all();
-				m_curWalkingBatchIdx = 0;
+				//m_curWalkingBatchIdx = 0;
 				m_vSampleIdxs.clear();
 				m_vSampleIdxs.shrink_to_fit();
-				m_curSampleIdx = m_vSampleIdxs.end();
+				//m_curSampleIdx = m_vSampleIdxs.end();
 			}
 
 		protected:
-			nnet_errors_t _base_init_checks(const vec_len_t bs1, const vec_len_t bs2 = 0)const noexcept {
+			nnet_errors_t _base_init_checks(const vec_len_t maxFPropSiz, const vec_len_t maxTrainSiz = 0)noexcept {
 				if (get_self().empty() || !(m_tdStor.samplesYStorageCoherent() && m_tdStor.samplesXStorageCoherent())) {
-					NNTL_ASSERT(!"Invalid m_tdStor state!");
 					STDCOUTL("Invalid m_tdStor state!");
+					NNTL_ASSERT(!"Invalid m_tdStor state!");
 					return nnet_errors_t::OtherTdInitError;
 				}
-
 				const auto sibs = m_TFunct.samplesInBaseSample();
-				if (bs1 < 0 || (0 != bs1%sibs)) {
+				if (maxFPropSiz < 0 || (0 != maxFPropSiz%sibs)) {
+					STDCOUTL("_base_init_checks: Invalid maxFPropSize!");
 					NNTL_ASSERT(!"Invalid maxFPropSize!");
-					STDCOUTL("Invalid maxFPropSize!");
 					return nnet_errors_t::OtherTdInitError;
 				}
-				if (bs2 < 0 || (bs2 > 0 && (0 != bs2%sibs))) {
+				if (maxTrainSiz < 0 || (maxTrainSiz > 0 && (0 != maxTrainSiz%sibs))) {
+					STDCOUTL("_base_init_checks: Invalid maxBatchSize!");
 					NNTL_ASSERT(!"Invalid maxBatchSize!");
-					STDCOUTL("Invalid maxBatchSize!");
 					return nnet_errors_t::OtherTdInitError;
 				}
 
-				if (get_self().is_initialized4inference() || get_self().is_initialized4train()) {
-					NNTL_ASSERT(!"already initialized!");
-					STDCOUTL("already initialized!");
-					//don't deinitialize here. It's better be done explicitly!
-					return nnet_errors_t::TDDeinitializationRequired;
-				}
-				//get_self().deinit4all();//it's always better to start from the known state
+				//always start from a known state
+				get_self().deinit4all();
 				return nnet_errors_t::Success;
 			}
 
 		public:
+			bool is_initialized4inference(vec_len_t& bs)const noexcept {
+				const auto tbs = bs ? bs : m_maxFPropSize;
+				if (get_self().empty() || 0 == m_maxFPropSize || tbs > m_maxFPropSize || 0 != tbs%m_TFunct.samplesInBaseSample()) return false;
+				bs = tbs;
+				return true;
+			}
+
 			// Note that batch sizes passed to _transf_train_data<> MUST be a multiple of TFunctT::samplesInBaseSample()
 			template<typename iMathT>
 			nnet_errors_t init4inference(iMathT& iM, IN OUT vec_len_t& maxFPropSize)noexcept {
@@ -263,6 +277,18 @@ namespace nntl {
 				if (!m_TFunct.init(iM, m_tdStor, base_maxFPropSize)) return nnet_errors_t::OtherTdInitError;
 
 				return nnet_errors_t::Success;
+			}
+
+			bool is_initialized4train(vec_len_t& fpropBs, vec_len_t& trainBs, bool& bMiniBatch)const noexcept {
+				if (!get_self().is_initialized4inference(fpropBs)) return false;
+				const auto tbs = trainBs ? trainBs : m_maxTrainBatchSize;
+				//fullbatch mode must support only exactly specified batch sizes
+				const auto dr = ::std::div(tbs, m_TFunct.samplesInBaseSample());
+				if (0 == m_maxTrainBatchSize || tbs > m_maxTrainBatchSize 
+					|| 0 != dr.rem || tbs > fpropBs) return false;
+				trainBs = tbs;
+				bMiniBatch = dr.quot < get_self().base_trainset_samples_count();
+				return true;
 			}
 
 			//takes desired batch sizes, updates them if necessary to any suitable value and initializes internal state for training
@@ -315,7 +341,7 @@ namespace nntl {
 					} catch (const ::std::exception&) {
 						return nnet_errors_t::TdInitNoMemory;
 					}
-					m_curSampleIdx = m_vSampleIdxs.end();
+					//m_curSampleIdx = m_vSampleIdxs.end();
 					::std::iota(m_vSampleIdxs.begin(), m_vSampleIdxs.end(), 0);
 				//}
 
@@ -333,8 +359,6 @@ namespace nntl {
 			template<typename CommonDataT>
 			numel_cnt_t on_next_epoch(const numel_cnt_t epochIdx, const CommonDataT& cd, vec_len_t batchSize = 0) noexcept {
 				NNTL_ASSERT(epochIdx >= 0);
-				NNTL_ASSERT(get_self().is_initialized4train());
-
 				NNTL_ASSERT(m_tdStor.samplesYStorageCoherent() && m_tdStor.samplesXStorageCoherent());
 
 				m_curDataset2Walk = invalid_set_id;
@@ -345,12 +369,13 @@ namespace nntl {
 					batchSize = cd.input_batch_size();
 				}
 				NNTL_ASSERT(batchSize > 0 && batchSize <= m_maxTrainBatchSize && batchSize <= get_self().trainset_samples_count());
-				NNTL_ASSERT(0 == batchSize % m_TFunct.samplesInBaseSample());
+				NNTL_DEBUG_DECLARE(auto _fbs = batchSize; auto _tbs = batchSize; bool bB;);
+				NNTL_ASSERT(get_self().is_initialized4train(_fbs, _tbs, bB) && _fbs == batchSize && _tbs == batchSize);
 
 				m_curBatchSize = batchSize / m_TFunct.samplesInBaseSample();
-				m_curSampleIdx = m_vSampleIdxs.begin();
+				//m_curSampleIdx = m_vSampleIdxs.begin();
 				//making random permutations to define which data rows will be used as batch data
-				::std::random_shuffle(m_curSampleIdx, m_vSampleIdxs.end(), cd.iRng());
+				::std::random_shuffle(m_vSampleIdxs.begin(), m_vSampleIdxs.end(), cd.iRng());
 
 				m_TFunct.next_epoch(m_tdStor, epochIdx, cd, m_curBatchSize, &m_pCurBatchX, &m_pCurBatchY);
 
@@ -362,7 +387,6 @@ namespace nntl {
 			template<typename CommonDataT>
 			void on_next_batch(const numel_cnt_t batchIdx, const CommonDataT& cd)noexcept {
 				NNTL_ASSERT(batchIdx >= 0);
-				NNTL_ASSERT(get_self().is_initialized4train());
 				NNTL_ASSERT(m_curDataset2Walk == invalid_set_id);
 
 // 				NNTL_ASSERT(m_vSampleIdxs.size()*m_TFunct.samplesInBaseSample()
@@ -370,13 +394,22 @@ namespace nntl {
 // 				NNTL_ASSERT(cd.get_cur_batch_size() == m_curBatchSize*m_TFunct.samplesInBaseSample());
 
 				//using m_curBatchSize only. Don't use cd.get_cur_batch_size()!
-				NNTL_ASSERT(m_vSampleIdxs.size() >= static_cast<size_t>(m_curSampleIdx - m_vSampleIdxs.begin()) + m_curBatchSize);
+				NNTL_ASSERT(batchIdx*m_curBatchSize <= ::std::numeric_limits<vec_len_t>::max());
+				const auto batchOffs = static_cast<vec_len_t>(batchIdx*m_curBatchSize);
+				NNTL_ASSERT(m_vSampleIdxs.size() >= batchOffs + m_curBatchSize);
 
-				m_TFunct.next_batch(m_tdStor, batchIdx, cd, &(*m_curSampleIdx), m_curBatchSize);
-				m_curSampleIdx += m_curBatchSize;
+				m_TFunct.next_batch(m_tdStor, batchIdx, cd, &(m_vSampleIdxs[batchOffs]), m_curBatchSize);
+				//m_curSampleIdx += m_curBatchSize;
 
 				if (0 != m_NormalizationPrms.index())
 					_apply_normalization2batchX(cd.get_iMath());
+			}
+			//for testing only
+			auto _get_curSampleIdxIt(const numel_cnt_t batchIdx)const noexcept {
+				NNTL_ASSERT(batchIdx*m_curBatchSize <= ::std::numeric_limits<vec_len_t>::max());
+				const auto batchOffs = static_cast<vec_len_t>(batchIdx*m_curBatchSize);
+				NNTL_ASSERT(m_vSampleIdxs.size() >= batchOffs + m_curBatchSize);
+				return m_vSampleIdxs.begin() + batchOffs;
 			}
 
 			//////////////////////////////////////////////////////////////////////////
@@ -385,19 +418,19 @@ namespace nntl {
 				, vec_len_t batchSize = -1, const unsigned excludeDataFlag = flag_exclude_nothing)noexcept
 			{
 				NNTL_ASSERT(dataSetId >= 0 && dataSetId < get_self().datasets_count());
-				NNTL_ASSERT(get_self().is_initialized4inference());
 				NNTL_ASSERT(m_tdStor.samplesYStorageCoherent() && m_tdStor.samplesXStorageCoherent());
 
 				m_curDataset2Walk = dataSetId;
-				m_curWalkingBatchIdx = 0;
+				//m_curWalkingBatchIdx = 0;
 
 				if (batchSize < 0) {
 					batchSize = m_maxFPropSize;
 				} else if (0 == batchSize) {
 					batchSize = cd.input_batch_size();
 				}
-
-				NNTL_ASSERT(batchSize > 0 && batchSize <= m_maxFPropSize && (0 == batchSize%m_TFunct.samplesInBaseSample()));
+				NNTL_ASSERT(batchSize > 0 && batchSize <= m_maxFPropSize);
+				NNTL_DEBUG_DECLARE(auto _bs = batchSize);
+				NNTL_ASSERT(get_self().is_initialized4inference(_bs) && _bs == batchSize);
 
 				const auto dsNumel = get_self().dataset_samples_count(dataSetId);
 				NNTL_ASSERT(dsNumel > 0);
@@ -417,24 +450,33 @@ namespace nntl {
 			template<typename CommonDataT>
 			void next_subset(const numel_cnt_t batchIdx, const CommonDataT& cd)noexcept {
 				NNTL_ASSERT(batchIdx >= 0);
-				NNTL_ASSERT(get_self().is_initialized4inference());
 				NNTL_ASSERT(m_curDataset2Walk != invalid_set_id);
 
 				//we MUST NOT use cd.get_cur_batch_size() here because it is not required to be set to proper value for just
 				//walking over any dataset (what if you are just inspecting its content and not going to do inferencing at all?)
 
 				const auto base_dsSize = m_tdStor.X(m_curDataset2Walk).batch_size();//OK to query directly, it's class design
-				// _transf_train_data only works with matrix-sized datasets
+				// _transf_train_data currently works only with matrix-sized datasets
 				NNTL_ASSERT(base_dsSize == m_tdStor.Y(m_curDataset2Walk).batch_size());
 
-				if (m_curWalkingBatchIdx >= base_dsSize) m_curWalkingBatchIdx = 0;
-				const auto base_maxBs = base_dsSize - m_curWalkingBatchIdx;
 
+// 				if (m_curWalkingBatchIdx >= base_dsSize) m_curWalkingBatchIdx = 0;
+// 				const auto base_maxBs = base_dsSize - m_curWalkingBatchIdx;
+
+				auto base_batchSize = m_curBatchSize;
+				NNTL_ASSERT(batchIdx*base_batchSize <= ::std::numeric_limits<vec_len_t>::max());
+				vec_len_t walkingBatchIdx = static_cast<vec_len_t>(batchIdx*base_batchSize);
+				const auto base_maxBs = base_dsSize - walkingBatchIdx;
+				NNTL_ASSERT(base_maxBs > 0);
+				if (base_maxBs <= 0) {
+					STDCOUTL("WTF? Invalid batchIdx passed?");
+					::std::abort();
+				}
 				//checking batch size
-				const auto base_batchSize = (base_maxBs < m_curBatchSize ? base_maxBs : m_curBatchSize);
+				if (base_maxBs < m_curBatchSize) base_batchSize = base_maxBs;
 
-				m_TFunct.walk_next(m_tdStor, m_curDataset2Walk, batchIdx, cd, base_batchSize, m_curWalkingBatchIdx, m_excludeDataFlag);
-				m_curWalkingBatchIdx += base_batchSize;
+				m_TFunct.walk_next(m_tdStor, m_curDataset2Walk, batchIdx, cd, base_batchSize, walkingBatchIdx, m_excludeDataFlag);
+				//m_curWalkingBatchIdx += base_batchSize;
 
 				if (!exclude_dataX(m_excludeDataFlag) && 0 != m_NormalizationPrms.index())
 					_apply_normalization2batchX(cd.get_iMath());

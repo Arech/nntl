@@ -129,6 +129,10 @@ namespace nntl {
 		//for epochs allowed by m_vbEpochEval, report only epoch index and duration of time. Dont calculate loss at all
 		bool m_bReportOnlyTime;
 
+		//force reinitialization of TD every train() run. Helpful to make sure TD will always run with same RNG seed
+		//(there was a reinitialization every time in old code)
+		bool m_bForceReinitTD;
+
 		void _ctor()noexcept {
 			m_BatchSize = m_maxFpropSize = 0;
 			m_DivergenceCheckLastEpoch = 5;
@@ -136,6 +140,7 @@ namespace nntl {
 			m_bCalcFullLossValue = true;
 			m_bImmediatelyDeinit = false;
 			m_bReportOnlyTime = is_observer_silent<training_observer_t>::value;
+			m_bForceReinitTD = true;
 			//m_pNNEvalFinalRes = nullptr;
 		}
 
@@ -215,6 +220,9 @@ namespace nntl {
 
 		bool bReportOnlyTime()const noexcept { return m_bReportOnlyTime; }
 		self_t& bReportOnlyTime(const bool r)noexcept { m_bReportOnlyTime = r; return *this; }
+
+		bool bForceReinitTD()const noexcept { return m_bForceReinitTD; }
+		self_t& bForceReinitTD(const bool r)noexcept { m_bForceReinitTD = r; return *this; }
 
 		/* deprecated
 		 *const bool evalNNFinalPerf()const noexcept { return !!m_pNNEvalFinalRes; }

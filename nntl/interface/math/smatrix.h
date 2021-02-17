@@ -83,11 +83,14 @@ namespace math {
 		}
 		inline static constexpr numel_cnt_t sNumel(const mtx_size_t s)noexcept { return sNumel(s.first, s.second); }
 
+		inline static constexpr vec_len_t sNumelAsVecLen(const vec_len_t r, const vec_len_t c)noexcept { return static_cast<vec_len_t>(sNumel(r, c)); }
+		inline static constexpr vec_len_t sNumelAsVecLen(const mtx_size_t s)noexcept { return static_cast<vec_len_t>(sNumel(s)); }
+
 		//////////////////////////////////////////////////////////////////////////
 		//debug/NNTL_ASSERT use is preferred
 		template<typename T = value_type>
 		static ::std::enable_if_t<::std::is_floating_point<T>::value, bool>
-		_isBinaryVec(const T* pData, const numel_cnt_t ne, const bool bNonBinIsOK = false) noexcept {
+		_isBinaryVec(const T*__restrict pData, const numel_cnt_t ne, const bool bNonBinIsOK = false) noexcept {
 			NNTL_UNREF(bNonBinIsOK);//it's used just to trigger assert and nothing more
 			typedef typename real_t_limits<T>::similar_FWI_t similar_FWI_t;
 
@@ -95,7 +98,7 @@ namespace math {
 			const auto _poszero = similar_FWI_pos_zero<T>();
 			const auto _negzero = similar_FWI_neg_zero<T>();
 			//#todo for C++17 must change to ::std::launder(reinterpret_cast< ... 
-			auto ptr = reinterpret_cast<const similar_FWI_t*>(pData);
+			auto ptr = reinterpret_cast<const similar_FWI_t*__restrict>(pData);
 
 			const auto pE = ptr + ne;
 			similar_FWI_t cond = similar_FWI_t(1);
@@ -114,13 +117,13 @@ namespace math {
 		}
 		//////////////////////////////////////////////////////////////////////////
 		template<typename T = value_type>
-		static ::std::enable_if_t<::std::is_floating_point<T>::value, bool> _isBinaryStrictVec(const T* pData, const numel_cnt_t ne, const bool bNonBinIsOK = false) noexcept {
+		static ::std::enable_if_t<::std::is_floating_point<T>::value, bool> _isBinaryStrictVec(const T*__restrict pData, const numel_cnt_t ne, const bool bNonBinIsOK = false) noexcept {
 			typedef typename real_t_limits<T>::similar_FWI_t similar_FWI_t;
 
 			const auto _one = similar_FWI_one<T>();
 			const auto _zero = similar_FWI_pos_zero<T>();
 			//#todo for C++17 must change to ::std::launder(reinterpret_cast< ... 
-			auto ptr = reinterpret_cast<const similar_FWI_t*>(pData);
+			auto ptr = reinterpret_cast<const similar_FWI_t*__restrict>(pData);
 
 			const auto pE = ptr + ne;
 			similar_FWI_t cond = similar_FWI_t(1);
@@ -134,7 +137,7 @@ namespace math {
 			return !!cond;
 		}
 		template<typename T = value_type>
-		static ::std::enable_if_t<::std::is_integral<T>::value, bool> _isBinaryStrictVec(const T* ptr, const numel_cnt_t ne, const bool bNonBinIsOK = false) noexcept {
+		static ::std::enable_if_t<::std::is_integral<T>::value, bool> _isBinaryStrictVec(const T*__restrict ptr, const numel_cnt_t ne, const bool bNonBinIsOK = false) noexcept {
 			const auto _one = T(1);
 			const auto _zero = T(0);
 
@@ -155,7 +158,7 @@ namespace math {
 		//debug/NNTL_ASSERT use is preferred
 		template<typename T = value_type>
 		static ::std::enable_if_t<::std::is_floating_point<T>::value
-			, bool> _isBinaryVecWLd(const T* pData, const numel_cnt_t ne, const ptrdiff_t ld, const bool bNonBinIsOK = false) noexcept
+			, bool> _isBinaryVecWLd(const T*__restrict pData, const numel_cnt_t ne, const ptrdiff_t ld, const bool bNonBinIsOK = false) noexcept
 		{
 			NNTL_UNREF(bNonBinIsOK);//it's used just to trigger assert and nothing more
 			typedef typename real_t_limits<T>::similar_FWI_t similar_FWI_t;
@@ -164,7 +167,7 @@ namespace math {
 			const auto _poszero = similar_FWI_pos_zero<T>();
 			const auto _negzero = similar_FWI_neg_zero<T>();
 			//#todo for C++17 must change to ::std::launder(reinterpret_cast< ... 
-			auto ptr = reinterpret_cast<const similar_FWI_t*>(pData);
+			auto ptr = reinterpret_cast<const similar_FWI_t*__restrict>(pData);
 
 			const auto pE = ptr + ne;
 			similar_FWI_t cond = similar_FWI_t(1);
@@ -185,7 +188,7 @@ namespace math {
 			return _isBinaryStrictVecWLd(ptr, ne, ld, bNonBinIsOK);
 		}
 		template<typename T = value_type>
-		static ::std::enable_if_t<::std::is_floating_point<T>::value, bool> _isBinaryStrictVecWLd(const T* pData
+		static ::std::enable_if_t<::std::is_floating_point<T>::value, bool> _isBinaryStrictVecWLd(const T*__restrict pData
 			, const numel_cnt_t ne, const ptrdiff_t ld, const bool bNonBinIsOK = false) noexcept
 		{
 			typedef typename real_t_limits<T>::similar_FWI_t similar_FWI_t;
@@ -193,7 +196,7 @@ namespace math {
 			const auto _one = similar_FWI_one<T>();
 			const auto _zero = similar_FWI_pos_zero<T>();
 			//#todo for C++17 must change to ::std::launder(reinterpret_cast< ... 
-			auto ptr = reinterpret_cast<const similar_FWI_t*>(pData);
+			auto ptr = reinterpret_cast<const similar_FWI_t*__restrict>(pData);
 
 			const auto pE = ptr + ne;
 			similar_FWI_t cond = similar_FWI_t(1);
@@ -208,7 +211,7 @@ namespace math {
 			return !!cond;
 		}
 		template<typename T = value_type>
-		static ::std::enable_if_t<::std::is_integral<T>::value, bool> _isBinaryStrictVecWLd(const T* ptr
+		static ::std::enable_if_t<::std::is_integral<T>::value, bool> _isBinaryStrictVecWLd(const T*__restrict ptr
 			, const numel_cnt_t ne, const ptrdiff_t ld, const bool bNonBinIsOK = false) noexcept
 		{
 			const auto _one = T(1);
@@ -244,8 +247,8 @@ namespace math {
 
 	public:
 		typedef T_ value_type;
-		typedef value_type* value_ptr_t;
-		typedef const value_type* cvalue_ptr_t;
+		typedef value_type*__restrict value_ptr_t;
+		typedef const value_type*__restrict cvalue_ptr_t;
 		
 		//////////////////////////////////////////////////////////////////////////
 		//members
@@ -302,7 +305,7 @@ namespace math {
 					//m_pData = new(::std::nothrow) value_type[numel()];
 					//#todo for C++17 must change to ::std::launder(reinterpret_cast< ... 
 					//#TODO: NNTL_CFG_DEFAULT_FP_PTR_ALIGN is too strict for non-floating point data
-					m_pData = reinterpret_cast<value_type*>(_aligned_malloc(byte_size(), utils::mem_align_for<value_type>()));
+					m_pData = reinterpret_cast<value_type*__restrict>(_aligned_malloc(byte_size(), utils::mem_align_for<value_type>()));
 					NNTL_ASSERT(m_pData);
 				} else {
 					m_rows = 0;
@@ -365,11 +368,11 @@ namespace math {
 			_realloc();
 			if (m_bEmulateBiases) set_biases();
 		}
-
+		
 		//useExternalStorage(value_ptr_t ptr, const smatrix& sizeLikeThis) variation
 		// #supportsBatchInRow
 		smatrix(value_ptr_t ptr, const smatrix& propsLikeThis) noexcept : m_pData(nullptr), m_bDontManageStorage(false) {
-			useExternalStorage(ptr, propsLikeThis, propsLikeThis.emulatesBiases() ? propsLikeThis.isHoleyBiases() : false);
+			useExternalStorage(ptr, propsLikeThis, propsLikeThis.hasHoleyBiases());
 		}
 		// #supportsBatchInRow
 		smatrix(value_ptr_t ptr, const mtx_size_t& sizeLikeThis, const bool bEmulateBiases = false
@@ -526,7 +529,7 @@ namespace math {
 			}
 			memcpy(dest.m_pData, m_pData, byte_size());
 			dest.m_bHoleyBiases = m_bHoleyBiases;
-			dest.m_rows = m_rows;
+			dest.m_rows = m_rows;//to make possible to copy into previously transposed matrices
 			dest.m_cols = m_cols;
 			//dest.m_bEmulateBiases = m_bEmulateBiases;
 			dest.m_bBatchInRow = bBatchInRow();
@@ -644,7 +647,7 @@ namespace math {
 		}
 
 		// DOES NOT SUPPORT non-default m_bBatchInRow when emulatesBiases()
-		void copy_biases_from(const value_type* ptr, const vec_len_t countNonZeros = 0)noexcept {
+		void copy_biases_from(cvalue_ptr_t ptr, const vec_len_t countNonZeros = 0)noexcept {
 			NNTL_ASSERT(m_bEmulateBiases && !empty() && rows() >= countNonZeros);
 			NNTL_ASSERT(!emulatesBiases() || bBatchInColumn());
 			NNTL_ASSERT(_isBinaryVec(ptr, rows()));
@@ -714,7 +717,7 @@ namespace math {
 			NNTL_ASSERT(!empty() && m_rows && m_cols);
 
 			return bBatchInRow() 
-				? _isBinaryVecWLd(m_pData + (rows() - 1), cols(), static_cast<ptrdiff_t>(ldim()))
+				? _isBinaryVecWLd(m_pData + (rows() - 1), cols(), ldim())
 				: _isBinaryVec(bias_column(), rows());
 		}
 
@@ -1037,28 +1040,38 @@ namespace math {
 			return resize(m.rows_no_bias(), m.cols_no_bias());
 		}
 		bool resize(const mtx_size_t sz)noexcept { return resize(sz.first, sz.second); }
-		bool resize(vec_len_t r, vec_len_t c) noexcept {
-			NNTL_ASSERT(!m_bDontManageStorage);
+		bool resize(const vec_len_t r, const vec_len_t c) noexcept {
 			NNTL_ASSERT(r > 0 && c > 0);
 			if (r <= 0 || c <= 0) {
 				NNTL_ASSERT(!"Wrong row or col count!");
 				return false;
 			}
-
-			c += (m_bEmulateBiases & bSampleInRow());
-			r += (m_bEmulateBiases & bSampleInColumn());
-
-			if (r == m_rows && c == m_cols) return true;
-
-			m_rows = r;
-			m_cols = c;
-
-			_realloc();
-
-			m_bHoleyBiases = false;
-			const bool bRet = nullptr != m_pData;
+			const bool bRet = _impl_resize(r + (m_bEmulateBiases & bSampleInColumn()), c + (m_bEmulateBiases & bSampleInRow()));
 			if (bRet & m_bEmulateBiases) set_biases();			
 			return bRet;
+		}
+	protected:
+		bool _impl_resize(const vec_len_t r, const vec_len_t c)noexcept {
+			NNTL_ASSERT(!m_bDontManageStorage);
+			if (r <= 0 || c <= 0) {
+				NNTL_ASSERT(!"Wrong row or col count!");
+				return false;
+			}
+			if (r == m_rows && c == m_cols) return true;
+			m_rows = r;
+			m_cols = c;
+			_realloc();
+			m_bHoleyBiases = false;
+			return nullptr != m_pData;
+		}
+
+	public:
+		// #supportsBatchInRow
+		//special variation of resize that prevents triggering bias-related code entirely. This code requires value_t
+		// to be implicitly convertible to scalar
+		bool resize(const mtx_size_t sz, const tag_noBias&)noexcept {
+			m_bEmulateBiases = false;
+			return _impl_resize(sz.first, sz.second);
 		}
 
 		// #supportsBatchInRow
@@ -1113,7 +1126,7 @@ namespace math {
 		// fills matrix with data from pSrc doing type conversion. Bias units left untouched.
 		// DOES NOT SUPPORT non-default m_bBatchInRow when emulatesBiases()
 		template<typename OtherBaseT>
-		::std::enable_if_t<!::std::is_same<value_type, OtherBaseT>::value> fill_from_array_no_bias(const OtherBaseT*const pSrc)noexcept {
+		::std::enable_if_t<!::std::is_same<value_type, OtherBaseT>::value> fill_from_array_no_bias(const OtherBaseT*__restrict const pSrc)noexcept {
 			static_assert(::std::is_arithmetic<OtherBaseT>::value, "OtherBaseT must be a simple arithmetic data type");
 			NNTL_ASSERT(!empty() && numel() > 0);
 			NNTL_ASSERT(!emulatesBiases() || bBatchInColumn());
@@ -1122,7 +1135,7 @@ namespace math {
 			for (numel_cnt_t i = 0; i < ne; ++i) p[i] = static_cast<value_type>(pSrc[i]);
 		}
 		template<typename OtherBaseT>
-		::std::enable_if_t<::std::is_same<value_type, OtherBaseT>::value> fill_from_array_no_bias(const OtherBaseT*const pSrc)noexcept {
+		::std::enable_if_t<::std::is_same<value_type, OtherBaseT>::value> fill_from_array_no_bias(const OtherBaseT*__restrict const pSrc)noexcept {
 			NNTL_ASSERT(!empty() && numel() > 0);
 			NNTL_ASSERT(!emulatesBiases() || bBatchInColumn());
 			memcpy(m_pData, pSrc, byte_size_no_bias());

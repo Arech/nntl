@@ -145,10 +145,12 @@ namespace nntl {
 		//		Also that implies that it is the _i_train_data<> derived class who should decide how many batches of given
 		//		size there should be for a given training epoch number
 
-		//Also note that if an object is already initialized on init*() entry - an error should be returned and no
-		//automatic deinitialization be done. It's better be done explicitly, or the user may not know what's they doing.
+		// if an object is already initialized on init*() entry it must be reinitialized with new arguments
 
 		//takes desired batch sizes, updates them if necessary to any suitable value and initializes internal state for training
+		// Note that if on exit bMiniBatch is true, then the TD may allow to work using ONLY the returned batch sizes.
+		// If on exit bMiniBatch is false, the TD is guaranteed to support any batch sizes less than or equal to returned values.
+		// If in doubt - check with is_initialized4train()/is_initialized4inference()
 		template<typename iMathT>
 		nntl_interface nnet_errors_t init4train(iMathT& iM, IN OUT vec_len_t& maxFPropSize, IN OUT vec_len_t& maxBatchSize, OUT bool& bMiniBatch)noexcept;
 		//init4inference() does a subset of initialization required to perform inference on the given _i_train_data object
@@ -162,12 +164,16 @@ namespace nntl {
 		template<typename iMathT>
 		static void preinit_iMath(iMathT& /*iM*/)noexcept {};
 		
-		nntl_interface bool is_initialized4train()const noexcept;
-		nntl_interface bool is_initialized4inference()const noexcept;
+		//to support default values such as 0 (meaning take the batch size the td is initialized to), arguments are passed by reference.
+		// If true is returned, the args may be adjusted to
+		// unwrap the defaults. If the functions are to return false, args must be left untouched.
+		nntl_interface bool is_initialized4train(vec_len_t& fpropBs, vec_len_t& trainBs, bool& bMiniBatch)const noexcept;
+		nntl_interface bool is_initialized4inference(vec_len_t& bs)const noexcept;
 		
 		//returns the values that had corresponding vars on init*() exit. If uninitialized, returns 0
-		nntl_interface vec_len_t get_maxFPropSize()const noexcept;
-		nntl_interface vec_len_t get_maxTrainBatchSize()const noexcept;
+		//nntl_interface vec_len_t get_maxFPropSize()const noexcept;
+		//nntl_interface vec_len_t get_maxTrainBatchSize()const noexcept;
+		// obsolete, use is_initialized4*()
 
 		//usually the object is initialized with either a trivial (0) batch size (usually it means full-batch learning), or
 		//with some batchSize>0 that is left unmodified on init*() exit. However, if init*() is to modify batchSize passed 
@@ -257,5 +263,18 @@ namespace nntl {
 
 	//////////////////////////////////////////////////////////////////////////
 
+	//helper to check if class has get_Functor() function returning const TransFunctor_t&
+	namespace _impl {
+		template<typename T>
+		using _has_get_Functor = ::std::is_same<decltype(::std::declval<T>().get_Functor())
+			, ::std::conditional_t<::std::is_const<T>::value, const typename T::TransFunctor_t, typename T::TransFunctor_t>& >;
+	}
+
+	template<class, class = void>
+	struct has_get_Functor : ::std::false_type {};
+
+	template<class T>
+	struct has_get_Functor<T, ::std::void_t<decltype(::std::declval<T>().get_Functor())
+		, typename T::TransFunctor_t>> : _impl::_has_get_Functor<T>{};
 }
 

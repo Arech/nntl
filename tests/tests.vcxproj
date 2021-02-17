@@ -345,6 +345,7 @@
     <ClInclude Include="..\nntl\activations\elu.h" />
     <ClInclude Include="..\nntl\activations\identity.h" />
     <ClInclude Include="..\nntl\activations\loglogu.h" />
+    <ClInclude Include="..\nntl\activations\logu.h" />
     <ClInclude Include="..\nntl\activations\relu_family.h" />
     <ClInclude Include="..\nntl\activations\selu.h" />
     <ClInclude Include="..\nntl\activations\sigm.h" />
@@ -365,12 +366,14 @@
     <ClInclude Include="..\nntl\grad_works\ILR.h" />
     <ClInclude Include="..\nntl\grad_works\ILR_Props.h" />
     <ClInclude Include="..\nntl\grad_works\loss_addendums.h" />
+    <ClInclude Include="..\nntl\interface\imemmgr\imemmgr.h" />
     <ClInclude Include="..\nntl\interface\inspectors\dummy.h" />
     <ClInclude Include="..\nntl\interface\inspectors\dumper.h" />
     <ClInclude Include="..\nntl\interface\inspectors\gradcheck.h" />
     <ClInclude Include="..\nntl\interface\inspectors\stdcout.h" />
     <ClInclude Include="..\nntl\interface\math\mathn_mt.h" />
     <ClInclude Include="..\nntl\interface\math\mathn_thr.h" />
+    <ClInclude Include="..\nntl\interface\math\_mcwFindKOrdered_hlpr.h" />
     <ClInclude Include="..\nntl\interface\math\smath.h" />
     <ClInclude Include="..\nntl\interface\math\smath_thr.h" />
     <ClInclude Include="..\nntl\interface\math\_base.h" />
@@ -385,6 +388,7 @@
     <ClInclude Include="..\nntl\interface\threads\workers.h" />
     <ClInclude Include="..\nntl\interface\threads\_sync_primitives.h" />
     <ClInclude Include="..\nntl\interface\_i_bgworkers.h" />
+    <ClInclude Include="..\nntl\interface\_i_imemmgr.h" />
     <ClInclude Include="..\nntl\interface\_i_inspector.h" />
     <ClInclude Include="..\nntl\interface\_i_rng.h" />
     <ClInclude Include="..\nntl\layer\extender.h" />
