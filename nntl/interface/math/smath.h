@@ -139,6 +139,7 @@ namespace math {
 		}
 
 		iThreads_t& ithreads()noexcept { return m_threads; }
+		const iThreads_t& ithreads()const noexcept { return m_threads; }
 
 		//not functional now, don't use yet
 		iMemmgr_t& get_iMemmgr()noexcept { return m_imemmgr; }
@@ -160,7 +161,7 @@ namespace math {
 		}
 		template<typename T>
 		static vec_len_t _istor_round_count_to_cache_line_size(const vec_len_t n)noexcept {
-			return static_cast<vec_len_t>(_istor_round_count_to_cache_line_size(static_cast<numel_cnt_t>(n)));
+			return static_cast<vec_len_t>(_istor_round_count_to_cache_line_size<T>(static_cast<numel_cnt_t>(n)));
 		}
 		
 		// use with care, it's kind of "internal memory" of the class object. Don't know, if really 
@@ -2437,6 +2438,25 @@ namespace math {
 			//NNTL_ASSERT(!dest.emulatesBiases() || dest.test_biases_strict());
 		}
 
+		//////////////////////////////////////////////////////////////////////////
+		//////////////////////////////////////////////////////////////////////////
+		//fills array pDest of size src.cols() with sum of values of corresponding src columns
+		// pDest must address at least src.cols() elements
+		// Biases if any are ignored
+		template<bool bNumStab, typename T>
+		void mcwSum(const smatrix<T>& src, T*__restrict const pDest)noexcept {
+			get_self().ithreads().run([&src, pDest](const auto& pr)noexcept {
+				const T*__restrict pS = src.colDataAsVec(static_cast<vec_len_t>(pr.offset()));
+				T*__restrict pD = pDest + pr.offset();
+				const auto pSE = src.colDataAsVec(static_cast<vec_len_t>(pr.end()));
+				const ptrdiff_t ldS = src.ldim(), r = src.rows_no_bias();
+
+				while (pS != pSE) {
+					*pD++ = _vec_sum<bNumStab>(pS, r);
+					pS += ldS;
+				}
+			}, src.cols_no_bias());
+		}
 	};
 
 

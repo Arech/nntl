@@ -294,7 +294,7 @@ namespace nntl {
 			//takes desired batch sizes, updates them if necessary to any suitable value and initializes internal state for training
 			// Note that batch sizes passed to _transf_train_data<> MUST be a multiple of TFunctT::samplesInBaseSample()
 			template<typename iMathT>
-			nnet_errors_t init4train(iMathT& iM, IN OUT vec_len_t& maxFPropSize, IN OUT vec_len_t& maxBatchSize, OUT bool& bMiniBatch) noexcept {
+			nnet_errors_t init4train(iMathT& iM, IN OUT vec_len_t& maxFPropSize, IN OUT vec_len_t& maxBatchSize, OUT bool*const pbMiniBatch) noexcept {
 				const auto ec = _base_init_checks(maxFPropSize, maxBatchSize);
 				if (nnet_errors_t::Success != ec) return ec;
 
@@ -319,7 +319,7 @@ namespace nntl {
 				if (base_maxBatchSize > base_maxFPropSize) return nnet_errors_t::InvalidBatchSize2MaxFPropSizeRelation;
 
 				//m_bMiniBatchTraining = 
-				bMiniBatch = (base_maxBatchSize < base_trainCnt);
+				if(pbMiniBatch) *pbMiniBatch = (base_maxBatchSize < base_trainCnt);
 
 				const numel_cnt_t realmaxFPropSize = base_maxFPropSize*static_cast<numel_cnt_t>(sibs);
 				const numel_cnt_t realmaxBatchSize = base_maxBatchSize*static_cast<numel_cnt_t>(sibs);

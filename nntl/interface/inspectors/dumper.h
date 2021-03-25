@@ -206,7 +206,9 @@ namespace nntl {
 
 			::std::string m_DirToDump;
 
-			bool m_bDoDump;//it's 'protected' for some rare special unforeseen cases. Use the bDoDump() or the CondDumpT
+			bool m_bInspectorIsActive{ true };//on by default for compatibility with an old code
+			bool m_bDoDump;//it's 'protected' for some rare special unforeseen cases.
+			// Never check it directly to decide whether to perform dump operation, use the bDoDump()
 
 			static constexpr size_t maxFileNameLength = MAX_PATH;
 			static constexpr size_t maxDirNameLength = maxFileNameLength - 10;
@@ -244,6 +246,7 @@ namespace nntl {
 				m_epochIdx = idx_before_start;
 				m_batchIdx = idx_before_start;
 				m_layersCount = 0;
+				m_bInspectorIsActive = true;
 				m_bDoDump = false;
 			}
 
@@ -355,9 +358,21 @@ namespace nntl {
 #pragma warning(default:4100)
 
 		public:
-			const bool bDoDump()const noexcept { return m_bDoDump; }
-			const bool bDoDump(const layer_index_t& lidx)const noexcept { 
-				return m_bDoDump && _bwlist_layerAllowed(lidx);
+			bool isInspectorActive()const noexcept { return m_bInspectorIsActive; }
+			bool turn_on(const bool bOn = true)noexcept {
+				auto oldV = m_bInspectorIsActive;
+				m_bInspectorIsActive = bOn;
+				return oldV;
+			}
+			bool turn_off()noexcept { 
+				auto oldV = m_bInspectorIsActive;
+				m_bInspectorIsActive = false;
+				return oldV;
+			}
+
+			bool bDoDump()const noexcept { return m_bInspectorIsActive & m_bDoDump; }
+			bool bDoDump(const layer_index_t& lidx)const noexcept { 
+				return (m_bInspectorIsActive & m_bDoDump) && _bwlist_layerAllowed(lidx);
 			}
 
 			self_ref_t set_dir_to_dump(const char* pDirName)noexcept {
@@ -418,7 +433,7 @@ namespace nntl {
 			}
 			void train_batchBegin(const numel_cnt_t batchIdx) noexcept {
 				m_bDoDump = m_condDump.on_train_batchBegin(batchIdx, m_epochIdx);
-				if (m_bDoDump) {
+				if (bDoDump()) {
 					m_batchIdx = batchIdx;
 					STDCOUTL("Going to dump the training dataflow...");
 					get_self()._open_archive(_ToDump::FProp, invalid_set_id)
@@ -428,7 +443,7 @@ namespace nntl {
 
 			template<typename YT>
 			void train_preBprop(const math::smatrix<YT>& data_y) noexcept {
-				if (m_bDoDump) {
+				if (bDoDump()) {
 					if (bSplitFiles) get_self()._close_archive()
 						._open_archive(_ToDump::BProp, invalid_set_id);
 
@@ -437,7 +452,7 @@ namespace nntl {
 			}
 
 			void train_batchEnd() noexcept {
-				if (m_bDoDump) {
+				if (bDoDump()) {
 					get_self().on_train_batchEnd();
 					get_self()._close_archive();
 					m_bDoDump = false;
@@ -446,19 +461,30 @@ namespace nntl {
 
 			void train_preCalcError(const data_set_id_t dataSetId) noexcept {
 				m_bDoDump = m_condDump.on_calcErr(m_epochIdx, dataSetId);
-				if (m_bDoDump) {
+				if (bDoDump()) {
 					STDCOUTL("Going to dump the calc error dataflow...");
 					get_self()._open_archive(_ToDump::CalcErrOnSet, dataSetId);
 					get_self().on_train_preCalcError(dataSetId);
 				}
 			};
 			void train_postCalcError()noexcept {
-				if (m_bDoDump) {
+				if (bDoDump()) {
 					get_self().on_train_postCalcError();
 					get_self()._close_archive();
 					m_bDoDump = false;
 				}
 			};
+
+			template<typename VarT>
+			void inspect(const VarT& obj, const char*const oName, const char*const checkErrString)noexcept {
+				NNTL_ASSERT(oName && checkErrString);
+				if (bDoDump(m_curLayer)) {
+					_verbalize("inspect", oName);
+					auto& ar = getArchive();
+					ar & serialization::make_nvp(oName, obj);
+					_check_err(ar.get_last_error(), checkErrString);
+				}
+			}
 
 			//////////////////////////////////////////////////////////////////////////
 			// dumping functions implies that m_bDoDump is changed only during train_*() calls

@@ -75,15 +75,15 @@ namespace inspector {
 		//////////////////////////////////////////////////////////////////////////
 		//
 		template<typename VarT> ::std::enable_if_t<!math::is_smatrix<VarT>::value>
-		inspect(const VarT& v, const char*const pVarName = nullptr, const layer_index_t lIdx = _NoLayerIdxSpecified)const noexcept
+		inspect(const VarT& v, const char*const pVarName = nullptr, const char*const /*pCheckErrString*/ = nullptr)const noexcept
 		{
-			STDCOUT(_layer_name(lIdx));
+			//STDCOUT(_layer_name(lIdx));
 			STDCOUTL("@" << m_epochIdx << "#" << m_batchIdx << " var \'" << (pVarName ? pVarName : "unk") << "\' = " << v);
 		}
 		template<typename VarT> ::std::enable_if_t<math::is_smatrix<VarT>::value>
-		inspect(const VarT& v, const char*const pVarName = nullptr, const layer_index_t lIdx = _NoLayerIdxSpecified)const noexcept
+		inspect(const VarT& v, const char*const pVarName = nullptr, const char*const /*pCheckErrString*/ = nullptr)const noexcept
 		{
-			STDCOUT(_layer_name(lIdx));
+			//STDCOUT(_layer_name(lIdx));
 			STDCOUTL("@" << m_epochIdx << "#" << m_batchIdx << " mtx \'" << (pVarName ? pVarName : "unk") << "\' size = [" << v.rows() << "," << v.cols() << "]");
 		}
 

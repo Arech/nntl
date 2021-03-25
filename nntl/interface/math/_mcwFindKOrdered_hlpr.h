@@ -327,7 +327,7 @@ namespace math {
 						for (vec_len_t hr = 0; hr < k; ++hr) {
 							//cache are written in ascending order, i.e. biggest - last
 							//NNTL_ASSERT(hr + 1 >= k || pVals[hr] < pVals[hr + 1]);
-							NNTL_ASSERT(hr + 1 >= k || OrderFunctor_t::first_better(pVals[hr + 1], pVals[hr + 1]));
+							NNTL_ASSERT(hr + 1 >= k || OrderFunctor_t::first_better(pVals[hr + 1], pVals[hr]));
 							const auto nV = pVals[hr];
 							const auto nI = pIdxs[hr];
 							// new value at hr index could only be equal to or bigger than stored in m_allData.

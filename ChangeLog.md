@@ -1,12 +1,17 @@
 # Changelog
 I should probably have started doing it long ago, but better late than never. So here it is (for older entries see commit history)
 
+## 2021 Mar 25
+
+Forgotten maintainance related commit. Updates to inspectors and train_data interfaces, reworked `nnet::init4fixedBatchFprop()` and it's callers.
+
+
 ## 2021 Feb 17
 
 - fixed both `_i_train_data` implementations to obey `batchIndex` parameter of `on_next_batch()/next_subset()`.
 - placeholder `imemmgr` for proper intermediate memory manager is introduced. To be done later.
 - logarithmic activation is implemented: `A = {log(A+1)|A>0, 0|A<=0}`
-- bug fixes and minor updates
+- bug fixes and minor upgrades
 
 ## 2021 Feb 07
 

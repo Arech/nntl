@@ -1073,6 +1073,10 @@ namespace math {
 			m_bEmulateBiases = false;
 			return _impl_resize(sz.first, sz.second);
 		}
+		bool resize(const vec_len_t r, const vec_len_t c, const tag_noBias&)noexcept {
+			m_bEmulateBiases = false;
+			return _impl_resize(r, c);
+		}
 
 		// #supportsBatchInRow
 		bool resize_as_dataset(vec_len_t batchSiz, vec_len_t sampleWidt) noexcept {

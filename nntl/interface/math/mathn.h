@@ -286,7 +286,7 @@ namespace math {
 		static void _iewBinarize_ip_st(T* pA, const T frac, const T lBnd, const T uBnd, const elms_range& er)noexcept {
 			const auto pAE = pA + er.elmEnd;
 			pA += er.elmBegin;
-			while (pA != pAE) {//vectorizes
+			while (pA != pAE) {//#vectorized
 				*pA++ = *pA > frac ? uBnd : lBnd;
 			}
 			/*for (auto i = er.elmBegin; i < er.elmEnd; ++i) {//doesn't vectorize
@@ -341,9 +341,9 @@ namespace math {
 			pA += er.elmBegin;
 			pD += er.elmBegin;
 			//const auto r1 = BaseDestT(1.0), r0 = BaseDestT(0.0);
-			while (pA != pAE) {//vectorized!!
+			while (pA != pAE) {//#vectorized
 				const auto a = *pA++;
-				*pD++ = (a > frac)*BaseDestT(1.0);
+				*pD++ = (a > frac); // *BaseDestT(1.0);
 				//*pD++ = a > frac ? BaseDestT(1.0) : BaseDestT(0.0);
 				//*pD++ = a > frac ? r1 : r0;
 			}
@@ -834,7 +834,7 @@ namespace math {
 				pCol += mRows;
 				const auto pElmE = pCol;
 				auto pN = pNormsVec;
-				while (pElm != pElmE) {
+				while (pElm != pElmE) {//#vectorized
 					const auto v = *pElm++;
 					*pN++ += v*v;
 				}
@@ -1220,7 +1220,7 @@ namespace math {
 			auto pDM = dropoutMask.data() + er.elmBegin;
 			auto pA = act.data() + er.elmBegin;
 			const auto pDME = pDM + er.totalElements();
-			while (pDM != pDME) { //vectorized!
+			while (pDM != pDME) {//#vectorized
 				const auto v = *pDM;
 				NNTL_ASSERT(v >= real_t(0.0) && v <= real_t(1.0));
 				const real_t dv = v < dropPercAct ? dropPercActInv : real_t(0.);
@@ -1260,11 +1260,11 @@ namespace math {
 			auto pDM = dropoutMask.data() + er.elmBegin;
 			auto pA = mtx.data() + er.elmBegin;
 			const auto pDME = pDM + er.totalElements();
-			while (pDM != pDME) { //#DIDNT_VECTORIZE
+			while (pDM != pDME) {//#vectorized
 				const auto v = *pDM++;
 				NNTL_ASSERT(v >= real_t(0.0) && v <= real_t(1.0));
-				//const real_t dv = v < dropPercAct ? real_t(1.) : real_t(0.);
-				*pA++ *= v < dropPercAct ? real_t(1.) : real_t(0.);
+				//*pA++ *= v < dropPercAct ? real_t(1.) : real_t(0.);
+				*pA++ *= (v < dropPercAct);
 			}
 		}
 		void apply_dropout_mask_mt(realmtx_t& mtx, const real_t dropPercAct, const realmtx_t& dropoutMask)noexcept {
@@ -1537,7 +1537,7 @@ namespace math {
 			const auto dataCnt = vW.numel();
 			const auto pV = vW.data();
 			const auto pdW = dW.data();
-			for (numel_cnt_t i = 0; i < dataCnt; ++i) {
+			for (numel_cnt_t i = 0; i < dataCnt; ++i) {//#vectorized
 				pV[i] = momentum*pV[i] + pdW[i];
 			}
 		}
@@ -1550,7 +1550,7 @@ namespace math {
 			m_threads.run([pV, pdW, momentum](const par_range_t& r) noexcept{
 				const auto ofs = r.offset();
 				const auto im = ofs + r.cnt();
-				for (numel_cnt_t i = ofs; i < im; ++i) {
+				for (numel_cnt_t i = ofs; i < im; ++i) {//#vectorized
 					pV[i] = momentum*pV[i] + pdW[i];
 				}
 			}, vW.numel());
@@ -1780,7 +1780,7 @@ namespace math {
 			const auto pE = ptrA + er.elmEnd;
 			ptrA += er.elmBegin;
 			ptrB += er.elmBegin;
-			while (ptrA != pE) {
+			while (ptrA != pE) {//#vectorized
 				*ptrA++ *= *ptrB++;
 			}
 		}
@@ -1888,19 +1888,19 @@ namespace math {
 		}*/
 
 		//////////////////////////////////////////////////////////////////////////
-		//inplace elementwise addition *pA = *pA + *pB
+		//inplace elementwise addition *pA += *pB
 		void vAdd_ip(real_t*const pA, const real_t*const pB, const numel_cnt_t dataCnt)noexcept {
 			NNTL_ASSERT(pA && pB && dataCnt);
 			if (dataCnt < Thresholds_t::evAdd_ip) {
 				get_self().vAdd_ip_st(pA, pB, dataCnt);
 			} else get_self().vAdd_ip_mt(pA, pB, dataCnt);
 		}
-		static void _ivAdd_ip_st(real_t* pA, const real_t* pB, const elms_range& er)noexcept {
+		static void _ivAdd_ip_st(real_t*__restrict pA, const real_t*__restrict pB, const elms_range& er)noexcept {
 			NNTL_ASSERT(pA && pB);
 			const auto pAE = pA + er.elmEnd;
 			pA += er.elmBegin;
 			pB += er.elmBegin;
-			while (pA != pAE) {
+			while (pA != pAE) {//#vectorized
 				*pA++ += *pB++;
 			}
 			//for (numel_cnt_t i = er.elmBegin; i < er.elmEnd; ++i) pA[i] += pB[i];
@@ -1967,7 +1967,7 @@ namespace math {
 			const auto pAE = pA + er.elmEnd;
 			pA += er.elmBegin;
 			pB += er.elmBegin;
-			while (pA != pAE) {//vectorizes
+			while (pA != pAE) {//#vectorized
 				*pA++ += c*(*pB++);
 			}
 			//for (numel_cnt_t i = er.elmBegin; i < er.elmEnd; ++i) pA[i] += c*pB[i]; //doesn't vectorize, code 500/1200
@@ -2170,7 +2170,7 @@ namespace math {
 			const auto pAE = pA + er.elmEnd;
 			pA += er.elmBegin;
 			pB += er.elmBegin;
-			while (pA != pAE) {//vectorizeable
+			while (pA != pAE) {//#vectorized
 				*pA++ -= *pB++;
 			}
 		}
@@ -2219,7 +2219,7 @@ namespace math {
 			auto pV = vW.data();
 			const auto pVE = pV + vW.numel();
 			auto pW = W.data();
-			while (pV != pVE) {
+			while (pV != pVE) {//#vectorized
 				const auto v = *pV * momentum;
 				*pV++ = v;
 				*pW++ -= v;
@@ -2235,7 +2235,7 @@ namespace math {
 				auto pV = pVf + ofs;
 				const auto pVE = pV + r.cnt();
 				auto pW = pWf + ofs;
-				while (pV != pVE) {
+				while (pV != pVE) {//#vectorized
 					const auto v = *pV * momentum;
 					*pV++ = v;
 					*pW++ -= v;
@@ -2256,7 +2256,7 @@ namespace math {
 			const auto pS = src.data();
 			auto pD = dest.data();
 			const auto dataCnt = src.numel();
-			for (numel_cnt_t i = 0; i < dataCnt; ++i) {
+			for (numel_cnt_t i = 0; i < dataCnt; ++i) {//#vectorized
 				const auto s = pS[i];
 				pD[i] = s*s;
 			}
@@ -2269,7 +2269,7 @@ namespace math {
 			m_threads.run([pS, pD](const par_range_t& r) noexcept{
 				const auto ofs = r.offset();
 				const auto im = ofs + r.cnt();
-				for (numel_cnt_t i = ofs; i < im; ++i) {
+				for (numel_cnt_t i = ofs; i < im; ++i) {//#vectorized
 					const auto s = pS[i];
 					pD[i] = s*s;
 				}
@@ -2331,7 +2331,7 @@ namespace math {
 			const auto pS = src.data();
 			auto pD = dest.data();
 			const auto dataCnt = src.numel();
-			for (numel_cnt_t i = 0; i < dataCnt; ++i)  pD[i] = ::std::abs(pS[i]);
+			for (numel_cnt_t i = 0; i < dataCnt; ++i)  pD[i] = ::std::abs(pS[i]);//#vectorized
 		}
 		void evAbs_mt(realmtx_t& dest, const realmtx_t& src)noexcept {
 			NNTL_ASSERT(dest.size() == src.size());
@@ -2341,7 +2341,7 @@ namespace math {
 			m_threads.run([pS, pD](const par_range_t& r) noexcept{
 				const auto ofs = r.offset();
 				const auto im = ofs + r.cnt();
-				for (numel_cnt_t i = ofs; i < im; ++i)  pD[i] = ::std::abs(pS[i]);
+				for (numel_cnt_t i = ofs; i < im; ++i)  pD[i] = ::std::abs(pS[i]);//#vectorized
 			}, src.numel());
 		}
 		//////////////////////////////////////////////////////////////////////////
@@ -3873,7 +3873,7 @@ namespace math {
 			const real_t lbposi = real_t(ext_real_t(1.) / ::std::log(ext_real_t(b_pos)));
 			real_t*__restrict pV = srcdest.data() + er.elmBegin;
 			const auto pVE = pV + er.totalElements();
-			while (pV != pVE) {
+			while (pV != pVE) {//#vectorized
 				const auto v = *pV;
 				*pV++ = (v <= real_t(0.0) ? real_t(0.) : lbposi*math::log1p(v));
 			}
@@ -4609,7 +4609,7 @@ namespace math {
 			const auto pdW = dW.data(), prmsF = rmsF.data();
 			const auto _1_emaDecay = 1 - emaDecay;
 			const auto dataCnt = dW.numel();
-			for (numel_cnt_t i = 0; i < dataCnt; ++i) {
+			for (numel_cnt_t i = 0; i < dataCnt; ++i) {//strange, sometimes it is #vectorized sometime #DIDNT_VECTORIZE
 				const auto pW = pdW + i, pF = prmsF + i;
 				const auto w = *pW;
 				const auto rms = emaDecay*(*pF) + w*w*_1_emaDecay;
@@ -4631,7 +4631,7 @@ namespace math {
 				const auto _1_emaDecay = 1 - emaDecay;
 				const auto ofs = r.offset();
 				const auto im = ofs + r.cnt();
-				for (numel_cnt_t i = ofs; i < im; ++i) {
+				for (numel_cnt_t i = ofs; i < im; ++i) {//#DIDNT_VECTORIZE
 					const auto pW = pdW + i, pF = prmsF + i;
 					const auto w = *pW;
 					const auto rms = emaDecay*(*pF) + w*w*_1_emaDecay;
@@ -4662,7 +4662,7 @@ namespace math {
 			const auto prmsG = rmsG.data();
 			const auto _1_emaDecay = 1 - emaDecay;
 			const auto dataCnt = dW.numel();
-			for (numel_cnt_t i = 0; i < dataCnt; ++i) {
+			for (numel_cnt_t i = 0; i < dataCnt; ++i) {//strange, sometimes it is #vectorized sometime #DIDNT_VECTORIZE
 				const auto pW = pdW + i, pF = prmsF + i, pG = prmsG + i;
 				const auto w = *pW;
 				const auto wdec = w*_1_emaDecay;
@@ -4689,7 +4689,7 @@ namespace math {
 				const auto _1_emaDecay = 1 - emaDecay;
 				const auto ofs = r.offset();
 				const auto im = ofs + r.cnt();
-				for (numel_cnt_t i = ofs; i < im; ++i) {
+				for (numel_cnt_t i = ofs; i < im; ++i) {//#DIDNT_VECTORIZE
 					const auto pW = pdW + i, pF = prmsF + i, pG = prmsG + i;
 					const auto w = *pW;
 					const auto wdec = w*_1_emaDecay;
@@ -4714,8 +4714,7 @@ namespace math {
 		static void _iRProp_st(realmtx_t& dW, const real_t learningRate, const elms_range& er)noexcept {
 			auto p = dW.data() + er.elmBegin;
 			const auto pE = p + er.totalElements();
-			//TODO: verify vectorization
-			while (p != pE) {
+			while (p != pE) {//#vectorized
 				*p++ = learningRate*math::sign(*p);
 			}
 		}
@@ -4747,7 +4746,7 @@ namespace math {
 			auto prmsF = rmsF.data();
 			const auto _1_emaDecay = 1 - emaDecay;
 			const auto dataCnt = dW.numel();
-			for (numel_cnt_t i = 0; i < dataCnt; ++i) {
+			for (numel_cnt_t i = 0; i < dataCnt; ++i) {//strange, sometimes it is #vectorized sometime #DIDNT_VECTORIZE
 				const auto pW = pdW + i;
 				const auto pF = prmsF + i;
 				const auto w = *pW;
@@ -4771,7 +4770,7 @@ namespace math {
 				const auto _1_emaDecay = 1 - emaDecay;
 				const auto ofs = r.offset();
 				const auto im = ofs + r.cnt();
-				for (numel_cnt_t i = ofs; i < im; ++i) {
+				for (numel_cnt_t i = ofs; i < im; ++i) {//#DIDNT_VECTORIZE
 					const auto pW = pdW + i;
 					const auto pF = prmsF + i;
 					const auto w = *pW;
@@ -4822,7 +4821,7 @@ namespace math {
 
 			auto pdW = dW.data()+ er.elmBegin, pMt = Mt.data()+ er.elmBegin, pVt = Vt.data()+ er.elmBegin;
 			const auto pDWE = pdW + er.totalElements();
-			while (pdW != pDWE) {
+			while (pdW != pDWE) {//#vectorized
 				const auto g = *pdW;
 				const auto m = (*pMt)*beta1 + g*ombeta1;
 				*pMt++ = m;
@@ -4902,7 +4901,7 @@ namespace math {
 
 			auto pdW = dW.data() + er.elmBegin, pMt = Mt.data() + er.elmBegin, pUt = Ut.data() + er.elmBegin;
 			const auto pDWE = pdW + er.totalElements();
-			while (pdW != pDWE) {
+			while (pdW != pDWE) {//#DIDNT_VECTORIZE
 				const auto g = *pdW;
 				const auto m = (*pMt)*beta1 + g*ombeta1;
 				*pMt++ = m;

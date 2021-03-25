@@ -571,7 +571,8 @@ namespace nntl {
 				lid.layer_doesnt_change_batchsize();
 			}
 			NNTL_ASSERT(lid.outgBS.maxBS == get_self().incoming2outgoing_batch_size(lid.incBS.maxBS));
-			NNTL_ASSERT(lid.outgBS.maxTrainBS == get_self().incoming2outgoing_batch_size(lid.incBS.maxTrainBS));
+			NNTL_ASSERT((0 == lid.incBS.maxTrainBS && 0 == lid.outgBS.maxTrainBS) ||
+				lid.outgBS.maxTrainBS == get_self().incoming2outgoing_batch_size(lid.incBS.maxTrainBS));
 
 			NNTL_DEBUG_DECLARE(m_incBS.set_from(lid.incBS));
 			NNTL_DEBUG_DECLARE(m_outgBS.set_from(lid.outgBS));

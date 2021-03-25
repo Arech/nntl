@@ -222,11 +222,11 @@ TEST(Simple, NotSoPlainFFN_LRDO) {
 	td.transposeX<d_interfaces::iMath_t>();
 
 	//2. define NN layers and their properties
-	int epochs = 30;
+	int epochs = 20;
 	const real_t learningRate(real_t(.001))
 		, LRDropoutAct(real_t(.5))
 		, momntm(real_t(.9))
-		, learningRateDecayCoeff(real_t(.97)), numStab(real_t(1e-8));// _impl::NUM_STAB_EPS<real_t>::value);//real_t(1e-8));
+		, learningRateDecayCoeff(real_t(.89)), numStab(real_t(1e-8));// _impl::NUM_STAB_EPS<real_t>::value);//real_t(1e-8));
 
 																	 // a. input layer
 	layer_input<> inp(td.train_x().sample_size());

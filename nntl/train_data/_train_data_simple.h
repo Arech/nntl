@@ -175,7 +175,7 @@ namespace nntl {
 			//takes desired batch sizes, updates them if necessary to any suitable value and initializes internal state for training
 			//implementation for simplest TD that completely fits into the memory
 			template<typename iMathT>
-			nnet_errors_t init4train(iMathT& iM, IN OUT vec_len_t& maxFPropSize, IN OUT vec_len_t& maxBatchSize, OUT bool& bMiniBatch) noexcept {
+			nnet_errors_t init4train(iMathT& iM, IN OUT vec_len_t& maxFPropSize, IN OUT vec_len_t& maxBatchSize, OUT bool*const pbMiniBatch) noexcept {
 				NNTL_UNREF(iM);
 				NNTL_ASSERT(maxBatchSize >= 0 && maxFPropSize >= 0);
 
@@ -212,7 +212,8 @@ namespace nntl {
 				m_maxFPropSize = maxFPropSize;
 				m_maxTrainBatchSize = maxBatchSize;
 
-				m_bMiniBatchTraining = bMiniBatch = (maxBatchSize < trainCnt);
+				m_bMiniBatchTraining = (maxBatchSize < trainCnt);
+				if (pbMiniBatch) *pbMiniBatch = m_bMiniBatchTraining;
 
 				if (m_bMiniBatchTraining) {
 					try {

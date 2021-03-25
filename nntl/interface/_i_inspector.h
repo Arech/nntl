@@ -81,8 +81,15 @@ namespace inspector {
 	public:
 		//////////////////////////////////////////////////////////////////////////
 		// generic functions
+		
+		// note that inspector must be ON by default
+		nntl_interface bool isInspectorActive()const noexcept;
+		nntl_interface bool turn_on(const bool bOn = true)noexcept;
+		nntl_interface bool turn_off()noexcept;
+		
+		//inspect generic var
 		template<typename VarT>
-		nntl_interface void inspect(const VarT& v, const char*const pVarName = nullptr, const layer_index_t lIdx = _NoLayerIdxSpecified)const noexcept;
+		nntl_interface void inspect(const VarT& v, const char*const pVarName = nullptr, const char*const pCheckErrString = nullptr)const noexcept;
 
 		//////////////////////////////////////////////////////////////////////////
 		// specialized functions naming convention:
@@ -189,9 +196,15 @@ namespace inspector {
 
 			//////////////////////////////////////////////////////////////////////////
 			// generic functions
+			
+			//on by default and base implementation implies it's always on. Derived impl may change the behavior
+			constexpr bool isInspectorActive()const noexcept { return true; }
+			constexpr bool turn_on(const bool /*bOn*/ = true)const noexcept { return true; }
+			constexpr bool turn_off()const noexcept { return true; }
+			
 			template<typename VarT>
-			void inspect(const VarT& v, const char*const pVarName = nullptr, const layer_index_t lIdx = _NoLayerIdxSpecified)const noexcept {
-				NNTL_UNREF(v);				NNTL_UNREF(pVarName);				NNTL_UNREF(lIdx);
+			void inspect(const VarT& v, const char*const pVarName = nullptr, const char*const pCheckErrString = nullptr)const noexcept {
+				NNTL_UNREF(v);				NNTL_UNREF(pVarName);		NNTL_UNREF(pCheckErrString);
 			}
 
 			//////////////////////////////////////////////////////////////////////////

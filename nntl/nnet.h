@@ -352,7 +352,7 @@ namespace nntl {
 			, const numel_cnt_t maxEpoch, const bool bForceReinitTrainData)noexcept
 		{
 			if (bForceReinitTrainData || !td.is_initialized4train(maxFPropSize, maxBatchSize, bMiniBatch)) {
-				const auto ec = td.init4train(get_iMath(), maxFPropSize, maxBatchSize, bMiniBatch);
+				const auto ec = td.init4train(get_iMath(), maxFPropSize, maxBatchSize, &bMiniBatch);
 				if (ErrorCode::Success != ec) return _set_last_error(ec);
 			}
 			NNTL_ASSERT(maxFPropSize > 0 && maxBatchSize > 0 && maxBatchSize <= maxFPropSize);
@@ -536,17 +536,23 @@ namespace nntl {
 			if (!td.isSuitableForOutputOf(m_Layers.output_layer().get_neurons_cnt())) return _set_last_error(ErrorCode::InvalidOutputLayerNeuronsCount);
 
 			//scheduling deinitialization with scope_exit to forget about return statements
-			utils::scope_exit layers_deinit([this, &opts, &td]()noexcept {
+			utils::scope_exit nnet_deinit([this, &opts, &td, bOrigInspectorActive = get_iInspect().isInspectorActive()]()noexcept {
 				if (opts.ImmediatelyDeinit()) {
 					td.deinit4all();
 					deinit();
 				}
+				if (opts.bForceInspectorOnDuringTraining())
+					get_iInspect().turn_on(bOrigInspectorActive);
 			});
+
+			if (opts.bForceInspectorOnDuringTraining())
+				get_iInspect().turn_on(true);
 
 			const numel_cnt_t maxEpoch = opts.maxEpoch();
 			vec_len_t maxFPropSize = opts.maxFpropSize(), maxBatchSize = opts.batchSize();
 			const bool bRepOnlyTime = opts.bReportOnlyTime();
 			bool bMiniBatch = true;//default value
+
 			m_bCalcFullLossValue = opts.calcFullLossValue();
 
 			//////////////////////////////////////////////////////////////////////////
@@ -671,6 +677,7 @@ namespace nntl {
 
 		//note that as there's no train_data given, it's caller responsibility to execute
 		//td.preinit_iMath(get_iMath()); and get_iMath().init() afterwards to allow td object to safe use iMath's internal memory
+		//Better use the init4fixedBatchFprop() with 2 arguments
 		ErrorCode init4fixedBatchFprop(const vec_len_t fpropBatchSize)noexcept {
 			NNTL_ASSERT(fpropBatchSize);
 			const auto ec = _init(fpropBatchSize);
@@ -679,6 +686,22 @@ namespace nntl {
 			return _set_last_error(ec);
 		}
 
+		template<typename TDT>
+		ErrorCode init4fixedBatchFprop(TDT& td, vec_len_t& fpropBatchSize)noexcept {
+			auto& iM = get_iMath();
+			if (!td.is_initialized4inference(fpropBatchSize)) {
+				const auto ec = td.init4inference(iM, fpropBatchSize);
+				if (ErrorCode::Success != ec) return ec;
+			}
+
+			const auto ec = init4fixedBatchFprop(fpropBatchSize);
+			if (ErrorCode::Success != ec) return ec;
+
+			//init4fixedBatchFprop() may have called m_nn.deinit(), so we must give td a second chance to allocate memory
+			//if it didn't - it won't hurt
+			td.preinit_iMath(iM);
+			return _set_last_error(iM.init() ? ErrorCode::Success : ErrorCode::CantInitializeIMath);
+		}
 
 		void prepare_to_doFixedBatchFprop(const vec_len_t bs)noexcept {
 			_set_inference_mode_and_batch_size(bs);
@@ -694,8 +717,9 @@ namespace nntl {
 			m_Layers.fprop(batchX);
 		}
 
-		//note that as there's no train_data given, it's caller responsibility to execute
-		//td.preinit_iMath(get_iMath()); and get_iMath().init() afterwards to allow td object to safe use iMath's internal memory
+		//#TODO refactor it.
+		// note that if the data_x is from TD that requires .preinit_iMath() call with subsequent get_iMath().init() call, then
+		// there will be blood. So better use init4fixedBatchFprop() with 2 arguments and then doFixedBatchFprop
 		ErrorCode fprop(const realmtx_t& data_x)noexcept {
 			const auto ec = _init(data_x.batch_size());
 			if (ErrorCode::Success != ec) return _set_last_error(ec);

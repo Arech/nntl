@@ -152,7 +152,8 @@ namespace nntl {
 		// If on exit bMiniBatch is false, the TD is guaranteed to support any batch sizes less than or equal to returned values.
 		// If in doubt - check with is_initialized4train()/is_initialized4inference()
 		template<typename iMathT>
-		nntl_interface nnet_errors_t init4train(iMathT& iM, IN OUT vec_len_t& maxFPropSize, IN OUT vec_len_t& maxBatchSize, OUT bool& bMiniBatch)noexcept;
+		nntl_interface nnet_errors_t init4train(iMathT& iM, IN OUT vec_len_t& maxFPropSize, IN OUT vec_len_t& maxBatchSize
+			, OUT bool*const pbMiniBatch)noexcept;
 		//init4inference() does a subset of initialization required to perform inference on the given _i_train_data object
 		template<typename iMathT>
 		nntl_interface nnet_errors_t init4inference(iMathT& iM, IN OUT vec_len_t& maxFPropSize)noexcept;
@@ -160,7 +161,7 @@ namespace nntl {
 		nntl_interface void deinit4all()noexcept;
 
 		//if the TD requires some temporarily memory during batch calculation and takes it from iMath::_istor*
-		// , call iM.preinit() inside init*() and also override the next function.
+		// , call iM.preinit() + iM.init() inside init*() and also override the next function with a proper call to iM.preinit()
 		template<typename iMathT>
 		static void preinit_iMath(iMathT& /*iM*/)noexcept {};
 		

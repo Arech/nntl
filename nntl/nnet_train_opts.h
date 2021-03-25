@@ -133,6 +133,8 @@ namespace nntl {
 		//(there was a reinitialization every time in old code)
 		bool m_bForceReinitTD;
 
+		bool m_bForceInspectorOnDuringTraining;//on by default
+
 		void _ctor()noexcept {
 			m_BatchSize = m_maxFpropSize = 0;
 			m_DivergenceCheckLastEpoch = 5;
@@ -140,7 +142,7 @@ namespace nntl {
 			m_bCalcFullLossValue = true;
 			m_bImmediatelyDeinit = false;
 			m_bReportOnlyTime = is_observer_silent<training_observer_t>::value;
-			m_bForceReinitTD = true;
+			m_bForceInspectorOnDuringTraining = m_bForceReinitTD = true;
 			//m_pNNEvalFinalRes = nullptr;
 		}
 
@@ -223,6 +225,9 @@ namespace nntl {
 
 		bool bForceReinitTD()const noexcept { return m_bForceReinitTD; }
 		self_t& bForceReinitTD(const bool r)noexcept { m_bForceReinitTD = r; return *this; }
+
+		bool bForceInspectorOnDuringTraining()const noexcept { return m_bForceInspectorOnDuringTraining; }
+		self_t& bForceInspectorOnDuringTraining(const bool r)noexcept { m_bForceInspectorOnDuringTraining = r; return *this; }
 
 		/* deprecated
 		 *const bool evalNNFinalPerf()const noexcept { return !!m_pNNEvalFinalRes; }

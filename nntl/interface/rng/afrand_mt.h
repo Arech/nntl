@@ -243,7 +243,7 @@ namespace nntl {
 			}
 
 			template<typename BaseType>
-			void _igen_vector_gtz_st(BaseType* ptr, const BaseType a, const elms_range& er, const thread_id_t tId)noexcept {
+			void _igen_vector_gtz_st(BaseType*__restrict ptr, const BaseType a, const elms_range& er, const thread_id_t tId)noexcept {
 				NNTL_ASSERT(ptr);
 				const auto pE = ptr + er.elmEnd;
 				ptr += er.elmBegin;
@@ -253,13 +253,12 @@ namespace nntl {
 				const gen_f_norm_t a2 = static_cast<gen_f_norm_t>(a);
 				while (ptr != pE) {
 					//note that when rounding to is_integral<BaseType>, the result has always fractional part discarded, i.e. it's always less than a
-					//#TODO make sure no generated float are equal to a ? if it's necessary though, because this function
+					//#TODO make sure no generated float is equal to a ? if it's necessary though, because this function
 					//  is for is_integral<BaseType> mostly (really?)
 					*ptr++ = static_cast<BaseType>(rg.FPRandom<real_t>()*a2);
 				}
 			}
 
-		public:
 			template<typename BaseType>
 			void gen_vector_gtz_mt(BaseType* ptr, const numel_cnt_t n, const BaseType a)noexcept {
 				NNTL_ASSERT(m_pThreads && ptr);
