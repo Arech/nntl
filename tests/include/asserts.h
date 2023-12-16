@@ -33,8 +33,8 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #pragma once
 
 #include <nntl/math_details.h>
-#include "../nntl/common.h"
-#include "../nntl/interfaces.h"
+#include <nntl/common.h>
+#include <nntl/interfaces.h>
 
 #include <numeric>
 

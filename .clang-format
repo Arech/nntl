@@ -20,7 +20,7 @@ BreakBeforeInheritanceComma: true
 BreakInheritanceList: BeforeComma
 BreakConstructorInitializers: BeforeComma
 BreakStringLiterals: false
-ColumnLimit: 100
+ColumnLimit: 120
 ConstructorInitializerAllOnOneLineOrOnePerLine: false # true condenses a lot, but makes harder to track vars initialization
 DerivePointerAlignment: false
 EmptyLineBeforeAccessModifier: Always

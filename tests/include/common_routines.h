@@ -31,8 +31,8 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 #pragma once
 
-#include "../nntl/nntl.h"
-#include "../nntl/_supp/io/binfile.h"
+#include <nntl/nntl.h>
+#include <nntl/_supp/io/binfile.h>
 
 #define MNIST_FILE_DEBUG "../../nntl/data/mnist200_100.bin"
 #define MNIST_FILE_RELEASE  "../../nntl/data/mnist60000.bin"
