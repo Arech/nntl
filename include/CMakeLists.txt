@@ -102,7 +102,7 @@ target_sources("${PROJECT_NAME}" INTERFACE FILE_SET HEADERS BASE_DIRS nntl FILES
 	nntl/loss_addendum/L1.h
 	nntl/loss_addendum/L2.h
 	nntl/loss_addendum/_i_loss_addendum.h
-	nntl/math.h
+	nntl/math_details.h
 	nntl/nnet.h
 	nntl/nnet_evaluator.h
 	nntl/nnet_train_opts.h

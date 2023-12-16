@@ -33,7 +33,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 // this file implements tests of correctness. Performance tests should be placed at _thr.cpp
 
-#include "../nntl/math.h"
+#include <nntl/math_details.h>
 #include "../nntl/common.h"
 
 #include "../nntl/interface/math/smath.h"

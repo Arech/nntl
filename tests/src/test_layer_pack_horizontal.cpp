@@ -35,7 +35,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //to get rid of '... decorated name length exceeded, name was truncated'
 #pragma warning( disable : 4503 )
 
-#include "../nntl/math.h"
+#include <nntl/math_details.h>
 #include "../nntl/nntl.h"
 #include "../nntl/_supp/io/binfile.h"
 #include "../nntl/_test/test_weights_init.h"

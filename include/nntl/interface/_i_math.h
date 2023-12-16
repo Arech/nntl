@@ -31,8 +31,8 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 #pragma once
 
-#include "../math.h"
-#include "../common.h"
+#include <nntl/math_details.h>
+#include <nntl/common.h>
 
 namespace nntl {
 namespace math {

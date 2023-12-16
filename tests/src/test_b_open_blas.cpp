@@ -31,7 +31,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 #include "stdafx.h"
 
-#include "../nntl/math.h"
+#include <nntl/math_details.h>
 #include "../nntl/interface/math/bindings/b_open_blas.h"
 #include "../nntl/common.h"
 #include "../nntl/_supp/io/jsonreader.h"

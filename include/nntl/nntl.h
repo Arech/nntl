@@ -35,7 +35,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <nntl/compiler.h>
 #include "_defs.h"
 #include "common.h"
-#include "math.h"
+#include <nntl/math_details.h>
 #include "utils.h"
 
 #include "errors.h"
