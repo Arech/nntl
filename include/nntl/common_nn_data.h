@@ -32,7 +32,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #pragma once
 
-#include "interfaces.h"
+#include <nntl/interfaces.h>
 
 namespace nntl {
 namespace _impl {

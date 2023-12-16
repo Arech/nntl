@@ -48,7 +48,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <boost/serialization/version.hpp>
 #include <boost/serialization/serialization.hpp>
 
-#include "options.h"
+#include <nntl/serialization/options.h>
 
 namespace nntl {
 namespace serialization {

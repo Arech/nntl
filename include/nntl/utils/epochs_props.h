@@ -32,7 +32,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #pragma once
 
 #include <vector>
-#include "_defs.h"
+#include <nntl/_defs.h>
 
 //this is to define some flags for each epoch (currently it is whether to launch nn evaluation after an epoch or not)
 namespace nntl {

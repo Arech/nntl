@@ -31,9 +31,9 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 #pragma once
  
-#include "_pack_.h"
-#include "../utils.h"
-#include "_activation_storage.h"
+#include <nntl/layer/_pack_.h>
+#include <nntl/utils.h>
+#include <nntl/layer/_activation_storage.h>
 
 namespace nntl {
 	namespace _impl {

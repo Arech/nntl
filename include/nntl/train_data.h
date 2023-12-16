@@ -31,7 +31,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 #pragma once
 
-#include "train_data/inmem_train_data.h"
+#include <nntl/train_data/inmem_train_data.h>
 
-#include "train_data/seq_data.h"
+#include <nntl/train_data/seq_data.h>
 

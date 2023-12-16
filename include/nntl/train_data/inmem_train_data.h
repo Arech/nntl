@@ -33,8 +33,8 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 //#include "../serialization/serialization.h"
 
-#include "_train_data_simple.h"
-#include "inmem_train_data_stor.h"
+#include <nntl/train_data/_train_data_simple.h>
+#include <nntl/train_data/inmem_train_data_stor.h>
 
 namespace nntl {
 	//inmem_train_data is the simpliest implementation of _i_train_data interface that stores train/test sets directly in

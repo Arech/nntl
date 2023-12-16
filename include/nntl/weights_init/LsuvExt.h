@@ -34,8 +34,8 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include <type_traits>
 
-#include "../utils/layers_settings.h"
-#include "../utils/mtx2Normal.h"
+#include <nntl/utils/layers_settings.h>
+#include <nntl/utils/mtx2Normal.h>
 
 //LSUV algorithm (D.Mishkin, J.Matas, "All You Need is a Good Init", ArXiv:1511.06422) with some extensions.
 // Default settings replicate LSUV as described in the paper (and in the supplemental code in

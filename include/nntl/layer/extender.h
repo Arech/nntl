@@ -39,10 +39,10 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 // 
 // #todo: _i_loss_addendum interface should be extended to allow optimizations (caching) for a fullbatch learning with full error calculation
 
-#include "_penalized_activations_base.h"
-#include "../dropout.h"
+#include <nntl/layer/_penalized_activations_base.h>
+#include <nntl/layer/dropout.h>
 
-#include "_pack_traits.h"
+#include <nntl/layer/_pack_traits.h>
 
 namespace nntl {
 

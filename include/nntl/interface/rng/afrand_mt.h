@@ -35,10 +35,10 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include "../../../_extern/agner.org/AF_randomc_h/random.h"
 
-#include "../_i_rng.h"
-#include "../_i_threads.h"
+#include <nntl/interface/_i_rng.h>
+#include <nntl/interface/_i_threads.h>
 
-#include "AFRAND_MT_THR.h"
+#include <nntl/interface/rng/afrand_mt_thr.h>
 
 namespace nntl {
 	namespace rng {

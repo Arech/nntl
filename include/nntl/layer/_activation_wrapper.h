@@ -34,8 +34,8 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 // This file defines a wrapper around _i_activation-derived class.
 // With inheritance it is possible to define a state-full _i_activation classes as well as zero-cost stateless.
 
-#include "_activation_storage.h"
-#include "../activation.h"
+#include <nntl/layer/_activation_storage.h>
+#include <nntl/activation.h>
 
 namespace nntl {
 	namespace _impl {

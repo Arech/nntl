@@ -34,10 +34,10 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <utility>
 //#include <intrin.h>
 
-#include "../../_defs.h"
-#include "../../common.h"
-#include "_base.h"
-#include "../threads/parallel_range.h"
+#include <nntl/_defs.h>
+#include <nntl/common.h>
+#include <nntl/interface/math/_base.h>
+#include <nntl/interface/threads/parallel_range.h>
 
 //#TODO: Consider replacing generic memcpy/memcmp/memset and others similar generic functions with
 //their versions from Agner Fox's asmlib. TEST if it really helps!!!!

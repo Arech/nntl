@@ -37,12 +37,12 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <algorithm>
 #include <array>
 
-#include "layer/_tuple_utils.h"
+#include <nntl/layer/_tuple_utils.h>
 
-#include "layer/_layer_base.h"
-#include "utils.h"
+#include <nntl/layer/_layer_base.h>
+#include <nntl/utils.h>
 
-#include "_nnet_errs.h"
+#include <nntl/_nnet_errs.h>
 
 namespace nntl {
 

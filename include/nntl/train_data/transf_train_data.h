@@ -34,11 +34,11 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <algorithm>
 #include <functional>
 
-#include "../utils/variant.h"
-#include "../_nnet_errs.h"
-#include "../utils/scope_exit.h"
+#include <nntl/utils/variant.h>
+#include <nntl/_nnet_errs.h>
+#include <nntl/utils/scope_exit.h>
 
-#include "_td_base.h"
+#include <nntl/train_data/_td_base.h>
 
 namespace nntl {
 

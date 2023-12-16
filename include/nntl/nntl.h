@@ -33,26 +33,26 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 //////////////////////////////////////////////////////////////////////////
 #include <nntl/compiler.h>
-#include "_defs.h"
-#include "common.h"
+#include <nntl/_defs.h>
+#include <nntl/common.h>
 #include <nntl/math_details.h>
-#include "utils.h"
+#include <nntl/utils.h>
 
-#include "errors.h"
-#include "train_data.h"
+#include <nntl/errors.h>
+#include <nntl/train_data.h>
 
-#include "weights_init.h"
+#include <nntl/weights_init.h>
 
-#include "activation.h"
-#include "layers.h"
-#include "layer/_layer_base.h"
-#include "layer/input.h"
-#include "layer/output.h"
-#include "layer/fully_connected.h"
-#include "layer/pack_vertical.h"
-#include "layer/pack_horizontal.h"
-#include "layer/identity.h"
-#include "layer/pack_horizontal_optional.h"
-#include "layer/pack_tile.h"
-#include "layer/extensions.h"
-#include "nnet.h"
+#include <nntl/activation.h>
+#include <nntl/layers.h>
+#include <nntl/layer/_layer_base.h>
+#include <nntl/layer/input.h>
+#include <nntl/layer/output.h>
+#include <nntl/layer/fully_connected.h>
+#include <nntl/layer/pack_vertical.h>
+#include <nntl/layer/pack_horizontal.h>
+#include <nntl/layer/identity.h>
+#include <nntl/layer/pack_horizontal_optional.h>
+#include <nntl/layer/pack_tile.h>
+#include <nntl/layer/extensions.h>
+#include <nntl/nnet.h>

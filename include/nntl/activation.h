@@ -31,15 +31,15 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 #pragma once
 
-#include "./activations/elogu.h"
-#include "./activations/elu.h"
-#include "./activations/loglogu.h"
-#include "./activations/logu.h"
-#include "./activations/relu_family.h"
-#include "./activations/selu.h"
-#include "./activations/sigm.h"
-#include "./activations/softmax.h"
-#include "./activations/softsigm.h"
-#include "./activations/softsign.h"
-#include "./activations/step.h"
-#include "./activations/identity.h"
+#include <nntl/activations/elogu.h>
+#include <nntl/activations/elu.h>
+#include <nntl/activations/loglogu.h>
+#include <nntl/activations/logu.h>
+#include <nntl/activations/relu_family.h>
+#include <nntl/activations/selu.h>
+#include <nntl/activations/sigm.h>
+#include <nntl/activations/softmax.h>
+#include <nntl/activations/softsigm.h>
+#include <nntl/activations/softsign.h>
+#include <nntl/activations/step.h>
+#include <nntl/activations/identity.h>

@@ -33,7 +33,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include <random>
 
-#include "..\utils\tictoc.h"
+#include <nntl/utils/tictoc.h>
 
 namespace nntl {
 namespace rng {

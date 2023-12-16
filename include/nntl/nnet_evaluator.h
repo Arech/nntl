@@ -34,7 +34,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //this file defines an interface to classes, that processes ground truth information and nnet prediction about it and
 //produces some kind of goodness-of-fit metric 
 
-#include "_defs.h"
+#include <nntl/_defs.h>
 
 namespace nntl {
 

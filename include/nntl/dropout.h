@@ -34,8 +34,8 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //This file defines wrappers around different dropout implementations
 //Layer classes will be derived from this classes using public inheritance, so code wisely
 
-#include "dropout/dropout.h"
-#include "dropout/alpha_dropout.h"
+#include <nntl/dropout/dropout.h>
+#include <nntl/dropout/alpha_dropout.h>
 
 namespace nntl {
 

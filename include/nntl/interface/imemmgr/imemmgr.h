@@ -31,7 +31,7 @@ OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
-#include "../_i_imemmgr.h"
+#include <nntl/interface/_i_imemmgr.h>
 
 //#todo not implemented yet, just a placeholder now. TBD later
 

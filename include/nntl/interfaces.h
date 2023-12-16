@@ -31,11 +31,11 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 #pragma once
 
-#include "interface/threads/workers.h"
-#include "interface/math/mathn_mt.h"
-#include "interface/rng/afrand_mt.h"
-#include "interface/inspectors/dummy.h"
-#include "interface/imemmgr/imemmgr.h"
+#include <nntl/interface/threads/workers.h>
+#include <nntl/interface/math/mathn_mt.h>
+#include <nntl/interface/rng/afrand_mt.h>
+#include <nntl/interface/inspectors/dummy.h>
+#include <nntl/interface/imemmgr/imemmgr.h>
 
 namespace nntl {
 

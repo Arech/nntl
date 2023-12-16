@@ -123,7 +123,7 @@ target_sources("${PROJECT_NAME}" INTERFACE FILE_SET HEADERS BASE_DIRS nntl FILES
 	nntl/utils/call_wrappers.h
 	nntl/utils/chrono.h
 	nntl/utils/confusion_mtx.h
-	nntl/utils/dataHolder.h
+	nntl/utils/data_holder.h
 	nntl/utils/data_buffer.h
 	nntl/utils/denormal_floats.h
 	nntl/utils/epochs_props.h

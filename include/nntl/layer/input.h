@@ -31,7 +31,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 #pragma once
 
-#include "_layer_base.h"
+#include <nntl/layer/_layer_base.h>
 
 namespace nntl {
 

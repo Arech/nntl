@@ -45,7 +45,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //      / | | | | |  .  | | | | | \
 //
 // 
-#include "_lph_base.h"
+#include <nntl/layer/_lph_base.h>
 
 namespace nntl {
 	

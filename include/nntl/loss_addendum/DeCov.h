@@ -40,7 +40,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 // (similar to “Discovering Hidden Factors of Variation in Deep Networks”, ArXiv:1412.6583)
 // BTW, there's wrong derivative presented in "Reducing Overfitting...". Actual derivative must be 2 times greater, than printed in paper.
 
-#include "_i_loss_addendum.h"
+#include <nntl/loss_addendum/_i_loss_addendum.h>
 
 namespace nntl {
 	namespace loss_addendum {

@@ -34,13 +34,14 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //This file contains implementation of some simplest generic-purpose(!) math algorithms over the data
 // inside smatrix class object
 
-#include "../_i_threads.h"
-#include "../imemmgr/imemmgr.h"
-#include "smatrix.h"
-#include "smath_thr.h"
 #include <algorithm>
 #include <numeric>
-#include "../../utils/denormal_floats.h"
+
+#include <nntl/interface/_i_threads.h>
+#include <nntl/interface/imemmgr/imemmgr.h>
+#include <nntl/interface/math/smatrix.h>
+#include <nntl/interface/math/smath_thr.h>
+#include <nntl/utils/denormal_floats.h>
 
 namespace nntl {
 namespace math {

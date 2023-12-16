@@ -37,7 +37,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #pragma message("prioritize_workers class is implemented only for Windows platform. Implement it for your OS or the dummy/empty class will be used instead.")
 #endif
 
-#include "../_i_threads.h"
+#include <nntl/interface/_i_threads.h>
 
 namespace nntl {
 namespace threads {

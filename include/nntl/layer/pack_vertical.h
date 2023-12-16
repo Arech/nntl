@@ -50,9 +50,9 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 // layer_pack_vertical uses all neurons of the last layer as its activation units and passes all of its input
 // to the input of the first layer.
 // 
-#include "_pack_.h"
-#include "_tuple_utils.h"
-#include "../utils.h"
+#include <nntl/layer/_pack_.h>
+#include <nntl/layer/_tuple_utils.h>
+#include <nntl/utils.h>
 
 namespace nntl {
 

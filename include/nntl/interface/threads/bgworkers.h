@@ -31,7 +31,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 #pragma once
 
-#include "../_i_bgworkers.h"
+#include <nntl/interface/threads/_i_bgworkers.h>
 #include <vector>
 #include <algorithm>
 

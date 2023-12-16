@@ -35,9 +35,10 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //Still don't understand completely how it should look like, but going to change a lot here in a near future.
 
 #include <bitset>
-#include "../common_nn_data.h"
-#include "ILR.h"
-#include "loss_addendums.h"
+
+#include <nntl/common_nn_data.h>
+#include <nntl/grad_works/ILR.h>
+#include <nntl/grad_works/loss_addendums.h>
 
 namespace nntl {
 

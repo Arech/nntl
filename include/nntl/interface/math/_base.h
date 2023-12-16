@@ -34,10 +34,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <nntl/compiler.h>
 
 #include <array>
-
-NNTL_MSVC_STD_NAMESPACE_FIX_BEGIN
 #include <cmath>
-NNTL_MSVC_STD_NAMESPACE_FIX_END
 
 namespace nntl {
 

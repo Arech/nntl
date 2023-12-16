@@ -33,7 +33,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include <limits>
 
-#include "_defs.h"
+#include <nntl/_defs.h>
 
 namespace nntl {
 	

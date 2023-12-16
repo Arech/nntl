@@ -42,9 +42,9 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 // BTW, actually i_inspector API allows one to implement not only the inspection of values, but a full-scale control
 // over the learning process including pausing/inspecting/modifying and so on. But that's a story for a future.
 
-#include "math/smatrix.h"
-#include "../train_data/_i_train_data.h"
-#include "../utils/layer_idx_keeper.h"
+#include <nntl/interface/math/smatrix.h>
+#include <nntl/train_data/_i_train_data.h>
+#include <nntl/utils/layer_idx_keeper.h>
 
 namespace nntl {
 namespace inspector {

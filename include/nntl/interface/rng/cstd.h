@@ -37,7 +37,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 // It defines an interface to a rng generators, provided by STL.
 // Don't use it, it's slower than you can expect and is actually obsolette
 
-#include "../_i_rng.h"
+#include <nntl/interface/_i_rng.h>
 
 namespace nntl {
 namespace rng {

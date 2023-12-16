@@ -31,7 +31,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 #pragma once
 
-#include "../interface/threads/_sync_primitives.h"
+#include <nntl/interface/threads/_sync_primitives.h>
 
 namespace nntl {
 namespace utils {

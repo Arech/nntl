@@ -37,7 +37,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 // It's intended to create a data link between nntl and Matlab, but not to use a mat file as a permanent storage medium.
 // Also it should be able to read train_data from .mat files
 
-#include "../../utils/matlab.h"
+#include <nntl/utils/matlab.h>
 
 #if NNTL_MATLAB_AVAILABLE
 
@@ -50,12 +50,12 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <cstdio>
 
 
-#include "../../serialization/serialization.h"
+#include <nntl/serialization/serialization.h>
 
-#include "../../errors.h"
-#include "../../interface/math/smatrix.h"
+#include <nntl/errors.h>
+#include <nntl/interface/math/smatrix.h>
 
-#include "../../utils/denormal_floats.h"
+#include <nntl/utils/denormal_floats.h>
 // #ATTENTION!
 // MATLAB C API _MAY_ change how denormals are handled by a processor!
 // Therefore for safety better call global_denormalized_floats_mode() after using MATLAB C API

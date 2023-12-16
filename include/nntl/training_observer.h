@@ -34,9 +34,9 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <array>
 #include <vector>
 
-#include "utils/chrono.h"
+#include <nntl/utils/chrono.h>
 
-#include "nnet_evaluator.h"
+#include <nntl/nnet_evaluator.h>
 
 namespace nntl {
 

@@ -31,9 +31,9 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 #pragma once
 
-#include "extender.h"
+#include <nntl/layer/extender.h>
 
-#include "pack_horizontal.h"
+#include <nntl/layer/pack_horizontal.h>
 
 namespace nntl {
 

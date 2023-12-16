@@ -31,7 +31,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 #pragma once
 
-#include "../serialization/serialization.h"
+#include <nntl/serialization/serialization.h>
 
 namespace nntl {
 namespace GW { //GW namespace is for grad_works mixins and other stuff, that helps to implement gradient processing voodooo things

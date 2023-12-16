@@ -31,9 +31,9 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 #pragma once
 
-#include "../serialization/serialization.h"
+#include <nntl/serialization/serialization.h>
 
-#include "_i_train_data.h"
+#include <nntl/train_data/_i_train_data.h>
 
 namespace nntl {
 	//namespace _impl {

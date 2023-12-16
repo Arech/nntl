@@ -101,9 +101,9 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //			ending. So it's a preferred solution, though it'd require more memory.
 //
 
-#include "_activation_storage.h"
-#include "_pack_.h"
-#include "../utils.h"
+#include <nntl/layer/_activation_storage.h>
+#include <nntl/layer/_pack_.h>
+#include <nntl/utils.h>
 
 namespace nntl {
 	

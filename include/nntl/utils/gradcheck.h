@@ -31,7 +31,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 #pragma once
 
-#include "dataHolder.h"
+#include <nntl/utils/data_holder.h>
 
 namespace nntl {
 

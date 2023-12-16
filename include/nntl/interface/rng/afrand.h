@@ -37,7 +37,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //CRandomMersenne from Agner Fog's randomc.zip package
 #include "../../../_extern/agner.org/AF_randomc_h/random.h"
 
-#include "../_i_rng.h"
+#include <nntl/interface/_i_rng.h>
 
 namespace nntl {
 namespace rng {

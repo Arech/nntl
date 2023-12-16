@@ -38,7 +38,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include <type_traits>
 
-#include "_activation_storage.h"
+#include <nntl/layer/_activation_storage.h>
 
 namespace nntl {
 

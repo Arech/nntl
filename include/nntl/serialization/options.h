@@ -32,8 +32,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #pragma once
 
-//#include "serialization.h"
-#include "../utils/options.h"
+#include <nntl/utils/options.h>
 
 namespace nntl {
 namespace serialization {

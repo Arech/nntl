@@ -31,8 +31,8 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 #pragma once
 
-#include "../_defs.h"
-#include "../common.h"
+#include <nntl/_defs.h>
+#include <nntl/common.h>
 
 // loss_addendums are small classes that implements some kind of (surprise!) addendum to a loss function.
 // Typically it's kind of a penalty like the weight-decay.

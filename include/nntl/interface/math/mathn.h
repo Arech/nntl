@@ -31,20 +31,17 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 #pragma once
 
-#include "../_i_math.h"
-#include "bindings/b_open_blas.h"
-//#include "bindings/b_yeppp.h"
+#include <nntl/interface/_i_math.h>
+#include <nntl/interface/bindings/b_open_blas.h>
 
-
-//#include "../../utils/clamp.h"
 #include <boost/algorithm/clamp.hpp>
 
 #include <limits>
-#include "mathn_thr.h"
+#include <nntl/interface/math/mathn_thr.h>
 
-#include "smath.h"
+#include <nntl/interface/math/smath.h>
 
-#include "_mcwFindKOrdered_hlpr.h"
+#include <nntl/interface/math/_mcwFindKOrdered_hlpr.h>
 
 namespace nntl {
 namespace math {

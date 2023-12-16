@@ -31,8 +31,8 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 #pragma once
 
-#include "training_observer.h"
-#include "./utils/vector_conditions.h"
+#include <nntl/training_observer.h>
+#include <nntl/utils/vector_conditions.h>
 
 namespace nntl {
 

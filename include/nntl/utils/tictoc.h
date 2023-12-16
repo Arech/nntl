@@ -33,7 +33,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #pragma once
 
 #include <algorithm>
-#include "../utils/chrono.h"
+#include <nntl/utils/chrono.h>
 
 namespace nntl {
 namespace utils {

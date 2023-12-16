@@ -36,8 +36,8 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //Substitute for your own if you want to utilize mt/st branching code of MathN
 // Or just use MathN_mt for reasonably large data sizes
 
-#include "smath_thr.h"
-#include "../../activations/_loss_parts.h"
+#include <nntl/interface/math/smath_thr.h>
+#include <nntl/activations/_loss_parts.h>
 
 namespace nntl {
 namespace math {

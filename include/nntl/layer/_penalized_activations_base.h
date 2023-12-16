@@ -31,12 +31,11 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 #pragma once
 
-#include "_layer_base.h"
-//#include "_pack_.h"
+#include <nntl/layer/_layer_base.h>
 
-#include "../loss_addendum/L1.h"
-#include "../loss_addendum/L2.h"
-#include "../loss_addendum/DeCov.h"
+#include <nntl/loss_addendum/L1.h>
+#include <nntl/loss_addendum/L2.h>
+#include <nntl/loss_addendum/DeCov.h>
 
 namespace nntl {
 

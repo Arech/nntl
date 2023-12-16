@@ -31,7 +31,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 #pragma once
 
-#include "../interface/math/smatrix.h"
+#include <nntl/interface/math/smatrix.h>
 
 namespace nntl {
 

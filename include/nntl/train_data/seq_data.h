@@ -36,7 +36,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <vector>
 #include <algorithm>
 
-#include "../serialization/serialization.h"
+#include <nntl/serialization/serialization.h>
 
 //seq_data stores a set of sequences for classification
 

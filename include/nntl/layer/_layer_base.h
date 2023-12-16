@@ -31,12 +31,12 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 #pragma once
 
-#include "../_nnet_errs.h"
-#include "../interfaces.h"
-#include "../serialization/serialization.h"
+#include <nntl/_nnet_errs.h>
+#include <nntl/interfaces.h>
+#include <nntl/serialization/serialization.h>
 
-#include "../grad_works/grad_works.h"
-#include "_init_layers.h"
+#include <nntl/grad_works/grad_works.h>
+#include <nntl/layer/_init_layers.h>
 
 namespace nntl {
 

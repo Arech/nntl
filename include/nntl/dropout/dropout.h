@@ -34,7 +34,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //This file defines wrapper around classical Dropout
 //Layer classes will be derived from this classes using public inheritance, so code wisely
 
-#include "_base.h"
+#include <nntl/dropout/_base.h>
 
 namespace nntl {
 

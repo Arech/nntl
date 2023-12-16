@@ -31,7 +31,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 #pragma once
 
-#include "_i_loss_addendum.h"
+#include <nntl/loss_addendum/_i_loss_addendum.h>
 
 namespace nntl {
 namespace loss_addendum {

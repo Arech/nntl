@@ -33,7 +33,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 //bwlist is a base class that implements machinery necessary to create a black or whitelist of layers by their ID or LayerID
 
-#include "vector_conditions.h"
+#include <nntl/utils/vector_conditions.h>
 
 namespace nntl {
 namespace utils {

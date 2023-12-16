@@ -39,7 +39,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 //DEPRECATED
 
-#include "mathn.h"
+#include <nntl/interface/math/mathn.h>
 
 namespace nntl {
 namespace math {

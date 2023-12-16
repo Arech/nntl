@@ -35,11 +35,11 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //this grad_works mixin introduces a wrapper over loss functions addendums such as L1 or L2 regularizers
 // #include compatible addendums from the ./loss_addendum folder before this file 
 
-#include "../utils/tuple_utils.h"
-#include "../utils/mixins.h"
+#include <nntl/utils/tuple_utils.h>
+#include <nntl/utils/mixins.h>
 
-#include "../loss_addendum/L1.h"
-#include "../loss_addendum/L2.h"
+#include <nntl/loss_addendum/L1.h>
+#include <nntl/loss_addendum/L2.h>
 
 namespace nntl {
 namespace GW { //GW namespace is for grad_works mixins and other stuff, that helps to implement gradient processing voodooo things

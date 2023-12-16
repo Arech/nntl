@@ -46,7 +46,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 // LPH with an always-present data), then make sure that the case when all gates are closed (i,e, when all g_i == 0) is impossible.
 // Else it may screw the gradient propagation.
 
-#include "_lph_base.h"
+#include <nntl/layer/_lph_base.h>
 
 namespace nntl {
 	

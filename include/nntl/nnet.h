@@ -35,20 +35,20 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <algorithm>
 #include <filesystem>//for weights persistence
 
-#include "common.h"
+#include <nntl/common.h>
 
-#include "errors.h"
-#include "_nnet_errs.h"
-#include "utils.h"
-#include "train_data.h"
+#include <nntl/errors.h>
+#include <nntl/_nnet_errs.h>
+#include <nntl/utils.h>
+#include <nntl/train_data.h>
 
-#include "nnet_train_opts.h"
-#include "common_nn_data.h"
+#include <nntl/nnet_train_opts.h>
+#include <nntl/common_nn_data.h>
 
-#include "interface/inspectors/gradcheck.h"
+#include <nntl/interface/inspectors/gradcheck.h>
 
 //we're using .mat files as a storage for weight saving/loading
-#include "../../nntl/nntl/_supp/io/matfile.h"
+#include <nntl/_supp/io/matfile.h>
 
 namespace nntl {
 

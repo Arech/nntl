@@ -31,9 +31,9 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 #pragma once
 
-#include "dropout.h"
+#include <nntl/dropout/dropout.h>
 
-#include "../_SNN_common.h"
+#include <nntl/_SNN_common.h>
 
 namespace nntl {
 

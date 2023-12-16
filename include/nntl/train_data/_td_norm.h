@@ -33,9 +33,9 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include <vector>
 
-#include "_i_train_data.h"
+#include <nntl/train_data/_i_train_data.h>
 
-#include "../utils/mtx2Normal.h"
+#include <nntl/utils/mtx2Normal.h>
 
 //note: the code will probably be refactored in some way. All normalization-related code should probably be made independent of TD itself.
 

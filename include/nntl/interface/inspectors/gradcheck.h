@@ -31,10 +31,8 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 #pragma once
 
-#include "../_i_inspector.h"
-#include "../../utils/gradcheck.h"
-//#include "../../_supp/io/matfile.h"
-
+#include <nntl/interface/_i_inspector.h>
+#include <nntl/utils/gradcheck.h>
 
 //intended to be used for a numeric gradient check
 namespace nntl {

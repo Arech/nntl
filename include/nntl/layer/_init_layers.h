@@ -34,8 +34,8 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include <type_traits>
 #include <algorithm>
-#include "_pack_traits.h"
-#include "../common_nn_data.h"
+#include <nntl/layer/_pack_traits.h>
+#include <nntl/common_nn_data.h>
 
 namespace nntl {
 

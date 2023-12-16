@@ -31,8 +31,8 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 #pragma once
 
-#include "../interface/rng/cstd.h"
-#include "../weights_init.h"
+#include <nntl/interface/rng/cstd.h>
+#include <nntl/weights_init.h>
 
 namespace nntl {
 namespace test_weights_init {

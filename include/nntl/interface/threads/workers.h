@@ -31,7 +31,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 #pragma once
 
-#include "../_i_threads.h"
+#include <nntl/interface/_i_threads.h>
 
 namespace nntl {
 namespace threads {

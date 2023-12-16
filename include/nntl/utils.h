@@ -33,8 +33,8 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include <type_traits>
 
-#include "utils/denormal_floats.h"
-#include "utils/tuple_utils.h"
-#include "utils/own_or_use_ptr.h"
-#include "utils/scope_exit.h"
-#include "utils/chrono.h"
+#include <nntl/utils/denormal_floats.h>
+#include <nntl/utils/tuple_utils.h>
+#include <nntl/utils/own_or_use_ptr.h>
+#include <nntl/utils/scope_exit.h>
+#include <nntl/utils/chrono.h>

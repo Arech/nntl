@@ -31,7 +31,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 #pragma once
 
-#include "_activation_wrapper.h"
+#include <nntl/layer/_activation_wrapper.h>
 
 //This is a basic building block of almost any feedforward neural network - fully connected layer of neurons.
 

@@ -34,7 +34,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #pragma once
 
-#include "weights_init/static.h"
+#include <nntl/weights_init/static.h>
 
 //procedural weight init schemes might be somewhat heavy to compile. Place a separate additional include for the neccessary scheme when needed.
 //#include "weights_init/LsuvExt.h"

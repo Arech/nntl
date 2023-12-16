@@ -34,7 +34,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 //ignore this file, to be done later
 
-#include "../../utils/tictoc.h"
+#include <nntl/utils/tictoc.h>
 
 namespace nntl {
 namespace mt {

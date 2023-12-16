@@ -34,9 +34,9 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 //this an addition to generic tuple_utils.h to work over tuple of layers
 
-#include "../utils/tuple_utils.h"
+#include <nntl/utils/tuple_utils.h>
 
-#include "_init_layers.h"
+#include <nntl/layer/_init_layers.h>
 
 namespace nntl {
 namespace tuple_utils {

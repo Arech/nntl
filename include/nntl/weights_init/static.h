@@ -35,7 +35,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 // this file provides definitions of static weights initialization algorithms
 // Procedural weight initialization algorithms, such as LSUV, are separated into neighboring headers
 
-#include "../interface/rng/distr_normal_naive.h"
+#include <nntl/interface/rng/distr_normal_naive.h>
 
 namespace nntl {
 	namespace weights_init {

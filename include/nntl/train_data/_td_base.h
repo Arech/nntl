@@ -31,9 +31,9 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 #pragma once
 
-#include "_i_train_data.h"
+#include <nntl/train_data/_i_train_data.h>
 
-#include "_td_norm.h"
+#include <nntl/train_data/_td_norm.h>
 
 namespace nntl {
 namespace _impl {

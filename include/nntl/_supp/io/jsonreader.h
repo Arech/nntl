@@ -55,8 +55,8 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include <limits>
 
-#include "../../errors.h"
-#include "../../train_data.h"
+#include <nntl/errors.h>
+#include <nntl/train_data.h>
 
 //define necessary RAPIDJSON_ macros before including this file
 #define RAPIDJSON_SSE2

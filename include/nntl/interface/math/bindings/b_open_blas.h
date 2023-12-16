@@ -40,7 +40,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #define lapack_complex_double ::std::complex<double>
 #include <lapacke.h>
 
-//#include "../../../utils/denormal_floats.h"
+//#include <nntl/utils/denormal_floats.h>
 
 #pragma comment(lib,"libopenblas.dll.a")
 

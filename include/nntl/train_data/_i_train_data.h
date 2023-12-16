@@ -33,7 +33,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include <functional>
 
-#include "../_nnet_errs.h"
+#include <nntl/_nnet_errs.h>
 
 namespace nntl {
 

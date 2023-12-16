@@ -39,9 +39,9 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 // Leave the code here, thought it's kinda at max "early beta" quality.
 
 
-#include "afrand_mt.h"
-#include "../threads/bgworkers.h"
-#include "../../utils/data_buffer.h"
+#include <nntl/interface/rng/afrand_mt.h>
+#include <nntl/interface/threads/bgworkers.h>
+#include <nntl/utils/data_buffer.h>
 
 namespace nntl {
 namespace rng {

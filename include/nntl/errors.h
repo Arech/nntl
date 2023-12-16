@@ -31,8 +31,8 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 #pragma once
 
-#include "_defs.h"
-#include "common.h"
+#include <nntl/_defs.h>
+#include <nntl/common.h>
 
 namespace nntl {
 

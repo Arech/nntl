@@ -31,9 +31,9 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 #pragma once
 
-#include "../../errors.h"
-#include "../../train_data.h"
-#include "../../utils/scope_exit.h"
+#include <nntl/errors.h>
+#include <nntl/train_data.h>
+#include <nntl/utils/scope_exit.h>
 
 
 namespace nntl_supp {

@@ -34,8 +34,8 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 // defines common structs for layer_pack_* layers
 
-#include "_layer_base.h"
-#include "_pack_traits.h"
+#include <nntl/layer/_layer_base.h>
+#include <nntl/layer/_pack_traits.h>
 
 namespace nntl {
 

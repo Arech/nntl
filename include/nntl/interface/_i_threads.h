@@ -31,11 +31,11 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 #pragma once
 
-#include "../utils/denormal_floats.h"
-#include "threads/parallel_range.h"
-#include "../utils/call_wrappers.h"
-#include "threads/_sync_primitives.h"
-#include "threads/prioritize_workers.h"
+#include <nntl/utils/denormal_floats.h>
+#include <nntl/interface/threads/parallel_range.h>
+#include <nntl/utils/call_wrappers.h>
+#include <nntl/interface/threads/_sync_primitives.h>
+#include <nntl/interface/threads/prioritize_workers.h>
 
 namespace nntl {
 namespace threads {

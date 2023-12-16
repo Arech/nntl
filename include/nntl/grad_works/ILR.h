@@ -32,8 +32,9 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #pragma once
 
-#include "ILR_Props.h"
-#include "../utils/mixins.h"
+#include <nntl/grad_works/ILR_Props.h>
+
+#include <nntl/utils/mixins.h>
 
 namespace nntl {
 namespace GW { //GW namespace is for grad_works mixins and other stuff, that helps to implement gradient processing voodooo things
