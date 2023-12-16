@@ -36,7 +36,7 @@ include(CMakePackageConfigHelpers)
 # Project-wide definitions
 #add_compile_definitions()
 
-add_subdirectory(nntl)
+add_subdirectory(include)
 
 if(NNTL_BUILD_TESTS)
     add_subdirectory(tests)
