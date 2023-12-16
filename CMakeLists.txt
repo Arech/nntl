@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.25.1)
 
-include(maintanance/cmake/basics.cmake)
+include(maintenance/cmake/basics.cmake)
 
 option_list(NNTL_BUILD_TESTS ON "Whether to build tests." OFF)
 #option_list(NNTL_BUILD_UNITBENCHS ON "Whether to build unit benchmarks." OFF)
@@ -31,6 +31,7 @@ include(GNUInstallDirs) # it's also mandatory for proper vcpkg porting!
 include(CMakePackageConfigHelpers)
 
 #project wide packages
+find_package(OpenBLAS CONFIG REQUIRED)
 #find_package(Microsoft.GSL CONFIG REQUIRED)
 
 # Project-wide definitions

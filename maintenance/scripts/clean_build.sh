@@ -20,7 +20,7 @@ BUILD_DIR="$(realpath $1)"
 # now the final test after realpath
 [[ -z "${BUILD_DIR:+x}" || ! -d "$BUILD_DIR" ]] && { echo "Argument 1 must be a directory to clean. Ignoring and doing nothing."; exit 0; }
 
-if [[ "$#" -lt 2 || "$2" != "--silent" || "$2" != "-s" ]]; then
+if [[ "$#" -lt 2 || ("$2" != "--silent" && "$2" != "-s") ]]; then
     read -p "Clean build directory '${BUILD_DIR}'? (Y/N): " confirm && [[ $confirm == [yY] || $confirm == [yY][eE][sS] ]] || { echo "Did nothing"; exit 1; }
     echo "Proceeding..."
 fi

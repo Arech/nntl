@@ -45,12 +45,12 @@ function(set_common_test_target_properties target)
   # Older non-namespaced targets are still available, but vcpkg does not export
   # these, so we have to explicitly support either possibility.
   if(TARGET GTest::gtest)
-    target_link_libraries("${target}" GTest::gtest_main GTest::gtest)
+    target_link_libraries("${target}" PRIVATE GTest::gtest_main GTest::gtest)
   else()
-    target_link_libraries("${target}" gtest_main gtest)
+    target_link_libraries("${target}" PRIVATE gtest_main gtest)
   endif()
 
-  target_link_libraries("${target}" Threads::Threads)
+  target_link_libraries("${target}" PRIVATE Threads::Threads)
 
   set_common_google_project_props("${target}")
 endfunction()
@@ -63,9 +63,9 @@ function(set_common_benchmark_target_properties target)
   # Newer benchmark lib introduced namespaced library targets, e.g., 
   # `benchmark::benchmark`.
   if(TARGET benchmark::benchmark)
-    target_link_libraries("${target}" benchmark::benchmark_main benchmark::benchmark)
+    target_link_libraries("${target}" PRIVATE benchmark::benchmark_main benchmark::benchmark)
   else()
-    target_link_libraries("${target}" benchmark_main benchmark)
+    target_link_libraries("${target}" PRIVATE benchmark_main benchmark)
   endif()
 
   set_common_google_project_props("${target}")
@@ -80,8 +80,8 @@ endfunction()
 # - target  Name of the test target to modify.
 function(target_link_gmock target)
   if(TARGET GTest::gmock)
-    target_link_libraries("${target}" GTest::gmock_main GTest::gmock)
+    target_link_libraries("${target}" PRIVATE GTest::gmock_main GTest::gmock)
   else()
-    target_link_libraries("${target}" gmock_main gmock)
+    target_link_libraries("${target}" PRIVATE gmock_main gmock)
   endif()
 endfunction()

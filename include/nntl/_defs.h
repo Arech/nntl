@@ -1,3 +1,4 @@
+#pragma once
 /*
 This file is a part of NNTL project (https://github.com/Arech/nntl)
 
@@ -29,10 +30,7 @@ CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
 OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
-#pragma once
 
-//TODO consider using #define _HAS_EXCEPTIONS 0 to drop exceptions from STL and then turn off c++ expections completely
-//with a compiler switch.
 
 //Microsoft compiler only definition
 //#define nntl_deprecated(msg) __declspec(deprecated(msg))

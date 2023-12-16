@@ -15,10 +15,6 @@ include("${CMAKE_CURRENT_LIST_DIR}/option_list.cmake")
 include("${CMAKE_CURRENT_LIST_DIR}/generic_compiler_setup.cmake")
 
 option_list(ENABLE_CLANG_TIDY OFF "Enable clang-tidy linting" ON)
-if(ENABLE_CLANG_TIDY)
-    message(STATUS "Enabling clang-tidy validation")
-    set(CMAKE_CXX_CLANG_TIDY "clang-tidy-12;-extra-arg=-std=c++23")
-endif()
 
 # CMake sets CMAKE_BUILD_TYPE to Debug (with a command set(CMAKE_BUILD_TYPE_INIT Debug)) if no
 # "-DCMAKE_BUILD_TYPE=.." CLI parameter is specified only for some platforms
@@ -47,10 +43,15 @@ set(CMAKE_POSITION_INDEPENDENT_CODE OFF)
 # undesirable for executables.", therefore it's better to do that precisely for the library instead
 # of global `set(CMAKE_POSITION_INDEPENDENT_CODE ON)`
 
-set(CMAKE_CXX_STANDARD 23)
+set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_EXTENSIONS OFF)
 set(CMAKE_C_STANDARD 17)
 set(CMAKE_C_EXTENSIONS OFF)
+
+if(ENABLE_CLANG_TIDY)
+    message(STATUS "Enabling clang-tidy validation")
+    set(CMAKE_CXX_CLANG_TIDY "clang-tidy-12;-extra-arg=-std=c++${CMAKE_CXX_STANDARD}")
+endif()
 
 include("${CMAKE_CURRENT_LIST_DIR}/setup_vcpkg.cmake")
 

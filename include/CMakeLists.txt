@@ -5,6 +5,15 @@ project("nntl" DESCRIPTION "Neural Network Templates Library" VERSION "1.0.0")
 
 add_library("${PROJECT_NAME}" INTERFACE)
 
+target_compile_definitions("${PROJECT_NAME}" INTERFACE
+	NNTL_MATLAB_AVAILABLE=$<BOOL:${NNTL_MATLAB_AVAILABLE}>)
+
+target_include_directories("${PROJECT_NAME}" INTERFACE
+		$<BUILD_INTERFACE:${CMAKE_CURRENT_LIST_DIR}>
+		$<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>)
+
+target_link_libraries("${PROJECT_NAME}" INTERFACE OpenBLAS::OpenBLAS)
+
 # find ./nntl/ -maxdepth 10 -type f -not -path '*/*\.txt' | sed 's/^\.\///'
 target_sources("${PROJECT_NAME}" INTERFACE FILE_SET HEADERS BASE_DIRS nntl FILES 
 	nntl/activation.h
@@ -24,6 +33,7 @@ target_sources("${PROJECT_NAME}" INTERFACE FILE_SET HEADERS BASE_DIRS nntl FILES
 	nntl/activations/_loss_parts.h
 	nntl/common.h
 	nntl/common_nn_data.h
+	nntl/compiler.h
 	nntl/dropout/alpha_dropout.h
 	nntl/dropout/dropout.h
 	nntl/dropout/_base.h

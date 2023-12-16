@@ -29,17 +29,15 @@ CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
 OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
-// tests.cpp : Defines the entry point for the console application.
-//
 
-#include "stdafx.h"
+#include "common.h"
 
 //to get rid of '... decorated name length exceeded, name was truncated'
-#pragma warning( disable : 4503 )
+//#pragma warning( disable : 4503 )
 
-#include "../nntl/nntl.h"
-#include "../nntl/_supp/io/binfile.h"
-#include "../nntl/_supp/io/matfile.h"
+#include <nntl/nntl.h>
+#include <nntl/_supp/io/binfile.h>
+#include <nntl/_supp/io/matfile.h>
 
 #include "asserts.h"
 #include "common_routines.h"

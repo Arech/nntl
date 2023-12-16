@@ -1,3 +1,4 @@
+#pragma once
 /*
 This file is a part of NNTL project (https://github.com/Arech/nntl)
 
@@ -29,62 +30,44 @@ CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
 OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
-// stdafx.h : include file for standard system include files,
-// or project specific include files that are used frequently, but
-// are changed infrequently
-//
 
-#pragma once
-
-//to make ::rand_s() available
+// TODO: remove
+// to make ::rand_s() available
 #define _CRT_RAND_S
 
-//min() and max() triggers very weird compiler crash while doing ::std::numeric_limits<vec_len_t>::max()
 #define NOMINMAX
 
-//\vc\include\yvals.h(112): error C2338: /RTCc rejects conformant code, so it isn't supported by the C++ Standard Library.
-//Either remove this compiler option, or define _ALLOW_RTCc_IN_STL to acknowledge that you have received this warning.
+//\vc\include\yvals.h(112): error C2338: /RTCc rejects conformant code, so it isn't supported by the
+// C++ Standard Library. Either remove this compiler option, or define _ALLOW_RTCc_IN_STL to
+// acknowledge that you have received this warning.
 #define _ALLOW_RTCc_IN_STL
 
-#define _USE_MATH_DEFINES // for C++ math constants
+#define _USE_MATH_DEFINES  // for C++ math constants
 
-#include "targetver.h"
-
-#include <stdio.h>
-
-//dont need obsolete tchar machinery
-//#include <tchar.h>
-
+#include <cstdio>
 #include <iostream>
 
-//to get rid of '... decorated name length exceeded, name was truncated'
-#pragma warning( disable : 4503 )
+// to get rid of '... decorated name length exceeded, name was truncated'
+#pragma warning(disable : 4503)
 
 #define STDCOUT(args) ::std::cout << args
 #define STDCOUTL(args) STDCOUT(args) << ::std::endl
 
-//#define NNTL_RELEASE_WITH_DEBUG
+// #define NNTL_RELEASE_WITH_DEBUG
 
 //////////////////////////////////////////////////////////////////////////
 // special externals, necessary only for tests, but not nntl
 
-#pragma warning(disable: 28182)
+#pragma warning(disable : 28182)
 #include <gtest/gtest.h>
-#pragma warning(default: 28182)
-
-#ifdef _DEBUG
-#define _GTEST_LIB "gtestd.lib"
-#else
-#define _GTEST_LIB "gtest.lib"
-#endif // _DEBUG
-#pragma comment(lib,_GTEST_LIB)
+#pragma warning(default : 28182)
 
 //////////////////////////////////////////////////////////////////////////
 
-#define NNTL_MATLAB_AVAILABLE 1
+// #define NNTL_MATLAB_AVAILABLE 1
 
-//rounding slightly decreases accuracy, however it prevents nan occuring (possibly from std::exp() vectorized form)
-//this test project requires accuracy more than edge computations, so disable it.
+// rounding slightly decreases accuracy, however it prevents nan occuring (possibly from std::exp()
+// vectorized form) this test project requires accuracy more than edge computations, so disable it.
 #define NNTL_FP_ROUND_TO_ZERO 0
 
 //////////////////////////////////////////////////////////////////////////
@@ -94,18 +77,32 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #define TESTS_SKIP_NNET_LONGRUNNING
 #endif
 
-//#define TESTS_SKIP_LONGRUNNING
-//#define TESTS_SKIP_NNET_LONGRUNNING
+// #define TESTS_SKIP_LONGRUNNING
+// #define TESTS_SKIP_NNET_LONGRUNNING
 
 //////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////
 
-#include "../nntl/_test/test.h"
+#include <nntl/_test/test.h>
 
 #ifdef TESTS_SKIP_LONGRUNNING
-#define NNTL_RUN_TEST4(aroundNumel,maxPercDiff,percDiffStep,numelMult) _NNTL_RUN_TEST((aroundNumel/5>numelMult?aroundNumel/5:aroundNumel),0,1,numelMult,__COUNTER__)
-#define NNTL_RUN_TEST2(aroundNumel,numelMult) _NNTL_RUN_TEST((aroundNumel/5>numelMult?aroundNumel/5:aroundNumel),0,1,numelMult,__COUNTER__)
+#define NNTL_RUN_TEST4(aroundNumel, maxPercDiff, percDiffStep, numelMult) \
+    _NNTL_RUN_TEST(                                                       \
+        (aroundNumel / 5 > numelMult ? aroundNumel / 5 : aroundNumel),    \
+        0,                                                                \
+        1,                                                                \
+        numelMult,                                                        \
+        __COUNTER__)
+#define NNTL_RUN_TEST2(aroundNumel, numelMult)                         \
+    _NNTL_RUN_TEST(                                                    \
+        (aroundNumel / 5 > numelMult ? aroundNumel / 5 : aroundNumel), \
+        0,                                                             \
+        1,                                                             \
+        numelMult,                                                     \
+        __COUNTER__)
 #else
-#define NNTL_RUN_TEST4(aroundNumel,maxPercDiff,percDiffStep,numelMult) _NNTL_RUN_TEST(aroundNumel,maxPercDiff,percDiffStep,numelMult,__COUNTER__)
-#define NNTL_RUN_TEST2(aroundNumel,numelMult) _NNTL_RUN_TEST(aroundNumel,4,2,numelMult,__COUNTER__)
+#define NNTL_RUN_TEST4(aroundNumel, maxPercDiff, percDiffStep, numelMult) \
+    _NNTL_RUN_TEST(aroundNumel, maxPercDiff, percDiffStep, numelMult, __COUNTER__)
+#define NNTL_RUN_TEST2(aroundNumel, numelMult) \
+    _NNTL_RUN_TEST(aroundNumel, 4, 2, numelMult, __COUNTER__)
 #endif

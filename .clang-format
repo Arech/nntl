@@ -43,5 +43,5 @@ WhitespaceSensitiveMacros:
 ---
 # Make sure language specific settings are below the generic settings to be compatible to all languages.
 Language: Cpp
-Standard: c++17
+Standard: c++20
 ...
