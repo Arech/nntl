@@ -117,6 +117,7 @@ Desktop.ini
 *.dll
 *.bmp
 *.bin
+!/tests/test_data/*.bin
 *.mat
 *.VC.db
 *.xlsx

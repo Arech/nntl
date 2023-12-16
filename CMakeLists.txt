@@ -47,5 +47,6 @@ if(NNTL_BUILD_UNITBENCHS)
 endif()
 
 if(NNTL_BUILD_EXAMPLES)
+    message(FATAL_ERROR "building examples isn't supported yet")
     add_subdirectory(examples)
 endif()
