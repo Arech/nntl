@@ -1,0 +1,47 @@
+# clang-format-12 -style=google -dump-config > google-fmt.txt
+BasedOnStyle: Google
+AccessModifierOffset: -2
+AlignAfterOpenBracket: AlwaysBreak
+AlignOperands: AlignAfterOperator
+AllowShortBlocksOnASingleLine: Always
+AllowShortIfStatementsOnASingleLine: Always
+BinPackArguments: false
+BinPackParameters: false
+BitFieldColonSpacing: Both
+BraceWrapping:
+  AfterClass:      true
+  AfterFunction: true
+  SplitEmptyFunction: false
+  SplitEmptyRecord: false
+  SplitEmptyNamespace: false
+BreakBeforeBinaryOperators: NonAssignment
+BreakBeforeBraces: Custom
+BreakBeforeInheritanceComma: true
+BreakInheritanceList: BeforeComma
+BreakConstructorInitializers: BeforeComma
+BreakStringLiterals: false
+ColumnLimit: 100
+ConstructorInitializerAllOnOneLineOrOnePerLine: false # true condenses a lot, but makes harder to track vars initialization
+DerivePointerAlignment: false
+EmptyLineBeforeAccessModifier: Always
+IncludeBlocks: Preserve
+IncludeCategories:
+  - Regex: '^(<|")(assert|complex|ctype|errno|fenv|float|inttypes|iso646|limits|locale|math|setjmp|signal|stdalign|stdargh|stdatomic|stdbool|stddef|stdint|stdio|stdlib|stdnoreturn|string|tgmath|threads|time|uchar|wchar|wctype)\.h(>|")$'
+    Priority: 2
+  - Regex: '^(<|")(cstdlib|csignal|csetjmp|cstdarg|typeinfo|typeindex|type_traits|bitset|functional|utility|ctime|chrono|cstddef|initializer_list|tuple|any|optional|variant|new|memory|scoped_allocator|memory_resource|climits|cfloat|cstdint|cinttypes|limits|exception|stdexcept|cassert|system_error|cerrno|cctype|cwctype|cstring|cwchar|cuchar|string|string_view|array|vector|deque|list|forward_list|set|map|unordered_set|unordered_map|stack|queue|algorithm|execution|teratorslibrary|iterator|cmath|complex|valarray|random|numeric|ratio|cfenv|iosfwd|ios|istream|ostream|iostream|fstream|sstream|strstream|iomanip|streambuf|cstdio|locale|clocale|codecvt|regex|atomic|thread|mutex|shared_mutex|future|condition_variable|filesystem|ciso646|ccomplex|ctgmath|cstdalign|cstdbool)(>|")$'
+    Priority: 3
+  - Regex: '^(<|").*(>|")$'
+    Priority: 1
+IndentRequires: true
+IndentWidth: 4
+PenaltyBreakComment: 1
+WhitespaceSensitiveMacros:
+  - STRINGIZE
+  - PP_STRINGIZE
+  - BOOST_PP_STRINGIZE
+  - GSL_STRINGIFY
+---
+# Make sure language specific settings are below the generic settings to be compatible to all languages.
+Language: Cpp
+Standard: c++17
+...

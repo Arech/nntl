@@ -1,0 +1,37 @@
+# Docs are at https://releases.llvm.org/12.0.0/tools/clang/tools/extra/docs/clang-tidy/index.html
+#
+# - `cppcoreguidelines-pro-bounds-constant-array-index` requires to use `gsl::at`
+#   that contain runtime bounds checks. This will ruin performance of math
+#   algorithms implementations
+# - `cppcoreguidelines-pro-type-vararg` and `hicpp-vararg` are disabled b/c sometimes it pays
+#   to use exception-less vararg C-style functions to emit logs in exception handlers
+#   and in other noexcept-sensitive contexts.
+# - `google-runtime-references` is no longer valid; it was removed from the
+#   style guide in https://github.com/google/styleguide/pull/553, and looks to
+#   have also been removed in recent versions of clang-tidy.
+# - `misc-non-private-member-variables-in-classes` prohibits public data members which is
+#   frequently an overkill.
+# - `modernize-use-default-member-init` confronts with AUTOSAR's requirement to
+#   either use in-class initializaion, or in-constructor initalization, not both.
+# - readability-function-cognitive-complexity has a pretty low threshold which is
+#   also affected by macro usage (dumb idea).
+# - `readability-isolate-declaration` "multiple declarations in a single
+#   statement reduces readability" - very subjective reasoning.
+# - `readability-redundant-member-init` prevents explicit member initialization
+#   which is important to ensure the member is initialized no matter if it has
+#   a constructor or not.
+# - `readability-static-accessed-through-instance` yields false positives when
+#   used on static_assert() context that also checks that a field is accesible not
+#   just in static, but static constexpr context.
+Checks: '-*,boost-*,bugprone-*,clang-analyzer-*,concurrency-*,cppcoreguidelines-*,google-*,hicpp-*,misc-*,modernize-*,performance-*,portability-*,readability-*,-cppcoreguidelines-pro-bounds-constant-array-index,-cppcoreguidelines-pro-type-vararg,-hicpp-vararg,-google-runtime-references,-misc-non-private-member-variables-in-classes,-modernize-use-default-member-init,-modernize-use-trailing-return-type,-readability-function-cognitive-complexity,-readability-isolate-declaration,-readability-redundant-member-init,-readability-static-accessed-through-instance'
+WarningsAsErrors: '*'
+FormatStyle: 'file'
+# RegExps are in POSIX ERE style; it's pretty dumb&simple and it doesn't have zero-width lookaheads
+HeaderFilterRegex: "nntl/.*"
+CheckOptions:
+  - key: hicpp-multiway-paths-covered.WarnOnMissingElse
+    value: true
+  - key: hicpp-signed-bitwise.IgnorePositiveIntegerLiterals
+    value: false
+  - key: readability-uppercase-literal-suffix.NewSuffixes
+    value: 'L;LL;LU;LLU;U;UL;ULL;F'

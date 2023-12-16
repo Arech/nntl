@@ -1,0 +1,4 @@
+# these files are created after setup_vcpkg.sh was run and should be sourced
+# to get a proper VCPKG_ROOT env variable defined
+vcpkg_env.sh
+vcpkg_env.path

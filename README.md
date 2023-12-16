@@ -119,6 +119,8 @@ Please note, that despite Clang compiler is being mentioned in some project buil
 
 ## On converting UML diagrams to NNTL-powered C++ code
 
+![Example of NN architecture](/../master/docs/arch_sample.png)
+
 The only software that is supported at this moment is [Visual Paradigm](https://www.visual-paradigm.com/) v8.0, build sp1_20101008. New versions will probably work too, however I haven't tested them yet. Note, that there are free 30-day trial and free for non-commertial use [community edition](https://www.visual-paradigm.com/download/community.jsp) available. However, I don't know whether these editions allows to export class-diagramm models to XML files, which is essential.
 
 The general workflow is the following: at first, one draws a class diagramm of NN architecture in the Visual Paradigm software. Then he/she exports the diagram into XML file using "Export XML..." feature. After that one executes [convertVPxml.m](https://github.com/Arech/nntl/tree/master/nntl/_uml_converter/convertVPxml.m) Matlab script on the exported XML and obtains a new processed XML file and a `.h` file with a real code. `.h` file is generated using `xslt` on the processed XML. Now one may #include obtained `.h` file and build the net.
